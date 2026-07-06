@@ -1,0 +1,23 @@
+# Defaults for the rotary phone gateway. Run `idf.py set-target esp32c6` first.
+
+CONFIG_IDF_TARGET="esp32c6"
+
+# Console (bring-up REPL over UART)
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+
+# FreeRTOS tick at 1 kHz for tight telephony timing
+CONFIG_FREERTOS_HZ=1000
+
+# Main task stack (app_main wires up a lot)
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# Reasonable log default
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+
+# Filesystem partition for audio assets (later milestones)
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# 4 MB flash to fit factory app + asset storage partition
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="4MB"

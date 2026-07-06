@@ -1,0 +1,987 @@
+
+--- page 1 ---
+  V1.6    October 2011 
+Datasheet  
+ 
+Ag1171  
++3.3V / +5.0V Low Power Ringing SLIC  
+ 
+© Silver Telecom 2011 
+Silvertel  
+  
+ 
+ 
+Features 
+ 
+/head2right A highly featured low power SLIC in 
+a 14 pin SIL format. 
+ 
+/head2right Integral high efficiency DC/DC 
+converter.  Single supply voltage: 
++3.3V to +5.0V.  
+ 
+/head2right Highly integrated with an on-board 
+ringing generator. 
+ 
+/head2right Tip/Ring polarity reversal. On-Hook 
+Transmission for caller line ID. 
+ 
+/head2right Suitable for FCT applications. 
+ 
+/head2right Easy to use, with a minimum 
+number of external components. 
+ 
+/head2right Simplified protection in “on-
+premise” applications. 
+ 
+/head2right Silvertel “design-in” assistance 
+ 
+Description  
+ 
+The Silvertel Ag1171 is a single Subscriber Line In terface Circuit (SLIC) in a 14 pin single 
+in line (SIL) format.  The combination of features and packaging offers extremely efficient 
+use of board area, saving significant system size a nd cost, minimising time to market for 
+Telephony Systems developers. 
+ 
+The Ag1171 has been designed to work with loop leng ths of typically 1.0km (470R 
+including telephone).   
+ 
+The Ag1171 has integral dc/dc converter and ringing  generation thus providing all the line 
+powering requirements from a single supply.  The Ag 1171 requires a minimum of external 
+components, making it ideal for low line count, short loop length applications, such as WLL 
+Terminal (WLL), Fixed Cellular Terminals (FCT), Fix ed Wireless Terminals (FWT) and 
+Internet Telephony (VoIP). 
+ 
+Pb Pb 
+
+--- page 2 ---
+V1.6 October 2011 
+Data Sheet 
+© Silver Telecom 2011 2  
+Ag1171  
++3.3V / +5.0V Low Power Ringing SLIC 
+ 
+Table of Contents 
+ 
+Features...............................................................................................................................1 
+Description........................................ ...................................................................................1 
+1. Ag1171 Product Selector......................... ........................................................................3 
+2. Pin Description.................................................................................................................5 
+3. Functional Description .....................................................................................................6 
+3.1. Line Interfacing..........................................................................................................6 
+3.2. Battery Feed..............................................................................................................6 
+3.3. Ringing ......................................................................................................................6 
+3.4. Power Down and Synchronisation.............................................................................7 
+3.5. The 2-4 Wire (hybrid) Conversion .............................................................................8 
+3.6. Transmit and Receive Gain..................... ..................................................................8 
+3.7. The 2 Wire Impedance ..............................................................................................8 
+3.8. Network Balance Impedance ....................................................................................8 
+3.9. Tip & Ring Polarity Reversal .....................................................................................8 
+3.10. On Hook Transmission......................... ...................................................................8 
+3.11. Switch Hook Detection ............................................................................................9 
+4. Protection of the Ag1171 SLIC ......................................................................................10  
+4.1. Thermal Protection............................ ......................................................................10  
+4.2. Overvoltage Protection........................ ....................................................................10  
+5. Typical Application............................. ............................................................................10  
+6. DC Supply Voltage.........................................................................................................11  
+7. Layout Considerations ...................................................................................................11  
+7.1. Power and Ground ..................................................................................................11  
+8. Electrical Characteristics................................................................................................12  
+8.1. Absolute Maximum Ratings* ...................................................................................12  
+8.2. Recommended Operating Conditions*............. .......................................................12  
+8.3. DC Electrical Characteristics*..................................................................................13  
+8.4. AC Electrical Characteristics*..................................................................................14  
+9. Package......................................... ................................................................................15  
+ 
+Table of Figures 
+ 
+Figure 1: Block Diagram ......................................................................................................3 
+Figure 2: Ag1171 Package Format ......................................................................................4 
+Figure 3: Ringing Signal Waveforms ...................................................................................7 
+Figure 4: Typical Connection Diagram.................................................................................9 
+Figure 5: Optional EMI Suppression ..................................................................................11  
+ 
+--- page 3 ---
+V1.6 October 2011 
+Data Sheet 
+© Silver Telecom 2011 3  
+Ag1171  
++3.3V / +5.0V Low Power Ringing SLIC 
+1. Ag1171 Product Selector 
+Part Number Impedance Package Supply Voltage Markin g 
+Ag1171 600 ohm SIL 3.3 to 5.0 Volt  
+ 
+Table 1: Ordering Information 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Figure 1: Block Diagram  
+ 
+--- page 4 ---
+V1.6 October 2011 
+Data Sheet 
+© Silver Telecom 2011 4  
+Ag1171  
++3.3V / +5.0V Low Power Ringing SLIC 
+ 
+Ag1171 Ag1171 
+1
+Ag1171 Ag1171 
+1
+Ag1171 Ag1171 Ag1171 Ag1171 
+1
+ 
+ 
+Figure 2: Ag1171 Package Format 
+ 
+ 
+ 
+--- page 5 ---
+V1.6 October 2011 
+Data Sheet 
+© Silver Telecom 2011 5  
+Ag1171  
++3.3V / +5.0V Low Power Ringing SLIC 
+2. Pin Description 
+ 
+Pin # Name Description 
+1 RING (B) Ring.  Connects to the subscriber line Ring.   
+2 TIP (A) Tip.  Connects to the subscriber line Tip. 
+3 F/R Forward/Reverse.   A logic (L) will reverse the Tip and Ring 
+voltage polarities.  F/R is toggled to produce the ringing output. 
+4 RM  Ringing Mode.  Sets bias conditions during ringing. Must be set 
+to logic (H) during ringing. Logic (L) for other modes.  
+5 SHK  Switch Hook.  Indicates an off-hook condition when at logic (H). 
+6 NC No Connection.   Do not connect to this pin. 
+7 NC No Connection.   Do not connect to this pin. 
+8 NC No Connection.   Do not connect to this pin. 
+9 V IN  Audio In.  Analog input signal from the Codec (which is output on 
+Tip and Ring).  Connect via a 10nF capacitor 
+10 V OUT  Audio Out.  This is the analog output signal (from Tip and Ring) 
+to the Codec.  Connect via a 100nF capacitor. 
+11 NC No Connection.   Do not connect to this pin. 
+12 GND PWR  DC/DC Ground.   Ground input for the DC/DC converter. 
+13 +V PWR  DC/DC Supply.   +5.0V or +3.3V input for the DC/DC converter. 
+14 PD  Power Down DC/DC Converter . A logic (L) on this pin powers 
+down the Ag1171.  DO NOT put logic (H) on this pin.  
+ 
+ 
+--- page 6 ---
+V1.6 October 2011 
+Data Sheet 
+© Silver Telecom 2011 6  
+Ag1171  
++3.3V / +5.0V Low Power Ringing SLIC 
+3. Functional Description 
+ 
+3.1. Line Interfacing 
+ 
+As well as being used in an electrically demanding environment, the needs of different 
+applications and regulatory standards means that th e SLIC must be flexible, and have 
+facilities to ensure robust performance. The Ag1171 SLIC provides a complete and flexible 
+interface to the telephone. 
+ 
+3.2. Battery Feed 
+ 
+The Ag1171 has an integral DC/DC converter, which g enerates the battery voltage in the 
+device.  This means that only a single supply of be tween +3.3V to +5.0V is needed, unlike 
+conventional SLICs which will also need a battery v oltage of anything between 20V and 
+60V ( 75V for ringing). This confers a significant cost, space and time to market benefit on 
+the equipment designer. 
+ 
+The battery feed to the telephone line is generated  from the positive supply rail. This 
+provides a 48V battery feed to the line driver, whi ch is adjusted automatically to match line 
+conditions.  In Forward mode the Ring voltage is negative with respect to the Tip voltage. 
+ 
+Power efficiency is good, because the line is suppl ied with only as much power as is 
+needed. Little excess heat is generated, even on sh ort lines. The loop current is pre-set to 
+a constant 30mA, under the conditions shown in Sect ion 10.3 of this datasheet, which 
+specifies the ‘DC Electrical Characteristics’ for the Ag1171. 
+ 
+3.3. Ringing 
+ 
+The ringing signal is generated by switching the SL IC into ringing mode, by setting the RM 
+pin high, and then toggling the F/R pin at the requ ired frequency and cadence. The 
+toggling of the F/R pin produces a balanced signal at Tip and Ring. These signal 
+waveforms are shown in Figure 3. Ringing voltage of approximately 60Vrms is applied to a 
+single telephone set. To limit power consumption RM  should only be set (H) during ringing 
+and set (L) at all other times. 
+ 
+During ringing the integral DC/DC converter is swit ched by RM (H) to produce a battery 
+voltage of 72V.  This will produce greater than 40V rms into 3 telephones (with tone 
+ringers). The slope of the edges on the ringing wav eform is set internally to give the 
+correct waveform with 20Hz to 25Hz ringing frequency. 
+ 
+When an “Off Hook” condition occurs during ringing,  the Ag1171 detects the loop current 
+and signals “Ring Trip” with pulses on the SHK outp ut. The SHK signal must be “de-
+bounced” (persistence check) for 10ms to remove any  spurious pulses.  RM must not be 
+switched (L) until >10ms after F/R is switched perm anently (H). This allows any transient 
+over voltages time to decay. The DC/DC controller limits the power so the Ag1171 can ring 
+continuously with a ring-trip load.  It is recommen ded to switch ringing Off with RM (L) in 
+<500ms to limit the power dissipation. The ring-tri p function will operate up to a loop 
+resistance of typically 470R (equivalent to 1km of line with 300R telephone). 
+--- page 7 ---
+V1.6 October 2011 
+Data Sheet 
+© Silver Telecom 2011 7  
+Ag1171  
++3.3V / +5.0V Low Power Ringing SLIC 
+ 
+Condition 1 - DC ope ration 
+Signal Notes 
+INPUT   RM 
+1
+0
+No ringing 
+OUTPUT   SHK 
+1
+0
+Off hook detected 
+Off Hook 
+NOTE :  SHK SHOULD 
+BE  DE -BOUNCE D F O R 
+10ms 
+Condition 2 - Ringing On-hook 
+RM 
+1
+0
+F/R 
+(input) 
+1
+0
+SHK 
+1
+0
+Condition 3 - Ringing/Off-hook 
+A B
+The phone goes off hook, and SHK is detected at poi nt A 
+(leading edge).  RM must be switched low in <500ms 
+(point B), and the ringing cadence should be remove d 
+from F/R.. 
+As long as the telephone is off hook, SHK will rema in high. 
+1 sec 3 sec 1 sec 3 sec 
+Condition 1 - DC ope ration 
+Signal Notes 
+INPUT   RM 
+1
+0
+No ringing 
+OUTPUT   SHK 
+1
+0
+Off hook detected 
+Off Hook 
+NOTE :  SHK SHOULD 
+BE  DE -BOUNCE D F O R 
+10ms 
+Condition 2 - Ringing On-hook 
+RM 
+1
+0
+F/R 
+(input) 
+1
+0
+SHK 
+1
+0
+Condition 3 - Ringing/Off-hook 
+A B
+The phone goes off hook, and SHK is detected at poi nt A 
+(leading edge).  RM must be switched low in <500ms 
+(point B), and the ringing cadence should be remove d 
+from F/R.. 
+As long as the telephone is off hook, SHK will rema in high. 
+1 sec 3 sec 1 sec 3 sec 
+Condition 1 - DC ope ration 
+Signal Notes 
+INPUT   RM 
+1
+0
+No ringing 
+OUTPUT   SHK 
+1
+0
+Off hook detected 
+Off Hook 
+NOTE :  SHK SHOULD 
+BE  DE -BOUNCE D F O R 
+10ms 
+Condition 2 - Ringing On-hook 
+RM 
+1
+0
+F/R 
+(input) 
+1
+0
+SHK 
+1
+0
+Condition 3 - Ringing/Off-hook 
+A B
+The phone goes off hook, and SHK is detected at poi nt A 
+(leading edge).  RM must be switched low in <500ms 
+(point B), and the ringing cadence should be remove d 
+from F/R.. 
+As long as the telephone is off hook, SHK will rema in high. 
+1 sec 3 sec 1 sec 3 sec 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Figure 3: Ringing Signal Waveforms 
+ 
+ 
+3.4. Power Down and Synchronisation 
+ 
+The DC/DC converter can be switched off by applying a logic (L) level to the PD input. The 
+SLIC takes 50ms to power up from this state. Logic outputs are not valid during this time. 
+When using the power down function, it is recommend ed that the SLIC is polled (powered 
+up periodically) to check for SHK (the subscriber h as gone off-hook). If Power Down mode 
+is not required, the PD pin should be left open cir cuit. The PD input should not be taken to 
+a logic (H) as this may damage the SLIC.  Connectin g to PD via a diode will ensure it is 
+never taken (H). NOTE: This is a sensitive node, keep connections very short. 
+ 
+The DC/DC has an internal oscillator. If desired fo r EMC reasons, the oscillator frequency 
+may be synchronised with an external clock. To do t his, a 64kHz square wave (with 50:50 
+mark space) should be input to the PD pin. See Appl ications Note: AN1171-1, for further 
+details. 
+ 
+ 
+The phone goes Off Hook, and SHK is signalled, at point A 
+(leading edge).  After the SHK persistence check  F/R 
+should be switched (H) (point B) and then RM must be 
+switched (L) in >10ms and <500ms. 
+ 
+SHK will remain (H) as long as the phone is Off Hook 
+--- page 8 ---
+V1.6 October 2011 
+Data Sheet 
+© Silver Telecom 2011 8  
+Ag1171  
++3.3V / +5.0V Low Power Ringing SLIC 
+3.5. The 2-4 Wire (hybrid) Conversion 
+ 
+The Ag1171 SLIC transmits and receives balanced 2 w ire analog signals at the Tip and 
+Ring connections. These are converted to a ground referenced output at VOUT and from a 
+ground referenced input at VIN. 
+ 
+The VOUT and VIN pins are normally connected to a C odec or telephony DSP for 
+conversion of audio to and from a digital format. 
+ 
+3.6. Transmit and Receive Gain 
+ 
+The gain in both the transmit direction (Tip/Ring to VOUT) and the receive direction (VIN to 
+Tip/Ring) is set to 0dB. Normally any gain adjustme nts required by the user can be made 
+by programming the Codec or telephony DSP. 
+ 
+3.7. The 2 Wire Impedance 
+ 
+The Ag1171 2 Wire impedance at Tip/Ring is set inte rnally to 600R. It requires no external 
+programming resistors. 
+ 
+3.8. Network Balance Impedance 
+ 
+The Ag1171 network balance impedance, ZB, is set in ternally to 600R.  It requires no 
+external programming resistors. 
+ 
+3.9. Tip & Ring Polarity Reversal 
+ 
+The Ag1171 can reverse the battery voltage polarity at Tip and Ring via the F/R pin. 
+ 
+If F/R is held at logic (H) (Forward) the d.c. volt age at Ring is negative with respect to Tip.  
+If F/R is taken to logic (L) (Reverse) the voltage at Ring is positive with respect to Tip.  
+ 
+3.10. On Hook Transmission 
+ 
+The Ag1171 is capable of on-hook transmission if an  external resistor is fitted between 
+pins 1 (Ring) and 2 (Tip).   
+ 
+This means analog signals can be transmitted from VIN through Tip and Ring and onto the 
+line even when no external loop current is flowing.   This can be used when sending Caller 
+Line Identification (CLI) information or for other “no ring” calls. 
+ 
+The Ag1171 will provide on hook transmission of audio signals up to 0dBm (0.775V) with a 
+high impedance on Tip/Ring or with AC loads down to  600R.  To achieve this the external 
+bias resistor should have a value of 20Kohms.  This will increase the VPWR idle current by 
+35ma.  A larger value of resistor will reduce the i dle current but the maximum audio signal 
+which can be transmitted will be reduced in proport ion e.g. a 39Kohm bias resistor will 
+allow audio signals up to –6dBm (0.387V) with an increase in idle current of 18mA. 
+ 
+ 
+--- page 9 ---
+V1.6 October 2011 
+Data Sheet 
+© Silver Telecom 2011 9  
+Ag1171  
++3.3V / +5.0V Low Power Ringing SLIC 
+ 
+ 
+ 
+Figure 4: Typical Connection Diagram 
+ 
+ 
+ 
+3.11. Switch Hook Detection 
+ 
+When the subscriber goes “off-hook” loop current will begin to flow.  If this current is above 
+the detection threshold the switch hook output, SHK , will switch to a logic (H).  It is 
+recommended that software or hardware de-bouncing o f the switch hook signal is used.  
+This is to avoid short pulses which can cause a fal se switch hook output, triggering the 
+incorrect system response. 
+ 
+During loop disconnect dialling, SHK will pulse bet ween logic (H) and logic (L) to indicate 
+the digits being dialled.  Again it is recommended that software de-bouncing of the pulse 
+edges is used to avoid false detection of digits 
+Components  
+ 
+C1, C3 = 100nF 
+C4 = 10nF 
+C2 = 470uF, 16V Aluminium Electrolytic (standard type)  
+R1 = External DC bias resistor (required for CLI) typically 20K to 39K 
+D1 = BZT03C82 or P6KE82 (only one needed per line card) 
+D2 – 5 = 1N4004 or MB4S bridge 
+D6 = 1N4148 or BAS16 
+ 
+--- page 10 ---
+V1.6 October 2011 
+Data Sheet 
+© Silver Telecom 2011 10   
+Ag1171  
++3.3V / +5.0V Low Power Ringing SLIC 
+4. Protection of the Ag1171 SLIC 
+ 
+4.1. Thermal Protection 
+ 
+Should the SLIC be operated incorrectly, for example by accidentally shorting Tip and Ring 
+to each other or to ground, the power dissipation i s automatically limited by the DC/DC 
+converter 
+ 
+This feature means that the SLIC will always operat e within its power limits, without 
+overheating. When operating on very short lines the  battery voltage is regulated to a low 
+value. This limits the power dissipation and ensure s the Ag1171 operates with a minimum 
+temperature rise.  
+ 
+4.2. Overvoltage Protection 
+ 
+The Ag1171 is designed for use short loop “on-premi se” applications, such as FCT, FWT, 
+WLL and VoIP.  In this case power cross and lightni ng protection is not required.  The only 
+protection which should be required is for ESD (Ele ctro Static Discharge) caused by 
+handling during installation. 
+ 
+The Ag1171 has been designed to be able to use low cost ESD protection components. A 
+typical circuit is shown in Figure 4.  This circuit  is suitable for most “on-premise” 
+applications. 
+ 
+This circuit is the minimum overvoltage protection that should be used with the Ag1171.  
+Operation with no overvoltage protection or with in correct components (e.g. Varistors or 
+Gas Discharge tubes) is strongly discouraged and will not be supported by Silvertel. 
+ 
+In ‘off-premise’ applications, a subscriber circuit  will be required to withstand over voltage 
+conditions which could be caused by lightning or ov erhead power cables striking the 
+telephone cables.  It is therefore normal in “off-p remise” applications to provide additional 
+primary and secondary protection circuits to preven t damage to the SLIC.  For further 
+information see application note ANX-Overvolt1. Thi s is available on our website 
+www.silvertel.com. 
+ 
+ 
+5. Typical Application 
+ 
+The Ag1171 has been designed to interface to teleph ony Codecs or DSPs. Applications 
+drawings for many codecs and DSP chips are availabl e. Please contact Silvertel or visit 
+our website www.silvertel.com. An example is shown in figure 4. 
+ 
+The status outputs from the SLIC are passed to the micro-controller. These signals can 
+then be processed as necessary by the system software. 
+ 
+The audio signals which are on the 4 wire side of the connection are coupled by capacitors 
+to avoid d.c. level problems between the two devices. 
+ 
+--- page 11 ---
+V1.6 October 2011 
+Data Sheet 
+© Silver Telecom 2011 11   
+Ag1171  
++3.3V / +5.0V Low Power Ringing SLIC 
+6. DC Supply Voltage 
+ 
+During operation the DC Supply Voltage MUST be regu lated within the limits shown in the 
+Electrical Characteristics – Section 10.0 of this datasheet. Use of a “clean” power supply is 
+extremely important. Should the VCC supply rail go above the Absolute Maximum Rating 
+of 7.0V, for even a short time, then permanent damage to the Ag1171 is likely to result. 
+ 
+We also advise that the designer performs a full sy stem evaluation, under all possible 
+performance conditions, to ensure that the VCC Maximum rating is not exceeded. 
+ 
+In some applications, additional EMI suppression ma y be needed.  In this instance 
+capacitors can be added to filter out the higher fr equencies of the DC-DC converter.  See 
+figure 5 for details.  Values between 1nF and 10nF are suitable. 
+ 
+ 
+ 
+Figure 5: Optional EMI Suppression 
+ 
+ 
+ 
+ 
+7. Layout Considerations 
+ 
+7.1. Power and Ground 
+ 
+Tracks to the +VPWR and GNDPWR should be made as th ick as possible. To maximise 
+the performance of the device, signal tracks should  be kept as short as possible.  To 
+reduce DC/DC noise capacitors up to 10nF may be connected to ground at Tip and Ring. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+--- page 12 ---
+V1.6 October 2011 
+Data Sheet 
+© Silver Telecom 2011 12   
+Ag1171  
++3.3V / +5.0V Low Power Ringing SLIC 
+8. Electrical Characteristics 
+ 
+8.1. Absolute Maximum Ratings* 
+ Parameter Symbol Min Max Units 
+1 DC Supply Voltage V CC  -0.3 7.0 V 
+2 Maximum Power Dissipation, Off Hook @ 25 oC P SLIC   1.2 W 
+3 Storage Temperature T S -40 +100 OC 
+4 Duty Cycle for RM(H)   33 % 
+*Exceeding the above ratings may cause permanent damage to the product.  Functional operation under these conditions is not implied. 
+Maximum ratings assume free airflow. 
+ 
+8.2. Recommended Operating Conditions* 
+All Voltages are with respect to ground unless otherwise stated. 
+ Parameter Symbol Min Typ Max Units 
+1  DC Supply Voltage V CC  3.1  5.5 V 
+2 Operating Temperature T OP  0 25 70 OC 
+*Typical figures are at 25°C with nominal +5.0V/+3.3V supplies and are for design use only. They are not guaranteed 
+It is important that the user performs a full system evaluation, under all possible performance conditions, to ensure that the VCC 
+Maximum rating is not exceeded. 
+ 
+--- page 13 ---
+V1.6 October 2011 
+Data Sheet 
+© Silver Telecom 2011 13   
+Ag1171  
++3.3V / +5.0V Low Power Ringing SLIC 
+8.3. DC Electrical Characteristics* 
+ DC Characteristic Sym Min Typ*  Max Units Test Comments 
+1 
+Supply Current, on-hook  
+ @ 5.0V 
+ @ 3.3V 
+I
+vpwr   
+ 
+60 
+70 
+ 
+90 
+105 
+ 
+mA 
+mA 
+CLI bias resistor 
+not fitted 
+2 
+Supply current ringing 1 REN 
+ @ 5.0V 
+ @ 3.3V 
+I
+RINGING   
+ 
+330 
+350 
+ 
+480 
+500 
+ 
+mA 
+mA 
+ 
+R
+LOOP  = 0R 
+Load = 1 REN 
+3 
+Supply current, off-hook 
+ @ 5.0V 
+ @ 3.3V 
+I
+ACTIVE   
+ 
+290 
+360 
+ 
+400 
+450 
+ 
+mA 
+mA 
+ 
+R
+LOOP  =0R  
+Load = 300R 
+4 
+Supply current during ring trip 
+(<1 sec max) 
+ @ 5.0V 
+ @ 3.3V 
+  
+ 
+ 
+330 
+350 
+ 
+ 
+ 
+mA 
+mA 
+ 
+ 
+R
+LOOP  =0R  
+Load = 300R 
+5 Supply current in power down I PD   7 
+5  mA 
+mA 
+@ 5.0V 
+@ 3.3V 
+6 Wake-up time   50  ms Logic outputs not 
+valid for this time 
+7 SHK debounce time   10  ms  
+8 RM (H) persistence time  10    After ring trip 
+9 
+Constant current feed to line 
+ @ 5.0V 
+ @ 3.3V 
+I
+LOOP   
+ 
+30 
+26 
+ 
+ 
+mA 
+mA 
+Load = 300R  
+10 Tip/Gnd or Ring/Gnd or 
+Tip&Ring/Gnd overcurrent   45 
+50 
+ 
+ 
+mA 
+mA 
+RM = L 
+RM = H 
+11 
+Off-Hook detect @5.0V 
+Output Low Voltage 
+Output High Voltage 
+ 
+V
+OL 
+VOH  
+ 
+ 
+4.5 
+ 0.5 
+ 
+V 
+V 
+12 
+Off-Hook detect @3.3V 
+Output Low Voltage 
+Output High Voltage 
+ 
+V
+OL  
+VOH  
+ 
+ 
+2.8 
+ 
+ 
+0.5 
+ 
+ 
+V 
+V 
+100uA max output 
+(with 3.3k internal 
+pull-up resistor) 
+ 
+VIL  
+VIH  
+ 
+3.5  0.5 
+ 
+V 
+V @ 5.0V 
+13 
+Control Inputs, F/R, RM 
+Input Low Voltage 
+Input High Voltage 
+ VIL  
+VIH  
+ 
+2.0  0.5 
+ 
+V 
+V @ 3.3V 
+14 
+Control Inputs, F/R, RM 
+Input low current 
+Input high current 
+ 
+ 
+I
+IL  
+IIH  
+ 
+-0.5 
+-0.5 
+ 
+ 
+0.5 
+0.5 
+ 
+mA 
+mA 
+ 
+ 
+ 
+VIL  
+VIH  
+ 
+2.0  0.5 
+ 
+V 
+V @ 5.0V 
+15 
+Control Inputs, PD 
+Input Low Voltage 
+Input High Voltage 
+ VIL  
+VIH  
+ 
+2.0  0.5 
+ 
+V 
+V @ 3.3V 
+--- page 14 ---
+V1.6 October 2011 
+Data Sheet 
+© Silver Telecom 2011 14   
+Ag1171  
++3.3V / +5.0V Low Power Ringing SLIC 
+ DC Characteristic Sym Min Typ*  Max Units Test Comments 
+15 
+Control Inputs, PD 
+Input low current 
+Input high current 
+ 
+ 
+I
+IL  
+IIH  
+ 
+-0.5 
+-0.5 
+ 
+ 
+0.5 
+0.5 
+ 
+mA 
+mA 
+ 
+ 
+ 
+1)  All DC Electrical Characteristics are over the Recommended Operating Conditions with V CC  at +5.0V +1%,or +3.3V +1%, unless 
+otherwise stated.  
+2) Operating currents are dependent on the users application.  
+*Typical figures are at 25°C and are for design aid only.  Not Guaranteed 
+ 
+8.4. AC Electrical Characteristics* 
+ AC Characteristic Sym Min Typ*  Max  Units Test Comments 
+1 SHK Detect Time   5  ms No Ringing  
+2 Ring Trip Capability    470 ohm Includes 
+telephone set 
+3 Input Impedance at V IN    60  kohm  
+4 Output impedance at V OUT     10 ohm  
+5 Ringing Capability at 40V rms     3  phone note 3 
+6 Ringing voltage   65  Vrms No load @ 
+20Hz 
+7 Absolute Voltage Gain, 2 Wire 
+to V OUT   -0.75  0 0.75  dB Off-Hook  
+8 Absolute Voltage Gain V IN  to 
+2Wire  -0.75  0 0.75  dB Off-Hook  
+9 
+Relative Gain. 
+Referenced to 1kHz.  
+2Wire - V 
+OUT , V IN   - 2Wire 
+ -0.5  0.5 dB 
+Over frequency 
+range 300 to 
+3400 Hz 
+ 
+10  Overload Distortion @2 Wire 
+and V 
+OUT  OD  0.5 
+5 
+  1 
+ 
+% 
+% 
+@+3dBm, 1kHz 
+@+6dBm, 1kHz 
+ 
+11  Idle Channel Noise NC  5 18 dBrnC @2 Wire & V OUT    
+13  Return Loss RL 16 
+18   
+dB 300 - 500 Hz 
+500Hz - 3400Hz 
+ 
+14  Transhybrid Loss  THL 
+12 
+21 
+16 
+  
+dB 
+dB 
+dB 
+300-500Hz 
+500-2500Hz 
+2500-3400Hz 
+ 
+15  Load on VOUT   10  kohm Coupling 
+capacitor = 100nF 
+16  Tip-Ring Reversal Settling 
+Time  
+   50 ms To within +20% 
+of set I 
+LOOP   
+3)  This applies to 3 phones with tone ringers or 2 phones with mechanical bells.  
+*Typical figures are at 25°C and are for design aid only. 
+ 
+--- page 15 ---
+V1.6 October 2011 
+Data Sheet 
+© Silver Telecom 2011 15   
+Ag1171  
++3.3V / +5.0V Low Power Ringing SLIC 
+9. Package 
+12.0mm 
+61mm 
+3.0 
+0.6 ± 0.05 2.54 ± 0.25 12.7 ± 0.25 1.27mm 
+Ag1171 Ag1171 
+1
+0.6 ± 0.05 
+12.0mm 
+max 
+6.5mm 
+Dimensions are nominal unless otherwise stated 
+12.0mm 
+61mm 
+3.0 
+0.6 ± 0.05 2.54 ± 0.25 12.7 ± 0.25 1.27mm 
+Ag1171 Ag1171 Ag1171 Ag1171 
+1
+0.6 ± 0.05 
+12.0mm 
+max 
+6.5mm 
+Dimensions are nominal unless otherwise stated  
+Ag1171 Ag1171 
+pin 1 Ring (B) 
+Tip (A) 
+FR 
+RM 
+SHK 
+NC 
+NC 
+NC 
+V
+IN 
+VOUT 
+NC 
+GND PWR 
+VPWR 
+PD 
+Ag1171 Ag1171 Ag1171 Ag1171 
+pin 1 Ring (B) 
+Tip (A) 
+FR 
+RM 
+SHK 
+NC 
+NC 
+NC 
+V
+IN 
+VOUT 
+NC 
+GND PWR 
+VPWR 
+PD 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Information published in this datasheet is believed  to be correct and accurate. Silver Telecom assumes  no liability for errors which may 
+occur or for liability otherwise arising out of use  of this information or infringement of patents whi ch may occur as a result of such use. 
+No license is granted by this document under patent s owned by Silver Telecom or licensed from third pa rties by Silver Telecom. The 
+products, their specification and information appearing in this document are subject to change by Silver Telecom without notice. 
+ 
+Silvertel recommends the use of 2.54mm sockets, 
+especially on prototype and pre production boards. 
+ 
+Recommended PCB hole diameter = 1.1 ±  0.05 mm  

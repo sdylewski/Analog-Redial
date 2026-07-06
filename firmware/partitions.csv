@@ -1,0 +1,6 @@
+# Name,   Type, SubType, Offset,  Size,   Flags
+nvs,      data, nvs,     ,        0x6000,
+phy_init, data, phy,     ,        0x1000,
+factory,  app,  factory, ,        0x180000,
+# Audio assets / recordings (prompts, clips). Mounted at /assets.
+storage,  data, spiffs,  ,        0x200000,

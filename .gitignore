@@ -1,0 +1,42 @@
+# macOS
+.DS_Store
+
+# Python venv (pypdf datasheet extraction)
+.venv-datasheet/
+.venv/
+venv/
+
+# Claude / local AI
+.claude/
+
+# KiCad local / generated
+hardware/kicad/**/.history/
+hardware/kicad/**/*-backups/
+hardware/kicad/**/ERC.txt
+hardware/kicad/**/preview.svg
+hardware/kicad/**/*.kicad_prl
+hardware/kicad/**/jlcpcb/
+hardware/kicad/**/production_files/
+hardware/kicad/**/fabrication-toolkit-files/
+
+# ESP-IDF build artifacts (if built inside tree)
+firmware/build/
+firmware/sdkconfig.old
+firmware/dependencies.lock
+
+# Python
+__pycache__/
+*.py[cod]
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace
+
+# Local reports / scratch
+rotary_phone_gateway_statistics.rpt
+
+# Secrets — never commit
+.env
+*.pem
+credentials.json
