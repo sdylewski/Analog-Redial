@@ -29,8 +29,8 @@ typedef struct {
     uint32_t sample_rate;
     size_t   block_n;          /* samples per Goertzel block (e.g. fs/100 = 10 ms) */
     size_t   filled;
-    float    coeff[8];
-    float    q1[8], q2[8];
+    int32_t  coeff[8];  /* Q14 fixed-point: round(2*cos(w) * 16384) */
+    int32_t  q1[8], q2[8];
     /* debounce: a digit must persist N consecutive blocks, then a gap. */
     char     last_emitted;
     char     candidate;

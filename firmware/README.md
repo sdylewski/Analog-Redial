@@ -155,7 +155,19 @@ idf.py -p /dev/cu.usbmodemXXXX flash monitor
 
 Replace `/dev/cu.usbmodemXXXX` with your port from step 5 above.
 
-Exit the serial monitor with **Ctrl+]** (then Enter if prompted).
+### Monitor keys
+
+`idf_monitor` intentionally does **not** bind Ctrl+C to quit — Ctrl+C is
+passed through to the target instead. Use:
+
+| Keys | Action |
+|------|--------|
+| **Ctrl+]** | Quit |
+| **Ctrl+T, Ctrl+X** | Quit (alternate, if your terminal app eats Ctrl+]) |
+| **Ctrl+T, Ctrl+H** | Full shortcut list (menu help) |
+| **Ctrl+T, Ctrl+R** | Reset the target (RTS pin toggle) without leaving the monitor |
+
+`Ctrl+T` is the menu prefix — press it, release, then press the second key.
 
 > No PCB yet? You can still flash a bare DevKitM-1 and run the console — the
 > hardware-dependent commands fail gracefully (e.g. `i2c_scan` finds nothing,
@@ -188,10 +200,12 @@ running concurrently. Type `help` for the full list. Recommended order:
 
 | Command | Description |
 |---------|-------------|
-| `i2c_scan` | Probe the I²C bus (expects WM8731 @ 0x1A) |
-| `wm8731_init` | Initialize the codec for telephony |
-| `wm8731_dump` | Print shadowed codec registers |
-| `wm8731_bypass <0\|1>` | Analog line-in → line-out bypass |
+| `board_info` | Board type, line count, I2C pins |
+| `i2c_scan` | Probe the I²C bus for the codec |
+| `codec_detect` | Probe both known codec addresses; warn on board-type mismatch |
+| `codec_init` | Initialize the codec (ES8388 on SMD, WM8731 on THT) |
+| `codec_dump` | Print shadowed codec registers |
+| `codec_bypass <0\|1>` | Analog line-in → line-out bypass (WM8731 only) |
 | `tone <hz> <ms> <line>` | Arbitrary test tone on a line |
 | `dialtone\|ringback\|busy [line]` | Call-progress tones |
 | `silence [line]` | Stop audio on a line |
@@ -203,6 +217,10 @@ running concurrently. Type `help` for the full list. Recommended order:
 | `hookmon [secs]` | Live SHK / hook state |
 | `status` | Per-line telephony state |
 
+See [`firmware/bringup/README.md`](bringup/README.md) for host-side scripts
+that drive this console over serial, one per subsystem (MCU, codec, audio,
+SLIC, DTMF), plus a `bringup_checklist.py` that runs the full sequence.
+
 ## Layout
 
 ```
@@ -212,8 +230,9 @@ firmware/
 ├── partitions.csv          # factory app + SPIFFS asset storage
 ├── main/app_main.c         # boot + wire-up + console
 └── components/
-    ├── board/      # GPIO map (board_pins.h) + I2C bus init
-    ├── wm8731/     # codec I2C driver
+    ├── board/      # GPIO map (board_pins.h) + I2C bus init + codec auto-detect
+    ├── wm8731/     # codec I2C driver (THT board)
+    ├── es8388/     # codec I2C driver (SMD boards)
     ├── audio/      # I2S engine, routing, RX taps (VoIP seam)
     ├── tones/      # dual-tone + call-progress synth
     ├── dtmf/       # DTMF gen + Goertzel detect

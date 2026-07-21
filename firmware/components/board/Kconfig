@@ -1,0 +1,32 @@
+menu "Board configuration"
+
+choice
+    prompt "Target board type"
+    default BOARD_TYPE_THT
+    help
+        Select the pin map and codec configuration for the hardware variant.
+
+config BOARD_TYPE_THT
+    bool "Through-hole gateway (WM8731)"
+
+config BOARD_TYPE_SMD2
+    bool "SMD2 / SMD3 gateway (ES8388-compatible pin map)"
+
+endchoice
+
+config BOARD_MICROSD
+    bool "SMD board uses microSD instead of line 2"
+    depends on BOARD_TYPE_SMD2
+    default n
+    help
+        On the SMD layout, GPIO 18-21 can either host the second line or the
+        SPI SD card. Enable this when the assembled PCB has the SD card option.
+
+config BOARD_NUM_LINES
+    int "Number of active phone lines"
+    default 2
+    range 1 2
+    help
+        Set to 1 for single-line SMD builds with the second line DNP.
+
+endmenu

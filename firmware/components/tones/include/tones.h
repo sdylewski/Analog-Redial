@@ -15,12 +15,16 @@
 extern "C" {
 #endif
 
-/* A dual-tone oscillator with phase continuity across buffer fills. */
+/* A dual-tone oscillator with phase continuity across buffer fills.
+ * Phase-accumulator/sine-table internally (see tones.c) -- no float math in
+ * the per-sample path, only at tone_osc_init() (one-time, not hot-loop). */
 typedef struct {
     float    f1, f2;        /* Hz (f2 may be 0 for a single tone) */
-    float    phase1, phase2;
     float    amp;           /* 0..1 of full scale */
     uint32_t sample_rate;
+    uint32_t phase1, phase2; /* Q32 phase accumulators */
+    uint32_t inc1, inc2;     /* Q32 phase increment per sample (inc2 == 0 => single tone) */
+    int32_t  scale;          /* Q15 amplitude factor, already folds in the two-tone half-scale */
 } tone_osc_t;
 
 void tone_osc_init(tone_osc_t *o, uint32_t sample_rate, float f1, float f2, float amp);

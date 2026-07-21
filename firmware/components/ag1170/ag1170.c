@@ -1,5 +1,6 @@
 #include "ag1170.h"
 #include "board_pins.h"
+#include "board_config.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -49,11 +50,34 @@ void ag1170_set_event_cb(ag1170_event_cb cb, void *ctx)
     s_cb_ctx = ctx;
 }
 
+static void set_pd_run(gpio_num_t pd, bool run)
+{
+#if CONFIG_BOARD_TYPE_SMD2
+    /* SMD board: PD is driven through a diode (1N4148W, cathode at the PD
+     * pin), not a transistor -- see hardware/ROTARY_PHONE_SMD.md, "AG1171
+     * SLIC & RJ12": GPIO low pulls PD low through the diode (power-down);
+     * high-Z lets the AG1171's own internal pull-up hold PD open (run).
+     * Driving the GPIO high instead of releasing it isn't guaranteed
+     * equivalent -- it depends on exactly where that internal pull-up sits
+     * relative to the GPIO's high level, which isn't documented. */
+    if (run) {
+        gpio_set_direction(pd, GPIO_MODE_INPUT);
+    } else {
+        gpio_set_direction(pd, GPIO_MODE_OUTPUT);
+        gpio_set_level(pd, 0);
+    }
+#else
+    /* THT board: PD drives an open-collector transistor (BC846) -- GPIO low
+     * = "run" (transistor off, PD left open), GPIO high = powerdown. See
+     * board_pins_tht.h. */
+    gpio_set_level(pd, run ? BOARD_PD_LEVEL_RUN : BOARD_PD_LEVEL_POWERDOWN);
+#endif
+}
+
 esp_err_t ag1170_set_power(int line, bool run)
 {
     if (line < 0 || line >= BOARD_NUM_LINES) return ESP_ERR_INVALID_ARG;
-    gpio_set_level(s_ls[line].pins.pd,
-                   run ? BOARD_PD_LEVEL_RUN : BOARD_PD_LEVEL_POWERDOWN);
+    set_pd_run(s_ls[line].pins.pd, run);
     return ESP_OK;
 }
 
@@ -104,6 +128,18 @@ int ag1170_raw_shk(int line)
 {
     if (line < 0 || line >= BOARD_NUM_LINES) return -1;
     return gpio_get_level(s_ls[line].pins.shk);
+}
+
+int ag1170_pulse_count(int line)
+{
+    if (line < 0 || line >= BOARD_NUM_LINES) return -1;
+    return s_ls[line].pulse_count;
+}
+
+bool ag1170_is_counting_digit(int line)
+{
+    if (line < 0 || line >= BOARD_NUM_LINES) return false;
+    return s_ls[line].counting_digit;
 }
 
 /* ---- per-line ring cadence service ---- */
@@ -225,8 +261,10 @@ static void config_line_gpio(int line)
     };
     gpio_config(&in_cfg);
 
+    /* PD is not in this mask -- set_pd_run() configures its direction
+     * itself (push-pull on THT, direction-toggled input/output on SMD). */
     gpio_config_t out_cfg = {
-        .pin_bit_mask = (1ULL << p.fr) | (1ULL << p.rm) | (1ULL << p.pd),
+        .pin_bit_mask = (1ULL << p.fr) | (1ULL << p.rm),
         .mode = GPIO_MODE_OUTPUT,
         .pull_up_en = GPIO_PULLUP_DISABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -235,7 +273,7 @@ static void config_line_gpio(int line)
     gpio_config(&out_cfg);
 
     /* safe idle: run, not ringing */
-    gpio_set_level(p.pd, BOARD_PD_LEVEL_RUN);
+    set_pd_run(p.pd, true);
     gpio_set_level(p.rm, 0);
     gpio_set_level(p.fr, 0);
 

@@ -5,12 +5,15 @@
 #include "dtmf.h"
 #include "tones.h"
 #include "voip.h"
+#include "player.h"
+#include "storage.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include <string.h>
+#include <stdio.h>
 
 static const char *TAG = "telephony";
 
@@ -22,6 +25,7 @@ static const char *TAG = "telephony";
 typedef enum {
     IN_OFFHOOK = 0, IN_ONHOOK, IN_DIGIT,
     IN_VOIP_INCOMING, IN_VOIP_ANSWERED, IN_VOIP_CLOSED,
+    IN_CLIP_DONE,
 } in_type_t;
 
 typedef struct {
@@ -39,6 +43,8 @@ typedef struct {
     voice_effect_t       call_fx;
     dtmf_detector_t      det;
     char                 last_number[16];
+    char                 last_dtmf_digit;   /* for tonemon/bringup introspection */
+    int64_t              last_dtmf_us;
     /* transient tone auto-return */
     int64_t              tone_return_us; /* 0 = no auto-return */
     tel_state_t          tone_return_state;
@@ -58,6 +64,7 @@ const char *telephony_state_name(tel_state_t s)
         case TEL_INCALL: return "INCALL";
         case TEL_BUSY: return "BUSY";
         case TEL_REORDER: return "REORDER";
+        case TEL_PLAYING: return "PLAYING";
         default: return "?";
     }
 }
@@ -69,6 +76,13 @@ tel_state_t telephony_state(int line)
 const char *telephony_last_number(int line)
 {
     return (line >= 0 && line < NLINES) ? s_line[line].last_number : "";
+}
+
+char telephony_last_dtmf(int line, int64_t *at_us)
+{
+    if (line < 0 || line >= NLINES) return 0;
+    if (at_us) *at_us = s_line[line].last_dtmf_us;
+    return s_line[line].last_dtmf_digit;
 }
 
 /* ---- callbacks (run in other task contexts; just enqueue) ---- */
@@ -87,10 +101,26 @@ static void ag_cb(const ag1170_event_t *ev, void *ctx)
 static void dtmf_tap(int line, const int16_t *mono, size_t n, void *ctx)
 {
     char d = dtmf_detector_push(&s_line[line].det, mono, n);
+    if (d) {
+        /* Recorded for tonemon/bringup introspection regardless of key --
+         * the detector runs continuously on every audio block, independent
+         * of dial state, so this is a free non-invasive tap point. */
+        s_line[line].last_dtmf_digit = d;
+        s_line[line].last_dtmf_us = esp_timer_get_time();
+    }
     if (d >= '0' && d <= '9') {
         in_evt_t e = { .line = line, .type = IN_DIGIT, .digit = d };
         xQueueSend(s_q, &e, 0);
     }
+}
+
+/* player_play()'s done_cb -- runs on the player task, just enqueues like
+ * every other input source (ag_cb/dtmf_tap/voip_cb) so the FSM only ever
+ * changes state from its own task. */
+static void clip_done_cb(int line, void *ctx)
+{
+    in_evt_t e = { .line = line, .type = IN_CLIP_DONE, .digit = 0 };
+    xQueueSend(s_q, &e, 0);
 }
 
 static void voip_cb(const voip_event_t *ev, void *ctx)
@@ -124,6 +154,18 @@ static void enter_dialtone(int line)
     s_line[line].dialing = false;
     s_line[line].tone_return_us = 0;
     dialplan_collector_reset(&s_line[line].coll);
+}
+
+void telephony_force_recover(int line)
+{
+    if (line < 0 || line >= NLINES) return;
+    s_line[line].tone_return_us = 0;
+    if (ag1170_is_offhook(line)) {
+        enter_dialtone(line);
+    } else {
+        enter_idle(line);
+    }
+    ESP_LOGI(TAG, "line %d: forced recovery to %s", line, telephony_state_name(s_line[line].state));
 }
 
 static void play_transient(int line, call_progress_t tone, uint32_t ms,
@@ -185,6 +227,7 @@ static void end_call(int line)
     audio_tx_bridge(line, peer, false);
     audio_tx_silence(line);
     voip_hangup(line);
+    if (s_line[line].state == TEL_PLAYING) player_stop(line);
 
     if (peer >= 0 && peer < NLINES) {
         switch (s_line[peer].state) {
@@ -225,14 +268,25 @@ static void handle_action(int line, const dialplan_action_t *a)
             break;
 
         case ACT_OPERATOR_HELP:
-            ESP_LOGI(TAG, "line %d: operator help (prompt asset TODO)", line);
-            play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+            if (player_play(line, "operator.wav", clip_done_cb, NULL) == ESP_OK) {
+                s_line[line].state = TEL_PLAYING;
+            } else {
+                ESP_LOGI(TAG, "line %d: operator help (no operator.wav in storage yet)", line);
+                play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+            }
             break;
 
-        case ACT_PLAY_CLIP:
-            ESP_LOGI(TAG, "line %d: play clip %d (asset TODO)", line, a->arg);
-            play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+        case ACT_PLAY_CLIP: {
+            char name[STORAGE_MAX_NAME];
+            snprintf(name, sizeof(name), "clip_%d.wav", a->arg);
+            if (player_play(line, name, clip_done_cb, NULL) == ESP_OK) {
+                s_line[line].state = TEL_PLAYING;
+            } else {
+                ESP_LOGI(TAG, "line %d: play clip %d (no %s in storage yet)", line, a->arg, name);
+                play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+            }
             break;
+        }
 
         case ACT_RECORD_PLAYBACK:
             ESP_LOGI(TAG, "line %d: record+playback fx=%d (TODO)", line, a->arg);
@@ -368,6 +422,14 @@ static void fsm_task(void *arg)
                             enter_idle(e.line);
                     }
                     break;
+                case IN_CLIP_DONE:
+                    /* Ignore if we've already moved on (e.g. hung up mid-clip --
+                     * end_call() already handled state via player_stop()). */
+                    if (s_line[e.line].state == TEL_PLAYING) {
+                        if (ag1170_is_offhook(e.line)) enter_dialtone(e.line);
+                        else enter_idle(e.line);
+                    }
+                    break;
             }
         }
 
@@ -385,6 +447,8 @@ static void fsm_task(void *arg)
                 now >= s_line[line].tone_return_us) {
                 s_line[line].tone_return_us = 0;
                 tel_state_t ret = s_line[line].tone_return_state;
+                ESP_LOGI(TAG, "line %d: transient tone done, returning to %s",
+                         line, telephony_state_name(ret));
                 if (ret == TEL_DIALTONE) enter_dialtone(line);
                 else if (ret == TEL_IDLE) enter_idle(line);
             }

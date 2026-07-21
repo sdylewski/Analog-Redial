@@ -6,37 +6,66 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#define TWO_PI (2.0f * (float)M_PI)
+/* Phase-accumulator (DDS) oscillator over a precomputed sine table -- not
+ * sinf() per sample. The ESP32-C6 has no hardware FPU (rv32imac, no f/d
+ * extension), so a sinf()-per-sample oscillator running continuously for
+ * dial tone/ringback/busy is soft-float in the audio hot path -- the same
+ * class of bug fixed in the DTMF Goertzel detector (components/dtmf/dtmf.c).
+ * It stayed hidden here until the SLIC hook-detect fix made dial tone
+ * actually get triggered for real. */
+
+#define SINE_BITS 10
+#define SINE_SIZE (1 << SINE_BITS)
+static int16_t s_sine[SINE_SIZE];
+static bool    s_sine_ready = false;
+
+static void ensure_sine_table(void)
+{
+    if (s_sine_ready) return;
+    for (int i = 0; i < SINE_SIZE; i++) {
+        float phase = (2.0f * (float)M_PI * (float)i) / (float)SINE_SIZE;
+        s_sine[i] = (int16_t)lroundf(sinf(phase) * 32767.0f);
+    }
+    s_sine_ready = true;
+}
+
+static inline int16_t sine_lookup(uint32_t phase)
+{
+    return s_sine[phase >> (32 - SINE_BITS)];
+}
 
 void tone_osc_init(tone_osc_t *o, uint32_t sample_rate, float f1, float f2, float amp)
 {
+    ensure_sine_table();
     o->f1 = f1;
     o->f2 = f2;
-    o->phase1 = 0.0f;
-    o->phase2 = 0.0f;
     o->amp = amp;
     o->sample_rate = sample_rate;
+    o->phase1 = 0;
+    o->phase2 = 0;
+
+    /* One-time float/double math here is fine -- it's the per-sample loop
+     * in tone_osc_fill() that can't afford soft-float, not tone start. */
+    o->inc1 = (uint32_t)((double)f1 / (double)sample_rate * 4294967296.0);
+    o->inc2 = (f2 > 0.0f)
+                  ? (uint32_t)((double)f2 / (double)sample_rate * 4294967296.0)
+                  : 0;
+    /* Scale so the sum of two tones never clips (Q15). */
+    float scale_f = amp * 32768.0f * ((f2 > 0.0f) ? 0.5f : 1.0f);
+    o->scale = (int32_t)lroundf(scale_f);
 }
 
 void tone_osc_fill(tone_osc_t *o, int16_t *out, size_t n)
 {
-    const float dp1 = TWO_PI * o->f1 / (float)o->sample_rate;
-    const float dp2 = TWO_PI * o->f2 / (float)o->sample_rate;
-    const int   two = (o->f2 > 0.0f) ? 1 : 0;
-    /* Scale so the sum of two tones never clips. */
-    const float scale = o->amp * 32767.0f * (two ? 0.5f : 1.0f);
+    const bool two = o->inc2 != 0;
 
     for (size_t i = 0; i < n; i++) {
-        float s = sinf(o->phase1);
-        if (two) s += sinf(o->phase2);
-        out[i] = (int16_t)(s * scale);
+        int32_t s = sine_lookup(o->phase1);
+        if (two) s += sine_lookup(o->phase2);
+        out[i] = (int16_t)((s * o->scale) >> 15);
 
-        o->phase1 += dp1;
-        if (o->phase1 >= TWO_PI) o->phase1 -= TWO_PI;
-        if (two) {
-            o->phase2 += dp2;
-            if (o->phase2 >= TWO_PI) o->phase2 -= TWO_PI;
-        }
+        o->phase1 += o->inc1;
+        if (two) o->phase2 += o->inc2;
     }
 }
 

@@ -89,6 +89,21 @@ dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line);
 /* Inter-digit timeout to use (ms). */
 uint32_t dialplan_interdigit_ms(void);
 
+/* ---- Introspection (web UI / bring-up) ----
+ * Reflects the same table dialplan_feed()/dialplan_timeout() actually match
+ * against -- there is no separate hand-maintained copy of this list, so it
+ * can't drift out of sync with what the phone really does. */
+typedef struct {
+    const char *code;
+    const char *desc;
+    bool        implemented; /* false = telephony.c currently just logs a
+                               * "(TODO)" and plays a confirm tone for this */
+} dialplan_entry_info_t;
+
+/* Fills `out` (definition order), returns the number of entries written
+ * (<= max). */
+size_t dialplan_list(dialplan_entry_info_t *out, size_t max);
+
 #ifdef __cplusplus
 }
 #endif

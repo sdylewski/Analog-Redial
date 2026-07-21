@@ -15,60 +15,74 @@ typedef struct {
     dialplan_action_kind_t kind;
     int                    arg;
     int                    arg2;
-    bool                   play_only; /* blocked in CALL_ONLY mode */
+    bool                   play_only;   /* blocked in CALL_ONLY mode */
+    const char            *desc;
+    bool                   implemented; /* see dialplan_entry_info_t */
 } entry_t;
 
-/* Authoritative table (see ../pi_rotary_phone/docs/DIAL_CODES.md). */
+/* Authoritative table (see ../pi_rotary_phone/docs/DIAL_CODES.md).
+ * `implemented` reflects telephony.c's handle_action() as of this writing --
+ * anything still just logging "(... TODO)" there and playing a confirm tone
+ * is marked false. Flip it when you wire the real behavior in. */
 static const entry_t TABLE[] = {
     /* global modes */
-    { "009", ACT_SET_MODE, MODE_PLAY,            0, false },
-    { "008", ACT_SET_MODE, MODE_CALL_ONLY,       0, false },
-    { "301", ACT_SET_MODE, MODE_ENGLISH,         0, false },
-    { "302", ACT_SET_MODE, MODE_ITALIAN,         0, false },
-    { "003", ACT_SET_MODE, MODE_TOGGLE_READBACK, 0, false },
+    { "009", ACT_SET_MODE, MODE_PLAY,            0, false,
+      "Play mode (allow fun clips / record codes)", true },
+    { "008", ACT_SET_MODE, MODE_CALL_ONLY,       0, false,
+      "Call-only mode (blocks play-only codes)", true },
+    { "301", ACT_SET_MODE, MODE_ENGLISH,         0, false,
+      "Language: English (no prompt audio exists yet to be affected by it)", false },
+    { "302", ACT_SET_MODE, MODE_ITALIAN,         0, false,
+      "Language: Italian (same caveat as English)", false },
+    { "003", ACT_SET_MODE, MODE_TOGGLE_READBACK, 0, false,
+      "Toggle spoken-digit readback while dialing", true },
 
-    /* operator help */
-    { "0",   ACT_OPERATOR_HELP, 0, 0, false },
+    /* operator help -- plays storage/operator.wav via `player` if present,
+     * falls back to a confirm tone if it isn't (see telephony.c) */
+    { "0",   ACT_OPERATOR_HELP, 0, 0, false,
+      "Operator help prompt", true },
 
-    /* single-digit fun clips (play mode) */
-    { "6",   ACT_PLAY_CLIP, CLIP_6, 0, true },
-    { "7",   ACT_PLAY_CLIP, CLIP_7, 0, true },
-    { "8",   ACT_PLAY_CLIP, CLIP_8, 0, true },
-    { "9",   ACT_PLAY_CLIP, CLIP_9, 0, true },
+    /* single-digit fun clips (play mode) -- plays storage/clip_<N>.wav via
+     * `player` if present, falls back to a confirm tone if it isn't */
+    { "6",   ACT_PLAY_CLIP, CLIP_6, 0, true, "Play clip 6", true },
+    { "7",   ACT_PLAY_CLIP, CLIP_7, 0, true, "Play clip 7", true },
+    { "8",   ACT_PLAY_CLIP, CLIP_8, 0, true, "Play clip 8", true },
+    { "9",   ACT_PLAY_CLIP, CLIP_9, 0, true, "Play clip 9", true },
 
-    /* banana line */
-    { "430", ACT_PLAY_CLIP, CLIP_BANANA_0, 0, true },
-    { "431", ACT_PLAY_CLIP, CLIP_BANANA_1, 0, true },
-    { "432", ACT_PLAY_CLIP, CLIP_BANANA_2, 0, true },
-    { "433", ACT_PLAY_CLIP, CLIP_BANANA_3, 0, true },
+    /* banana line -- same clip-playback mechanism as above */
+    { "430", ACT_PLAY_CLIP, CLIP_BANANA_0, 0, true, "Banana line, clip 0", true },
+    { "431", ACT_PLAY_CLIP, CLIP_BANANA_1, 0, true, "Banana line, clip 1", true },
+    { "432", ACT_PLAY_CLIP, CLIP_BANANA_2, 0, true, "Banana line, clip 2", true },
+    { "433", ACT_PLAY_CLIP, CLIP_BANANA_3, 0, true, "Banana line, clip 3", true },
 
     /* record + playback on same handset */
-    { "123", ACT_RECORD_PLAYBACK, FX_NORMAL, 0, true },
-    { "124", ACT_RECORD_PLAYBACK, FX_HIGH,   0, true },
-    { "125", ACT_RECORD_PLAYBACK, FX_LOW,    0, true },
-    { "128", ACT_RECORD_PLAYBACK, FX_DALEK,  0, true },
+    { "123", ACT_RECORD_PLAYBACK, FX_NORMAL, 0, true, "Record + play back (normal voice)", false },
+    { "124", ACT_RECORD_PLAYBACK, FX_HIGH,   0, true, "Record + play back (pitched up)", false },
+    { "125", ACT_RECORD_PLAYBACK, FX_LOW,    0, true, "Record + play back (pitched down)", false },
+    { "128", ACT_RECORD_PLAYBACK, FX_DALEK,  0, true, "Record + play back (Dalek effect)", false },
 
     /* record to archive */
-    { "111", ACT_RECORD_ARCHIVE, 0, 0, true },
+    { "111", ACT_RECORD_ARCHIVE, 0, 0, true,
+      "Record a message to storage (storage layer exists, capture not wired in yet)", false },
 
     /* call the other phone */
-    { "369", ACT_CALL_LINE, 1, FX_NORMAL, false }, /* from line 0 -> line 1 */
-    { "842", ACT_CALL_LINE, 0, FX_NORMAL, false }, /* from line 1 -> line 0 */
-    { "223", ACT_CALL_LINE, -1, FX_NORMAL, false },/* other line, generic */
-    { "224", ACT_CALL_LINE, -1, FX_HIGH,   false },
-    { "225", ACT_CALL_LINE, -1, FX_LOW,    false },
-    { "226", ACT_CALL_LINE, -1, FX_DALEK,  false },
+    { "369", ACT_CALL_LINE, 1, FX_NORMAL, false, "Call line 1 (from line 0)", true },
+    { "842", ACT_CALL_LINE, 0, FX_NORMAL, false, "Call line 0 (from line 1)", true },
+    { "223", ACT_CALL_LINE, -1, FX_NORMAL, false, "Call the other line", true },
+    { "224", ACT_CALL_LINE, -1, FX_HIGH,   false, "Call the other line (pitched up voice)", true },
+    { "225", ACT_CALL_LINE, -1, FX_LOW,    false, "Call the other line (pitched down voice)", true },
+    { "226", ACT_CALL_LINE, -1, FX_DALEK,  false, "Call the other line (Dalek voice)", true },
 
     /* internet radio */
-    { "201", ACT_RADIO, 1, 0, true },
-    { "202", ACT_RADIO, 2, 0, true },
-    { "203", ACT_RADIO, 3, 0, true },
-    { "204", ACT_RADIO, 4, 0, true },
-    { "205", ACT_RADIO, 5, 0, true },
-    { "206", ACT_RADIO, 6, 0, true },
-    { "207", ACT_RADIO, 7, 0, true },
-    { "208", ACT_RADIO, 8, 0, true },
-    { "209", ACT_RADIO, 9, 0, true },
+    { "201", ACT_RADIO, 1, 0, true, "Internet radio station 1", false },
+    { "202", ACT_RADIO, 2, 0, true, "Internet radio station 2", false },
+    { "203", ACT_RADIO, 3, 0, true, "Internet radio station 3", false },
+    { "204", ACT_RADIO, 4, 0, true, "Internet radio station 4", false },
+    { "205", ACT_RADIO, 5, 0, true, "Internet radio station 5", false },
+    { "206", ACT_RADIO, 6, 0, true, "Internet radio station 6", false },
+    { "207", ACT_RADIO, 7, 0, true, "Internet radio station 7", false },
+    { "208", ACT_RADIO, 8, 0, true, "Internet radio station 8", false },
+    { "209", ACT_RADIO, 9, 0, true, "Internet radio station 9", false },
 };
 #define TABLE_N (sizeof(TABLE) / sizeof(TABLE[0]))
 
@@ -218,4 +232,15 @@ dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line)
     }
 
     return make(ACT_WRONG_NUMBER, 0, 0);
+}
+
+size_t dialplan_list(dialplan_entry_info_t *out, size_t max)
+{
+    size_t n = (TABLE_N < max) ? TABLE_N : max;
+    for (size_t i = 0; i < n; i++) {
+        out[i].code = TABLE[i].code;
+        out[i].desc = TABLE[i].desc;
+        out[i].implemented = TABLE[i].implemented;
+    }
+    return n;
 }

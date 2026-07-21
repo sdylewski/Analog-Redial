@@ -145,8 +145,8 @@ Add a **LICENSE** file before publishing if you want others to know usage terms 
 
 ## Status
 
-- **Hardware:** SMD2 layout in progress; through-hole gateway is the current firmware bring-up target
-- **Firmware:** Core telephony on THT + WM8731; SMD + ES8388 + unified board Kconfig planned — [`ESP32_PORT_PLAN.md`](ESP32_PORT_PLAN.md)
+- **Hardware:** SMD2 boards received and being bench-tested; SMD3 layout in progress
+- **Firmware:** Core telephony on THT + WM8731 and SMD2 + ES8388, selected via unified board Kconfig; runtime codec detection warns on board/firmware mismatch — [`ESP32_PORT_PLAN.md`](ESP32_PORT_PLAN.md)
 - **Pi parity:** Align dial plan and pulse FSM with [`pi_rotary_phone`](../pi_rotary_phone) v1.0 before VoIP milestone
 
 Contributions and issues welcome once the repo is public.

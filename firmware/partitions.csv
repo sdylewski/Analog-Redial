@@ -3,4 +3,6 @@ nvs,      data, nvs,     ,        0x6000,
 phy_init, data, phy,     ,        0x1000,
 factory,  app,  factory, ,        0x180000,
 # Audio assets / recordings (prompts, clips). Mounted at /assets.
-storage,  data, spiffs,  ,        0x200000,
+# 6MB of 16MB total flash -- leaves ~8.5MB unallocated for later (a second
+# OTA app slot, additional partitions), not a maximalist grab of everything.
+storage,  data, spiffs,  ,        0x600000,

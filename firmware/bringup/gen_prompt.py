@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""Generate a prompt/clip WAV (text-to-speech or an existing audio file,
+converted to the format the device's `player` component expects) and
+optionally upload it straight to the phone over HTTP.
+
+The ESP32 has no TTS of its own -- this is the host-side half of milestone 3
+(FEATURES.md): produce mono 16-bit PCM WAV at the device's I2S sample rate
+(48000 Hz by default, see audio.h AUDIO_DEFAULT_CONFIG), matching what
+player.c's wav_parse() requires (mono/16-bit; a sample-rate mismatch still
+plays, just at the wrong pitch/speed).
+
+Examples:
+    # Text-to-speech (macOS `say`), saved locally only:
+    ./gen_prompt.py "For assistance, please hang up and try again." --name operator.wav
+
+    # Same, uploaded straight to the phone:
+    ./gen_prompt.py "For assistance, please hang up and try again." \\
+        --name operator.wav --upload phone.local
+
+    # Convert an existing recording instead of synthesizing speech:
+    ./gen_prompt.py --from banana_song.mp3 --name clip_430.wav --upload phone.local
+
+Well-known names the firmware looks for (see telephony.c's handle_action()
+and dialplan.c's TABLE[]):
+    operator.wav                        -- dial 0
+    clip_6.wav .. clip_9.wav            -- dial 6/7/8/9 (fun clips, PLAY mode)
+    clip_430.wav .. clip_433.wav        -- dial 430-433 (banana line)
+Anything else just needs a matching filename if/when you wire more dial
+codes to ACT_PLAY_CLIP.
+"""
+
+from __future__ import annotations
+
+import argparse
+import shutil
+import subprocess
+import sys
+import tempfile
+import urllib.request
+from pathlib import Path
+
+DEFAULT_RATE = 48000
+DEFAULT_VOICE = "Samantha"
+
+
+def synthesize(text: str, voice: str, aiff_path: Path) -> None:
+    if shutil.which("say") is None:
+        raise SystemExit(
+            "'say' not found -- this text-to-speech path is macOS-only. "
+            "Use --from <audio file> instead on other platforms."
+        )
+    subprocess.run(["say", "-v", voice, "-o", str(aiff_path), text], check=True)
+
+
+def convert_to_wav(src: Path, dst: Path, rate: int) -> None:
+    if shutil.which("afconvert") is not None:
+        # Linear PCM, 16-bit little-endian, mono, at `rate` Hz -- exactly
+        # what player.c's wav_parse() wants.
+        subprocess.run(
+            ["afconvert", "-f", "WAVE", "-d", f"LEI16@{rate}", "-c", "1",
+             str(src), str(dst)],
+            check=True,
+        )
+        return
+    if shutil.which("ffmpeg") is not None:
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", str(src), "-ar", str(rate), "-ac", "1",
+             "-sample_fmt", "s16", str(dst)],
+            check=True, capture_output=True,
+        )
+        return
+    raise SystemExit(
+        "Need 'afconvert' (macOS, built in) or 'ffmpeg' on PATH to convert audio."
+    )
+
+
+def upload(path: Path, host: str, name: str) -> None:
+    if not host.startswith("http://") and not host.startswith("https://"):
+        host = f"http://{host}"
+    url = f"{host.rstrip('/')}/media/{name}"
+    data = path.read_bytes()
+    req = urllib.request.Request(url, data=data, method="POST",
+                                  headers={"Content-Type": "audio/wav"})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        body = resp.read().decode("utf-8", errors="replace").strip()
+    print(f"uploaded -> {url} ({len(data)} bytes): {body}")
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    src_group = p.add_mutually_exclusive_group(required=True)
+    src_group.add_argument("text", nargs="?", help="Text to speak (macOS 'say')")
+    src_group.add_argument("--from", dest="from_file", metavar="FILE",
+                            help="Convert an existing audio file instead of synthesizing speech")
+    p.add_argument("--name", required=True,
+                    help="Output filename, e.g. operator.wav or clip_6.wav (see module docstring)")
+    p.add_argument("--voice", default=DEFAULT_VOICE, help=f"macOS 'say' voice (default: {DEFAULT_VOICE})")
+    p.add_argument("--rate", type=int, default=DEFAULT_RATE,
+                    help=f"Output sample rate in Hz -- must match the device's audio_sample_rate() "
+                         f"(default: {DEFAULT_RATE})")
+    p.add_argument("--out-dir", default=".", help="Where to save the WAV locally (default: cwd)")
+    p.add_argument("--upload", metavar="HOST",
+                    help="Also POST the result to http://HOST/media/<name>, e.g. --upload phone.local "
+                         "or --upload 192.168.0.148")
+    args = p.parse_args()
+
+    out_path = Path(args.out_dir) / args.name
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if args.from_file:
+        convert_to_wav(Path(args.from_file), out_path, args.rate)
+    else:
+        with tempfile.TemporaryDirectory() as td:
+            aiff_path = Path(td) / "speech.aiff"
+            synthesize(args.text, args.voice, aiff_path)
+            convert_to_wav(aiff_path, out_path, args.rate)
+
+    size = out_path.stat().st_size
+    print(f"wrote {out_path} ({size} bytes, {args.rate} Hz mono 16-bit PCM)")
+
+    if args.upload:
+        upload(out_path, args.upload, args.name)
+    else:
+        print(f"to upload later:  curl -X POST --data-binary @{out_path} "
+              f"http://phone.local/media/{args.name}")
+
+
+if __name__ == "__main__":
+    main()

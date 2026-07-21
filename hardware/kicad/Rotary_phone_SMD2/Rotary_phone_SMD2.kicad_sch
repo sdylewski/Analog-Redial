@@ -6435,6 +6435,16 @@
 		)
 		(uuid "5dfd5714-8419-4fd6-bf9b-d9438d61d206")
 	)
+	(text "actual Line1_Vout (post in/out swap)\nneeds to move to Rin2\n\npre-swap: Line1_Vin\nmove to Rin2 (C25 pad).  \nRelabel as mic!\n\nOR\n\nMove Line2 mic\nto Rin1 (C24 pad)"
+		(exclude_from_sim no)
+		(at 277.876 123.19 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "64fbd79f-f548-4053-b7b2-f7fbe8bd5e55")
+	)
 	(text "Pull up to VCC in SW"
 		(exclude_from_sim no)
 		(at 138.43 82.296 0)
@@ -6464,6 +6474,16 @@
 			)
 		)
 		(uuid "70ef72f9-5e1f-4ddc-b4fa-a1b8bd4d868e")
+	)
+	(text "Now Line1_Vout (mic)"
+		(exclude_from_sim no)
+		(at 246.888 116.332 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "71a142a4-04ce-43d3-bf2f-e092f227ea47")
 	)
 	(text "NC Jtag"
 		(exclude_from_sim no)
@@ -6505,6 +6525,16 @@
 		)
 		(uuid "9bb299ba-0006-45b0-8924-b4360a57f6bb")
 	)
+	(text "Now Line1_Vin"
+		(exclude_from_sim no)
+		(at 257.556 131.318 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "a21d8fd2-7368-4ec0-a784-6ceb49c3174a")
+	)
 	(text "Diode\n1N4148 or BAS16"
 		(exclude_from_sim no)
 		(at 331.978 168.656 0)
@@ -6526,15 +6556,57 @@
 		)
 		(uuid "bb638113-e30d-4efc-ab98-b0084979e2d8")
 	)
+	(text "ERROR:  \nD+ / D- swapped\non previous board.\nNeed to fix!"
+		(exclude_from_sim no)
+		(at 159.512 44.45 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.254)
+				(bold yes)
+			)
+		)
+		(uuid "c74bc00b-2e55-4526-9769-674e6fc32b26")
+	)
+	(text "Now Line2_Vout (mic)"
+		(exclude_from_sim no)
+		(at 248.158 125.476 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "cb7e3357-0b7a-4ea2-b321-df9f0148d39f")
+	)
 	(text "5V AG1170 needs 3.3V signal to ESP32"
 		(exclude_from_sim no)
-		(at 304.8 127.254 0)
+		(at 313.182 125.73 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 		)
 		(uuid "cc0d74d1-8c69-4d5a-827b-4d6d4679be1a")
+	)
+	(text "In/out are swapped on this board!\nneed to fix in next version!"
+		(exclude_from_sim no)
+		(at 266.192 107.696 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "cc820e11-cc2b-4ada-84ea-11b5ba3ef142")
+	)
+	(text "Now Line2_Vin"
+		(exclude_from_sim no)
+		(at 257.556 133.858 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "cd9bff19-28a2-46f0-9cf1-047028399678")
 	)
 	(text "Zener BZT03C82\nOR P6KE82"
 		(exclude_from_sim no)
@@ -8919,7 +8991,7 @@
 		(uuid "8b4d5e23-2906-485a-b0a3-5f76868a69f3")
 	)
 	(label "usb_D-"
-		(at 139.7 44.45 0)
+		(at 140.97 45.72 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9029,7 +9101,7 @@
 		(uuid "d15ece3a-f388-4cf5-a9c1-42b9c83da599")
 	)
 	(label "usb_D+"
-		(at 139.7 41.91 0)
+		(at 140.97 41.91 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9685,7 +9757,7 @@
 		(dnp no)
 		(uuid "0c39c459-a9d9-4358-85ed-95d398a8ce5e")
 		(property "Reference" "C24"
-			(at 253.746 119.126 90)
+			(at 250.952 119.126 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9696,7 +9768,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 252.73 117.094 90)
+			(at 255.778 119.38 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects

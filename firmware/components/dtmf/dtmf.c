@@ -39,30 +39,40 @@ bool dtmf_make_osc(tone_osc_t *o, uint32_t sample_rate, char key, float amp)
     return true;
 }
 
-/* ---- Goertzel detector ---- */
+/* ---- Goertzel detector ----
+ *
+ * Fixed-point (Q14 coefficients, int32 state). The ESP32-C6's RISC-V core
+ * has no hardware FPU (rv32imac -- no f/d extension), so a float version of
+ * this recursion running per-sample on both lines' RX audio, continuously,
+ * is soft-float in the hot path -- easily enough to blow the 10ms audio
+ * frame budget and starve the watchdog once both lines are actually live.
+ * Integer multiply (the M extension) is real hardware here. q1/q2 stay in
+ * the same raw-sample-amplitude units as the old float version (only the
+ * coeff multiply is scaled, then shifted back down), so MIN_MAG and the
+ * ratio thresholds below are unchanged from the float version. */
 
-static char classify(const float mags[8])
+static char classify(const int64_t mags[8])
 {
     /* strongest row and strongest col */
     int rb = 0, cb = 0;
     for (int i = 1; i < 4; i++) if (mags[i]     > mags[rb])     rb = i;
     for (int i = 1; i < 4; i++) if (mags[4 + i] > mags[4 + cb]) cb = i;
 
-    float rmag = mags[rb], cmag = mags[4 + cb];
+    int64_t rmag = mags[rb], cmag = mags[4 + cb];
 
     /* energy gate: ignore near-silence / noise */
-    const float MIN_MAG = 5.0e5f;
+    const int64_t MIN_MAG = 500000;
     if (rmag < MIN_MAG || cmag < MIN_MAG) return 0;
 
-    /* twist: row/col should be within a reasonable ratio */
-    float ratio = rmag / cmag;
-    if (ratio > 8.0f || ratio < (1.0f / 8.0f)) return 0;
+    /* twist: row/col should be within a reasonable ratio (cross-multiplied
+     * to avoid division). */
+    if (rmag > 8 * cmag || cmag > 8 * rmag) return 0;
 
     /* second-harmonic / spurious rejection: the chosen row & col must
      * clearly dominate the other three in their group. */
     for (int i = 0; i < 4; i++) {
-        if (i != rb && mags[i]     * 4.0f > rmag) return 0;
-        if (i != cb && mags[4 + i] * 4.0f > cmag) return 0;
+        if (i != rb && mags[i]     * 4 > rmag) return 0;
+        if (i != cb && mags[4 + i] * 4 > cmag) return 0;
     }
     return KEYPAD[rb][cb];
 }
@@ -74,18 +84,19 @@ void dtmf_detector_init(dtmf_detector_t *d, uint32_t sample_rate)
     d->block_n = sample_rate / 100; /* 10 ms blocks */
     if (d->block_n < 64) d->block_n = 64;
 
+    /* One-time setup -- float/cosf here is fine, this isn't the hot loop. */
     for (int i = 0; i < 8; i++) {
         float f = (i < 4) ? ROWS[i] : COLS[i - 4];
         int   k = (int)(0.5f + ((float)d->block_n * f) / (float)sample_rate);
         float w = (2.0f * (float)M_PI / (float)d->block_n) * (float)k;
-        d->coeff[i] = 2.0f * cosf(w);
-        d->q1[i] = d->q2[i] = 0.0f;
+        d->coeff[i] = (int32_t)lroundf(2.0f * cosf(w) * 16384.0f); /* Q14 */
+        d->q1[i] = d->q2[i] = 0;
     }
 }
 
 static void block_reset(dtmf_detector_t *d)
 {
-    for (int i = 0; i < 8; i++) { d->q1[i] = 0.0f; d->q2[i] = 0.0f; }
+    for (int i = 0; i < 8; i++) { d->q1[i] = 0; d->q2[i] = 0; }
     d->filled = 0;
 }
 
@@ -94,9 +105,9 @@ char dtmf_detector_push(dtmf_detector_t *d, const int16_t *samples, size_t n)
     char emitted = 0;
 
     for (size_t s = 0; s < n; s++) {
-        float in = (float)samples[s];
+        int32_t in = samples[s];
         for (int i = 0; i < 8; i++) {
-            float q0 = d->coeff[i] * d->q1[i] - d->q2[i] + in;
+            int32_t q0 = (int32_t)(((int64_t)d->coeff[i] * d->q1[i]) >> 14) - d->q2[i] + in;
             d->q2[i] = d->q1[i];
             d->q1[i] = q0;
         }
@@ -105,10 +116,11 @@ char dtmf_detector_push(dtmf_detector_t *d, const int16_t *samples, size_t n)
         }
 
         /* block complete: compute magnitudes */
-        float mags[8];
+        int64_t mags[8];
         for (int i = 0; i < 8; i++) {
-            mags[i] = d->q1[i] * d->q1[i] + d->q2[i] * d->q2[i]
-                      - d->coeff[i] * d->q1[i] * d->q2[i];
+            int64_t q1 = d->q1[i], q2 = d->q2[i];
+            int64_t cross = (((int64_t)d->coeff[i] * q1) >> 14) * q2;
+            mags[i] = q1 * q1 + q2 * q2 - cross;
         }
         char digit = classify(mags);
         block_reset(d);

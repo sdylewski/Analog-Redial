@@ -70,6 +70,12 @@ bool ag1170_is_offhook(int line);
 /* Raw SHK level (for bring-up only). */
 int  ag1170_raw_shk(int line);
 
+/* In-progress pulse count for the digit currently being dialed (resets to 0
+ * once the inter-digit timeout fires and the digit is emitted). Bring-up
+ * only -- normal digit collection should use the AG1170_EV_DIGIT callback. */
+int  ag1170_pulse_count(int line);
+bool ag1170_is_counting_digit(int line);
+
 /* Low-level line control (bring-up only). */
 void ag1170_set_fr(int line, int level);
 void ag1170_set_rm(int line, int level);

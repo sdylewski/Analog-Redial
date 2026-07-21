@@ -1,0 +1,15 @@
+menu "Storage configuration"
+
+config STORAGE_RECORDING_CAP_BYTES
+    int "Recording storage cap (bytes)"
+    default 4194304
+    help
+        Soft cap enforced by the storage component on top of internal flash
+        (the "storage" SPIFFS partition is 6MB total per partitions.csv, but
+        that's shared with future prompt/clip assets -- this 4MB default
+        leaves ~2MB of headroom on the partition for those. Oldest files are
+        deleted automatically to stay under this cap when a new one is
+        written. Not used once a microSD backend exists -- SD capacity is
+        used as-is.
+
+endmenu

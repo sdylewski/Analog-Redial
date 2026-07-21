@@ -89,7 +89,7 @@ can be added without touching the state machine**.
            │                  └─────────┬─────────┘
            ▼                            ▼
    ┌─────────────────┐        ┌──────────────────┐
-   │     ag1170      │        │      wm8731       │
+   │     ag1170      │        │ wm8731 / es8388   │
    │ SHK/PD/FR/RM    │        │ I²C config        │
    │ hook+pulse FSM  │        │ route/vol/power   │
    │ ring cadence    │        └─────────┬─────────┘
@@ -104,8 +104,9 @@ can be added without touching the state machine**.
 
 | Component | Responsibility |
 |-----------|----------------|
-| `board` | Single source of truth for GPIO numbers + board-level init |
-| `wm8731` | I²C register driver, init sequence, input/output routing, volume, power-down, sample-rate table |
+| `board` | Single source of truth for GPIO numbers + board-level init; `board_detect_codec()` probes the I2C bus and warns if the flashed board type doesn't match the codec found |
+| `wm8731` | THT board codec: I²C register driver, init sequence, input/output routing, volume, power-down, sample-rate table |
+| `es8388` | SMD board codec: I²C register driver, init sequence, output routing, ADC input-line select (see limitation below), volume |
 | `audio` | I²S std-mode master engine; TX/RX DMA; per-channel tone injection; software mixer + inter-line bridge; calls `tones`/`dtmf` |
 | `tones` | Sine/dual-tone generator; call-progress tones (dial/ringback/busy) with cadence |
 | `dtmf` | DTMF row/col synthesis + Goertzel decoder (8 freqs) |
@@ -138,7 +139,7 @@ testable and useful **before** any SIP code exists.
 
 ## 4. Milestones
 
-1. **Board bring-up** (this pass): GPIO map, I²C scan, WM8731 probe/config, I²S tone out, ADC capture, SLIC hook/ring, pulse + DTMF dialing — all exercised by the `bringup` console.
+1. **Board bring-up** (this pass): GPIO map, I²C scan, codec probe/config (WM8731 or ES8388), I²S tone out, ADC capture, SLIC hook/ring, pulse + DTMF dialing — all exercised by the `bringup` console and the host-side scripts in `firmware/bringup/`.
 2. **Local telephony**: dial tone → collect digits → dial-plan → inter-line calls, ring, busy, call progress.
 3. **Assets**: flash filesystem + prompt/clip playback, record/playback, effects.
 4. **Web UI**: status/log/recordings over `esp_http_server`.
@@ -153,8 +154,8 @@ degrade gracefully):
 
 | Command | Tests |
 |---------|-------|
-| `i2c_scan` | I²C bus + WM8731 presence (0x1A) |
-| `wm8731_init` / `wm8731_dump` | Codec config + register readback path |
+| `i2c_scan` / `codec_detect` | I²C bus + codec presence (ES8388 0x10 / WM8731 0x1A), board-type mismatch warning |
+| `codec_init` / `codec_dump` | Codec config + register readback path |
 | `tone <hz> [ms] [line]` | DAC → line audio generation |
 | `dialtone`/`ringback`/`busy <line>` | Call-progress tone synthesis |
 | `loopback` | ADC → DAC passthrough (codec + I²S sanity) |

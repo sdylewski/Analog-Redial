@@ -159,8 +159,78 @@ Debug playback tap (optional): U4 LOUT2/ROUT2 ──► J5 (headphones / scope)
 Build B only:  U2 ◄──SPI──► Card1 (TF-01A)   (GPIO 18–21 — not with U6/J7)
 ```
 
+### KNOWN BUG (SMD2, confirmed on the hand-soldered board; also present in SMD3 schematic)
+
+**`C16`/`C17` and `C18`/`C19` swap the SLIC's Vin/Vout relative to the codec.** Confirmed
+via netlist trace and bench measurement (2026-07-19): codec `LIN1`/`LIN2` (ADC **inputs**,
+passive) land on `U5`/`U6` pin **9 (Vin)** — the pin that needs an external driver — while
+codec `LOUT1`/`ROUT1` (DAC **outputs**, actively driven) land on pin **10 (Vout)** — the
+pin the SLIC itself drives. Backwards on both lines. This is why a 1kHz test tone
+measures fine at the codec (J5, and at the coupling cap's codec-side pad) but never
+reaches tip/ring.
+
+**Bodge fix (no need to desolder the AG1171 SIL module):** cut the trace from each
+coupling cap to the SLIC pin and cross them — audio bandwidth means wire length/routing
+doesn't matter here, unlike the USB D+/D- bodge.
+- Line 0: `C16` pin2 → `U6` pin 10 (was → pin 9); `C17` pin2 → `U6` pin 9 (was → pin 10)
+- Line 1: `C19` pin2 → `U5` pin 10 (was → pin 9); `C18` pin2 → `U5` pin 9 (was → pin 10)
+
+**Next spin (SMD3): swap the schematic net assignment** so `LOUT1`/`ROUT1` connect to
+each SLIC's `Vin` and `LIN1`/`LIN2` connect to each SLIC's `Vout` — don't just carry the
+bodge forward again.
+
 **Power (not in audio path):** **USB1** → **+5 V** → **U1** → **+3.3 V** → **U2**, **U4**;
 **+5 V** also feeds **U5/U6** **+VPWR**.
+
+### KNOWN BUG (SMD2, fixed via bodge 2026-07-20): only one line's mic capturable at a time
+
+**Symptom:** dialing line0 → line1 rang and connected fine, and line0's handset audio was
+heard on line1's speaker, but line1's handset audio was never heard on line0's speaker
+(whichever line's mic *wasn't* currently muxed onto the ADC was silent on the far end).
+
+**Root cause:** `U4` (ES8388) was wired mono-in on this board — `LIN1` = line0 rx,
+`LIN2` = line1 rx, sharing the *same* left ADC channel via the `LINSEL` mux
+(`ADCCONTROL2`), while `RIN1`/`RIN2` (the independent right ADC channel) were dead —
+just a 100nF bypass cap (`C24`/`C25`) to GND, no real source. The ES8388's left and right
+ADC channels are otherwise fully independent and simultaneous (confirmed against the
+datasheet block diagram, §7-8) — this was a wiring choice, not a chip limitation.
+Firmware set `LINSEL` once at boot (defaulting to line0) and never changed it during a
+call, so line1's mic never reached the ADC during a bridge.
+
+**Bodge fix (no IC rework needed):** pull `C24` (100nF, right next to `U4`, normal 0402
+footprint) and wire a new 100nF coupling cap from line1's AG1171 `Vout` pin to `C24`'s
+now-vacant pad (`RIN1`). `LIN1`/`LIN2`/`C16`/`C19` are untouched — line1's old tap into
+`LIN2` is simply never selected by `LINSEL` again. Since `LINSEL`/`RINSEL` are
+independent single-ended muxes (not tied to a matching L-R pair — that constraint only
+applies to the chip's *differential* input mode, which isn't used here), no bias
+resistor network is needed either; a plain series coupling cap matches how `LIN1`/`LIN2`
+were already done. Firmware: `es8388_init()` now fixes `LINSEL=00`/`RINSEL=00`
+permanently (`firmware/components/es8388/es8388.c`) — no runtime mux-switching, both
+lines' rx now digitize simultaneously every I2S frame.
+
+**Gain had to be tuned down — turned out to be feedback, not the bodge wire being
+noisy.** First hypothesis: the hand-soldered `RIN1` wire picks up more noise than a PCB
+trace, and at the original PGA gain (+24dB, `MicAmpL`/`MicAmpR` in `ADCCONTROL1`, both
+channels previously shared one value) the right channel's noise floor amplified into
+near-saturation (RMS ~27000/32767 at idle). Confirmed the coupling cap itself was fine
+first (DC voltage measured significantly lower on the codec side of the cap than the
+SLIC side — real AC coupling, not a short or dead part). Cutting right-channel gain to
++12dB (leaving left at the original ~+24dB) did clean up that specific symptom — but a
+live two-line call still produced loud static on **both** handsets, and it visibly
+**ramped up over ~0.5s to full volume** rather than being present at fixed amplitude —
+the signature of a positive-feedback loop (loop gain > 1), not a fixed noise source. Make
+sense in hindsight: before this bodge, a full duplex loop through both handsets'
+speakers+mics was *structurally impossible* (only one ADC channel was ever capturing),
+so nothing had ever exercised whatever acoustic (handset earpiece-to-mouthpiece) or
+electrical (AG1171 sidetone) coupling exists between the two lines at real gain. Dropping
+**both** channels to +3dB (`ADCCONTROL1 = 0x11`) broke the loop — clean, clear two-line
+call. Tuned empirically via the bring-up console's `micamp <left> <right>` command
+(added for this debugging session) before being baked into `es8388_init()` as the
+permanent default.
+
+**Next spin (SMD3): route this properly** — LIN1/RIN1 (or whichever pins are cleanest in
+layout) as each line's dedicated mic input from the start, instead of carrying the bodge
+forward.
 
 ---
 
@@ -809,6 +879,30 @@ At **SHK ≈ 4.5 V** high, the tap is about **4.5 × 15/(10+15) ≈ 2.7 V** — 
 ESP32 input high and safely under **3.3 V**. At **SHK ≈ 5 V**, the tap is about **3.0 V**.
 Schematic refs: **U6** **R19**/**R18**; **U5** **R17**/**R16** (see [designator map](#designator-map-schematic)).
 
+### Can firmware detect an unpopulated AG1171? (empirical, in progress)
+
+**Open question**, not yet confirmed either way. The **R16-19** divider is board-level,
+present whether or not the AG1171 SIL module is soldered — if it's missing, the 10 kΩ
+leg just dangles and the 15 kΩ-to-GND leg dominates, reading low. If it's populated
+and on-hook, the AG1171's **SHK** output *may also* sit high-impedance in that state —
+so the two cases could read identically at the GPIO, or they could differ. Only real
+measurement settles it. Line 2's SHK/RM/FR/PD are also read (as plain inputs, before
+`ag1170_init()` claims them) by `board_detect_line2_variant()` at boot, logged as
+`line2 variant detect: ...` — same data, no console command needed for that side.
+Line 1 (fixed pins, no XOR) doesn't have this probe; use `hookmon` for its raw SHK.
+
+| Board state | Line | SHK | RM | FR | PD | Notes |
+|---|---|---|---|---|---|---|
+| Both SLICs populated, on-hook | L1 (line2 variant detect) | 0 | 0 | 0 | 1 | first SMD2 board, hand-soldered, 2026-07-19 boot log |
+| Both SLICs populated, on-hook | L0 (`hookmon`) | *pending* | — | — | — | not yet read via console |
+| AG1171 unpopulated (next board, before soldering) | — | *pending* | *pending* | *pending* | *pending* | compare against the rows above |
+| AG1171 unpopulated (next board, before soldering) | — | *pending* | compare against the row above |
+
+If the readings differ reliably, this becomes a `board_detect_slic_presence()`
+sanity check alongside `board_detect_codec()` / `board_detect_line2_variant()`. If
+they don't differ, that's useful to know too — it means presence can't be inferred
+from `SHK` alone and would need a dedicated sense point in a future spin.
+
 ### ASCII — AG1171 line interface (each SLIC)
 
 ```text
@@ -1286,6 +1380,10 @@ board — verify `BOARD_PD_LEVEL_RUN` / `BOARD_PD_LEVEL_POWERDOWN` when porting.
 - [ ] Change the **0 Ω** resistors (**R7–R10**) to **jumpers** if there is room (same XOR routing function, easier rework).
 - [ ] Check **tip/ring** clearances are **≥ 0.8 mm** (phone line can see **~100 V** peak — `Rotary_phone_SMD2.kicad_dru`, **`PhoneLine`** net class).
 - [ ] Use **1.0 mm** tip/ring traces where possible (RJ12 → bridge → TVS → AG1171).
+- [ ] Add a **RESET** header/button (EN → GND, momentary), same style as **J2**. First SMD2 bring-up had no way to power-cycle the MCU without unplugging USB — with native USB and no UART bridge chip there's no DTR/RTS auto-reset circuit either, so **J2** (boot strap) is useless without a way to toggle EN alongside it.
+- [ ] Add **test points on D+/D-** at the **U2** side of **U3** (post-ESD-chip) — hard to probe 0402/QFN pads directly with a scope when native USB won't enumerate and you need to check for PHY activity.
+- [ ] Add a **GND test point** near **USB1** — USB signaling needs a solid common ground reference with the host; the WROOM-1's thermal/ground pad is under the module and its solder quality isn't inspectable or probable after reflow. A nearby GND test point at least lets you confirm continuity from the connector shield to system ground.
+- [ ] Consider consolidating **J2/J3/J4** (boot strap, U0TXD, U0RXD) into one header alongside a GND pin, laid out to match a standard 3.3 V FTDI/USB-UART adapter pinout — makes it a single plug-in instead of three separate 2-pin headers when native USB debugging is a dead end (see bring-up notes below).
 
 ---
 

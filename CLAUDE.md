@@ -63,6 +63,6 @@ This is engineering guidance, not telecom safety certification.
 
 ## Status
 
-- Hardware: SMD2 layout in progress; through-hole gateway is the current firmware bring-up target.
-- Firmware: core telephony on THT + WM8731; SMD + ES8388 + unified board Kconfig planned.
+- Hardware: SMD2 boards received and being bench-tested; SMD3 layout in progress.
+- Firmware: core telephony on THT + WM8731 and SMD2 + ES8388, selected via unified board Kconfig (`CONFIG_BOARD_TYPE_THT`/`CONFIG_BOARD_TYPE_SMD2`); runtime `codec_detect` warns on board/firmware mismatch.
 - Pi parity: align dial plan and pulse FSM with `pi_rotary_phone` v1.0 before VoIP milestone.

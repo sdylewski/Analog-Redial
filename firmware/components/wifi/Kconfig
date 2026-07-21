@@ -1,0 +1,28 @@
+menu "WiFi configuration"
+
+config WIFI_SSID
+    string "Default WiFi SSID"
+    default ""
+    help
+        Fallback used only if no credentials have been saved via the
+        'wifi_set <ssid> <password>' console command (NVS always wins once
+        set). Leave blank to require the console command instead.
+
+config WIFI_PASSWORD
+    string "Default WiFi password"
+    default ""
+    help
+        See CONFIG_WIFI_SSID. Stored in plaintext in the built binary like
+        any other Kconfig string -- fine for a bring-up default, but prefer
+        the console command for anything you don't want sitting in flash.
+
+config MDNS_HOSTNAME
+    string "mDNS hostname (reachable as <hostname>.local)"
+    default "phone"
+    help
+        Advertised over mDNS once WiFi is up -- resolvable as e.g.
+        "phone.local" from macOS/iOS (native Bonjour), Linux (needs avahi,
+        usually already installed), and Windows 10+ (native) or older
+        Windows with Bonjour Print Services installed.
+
+endmenu

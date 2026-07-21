@@ -1,0 +1,14 @@
+(version 1)
+# Phone-line (tip/ring) clearance for AG1171 subscriber loop.
+# ~100 V peak tip–ring (48 V DC feed, 60 Vrms ring, P6KE82 TVS).
+# IPC-2221 B2 external 51–100 V: 0.6 mm; project uses 0.8 mm with margin.
+
+(rule "Phone line clearance"
+  (condition "A.hasNetclass('PhoneLine') || B.hasNetclass('PhoneLine')")
+  (constraint clearance (min 0.8mm))
+)
+
+(rule "Phone line track width minimum"
+  (condition "A.hasNetclass('PhoneLine') && A.Type == 'Track'")
+  (constraint track_width (min 0.4mm))
+)
