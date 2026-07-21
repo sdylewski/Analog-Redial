@@ -56,7 +56,13 @@ static bool wav_parse(const uint8_t *buf, size_t len, wav_info_t *out)
             have_fmt = true;
         } else if (memcmp(buf + off, "data", 4) == 0) {
             out->data_offset = (uint32_t)body;
-            out->data_bytes = (uint32_t)((body + sz <= len) ? sz : len - body);
+            /* Trust the declared chunk size -- `len` here is just how much of
+             * the header we scanned to find this chunk (see HEADER_SCAN_BYTES
+             * below), not the file's real length, so clamping to it silently
+             * truncated every real clip to a few hundred ms. The playback
+             * loop's own storage_read_chunk()==0 check still guards against a
+             * genuinely truncated file. */
+            out->data_bytes = sz;
             have_data = true;
         }
         off = body + sz + (sz & 1); /* chunks are word-aligned */
