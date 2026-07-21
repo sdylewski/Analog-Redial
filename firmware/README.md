@@ -243,6 +243,31 @@ firmware/
     └── bringup/    # esp_console test harness
 ```
 
+## WiFi setup & factory reset
+
+**Setting credentials** — any of:
+- Serial console: `wifi_set <ssid> <password>`
+- Web UI: **Settings → General → WiFi**
+- First boot with nothing saved: the device starts its own **SoftAP**
+  (`RotaryPhone-XXXX`, open) — join it and a setup page opens (captive portal),
+  or browse to `http://192.168.4.1`.
+
+**Factory-resetting WiFi (GPIO9 / BOOT strap)**
+
+With the device **powered on and running**, short **GPIO9 (BOOT)** to **GND**
+(or hold the BOOT button) for **~3 seconds**. The firmware erases the saved
+WiFi credentials and reboots into SoftAP provisioning. The status LED flashes
+the error pattern while it resets.
+
+> ⚠️ Do this **at runtime, not at power-on**. GPIO9 is a boot strapping pin:
+> if it's held low *during reset/power-up* the ROM enters serial-download
+> (flashing) mode and the app never runs — so it wouldn't reset anything.
+> Power up first (leave BOOT alone), *then* short it once the phone is up.
+
+The chip MAC (Settings → Hardware → Serial) is untouched by a reset; only the
+WiFi credentials and — if you never set a custom board name — the auto-picked
+name are cleared.
+
 ## Notes / current limitations
 
 - **VoIP is a stub** (`components/voip`). The interface is finalized so the

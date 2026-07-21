@@ -3,14 +3,27 @@
 #include "board_config.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "esp_mac.h"
+#include "esp_chip_info.h"
+#include "esp_idf_version.h"
+#include "nvs_flash.h"
+#include "nvs.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <stdbool.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdio.h>
 
 static const char *TAG = "board";
 static i2c_master_bus_handle_t s_bus;
+static board_codec_t s_detected_codec = BOARD_CODEC_NONE;
+
+#define BOARD_NAME_NVS_NS  "board"
+#define BOARD_NAME_NVS_KEY "name"
+#define BOARD_NAME_MAX     32
 
 esp_err_t board_i2c_init(void)
 {
@@ -55,6 +68,7 @@ void board_detect_codec(void)
     board_type_t built_for = board_current_type();
 
     if (es8388_present && !wm8731_present) {
+        s_detected_codec = BOARD_CODEC_ES8388;
         ESP_LOGI(TAG, "codec detect: ES8388 @ 0x10 (SMD board)");
         if (built_for != BOARD_TYPE_SMD) {
             ESP_LOGW(TAG, "firmware built for '%s' but an SMD/ES8388 codec is on "
@@ -62,6 +76,7 @@ void board_detect_codec(void)
                      board_type_name(built_for));
         }
     } else if (wm8731_present && !es8388_present) {
+        s_detected_codec = BOARD_CODEC_WM8731;
         ESP_LOGI(TAG, "codec detect: WM8731 @ 0x1A (THT board)");
         if (built_for != BOARD_TYPE_THT) {
             ESP_LOGW(TAG, "firmware built for '%s' but a THT/WM8731 codec is on "
@@ -69,11 +84,125 @@ void board_detect_codec(void)
                      board_type_name(built_for));
         }
     } else if (es8388_present && wm8731_present) {
+        s_detected_codec = BOARD_CODEC_CONFLICT;
         ESP_LOGW(TAG, "codec detect: both 0x10 and 0x11/0x1A ACKed -- unexpected, "
                       "check for I2C bus contention or an address conflict");
     } else {
+        s_detected_codec = BOARD_CODEC_NONE;
         ESP_LOGW(TAG, "codec detect: no codec found on I2C bus (built for '%s')",
                  board_type_name(built_for));
+    }
+}
+
+board_codec_t board_detected_codec(void) { return s_detected_codec; }
+
+const char *board_codec_name(board_codec_t c)
+{
+    switch (c) {
+        case BOARD_CODEC_ES8388:   return "ES8388";
+        case BOARD_CODEC_WM8731:   return "WM8731";
+        case BOARD_CODEC_CONFLICT: return "conflict (two codecs?)";
+        default:                    return "none detected";
+    }
+}
+
+void board_serial_str(char *out, size_t len)
+{
+    uint8_t mac[6] = {0};
+    /* ESP_MAC_WIFI_STA is the base factory MAC -- present even before WiFi
+     * starts, and stable across reflashes/NVS erases. */
+    esp_read_mac(mac, ESP_MAC_WIFI_STA);
+    snprintf(out, len, "%02X%02X%02X%02X%02X%02X",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
+void board_hardware_str(char *out, size_t len)
+{
+    esp_chip_info_t info;
+    esp_chip_info(&info);
+    const char *chip =
+        (info.model == CHIP_ESP32C6) ? "ESP32-C6" :
+        (info.model == CHIP_ESP32C3) ? "ESP32-C3" : "ESP32";
+    /* Prefer the physically detected codec; fall back to the built-for PCB's
+     * codec if the probe hasn't run or found nothing (e.g. bench with no
+     * codec attached). */
+    const char *codec =
+        (s_detected_codec == BOARD_CODEC_ES8388) ? "ES8388" :
+        (s_detected_codec == BOARD_CODEC_WM8731) ? "WM8731" :
+        (board_current_type() == BOARD_TYPE_SMD) ? "ES8388?" : "WM8731?";
+    snprintf(out, len, "%s rev%d.%d \xc2\xb7 %s (%s)",
+             chip, info.revision / 100, info.revision % 100, codec,
+             board_current_type() == BOARD_TYPE_SMD ? "SMD2" : "through-hole");
+}
+
+void board_name_get(char *out, size_t len)
+{
+    if (len == 0) return;
+    out[0] = '\0';
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) == ESP_OK) {
+        size_t n = len;
+        esp_err_t err = nvs_get_str(h, BOARD_NAME_NVS_KEY, out, &n);
+        nvs_close(h);
+        if (err == ESP_OK && out[0]) return;
+    }
+    /* Unset / first boot: fall back to the compile-time default hostname. */
+    strncpy(out, CONFIG_MDNS_HOSTNAME, len - 1);
+    out[len - 1] = '\0';
+}
+
+bool board_name_is_set(void)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return false;
+    size_t n = 0;
+    esp_err_t err = nvs_get_str(h, BOARD_NAME_NVS_KEY, NULL, &n); /* size probe */
+    nvs_close(h);
+    return err == ESP_OK && n > 1; /* n counts the NUL, so >1 means non-empty */
+}
+
+esp_err_t board_name_set(const char *name)
+{
+    if (!name || !name[0]) return ESP_ERR_INVALID_ARG;
+    char trimmed[BOARD_NAME_MAX];
+    strncpy(trimmed, name, sizeof(trimmed) - 1);
+    trimmed[sizeof(trimmed) - 1] = '\0';
+
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_str(h, BOARD_NAME_NVS_KEY, trimmed);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) ESP_LOGI(TAG, "board name set to '%s'", trimmed);
+    return err;
+}
+
+void board_hostname(char *out, size_t len)
+{
+    char name[BOARD_NAME_MAX];
+    board_name_get(name, sizeof(name));
+
+    /* RFC-1123-ish single label: [a-z0-9-], no leading/trailing '-', never
+     * empty (mDNS would reject that). Collapses runs of separators. */
+    size_t o = 0;
+    bool prev_dash = false;
+    for (size_t i = 0; name[i] && o < len - 1; i++) {
+        char c = (char)tolower((unsigned char)name[i]);
+        if (c == '\'') continue; /* drop apostrophes: "Scott's" -> "scotts" */
+        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+            out[o++] = c;
+            prev_dash = false;
+        } else if (o > 0 && !prev_dash) {
+            out[o++] = '-';
+            prev_dash = true;
+        }
+    }
+    while (o > 0 && out[o - 1] == '-') o--; /* trim trailing '-' */
+    out[o] = '\0';
+    if (out[0] == '\0') {
+        strncpy(out, CONFIG_MDNS_HOSTNAME, len - 1);
+        out[len - 1] = '\0';
     }
 }
 
@@ -215,3 +344,49 @@ void board_led_set_state(board_led_state_t state)
 void board_led_init(void) { }
 void board_led_set_state(board_led_state_t state) { (void)state; }
 #endif
+
+/* ---- BOOT-strap (GPIO9) factory-reset watcher ----
+ * GPIO9 is a boot strap: held low AT reset the ROM enters serial-download
+ * mode and our app never runs. So this only ever reads it *after* boot -- a
+ * runtime hold, not a power-on gesture. Free on both PCBs (not in either pin
+ * map). */
+#define FACTORY_RESET_GPIO     GPIO_NUM_9
+#define FACTORY_RESET_HOLD_MS  3000
+#define FACTORY_RESET_POLL_MS  100
+
+static void (*s_factory_reset_cb)(void);
+
+static void factory_reset_task(void *arg)
+{
+    gpio_config_t io = {
+        .pin_bit_mask = 1ULL << FACTORY_RESET_GPIO,
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,   /* idle high; short to GND to trigger */
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&io);
+
+    int held_ms = 0;
+    while (1) {
+        if (gpio_get_level(FACTORY_RESET_GPIO) == 0) {
+            held_ms += FACTORY_RESET_POLL_MS;
+            if (held_ms >= FACTORY_RESET_HOLD_MS) {
+                ESP_LOGW(TAG, "GPIO%d (BOOT) held %d ms -- factory reset",
+                         FACTORY_RESET_GPIO, held_ms);
+                if (s_factory_reset_cb) s_factory_reset_cb();
+                held_ms = 0; /* if the cb didn't reboot, don't re-fire every tick */
+            }
+        } else {
+            held_ms = 0;
+        }
+        vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_POLL_MS));
+    }
+}
+
+void board_factory_reset_start(void (*on_hold)(void))
+{
+    if (!on_hold) return;
+    s_factory_reset_cb = on_hold;
+    xTaskCreate(factory_reset_task, "factory_rst", 3072, NULL, tskIDLE_PRIORITY + 1, NULL);
+}

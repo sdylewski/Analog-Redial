@@ -68,6 +68,7 @@ main { padding: 22px; max-width: 1100px; margin: 0 auto; }
 .pill.on { background: rgba(63,185,80,.18); color: var(--green); }
 .pill.off { background: rgba(139,152,165,.15); color: var(--muted); }
 .pill.busy { background: rgba(210,153,34,.18); color: var(--amber); }
+.pill.amber { background: rgba(210,153,34,.18); color: var(--amber); }
 
 .bignum { font-size: 30px; font-weight: 800; letter-spacing: .12em; min-height: 38px; }
 
@@ -198,6 +199,7 @@ button:disabled:hover { border-color: var(--border); }
 .lang-dial { width: 4.5em; display: inline-block; margin-left: 4px; padding: 4px 6px; }
 .settings-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 16px; padding-bottom: 0; border-bottom: 1px solid var(--border); }
 .settings-tabs .tab-btn {
+  display: inline-block; text-decoration: none;
   border: 1px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0;
   background: transparent; padding: 8px 14px; font-size: 14px; cursor: pointer; color: var(--muted);
 }
@@ -288,3 +290,10 @@ a.button:hover { border-color: var(--accent); color: var(--accent); }
 .help-box summary { cursor: pointer; color: var(--accent); font-weight: 600; }
 .help-box ol { margin: 8px 0 0; padding-left: 20px; }
 .help-box li { margin: 6px 0; }
+
+.code-row { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(45,55,67,.4); font-size: 13.5px; }
+.code-row:last-child { border-bottom: none; }
+.code-row .code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 700; color: var(--accent); white-space: nowrap; }
+.code-row .desc { flex: 1; color: var(--text); }
+.code-row .pill { flex: none; }
+.card .note { font-size: 12px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; }

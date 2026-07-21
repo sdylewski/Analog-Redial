@@ -26,6 +26,27 @@ esp_err_t wifi_init(void);
 /* Save new credentials to NVS and reconnect using them immediately. */
 esp_err_t wifi_set_credentials(const char *ssid, const char *password);
 
+/* Erase saved WiFi credentials from NVS (the GPIO9 factory reset). Does NOT
+ * disconnect or reboot -- the caller decides (app_main reboots so the device
+ * comes back up with no creds -> provisioning). */
+esp_err_t wifi_clear_credentials(void);
+
+/* Write credentials to NVS without connecting (used by the provisioning AP,
+ * which then reboots into station mode). wifi_set_credentials() is the live
+ * "save and reconnect now" variant for when we're already on a network. */
+esp_err_t wifi_save_credentials(const char *ssid, const char *password);
+
+/* True while the setup SoftAP is up (no credentials configured). The web UI
+ * serves its captive setup page instead of the normal dashboard in this
+ * state. */
+bool wifi_is_provisioning(void);
+
+/* Re-read the board name (board_hostname()/board_name_get()) and push it to
+ * mDNS as the <name>.local hostname + instance name. Call after
+ * board_name_set() so the .local address updates without a reboot. No-op-ish
+ * if mDNS didn't start. */
+void wifi_apply_hostname(void);
+
 bool        wifi_is_connected(void);
 int8_t      wifi_rssi(void);                       /* dBm; 0 if not connected */
 void        wifi_get_ip_str(char *buf, size_t buf_len); /* "0.0.0.0" if not connected */

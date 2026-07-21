@@ -2,6 +2,8 @@
 #include "esp_http_server.h"
 #include "cJSON.h"
 #include "wifi.h"
+#include "board.h"
+#include "esp_idf_version.h"
 #include "storage.h"
 #include "logbuf.h"
 #include "telephony.h"
@@ -10,13 +12,23 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_heap_caps.h"
+#include "esp_flash.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <ctype.h>
 
 static const char *TAG = "webui";
+
+/* Defined below (near guide_handler) -- forward-declared here so the
+ * settings-tab renderers, which come first in this file, can reuse the same
+ * dial-code-row markup instead of duplicating it. */
+static int append_guide_row(char *buf, size_t cap, int off, const char *code,
+                             const char *desc, bool implemented);
 
 /* Best-effort categorization of an ESP_LOG tag/message into the Pi UI's
  * .k.digit / .k.hook / .k.action / .k.debug color classes -- this project's
@@ -32,13 +44,40 @@ static const char *log_kind_class(const char *tag, const char *msg)
     return "debug";
 }
 
+/* Removes ANSI colour escape sequences (ESC '[' ... final-byte) in place.
+ * ESP-IDF's log macros wrap every line in colour codes when CONFIG_LOG_COLORS
+ * is on; those are meaningless in HTML and render as little boxes, so strip
+ * them before the line is parsed/displayed. */
+static void strip_ansi(char *s)
+{
+    char *w = s;
+    for (const char *r = s; *r; ) {
+        if (*r == 0x1b) {           /* ESC */
+            r++;
+            if (*r == '[') {
+                r++;
+                while (*r && !(*r >= '@' && *r <= '~')) r++; /* CSI params */
+                if (*r) r++;         /* the final byte (e.g. 'm') */
+            }
+            continue;
+        }
+        *w++ = *r++;
+    }
+    *w = '\0';
+}
+
 /* Parses one "X (12345) tag: rest of message" ESP_LOG line (X = level
  * letter) into .t/.k/.m spans matching the Pi UI's .logline structure. Log
  * content here is entirely our own ESP_LOG calls (not user-supplied text),
  * so this intentionally skips HTML-escaping -- fine for a LAN bring-up
  * tool, would need escaping if log messages could ever include user input. */
-static int append_log_line(char *out, size_t out_len, int off, const char *line)
+static int append_log_line(char *out, size_t out_len, int off, const char *raw)
 {
+    char line[256];
+    strncpy(line, raw, sizeof(line) - 1);
+    line[sizeof(line) - 1] = '\0';
+    strip_ansi(line); /* drop ESC[...m colour codes before parsing */
+
     int ms = 0;
     char tag[32] = "";
     const char *msg = line;
@@ -103,6 +142,17 @@ static cJSON *build_status_json(void)
     cJSON *root = cJSON_CreateObject();
     char ip[16];
     wifi_get_ip_str(ip, sizeof(ip));
+
+    /* Board identity up top so a script polling every board's /api/status can
+     * tell them apart (name), group by hardware, or key on the serial. */
+    char name[32], hw[64], serial[16];
+    board_name_get(name, sizeof(name));
+    board_hardware_str(hw, sizeof(hw));
+    board_serial_str(serial, sizeof(serial));
+    cJSON_AddStringToObject(root, "board_name", name);
+    cJSON_AddStringToObject(root, "hardware", hw);
+    cJSON_AddStringToObject(root, "serial", serial);
+
     cJSON_AddBoolToObject(root, "wifi_connected", wifi_is_connected());
     cJSON_AddStringToObject(root, "wifi_ssid", wifi_get_ssid());
     cJSON_AddStringToObject(root, "wifi_ip", ip);
@@ -153,8 +203,9 @@ static const char *pill_class_for(tel_state_t s)
     switch (s) {
     case TEL_IDLE: return "off";
     case TEL_BUSY:
-    case TEL_REORDER: return "busy";
-    default: return "on"; /* dialtone/dialing/ringback/ringing/incall */
+    case TEL_REORDER:
+    case TEL_RECORDING: return "busy";
+    default: return "on"; /* dialtone/dialing/ringback/ringing/incall/playing */
     }
 }
 
@@ -174,13 +225,19 @@ static const nav_tab_t NAV_TABS[] = {
 static int append_page_head(char *buf, size_t cap, int off, const char *page_title,
                              const char *active_href, bool auto_refresh)
 {
+    /* Board name leads the <title> and the header so a browser tab / glance
+     * tells several boards on one LAN apart (that's the whole point of the
+     * name). "Rotary Phone Gateway" drops to a subtitle. */
+    char name[32];
+    board_name_get(name, sizeof(name));
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<!doctype html><html><head><title>%s</title>"
+        "<!doctype html><html><head><meta charset=\"utf-8\"><title>%s \xc2\xb7 %s</title>"
         "%s"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
         "<link rel=\"stylesheet\" href=\"/static/style.css\"></head><body>"
-        "<header><h1>Rotary Phone Gateway</h1><nav>",
-        page_title, auto_refresh ? "<meta http-equiv=\"refresh\" content=\"5\">" : "");
+        "<header><h1>%s <span class=\"dot\">Rotary Phone Gateway</span></h1><nav>",
+        name, page_title, auto_refresh ? "<meta http-equiv=\"refresh\" content=\"5\">" : "",
+        name);
     for (size_t i = 0; i < NAV_TABS_N; i++) {
         bool active = strcmp(NAV_TABS[i].href, active_href) == 0;
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
@@ -191,8 +248,62 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
     return off;
 }
 
+/* ---- WiFi provisioning (setup SoftAP) UI ---- */
+
+static void reboot_task(void *arg)
+{
+    vTaskDelay(pdMS_TO_TICKS(1500)); /* let the HTTP response flush first */
+    esp_restart();
+}
+
+/* Setup page served on the SoftAP: a plain SSID/password form. Kept minimal
+ * and self-contained (its own <form>, the shared stylesheet) so it works
+ * before any network config exists. */
+static esp_err_t wifi_setup_page(httpd_req_t *req)
+{
+    static const char *page =
+        "<!doctype html><html><head><meta charset=\"utf-8\">"
+        "<title>Rotary Phone \xc2\xb7 WiFi setup</title>"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        "<link rel=\"stylesheet\" href=\"/static/style.css\"></head><body>"
+        "<header><h1>Rotary Phone <span class=\"dot\">WiFi setup</span></h1></header>"
+        "<main class=\"auth-page\"><div class=\"auth-card\">"
+        "<h1>Connect to your WiFi</h1>"
+        "<p class=\"hint\">Enter your home network so the phone can join it. "
+        "It'll reboot and connect; this setup network then disappears.</p>"
+        "<form method=\"POST\" action=\"/wifi_set\" class=\"settings-form\">"
+        "<label>Network name (SSID) <input name=\"ssid\" required autofocus></label>"
+        "<label>Password <input type=\"password\" name=\"password\" "
+        "placeholder=\"leave blank for an open network\"></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">"
+        "Save &amp; connect</button></div>"
+        "</form></div></main></body></html>";
+
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_sendstr(req, page);
+    return ESP_OK;
+}
+
+/* Catch-all for the captive portal: any unmatched URL while provisioning
+ * bounces to the setup page, which makes the OS "sign in to network" sheet
+ * appear. Registered last so real routes match first. Outside provisioning
+ * it's just a normal 404. */
+static esp_err_t catchall_handler(httpd_req_t *req)
+{
+    if (wifi_is_provisioning()) {
+        httpd_resp_set_status(req, "302 Found");
+        httpd_resp_set_hdr(req, "Location", "http://192.168.4.1/");
+        httpd_resp_send(req, NULL, 0);
+        return ESP_OK;
+    }
+    httpd_resp_send_404(req);
+    return ESP_OK;
+}
+
 static esp_err_t index_handler(httpd_req_t *req)
 {
+    if (wifi_is_provisioning()) return wifi_setup_page(req);
+
     char ip[16];
     wifi_get_ip_str(ip, sizeof(ip));
     int64_t uptime_s = esp_timer_get_time() / 1000000;
@@ -261,13 +372,24 @@ static esp_err_t index_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* Dedicated Recordings page (Pi's /recordings) -- same table that used to
- * be inlined on the dashboard, now its own tab so the dashboard stays
- * focused on live status. */
+/* A "recording" is something the user recorded from a handset (211 "leave a
+ * message" archives, named rec_*.wav). Everything else in the storage
+ * partition -- operator.wav, clip_*.wav fun clips, cb_*.wav callback temps --
+ * is a built-in/uploaded asset, managed under Settings, not shown here. */
+static bool is_user_recording(const char *name)
+{
+    return strncmp(name, "rec_", 4) == 0;
+}
+
+/* Dedicated Recordings page (Pi's /recordings): only user-recorded messages,
+ * so it isn't cluttered with the operator/clip assets that live in the same
+ * flat storage partition. Manage those under Settings -> Storage files. */
 static esp_err_t recordings_page_handler(httpd_req_t *req)
 {
     storage_entry_t entries[32];
     size_t n = storage_list(entries, 32);
+    size_t shown = 0;
+    for (size_t i = 0; i < n; i++) if (is_user_recording(entries[i].name)) shown++;
 
     size_t cap = 2048 + n * 160;
     char *buf = malloc(cap);
@@ -276,15 +398,19 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
     int off = append_page_head(buf, cap, 0, "Recordings - Rotary Phone Gateway", "/recordings", false);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "</header><main>"
-        "<div class=\"card\"><h2>Recordings (%u)</h2>", (unsigned)n);
+        "<div class=\"card\"><h2>Recordings (%u)</h2>"
+        "<p class=\"hint\">Messages left with dial code 211. Built-in audio "
+        "(operator, clips) is under <a href=\"/settings\">Settings</a>.</p>",
+        (unsigned)shown);
 
-    if (n == 0) {
+    if (shown == 0) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"empty\">none yet</div>");
+            "<div class=\"empty\">none yet \xe2\x80\x94 dial 211, leave a message, hang up</div>");
     } else {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<table><tr><th>Name</th><th>Size</th></tr>");
         for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
+            if (!is_user_recording(entries[i].name)) continue;
             off += snprintf(buf + off, cap - off,
                 "<tr><td><a href=\"/media/%s\">%s</a></td><td>%u bytes</td></tr>",
                 entries[i].name, entries[i].name, (unsigned)entries[i].size);
@@ -307,30 +433,254 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* Tab set mirrors the Pi's settings.html exactly (General / Operator / VOIP /
+ * Inter-phone / Record message / Record & callback / Hardware) so the shape
+ * previews where each section will land, even though most of them are still
+ * placeholders here -- radio, recording, and VoIP aren't wired up on the
+ * ESP32 yet (see ESP32_PORT_PLAN.md). Server-rendered via ?tab=, not client
+ * JS: every other page in this component is a plain server-rendered form,
+ * and a full reload per tab click keeps this page consistent with that
+ * instead of introducing the only script tag in the whole UI. */
+typedef struct { const char *id; const char *label; } settings_tab_t;
+static const settings_tab_t SETTINGS_TABS[] = {
+    { "general",    "General" },
+    { "operator",   "Operator" },
+    { "voip",       "VOIP" },
+    { "interphone", "Inter-phone" },
+    { "record",     "Record message" },
+    { "callback",   "Record & callback" },
+    { "hardware",   "Hardware" },
+};
+#define SETTINGS_TABS_N (sizeof(SETTINGS_TABS) / sizeof(SETTINGS_TABS[0]))
+
+static int append_settings_tabs(char *buf, size_t cap, int off, const char *active)
+{
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<nav class=\"settings-tabs\">");
+    for (size_t i = 0; i < SETTINGS_TABS_N; i++) {
+        bool is_active = strcmp(SETTINGS_TABS[i].id, active) == 0;
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<a class=\"tab-btn%s\" href=\"/settings?tab=%s\">%s</a>",
+            is_active ? " active" : "", SETTINGS_TABS[i].id, SETTINGS_TABS[i].label);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</nav>");
+    return off;
+}
+
+static void mode_set_url(char *out, size_t out_len, const char *code, int line)
+{
+    if (line >= 0) snprintf(out, out_len, "/mode_set/%s/%d", code, line);
+    else snprintf(out, out_len, "/mode_set/%s", code);
+}
+
+/* One card: a live pill for the mode's current value plus the two buttons
+ * that set it explicitly. The phone's own dial codes (931/932, 921/922,
+ * 901/902) always set state outright rather than toggling it, so these
+ * buttons mirror that instead of offering a single flip. */
+static int append_mode_card(char *buf, size_t cap, int off, const char *title,
+                             const char *pill_class, const char *state_label,
+                             const char *opt_a_label, const char *opt_a_code,
+                             const char *opt_b_label, const char *opt_b_code, int line)
+{
+    char url_a[32], url_b[32];
+    mode_set_url(url_a, sizeof(url_a), opt_a_code, line);
+    mode_set_url(url_b, sizeof(url_b), opt_b_code, line);
+    return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">Current</span>"
+        "<span class=\"pill %s\">%s</span></div>"
+        "<div class=\"toolbar sub\">"
+        "<form method=\"POST\" action=\"%s\" style=\"display:inline\">"
+        "<button type=\"submit\">%s</button></form>"
+        "<form method=\"POST\" action=\"%s\" style=\"display:inline\">"
+        "<button type=\"submit\">%s</button></form>"
+        "</div></div>",
+        title, pill_class, state_label, url_a, opt_a_label, url_b, opt_b_label);
+}
+
+static int append_general_tab(char *buf, size_t cap, int off)
+{
+    char name[32], host[64];
+    board_name_get(name, sizeof(name));
+    board_hostname(host, sizeof(host));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Board name</h2>"
+        "<form method=\"POST\" action=\"/board_name\" class=\"settings-form\">"
+        "<label>Name <input name=\"name\" value=\"%s\" maxlength=\"31\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save name</button></div>"
+        "</form>"
+        "<p class=\"hint\">Labels this board in the UI and logs when you run several on one "
+        "network. Also sets the mDNS address: reachable as <code>%s.local</code>. "
+        "Hardware type and serial are on the <a href=\"/settings?tab=hardware\">Hardware</a> tab.</p>"
+        "</div>",
+        name, host);
+
+    dialplan_modes_t *m = dialplan_modes();
+    off = append_mode_card(buf, cap, off, "Phone mode",
+        m->call_only ? "off" : "on", m->call_only ? "Call-only" : "Play mode",
+        "Set play mode", "931", "Set call-only mode", "932", -1);
+    off = append_mode_card(buf, cap, off, "Digit readback",
+        m->readback_digits ? "on" : "off", m->readback_digits ? "On" : "Off",
+        "Turn off", "921", "Turn on", "922", -1);
+    off = append_mode_card(buf, cap, off, "Line 1 language",
+        m->italian[0] ? "amber" : "on", m->italian[0] ? "Italian" : "English",
+        "English", "901", "Italian", "902", 0);
+    off = append_mode_card(buf, cap, off, "Line 2 language",
+        m->italian[1] ? "amber" : "on", m->italian[1] ? "Italian" : "English",
+        "English", "901", "Italian", "902", 1);
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">All four persist to flash (NVS) and survive a reboot. "
+        "Language is just a mode flag right now -- no prompt audio exists yet "
+        "to be affected by it.</p>");
+
+    char ssid[33];
+    strncpy(ssid, wifi_get_ssid(), sizeof(ssid) - 1);
+    ssid[sizeof(ssid) - 1] = '\0';
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>WiFi</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">Current</span><span>%s</span></div>"
+        "<form method=\"POST\" action=\"/wifi_set\" class=\"settings-form\">"
+        "<label>SSID <input name=\"ssid\" value=\"%s\" required></label>"
+        "<label>Password <input type=\"password\" name=\"password\" "
+        "placeholder=\"leave blank for an open network\"></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Connect</button></div>"
+        "</form>"
+        "<p class=\"hint\">Saved to flash (NVS); the device reconnects immediately, no reboot needed.</p>"
+        "</div>",
+        ssid[0] ? ssid : "(not configured)", ssid);
+    return off;
+}
+
+static int append_operator_tab(char *buf, size_t cap, int off,
+                                dialplan_entry_info_t *entries, size_t n)
+{
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Operator help</h2>");
+    for (size_t i = 0; i < n; i++) {
+        if (strcmp(entries[i].code, "0") != 0) continue;
+        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
+                                entries[i].implemented);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">No on-device TTS or script editor yet -- upload a pre-rendered "
+        "<code>operator.wav</code> with <code>firmware/bringup/gen_prompt.py</code> "
+        "(see Storage files below) to change what plays.</p></div>");
+    return off;
+}
+
+static int append_voip_tab(char *buf, size_t cap, int off)
+{
+    return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\" style=\"opacity:.6\"><h2>VOIP</h2>"
+        "<p class=\"hint\">Not implemented yet -- <code>voip.c</code> is a stub API "
+        "(register/dial/answer/hangup) with no SIP/RTP behind it. Dial <code>5-5-5</code> "
+        "plus an extension once it lands; see <code>ESP32_PORT_PLAN.md</code> phase 4.</p></div>");
+}
+
+static int append_interphone_tab(char *buf, size_t cap, int off,
+                                  dialplan_entry_info_t *entries, size_t n)
+{
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Inter-phone calls</h2>");
+    for (size_t i = 0; i < n; i++) {
+        if (entries[i].code[0] != '3') continue;
+        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
+                                entries[i].implemented);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">Codes are fixed in firmware "
+        "(<code>components/dialplan/dialplan.c</code>) -- not yet editable from here, "
+        "unlike the Pi's per-line dial-code editor.</p></div>");
+    return off;
+}
+
+static int append_record_tab(char *buf, size_t cap, int off,
+                              dialplan_entry_info_t *entries, size_t n)
+{
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Record message</h2>");
+    for (size_t i = 0; i < n; i++) {
+        if (strcmp(entries[i].code, "211") != 0) continue;
+        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
+                                entries[i].implemented);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">Dial 211, speak, then hang up (or pause ~2 s / hit 30 s). The message "
+        "is saved as an 8 kHz mono WAV in <a href=\"/recordings\">Recordings</a> / Storage below. "
+        "Editable max-length and warning beeps aren't exposed here yet.</p>"
+        "</div>");
+    return off;
+}
+
+static int append_callback_tab(char *buf, size_t cap, int off,
+                                dialplan_entry_info_t *entries, size_t n)
+{
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Record &amp; call back</h2>");
+    for (size_t i = 0; i < n; i++) {
+        if (entries[i].code[0] != '2' || strcmp(entries[i].code, "211") == 0) continue;
+        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
+                                entries[i].implemented);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">Dial one of these, speak, then pause (or wait out 12 s) and it plays "
+        "straight back on the handset. High/low shift pitch; robot (Dalek) plays flat for now "
+        "(ring-mod TODO). This is the ESP32 take on the Pi's hang-up-and-ring-back callback.</p></div>");
+    return off;
+}
+
+static int append_hardware_tab(char *buf, size_t cap, int off)
+{
+    char hw[64], serial[16];
+    board_hardware_str(hw, sizeof(hw));
+    board_serial_str(serial, sizeof(serial));
+    board_codec_t detected = board_detected_codec();
+
+    uint32_t flash_bytes = 0;
+    esp_flash_get_size(NULL, &flash_bytes);
+    size_t ram_total = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
+    size_t ram_free  = esp_get_free_heap_size();
+    size_t st_used = storage_used_bytes();
+    size_t st_cap  = storage_cap_bytes();
+
+    return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Hardware</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">Type</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">Codec (detected)</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">Serial (chip MAC)</span>"
+        "<span><code>%s</code></span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">Firmware</span><span>ESP-IDF %s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">Flash (total)</span><span>%u MB</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">RAM free</span><span>%u / %u KB</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">Storage used</span>"
+        "<span>%u / %u KB%s</span></div>"
+        "<p class=\"hint\">Type is fixed at build time (<code>CONFIG_BOARD_TYPE_*</code>) since "
+        "GPIO routing is per-PCB; the detected codec is probed live on the I2C bus and warns in "
+        "the log if it disagrees. Serial is the factory MAC -- unique per chip, survives reflash. "
+        "Flash is the whole chip; Storage is the file partition (recordings + uploaded clips); "
+        "RAM is live free heap. Uptime/WiFi are on the <a href=\"/\">Status</a> page.</p>"
+        "</div>",
+        hw, board_codec_name(detected), serial, esp_get_idf_version(),
+        (unsigned)(flash_bytes / (1024 * 1024)),
+        (unsigned)(ram_free / 1024), (unsigned)(ram_total / 1024),
+        (unsigned)(st_used / 1024), (unsigned)(st_cap / 1024),
+        storage_using_sd() ? " (SD)" : "");
+}
+
 /* Storage file manager -- lists every file in the storage layer (recordings,
  * uploaded prompt/clip WAVs, anything else that landed there) with size,
  * download, and delete. There's no type distinction in storage.c itself --
- * it's all just files in the same SPIFFS-backed partition -- so this is the
- * one place to see and manage all of it, separate from /recordings which
- * stays a simpler read-only list once record/playback dial codes exist. */
-static esp_err_t settings_page_handler(httpd_req_t *req)
+ * it's all just files in the same SPIFFS-backed partition -- so this stays
+ * outside the tabs (clip uploads, operator.wav, and recordings all land
+ * here together; no single tab owns it). */
+static int append_storage_section(char *buf, size_t cap, int off)
 {
     storage_entry_t entries[32];
     size_t n = storage_list(entries, 32);
     char ip[16];
     wifi_get_ip_str(ip, sizeof(ip));
 
-    size_t cap = 2048 + n * 220;
-    char *buf = malloc(cap);
-    if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
-
-    int off = append_page_head(buf, cap, 0, "Settings - Rotary Phone Gateway", "/settings", false);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "</header><main>"
-        "<div class=\"card\"><h2>Settings</h2>"
-        "<p class=\"hint\">WiFi credentials: <code>wifi_set &lt;ssid&gt; &lt;password&gt;</code> "
-        "from the device console (nothing else configurable over HTTP yet).</p>"
-        "</div>"
         "<div class=\"card\" style=\"margin-top:16px\"><h2>Storage files (%u)</h2>"
         "<p class=\"hint\">%u / %u bytes used. Everything in the storage partition -- recordings, "
         "uploaded prompt/clip WAVs, anything else. Upload with <code>curl -X POST "
@@ -356,14 +706,221 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         }
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
     }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    return off;
+}
+
+static esp_err_t settings_page_handler(httpd_req_t *req)
+{
+    char tab[16] = "general";
+    char query[64];
+    if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
+        httpd_query_key_value(query, "tab", tab, sizeof(tab));
+    }
+    bool known_tab = false;
+    for (size_t i = 0; i < SETTINGS_TABS_N; i++) {
+        if (strcmp(SETTINGS_TABS[i].id, tab) == 0) { known_tab = true; break; }
+    }
+    if (!known_tab) strncpy(tab, "general", sizeof(tab));
+
+    dialplan_entry_info_t entries[40];
+    size_t n = dialplan_list(entries, 40);
+
+    /* Sized for the busiest tab (all n entries as guide rows) plus the storage
+     * section (up to 32 files, listed there). Don't storage_list() here just
+     * to count -- that's a deep SPIFFS+flash walk, and doing it on top of this
+     * handler's stack arrays is what overflowed the httpd task's stack. */
+    size_t cap = 6144 + n * 220 + 32 * 220;
+    char *buf = malloc(cap);
+    if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
+
+    int off = append_page_head(buf, cap, 0, "Settings - Rotary Phone Gateway", "/settings", false);
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "</header><main class=\"settings-main\">");
+    off = append_settings_tabs(buf, cap, off, tab);
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "<div class=\"cards\">");
+
+    if (strcmp(tab, "general") == 0) off = append_general_tab(buf, cap, off);
+    else if (strcmp(tab, "operator") == 0) off = append_operator_tab(buf, cap, off, entries, n);
+    else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off);
+    else if (strcmp(tab, "interphone") == 0) off = append_interphone_tab(buf, cap, off, entries, n);
+    else if (strcmp(tab, "record") == 0) off = append_record_tab(buf, cap, off, entries, n);
+    else if (strcmp(tab, "callback") == 0) off = append_callback_tab(buf, cap, off, entries, n);
+    else off = append_hardware_tab(buf, cap, off);
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>" /* .cards */);
+    off = append_storage_section(buf, cap, off);
+
     if (off > 0 && (size_t)off < cap) {
-        off += snprintf(buf + off, cap - off,
-            "</div></main></body></html>");
+        off += snprintf(buf + off, cap - off, "</main></body></html>");
     }
 
     httpd_resp_set_type(req, "text/html");
     httpd_resp_send(req, buf, (off > 0) ? off : 0);
     free(buf);
+    return ESP_OK;
+}
+
+/* POST /mode_set/<code>[/<line>] -- web-UI equivalent of dialing a 9xx mode
+ * code, routed through the same TABLE dialplan_feed() matches against (see
+ * dialplan_set_mode_by_code()) so the buttons can't drift from what dialing
+ * the code actually does. <line> is only meaningful for per-line codes
+ * (901/902); everything else ignores it. */
+static esp_err_t mode_set_handler(httpd_req_t *req)
+{
+    const char *prefix = "/mode_set/";
+    const char *rest = req->uri + strlen(prefix);
+    char code[8] = {0};
+    int line = -1;
+
+    const char *slash = strchr(rest, '/');
+    if (slash) {
+        size_t clen = (size_t)(slash - rest);
+        if (clen >= sizeof(code)) clen = sizeof(code) - 1;
+        memcpy(code, rest, clen);
+        code[clen] = '\0';
+        line = atoi(slash + 1);
+    } else {
+        strncpy(code, rest, sizeof(code) - 1);
+    }
+
+    if (!dialplan_set_mode_by_code(code, line)) {
+        ESP_LOGW(TAG, "mode_set: unknown or non-mode code '%s'", code);
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* Minimal application/x-www-form-urlencoded decoder -- '+' and %XX only.
+ * Good enough for the couple of short text fields this UI posts (WiFi
+ * SSID/password); not a general MIME parser. */
+static void url_decode(char *s)
+{
+    char *o = s;
+    while (*s) {
+        if (*s == '+') { *o++ = ' '; s++; }
+        else if (*s == '%' && isxdigit((unsigned char)s[1]) && isxdigit((unsigned char)s[2])) {
+            char hex[3] = { s[1], s[2], 0 };
+            *o++ = (char)strtol(hex, NULL, 16);
+            s += 3;
+        } else {
+            *o++ = *s++;
+        }
+    }
+    *o = '\0';
+}
+
+static bool form_field(const char *body, const char *key, char *out, size_t out_len)
+{
+    size_t klen = strlen(key);
+    const char *p = body;
+    while (p) {
+        if (strncmp(p, key, klen) == 0 && p[klen] == '=') {
+            p += klen + 1;
+            const char *amp = strchr(p, '&');
+            size_t vlen = amp ? (size_t)(amp - p) : strlen(p);
+            if (vlen >= out_len) vlen = out_len - 1;
+            memcpy(out, p, vlen);
+            out[vlen] = '\0';
+            url_decode(out);
+            return true;
+        }
+        p = strchr(p, '&');
+        if (p) p++;
+    }
+    return false;
+}
+
+/* POST /wifi_set -- form body ssid=...&password=.... Blank password means
+ * an open network (matches do_connect()'s own authmode choice in wifi.c),
+ * not "keep the old one". */
+#define WIFI_FORM_MAX_BODY 256
+
+static esp_err_t wifi_set_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char ssid[33] = {0}, pass[65] = {0};
+    form_field(body, "ssid", ssid, sizeof(ssid));
+    form_field(body, "password", pass, sizeof(pass));
+
+    if (!ssid[0]) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "ssid required");
+        return ESP_OK;
+    }
+
+    if (wifi_is_provisioning()) {
+        /* From the setup AP: we're not on the target network, so save the
+         * creds and reboot into station mode rather than trying to connect
+         * live (which would drop the AP the phone is still using). */
+        esp_err_t err = wifi_save_credentials(ssid, pass);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "wifi_save_credentials failed: %s", esp_err_to_name(err));
+            httpd_resp_send_500(req);
+            return ESP_FAIL;
+        }
+        httpd_resp_set_type(req, "text/html");
+        httpd_resp_sendstr(req,
+            "<!doctype html><meta charset=\"utf-8\">"
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+            "<link rel=\"stylesheet\" href=\"/static/style.css\">"
+            "<main class=\"auth-page\"><div class=\"auth-card\">"
+            "<h1>Saved \xe2\x80\x94 connecting\xe2\x80\xa6</h1>"
+            "<p class=\"hint\">The phone is rebooting to join your network. This setup "
+            "network will disappear. Find it back at its <code>.local</code> name or on "
+            "your router's device list.</p></div></main>");
+        xTaskCreate(reboot_task, "reboot", 2048, NULL, tskIDLE_PRIORITY + 1, NULL);
+        return ESP_OK;
+    }
+
+    esp_err_t err = wifi_set_credentials(ssid, pass);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "wifi_set_credentials failed: %s", esp_err_to_name(err));
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /board_name -- form body name=.... Persists the name (board_name_set)
+ * and re-pushes it to mDNS live (wifi_apply_hostname) so the <name>.local
+ * address updates without a reboot. */
+static esp_err_t board_name_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char name[32] = {0};
+    form_field(body, "name", name, sizeof(name));
+    if (!name[0]) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "name required");
+        return ESP_OK;
+    }
+    if (board_name_set(name) == ESP_OK) {
+        wifi_apply_hostname();
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
 
@@ -392,43 +949,88 @@ static esp_err_t media_delete_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* Lists dialplan.c's real table -- not a hand-copied duplicate -- and one
- * synthetic row for the 555xxxx VoIP prefix, which is matched directly in
- * dialplan_feed() rather than living in the table itself. Working codes get
- * the same green .pill.on badge the line-state cards use; anything
- * telephony.c still just stubs with a confirm tone gets .pill.off (already
- * styled muted/gray in the Pi CSS) plus a dimmed row so it reads as "not
- * live yet" at a glance, per your "grey it out" ask. */
+/* Cards grouped by code prefix -- matches the layout of the Pi's
+ * web/templates/guide.html (4xx / 2xx / call-other-phone / 8xx / 9xx cards)
+ * instead of one flat table. Grouping is by first digit, not a hand-kept
+ * category field, so a new dialplan.c entry lands in the right card purely
+ * by its code -- there's still only one table to keep in sync. */
+typedef struct { char prefix; const char *heading; } guide_cat_t;
+static const guide_cat_t GUIDE_CATS[] = {
+    { '4', "4xx -- silly audio" },
+    { '2', "2xx -- calling" },
+    { '3', "Call other phone" },
+    { '8', "8xx -- radio" },
+    { '9', "9xx -- settings" },
+};
+#define GUIDE_CATS_N (sizeof(GUIDE_CATS) / sizeof(GUIDE_CATS[0]))
+
+/* "401" -> "4-0-1", matching how the Pi guide and DIAL_CODES.md write codes. */
+static void hyphenate_code(const char *code, char *out, size_t outsz)
+{
+    size_t o = 0;
+    for (size_t i = 0; code[i] != '\0' && o + 2 < outsz; i++) {
+        if (i) out[o++] = '-';
+        out[o++] = code[i];
+    }
+    out[o] = '\0';
+}
+
+static int append_guide_row(char *buf, size_t cap, int off, const char *code,
+                             const char *desc, bool implemented)
+{
+    char hy[24];
+    hyphenate_code(code, hy, sizeof(hy));
+    return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"code-row\"><span class=\"code\">%s</span>"
+        "<span class=\"desc\">%s</span>"
+        "<span class=\"pill %s\">%s</span></div>",
+        hy, desc, implemented ? "on" : "off", implemented ? "working" : "not yet");
+}
+
 static esp_err_t guide_handler(httpd_req_t *req)
 {
     dialplan_entry_info_t entries[40];
     size_t n = dialplan_list(entries, 40);
 
-    size_t cap = 4096 + n * 200;
+    size_t cap = 4096 + n * 220;
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
     int off = append_page_head(buf, cap, 0, "Dial Guide - Rotary Phone Gateway", "/guide", false);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "</header><main>"
-        "<div class=\"card\"><h2>Dial codes</h2>"
-        "<table><tr><th>Code</th><th>Does</th><th>Status</th></tr>");
+        "</header><main><div class=\"cards\">");
 
-    for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
-        off += snprintf(buf + off, cap - off,
-            "<tr%s><td><code>%s</code></td><td>%s</td>"
-            "<td><span class=\"pill %s\">%s</span></td></tr>",
-            entries[i].implemented ? "" : " style=\"opacity:.55\"",
-            entries[i].code, entries[i].desc,
-            entries[i].implemented ? "on" : "off",
-            entries[i].implemented ? "working" : "not yet");
+    for (size_t g = 0; g < GUIDE_CATS_N && off > 0 && (size_t)off < cap; g++) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"card\"><h2>%s</h2>", GUIDE_CATS[g].heading);
+        for (size_t i = 0; i < n && (size_t)off < cap; i++) {
+            if (entries[i].code[0] != GUIDE_CATS[g].prefix) continue;
+            off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
+                                    entries[i].implemented);
+        }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
     }
+
+    /* Operator ("0") doesn't share a prefix with anything else in GUIDE_CATS,
+     * so it gets its own card, still pulled live from the table. */
+    for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
+        if (strcmp(entries[i].code, "0") != 0) continue;
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"card\"><h2>Operator</h2>");
+        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
+                                entries[i].implemented);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    }
+
     if (off > 0 && (size_t)off < cap) {
+        /* Synthetic row: 555xxxx is matched directly in dialplan_feed(),
+         * not a TABLE entry, so it isn't in dialplan_list()'s output. */
         off += snprintf(buf + off, cap - off,
-            "<tr style=\"opacity:.55\"><td><code>555xxxx</code></td>"
-            "<td>VoIP dial (7 digits after 555)</td>"
-            "<td><span class=\"pill off\">not yet</span></td></tr>"
-            "</table></div>"
+            "<div class=\"card\"><h2>VoIP</h2>"
+            "<div class=\"code-row\"><span class=\"code\">5-5-5-x-x-x-x</span>"
+            "<span class=\"desc\">7-digit extension</span>"
+            "<span class=\"pill off\">not yet</span></div></div>"
+            "</div>"
             "<p class=\"hint\">Source of truth: <code>components/dialplan/dialplan.c</code> -- "
             "this list is generated from the same table the phone actually matches against, "
             "so it can't drift out of sync with real behavior.</p>"
@@ -599,11 +1201,16 @@ esp_err_t webui_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
-    /* Default is 8 -- we register 11 routes below (two share the media
+    /* Default is 8 -- we register 16 routes below (two share the media
      * path, one GET, one POST, counted separately). Past the cap,
      * httpd_register_uri_handler() just fails per-route, which used to go
      * unchecked below, silently dropping the last couple of routes. */
-    config.max_uri_handlers = 16;
+    config.max_uri_handlers = 20;
+    /* Default httpd task stack is 4 KB. Our page handlers stack a few
+     * storage_entry_t[32]/dialplan_entry_info_t[40] arrays and then descend
+     * into SPIFFS readdir -> esp_flash_read, which is itself stack-hungry;
+     * that combination overflowed the 4 KB guard on the Settings page. */
+    config.stack_size = 8192;
 
     httpd_handle_t server = NULL;
     esp_err_t err = httpd_start(&server, &config);
@@ -625,6 +1232,13 @@ esp_err_t webui_start(void)
         { .uri = "/media/*",         .method = HTTP_GET, .handler = media_handler },
         { .uri = "/media/*",         .method = HTTP_POST, .handler = media_upload_handler },
         { .uri = "/media_delete/*",  .method = HTTP_POST, .handler = media_delete_handler },
+        { .uri = "/mode_set/*",      .method = HTTP_POST, .handler = mode_set_handler },
+        { .uri = "/wifi_set",        .method = HTTP_POST, .handler = wifi_set_handler },
+        { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
+        /* Catch-all LAST: captive-portal redirect while provisioning, plain
+         * 404 otherwise. The wildcard matcher tries handlers in registration
+         * order, so every specific route above still wins. */
+        { .uri = "/*",               .method = HTTP_GET, .handler = catchall_handler },
     };
     for (size_t i = 0; i < sizeof(routes) / sizeof(routes[0]); i++) {
         esp_err_t rerr = httpd_register_uri_handler(server, &routes[i]);

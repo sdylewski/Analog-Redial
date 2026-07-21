@@ -6,6 +6,7 @@
 #include "tones.h"
 #include "voip.h"
 #include "player.h"
+#include "recorder.h"
 #include "storage.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -26,6 +27,7 @@ typedef enum {
     IN_OFFHOOK = 0, IN_ONHOOK, IN_DIGIT,
     IN_VOIP_INCOMING, IN_VOIP_ANSWERED, IN_VOIP_CLOSED,
     IN_CLIP_DONE,
+    IN_REC_DONE,
 } in_type_t;
 
 typedef struct {
@@ -48,6 +50,10 @@ typedef struct {
     /* transient tone auto-return */
     int64_t              tone_return_us; /* 0 = no auto-return */
     tel_state_t          tone_return_state;
+    /* active recording (211 archive / 212-215 callback) */
+    bool                 rec_callback;   /* true = play it back after (212-215) */
+    voice_effect_t       rec_fx;         /* pitch effect for callback playback */
+    char                 rec_name[STORAGE_MAX_NAME];
 } line_t;
 
 static line_t        s_line[NLINES];
@@ -65,6 +71,7 @@ const char *telephony_state_name(tel_state_t s)
         case TEL_BUSY: return "BUSY";
         case TEL_REORDER: return "REORDER";
         case TEL_PLAYING: return "PLAYING";
+        case TEL_RECORDING: return "RECORDING";
         default: return "?";
     }
 }
@@ -120,6 +127,14 @@ static void dtmf_tap(int line, const int16_t *mono, size_t n, void *ctx)
 static void clip_done_cb(int line, void *ctx)
 {
     in_evt_t e = { .line = line, .type = IN_CLIP_DONE, .digit = 0 };
+    xQueueSend(s_q, &e, 0);
+}
+
+/* recorder_start()'s done_cb -- same pattern: enqueue so the FSM decides what
+ * happens next (archive: back to dial tone; callback: play it back). */
+static void rec_done_cb(int line, bool ok, void *ctx)
+{
+    in_evt_t e = { .line = line, .type = IN_REC_DONE, .digit = 0 };
     xQueueSend(s_q, &e, 0);
 }
 
@@ -228,6 +243,7 @@ static void end_call(int line)
     audio_tx_silence(line);
     voip_hangup(line);
     if (s_line[line].state == TEL_PLAYING) player_stop(line);
+    if (s_line[line].state == TEL_RECORDING) recorder_stop(line);
 
     if (peer >= 0 && peer < NLINES) {
         switch (s_line[peer].state) {
@@ -288,15 +304,36 @@ static void handle_action(int line, const dialplan_action_t *a)
             break;
         }
 
-        case ACT_RECORD_PLAYBACK:
-            ESP_LOGI(TAG, "line %d: record+playback fx=%d (TODO)", line, a->arg);
-            play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+        case ACT_RECORD_PLAYBACK: { /* 212-215: record, then play it back */
+            snprintf(s_line[line].rec_name, sizeof(s_line[line].rec_name),
+                     "cb_l%d.wav", line);
+            s_line[line].rec_callback = true;
+            s_line[line].rec_fx = (voice_effect_t)a->arg;
+            audio_tx_silence(line);
+            if (recorder_start(line, s_line[line].rec_name, 12000, 2000,
+                               rec_done_cb, NULL) == ESP_OK) {
+                s_line[line].state = TEL_RECORDING;
+            } else {
+                ESP_LOGW(TAG, "line %d: record+playback couldn't start", line);
+                play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+            }
             break;
+        }
 
-        case ACT_RECORD_ARCHIVE:
-            ESP_LOGI(TAG, "line %d: record to archive (TODO)", line);
-            play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+        case ACT_RECORD_ARCHIVE: { /* 211: record a message to storage */
+            snprintf(s_line[line].rec_name, sizeof(s_line[line].rec_name),
+                     "rec_l%d_%lld.wav", line, (long long)(esp_timer_get_time() / 1000));
+            s_line[line].rec_callback = false;
+            audio_tx_silence(line);
+            if (recorder_start(line, s_line[line].rec_name, 30000, 2000,
+                               rec_done_cb, NULL) == ESP_OK) {
+                s_line[line].state = TEL_RECORDING;
+            } else {
+                ESP_LOGW(TAG, "line %d: record-to-archive couldn't start", line);
+                play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+            }
             break;
+        }
 
         case ACT_RADIO:
             ESP_LOGI(TAG, "line %d: radio station %d (stream TODO)", line, a->arg);
@@ -383,6 +420,13 @@ static void on_offhook(int line)
 
 static void on_onhook(int line)
 {
+    /* Hanging up ends a recording: stop it and let IN_REC_DONE finalize
+     * (archive keeps what was captured; a callback is abandoned since the
+     * caller is gone). Don't enter_idle here -- the done handler does. */
+    if (s_line[line].state == TEL_RECORDING) {
+        recorder_stop(line);
+        return;
+    }
     end_call(line);
 }
 
@@ -430,6 +474,30 @@ static void fsm_task(void *arg)
                         else enter_idle(e.line);
                     }
                     break;
+                case IN_REC_DONE: {
+                    int l = e.line;
+                    if (s_line[l].state != TEL_RECORDING) break; /* already moved on */
+                    bool play_back = s_line[l].rec_callback && ag1170_is_offhook(l);
+                    if (play_back) {
+                        /* Pitch effect: relabel the WAV's sample-rate field so the
+                         * player's resampler shifts playback. ~8 kHz base; robot
+                         * (Dalek) needs ring-mod we don't have yet, so it plays flat. */
+                        uint32_t base = audio_sample_rate() / (audio_sample_rate() / 8000);
+                        uint32_t rate = base;
+                        if (s_line[l].rec_fx == FX_HIGH) rate = base * 3 / 2;
+                        else if (s_line[l].rec_fx == FX_LOW) rate = base * 2 / 3;
+                        uint8_t b[4] = { rate, rate >> 8, rate >> 16, rate >> 24 };
+                        storage_patch(s_line[l].rec_name, 24, b, 4);
+                        if (player_play(l, s_line[l].rec_name, clip_done_cb, NULL) == ESP_OK) {
+                            s_line[l].state = TEL_PLAYING;
+                            break;
+                        }
+                    }
+                    /* Archive, or caller hung up on a callback: nothing to play. */
+                    if (ag1170_is_offhook(l)) enter_dialtone(l);
+                    else enter_idle(l);
+                    break;
+                }
             }
         }
 

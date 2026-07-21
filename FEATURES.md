@@ -4,7 +4,7 @@ Maps the **Pi v1.0** stack ([`pi_rotary_phone`](../pi_rotary_phone)) onto ESP32 
 
 The ESP32 build is **not** a line-by-line port: Pi used USB dongles + baresip + Flask; ESP32 uses **on-chip I²S codec**, **GPIO SLIC**, and (eventually) **embedded SIP** over Wi-Fi.
 
-**Dial plan source of truth:** [`pi_rotary_phone/docs/DIAL_CODES.md`](../pi_rotary_phone/docs/DIAL_CODES.md) — some rows below still reference older codes; update `dialplan` to match Pi v1.0 during Phase 1.
+**Dial plan source of truth:** [`pi_rotary_phone/docs/DIAL_CODES.md`](../pi_rotary_phone/docs/DIAL_CODES.md) — `dialplan`'s TABLE now matches these codes exactly.
 
 ---
 
@@ -48,19 +48,20 @@ interface, implemented later · ❌ dropped (host/Pi-only concept)
 | **Per-digit dial-plan dispatch** | ✅ | `dialplan` table ported from `DIAL_CODES.md` |
 | **Call the other phone (inter-line)** | ✅ | Local bridge L↔R channels in `audio` |
 | **Busy when other line off-hook** | ✅ | state machine |
-| **Audio clip playback** (single-digit fun, banana line) | 🟡 | Needs clips in flash (SPIFFS/LittleFS); table wired, asset pipeline TODO |
-| **Record + playback (123/124/125/128)** | 🟡 | Record to PSRAM/flash; pitch effects simplified (no `sox`) |
-| **Record to web archive (111)** | 🟡 | Local store; "web archive" becomes HTTP download |
+| **Audio clip playback** (silly clips 4xx, banana line) | 🟡 | Needs clips in flash (SPIFFS/LittleFS); table wired, asset pipeline TODO |
+| **Record + playback (212/213/214/215)** | ✅ | `recorder` captures 8 kHz mono → plays back; high/low pitch via resample, Dalek flat (ring-mod TODO) |
+| **Record to web archive (211)** | ✅ | `recorder` → 8 kHz mono WAV in `storage`, downloadable from `/recordings` |
 | **Voice effects** (pitch/Dalek) | 🟡 | Simple on-device pitch shift; Dalek = ring-mod; not `sox`-grade |
-| **Internet radio (20x)** | 🟡 | HTTP/Shoutcast stream → I²S; later milestone |
+| **Internet radio (8xx)** | 🟡 | HTTP/Shoutcast stream → I²S; later milestone |
 | **Operator help / TTS (dial 0)** | 🟡 | No on-device TTS; play pre-rendered prompt WAVs from flash |
-| **Language EN/IT modes (301/302)** | ✅ | Mode flag selects which prompt asset set |
-| **Play vs Call-only modes (008/009)** | ✅ | Mode flag gates fun codes |
-| **Digit readback toggle (003)** | ✅ | Mode flag |
+| **Language EN/IT modes (901/902)** | ✅ | Mode flag selects which prompt asset set |
+| **Play vs Call-only modes (931/932)** | ✅ | Mode flag gates fun codes |
+| **Digit readback on/off (921/922)** | ✅ | Mode flag, explicit set (not a toggle, matches Pi) |
 | **Wrong-number handling** | ✅ | Unmatched 3+ digit → prompt + dialtone |
 | **VoIP outbound (555-xxxx)** | 🔜 | `voip` interface defined now; SIP/RTP impl is final milestone |
 | **VoIP inbound (ext 1000/1001)** | 🔜 | Same |
-| **Web UI (status/log/recordings)** | 🔜 | `esp_http_server` later; data via NVS/RAM |
+| **Web UI (status/log/recordings)** | ✅ | `esp_http_server`; settings page has real tabs for modes/WiFi, placeholders for the rest |
+| **WiFi provisioning (first boot / factory reset)** | ✅ | No creds → open SoftAP `RotaryPhone-XXXX` + captive setup page; GPIO9 (BOOT) 3 s hold wipes creds |
 | **Event log (SQLite)** | 🟡 | Replaced by ring-buffer log + optional HTTP/JSON |
 | **Single-instance lock** | ❌ | N/A on MCU |
 

@@ -39,11 +39,12 @@ typedef enum {
 } voice_effect_t;
 
 typedef enum {
-    MODE_PLAY = 0,      /* 009 */
-    MODE_CALL_ONLY,     /* 008 */
-    MODE_ENGLISH,       /* 301 */
-    MODE_ITALIAN,       /* 302 */
-    MODE_TOGGLE_READBACK,/* 003 */
+    MODE_PLAY = 0,      /* 931 */
+    MODE_CALL_ONLY,     /* 932 */
+    MODE_ENGLISH,       /* 901 */
+    MODE_ITALIAN,       /* 902 */
+    MODE_READBACK_OFF,  /* 921 */
+    MODE_READBACK_ON,   /* 922 */
 } dialplan_mode_change_t;
 
 typedef struct {
@@ -63,6 +64,13 @@ typedef struct {
 void dialplan_init(void);
 dialplan_modes_t *dialplan_modes(void);
 void dialplan_apply_mode(int line, dialplan_mode_change_t change);
+
+/* Web-UI convenience: trigger a 9xx mode-setting dial code by its code
+ * string (e.g. "931", "901") instead of dialing it, reusing the same TABLE
+ * dialplan_feed() matches against so the web UI can't drift from what
+ * dialing the code actually does. Returns false if `code` isn't a mode-
+ * setting entry. `line` only matters for per-line codes (901/902). */
+bool dialplan_set_mode_by_code(const char *code, int line);
 
 /* Per-line digit collector. */
 typedef struct {

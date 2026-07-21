@@ -1,13 +1,25 @@
 #include "dialplan.h"
 #include "esp_log.h"
+#include "nvs_flash.h"
+#include "nvs.h"
 #include <string.h>
 
 static const char *TAG = "dialplan";
+#define MODES_NVS_NS  "phone"
+#define MODES_NVS_KEY "modes"
 
-/* Clip ids — assets live in flash later (see FEATURES.md milestone 3). */
+/* Clip ids double as the dial code (and the "clip_<id>.wav" filename
+ * player_play() looks for) -- assets live in flash later (see FEATURES.md
+ * milestone 3). Pi wav basenames noted for whoever records the assets. */
 enum {
-    CLIP_6 = 6, CLIP_7 = 7, CLIP_8 = 8, CLIP_9 = 9,
-    CLIP_BANANA_0 = 430, CLIP_BANANA_1 = 431, CLIP_BANANA_2 = 432, CLIP_BANANA_3 = 433,
+    CLIP_RING_OF_FIRE = 401, /* ringfire.wav (EN) / thats_amore.wav (IT) */
+    CLIP_BURP         = 402, /* burp.wav */
+    CLIP_CROCODILE    = 403, /* crocodile_rock.wav (EN) / crocfa.wav (IT) */
+    CLIP_MARTIANS     = 404, /* martians.wav */
+    CLIP_BANANA_PHONE = 411, /* bananaphone.wav */
+    CLIP_BANANA_BOAT  = 412, /* bananaboat.wav */
+    CLIP_BANANA_SPLIT = 413, /* bananasplit.wav */
+    CLIP_LIME_COCONUT = 414, /* limeincoconut.wav */
 };
 
 typedef struct {
@@ -20,77 +32,111 @@ typedef struct {
     bool                   implemented; /* see dialplan_entry_info_t */
 } entry_t;
 
-/* Authoritative table (see ../pi_rotary_phone/docs/DIAL_CODES.md).
+/* Authoritative table (see ../pi_rotary_phone/docs/DIAL_CODES.md, matched
+ * against the live phone_config.json on the Pi -- interphone dial codes are
+ * symmetric 321-324 on both lines there, not the asymmetric 369/842 this
+ * table used to guess at).
  * `implemented` reflects telephony.c's handle_action() as of this writing --
  * anything still just logging "(... TODO)" there and playing a confirm tone
  * is marked false. Flip it when you wire the real behavior in. */
 static const entry_t TABLE[] = {
-    /* global modes */
-    { "009", ACT_SET_MODE, MODE_PLAY,            0, false,
-      "Play mode (allow fun clips / record codes)", true },
-    { "008", ACT_SET_MODE, MODE_CALL_ONLY,       0, false,
-      "Call-only mode (blocks play-only codes)", true },
-    { "301", ACT_SET_MODE, MODE_ENGLISH,         0, false,
-      "Language: English (no prompt audio exists yet to be affected by it)", false },
-    { "302", ACT_SET_MODE, MODE_ITALIAN,         0, false,
-      "Language: Italian (same caveat as English)", false },
-    { "003", ACT_SET_MODE, MODE_TOGGLE_READBACK, 0, false,
-      "Toggle spoken-digit readback while dialing", true },
-
     /* operator help -- plays storage/operator.wav via `player` if present,
      * falls back to a confirm tone if it isn't (see telephony.c) */
     { "0",   ACT_OPERATOR_HELP, 0, 0, false,
       "Operator help prompt", true },
 
-    /* single-digit fun clips (play mode) -- plays storage/clip_<N>.wav via
+    /* 2xx -- leave a message / record & play back (play mode) */
+    { "211", ACT_RECORD_ARCHIVE, 0, 0, true,
+      "Leave a message (record to storage, download on web UI)", true },
+    { "212", ACT_RECORD_PLAYBACK, FX_NORMAL, 0, true, "Record + play back (normal voice)", true },
+    { "213", ACT_RECORD_PLAYBACK, FX_HIGH,   0, true, "Record + play back (chipmunk)", true },
+    { "214", ACT_RECORD_PLAYBACK, FX_LOW,    0, true, "Record + play back (low pitch)", true },
+    { "215", ACT_RECORD_PLAYBACK, FX_DALEK,  0, true, "Record + play back (robot, pitch TODO)", true },
+
+    /* 3xx -- call the other phone line (symmetric on both lines) */
+    { "321", ACT_CALL_LINE, -1, FX_NORMAL, false, "Call other phone (normal voice)", true },
+    { "322", ACT_CALL_LINE, -1, FX_HIGH,   false, "Call other phone (chipmunk)", true },
+    { "323", ACT_CALL_LINE, -1, FX_LOW,    false, "Call other phone (low pitch)", true },
+    { "324", ACT_CALL_LINE, -1, FX_DALEK,  false, "Call other phone (robot)", true },
+
+    /* 4xx -- silly audio clips (play mode) -- plays storage/clip_<N>.wav via
      * `player` if present, falls back to a confirm tone if it isn't */
-    { "6",   ACT_PLAY_CLIP, CLIP_6, 0, true, "Play clip 6", true },
-    { "7",   ACT_PLAY_CLIP, CLIP_7, 0, true, "Play clip 7", true },
-    { "8",   ACT_PLAY_CLIP, CLIP_8, 0, true, "Play clip 8", true },
-    { "9",   ACT_PLAY_CLIP, CLIP_9, 0, true, "Play clip 9", true },
+    { "401", ACT_PLAY_CLIP, CLIP_RING_OF_FIRE, 0, true, "Ring of Fire / That's Amore", true },
+    { "402", ACT_PLAY_CLIP, CLIP_BURP,         0, true, "Burp", true },
+    { "403", ACT_PLAY_CLIP, CLIP_CROCODILE,    0, true, "Crocodile Rock / Crocfa", true },
+    { "404", ACT_PLAY_CLIP, CLIP_MARTIANS,     0, true, "Martians", true },
+    { "411", ACT_PLAY_CLIP, CLIP_BANANA_PHONE, 0, true, "Banana Phone", true },
+    { "412", ACT_PLAY_CLIP, CLIP_BANANA_BOAT,  0, true, "Banana Boat", true },
+    { "413", ACT_PLAY_CLIP, CLIP_BANANA_SPLIT, 0, true, "Banana Split", true },
+    { "414", ACT_PLAY_CLIP, CLIP_LIME_COCONUT, 0, true, "Lime in the Coconut", true },
 
-    /* banana line -- same clip-playback mechanism as above */
-    { "430", ACT_PLAY_CLIP, CLIP_BANANA_0, 0, true, "Banana line, clip 0", true },
-    { "431", ACT_PLAY_CLIP, CLIP_BANANA_1, 0, true, "Banana line, clip 1", true },
-    { "432", ACT_PLAY_CLIP, CLIP_BANANA_2, 0, true, "Banana line, clip 2", true },
-    { "433", ACT_PLAY_CLIP, CLIP_BANANA_3, 0, true, "Banana line, clip 3", true },
+    /* 8xx -- internet radio (play mode); only 811/812 are configured on the
+     * Pi today, 813-819 are documented gaps, not real codes yet */
+    { "811", ACT_RADIO, 1, 0, true, "KXSF 102.5 SF alt-rock (KFOG successor)", false },
+    { "812", ACT_RADIO, 2, 0, true, "KQED NPR 88.5", false },
 
-    /* record + playback on same handset */
-    { "123", ACT_RECORD_PLAYBACK, FX_NORMAL, 0, true, "Record + play back (normal voice)", false },
-    { "124", ACT_RECORD_PLAYBACK, FX_HIGH,   0, true, "Record + play back (pitched up)", false },
-    { "125", ACT_RECORD_PLAYBACK, FX_LOW,    0, true, "Record + play back (pitched down)", false },
-    { "128", ACT_RECORD_PLAYBACK, FX_DALEK,  0, true, "Record + play back (Dalek effect)", false },
-
-    /* record to archive */
-    { "111", ACT_RECORD_ARCHIVE, 0, 0, true,
-      "Record a message to storage (storage layer exists, capture not wired in yet)", false },
-
-    /* call the other phone */
-    { "369", ACT_CALL_LINE, 1, FX_NORMAL, false, "Call line 1 (from line 0)", true },
-    { "842", ACT_CALL_LINE, 0, FX_NORMAL, false, "Call line 0 (from line 1)", true },
-    { "223", ACT_CALL_LINE, -1, FX_NORMAL, false, "Call the other line", true },
-    { "224", ACT_CALL_LINE, -1, FX_HIGH,   false, "Call the other line (pitched up voice)", true },
-    { "225", ACT_CALL_LINE, -1, FX_LOW,    false, "Call the other line (pitched down voice)", true },
-    { "226", ACT_CALL_LINE, -1, FX_DALEK,  false, "Call the other line (Dalek voice)", true },
-
-    /* internet radio */
-    { "201", ACT_RADIO, 1, 0, true, "Internet radio station 1", false },
-    { "202", ACT_RADIO, 2, 0, true, "Internet radio station 2", false },
-    { "203", ACT_RADIO, 3, 0, true, "Internet radio station 3", false },
-    { "204", ACT_RADIO, 4, 0, true, "Internet radio station 4", false },
-    { "205", ACT_RADIO, 5, 0, true, "Internet radio station 5", false },
-    { "206", ACT_RADIO, 6, 0, true, "Internet radio station 6", false },
-    { "207", ACT_RADIO, 7, 0, true, "Internet radio station 7", false },
-    { "208", ACT_RADIO, 8, 0, true, "Internet radio station 8", false },
-    { "209", ACT_RADIO, 9, 0, true, "Internet radio station 9", false },
+    /* 9xx -- settings */
+    { "901", ACT_SET_MODE, MODE_ENGLISH,      0, false,
+      "Language: English, default (no prompt audio exists yet to be affected by it)", false },
+    { "902", ACT_SET_MODE, MODE_ITALIAN,      0, false,
+      "Language: Italian (same caveat as English)", false },
+    { "921", ACT_SET_MODE, MODE_READBACK_OFF, 0, false,
+      "Digit readback off, default", true },
+    { "922", ACT_SET_MODE, MODE_READBACK_ON,  0, false,
+      "Digit readback on", true },
+    { "931", ACT_SET_MODE, MODE_PLAY,         0, false,
+      "Play mode, default (allow fun clips / record codes)", true },
+    { "932", ACT_SET_MODE, MODE_CALL_ONLY,    0, false,
+      "Call-only mode (blocks play-only codes)", true },
 };
 #define TABLE_N (sizeof(TABLE) / sizeof(TABLE[0]))
 
 static dialplan_modes_t s_modes;
 
+/* nvs_flash_init() is safe to call from more than one component -- the first
+ * call wins, later ones are no-ops -- so this doesn't depend on whether
+ * wifi_init() (the other caller) has run yet. dialplan_init() actually runs
+ * before wifi_init() in app_main.c's boot order, so this can't assume it. */
+static void modes_nvs_ready(void)
+{
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+}
+
+/* s_modes was already zeroed by the caller -- on first boot (nothing saved
+ * yet) or a corrupt/short blob, it's left at those defaults (play mode,
+ * English, readback off), matching the Pi's own defaults. */
+static void modes_load(void)
+{
+    nvs_handle_t h;
+    if (nvs_open(MODES_NVS_NS, NVS_READONLY, &h) != ESP_OK) return;
+    dialplan_modes_t loaded;
+    size_t len = sizeof(loaded);
+    if (nvs_get_blob(h, MODES_NVS_KEY, &loaded, &len) == ESP_OK && len == sizeof(loaded)) {
+        s_modes = loaded;
+    }
+    nvs_close(h);
+}
+
+static void modes_save(void)
+{
+    nvs_handle_t h;
+    if (nvs_open(MODES_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    if (nvs_set_blob(h, MODES_NVS_KEY, &s_modes, sizeof(s_modes)) == ESP_OK) {
+        nvs_commit(h);
+    }
+    nvs_close(h);
+}
+
 void dialplan_init(void)
 {
     memset(&s_modes, 0, sizeof(s_modes));
+    modes_nvs_ready();
+    modes_load();
     ESP_LOGI(TAG, "loaded %u codes", (unsigned)TABLE_N);
 }
 
@@ -120,10 +166,14 @@ void dialplan_apply_mode(int line, dialplan_mode_change_t change)
         case MODE_ITALIAN:
             if (line >= 0 && line < 2) s_modes.italian[line] = true;
             break;
-        case MODE_TOGGLE_READBACK:
-            s_modes.readback_digits = !s_modes.readback_digits;
+        case MODE_READBACK_OFF:
+            s_modes.readback_digits = false;
+            break;
+        case MODE_READBACK_ON:
+            s_modes.readback_digits = true;
             break;
     }
+    modes_save();
     ESP_LOGI(TAG, "mode change %d (line %d): call_only=%d it=[%d,%d] readback=%d",
              change, line, s_modes.call_only, s_modes.italian[0], s_modes.italian[1],
              s_modes.readback_digits);
@@ -135,6 +185,14 @@ static const entry_t *exact_match(const char *buf)
         if (strcmp(TABLE[i].code, buf) == 0) return &TABLE[i];
     }
     return NULL;
+}
+
+bool dialplan_set_mode_by_code(const char *code, int line)
+{
+    const entry_t *e = exact_match(code);
+    if (!e || e->kind != ACT_SET_MODE) return false;
+    dialplan_apply_mode(line, (dialplan_mode_change_t)e->arg);
+    return true;
 }
 
 static bool has_longer_prefix(const char *buf)
@@ -158,8 +216,8 @@ static dialplan_action_t make(dialplan_action_kind_t kind, int arg, int arg2)
 /* Resolve target line for "other phone" entries. */
 static int resolve_target(const entry_t *e, int line)
 {
-    if (e->arg >= 0) return e->arg;     /* explicit (369/842) */
-    return (line == 0) ? 1 : 0;          /* generic 22x: the other line */
+    if (e->arg >= 0) return e->arg;      /* explicit target line */
+    return (line == 0) ? 1 : 0;          /* -1: whichever line isn't dialing */
 }
 
 static dialplan_action_t fire(const entry_t *e, int line)
@@ -220,8 +278,8 @@ dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line)
         return make(ACT_WRONG_NUMBER, 0, 0);
     }
 
-    /* Ambiguous shorter code (e.g. "8" while "842" exists): the timeout
-     * resolves it in favor of the shorter exact match. */
+    /* Ambiguous shorter code (e.g. "0" while a longer code shared its prefix):
+     * the timeout resolves it in favor of the shorter exact match. */
     const entry_t *e = exact_match(c->buf);
     if (e) return fire(e, line);
 

@@ -91,6 +91,12 @@ void      storage_read_close(storage_reader_t *r);
 
 esp_err_t storage_delete(const char *name);
 
+/* Overwrite `len` bytes at `offset` in an existing file, in place. Used to
+ * patch a streamed WAV's header size fields (and playback sample-rate for
+ * pitch effects) once the final length is known. ESP_ERR_NOT_FOUND if the
+ * file doesn't exist. */
+esp_err_t storage_patch(const char *name, size_t offset, const void *data, size_t len);
+
 /* Fills `out` (oldest first), returns the number of entries written
  * (<= max_entries). Pass out=NULL/max_entries=0 just to get a count via the
  * return value combined with storage_used_bytes(). */

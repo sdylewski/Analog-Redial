@@ -2,7 +2,7 @@
 
 Maps the working **Pi** stack ([`pi_rotary_phone`](../pi_rotary_phone), `telephone.py` **v1.0**) onto **ESP32-C6** firmware in this repo. Use this before large refactors.
 
-**Authoritative dial plan:** [`pi_rotary_phone/docs/DIAL_CODES.md`](../pi_rotary_phone/docs/DIAL_CODES.md) (not older codes still mentioned in places in `FEATURES.md`).
+**Authoritative dial plan:** [`pi_rotary_phone/docs/DIAL_CODES.md`](../pi_rotary_phone/docs/DIAL_CODES.md) — `dialplan`'s TABLE and `FEATURES.md` now match it.
 
 ---
 
@@ -60,19 +60,20 @@ Legend: ✅ done or close · 🟡 partial · 🔜 not started · ❌ N/A on MCU
 | DTMF detect | ✅ | ✅ | **1** | Align with pulse suppression |
 | Dial / ringback / busy | ✅ | ✅ | — | |
 | Mechanical ring | ✅ | ✅ | — | |
-| Dial plan (0, 2xx, 3xx, 4xx, 8xx, 555, 9xx) | ✅ | 🟡 | **1** | Refresh `dialplan` from Pi `DIAL_CODES.md` |
-| Inter-phone 3xx + voice variants | ✅ | 🟡 | **1** | 321–324 / 842–845; bridge in `audio` |
-| Play vs call-only 931/932 | ✅ | 🟡 | **1** | Mode flags |
-| Digit readback 921/922 | ✅ | 🟡 | **1** | |
+| Dial plan (0, 2xx, 3xx, 4xx, 8xx, 555, 9xx) | ✅ | 🟡 | **1** | Codes now match `DIAL_CODES.md`; 2xx/8xx actions still TODO (rows below) |
+| Inter-phone 3xx + voice variants | ✅ | ✅ | — | 321–324, symmetric on both lines (matches live Pi config); bridge in `audio` |
+| Play vs call-only 931/932 | ✅ | ✅ | — | Mode flags |
+| Digit readback 921/922 | ✅ | ✅ | — | |
 | Language 901/902 | ✅ | 🟡 | **2** | Pre-baked EN/IT WAV sets |
 | Operator 0 (TTS help) | ✅ | 🟡 | **2** | Flash WAVs only |
 | Clips 4xx | ✅ | 🟡 | **2** | SPIFFS / partition |
-| Record 211 | ✅ | 🟡 | **2** | PSRAM or SD (build B) |
-| Callback 212–215 | ✅ | 🟡 | **2** | Simpler pitch FX than sox |
+| Record 211 | ✅ | ✅ | — | `recorder` component: 8 kHz mono WAV to `storage`, auto-stop on hangup/silence/30 s |
+| Callback 212–215 | ✅ | ✅ | — | Record then play back on the handset; high/low via resample, Dalek flat (ring-mod TODO) |
 | Internet radio 811/812 | ✅ | 🔜 | **3** | [`esp-adf`](https://github.com/espressif/esp-adf) or `esp_http_client` + decoder |
 | VoIP 555-xxxx + inbound | ✅ | 🔜 | **4** | See libraries below |
-| Web status / log / recordings | ✅ | 🔜 | **4** | |
-| Config JSON / settings UI | ✅ | 🔜 | **4** | NVS + HTTP; no on-device TTS gen |
+| Web status / log / recordings | ✅ | ✅ | — | `esp_http_server`; status/log/recordings pages done |
+| Config JSON / settings UI | ✅ | 🟡 | **4** | Modes + WiFi + board name persist to NVS, settings page has real tabs for them; interphone/VOIP tabs still read-only placeholders (no on-device TTS gen) |
+| WiFi provisioning / factory reset | n/a | ✅ | — | First boot / GPIO9-erased creds → SoftAP `RotaryPhone-XXXX` + captive setup page |
 
 ### Phases
 
@@ -101,10 +102,9 @@ Avoid reimplementing: Goertzel (keep `dtmf`), I²S (keep `audio`), GPIO SLIC (ke
 
 ## Code refactor direction
 
-Current gaps (June 2026):
+Current gaps (July 2026):
 
 - Firmware builds **WM8731** + `board_pins.h` only; SMD hardware is **ES8388** + `board_pins_smd.h`
-- `FEATURES.md` dial codes lag Pi v1.0
 - `voip` is a stub
 - No `Kconfig` board selection
 
@@ -137,6 +137,30 @@ components/
 - [ ] SMD board: ES8388 loopback + SLIC line 1/2 audio
 - [ ] THT board: WM8731 loopback unchanged
 - [ ] Build A/B stuffing matches `CONFIG_BOARD_*`
+
+---
+
+## Future ideas / parking lot (not scheduled)
+
+- **User audio manager + dial-plan editor (both Pi and ESP32).** Today the
+  clip codes (401/411/…) are hard-coded to filenames in `dialplan.c`. Idea: a
+  Settings screen to **add an audio entry** — upload a WAV/song, pick a dial
+  code (reject one already in use), name it, optionally set a length — and
+  have it register into the dial plan at runtime (config-driven table instead
+  of the compile-time `TABLE[]`). Likely a modal/popup on the Pi; on the
+  ESP32 it'd be a plain sub-page (the ESP32 web UI avoids client JS). The
+  ESP32 is the primary UI target since the board is being built for it.
+  Recordings vs. built-in assets are already separated (Recordings tab shows
+  only `rec_*`; assets are managed under Settings → Storage), which is the
+  groundwork for this.
+
+- **Pi-based header-board hardware variant (doesn't exist yet).** A future
+  revision of the current SMD board where the **ESP32-C6 is swapped for a
+  Raspberry Pi header** (Pi Zero / CM form factor), reusing the same on-board
+  digital audio codec + SLIC front-end and only changing the microcontroller.
+  Would make the `pi_rotary_phone` stack run on this project's hardware rather
+  than the old USB-dongle rig. Board-identity reporting already distinguishes
+  hardware types, so such a board would just report as a Pi variant.
 
 ---
 

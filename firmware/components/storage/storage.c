@@ -202,6 +202,20 @@ esp_err_t storage_delete(const char *name)
     return (unlink(path) == 0) ? ESP_OK : ESP_ERR_NOT_FOUND;
 }
 
+esp_err_t storage_patch(const char *name, size_t offset, const void *data, size_t len)
+{
+    char path[64];
+    full_path(path, sizeof(path), name);
+    FILE *f = fopen(path, "r+b");
+    if (!f) return ESP_ERR_NOT_FOUND;
+    esp_err_t err = ESP_OK;
+    if (fseek(f, (long)offset, SEEK_SET) != 0 || fwrite(data, 1, len, f) != len) {
+        err = ESP_FAIL;
+    }
+    fclose(f);
+    return err;
+}
+
 static int cmp_mtime(const void *a, const void *b)
 {
     const struct stat *sa = a, *sb = b;

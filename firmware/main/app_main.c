@@ -26,8 +26,22 @@
 #include "bringup.h"
 #include "esp_log.h"
 #include "esp_err.h"
+#include "esp_system.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 static const char *TAG = "app";
+
+/* GPIO9 (BOOT) held ~3 s at runtime -> wipe WiFi creds and reboot, so the
+ * device comes back up unprovisioned (SoftAP setup). See board.h. */
+static void on_factory_reset(void)
+{
+    ESP_LOGW(TAG, "factory reset: erasing WiFi credentials and rebooting");
+    board_led_set_state(BOARD_LED_ERROR);
+    wifi_clear_credentials();
+    vTaskDelay(pdMS_TO_TICKS(300)); /* let the NVS commit + log flush */
+    esp_restart();
+}
 
 void app_main(void)
 {
@@ -106,8 +120,12 @@ void app_main(void)
         board_led_set_state(BOARD_LED_ERROR);
     }
 
+    /* 7. BOOT-strap watcher: hold GPIO9 low ~3 s at runtime to factory-reset
+     * WiFi. Started last so it can't interfere with subsystem bring-up. */
+    board_factory_reset_start(on_factory_reset);
+
     ESP_LOGI(TAG, "All subsystems up. Lift a handset to get dial tone.");
 
-    /* 6. Bring-up / inspection console (does not return). */
+    /* 8. Bring-up / inspection console (does not return). */
     bringup_console_start();
 }

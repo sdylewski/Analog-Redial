@@ -22,13 +22,13 @@ Examples:
         --name operator.wav --upload phone.local
 
     # Convert an existing recording instead of synthesizing speech:
-    ./gen_prompt.py --from banana_song.mp3 --name clip_430.wav --upload phone.local
+    ./gen_prompt.py --from banana_song.mp3 --name clip_411.wav --upload phone.local
 
 Well-known names the firmware looks for (see telephony.c's handle_action()
-and dialplan.c's TABLE[]):
+and dialplan.c's TABLE[], ported from pi_rotary_phone/docs/DIAL_CODES.md):
     operator.wav                        -- dial 0
-    clip_6.wav .. clip_9.wav            -- dial 6/7/8/9 (fun clips, PLAY mode)
-    clip_430.wav .. clip_433.wav        -- dial 430-433 (banana line)
+    clip_401.wav .. clip_404.wav        -- dial 401-404 (silly clips, PLAY mode)
+    clip_411.wav .. clip_414.wav        -- dial 411-414 (banana line)
 Anything else just needs a matching filename if/when you wire more dial
 codes to ACT_PLAY_CLIP.
 """
@@ -132,7 +132,7 @@ def main() -> None:
     src_group.add_argument("--from", dest="from_file", metavar="FILE",
                             help="Convert an existing audio file instead of synthesizing speech")
     p.add_argument("--name", required=True,
-                    help="Output filename, e.g. operator.wav or clip_6.wav (see module docstring)")
+                    help="Output filename, e.g. operator.wav or clip_401.wav (see module docstring)")
     p.add_argument("--voice", default=DEFAULT_VOICE, help=f"macOS 'say' voice (default: {DEFAULT_VOICE})")
     p.add_argument("--rate", type=int, default=DEFAULT_RATE,
                     help=f"Output sample rate in Hz -- must match the device's audio_sample_rate() "
