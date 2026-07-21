@@ -74,6 +74,40 @@ def convert_to_wav(src: Path, dst: Path, rate: int) -> None:
     )
 
 
+def trim_wav(path: Path, max_seconds: float, rate: int) -> None:
+    """Truncate a mono 16-bit PCM WAV's data chunk in place. Some of the
+    original pi_rotary_phone audio files are multi-minute songs (the Pi just
+    streamed them until hangup) -- this device's storage cap is 4MB total, so
+    anything more than a short sting needs trimming before upload."""
+    raw = bytearray(path.read_bytes())
+    if raw[0:4] != b"RIFF" or raw[8:12] != b"WAVE":
+        raise SystemExit(f"{path}: not a RIFF/WAVE file, can't trim")
+
+    off = 12
+    data_off = None
+    while off + 8 <= len(raw):
+        chunk_id = bytes(raw[off:off + 4])
+        chunk_sz = int.from_bytes(raw[off + 4:off + 8], "little")
+        body = off + 8
+        if chunk_id == b"data":
+            data_off = body
+            break
+        off = body + chunk_sz + (chunk_sz & 1)
+    if data_off is None:
+        raise SystemExit(f"{path}: couldn't find 'data' chunk to trim")
+
+    max_bytes = int(max_seconds * rate) * 2  # mono, 16-bit
+    max_bytes -= max_bytes % 2
+    data_len = len(raw) - data_off
+    if data_len <= max_bytes:
+        return  # already short enough
+
+    new_len = data_off + max_bytes
+    raw[data_off - 4:data_off] = max_bytes.to_bytes(4, "little")  # this data chunk's size field
+    raw[4:8] = (new_len - 8).to_bytes(4, "little")  # RIFF chunk size field
+    path.write_bytes(raw[:new_len])
+
+
 def upload(path: Path, host: str, name: str) -> None:
     if not host.startswith("http://") and not host.startswith("https://"):
         host = f"http://{host}"
@@ -100,6 +134,9 @@ def main() -> None:
                     help=f"Output sample rate in Hz -- must match the device's audio_sample_rate() "
                          f"(default: {DEFAULT_RATE})")
     p.add_argument("--out-dir", default=".", help="Where to save the WAV locally (default: cwd)")
+    p.add_argument("--max-seconds", type=float, default=None,
+                    help="Trim to at most this many seconds (from the start) -- storage is capped "
+                         "at 4MB total on the device, so multi-minute source files need this")
     p.add_argument("--upload", metavar="HOST",
                     help="Also POST the result to http://HOST/media/<name>, e.g. --upload phone.local "
                          "or --upload 192.168.0.148")
@@ -115,6 +152,9 @@ def main() -> None:
             aiff_path = Path(td) / "speech.aiff"
             synthesize(args.text, args.voice, aiff_path)
             convert_to_wav(aiff_path, out_path, args.rate)
+
+    if args.max_seconds:
+        trim_wav(out_path, args.max_seconds, args.rate)
 
     size = out_path.stat().st_size
     print(f"wrote {out_path} ({size} bytes, {args.rate} Hz mono 16-bit PCM)")

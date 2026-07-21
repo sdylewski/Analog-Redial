@@ -35,6 +35,11 @@ firmware/managed_components/
 __pycache__/
 *.py[cod]
 
+# gen_prompt.py output -- generated locally, uploaded to the device, not
+# meant to live in the repo (source .mp3/.wav clips live outside this repo)
+firmware/bringup/*.wav
+firmware/bringup/*.aiff
+
 # IDE
 .idea/
 .vscode/

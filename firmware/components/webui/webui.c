@@ -307,21 +307,88 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* Placeholder -- no configurable settings wired up yet (WiFi creds are set
- * via the console's `wifi_set` for now). Real content lands once there's
- * something here worth exposing over HTTP. */
+/* Storage file manager -- lists every file in the storage layer (recordings,
+ * uploaded prompt/clip WAVs, anything else that landed there) with size,
+ * download, and delete. There's no type distinction in storage.c itself --
+ * it's all just files in the same SPIFFS-backed partition -- so this is the
+ * one place to see and manage all of it, separate from /recordings which
+ * stays a simpler read-only list once record/playback dial codes exist. */
 static esp_err_t settings_page_handler(httpd_req_t *req)
 {
-    char buf[1024];
-    int off = append_page_head(buf, sizeof(buf), 0, "Settings - Rotary Phone Gateway", "/settings", false);
-    off += snprintf(buf + off, ((size_t)off < sizeof(buf)) ? sizeof(buf) - off : 0,
+    storage_entry_t entries[32];
+    size_t n = storage_list(entries, 32);
+    char ip[16];
+    wifi_get_ip_str(ip, sizeof(ip));
+
+    size_t cap = 2048 + n * 220;
+    char *buf = malloc(cap);
+    if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
+
+    int off = append_page_head(buf, cap, 0, "Settings - Rotary Phone Gateway", "/settings", false);
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "</header><main>"
         "<div class=\"card\"><h2>Settings</h2>"
-        "<p class=\"hint\">Not built yet. WiFi credentials can be set from the device "
-        "console with <code>wifi_set &lt;ssid&gt; &lt;password&gt;</code> for now.</p>"
-        "</div></main></body></html>");
+        "<p class=\"hint\">WiFi credentials: <code>wifi_set &lt;ssid&gt; &lt;password&gt;</code> "
+        "from the device console (nothing else configurable over HTTP yet).</p>"
+        "</div>"
+        "<div class=\"card\" style=\"margin-top:16px\"><h2>Storage files (%u)</h2>"
+        "<p class=\"hint\">%u / %u bytes used. Everything in the storage partition -- recordings, "
+        "uploaded prompt/clip WAVs, anything else. Upload with <code>curl -X POST "
+        "--data-binary @file.wav http://%s/media/&lt;name&gt;</code> or "
+        "<code>firmware/bringup/gen_prompt.py</code>.</p>",
+        (unsigned)n, (unsigned)storage_used_bytes(), (unsigned)storage_cap_bytes(), ip);
+
+    if (n == 0) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"empty\">none yet</div>");
+    } else {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<table><tr><th>Name</th><th>Size</th><th></th><th></th></tr>");
+        for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
+            off += snprintf(buf + off, cap - off,
+                "<tr><td><code>%s</code></td><td>%u bytes</td>"
+                "<td><a href=\"/media/%s\">download</a></td>"
+                "<td><form method=\"POST\" action=\"/media_delete/%s\" "
+                "onsubmit=\"return confirm('Delete %s?')\" style=\"display:inline\">"
+                "<button type=\"submit\">delete</button></form></td></tr>",
+                entries[i].name, (unsigned)entries[i].size,
+                entries[i].name, entries[i].name, entries[i].name);
+        }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
+    }
+    if (off > 0 && (size_t)off < cap) {
+        off += snprintf(buf + off, cap - off,
+            "</div></main></body></html>");
+    }
+
     httpd_resp_set_type(req, "text/html");
     httpd_resp_send(req, buf, (off > 0) ? off : 0);
+    free(buf);
+    return ESP_OK;
+}
+
+/* POST /media_delete/<name> -- plain HTML-form-friendly delete (browsers
+ * can't send DELETE from a <form>), redirects back to /settings so the page
+ * just refreshes with the file gone. */
+static esp_err_t media_delete_handler(httpd_req_t *req)
+{
+    const char *prefix = "/media_delete/";
+    if (strncmp(req->uri, prefix, strlen(prefix)) != 0) {
+        httpd_resp_send_404(req);
+        return ESP_OK;
+    }
+    const char *name = req->uri + strlen(prefix);
+
+    esp_err_t err = storage_delete(name);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "delete '%s' failed: %s", name, esp_err_to_name(err));
+    } else {
+        ESP_LOGI(TAG, "deleted '%s' via web UI", name);
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings");
+    httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
 
@@ -557,6 +624,7 @@ esp_err_t webui_start(void)
         { .uri = "/api/recordings",  .method = HTTP_GET, .handler = recordings_json_handler },
         { .uri = "/media/*",         .method = HTTP_GET, .handler = media_handler },
         { .uri = "/media/*",         .method = HTTP_POST, .handler = media_upload_handler },
+        { .uri = "/media_delete/*",  .method = HTTP_POST, .handler = media_delete_handler },
     };
     for (size_t i = 0; i < sizeof(routes) / sizeof(routes[0]); i++) {
         esp_err_t rerr = httpd_register_uri_handler(server, &routes[i]);
