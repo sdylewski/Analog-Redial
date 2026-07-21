@@ -71,6 +71,55 @@ static void finish(int line, bool call_cb, player_done_cb_t cb, void *ctx)
     if (call_cb && cb) cb(line, ctx);
 }
 
+/* Simple streaming linear-interpolation resampler -- no anti-alias filter,
+ * so it's meant for upsampling (our real case: 8kHz phone-quality prompt
+ * clips -> the device's fixed 48kHz I2S rate) or mild rate mismatches, not
+ * heavy decimation. State carries across storage_read_chunk() calls so
+ * chunk boundaries don't introduce clicks. */
+typedef struct {
+    double  ratio;  /* in_rate / out_rate; <1 upsamples, >1 downsamples */
+    double  phase;  /* fractional position within [prev, cur), in input-sample units */
+    int16_t prev;
+    bool    primed;
+} resampler_t;
+
+static void resampler_init(resampler_t *r, uint32_t in_rate, uint32_t out_rate)
+{
+    r->ratio = (double)in_rate / (double)out_rate;
+    r->phase = 0.0;
+    r->prev = 0;
+    r->primed = false;
+}
+
+/* Worst-case output samples for `n_in` input samples, for sizing the output
+ * buffer once up front. */
+static size_t resampler_max_out(const resampler_t *r, size_t n_in)
+{
+    return (size_t)((double)n_in / r->ratio) + 4;
+}
+
+static size_t resampler_push(resampler_t *r, const int16_t *in, size_t n_in,
+                              int16_t *out, size_t out_cap)
+{
+    size_t out_n = 0;
+    for (size_t i = 0; i < n_in; i++) {
+        int16_t cur = in[i];
+        if (!r->primed) {
+            r->prev = cur;
+            r->primed = true;
+            continue;
+        }
+        while (r->phase < 1.0 && out_n < out_cap) {
+            double interp = r->prev + r->phase * (double)(cur - r->prev);
+            out[out_n++] = (int16_t)interp;
+            r->phase += r->ratio;
+        }
+        r->phase -= 1.0;
+        r->prev = cur;
+    }
+    return out_n;
+}
+
 /* Read this much up front to find the "data" chunk -- covers the fixed
  * 44-byte header our own `record` command writes, plus real-world WAV
  * files with extra chunks (afconvert on macOS pads with a "FLLR" filler
@@ -104,13 +153,24 @@ static void play_task(void *arg)
                           "than %u bytes)", line, a->name, (unsigned)HEADER_SCAN_BYTES);
             goto out;
         }
-        if (wav.sample_rate != audio_sample_rate()) {
-            ESP_LOGW(TAG, "line %d: '%s' is %u Hz, device runs %u Hz -- playing anyway "
-                          "(wrong pitch/speed)",
+        bool need_resample = (wav.sample_rate != audio_sample_rate());
+        resampler_t rs;
+        int16_t *resampled = NULL;
+        size_t resampled_cap = 0;
+        if (need_resample) {
+            resampler_init(&rs, wav.sample_rate, audio_sample_rate());
+            resampled_cap = resampler_max_out(&rs, PLAYBACK_CHUNK_BYTES / sizeof(int16_t));
+            resampled = malloc(resampled_cap * sizeof(int16_t));
+            if (!resampled) {
+                ESP_LOGE(TAG, "line %d: resample buffer alloc failed", line);
+                goto out;
+            }
+            ESP_LOGI(TAG, "line %d: '%s' is %u Hz, resampling to device rate %u Hz",
                      line, a->name, (unsigned)wav.sample_rate, (unsigned)audio_sample_rate());
         }
         if (storage_read_seek(&rd, wav.data_offset) != ESP_OK) {
             ESP_LOGW(TAG, "line %d: seek to data chunk failed", line);
+            free(resampled);
             goto out;
         }
 
@@ -124,6 +184,10 @@ static void play_task(void *arg)
 
             size_t n_samples = got / sizeof(int16_t); /* drops a possible odd trailing byte */
             const int16_t *pcm = (const int16_t *)buf;
+            if (need_resample) {
+                n_samples = resampler_push(&rs, pcm, n_samples, resampled, resampled_cap);
+                pcm = resampled;
+            }
             size_t sent = 0;
             while (sent < n_samples && !s_line[line].stop_requested) {
                 size_t wrote = audio_ext_write(line, pcm + sent, n_samples - sent);
@@ -131,6 +195,7 @@ static void play_task(void *arg)
                 sent += wrote;
             }
         }
+        free(resampled);
         bool stopped = s_line[line].stop_requested;
         if (!stopped) {
             /* let what's still queued in the ext stream buffer actually
