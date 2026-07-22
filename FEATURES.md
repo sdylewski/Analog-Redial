@@ -41,12 +41,9 @@ interface, implemented later · ❌ dropped (host/Pi-only concept)
 | **Rotary pulse dialing** | ✅ | SHK pulse counter, inter-digit timeout → digit |
 | **DTMF (tone) dial detection** | ✅ | Goertzel detector on ADC stream |
 | **DTMF generation** | ✅ | Added (Pi had none) — for feedback / outbound to line |
-| **Dial tone** (350+450) | ✅ | `tones` synth, injected to line via DAC |
-| **Ringback** (440+480, 2s/4s) | ✅ | `tones` cadence |
-| **Busy tone** (480+620, 0.5s) | ✅ | `tones` cadence |
-| **Mechanical ringing** | ✅ | `ag1170` RM + F/R cadence (US 2s/4s default) |
+| **Dial/ringback/busy tones, per language** | ✅ | `tones` synth, region-specific frequency + cadence looked up by Settings → General → Language (`tones/tone_regions.h`, builder-editable): US default plus Italy/Germany/France/Japan/China/Spain, generic ITU-T European fallback otherwise. Sourced from ITU Operational Bulletin No. 781's country tone annex. Mechanical ringing cadence itself is not regionalized (`ag1170` RM + F/R, US 2s/4s default) |
 | **Per-digit dial-plan dispatch** | ✅ | `dialplan` table ported from `DIAL_CODES.md` |
-| **Dial codes** (Settings → Dial Codes) | ✅ | One mutable code↔filename table covers both the builtin "silly audio" clips and anything a user adds — both the dial code AND the audio file are independently editable/uploadable at runtime, no rebuild (not part of `DIAL_CODES.md`, an ESP32-only addition; see `dialplan_clip_entry_t`) |
+| **Dial codes** (Settings → Dial Codes) | ✅ | One mutable code↔filename table covers both the builtin "silly audio" clips and anything a user adds — both the dial code AND the audio file are independently editable/uploadable at runtime, no rebuild (not part of `DIAL_CODES.md`, an ESP32-only addition; see `dialplan_clip_entry_t`). Builtin seed data lives in `dialplan/dialplan_defaults.h`, editable without touching any logic. |
 | **Call the other phone (inter-line)** | ✅ | Local bridge L↔R channels in `audio` |
 | **Busy when other line off-hook** | ✅ | state machine |
 | **Audio clip playback** (silly clips 4xx, banana line) | ✅ | Browser upload (Settings → Dial Codes / Operator) converts any common WAV (any sample rate/bit-depth/channel count) to 8kHz mono via `audio_convert`, or bring your own via `sync_pi_audio.py`/`gen_prompt.py`. Optional MP3 upload support (`audio_convert`'s Kconfig, off by default — real RAM cost, see that Kconfig's help). No clip WAVs ship by default (copyright). |
