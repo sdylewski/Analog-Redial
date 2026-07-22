@@ -1,4 +1,6 @@
 #include "tones.h"
+#include "tone_regions.h"
+#include "board.h"
 #include <math.h>
 #include <string.h>
 
@@ -69,49 +71,85 @@ void tone_osc_fill(tone_osc_t *o, int16_t *out, size_t n)
     }
 }
 
-/* cadence period and "on" window, in samples, for the current position. */
-static bool cadence_on(call_progress_t kind, uint32_t sr, uint32_t pos)
+static const tone_region_t *lookup_region(void)
 {
-    switch (kind) {
-        case TONE_DIAL:
-            return true;
-        case TONE_RINGBACK: {
-            uint32_t period = 6 * sr;            /* 2 on + 4 off */
-            return (pos % period) < (2 * sr);
-        }
-        case TONE_BUSY: {
-            uint32_t period = sr;                /* 0.5 on + 0.5 off */
-            return (pos % period) < (sr / 2);
-        }
-        case TONE_REORDER: {
-            uint32_t period = sr / 2;            /* 0.25 on + 0.25 off */
-            return (pos % period) < (sr / 4);
-        }
-        case TONE_CONFIRM: {
-            /* three 100 ms beeps, 100 ms gaps, then silence */
-            uint32_t beat = sr / 10;             /* 100 ms */
-            uint32_t idx = pos / beat;
-            if (idx >= 6) return false;          /* done after 600 ms */
-            return (idx % 2) == 0;
-        }
-        default:
-            return false;
+    char lang[8];
+    board_language_get(lang, sizeof(lang));
+    for (size_t i = 0; i < TONE_REGIONS_N; i++) {
+        if (strcmp(TONE_REGIONS[i].lang, lang) == 0) return &TONE_REGIONS[i];
+    }
+    return &TONE_REGION_FALLBACK;
+}
+
+/* Resolves a cadence's phase lengths from ms to samples once, at
+ * progress_tone_start() time, rather than converting on every sample in
+ * the hot fill loop below. */
+static void resolve_cadence(progress_tone_t *p, const tone_cadence_t *c)
+{
+    p->n_phases = c->n_phases;
+    for (int i = 0; i < c->n_phases; i++) {
+        p->phase_samples[i] = (uint32_t)((uint64_t)c->phase_ms[i] * p->sample_rate / 1000);
     }
 }
+
+/* True if `pos` (samples since cadence start) falls in an "on" phase.
+ * n_phases == 0 means continuous. Phase 0, 2, 4, ... are "on". */
+static bool cadence_on(const progress_tone_t *p, uint32_t pos)
+{
+    if (p->n_phases == 0) return true;
+    uint32_t period = 0;
+    for (int i = 0; i < p->n_phases; i++) period += p->phase_samples[i];
+    if (period == 0) return true; /* degenerate table entry -- fail open, not silent */
+    uint32_t rem = pos % period;
+    for (int i = 0; i < p->n_phases; i++) {
+        if (rem < p->phase_samples[i]) return (i % 2) == 0;
+        rem -= p->phase_samples[i];
+    }
+    return false; /* unreachable */
+}
+
+/* REORDER/CONFIRM aren't in the per-language region table (see tones.h) --
+ * fixed specs, same shape as a tone_spec_t so they can share the same
+ * resolve_cadence()/cadence_on() path. */
+static const tone_spec_t TONE_SPEC_REORDER = { 480, 620, { {250, 250}, 2 } };
 
 void progress_tone_start(progress_tone_t *p, uint32_t sample_rate, call_progress_t kind)
 {
     p->kind = kind;
     p->sample_rate = sample_rate;
     p->pos = 0;
+    p->n_phases = 0;
+
     float f1 = 0, f2 = 0;
     switch (kind) {
-        case TONE_DIAL:     f1 = 350; f2 = 450; break;
-        case TONE_RINGBACK: f1 = 440; f2 = 480; break;
-        case TONE_BUSY:     f1 = 480; f2 = 620; break;
-        case TONE_REORDER:  f1 = 480; f2 = 620; break;
-        case TONE_CONFIRM:  f1 = 350; f2 = 440; break;
-        default:            f1 = 0;   f2 = 0;   break;
+        case TONE_DIAL: {
+            const tone_spec_t *s = &lookup_region()->dial;
+            f1 = s->f1; f2 = s->f2;
+            resolve_cadence(p, &s->cadence);
+            break;
+        }
+        case TONE_RINGBACK: {
+            const tone_spec_t *s = &lookup_region()->ringback;
+            f1 = s->f1; f2 = s->f2;
+            resolve_cadence(p, &s->cadence);
+            break;
+        }
+        case TONE_BUSY: {
+            const tone_spec_t *s = &lookup_region()->busy;
+            f1 = s->f1; f2 = s->f2;
+            resolve_cadence(p, &s->cadence);
+            break;
+        }
+        case TONE_REORDER:
+            f1 = TONE_SPEC_REORDER.f1; f2 = TONE_SPEC_REORDER.f2;
+            resolve_cadence(p, &TONE_SPEC_REORDER.cadence);
+            break;
+        case TONE_CONFIRM:
+            f1 = 350; f2 = 440; /* handled as a one-shot special case below, not a cadence */
+            break;
+        default:
+            f1 = 0; f2 = 0;
+            break;
     }
     tone_osc_init(&p->osc, sample_rate, f1, f2, 0.6f);
 }
@@ -124,7 +162,17 @@ void progress_tone_fill(progress_tone_t *p, int16_t *out, size_t n)
     }
     /* Generate sample-by-sample so on/off transitions land mid-buffer. */
     for (size_t i = 0; i < n; i++) {
-        bool on = cadence_on(p->kind, p->sample_rate, p->pos);
+        bool on;
+        if (p->kind == TONE_CONFIRM) {
+            /* three 100 ms beeps, 100 ms gaps, then silence -- a one-shot
+             * sequence, not a repeating cadence, so it can't use the
+             * generic cadence_on() (which always loops via modulo). */
+            uint32_t beat = p->sample_rate / 10;
+            uint32_t idx = p->pos / beat;
+            on = (idx < 6) && (idx % 2) == 0;
+        } else {
+            on = cadence_on(p, p->pos);
+        }
         int16_t s = 0;
         tone_osc_fill(&p->osc, &s, 1);  /* advance phase even when muted */
         out[i] = on ? s : 0;

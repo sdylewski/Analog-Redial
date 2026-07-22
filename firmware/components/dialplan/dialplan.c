@@ -80,24 +80,9 @@ static const entry_t TABLE[] = {
  * in dialplan.h) -- codes and filenames match what this project has always
  * shipped/documented, but from first boot on, both live in NVS and are
  * freely editable; this array is never consulted again after the first
- * seed. */
-typedef struct {
-    const char *code;
-    const char *filename;
-    const char *desc;
-} clip_default_t;
-
-static const clip_default_t CLIP_DEFAULTS[] = {
-    { "401", "ring_of_fire.wav",    "Ring of Fire / That's Amore" },
-    { "402", "burp.wav",            "Burp" },
-    { "403", "crocodile_rock.wav",  "Crocodile Rock / Crocfa" },
-    { "404", "martians.wav",        "Martians" },
-    { "411", "banana_phone.wav",    "Banana Phone" },
-    { "412", "banana_boat.wav",     "Banana Boat" },
-    { "413", "banana_split.wav",    "Banana Split" },
-    { "414", "lime_in_coconut.wav", "Lime in the Coconut" },
-};
-#define CLIP_DEFAULTS_N (sizeof(CLIP_DEFAULTS) / sizeof(CLIP_DEFAULTS[0]))
+ * seed. Builder-editable defaults live in dialplan_defaults.h, not here --
+ * edit that file to change what a fresh build seeds. */
+#include "dialplan_defaults.h"
 
 static dialplan_modes_t s_modes;
 
