@@ -1,6 +1,7 @@
 #include "player.h"
 #include "audio.h"
 #include "storage.h"
+#include "audio_convert.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -24,106 +25,10 @@ typedef struct {
     void  *ctx;
 } play_args_t;
 
-typedef struct {
-    uint16_t audio_format;
-    uint16_t channels;
-    uint32_t sample_rate;
-    uint16_t bits_per_sample;
-    uint32_t data_offset;
-    uint32_t data_bytes;
-} wav_info_t;
-
-static uint32_t rd_u32(const uint8_t *p) { return p[0] | (p[1] << 8) | (p[2] << 16) | ((uint32_t)p[3] << 24); }
-static uint16_t rd_u16(const uint8_t *p) { return (uint16_t)(p[0] | (p[1] << 8)); }
-
-/* Minimal RIFF/WAVE chunk walker -- tolerates extra chunks between fmt and
- * data (not just the fixed 44-byte layout bringup's `record` command
- * writes), since host-generated files may include LIST/INFO chunks. */
-static bool wav_parse(const uint8_t *buf, size_t len, wav_info_t *out)
-{
-    if (len < 12 || memcmp(buf, "RIFF", 4) != 0 || memcmp(buf + 8, "WAVE", 4) != 0) return false;
-    memset(out, 0, sizeof(*out));
-    size_t off = 12;
-    bool have_fmt = false, have_data = false;
-    while (off + 8 <= len) {
-        uint32_t sz = rd_u32(buf + off + 4);
-        size_t body = off + 8;
-        if (memcmp(buf + off, "fmt ", 4) == 0 && body + 16 <= len) {
-            out->audio_format    = rd_u16(buf + body + 0);
-            out->channels        = rd_u16(buf + body + 2);
-            out->sample_rate     = rd_u32(buf + body + 4);
-            out->bits_per_sample = rd_u16(buf + body + 14);
-            have_fmt = true;
-        } else if (memcmp(buf + off, "data", 4) == 0) {
-            out->data_offset = (uint32_t)body;
-            /* Trust the declared chunk size -- `len` here is just how much of
-             * the header we scanned to find this chunk (see HEADER_SCAN_BYTES
-             * below), not the file's real length, so clamping to it silently
-             * truncated every real clip to a few hundred ms. The playback
-             * loop's own storage_read_chunk()==0 check still guards against a
-             * genuinely truncated file. */
-            out->data_bytes = sz;
-            have_data = true;
-        }
-        off = body + sz + (sz & 1); /* chunks are word-aligned */
-        if (have_fmt && have_data) break;
-    }
-    return have_fmt && have_data;
-}
-
 static void finish(int line, bool call_cb, player_done_cb_t cb, void *ctx)
 {
     s_line[line].active = false;
     if (call_cb && cb) cb(line, ctx);
-}
-
-/* Simple streaming linear-interpolation resampler -- no anti-alias filter,
- * so it's meant for upsampling (our real case: 8kHz phone-quality prompt
- * clips -> the device's fixed 48kHz I2S rate) or mild rate mismatches, not
- * heavy decimation. State carries across storage_read_chunk() calls so
- * chunk boundaries don't introduce clicks. */
-typedef struct {
-    double  ratio;  /* in_rate / out_rate; <1 upsamples, >1 downsamples */
-    double  phase;  /* fractional position within [prev, cur), in input-sample units */
-    int16_t prev;
-    bool    primed;
-} resampler_t;
-
-static void resampler_init(resampler_t *r, uint32_t in_rate, uint32_t out_rate)
-{
-    r->ratio = (double)in_rate / (double)out_rate;
-    r->phase = 0.0;
-    r->prev = 0;
-    r->primed = false;
-}
-
-/* Worst-case output samples for `n_in` input samples, for sizing the output
- * buffer once up front. */
-static size_t resampler_max_out(const resampler_t *r, size_t n_in)
-{
-    return (size_t)((double)n_in / r->ratio) + 4;
-}
-
-static size_t resampler_push(resampler_t *r, const int16_t *in, size_t n_in,
-                              int16_t *out, size_t out_cap)
-{
-    size_t out_n = 0;
-    for (size_t i = 0; i < n_in; i++) {
-        int16_t cur = in[i];
-        if (!r->primed) {
-            r->prev = cur;
-            r->primed = true;
-            continue;
-        }
-        while (r->phase < 1.0 && out_n < out_cap) {
-            double interp = r->prev + r->phase * (double)(cur - r->prev);
-            out[out_n++] = (int16_t)interp;
-            r->phase += r->ratio;
-        }
-        r->phase -= 1.0;
-        r->prev = cur;
-    }
-    return out_n;
 }
 
 /* Read this much up front to find the "data" chunk -- covers the fixed
@@ -152,20 +57,20 @@ static void play_task(void *arg)
 
     {
         size_t scanned = storage_read_chunk(&rd, buf, HEADER_SCAN_BYTES);
-        wav_info_t wav;
-        if (!wav_parse(buf, scanned, &wav) || wav.audio_format != 1 || wav.channels != 1 ||
+        audio_wav_info_t wav;
+        if (!audio_wav_parse(buf, scanned, &wav) || wav.audio_format != 1 || wav.channels != 1 ||
             wav.bits_per_sample != 16) {
             ESP_LOGW(TAG, "line %d: '%s' isn't mono 16-bit PCM WAV (or header is bigger "
                           "than %u bytes)", line, a->name, (unsigned)HEADER_SCAN_BYTES);
             goto out;
         }
         bool need_resample = (wav.sample_rate != audio_sample_rate());
-        resampler_t rs;
+        audio_resampler_t rs;
         int16_t *resampled = NULL;
         size_t resampled_cap = 0;
         if (need_resample) {
-            resampler_init(&rs, wav.sample_rate, audio_sample_rate());
-            resampled_cap = resampler_max_out(&rs, PLAYBACK_CHUNK_BYTES / sizeof(int16_t));
+            audio_resampler_init(&rs, wav.sample_rate, audio_sample_rate());
+            resampled_cap = audio_resampler_max_out(&rs, PLAYBACK_CHUNK_BYTES / sizeof(int16_t));
             resampled = malloc(resampled_cap * sizeof(int16_t));
             if (!resampled) {
                 ESP_LOGE(TAG, "line %d: resample buffer alloc failed", line);
@@ -191,7 +96,7 @@ static void play_task(void *arg)
             size_t n_samples = got / sizeof(int16_t); /* drops a possible odd trailing byte */
             const int16_t *pcm = (const int16_t *)buf;
             if (need_resample) {
-                n_samples = resampler_push(&rs, pcm, n_samples, resampled, resampled_cap);
+                n_samples = audio_resampler_push(&rs, pcm, n_samples, resampled, resampled_cap);
                 pcm = resampled;
             }
             size_t sent = 0;

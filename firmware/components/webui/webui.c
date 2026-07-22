@@ -45,10 +45,6 @@ static const char *fmt_bytes(uint64_t n, char *out, size_t outsz)
 static int append_guide_row(char *buf, size_t cap, int off, const char *code,
                              const char *desc, bool implemented);
 
-/* Defined just after append_general_tab (which calls it) -- forward-declared
- * since C needs the declaration before the call site. */
-static int append_custom_codes_card(char *buf, size_t cap, int off);
-
 /* firmware/assets/ ships README.md and .gitignore alongside actual clips
  * (see that directory's own README) -- filter those out of "pick a clip to
  * play" lists so a user can't assign a dial code to a non-audio file. */
@@ -477,6 +473,7 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
 typedef struct { const char *id; const char *label; } settings_tab_t;
 static const settings_tab_t SETTINGS_TABS[] = {
     { "general",    "General" },
+    { "dialcodes",  "Dial Codes" },
     { "operator",   "Operator" },
     { "voip",       "VOIP" },
 #if CONFIG_BOARD_NUM_LINES > 1
@@ -509,9 +506,9 @@ static void mode_set_url(char *out, size_t out_len, const char *code, int line)
 }
 
 /* One card: a live pill for the mode's current value plus the two buttons
- * that set it explicitly. The phone's own dial codes (931/932, 921/922)
- * always set state outright rather than toggling it, so these buttons
- * mirror that instead of offering a single flip. */
+ * that set it explicitly. The phone's own dial codes (e.g. 921/922) always
+ * set state outright rather than toggling it, so these buttons mirror that
+ * instead of offering a single flip. */
 static int append_mode_card(char *buf, size_t cap, int off, const char *title,
                              const char *pill_class, const char *state_label,
                              const char *opt_a_label, const char *opt_a_code,
@@ -550,16 +547,6 @@ static int append_general_tab(char *buf, size_t cap, int off)
         "</div>",
         name, host);
 
-    dialplan_modes_t *m = dialplan_modes();
-    off = append_mode_card(buf, cap, off, "Phone mode",
-        m->call_only ? "off" : "on", m->call_only ? "Call-only" : "Play mode",
-        "Set play mode", "931", "Set call-only mode", "932", -1);
-    off = append_mode_card(buf, cap, off, "Digit readback",
-        m->readback_digits ? "on" : "off", m->readback_digits ? "On" : "Off",
-        "Turn off", "921", "Turn on", "922", -1);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Both persist to flash (NVS) and survive a reboot.</p>");
-
     char lang[8];
     board_language_get(lang, sizeof(lang));
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
@@ -591,64 +578,40 @@ static int append_general_tab(char *buf, size_t cap, int off)
         "</div>",
         ssid[0] ? ssid : "(not configured)", ssid);
 
-    off = append_custom_codes_card(buf, cap, off);
+    dialplan_modes_t *m = dialplan_modes();
+    off = append_mode_card(buf, cap, off, "Digit readback",
+        m->readback_digits ? "on" : "off", m->readback_digits ? "On" : "Off",
+        "Turn off", "921", "Turn on", "922", -1);
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">Persists to flash (NVS) and survives a reboot.</p>");
     return off;
 }
 
-/* "Custom dial codes" -- assign a new number to an already-uploaded/
- * recorded/bundled WAV without a firmware rebuild (dialplan_add_user_entry).
- * The <select> lists every playable name storage_read_open() can actually
- * find: writable storage (uploads, recordings) plus bundled defaults not
- * already shadowed by a writable file of the same name. */
-static int append_custom_codes_card(char *buf, size_t cap, int off)
+/* Builds a <select> of every playable name storage_read_open() can actually
+ * find: writable storage (uploads, recordings) first, then bundled defaults
+ * not already shadowed by a writable file of the same name. Shared by the
+ * Dial Codes tab's "add new" and "replace audio" forms. `selected`, if
+ * non-NULL, is pre-selected (used when re-rendering "replace audio" for a
+ * specific existing entry). */
+static int append_file_select(char *buf, size_t cap, int off, const char *field_name,
+                                const char *selected)
 {
-    dialplan_user_entry_t codes[DIALPLAN_MAX_USER_ENTRIES];
-    size_t ncodes = dialplan_list_user_entries(codes, DIALPLAN_MAX_USER_ENTRIES);
-
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Custom dial codes (%u)</h2>"
-        "<p class=\"hint\">Assign a new number to a file you've already uploaded, recorded, or "
-        "that's bundled in -- no rebuild needed. Upload new audio under Storage files below "
-        "first if it isn't in the list yet.</p>",
-        (unsigned)ncodes);
-
-    if (ncodes == 0) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"empty\">none yet</div>");
-    } else {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<table><tr><th>Code</th><th>Plays</th><th></th></tr>");
-        for (size_t i = 0; i < ncodes && (size_t)off < cap; i++) {
-            off += snprintf(buf + off, cap - off,
-                "<tr><td><code>%s</code></td><td><code>%s</code></td>"
-                "<td><form method=\"POST\" action=\"/custom_code_delete/%s\" "
-                "onsubmit=\"return confirm('Remove dial code %s?')\" style=\"display:inline\">"
-                "<button type=\"submit\">remove</button></form></td></tr>",
-                codes[i].code, codes[i].filename, codes[i].code, codes[i].code);
-        }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
-    }
-
-    /* Build the file <select>: writable storage first, then bundled names
-     * not already shadowed by a writable file of the same name. */
     storage_entry_t files[32], bundled[16];
     size_t nfiles = storage_list(files, 32);
     size_t nbundled = storage_list_bundled(bundled, 16);
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<form method=\"POST\" action=\"/custom_code_add\" class=\"settings-form\">"
-        "<div class=\"grid2\">"
-        "<label>New code (2-6 digits) <input name=\"code\" pattern=\"[0-9]{2,6}\" "
-        "maxlength=\"6\" required></label>"
-        "<label>File to play <select name=\"filename\" required>");
+        "<select name=\"%s\" required>", field_name);
     if (nfiles == 0 && nbundled == 0) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<option value=\"\">(no files uploaded yet)</option>");
     }
     for (size_t i = 0; i < nfiles && (size_t)off < cap; i++) {
         if (!is_wav_name(files[i].name)) continue;
+        bool sel = selected && strcmp(selected, files[i].name) == 0;
         off += snprintf(buf + off, cap - off,
-            "<option value=\"%s\">%s</option>", files[i].name, files[i].name);
+            "<option value=\"%s\"%s>%s</option>", files[i].name,
+            sel ? " selected" : "", files[i].name);
     }
     for (size_t i = 0; i < nbundled && (size_t)off < cap; i++) {
         /* firmware/assets/ also ships README.md and .gitignore alongside
@@ -660,11 +623,79 @@ static int append_custom_codes_card(char *buf, size_t cap, int off)
             if (strcmp(files[j].name, bundled[i].name) == 0) { shadowed = true; break; }
         }
         if (shadowed) continue;
+        bool sel = selected && strcmp(selected, bundled[i].name) == 0;
         off += snprintf(buf + off, cap - off,
-            "<option value=\"%s\">%s (bundled)</option>", bundled[i].name, bundled[i].name);
+            "<option value=\"%s\"%s>%s (bundled)</option>", bundled[i].name,
+            sel ? " selected" : "", bundled[i].name);
     }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</select>");
+    return off;
+}
+
+/* Dial Codes tab: one mutable code<->filename table covers both the builtin
+ * "silly audio" clips and anything a user adds -- see dialplan_clip_entry_t.
+ * Each row's code and audio file are independently editable; builtin rows
+ * can't be deleted, only recoded/re-pointed at a different file. Operator
+ * help (dial 0) isn't here -- its code is fixed and its audio is replaced
+ * from Settings -> Operator instead. */
+static int append_dialcodes_tab(char *buf, size_t cap, int off)
+{
+    dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
+    size_t nclips = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
+
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "</select></label></div>"
+        "<div class=\"card\"><h2>Dial codes (%u)</h2>"
+        "<p class=\"hint\">Change which number plays which clip, or point a code at a "
+        "different file, without a rebuild. \"Built-in\" entries can be recoded and given "
+        "new audio but not removed. Upload new audio under Storage files below first if it "
+        "isn't in the list yet.</p>",
+        (unsigned)nclips);
+
+    if (nclips == 0) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"empty\">none yet</div>");
+    } else {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<table><tr><th>Code</th><th>Plays</th><th>Description</th><th></th><th></th></tr>");
+        for (size_t i = 0; i < nclips && (size_t)off < cap; i++) {
+            off += snprintf(buf + off, cap - off,
+                "<tr><td>"
+                "<form method=\"POST\" action=\"/dialcode_set_code\" style=\"display:inline\">"
+                "<input type=\"hidden\" name=\"old_code\" value=\"%s\">"
+                "<input name=\"new_code\" value=\"%s\" pattern=\"[0-9]{2,6}\" maxlength=\"6\" "
+                "size=\"6\" required>"
+                "<button type=\"submit\">save</button></form></td>"
+                "<td><code>%s</code></td><td>%s%s</td>"
+                "<td><form method=\"POST\" action=\"/dialcode_set_filename\" style=\"display:inline\">"
+                "<input type=\"hidden\" name=\"code\" value=\"%s\">",
+                clips[i].code, clips[i].code, clips[i].filename, clips[i].desc,
+                clips[i].builtin ? " <span class=\"pill off\">built-in</span>" : "",
+                clips[i].code);
+            off = append_file_select(buf, cap, off, "filename", clips[i].filename);
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<button type=\"submit\">change audio</button></form></td><td>");
+            if (!clips[i].builtin) {
+                off += snprintf(buf + off, cap - off,
+                    "<form method=\"POST\" action=\"/dialcode_delete/%s\" "
+                    "onsubmit=\"return confirm('Remove dial code %s?')\">"
+                    "<button type=\"submit\">remove</button></form>",
+                    clips[i].code, clips[i].code);
+            }
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</td></tr>");
+        }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
+    }
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<form method=\"POST\" action=\"/dialcode_add\" class=\"settings-form\">"
+        "<div class=\"grid2\">"
+        "<label>New code (2-6 digits) <input name=\"code\" pattern=\"[0-9]{2,6}\" "
+        "maxlength=\"6\" required></label>"
+        "<label>File to play ");
+    off = append_file_select(buf, cap, off, "filename", NULL);
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "</label>"
+        "<label>Description (optional) <input name=\"desc\" maxlength=\"63\"></label></div>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Add dial code</button></div>"
         "</form></div>");
     return off;
@@ -879,6 +910,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "<div class=\"cards\">");
 
     if (strcmp(tab, "general") == 0) off = append_general_tab(buf, cap, off);
+    else if (strcmp(tab, "dialcodes") == 0) off = append_dialcodes_tab(buf, cap, off);
     else if (strcmp(tab, "operator") == 0) off = append_operator_tab(buf, cap, off, entries, n);
     else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off);
     else if (strcmp(tab, "interphone") == 0) off = append_interphone_tab(buf, cap, off, entries, n);
@@ -1089,9 +1121,77 @@ static esp_err_t language_set_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* POST /custom_code_add -- form body code=..&filename=.. (see dialplan.h's
- * dialplan_add_user_entry() for the validation/conflict rules). */
-static esp_err_t custom_code_add_handler(httpd_req_t *req)
+/* POST /dialcode_add -- form body code=..&filename=..&desc=.. (see
+ * dialplan.h's dialplan_clip_add() for the validation/conflict rules). */
+static esp_err_t dialcode_add_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char code[8] = {0}, filename[32] = {0}, desc[64] = {0};
+    form_field(body, "code", code, sizeof(code));
+    form_field(body, "filename", filename, sizeof(filename));
+    form_field(body, "desc", desc, sizeof(desc));
+
+    esp_err_t err = dialplan_clip_add(code, filename, desc[0] ? desc : filename);
+    if (err != ESP_OK) {
+        const char *why =
+            (err == ESP_ERR_INVALID_ARG)   ? "code must be 2-6 digits and a file must be picked" :
+            (err == ESP_ERR_INVALID_STATE) ? "that code conflicts with an existing one" :
+            (err == ESP_ERR_NO_MEM)        ? "dial code limit reached" : esp_err_to_name(err);
+        ESP_LOGW(TAG, "dialcode_add '%s' -> '%s' failed: %s", code, filename, why);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, why);
+        return ESP_OK;
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /dialcode_set_code -- form body old_code=..&new_code=.. */
+static esp_err_t dialcode_set_code_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char old_code[8] = {0}, new_code[8] = {0};
+    form_field(body, "old_code", old_code, sizeof(old_code));
+    form_field(body, "new_code", new_code, sizeof(new_code));
+
+    esp_err_t err = dialplan_clip_set_code(old_code, new_code);
+    if (err != ESP_OK) {
+        const char *why =
+            (err == ESP_ERR_INVALID_ARG)   ? "code must be 2-6 digits" :
+            (err == ESP_ERR_INVALID_STATE) ? "that code conflicts with an existing one" :
+            (err == ESP_ERR_NOT_FOUND)     ? "code not found" : esp_err_to_name(err);
+        ESP_LOGW(TAG, "dialcode_set_code '%s' -> '%s' failed: %s", old_code, new_code, why);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, why);
+        return ESP_OK;
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /dialcode_set_filename -- form body code=..&filename=.. (points an
+ * existing code at a different already-stored file). */
+static esp_err_t dialcode_set_filename_handler(httpd_req_t *req)
 {
     if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
@@ -1106,38 +1206,36 @@ static esp_err_t custom_code_add_handler(httpd_req_t *req)
     form_field(body, "code", code, sizeof(code));
     form_field(body, "filename", filename, sizeof(filename));
 
-    esp_err_t err = dialplan_add_user_entry(code, filename);
+    esp_err_t err = dialplan_clip_set_filename(code, filename);
     if (err != ESP_OK) {
-        const char *why =
-            (err == ESP_ERR_INVALID_ARG)   ? "code must be 2-6 digits and a file must be picked" :
-            (err == ESP_ERR_INVALID_STATE) ? "that code conflicts with an existing one" :
-            (err == ESP_ERR_NO_MEM)        ? "custom dial code limit reached" : esp_err_to_name(err);
-        ESP_LOGW(TAG, "custom_code_add '%s' -> '%s' failed: %s", code, filename, why);
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, why);
+        ESP_LOGW(TAG, "dialcode_set_filename '%s' -> '%s' failed: %s",
+                 code, filename, esp_err_to_name(err));
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, esp_err_to_name(err));
         return ESP_OK;
     }
 
     httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
 
-/* POST /custom_code_delete/<code> */
-static esp_err_t custom_code_delete_handler(httpd_req_t *req)
+/* POST /dialcode_delete/<code> */
+static esp_err_t dialcode_delete_handler(httpd_req_t *req)
 {
-    const char *prefix = "/custom_code_delete/";
+    const char *prefix = "/dialcode_delete/";
     if (strncmp(req->uri, prefix, strlen(prefix)) != 0) {
         httpd_resp_send_404(req);
         return ESP_OK;
     }
     const char *code = req->uri + strlen(prefix);
-    if (dialplan_remove_user_entry(code) != ESP_OK) {
-        ESP_LOGW(TAG, "custom_code_delete '%s': not found", code);
+    esp_err_t err = dialplan_clip_remove(code);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "dialcode_delete '%s' failed: %s", code, esp_err_to_name(err));
     }
 
     httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -1174,7 +1272,6 @@ static esp_err_t media_delete_handler(httpd_req_t *req)
  * by its code -- there's still only one table to keep in sync. */
 typedef struct { char prefix; const char *heading; } guide_cat_t;
 static const guide_cat_t GUIDE_CATS[] = {
-    { '4', "4xx -- silly audio" },
     { '2', "2xx -- calling" },
     { '3', "Call other phone" },
     { '8', "8xx -- radio" },
@@ -1246,15 +1343,17 @@ static esp_err_t guide_handler(httpd_req_t *req)
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
     }
 
-    /* Custom (user-added, Settings -> General) codes, same live-table
-     * guarantee as everything else here. */
-    dialplan_user_entry_t custom[DIALPLAN_MAX_USER_ENTRIES];
-    size_t ncustom = dialplan_list_user_entries(custom, DIALPLAN_MAX_USER_ENTRIES);
-    if (ncustom > 0 && off > 0 && (size_t)off < cap) {
+    /* Clip codes (Settings -> Dial Codes) -- builtin "silly audio" clips
+     * plus anything a user's added, same live-table guarantee as everything
+     * else here. No fixed prefix card for these any more since codes are
+     * freely reassignable (see dialplan_clip_entry_t). */
+    dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
+    size_t nclips = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
+    if (nclips > 0 && off > 0 && (size_t)off < cap) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"card\"><h2>Custom</h2>");
-        for (size_t i = 0; i < ncustom && (size_t)off < cap; i++) {
-            off = append_guide_row(buf, cap, off, custom[i].code, custom[i].filename, true);
+            "<div class=\"card\"><h2>Clips</h2>");
+        for (size_t i = 0; i < nclips && (size_t)off < cap; i++) {
+            off = append_guide_row(buf, cap, off, clips[i].code, clips[i].desc, true);
         }
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
     }
@@ -1456,11 +1555,11 @@ esp_err_t webui_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
-    /* Default is 8 -- we register 19 routes below (two share the media
+    /* Default is 8 -- we register 24 routes below (two share the media
      * path, one GET, one POST, counted separately). Past the cap,
      * httpd_register_uri_handler() just fails per-route, which used to go
      * unchecked below, silently dropping the last couple of routes. */
-    config.max_uri_handlers = 22;
+    config.max_uri_handlers = 26;
     /* Default httpd task stack is 4 KB. Our page handlers stack a few
      * storage_entry_t[32]/dialplan_entry_info_t[40] arrays and then descend
      * into SPIFFS readdir -> esp_flash_read, which is itself stack-hungry;
@@ -1491,8 +1590,10 @@ esp_err_t webui_start(void)
         { .uri = "/wifi_set",        .method = HTTP_POST, .handler = wifi_set_handler },
         { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
         { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },
-        { .uri = "/custom_code_add",     .method = HTTP_POST, .handler = custom_code_add_handler },
-        { .uri = "/custom_code_delete/*",.method = HTTP_POST, .handler = custom_code_delete_handler },
+        { .uri = "/dialcode_add",           .method = HTTP_POST, .handler = dialcode_add_handler },
+        { .uri = "/dialcode_set_code",      .method = HTTP_POST, .handler = dialcode_set_code_handler },
+        { .uri = "/dialcode_set_filename",  .method = HTTP_POST, .handler = dialcode_set_filename_handler },
+        { .uri = "/dialcode_delete/*",      .method = HTTP_POST, .handler = dialcode_delete_handler },
         /* Catch-all LAST: captive-portal redirect while provisioning, plain
          * 404 otherwise. The wildcard matcher tries handlers in registration
          * order, so every specific route above still wins. */

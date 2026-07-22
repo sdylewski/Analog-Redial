@@ -300,19 +300,7 @@ static void handle_action(int line, const dialplan_action_t *a)
             }
             break;
 
-        case ACT_PLAY_CLIP: {
-            char name[STORAGE_MAX_NAME];
-            snprintf(name, sizeof(name), "clip_%d.wav", a->arg);
-            if (player_play(line, name, clip_done_cb, NULL) == ESP_OK) {
-                s_line[line].state = TEL_PLAYING;
-            } else {
-                ESP_LOGI(TAG, "line %d: play clip %d (no %s in storage yet)", line, a->arg, name);
-                play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
-            }
-            break;
-        }
-
-        case ACT_PLAY_USER_CLIP: /* user-added code (Settings -> General), a->filename set directly */
+        case ACT_PLAY_CLIP: /* dial-code entry (Settings -> Dial Codes), a->filename set directly */
             if (player_play(line, a->filename, clip_done_cb, NULL) == ESP_OK) {
                 s_line[line].state = TEL_PLAYING;
             } else {

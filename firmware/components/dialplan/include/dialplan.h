@@ -23,14 +23,13 @@ typedef enum {
     ACT_NONE = 0,       /* keep collecting (valid prefix, no decision yet) */
     ACT_WRONG_NUMBER,   /* no match possible */
     ACT_OPERATOR_HELP,  /* dial 0 */
-    ACT_PLAY_CLIP,      /* arg = clip id (fixed compile-time table entry) */
+    ACT_PLAY_CLIP,      /* filename[] holds the clip to play (see dialplan_clip_entry_t) */
     ACT_RECORD_PLAYBACK,/* arg = voice effect */
     ACT_RECORD_ARCHIVE, /* dial 111 */
     ACT_CALL_LINE,      /* arg = target line index; effect in arg2 */
     ACT_RADIO,          /* arg = station index */
     ACT_VOIP_DIAL,      /* number[] holds digits (e.g. 555xxxx) */
     ACT_SET_MODE,       /* arg = dialplan_mode_change_t */
-    ACT_PLAY_USER_CLIP, /* filename[] holds the clip to play (user-added code) */
 } dialplan_action_kind_t;
 
 typedef enum {
@@ -41,18 +40,16 @@ typedef enum {
 } voice_effect_t;
 
 typedef enum {
-    MODE_PLAY = 0,      /* 931 */
-    MODE_CALL_ONLY,     /* 932 */
-    MODE_READBACK_OFF,  /* 921 */
-    MODE_READBACK_ON,   /* 922 */
+    MODE_READBACK_OFF = 0, /* 921, default */
+    MODE_READBACK_ON,      /* 922 */
 } dialplan_mode_change_t;
 
 typedef struct {
     dialplan_action_kind_t kind;
-    int   arg;          /* clip id / effect / target line / station / mode */
+    int   arg;          /* effect / target line / station / mode */
     int   arg2;         /* secondary (e.g. call effect) */
     char  number[16];   /* for ACT_VOIP_DIAL */
-    char  filename[32]; /* for ACT_PLAY_USER_CLIP -- matches STORAGE_MAX_NAME
+    char  filename[32]; /* for ACT_PLAY_CLIP -- matches STORAGE_MAX_NAME
                           * (storage.h), duplicated rather than shared since
                           * dialplan doesn't otherwise depend on storage */
 } dialplan_action_t;
@@ -60,9 +57,10 @@ typedef struct {
 /* Per-system mode flags (mirrors the Pi runtime flags). Language is NOT
  * here: the phone is set up with a single language at configuration time
  * (see board_language_get/set in board.h), not switched in use -- no 901/902
- * dial codes, no per-line flag. */
+ * dial codes, no per-line flag. There's no Play/Call-only toggle either --
+ * that turned out to be redundant (Play mode already allowed everything
+ * Call-only did, just without the restriction) and was removed. */
 typedef struct {
-    bool call_only;       /* CallOnly */
     bool readback_digits; /* PlayNumbers */
 } dialplan_modes_t;
 
@@ -118,33 +116,55 @@ typedef struct {
  * (<= max). */
 size_t dialplan_list(dialplan_entry_info_t *out, size_t max);
 
-/* ---- User-added dial codes (Settings -> General -> "Custom dial codes") ----
- * On top of the fixed compile-time TABLE above: assign a NEW number to an
- * already-uploaded/recorded/bundled WAV, no firmware rebuild. Persisted to
- * NVS. `filename` isn't checked against the storage component here (dialplan
- * doesn't depend on it) -- if the file doesn't exist yet when the code is
- * dialed, telephony.c falls back to a confirm tone, same as any other
- * missing clip. */
-#define DIALPLAN_MAX_USER_ENTRIES 16
+/* ---- Clip dial codes (Settings -> Dial Codes) ----
+ * A single mutable code<->filename lookup table, covering both the "silly
+ * audio" clips (burp, ring of fire, ...) and anything a user adds later --
+ * there's no longer a fixed compile-time table for the former or a separate
+ * additive-only table for the latter, since both are the same feature: a
+ * dial code that plays a specific WAV. `builtin` rows are seeded once (see
+ * dialplan.c) from the clips this project ships default codes/descriptions
+ * for; their `code` and `filename` are both still freely editable at
+ * runtime, they just can't be deleted outright (dialplan_clip_remove()
+ * rejects that). Persisted to NVS. `filename` isn't checked against the
+ * storage component here (dialplan doesn't depend on it) -- if the file
+ * doesn't exist yet when the code is dialed, telephony.c falls back to a
+ * confirm tone, same as any other missing clip. Operator help (dial 0) is
+ * NOT part of this table -- it's a fixed TABLE[] entry with a hardcoded
+ * "operator.wav" filename, replaced from its own Settings -> Operator tab. */
+#define DIALPLAN_MAX_CLIP_ENTRIES 24 /* 8 builtins + headroom for user-added */
 
 typedef struct {
     char code[8];      /* 2-6 digits */
     char filename[32]; /* matches STORAGE_MAX_NAME, see dialplan_action_t */
-} dialplan_user_entry_t;
+    char desc[64];
+    bool builtin;      /* seeded default -- recodable/re-uploadable, not deletable */
+} dialplan_clip_entry_t;
 
 /*
  *   ESP_OK
  *   ESP_ERR_INVALID_ARG    -- code isn't 2-6 digits, or filename is empty
  *   ESP_ERR_INVALID_STATE  -- code conflicts (exact match or a prefix
  *                             relationship, either direction) with the fixed
- *                             table, another user entry, or the 555 VoIP
+ *                             table, another clip entry, or the 555 VoIP
  *                             prefix
- *   ESP_ERR_NO_MEM         -- DIALPLAN_MAX_USER_ENTRIES already used
+ *   ESP_ERR_NO_MEM         -- DIALPLAN_MAX_CLIP_ENTRIES already used
  */
-esp_err_t dialplan_add_user_entry(const char *code, const char *filename);
-esp_err_t dialplan_remove_user_entry(const char *code);
+esp_err_t dialplan_clip_add(const char *code, const char *filename, const char *desc);
+/*
+ *   ESP_ERR_NOT_FOUND      -- no entry has old_code
+ *   ESP_ERR_INVALID_ARG    -- new_code isn't 2-6 digits
+ *   ESP_ERR_INVALID_STATE  -- new_code conflicts with something else (not
+ *                             counting the entry being renamed)
+ */
+esp_err_t dialplan_clip_set_code(const char *old_code, const char *new_code);
+/* Points an existing code at a different (already-stored) filename, e.g.
+ * right after uploading a replacement. ESP_ERR_NOT_FOUND if code is unknown. */
+esp_err_t dialplan_clip_set_filename(const char *code, const char *filename);
+/* ESP_ERR_INVALID_STATE if the entry is builtin (not deletable, only
+ * recodable/re-uploadable); ESP_ERR_NOT_FOUND if code is unknown. */
+esp_err_t dialplan_clip_remove(const char *code);
 /* Fills `out`, returns the number of entries written (<= max). */
-size_t    dialplan_list_user_entries(dialplan_user_entry_t *out, size_t max);
+size_t    dialplan_list_clip_entries(dialplan_clip_entry_t *out, size_t max);
 
 #ifdef __cplusplus
 }
