@@ -270,9 +270,12 @@ name are cleared.
 
 ## Notes / current limitations
 
-- **VoIP is a stub** (`components/voip`). The interface is finalized so the
-  state machine and audio taps are VoIP-ready; the SIP/RTP implementation is
-  the last milestone. Dialing `555-xxxx` currently returns reorder tone.
+- **VoIP** (`components/voip`) is a custom embedded SIP UA + RTP/G.711
+  (µ-law). It registers to a LAN Asterisk with MD5 digest auth and places/
+  answers calls; dial `555` + a 4-digit extension. Configure from the console:
+  `sip_set <server> <user0> <pass0> [user1] [pass1]`, then reboot. Bench-tested
+  registering both accounts and running an outbound call (echo test) end to
+  end; no TLS/SRTP (LAN only). Check state with `sip_status`.
 - **Audio assets** (clips, prompts, recordings) are not yet stored in flash —
   those dial codes log their action and play a confirmation tone. The SPIFFS
   `storage` partition is reserved for them.

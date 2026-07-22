@@ -66,6 +66,15 @@ esp_err_t voip_hangup(int line);
 /* True if the implementation is a stub (no SIP stack compiled in). */
 bool      voip_is_stub(void);
 
+/* Save SIP config to NVS: server host/IP + per-line SIP user/password. Pass
+ * NULL for any field to leave it unchanged. Takes effect on reboot (the SIP
+ * task binds + registers at startup). */
+esp_err_t voip_set_config(const char *server, const char *user0, const char *pass0,
+                          const char *user1, const char *pass1);
+
+/* Configured SIP server (host or IP), for status display. */
+const char *voip_server(void);
+
 #ifdef __cplusplus
 }
 #endif

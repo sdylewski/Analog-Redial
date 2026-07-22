@@ -14,6 +14,7 @@
 #include "wifi.h"
 #include "storage.h"
 #include "player.h"
+#include "voip.h"
 #include "esp_console.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -592,6 +593,54 @@ static int cmd_wifi_status(int argc, char **argv)
     return 0;
 }
 
+/* ---------- VoIP (SIP) ---------- */
+static int cmd_sip_set(int argc, char **argv)
+{
+    if (argc < 4) {
+        printf("usage: sip_set <server> <user0> <pass0> [user1] [pass1]\n"
+               "  e.g. sip_set feynman.local phone <pass> phone2 <pass2>\n"
+               "  server may be a hostname, <name>.local, or an IP.\n"
+               "Saved to NVS; reboot to (re)register.\n");
+        return 1;
+    }
+    const char *server = argv[1];
+    const char *user0  = argv[2];
+    const char *pass0  = argv[3];
+    const char *user1  = (argc > 4) ? argv[4] : NULL;
+    const char *pass1  = (argc > 5) ? argv[5] : NULL;
+    esp_err_t err = voip_set_config(server, user0, pass0, user1, pass1);
+    if (err != ESP_OK) { printf("sip_set: save failed: %s\n", esp_err_to_name(err)); return 1; }
+    printf("saved. Reboot ('reset' won't re-init SIP; power-cycle or re-flash) to apply.\n");
+    return 0;
+}
+
+static int cmd_sip_status(int argc, char **argv)
+{
+    printf("sip server: %s\n", voip_server());
+    printf("  line 0: %s\n", voip_is_registered(0) ? "REGISTERED" : "not registered");
+    printf("  line 1: %s\n", voip_is_registered(1) ? "REGISTERED" : "not registered");
+    printf("(stub=%s)\n", voip_is_stub() ? "yes" : "no");
+    return 0;
+}
+
+static int cmd_sip_call(int argc, char **argv)
+{
+    if (argc < 2) { printf("usage: sip_call <number, e.g. 5551234> [line]\n"
+                           "NOTE: bypasses the handset FSM -- signaling/RTP only, no earpiece audio.\n"); return 1; }
+    int line = (argc > 2) ? atoi(argv[2]) : 0;
+    esp_err_t err = voip_dial(line, argv[1]);
+    printf("voip_dial(line=%d, %s) -> %s\n", line, argv[1], esp_err_to_name(err));
+    return err == ESP_OK ? 0 : 1;
+}
+
+static int cmd_sip_hangup(int argc, char **argv)
+{
+    int line = (argc > 1) ? atoi(argv[1]) : 0;
+    voip_hangup(line);
+    printf("hung up line %d\n", line);
+    return 0;
+}
+
 /* Compact help: one line per command ("cmd  description"), instead of the
  * built-in esp_console help command's 2-line-plus-blank-line-per-command
  * format. We already have every (command, help) pair at registration time,
@@ -693,6 +742,10 @@ void bringup_console_start(void)
     register_cmd("reset", "Force line(s) out of a stuck tone/reorder state: reset [line]", cmd_reset);
     register_cmd("wifi_set", "Save WiFi credentials + reconnect: wifi_set <ssid> <password>", cmd_wifi_set);
     register_cmd("wifi_status", "WiFi connection status", cmd_wifi_status);
+    register_cmd("sip_set", "Save SIP config: sip_set <server> <user0> <pass0> [user1] [pass1]", cmd_sip_set);
+    register_cmd("sip_status", "SIP registration status", cmd_sip_status);
+    register_cmd("sip_call", "Test SIP INVITE (signaling only): sip_call <number> [line]", cmd_sip_call);
+    register_cmd("sip_hangup", "Hang up a SIP call: sip_hangup [line]", cmd_sip_hangup);
 
     ESP_ERROR_CHECK(esp_console_start_repl(repl));
     ESP_LOGI(TAG, "bring-up console ready — type 'help'");

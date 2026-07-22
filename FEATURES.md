@@ -58,8 +58,8 @@ interface, implemented later · ❌ dropped (host/Pi-only concept)
 | **Play vs Call-only modes (931/932)** | ✅ | Mode flag gates fun codes |
 | **Digit readback on/off (921/922)** | ✅ | Mode flag, explicit set (not a toggle, matches Pi) |
 | **Wrong-number handling** | ✅ | Unmatched 3+ digit → prompt + dialtone |
-| **VoIP outbound (555-xxxx)** | 🔜 | `voip` interface defined now; SIP/RTP impl is final milestone |
-| **VoIP inbound (ext 1000/1001)** | 🔜 | Same |
+| **VoIP outbound (555-xxxx)** | ✅ | Custom embedded SIP UA + RTP/G.711; digest auth; tested registering + calling a real Asterisk |
+| **VoIP inbound (ext 1001/1002)** | ✅ | Inbound INVITE rings the line; answer on off-hook (signaling path implemented, bench-tested outbound) |
 | **Web UI (status/log/recordings)** | ✅ | `esp_http_server`; settings page has real tabs for modes/WiFi, placeholders for the rest |
 | **WiFi provisioning (first boot / factory reset)** | ✅ | No creds → open SoftAP `RotaryPhone-XXXX` + captive setup page; GPIO9 (BOOT) 3 s hold wipes creds |
 | **Event log (SQLite)** | 🟡 | Replaced by ring-buffer log + optional HTTP/JSON |

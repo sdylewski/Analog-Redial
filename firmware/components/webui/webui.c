@@ -8,6 +8,7 @@
 #include "logbuf.h"
 #include "telephony.h"
 #include "dialplan.h"
+#include "voip.h"
 #include "esp_timer.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -570,11 +571,21 @@ static int append_operator_tab(char *buf, size_t cap, int off,
 
 static int append_voip_tab(char *buf, size_t cap, int off)
 {
+    bool r0 = voip_is_registered(0), r1 = voip_is_registered(1);
     return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\" style=\"opacity:.6\"><h2>VOIP</h2>"
-        "<p class=\"hint\">Not implemented yet -- <code>voip.c</code> is a stub API "
-        "(register/dial/answer/hangup) with no SIP/RTP behind it. Dial <code>5-5-5</code> "
-        "plus an extension once it lands; see <code>ESP32_PORT_PLAN.md</code> phase 4.</p></div>");
+        "<div class=\"card\"><h2>VOIP</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">SIP server</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">Line 1</span>"
+        "<span class=\"pill %s\">%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">Line 2</span>"
+        "<span class=\"pill %s\">%s</span></div>"
+        "<p class=\"hint\">Embedded SIP/RTP (G.711 &micro;-law). Dial <code>555</code> + a "
+        "4-digit extension to place a call. Configure from the device console: "
+        "<code>sip_set &lt;server&gt; &lt;user0&gt; &lt;pass0&gt; [user1] [pass1]</code>, "
+        "then reboot. (A web form for this is a TODO.)</p></div>",
+        voip_server()[0] ? voip_server() : "(not set)",
+        r0 ? "on" : "off", r0 ? "registered" : "not registered",
+        r1 ? "on" : "off", r1 ? "registered" : "not registered");
 }
 
 static int append_interphone_tab(char *buf, size_t cap, int off,

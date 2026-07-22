@@ -70,7 +70,7 @@ Legend: ✅ done or close · 🟡 partial · 🔜 not started · ❌ N/A on MCU
 | Record 211 | ✅ | ✅ | — | `recorder` component: 8 kHz mono WAV to `storage`, auto-stop on hangup/silence/30 s |
 | Callback 212–215 | ✅ | ✅ | — | Record then play back on the handset; high/low via resample, Dalek flat (ring-mod TODO) |
 | Internet radio 811/812 | ✅ | 🔜 | **3** | [`esp-adf`](https://github.com/espressif/esp-adf) or `esp_http_client` + decoder |
-| VoIP 555-xxxx + inbound | ✅ | 🔜 | **4** | See libraries below |
+| VoIP 555-xxxx + inbound | ✅ | ✅ | — | Custom SIP UA (`voip.c`) + RTP/G.711 (`rtp.c`); digest auth; registers + calls a real Asterisk (bench-verified) |
 | Web status / log / recordings | ✅ | ✅ | — | `esp_http_server`; status/log/recordings pages done |
 | Config JSON / settings UI | ✅ | 🟡 | **4** | Modes + WiFi + board name persist to NVS, settings page has real tabs for them; interphone/VOIP tabs still read-only placeholders (no on-device TTS gen) |
 | WiFi provisioning / factory reset | n/a | ✅ | — | First boot / GPIO9-erased creds → SoftAP `RotaryPhone-XXXX` + captive setup page |
@@ -105,7 +105,7 @@ Avoid reimplementing: Goertzel (keep `dtmf`), I²S (keep `audio`), GPIO SLIC (ke
 Current gaps (July 2026):
 
 - Firmware builds **WM8731** + `board_pins.h` only; SMD hardware is **ES8388** + `board_pins_smd.h`
-- `voip` is a stub
+- ~~`voip` is a stub~~ — done: custom SIP/RTP UA registers + calls a real Asterisk
 - No `Kconfig` board selection
 
 Suggested module layout after refactor:
