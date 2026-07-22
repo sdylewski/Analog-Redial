@@ -23,15 +23,6 @@ i2c_master_bus_handle_t board_i2c_bus(void);
  * switched at runtime. Safe to call before or after board_i2c_init(). */
 void board_detect_codec(void);
 
-/* SMD boards only: samples GPIO19 (Line2_SHK / SD_SCLK, same PCB net) before
- * either the AG1170 or an SD driver has configured it, and warns if what it
- * reads doesn't match CONFIG_BOARD_MICROSD. Same caveat as
- * board_detect_codec(): sanity check against the build-time Kconfig choice,
- * not a runtime switch -- GPIO 18-21's peripheral routing (SLIC control vs.
- * SPI) still has to be selected at build time. No-op on the THT board.
- * Call before ag1170_init()/any SD driver init claims the pin. */
-void board_detect_line2_variant(void);
-
 typedef enum {
     BOARD_LED_BOOTING,         /* fast blink -- subsystems still coming up */
     BOARD_LED_OK,               /* solid off -- everything initialized cleanly */
@@ -100,6 +91,17 @@ bool board_name_is_set(void);
  * "scotts-room" (reachable as scotts-room.local). wifi_apply_hostname()
  * feeds this to mDNS. */
 void board_hostname(char *out, size_t len);
+
+/* ---- Phone language ----
+ * One language for the whole phone, set once during configuration -- NOT
+ * switchable in use (that was the Pi's 901/902 behavior; dropped here as
+ * more complexity than it's worth). Whatever this is set to is what
+ * setup-time prompt/number-audio generation (gen_prompt.py et al.) should
+ * target; nothing in the dial plan changes it. A short code, e.g. "en",
+ * "it" -- not validated against a fixed list, so new languages don't need a
+ * firmware change, just matching audio assets. */
+void      board_language_get(char *out, size_t len); /* defaults to "en" */
+esp_err_t board_language_set(const char *lang);
 
 #ifdef __cplusplus
 }

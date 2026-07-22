@@ -879,29 +879,28 @@ At **SHK ≈ 4.5 V** high, the tap is about **4.5 × 15/(10+15) ≈ 2.7 V** — 
 ESP32 input high and safely under **3.3 V**. At **SHK ≈ 5 V**, the tap is about **3.0 V**.
 Schematic refs: **U6** **R19**/**R18**; **U5** **R17**/**R16** (see [designator map](#designator-map-schematic)).
 
-### Can firmware detect an unpopulated AG1171? (empirical, in progress)
+### Can firmware detect an unpopulated AG1171? Answered: no, not reliably
 
-**Open question**, not yet confirmed either way. The **R16-19** divider is board-level,
-present whether or not the AG1171 SIL module is soldered — if it's missing, the 10 kΩ
-leg just dangles and the 15 kΩ-to-GND leg dominates, reading low. If it's populated
-and on-hook, the AG1171's **SHK** output *may also* sit high-impedance in that state —
-so the two cases could read identically at the GPIO, or they could differ. Only real
-measurement settles it. Line 2's SHK/RM/FR/PD are also read (as plain inputs, before
-`ag1170_init()` claims them) by `board_detect_line2_variant()` at boot, logged as
-`line2 variant detect: ...` — same data, no console command needed for that side.
-Line 1 (fixed pins, no XOR) doesn't have this probe; use `hookmon` for its raw SHK.
+**Resolved (2026-07): no.** We tried reading Line 2's SHK/RM/FR/PD as plain
+GPIO inputs at boot, before anything else claims them, to distinguish "AG1171
+populated" from "microSD populated instead" (same GPIO 18-21 pads, XOR
+stuffed). Real boards showed the readings **aren't reliable enough to use**:
 
-| Board state | Line | SHK | RM | FR | PD | Notes |
-|---|---|---|---|---|---|---|
-| Both SLICs populated, on-hook | L1 (line2 variant detect) | 0 | 0 | 0 | 1 | first SMD2 board, hand-soldered, 2026-07-19 boot log |
-| Both SLICs populated, on-hook | L0 (`hookmon`) | *pending* | — | — | — | not yet read via console |
-| AG1171 unpopulated (next board, before soldering) | — | *pending* | *pending* | *pending* | *pending* | compare against the rows above |
-| AG1171 unpopulated (next board, before soldering) | — | *pending* | compare against the row above |
+| Board state | SCLK | MOSI | MISO | CS |
+|---|---|---|---|---|
+| Both SLICs populated, on-hook (boot A) | 0 | 0 | 0 | 1 |
+| Both SLICs populated, on-hook (boot B, same board) | 0 | 1 | 1 | 1 |
+| microSD populated (0R removed, SD board) | 0 | 1 | 1 | 1 |
 
-If the readings differ reliably, this becomes a `board_detect_slic_presence()`
-sanity check alongside `board_detect_codec()` / `board_detect_line2_variant()`. If
-they don't differ, that's useful to know too — it means presence can't be inferred
-from `SHK` alone and would need a dedicated sense point in a future spin.
+A stuffed-SLIC board and an SD-card board produced the **same** reading, and
+the SLIC board itself didn't read consistently boot-to-boot — these pins
+mostly float without a strong driver, so a floating-pin snapshot can't be
+trusted as a presence signal. Conclusion: firmware doesn't try to guess this
+anymore. Which hardware is populated is a **build-time choice**
+(`CONFIG_BOARD_MICROSD` in `idf.py menuconfig`, see
+[`GETTING_STARTED.md`](../GETTING_STARTED.md)) that you set to match your
+actual assembly. For microSD specifically, the definitive "is a card really
+there" check is whether it mounts (`sd_test` on the console).
 
 ### ASCII — AG1171 line interface (each SLIC)
 

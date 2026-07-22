@@ -183,6 +183,14 @@ void telephony_force_recover(int line)
     ESP_LOGI(TAG, "line %d: forced recovery to %s", line, telephony_state_name(s_line[line].state));
 }
 
+static volatile bool s_monitor_suppress;
+
+void telephony_set_monitor_suppress(bool on)
+{
+    s_monitor_suppress = on;
+    ESP_LOGI(TAG, "monitor suppress %s", on ? "ON (digits dropped before dial plan)" : "off");
+}
+
 static void play_transient(int line, call_progress_t tone, uint32_t ms,
                            tel_state_t state, tel_state_t return_state)
 {
@@ -370,6 +378,8 @@ static void handle_action(int line, const dialplan_action_t *a)
 
 static void process_digit(int line, char ch)
 {
+    if (s_monitor_suppress) return; /* pulsemon/tonemon active: don't feed the dial plan */
+
     tel_state_t st = s_line[line].state;
     if (st != TEL_DIALTONE && st != TEL_DIALING) {
         return; /* ignore digits unless we're expecting them */

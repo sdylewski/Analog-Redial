@@ -24,6 +24,8 @@ static board_codec_t s_detected_codec = BOARD_CODEC_NONE;
 #define BOARD_NAME_NVS_NS  "board"
 #define BOARD_NAME_NVS_KEY "name"
 #define BOARD_NAME_MAX     32
+#define BOARD_LANG_NVS_KEY "lang"
+#define BOARD_LANG_MAX     8
 
 esp_err_t board_i2c_init(void)
 {
@@ -178,6 +180,37 @@ esp_err_t board_name_set(const char *name)
     return err;
 }
 
+void board_language_get(char *out, size_t len)
+{
+    if (len == 0) return;
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) == ESP_OK) {
+        size_t n = len;
+        esp_err_t err = nvs_get_str(h, BOARD_LANG_NVS_KEY, out, &n);
+        nvs_close(h);
+        if (err == ESP_OK && out[0]) return;
+    }
+    strncpy(out, "en", len - 1);
+    out[len - 1] = '\0';
+}
+
+esp_err_t board_language_set(const char *lang)
+{
+    if (!lang || !lang[0]) return ESP_ERR_INVALID_ARG;
+    char trimmed[BOARD_LANG_MAX];
+    strncpy(trimmed, lang, sizeof(trimmed) - 1);
+    trimmed[sizeof(trimmed) - 1] = '\0';
+
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_str(h, BOARD_LANG_NVS_KEY, trimmed);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) ESP_LOGI(TAG, "phone language set to '%s'", trimmed);
+    return err;
+}
+
 void board_hostname(char *out, size_t len)
 {
     char name[BOARD_NAME_MAX];
@@ -206,50 +239,6 @@ void board_hostname(char *out, size_t len)
     }
 }
 
-#if CONFIG_BOARD_TYPE_SMD2
-void board_detect_line2_variant(void)
-{
-    const gpio_num_t pins[4] = { BOARD_LINE2_PIN_SHK_SCLK, BOARD_LINE2_PIN_RM_MOSI,
-                                  BOARD_LINE2_PIN_FR_MISO, BOARD_LINE2_PIN_PD_CS };
-
-    gpio_config_t cfg = {
-        .pin_bit_mask = (1ULL << BOARD_LINE2_PIN_SHK_SCLK) | (1ULL << BOARD_LINE2_PIN_RM_MOSI) |
-                        (1ULL << BOARD_LINE2_PIN_FR_MISO) | (1ULL << BOARD_LINE2_PIN_PD_CS),
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    ESP_ERROR_CHECK(gpio_config(&cfg));
-    /* No internal pull fighting the external network -- just let the nets
-     * settle (RC, not a clock) before sampling. */
-    vTaskDelay(pdMS_TO_TICKS(2));
-
-    int level[4];
-    for (int i = 0; i < 4; i++) {
-        level[i] = gpio_get_level(pins[i]);
-    }
-    /* Diagnostic only. This passive read was meant to tell a Line 2 SLIC from a
-     * microSD on the shared GPIO 18-21 pads, but it isn't reliable: with no
-     * SLIC the pins just float, and observed levels for a stuffed SLIC vs. an
-     * SD card overlap (both have read 0,0,0,1). The build-time config is the
-     * source of truth -- CONFIG_BOARD_MICROSD selects SD, and for SD the
-     * definitive "is a card here" check is whether sdcard_init() mounts it. */
-    ESP_LOGI(TAG, "line2/uSD pad levels (raw, diagnostic): SCLK=%d MOSI=%d MISO=%d CS=%d; "
-                  "mode is set by CONFIG_BOARD_MICROSD (%s)",
-             level[0], level[1], level[2], level[3],
-#if CONFIG_BOARD_MICROSD
-             "microSD");
-#else
-             "Line 2 SLIC");
-#endif
-}
-#else
-void board_detect_line2_variant(void)
-{
-    /* THT board has no Line2/microSD XOR on GPIO 18-21 -- nothing to probe. */
-}
-#endif
 
 #if CONFIG_BOARD_TYPE_SMD2
 #define LED_TICK_MS   100  /* fastest blink rate (BOOTING); ERROR blinks

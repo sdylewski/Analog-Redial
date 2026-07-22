@@ -12,6 +12,7 @@
 
 #include "esp_err.h"
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,6 +48,15 @@ char telephony_last_dtmf(int line, int64_t *at_us);
  * immediately drop the line to dial tone (if off-hook) or idle (if
  * on-hook), instead of waiting out a reorder/confirm tone's timer. */
 void telephony_force_recover(int line);
+
+/* Bring-up: while true, completed digits (pulse or DTMF) are dropped before
+ * they reach the dial plan -- no dialplan_feed(), no tone/state change. For
+ * pulsemon/tonemon, which read the raw pulse counter / DTMF detector
+ * directly and are otherwise "non-invasive": without this, the phone still
+ * treats what you dial as a real number underneath the monitor (wrong
+ * number, hangup, etc.), which is confusing during a timing test. Off by
+ * default; bringup toggles it around a monitor command's run. */
+void telephony_set_monitor_suppress(bool on);
 
 #ifdef __cplusplus
 }

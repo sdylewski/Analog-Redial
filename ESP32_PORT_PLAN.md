@@ -64,7 +64,7 @@ Legend: ✅ done or close · 🟡 partial · 🔜 not started · ❌ N/A on MCU
 | Inter-phone 3xx + voice variants | ✅ | ✅ | — | 321–324, symmetric on both lines (matches live Pi config); bridge in `audio` |
 | Play vs call-only 931/932 | ✅ | ✅ | — | Mode flags |
 | Digit readback 921/922 | ✅ | ✅ | — | |
-| Language 901/902 | ✅ | 🟡 | **2** | Pre-baked EN/IT WAV sets |
+| Language (setup-time, single) | n/a | ✅ | — | Deliberately **not** ported: Pi's mid-call 901/902 switching is dropped for one language chosen at setup (`board_language_set`); generate that language's prompt WAVs once, no in-use switching |
 | Operator 0 (TTS help) | ✅ | 🟡 | **2** | Flash WAVs only |
 | Clips 4xx | ✅ | 🟡 | **2** | SPIFFS / partition |
 | Record 211 | ✅ | ✅ | — | `recorder` component: 8 kHz mono WAV to `storage`, auto-stop on hangup/silence/30 s |
@@ -141,15 +141,6 @@ components/
 ---
 
 ## Future ideas / parking lot (not scheduled)
-
-- **One language per phone, set at config/setup time — drop in-use switching.**
-  The Pi lets you switch language mid-use (dial 901/902, per-line `phoneLang`).
-  That's more complication than it's worth on the ESP32: instead, pick a single
-  language when setting the phone up, generate that language's prompts/number
-  audio once during setup, and don't offer runtime switching. Removes the
-  901/902 codes, the per-line language flag in `dialplan_modes_t`, and the
-  call-only-forces-Italian coupling; simplifies the operator/record prompt
-  pipeline to a single asset set.
 
 - **User audio manager + dial-plan editor (both Pi and ESP32).** Today the
   clip codes (401/411/…) are hard-coded to filenames in `dialplan.c`. Idea: a

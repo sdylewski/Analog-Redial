@@ -81,11 +81,8 @@ static const entry_t TABLE[] = {
     { "811", ACT_RADIO, 1, 0, true, "KXSF 102.5 SF alt-rock (KFOG successor)", false },
     { "812", ACT_RADIO, 2, 0, true, "KQED NPR 88.5", false },
 
-    /* 9xx -- settings */
-    { "901", ACT_SET_MODE, MODE_ENGLISH,      0, false,
-      "Language: English, default (no prompt audio exists yet to be affected by it)", false },
-    { "902", ACT_SET_MODE, MODE_ITALIAN,      0, false,
-      "Language: Italian (same caveat as English)", false },
+    /* 9xx -- settings. No 901/902: language is set once at configuration
+     * time (board_language_set), not switched in use -- see dialplan.h. */
     { "921", ACT_SET_MODE, MODE_READBACK_OFF, 0, false,
       "Digit readback off, default", true },
     { "922", ACT_SET_MODE, MODE_READBACK_ON,  0, false,
@@ -160,17 +157,9 @@ void dialplan_apply_mode(int line, dialplan_mode_change_t change)
     switch (change) {
         case MODE_PLAY:
             s_modes.call_only = false;
-            s_modes.italian[0] = s_modes.italian[1] = false;
             break;
         case MODE_CALL_ONLY:
             s_modes.call_only = true;
-            s_modes.italian[0] = s_modes.italian[1] = true; /* Pi forces IT in call-only */
-            break;
-        case MODE_ENGLISH:
-            if (line >= 0 && line < 2) s_modes.italian[line] = false;
-            break;
-        case MODE_ITALIAN:
-            if (line >= 0 && line < 2) s_modes.italian[line] = true;
             break;
         case MODE_READBACK_OFF:
             s_modes.readback_digits = false;
@@ -180,9 +169,8 @@ void dialplan_apply_mode(int line, dialplan_mode_change_t change)
             break;
     }
     modes_save();
-    ESP_LOGI(TAG, "mode change %d (line %d): call_only=%d it=[%d,%d] readback=%d",
-             change, line, s_modes.call_only, s_modes.italian[0], s_modes.italian[1],
-             s_modes.readback_digits);
+    ESP_LOGI(TAG, "mode change %d (line %d): call_only=%d readback=%d",
+             change, line, s_modes.call_only, s_modes.readback_digits);
 }
 
 static const entry_t *exact_match(const char *buf)

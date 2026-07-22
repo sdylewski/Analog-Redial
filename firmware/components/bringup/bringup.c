@@ -26,6 +26,8 @@
 #include "driver/i2c_master.h"
 #include <string.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 static const char *TAG = "bringup";
 
@@ -405,9 +407,12 @@ static int cmd_pulsemon(int argc, char **argv)
     int secs = (argc > 1) ? atoi(argv[1]) : 15;
     int line = (argc > 2) ? atoi(argv[2]) : 0;
     printf("Monitoring line %d pulse dialing for %d s (dial digits now)...\n", line, secs);
-    printf("Non-invasive poll -- doesn't touch the AG1170_EV_DIGIT callback telephony uses,\n"
-           "so normal dialing/calls keep working while this runs.\n");
+    printf("Reads the raw pulse counter directly (doesn't touch the AG1170_EV_DIGIT callback\n"
+           "telephony uses), and suppresses the dial plan for the duration so what you dial\n"
+           "here doesn't also register as a real call attempt (wrong number, hangup, etc).\n"
+           "Hook state and ringing are unaffected.\n");
 
+    telephony_set_monitor_suppress(true);
     int64_t t0 = esp_timer_get_time();
     int64_t last_edge_us = t0;
     int prev_raw = -1, prev_count = -1;
@@ -439,6 +444,7 @@ static int cmd_pulsemon(int argc, char **argv)
         prev_counting = counting;
         vTaskDelay(pdMS_TO_TICKS(5));
     }
+    telephony_set_monitor_suppress(false);
     return 0;
 }
 
@@ -449,9 +455,12 @@ static int cmd_tonemon(int argc, char **argv)
     int line = (argc > 2) ? atoi(argv[2]) : 0;
     printf("Monitoring line %d for DTMF (touch-tone) digits for %d s (dial digits now, or "
            "run 'dtmf_gen <digits> %d' from another session)...\n", line, secs, line);
-    printf("Non-invasive poll -- reads telephony's own always-running Goertzel detector,\n"
-           "doesn't touch the RX tap, so normal dialing/calls keep working while this runs.\n");
+    printf("Reads telephony's own always-running Goertzel detector directly (doesn't touch\n"
+           "the RX tap), and suppresses the dial plan for the duration so what you dial here\n"
+           "doesn't also register as a real call attempt (wrong number, hangup, etc). Hook\n"
+           "state and ringing are unaffected.\n");
 
+    telephony_set_monitor_suppress(true);
     int64_t t0 = esp_timer_get_time();
     int64_t prev_seen_us = -1;
     int64_t last_digit_us = t0;
@@ -469,6 +478,7 @@ static int cmd_tonemon(int argc, char **argv)
         }
         vTaskDelay(pdMS_TO_TICKS(5));
     }
+    telephony_set_monitor_suppress(false);
     return 0;
 }
 
@@ -763,6 +773,24 @@ void bringup_console_start(void)
     register_cmd("sip_call", "Test SIP INVITE (signaling only): sip_call <number> [line]", cmd_sip_call);
     register_cmd("sip_hangup", "Hang up a SIP call: sip_hangup [line]", cmd_sip_hangup);
     register_cmd("sd_test", "microSD: mount (if needed), print card info, write/read/verify", cmd_sd_test);
+
+    /* esp_console_new_repl_*() above probes the terminal with a "device
+     * status request" escape sequence (ESC[5n) and waits up to 500ms for the
+     * reply. Over native USB (Serial/JTAG) + idf.py monitor's extra buffering
+     * layer, that reply can arrive *after* the probe gives up -- it then
+     * sits in stdin and gets read as if typed, printing as garbage escape
+     * bytes right after your first real command. Give it a moment, then
+     * throw away anything that trickled in late before the REPL starts
+     * actually reading commands. */
+    vTaskDelay(pdMS_TO_TICKS(700));
+    {
+        int fd = fileno(stdin);
+        int flags = fcntl(fd, F_GETFL);
+        fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+        char junk[32];
+        while (read(fd, junk, sizeof(junk)) > 0) { /* discard stale probe response */ }
+        fcntl(fd, F_SETFL, flags);
+    }
 
     ESP_ERROR_CHECK(esp_console_start_repl(repl));
     ESP_LOGI(TAG, "bring-up console ready — type 'help'");

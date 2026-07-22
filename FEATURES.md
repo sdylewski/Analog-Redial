@@ -54,7 +54,7 @@ interface, implemented later · ❌ dropped (host/Pi-only concept)
 | **Voice effects** (pitch/Dalek) | 🟡 | Simple on-device pitch shift; Dalek = ring-mod; not `sox`-grade |
 | **Internet radio (8xx)** | 🟡 | HTTP/Shoutcast stream → I²S; later milestone |
 | **Operator help / TTS (dial 0)** | 🟡 | No on-device TTS; play pre-rendered prompt WAVs from flash |
-| **Language EN/IT modes (901/902)** | ✅ | Mode flag selects which prompt asset set |
+| **Language** | ✅ | Deliberately not ported as-is: one language for the whole phone, set at setup time (`board_language_set`/Settings), no in-use switching or 901/902 codes |
 | **Play vs Call-only modes (931/932)** | ✅ | Mode flag gates fun codes |
 | **Digit readback on/off (921/922)** | ✅ | Mode flag, explicit set (not a toggle, matches Pi) |
 | **Wrong-number handling** | ✅ | Unmatched 3+ digit → prompt + dialtone |

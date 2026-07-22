@@ -41,8 +41,6 @@ typedef enum {
 typedef enum {
     MODE_PLAY = 0,      /* 931 */
     MODE_CALL_ONLY,     /* 932 */
-    MODE_ENGLISH,       /* 901 */
-    MODE_ITALIAN,       /* 902 */
     MODE_READBACK_OFF,  /* 921 */
     MODE_READBACK_ON,   /* 922 */
 } dialplan_mode_change_t;
@@ -54,10 +52,12 @@ typedef struct {
     char  number[16];   /* for ACT_VOIP_DIAL */
 } dialplan_action_t;
 
-/* Per-system mode flags (mirrors the Pi runtime flags). */
+/* Per-system mode flags (mirrors the Pi runtime flags). Language is NOT
+ * here: the phone is set up with a single language at configuration time
+ * (see board_language_get/set in board.h), not switched in use -- no 901/902
+ * dial codes, no per-line flag. */
 typedef struct {
     bool call_only;       /* CallOnly */
-    bool italian[2];      /* per-line language */
     bool readback_digits; /* PlayNumbers */
 } dialplan_modes_t;
 
@@ -66,10 +66,11 @@ dialplan_modes_t *dialplan_modes(void);
 void dialplan_apply_mode(int line, dialplan_mode_change_t change);
 
 /* Web-UI convenience: trigger a 9xx mode-setting dial code by its code
- * string (e.g. "931", "901") instead of dialing it, reusing the same TABLE
+ * string (e.g. "931", "921") instead of dialing it, reusing the same TABLE
  * dialplan_feed() matches against so the web UI can't drift from what
  * dialing the code actually does. Returns false if `code` isn't a mode-
- * setting entry. `line` only matters for per-line codes (901/902). */
+ * setting entry. `line` is unused by any current mode (none are per-line)
+ * but kept for API stability if one ever is. */
 bool dialplan_set_mode_by_code(const char *code, int line);
 
 /* Per-line digit collector. */

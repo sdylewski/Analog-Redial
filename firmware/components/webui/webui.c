@@ -495,9 +495,9 @@ static void mode_set_url(char *out, size_t out_len, const char *code, int line)
 }
 
 /* One card: a live pill for the mode's current value plus the two buttons
- * that set it explicitly. The phone's own dial codes (931/932, 921/922,
- * 901/902) always set state outright rather than toggling it, so these
- * buttons mirror that instead of offering a single flip. */
+ * that set it explicitly. The phone's own dial codes (931/932, 921/922)
+ * always set state outright rather than toggling it, so these buttons
+ * mirror that instead of offering a single flip. */
 static int append_mode_card(char *buf, size_t cap, int off, const char *title,
                              const char *pill_class, const char *state_label,
                              const char *opt_a_label, const char *opt_a_code,
@@ -543,16 +543,23 @@ static int append_general_tab(char *buf, size_t cap, int off)
     off = append_mode_card(buf, cap, off, "Digit readback",
         m->readback_digits ? "on" : "off", m->readback_digits ? "On" : "Off",
         "Turn off", "921", "Turn on", "922", -1);
-    off = append_mode_card(buf, cap, off, "Line 1 language",
-        m->italian[0] ? "amber" : "on", m->italian[0] ? "Italian" : "English",
-        "English", "901", "Italian", "902", 0);
-    off = append_mode_card(buf, cap, off, "Line 2 language",
-        m->italian[1] ? "amber" : "on", m->italian[1] ? "Italian" : "English",
-        "English", "901", "Italian", "902", 1);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">All four persist to flash (NVS) and survive a reboot. "
-        "Language is just a mode flag right now -- no prompt audio exists yet "
-        "to be affected by it.</p>");
+        "<p class=\"hint\">Both persist to flash (NVS) and survive a reboot.</p>");
+
+    char lang[8];
+    board_language_get(lang, sizeof(lang));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Language</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">Current</span><span>%s</span></div>"
+        "<form method=\"POST\" action=\"/language_set\" class=\"settings-form\">"
+        "<label>Code (e.g. en, it, es) <input name=\"lang\" value=\"%s\" maxlength=\"7\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save language</button></div>"
+        "</form>"
+        "<p class=\"hint\">One language for the whole phone, set here rather than switched in "
+        "use (no 901/902 dial codes) -- generate that language's prompt/number audio during "
+        "setup with <code>gen_prompt.py</code>, then leave it. No prompt audio exists yet to "
+        "actually be affected by this.</p></div>",
+        lang, lang);
 
     char ssid[33];
     strncpy(ssid, wifi_get_ssid(), sizeof(ssid) - 1);
@@ -801,8 +808,8 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
 /* POST /mode_set/<code>[/<line>] -- web-UI equivalent of dialing a 9xx mode
  * code, routed through the same TABLE dialplan_feed() matches against (see
  * dialplan_set_mode_by_code()) so the buttons can't drift from what dialing
- * the code actually does. <line> is only meaningful for per-line codes
- * (901/902); everything else ignores it. */
+ * the code actually does. No current mode is per-line, so <line> is unused,
+ * but the URL shape stays in case one ever is. */
 static esp_err_t mode_set_handler(httpd_req_t *req)
 {
     const char *prefix = "/mode_set/";
@@ -954,6 +961,33 @@ static esp_err_t board_name_handler(httpd_req_t *req)
     if (board_name_set(name) == ESP_OK) {
         wifi_apply_hostname();
     }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /language_set -- form body lang=.... Config-time only: no dial code
+ * changes this, no per-line flag -- one language for the whole phone. */
+static esp_err_t language_set_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char lang[8] = {0};
+    form_field(body, "lang", lang, sizeof(lang));
+    if (!lang[0]) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "lang required");
+        return ESP_OK;
+    }
+    board_language_set(lang);
 
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
@@ -1244,7 +1278,7 @@ esp_err_t webui_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
-    /* Default is 8 -- we register 16 routes below (two share the media
+    /* Default is 8 -- we register 17 routes below (two share the media
      * path, one GET, one POST, counted separately). Past the cap,
      * httpd_register_uri_handler() just fails per-route, which used to go
      * unchecked below, silently dropping the last couple of routes. */
@@ -1278,6 +1312,7 @@ esp_err_t webui_start(void)
         { .uri = "/mode_set/*",      .method = HTTP_POST, .handler = mode_set_handler },
         { .uri = "/wifi_set",        .method = HTTP_POST, .handler = wifi_set_handler },
         { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
+        { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },
         /* Catch-all LAST: captive-portal redirect while provisioning, plain
          * 404 otherwise. The wildcard matcher tries handlers in registration
          * order, so every specific route above still wins. */

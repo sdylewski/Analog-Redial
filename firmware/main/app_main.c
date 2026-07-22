@@ -87,9 +87,10 @@ void app_main(void)
         had_soft_failure = true;
     }
 
-    /* 4. SLIC line interface. Detect before ag1170_init() claims GPIO19 for
-     * SHK -- the probe needs it unclaimed to read the passive network. */
-    board_detect_line2_variant();
+    /* 4. SLIC line interface. Line 2 vs. microSD on the shared GPIO 18-21
+     * pads is a build-time choice (CONFIG_BOARD_MICROSD) -- there's no
+     * reliable runtime read to distinguish them (a stuffed SLIC and an SD
+     * card produce the same floating-pin levels), so we don't try. */
     ag1170_config_t scfg = AG1170_DEFAULT_CONFIG();
     ESP_ERROR_CHECK(ag1170_init(&scfg));
 
