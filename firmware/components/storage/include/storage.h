@@ -53,7 +53,7 @@ esp_err_t storage_write(const char *name, const void *data, size_t len);
  */
 typedef struct {
     void *file;  /* FILE*, opaque here to keep stdio out of the public header */
-    char  path[64];
+    char  path[288];
 } storage_writer_t;
 
 esp_err_t storage_write_begin(const char *name, size_t expected_len, storage_writer_t *w);
@@ -101,6 +101,13 @@ esp_err_t storage_patch(const char *name, size_t offset, const void *data, size_
  * (<= max_entries). Pass out=NULL/max_entries=0 just to get a count via the
  * return value combined with storage_used_bytes(). */
 size_t storage_list(storage_entry_t *out, size_t max_entries);
+
+/* Same, but for the read-only "bundled" partition (firmware/assets/, baked
+ * in at build time -- see storage.c). Informational only: there's no
+ * storage_delete()/write for this partition, and none needed since
+ * uploading/recording a same-named file to the writable partition already
+ * takes priority over a bundled one at playback (storage_read_open()). */
+size_t storage_list_bundled(storage_entry_t *out, size_t max_entries);
 
 size_t storage_used_bytes(void);
 size_t storage_cap_bytes(void);

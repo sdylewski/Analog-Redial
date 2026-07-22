@@ -65,8 +65,8 @@ Legend: ✅ done or close · 🟡 partial · 🔜 not started · ❌ N/A on MCU
 | Play vs call-only 931/932 | ✅ | ✅ | — | Mode flags |
 | Digit readback 921/922 | ✅ | ✅ | — | |
 | Language (setup-time, single) | n/a | ✅ | — | Deliberately **not** ported: Pi's mid-call 901/902 switching is dropped for one language chosen at setup (`board_language_set`); generate that language's prompt WAVs once, no in-use switching |
-| Operator 0 (TTS help) | ✅ | 🟡 | **2** | Flash WAVs only |
-| Clips 4xx | ✅ | 🟡 | **2** | SPIFFS / partition |
+| Operator 0 (TTS help) | ✅ | ✅ | — | `operator.wav` ships by default via the `bundled` SPIFFS partition (`firmware/assets/`), baked in at build/flash time |
+| Clips 4xx | ✅ | 🟡 | **2** | Storage/bundled-partition mechanism is done (see `components/storage`); no clip WAVs ship by default (copyright — bring your own via `sync_pi_audio.py`/`gen_prompt.py`) |
 | Record 211 | ✅ | ✅ | — | `recorder` component: 8 kHz mono WAV to `storage`, auto-stop on hangup/silence/30 s |
 | Callback 212–215 | ✅ | ✅ | — | Record then play back on the handset; high/low via resample, Dalek flat (ring-mod TODO) |
 | Internet radio 811/812 | ✅ | 🔜 | **3** | [`esp-adf`](https://github.com/espressif/esp-adf) or `esp_http_client` + decoder |
@@ -142,17 +142,18 @@ components/
 
 ## Future ideas / parking lot (not scheduled)
 
-- **User audio manager + dial-plan editor (both Pi and ESP32).** Today the
-  clip codes (401/411/…) are hard-coded to filenames in `dialplan.c`. Idea: a
-  Settings screen to **add an audio entry** — upload a WAV/song, pick a dial
-  code (reject one already in use), name it, optionally set a length — and
-  have it register into the dial plan at runtime (config-driven table instead
-  of the compile-time `TABLE[]`). Likely a modal/popup on the Pi; on the
-  ESP32 it'd be a plain sub-page (the ESP32 web UI avoids client JS). The
-  ESP32 is the primary UI target since the board is being built for it.
-  Recordings vs. built-in assets are already separated (Recordings tab shows
-  only `rec_*`; assets are managed under Settings → Storage), which is the
-  groundwork for this.
+- ~~User audio manager + dial-plan editor (ESP32).~~ **Done.** The fixed
+  compile-time `TABLE[]` in `dialplan.c` still holds the well-known codes
+  (401/411/…), but Settings → General → "Custom dial codes" now lets you
+  assign a *new* code to any already-uploaded, recorded, or bundled WAV at
+  runtime — no rebuild. Backed by an NVS-persisted parallel table
+  (`dialplan_add_user_entry`/`_remove_user_entry`/`_list_user_entries`),
+  matched by `dialplan_feed`/`dialplan_timeout` alongside the static table
+  with the same prefix-ambiguity rules. Not yet ported to the Pi stack.
+  Same-turn groundwork: the `bundled` vs. `storage` SPIFFS-partition split
+  (see `components/storage`, `firmware/assets/README.md`) so a builder can
+  bake default assets in at compile time without ever risking a recording
+  on reflash.
 
 - **Pi-based header-board hardware variant (doesn't exist yet).** A future
   revision of the current SMD board where the **ESP32-C6 is swapped for a

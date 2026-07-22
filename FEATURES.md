@@ -46,14 +46,15 @@ interface, implemented later · ❌ dropped (host/Pi-only concept)
 | **Busy tone** (480+620, 0.5s) | ✅ | `tones` cadence |
 | **Mechanical ringing** | ✅ | `ag1170` RM + F/R cadence (US 2s/4s default) |
 | **Per-digit dial-plan dispatch** | ✅ | `dialplan` table ported from `DIAL_CODES.md` |
+| **Custom dial codes** (Settings → General) | ✅ | Assign a new number to any bundled/uploaded/recorded WAV at runtime, no rebuild — NVS-persisted, matched alongside the fixed table (not part of `DIAL_CODES.md`, an ESP32-only addition) |
 | **Call the other phone (inter-line)** | ✅ | Local bridge L↔R channels in `audio` |
 | **Busy when other line off-hook** | ✅ | state machine |
-| **Audio clip playback** (silly clips 4xx, banana line) | 🟡 | Needs clips in flash (SPIFFS/LittleFS); table wired, asset pipeline TODO |
+| **Audio clip playback** (silly clips 4xx, banana line) | 🟡 | Asset pipeline done (`storage` writable + `bundled` build-time SPIFFS partitions, `firmware/assets/`); no clip WAVs ship by default (copyright) — bring your own via `sync_pi_audio.py`/`gen_prompt.py` |
 | **Record + playback (212/213/214/215)** | ✅ | `recorder` captures 8 kHz mono → plays back; high/low pitch via resample, Dalek flat (ring-mod TODO) |
 | **Record to web archive (211)** | ✅ | `recorder` → 8 kHz mono WAV in `storage`, downloadable from `/recordings` |
 | **Voice effects** (pitch/Dalek) | 🟡 | Simple on-device pitch shift; Dalek = ring-mod; not `sox`-grade |
 | **Internet radio (8xx)** | 🟡 | HTTP/Shoutcast stream → I²S; later milestone |
-| **Operator help / TTS (dial 0)** | 🟡 | No on-device TTS; play pre-rendered prompt WAVs from flash |
+| **Operator help / TTS (dial 0)** | ✅ | No on-device TTS; `operator.wav` ships by default (pre-rendered, baked into the `bundled` partition at build time) |
 | **Language** | ✅ | Deliberately not ported as-is: one language for the whole phone, set at setup time (`board_language_set`/Settings), no in-use switching or 901/902 codes |
 | **Play vs Call-only modes (931/932)** | ✅ | Mode flag gates fun codes |
 | **Digit readback on/off (921/922)** | ✅ | Mode flag, explicit set (not a toggle, matches Pi) |

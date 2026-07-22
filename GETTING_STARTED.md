@@ -149,18 +149,39 @@ Once connected, the log prints the device's IP and its mDNS name (default
 
 ## 8. Optional setup
 
-**Audio clips & prompts.** Fun-clip and operator codes play WAVs from flash.
-Generate/upload them with the host helper:
+**Audio clips & prompts.** Two ways to get WAVs onto the phone:
 
-```bash
-cd firmware/bringup
-./gen_prompt.py "For assistance, hang up and try again." --name operator.wav --upload phone.local
-./gen_prompt.py --from song.mp3 --name clip_401.wav --upload phone.local
-```
+- **Bundled at build time** — anything you drop in `firmware/assets/` gets
+  baked into a dedicated `bundled` flash partition and reflashed with every
+  `idf.py flash`, without ever touching recordings in the writable `storage`
+  partition. Only `operator.wav` ships by default (original project text,
+  not copyrighted); everything else is gitignored on purpose — the fun-clip
+  test set (Ring of Fire, Crocodile Rock, ...) is copyrighted and doesn't
+  belong in a public repo. Add your own, from audio you own the rights to:
+
+  ```bash
+  cd firmware/bringup
+  ./sync_pi_audio.py --src /path/to/your/audio --out-dir ../assets   # batch
+  ./gen_prompt.py --from song.mp3 --name clip_401.wav --out-dir ../assets  # one file
+  ```
+
+  See [`firmware/assets/README.md`](firmware/assets/README.md) for the full
+  mechanism and override rules.
+
+- **Uploaded at runtime** — `gen_prompt.py --upload phone.local` (or the web
+  UI's Settings → Storage file manager) writes straight into the writable
+  partition, no rebuild/reflash needed. A same-named upload always overrides
+  a bundled default.
 
 Well-known names: `operator.wav`, `clip_401.wav`…`clip_414.wav`. See
 [`pi_rotary_phone/docs/DIAL_CODES.md`](pi_rotary_phone/docs/DIAL_CODES.md) for
 what each code does.
+
+**Custom dial codes.** To assign a *new* number to a clip (bundled or
+uploaded) without touching the fixed dial-plan table or rebuilding, use
+Settings → General → "Custom dial codes": pick a 2–6 digit code and any
+already-available WAV from the dropdown. Stored in flash (NVS), takes effect
+immediately.
 
 **VoIP (SIP).** To register to a LAN Asterisk/PBX and place calls (dial
 `555` + a 4-digit extension), configure from the console:

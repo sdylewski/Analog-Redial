@@ -312,6 +312,15 @@ static void handle_action(int line, const dialplan_action_t *a)
             break;
         }
 
+        case ACT_PLAY_USER_CLIP: /* user-added code (Settings -> General), a->filename set directly */
+            if (player_play(line, a->filename, clip_done_cb, NULL) == ESP_OK) {
+                s_line[line].state = TEL_PLAYING;
+            } else {
+                ESP_LOGI(TAG, "line %d: play '%s' (not in storage?)", line, a->filename);
+                play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+            }
+            break;
+
         case ACT_RECORD_PLAYBACK: { /* 212-215: record, then play it back */
             snprintf(s_line[line].rec_name, sizeof(s_line[line].rec_name),
                      "cb_l%d.wav", line);

@@ -10,6 +10,7 @@
  */
 #pragma once
 
+#include "esp_err.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -22,13 +23,14 @@ typedef enum {
     ACT_NONE = 0,       /* keep collecting (valid prefix, no decision yet) */
     ACT_WRONG_NUMBER,   /* no match possible */
     ACT_OPERATOR_HELP,  /* dial 0 */
-    ACT_PLAY_CLIP,      /* arg = clip id */
+    ACT_PLAY_CLIP,      /* arg = clip id (fixed compile-time table entry) */
     ACT_RECORD_PLAYBACK,/* arg = voice effect */
     ACT_RECORD_ARCHIVE, /* dial 111 */
     ACT_CALL_LINE,      /* arg = target line index; effect in arg2 */
     ACT_RADIO,          /* arg = station index */
     ACT_VOIP_DIAL,      /* number[] holds digits (e.g. 555xxxx) */
     ACT_SET_MODE,       /* arg = dialplan_mode_change_t */
+    ACT_PLAY_USER_CLIP, /* filename[] holds the clip to play (user-added code) */
 } dialplan_action_kind_t;
 
 typedef enum {
@@ -50,6 +52,9 @@ typedef struct {
     int   arg;          /* clip id / effect / target line / station / mode */
     int   arg2;         /* secondary (e.g. call effect) */
     char  number[16];   /* for ACT_VOIP_DIAL */
+    char  filename[32]; /* for ACT_PLAY_USER_CLIP -- matches STORAGE_MAX_NAME
+                          * (storage.h), duplicated rather than shared since
+                          * dialplan doesn't otherwise depend on storage */
 } dialplan_action_t;
 
 /* Per-system mode flags (mirrors the Pi runtime flags). Language is NOT
@@ -112,6 +117,34 @@ typedef struct {
 /* Fills `out` (definition order), returns the number of entries written
  * (<= max). */
 size_t dialplan_list(dialplan_entry_info_t *out, size_t max);
+
+/* ---- User-added dial codes (Settings -> General -> "Custom dial codes") ----
+ * On top of the fixed compile-time TABLE above: assign a NEW number to an
+ * already-uploaded/recorded/bundled WAV, no firmware rebuild. Persisted to
+ * NVS. `filename` isn't checked against the storage component here (dialplan
+ * doesn't depend on it) -- if the file doesn't exist yet when the code is
+ * dialed, telephony.c falls back to a confirm tone, same as any other
+ * missing clip. */
+#define DIALPLAN_MAX_USER_ENTRIES 16
+
+typedef struct {
+    char code[8];      /* 2-6 digits */
+    char filename[32]; /* matches STORAGE_MAX_NAME, see dialplan_action_t */
+} dialplan_user_entry_t;
+
+/*
+ *   ESP_OK
+ *   ESP_ERR_INVALID_ARG    -- code isn't 2-6 digits, or filename is empty
+ *   ESP_ERR_INVALID_STATE  -- code conflicts (exact match or a prefix
+ *                             relationship, either direction) with the fixed
+ *                             table, another user entry, or the 555 VoIP
+ *                             prefix
+ *   ESP_ERR_NO_MEM         -- DIALPLAN_MAX_USER_ENTRIES already used
+ */
+esp_err_t dialplan_add_user_entry(const char *code, const char *filename);
+esp_err_t dialplan_remove_user_entry(const char *code);
+/* Fills `out`, returns the number of entries written (<= max). */
+size_t    dialplan_list_user_entries(dialplan_user_entry_t *out, size_t max);
 
 #ifdef __cplusplus
 }

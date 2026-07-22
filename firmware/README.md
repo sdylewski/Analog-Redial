@@ -227,7 +227,7 @@ SLIC, DTMF), plus a `bringup_checklist.py` that runs the full sequence.
 firmware/
 ├── CMakeLists.txt          # project
 ├── sdkconfig.defaults      # target esp32c6, console, 4MB flash, custom parts
-├── partitions.csv          # factory app + SPIFFS asset storage
+├── partitions.csv          # factory app + two SPIFFS partitions: storage (writable) + bundled (build-time assets)
 ├── main/app_main.c         # boot + wire-up + console
 └── components/
     ├── board/      # GPIO map (board_pins.h) + I2C bus init + codec auto-detect
@@ -286,9 +286,19 @@ name are cleared.
   a file. (The default committed config is the **dual-line, no-SD** build.)
   The `storage` layer still uses internal SPIFFS; routing recordings/clips onto
   the SD card is a follow-on.
-- **Audio assets** (clips, prompts, recordings) are not yet stored in flash —
-  those dial codes log their action and play a confirmation tone. The SPIFFS
-  `storage` partition is reserved for them.
+- **Audio assets** live in two SPIFFS partitions (`components/storage`):
+  `storage` (writable — recordings + anything uploaded over HTTP, subject to
+  eviction once near full) and `bundled` (built from `firmware/assets/` at
+  compile time via `spiffs_create_partition_image`, reflashed with every
+  `idf.py flash`, never touched by a recording). Playback and the `/media`
+  download route check `storage` first, then fall back to `bundled`, so an
+  upload of the same name overrides a bundled default without a rebuild. Only
+  `operator.wav` ships by default — see [`firmware/assets/README.md`](assets/README.md)
+  for the mechanism and why the fun-clip test set isn't bundled (copyright).
+  Dial codes with no matching file still log and play a confirmation tone.
+  Settings → General → "Custom dial codes" assigns a new number to any
+  already-available clip (bundled or uploaded) without touching the fixed
+  dial-plan table or rebuilding — persisted to NVS.
 - Audio runs at **48 kHz stereo** so the codec sees a clean 12.288 MHz MCLK
   (256fs). VoIP will resample to 8 kHz G.711 in the `voip` component.
 - `PD` drive polarity is set in `board_pins.h` (`BOARD_PD_LEVEL_RUN`). Verify

@@ -8,6 +8,8 @@
 static const char *TAG = "dialplan";
 #define MODES_NVS_NS  "phone"
 #define MODES_NVS_KEY "modes"
+#define USER_NVS_NS   "userdial"
+#define USER_NVS_KEY  "entries"
 
 /* Clip ids double as the dial code (and the "clip_<id>.wav" filename
  * player_play() looks for) -- assets live in flash later (see FEATURES.md
@@ -135,11 +137,37 @@ static void modes_save(void)
     nvs_close(h);
 }
 
+/* User-added dial codes (Settings -> General -> "Custom dial codes"): a
+ * fixed-size table, empty slot = code[0]=='\0'. Small and simple enough that
+ * a single NVS blob for the whole array beats a per-entry key scheme. */
+static dialplan_user_entry_t s_user[DIALPLAN_MAX_USER_ENTRIES];
+
+static void user_entries_load(void)
+{
+    memset(s_user, 0, sizeof(s_user));
+    nvs_handle_t h;
+    if (nvs_open(USER_NVS_NS, NVS_READONLY, &h) != ESP_OK) return;
+    size_t len = sizeof(s_user);
+    nvs_get_blob(h, USER_NVS_KEY, s_user, &len); /* short/missing -> stays zeroed */
+    nvs_close(h);
+}
+
+static void user_entries_save(void)
+{
+    nvs_handle_t h;
+    if (nvs_open(USER_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    if (nvs_set_blob(h, USER_NVS_KEY, s_user, sizeof(s_user)) == ESP_OK) {
+        nvs_commit(h);
+    }
+    nvs_close(h);
+}
+
 void dialplan_init(void)
 {
     memset(&s_modes, 0, sizeof(s_modes));
     modes_nvs_ready();
     modes_load();
+    user_entries_load();
     ESP_LOGI(TAG, "loaded %u codes", (unsigned)TABLE_N);
 }
 
@@ -201,6 +229,39 @@ static bool has_longer_prefix(const char *buf)
     return false;
 }
 
+/* ---- user-added entries: same exact/prefix matching shape as the fixed
+ * table above, kept as separate small helpers rather than merging into one
+ * loop since the two live in different arrays with different element types. */
+static const dialplan_user_entry_t *user_exact_match(const char *buf)
+{
+    for (int i = 0; i < DIALPLAN_MAX_USER_ENTRIES; i++) {
+        if (s_user[i].code[0] && strcmp(s_user[i].code, buf) == 0) return &s_user[i];
+    }
+    return NULL;
+}
+
+static bool user_has_longer_prefix(const char *buf)
+{
+    size_t blen = strlen(buf);
+    for (int i = 0; i < DIALPLAN_MAX_USER_ENTRIES; i++) {
+        if (s_user[i].code[0] && strlen(s_user[i].code) > blen &&
+            strncmp(s_user[i].code, buf, blen) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static dialplan_action_t fire_user(const dialplan_user_entry_t *u)
+{
+    /* User clips are play-mode content, same as the fixed table's fun
+     * clips -- blocked in call-only, same as those. */
+    if (s_modes.call_only) return (dialplan_action_t){ .kind = ACT_WRONG_NUMBER };
+    dialplan_action_t a = { .kind = ACT_PLAY_USER_CLIP };
+    strncpy(a.filename, u->filename, sizeof(a.filename) - 1);
+    return a;
+}
+
 static dialplan_action_t make(dialplan_action_kind_t kind, int arg, int arg2)
 {
     dialplan_action_t a = { .kind = kind, .arg = arg, .arg2 = arg2 };
@@ -244,16 +305,22 @@ dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit)
         return make(ACT_NONE, 0, 0); /* keep collecting */
     }
 
+    bool longer = has_longer_prefix(c->buf) || user_has_longer_prefix(c->buf);
+
     const entry_t *e = exact_match(c->buf);
     if (e) {
-        if (has_longer_prefix(c->buf)) {
-            return make(ACT_NONE, 0, 0); /* ambiguous: wait for timeout */
-        }
+        if (longer) return make(ACT_NONE, 0, 0); /* ambiguous: wait for timeout */
         return fire(e, line);
     }
 
+    const dialplan_user_entry_t *u = user_exact_match(c->buf);
+    if (u) {
+        if (longer) return make(ACT_NONE, 0, 0);
+        return fire_user(u);
+    }
+
     /* no exact match: is the buffer still a viable prefix? */
-    if (has_longer_prefix(c->buf) || (c->len < 3 && c->buf[0] == '5')) {
+    if (longer || (c->len < 3 && c->buf[0] == '5')) {
         return make(ACT_NONE, 0, 0);
     }
 
@@ -277,9 +344,12 @@ dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line)
     const entry_t *e = exact_match(c->buf);
     if (e) return fire(e, line);
 
+    const dialplan_user_entry_t *u = user_exact_match(c->buf);
+    if (u) return fire_user(u);
+
     /* Still a viable prefix of a longer code (slow rotary inter-digit):
      * keep waiting rather than declaring a wrong number. */
-    if (has_longer_prefix(c->buf)) {
+    if (has_longer_prefix(c->buf) || user_has_longer_prefix(c->buf)) {
         return make(ACT_NONE, 0, 0);
     }
 
@@ -293,6 +363,77 @@ size_t dialplan_list(dialplan_entry_info_t *out, size_t max)
         out[i].code = TABLE[i].code;
         out[i].desc = TABLE[i].desc;
         out[i].implemented = TABLE[i].implemented;
+    }
+    return n;
+}
+
+/* True if `code` exactly matches, or is a prefix of / has as a prefix, any
+ * existing code -- the fixed table, another user entry, or the 555-xxxx VoIP
+ * prefix specifically (NOT every code starting with '5': dialplan_feed()
+ * only special-cases "5"/"55"/"555..." itself, so e.g. "501" is fine and
+ * must not be rejected here). Comparing only the first min(lengths)
+ * characters catches both "equal" and "one is a prefix of the other". */
+static bool code_conflicts(const char *code)
+{
+    size_t clen = strlen(code);
+    size_t vlen = (clen < 3) ? clen : 3;
+    if (strncmp(code, "555", vlen) == 0) return true; /* shares a prefix with 555-xxxx */
+
+    for (size_t i = 0; i < TABLE_N; i++) {
+        size_t tlen = strlen(TABLE[i].code);
+        size_t minlen = (clen < tlen) ? clen : tlen;
+        if (strncmp(TABLE[i].code, code, minlen) == 0) return true;
+    }
+    for (int i = 0; i < DIALPLAN_MAX_USER_ENTRIES; i++) {
+        if (!s_user[i].code[0]) continue;
+        size_t ulen = strlen(s_user[i].code);
+        size_t minlen = (clen < ulen) ? clen : ulen;
+        if (strncmp(s_user[i].code, code, minlen) == 0) return true;
+    }
+    return false;
+}
+
+esp_err_t dialplan_add_user_entry(const char *code, const char *filename)
+{
+    if (!code || !filename || !filename[0]) return ESP_ERR_INVALID_ARG;
+    size_t len = strlen(code);
+    if (len < 2 || len > 6) return ESP_ERR_INVALID_ARG;
+    for (size_t i = 0; i < len; i++) {
+        if (code[i] < '0' || code[i] > '9') return ESP_ERR_INVALID_ARG;
+    }
+    if (code_conflicts(code)) return ESP_ERR_INVALID_STATE;
+
+    int slot = -1;
+    for (int i = 0; i < DIALPLAN_MAX_USER_ENTRIES; i++) {
+        if (!s_user[i].code[0]) { slot = i; break; }
+    }
+    if (slot < 0) return ESP_ERR_NO_MEM;
+
+    strncpy(s_user[slot].code, code, sizeof(s_user[slot].code) - 1);
+    strncpy(s_user[slot].filename, filename, sizeof(s_user[slot].filename) - 1);
+    user_entries_save();
+    ESP_LOGI(TAG, "custom dial code added: %s -> %s", code, filename);
+    return ESP_OK;
+}
+
+esp_err_t dialplan_remove_user_entry(const char *code)
+{
+    for (int i = 0; i < DIALPLAN_MAX_USER_ENTRIES; i++) {
+        if (s_user[i].code[0] && strcmp(s_user[i].code, code) == 0) {
+            ESP_LOGI(TAG, "custom dial code removed: %s (was -> %s)", code, s_user[i].filename);
+            memset(&s_user[i], 0, sizeof(s_user[i]));
+            user_entries_save();
+            return ESP_OK;
+        }
+    }
+    return ESP_ERR_NOT_FOUND;
+}
+
+size_t dialplan_list_user_entries(dialplan_user_entry_t *out, size_t max)
+{
+    size_t n = 0;
+    for (int i = 0; i < DIALPLAN_MAX_USER_ENTRIES && n < max; i++) {
+        if (s_user[i].code[0]) out[n++] = s_user[i];
     }
     return n;
 }

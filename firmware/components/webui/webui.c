@@ -23,6 +23,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <ctype.h>
+#include <strings.h>
 
 static const char *TAG = "webui";
 
@@ -43,6 +44,19 @@ static const char *fmt_bytes(uint64_t n, char *out, size_t outsz)
  * dial-code-row markup instead of duplicating it. */
 static int append_guide_row(char *buf, size_t cap, int off, const char *code,
                              const char *desc, bool implemented);
+
+/* Defined just after append_general_tab (which calls it) -- forward-declared
+ * since C needs the declaration before the call site. */
+static int append_custom_codes_card(char *buf, size_t cap, int off);
+
+/* firmware/assets/ ships README.md and .gitignore alongside actual clips
+ * (see that directory's own README) -- filter those out of "pick a clip to
+ * play" lists so a user can't assign a dial code to a non-audio file. */
+static bool is_wav_name(const char *name)
+{
+    size_t len = strlen(name);
+    return len > 4 && strcasecmp(name + len - 4, ".wav") == 0;
+}
 
 /* Best-effort categorization of an ESP_LOG tag/message into the Pi UI's
  * .k.digit / .k.hook / .k.action / .k.debug color classes -- this project's
@@ -576,6 +590,83 @@ static int append_general_tab(char *buf, size_t cap, int off)
         "<p class=\"hint\">Saved to flash (NVS); the device reconnects immediately, no reboot needed.</p>"
         "</div>",
         ssid[0] ? ssid : "(not configured)", ssid);
+
+    off = append_custom_codes_card(buf, cap, off);
+    return off;
+}
+
+/* "Custom dial codes" -- assign a new number to an already-uploaded/
+ * recorded/bundled WAV without a firmware rebuild (dialplan_add_user_entry).
+ * The <select> lists every playable name storage_read_open() can actually
+ * find: writable storage (uploads, recordings) plus bundled defaults not
+ * already shadowed by a writable file of the same name. */
+static int append_custom_codes_card(char *buf, size_t cap, int off)
+{
+    dialplan_user_entry_t codes[DIALPLAN_MAX_USER_ENTRIES];
+    size_t ncodes = dialplan_list_user_entries(codes, DIALPLAN_MAX_USER_ENTRIES);
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Custom dial codes (%u)</h2>"
+        "<p class=\"hint\">Assign a new number to a file you've already uploaded, recorded, or "
+        "that's bundled in -- no rebuild needed. Upload new audio under Storage files below "
+        "first if it isn't in the list yet.</p>",
+        (unsigned)ncodes);
+
+    if (ncodes == 0) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"empty\">none yet</div>");
+    } else {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<table><tr><th>Code</th><th>Plays</th><th></th></tr>");
+        for (size_t i = 0; i < ncodes && (size_t)off < cap; i++) {
+            off += snprintf(buf + off, cap - off,
+                "<tr><td><code>%s</code></td><td><code>%s</code></td>"
+                "<td><form method=\"POST\" action=\"/custom_code_delete/%s\" "
+                "onsubmit=\"return confirm('Remove dial code %s?')\" style=\"display:inline\">"
+                "<button type=\"submit\">remove</button></form></td></tr>",
+                codes[i].code, codes[i].filename, codes[i].code, codes[i].code);
+        }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
+    }
+
+    /* Build the file <select>: writable storage first, then bundled names
+     * not already shadowed by a writable file of the same name. */
+    storage_entry_t files[32], bundled[16];
+    size_t nfiles = storage_list(files, 32);
+    size_t nbundled = storage_list_bundled(bundled, 16);
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<form method=\"POST\" action=\"/custom_code_add\" class=\"settings-form\">"
+        "<div class=\"grid2\">"
+        "<label>New code (2-6 digits) <input name=\"code\" pattern=\"[0-9]{2,6}\" "
+        "maxlength=\"6\" required></label>"
+        "<label>File to play <select name=\"filename\" required>");
+    if (nfiles == 0 && nbundled == 0) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<option value=\"\">(no files uploaded yet)</option>");
+    }
+    for (size_t i = 0; i < nfiles && (size_t)off < cap; i++) {
+        if (!is_wav_name(files[i].name)) continue;
+        off += snprintf(buf + off, cap - off,
+            "<option value=\"%s\">%s</option>", files[i].name, files[i].name);
+    }
+    for (size_t i = 0; i < nbundled && (size_t)off < cap; i++) {
+        /* firmware/assets/ also ships README.md and .gitignore alongside
+         * the actual clips (see that directory) -- not playable, so keep
+         * them out of this "pick a clip" list. */
+        if (!is_wav_name(bundled[i].name)) continue;
+        bool shadowed = false;
+        for (size_t j = 0; j < nfiles; j++) {
+            if (strcmp(files[j].name, bundled[i].name) == 0) { shadowed = true; break; }
+        }
+        if (shadowed) continue;
+        off += snprintf(buf + off, cap - off,
+            "<option value=\"%s\">%s (bundled)</option>", bundled[i].name, bundled[i].name);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "</select></label></div>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Add dial code</button></div>"
+        "</form></div>");
     return off;
 }
 
@@ -726,8 +817,11 @@ static int append_storage_section(char *buf, size_t cap, int off)
         "<div class=\"card\" style=\"margin-top:16px\"><h2>Storage files (%u)</h2>"
         "<p class=\"hint\">%s / %s used. Everything in the storage partition -- recordings, "
         "uploaded prompt/clip WAVs, anything else. Upload with <code>curl -X POST "
-        "--data-binary @file.wav http://%s/media/&lt;name&gt;</code> or "
-        "<code>firmware/bringup/gen_prompt.py</code>.</p>",
+        "--data-binary @file.wav http://%s/media/&lt;name&gt;</code>, "
+        "<code>firmware/bringup/gen_prompt.py</code>, or (to bulk-copy from the Pi) "
+        "<code>firmware/bringup/sync_pi_audio.py</code>. <code>operator.wav</code> and "
+        "<code>clip_*.wav</code> are never auto-deleted to make room for recordings -- only "
+        "explicit deletes (below) remove them.</p>",
         (unsigned)n, fmt_bytes(storage_used_bytes(), su, sizeof(su)),
         fmt_bytes(storage_cap_bytes(), sc, sizeof(sc)), ip);
 
@@ -995,6 +1089,59 @@ static esp_err_t language_set_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* POST /custom_code_add -- form body code=..&filename=.. (see dialplan.h's
+ * dialplan_add_user_entry() for the validation/conflict rules). */
+static esp_err_t custom_code_add_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char code[8] = {0}, filename[32] = {0};
+    form_field(body, "code", code, sizeof(code));
+    form_field(body, "filename", filename, sizeof(filename));
+
+    esp_err_t err = dialplan_add_user_entry(code, filename);
+    if (err != ESP_OK) {
+        const char *why =
+            (err == ESP_ERR_INVALID_ARG)   ? "code must be 2-6 digits and a file must be picked" :
+            (err == ESP_ERR_INVALID_STATE) ? "that code conflicts with an existing one" :
+            (err == ESP_ERR_NO_MEM)        ? "custom dial code limit reached" : esp_err_to_name(err);
+        ESP_LOGW(TAG, "custom_code_add '%s' -> '%s' failed: %s", code, filename, why);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, why);
+        return ESP_OK;
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /custom_code_delete/<code> */
+static esp_err_t custom_code_delete_handler(httpd_req_t *req)
+{
+    const char *prefix = "/custom_code_delete/";
+    if (strncmp(req->uri, prefix, strlen(prefix)) != 0) {
+        httpd_resp_send_404(req);
+        return ESP_OK;
+    }
+    const char *code = req->uri + strlen(prefix);
+    if (dialplan_remove_user_entry(code) != ESP_OK) {
+        ESP_LOGW(TAG, "custom_code_delete '%s': not found", code);
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 /* POST /media_delete/<name> -- plain HTML-form-friendly delete (browsers
  * can't send DELETE from a <form>), redirects back to /settings so the page
  * just refreshes with the file gone. */
@@ -1099,6 +1246,19 @@ static esp_err_t guide_handler(httpd_req_t *req)
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
     }
 
+    /* Custom (user-added, Settings -> General) codes, same live-table
+     * guarantee as everything else here. */
+    dialplan_user_entry_t custom[DIALPLAN_MAX_USER_ENTRIES];
+    size_t ncustom = dialplan_list_user_entries(custom, DIALPLAN_MAX_USER_ENTRIES);
+    if (ncustom > 0 && off > 0 && (size_t)off < cap) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"card\"><h2>Custom</h2>");
+        for (size_t i = 0; i < ncustom && (size_t)off < cap; i++) {
+            off = append_guide_row(buf, cap, off, custom[i].code, custom[i].filename, true);
+        }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    }
+
     if (off > 0 && (size_t)off < cap) {
         /* Synthetic row: 555xxxx is matched directly in dialplan_feed(),
          * not a TABLE entry, so it isn't in dialplan_list()'s output. */
@@ -1170,22 +1330,31 @@ static esp_err_t media_handler(httpd_req_t *req)
     const char *name = req->uri + strlen(prefix);
 
     storage_entry_t entries[32];
-    size_t n = storage_list(entries, 32);
-    size_t size = 0;
+    size_t n_entries = storage_list(entries, 32);
     bool found = false;
-    for (size_t i = 0; i < n; i++) {
-        if (strcmp(entries[i].name, name) == 0) { size = entries[i].size; found = true; break; }
+    for (size_t i = 0; i < n_entries; i++) {
+        if (strcmp(entries[i].name, name) == 0) { found = true; break; }
+    }
+    if (!found) {
+        /* Not an upload/recording -- check the bundled (build-time) assets
+         * too, same fallback order as storage_read_open()/player_play(). */
+        storage_entry_t bundled[16];
+        size_t nb = storage_list_bundled(bundled, 16);
+        for (size_t i = 0; i < nb; i++) {
+            if (strcmp(bundled[i].name, name) == 0) { found = true; break; }
+        }
     }
     if (!found) {
         httpd_resp_send_404(req);
         return ESP_OK;
     }
 
-    char *buf = malloc(size);
-    if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
-    size_t got = 0;
-    if (storage_read(name, buf, size, &got) != ESP_OK) {
-        free(buf);
+    /* Stream in small chunks rather than malloc(size) + one-shot send --
+     * clips can be a few hundred KB and the C6's heap doesn't reliably have
+     * that much contiguous free RAM alongside WiFi/audio buffers (a single
+     * malloc(338748) failed outright in testing). */
+    storage_reader_t r;
+    if (storage_read_open(name, &r) != ESP_OK) {
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
@@ -1194,8 +1363,17 @@ static esp_err_t media_handler(httpd_req_t *req)
     snprintf(disp, sizeof(disp), "attachment; filename=\"%s\"", name);
     httpd_resp_set_hdr(req, "Content-Disposition", disp);
     httpd_resp_set_type(req, "application/octet-stream");
-    httpd_resp_send(req, buf, got);
-    free(buf);
+
+    char chunk[2048];
+    size_t got;
+    esp_err_t send_err = ESP_OK;
+    while ((got = storage_read_chunk(&r, chunk, sizeof(chunk))) > 0) {
+        send_err = httpd_resp_send_chunk(req, chunk, got);
+        if (send_err != ESP_OK) break;
+    }
+    storage_read_close(&r);
+    if (send_err != ESP_OK) return ESP_FAIL;
+    httpd_resp_send_chunk(req, NULL, 0); /* terminate the chunked response */
     return ESP_OK;
 }
 
@@ -1278,11 +1456,11 @@ esp_err_t webui_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
-    /* Default is 8 -- we register 17 routes below (two share the media
+    /* Default is 8 -- we register 19 routes below (two share the media
      * path, one GET, one POST, counted separately). Past the cap,
      * httpd_register_uri_handler() just fails per-route, which used to go
      * unchecked below, silently dropping the last couple of routes. */
-    config.max_uri_handlers = 20;
+    config.max_uri_handlers = 22;
     /* Default httpd task stack is 4 KB. Our page handlers stack a few
      * storage_entry_t[32]/dialplan_entry_info_t[40] arrays and then descend
      * into SPIFFS readdir -> esp_flash_read, which is itself stack-hungry;
@@ -1313,6 +1491,8 @@ esp_err_t webui_start(void)
         { .uri = "/wifi_set",        .method = HTTP_POST, .handler = wifi_set_handler },
         { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
         { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },
+        { .uri = "/custom_code_add",     .method = HTTP_POST, .handler = custom_code_add_handler },
+        { .uri = "/custom_code_delete/*",.method = HTTP_POST, .handler = custom_code_delete_handler },
         /* Catch-all LAST: captive-portal redirect while provisioning, plain
          * 404 otherwise. The wildcard matcher tries handlers in registration
          * order, so every specific route above still wins. */

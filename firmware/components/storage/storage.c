@@ -9,12 +9,20 @@
 #include <unistd.h>
 
 static const char *TAG = "storage";
-#define MOUNT_POINT "/assets"
+#define MOUNT_POINT "/assets"          /* writable: recordings + uploads */
+#define BUNDLED_MOUNT_POINT "/bundled" /* read-only-in-spirit: baked in at build time */
+
+static bool s_bundled_mounted;
 
 static char full_path(char *out, size_t out_len, const char *name)
 {
     snprintf(out, out_len, MOUNT_POINT "/%s", name);
     return 0;
+}
+
+static void bundled_path(char *out, size_t out_len, const char *name)
+{
+    snprintf(out, out_len, BUNDLED_MOUNT_POINT "/%s", name);
 }
 
 esp_err_t storage_init(void)
@@ -35,6 +43,29 @@ esp_err_t storage_init(void)
     ESP_LOGI(TAG, "mounted %s: %u/%u bytes used (recording cap %u)",
              MOUNT_POINT, (unsigned)used, (unsigned)total,
              (unsigned)CONFIG_STORAGE_RECORDING_CAP_BYTES);
+
+    /* Baked-in defaults (firmware/assets/ at build time -- see
+     * spiffs_create_partition_image in main/CMakeLists.txt). Never
+     * format-on-fail: this partition is meant to be built by the project,
+     * not written to at runtime, so a mount failure just means "no bundled
+     * assets this build" rather than something to paper over by erasing it. */
+    esp_vfs_spiffs_conf_t bconf = {
+        .base_path = BUNDLED_MOUNT_POINT,
+        .partition_label = "bundled",
+        .max_files = 6,
+        .format_if_mount_failed = false,
+    };
+    err = esp_vfs_spiffs_register(&bconf);
+    if (err == ESP_OK) {
+        s_bundled_mounted = true;
+        size_t btotal = 0, bused = 0;
+        esp_spiffs_info("bundled", &btotal, &bused);
+        ESP_LOGI(TAG, "mounted %s: %u/%u bytes (baked in at build time)",
+                 BUNDLED_MOUNT_POINT, (unsigned)bused, (unsigned)btotal);
+    } else {
+        ESP_LOGW(TAG, "bundled assets partition not mounted: %s (nothing baked in this build?)",
+                 esp_err_to_name(err));
+    }
     return ESP_OK;
 }
 
@@ -44,7 +75,7 @@ size_t storage_used_bytes(void)
     DIR *d = opendir(MOUNT_POINT);
     if (!d) return 0;
     struct dirent *de;
-    char path[64];
+    char path[288];
     struct stat st;
     while ((de = readdir(d)) != NULL) {
         full_path(path, sizeof(path), de->d_name);
@@ -57,18 +88,30 @@ size_t storage_used_bytes(void)
 size_t storage_cap_bytes(void) { return CONFIG_STORAGE_RECORDING_CAP_BYTES; }
 bool   storage_using_sd(void) { return false; }
 
-/* Deletes the single oldest file (by mtime). Returns its size, or 0 if
- * there was nothing to delete. */
+/* Audio assets (fun clips, the operator prompt) share this partition with
+ * user recordings but aren't recordings themselves -- they're meant to
+ * outlive the recording cap, not get silently deleted the first time someone
+ * fills it up leaving messages. Only actual recordings (rec_*.wav from 211,
+ * cb_*.wav temp files from 212-215) are fair game for automatic eviction;
+ * anything else has to be deleted on purpose (web UI / storage_delete()). */
+static bool is_protected_asset(const char *name)
+{
+    return strcmp(name, "operator.wav") == 0 || strncmp(name, "clip_", 5) == 0;
+}
+
+/* Deletes the single oldest *evictable* file (by mtime), skipping protected
+ * assets. Returns its size, or 0 if there was nothing evictable. */
 static size_t evict_oldest(void)
 {
     DIR *d = opendir(MOUNT_POINT);
     if (!d) return 0;
     struct dirent *de;
-    char path[64], oldest_path[64] = {0};
+    char path[288], oldest_path[288] = {0};
     struct stat st, oldest_st = { .st_mtime = 0 };
     bool found = false;
 
     while ((de = readdir(d)) != NULL) {
+        if (is_protected_asset(de->d_name)) continue;
         full_path(path, sizeof(path), de->d_name);
         if (stat(path, &st) != 0) continue;
         if (!found || st.st_mtime < oldest_st.st_mtime) {
@@ -155,9 +198,13 @@ esp_err_t storage_write(const char *name, const void *data, size_t len)
 
 esp_err_t storage_read(const char *name, void *buf, size_t buf_len, size_t *out_len)
 {
-    char path[64];
+    char path[288];
     full_path(path, sizeof(path), name);
     FILE *f = fopen(path, "rb");
+    if (!f && s_bundled_mounted) {
+        bundled_path(path, sizeof(path), name);
+        f = fopen(path, "rb");
+    }
     if (!f) return ESP_ERR_NOT_FOUND;
     size_t n = fread(buf, 1, buf_len, f);
     fclose(f);
@@ -167,9 +214,15 @@ esp_err_t storage_read(const char *name, void *buf, size_t buf_len, size_t *out_
 
 esp_err_t storage_read_open(const char *name, storage_reader_t *r)
 {
-    char path[64];
+    /* Writable storage first, so an upload/recording of the same name
+     * overrides a bundled default without a rebuild. */
+    char path[288];
     full_path(path, sizeof(path), name);
     FILE *f = fopen(path, "rb");
+    if (!f && s_bundled_mounted) {
+        bundled_path(path, sizeof(path), name);
+        f = fopen(path, "rb");
+    }
     if (!f) return ESP_ERR_NOT_FOUND;
     r->file = f;
     return ESP_OK;
@@ -197,14 +250,14 @@ void storage_read_close(storage_reader_t *r)
 
 esp_err_t storage_delete(const char *name)
 {
-    char path[64];
+    char path[288];
     full_path(path, sizeof(path), name);
     return (unlink(path) == 0) ? ESP_OK : ESP_ERR_NOT_FOUND;
 }
 
 esp_err_t storage_patch(const char *name, size_t offset, const void *data, size_t len)
 {
-    char path[64];
+    char path[288];
     full_path(path, sizeof(path), name);
     FILE *f = fopen(path, "r+b");
     if (!f) return ESP_ERR_NOT_FOUND;
@@ -224,9 +277,9 @@ static int cmp_mtime(const void *a, const void *b)
     return 0;
 }
 
-size_t storage_list(storage_entry_t *out, size_t max_entries)
+static size_t list_dir(bool bundled, storage_entry_t *out, size_t max_entries)
 {
-    DIR *d = opendir(MOUNT_POINT);
+    DIR *d = opendir(bundled ? BUNDLED_MOUNT_POINT : MOUNT_POINT);
     if (!d) return 0;
 
     /* Small, bounded (recordings are capped in the low hundreds of KB-MB
@@ -234,7 +287,7 @@ size_t storage_list(storage_entry_t *out, size_t max_entries)
      * up to max_entries. Simple insertion sort -- entry counts here are
      * tiny, not worth pulling in qsort machinery for structs of two arrays. */
     struct dirent *de;
-    char path[64];
+    char path[288];
     struct stat st;
     size_t n = 0;
     const size_t cap = 64;
@@ -250,7 +303,10 @@ size_t storage_list(storage_entry_t *out, size_t max_entries)
     }
 
     while ((de = readdir(d)) != NULL && n < cap) {
-        full_path(path, sizeof(path), de->d_name);
+        /* Literal-prefixed format (not a runtime mount string) so the
+         * compiler can bound the worst case -- same pattern as full_path(). */
+        if (bundled) snprintf(path, sizeof(path), BUNDLED_MOUNT_POINT "/%s", de->d_name);
+        else         snprintf(path, sizeof(path), MOUNT_POINT "/%s", de->d_name);
         if (stat(path, &st) != 0) continue;
         strncpy(names[n], de->d_name, STORAGE_MAX_NAME - 1);
         names[n][STORAGE_MAX_NAME - 1] = 0;
@@ -283,4 +339,15 @@ size_t storage_list(storage_entry_t *out, size_t max_entries)
     free(names);
     free(stats);
     return copied;
+}
+
+size_t storage_list(storage_entry_t *out, size_t max_entries)
+{
+    return list_dir(false, out, max_entries);
+}
+
+size_t storage_list_bundled(storage_entry_t *out, size_t max_entries)
+{
+    if (!s_bundled_mounted) return 0;
+    return list_dir(true, out, max_entries);
 }

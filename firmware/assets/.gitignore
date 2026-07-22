@@ -1,0 +1,12 @@
+# Everything baked into the "bundled" read-only asset partition
+# (see main/CMakeLists.txt's spiffs_create_partition_image + storage.c)
+# is personal/local by default -- most of it (fun clips) is converted from
+# whatever audio you own via sync_pi_audio.py, and songs like the ones this
+# project was originally tested against (Ring of Fire, Banana Boat, ...) are
+# copyrighted and don't belong in a public repo or a build anyone can
+# download. Generate your own from your own media library; only the
+# synthesized (not copyrighted) operator prompt ships as a real default.
+*
+!.gitignore
+!README.md
+!operator.wav

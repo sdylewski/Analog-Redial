@@ -2,7 +2,15 @@
 nvs,      data, nvs,     ,        0x6000,
 phy_init, data, phy,     ,        0x1000,
 factory,  app,  factory, ,        0x180000,
-# Audio assets / recordings (prompts, clips). Mounted at /assets.
-# 6MB of 16MB total flash -- leaves ~8.5MB unallocated for later (a second
-# OTA app slot, additional partitions), not a maximalist grab of everything.
+# Recordings + uploaded prompt/clip WAVs (writable, subject to the recording
+# cap/eviction -- see storage.c). Mounted at /assets.
 storage,  data, spiffs,  ,        0x600000,
+# Read-only-in-spirit default audio (operator.wav + whatever a builder baked
+# in via firmware/assets/ + sync_pi_audio.py), built into the image at
+# compile time (spiffs_create_partition_image, see main/CMakeLists.txt) and
+# reflashed with the app -- separate from `storage` so a routine reflash
+# never wipes recordings, and vice versa. Mounted at /bundled; storage.c
+# falls back to it when a name isn't found in the writable partition.
+bundled,  data, spiffs,  ,        0x200000,
+# ~9.5MB of 16MB total flash used above -- leaves ~6.5MB unallocated for
+# later (a second OTA app slot, additional partitions), not a maximalist grab.
