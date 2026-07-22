@@ -21,6 +21,7 @@
 #include "telephony.h"
 #include "wifi.h"
 #include "storage.h"
+#include "sdcard.h"
 #include "logbuf.h"
 #include "webui.h"
 #include "bringup.h"
@@ -115,6 +116,14 @@ void app_main(void)
         ESP_LOGW(TAG, "storage_init failed: %s", esp_err_to_name(err));
         board_led_set_state(BOARD_LED_ERROR);
     }
+#if CONFIG_BOARD_MICROSD
+    /* microSD build (Line 2 traded for the SD card): mount it here so the boot
+     * log shows whether the card actually came up. Non-fatal. */
+    if ((err = sdcard_init()) != ESP_OK) {
+        ESP_LOGW(TAG, "sdcard_init failed: %s (insert a FAT-formatted card, then 'sd_test')",
+                 esp_err_to_name(err));
+    }
+#endif
     if ((err = webui_start()) != ESP_OK) {
         ESP_LOGW(TAG, "webui_start failed: %s", esp_err_to_name(err));
         board_led_set_state(BOARD_LED_ERROR);

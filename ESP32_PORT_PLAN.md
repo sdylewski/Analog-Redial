@@ -92,7 +92,7 @@ Legend: ✅ done or close · 🟡 partial · 🔜 not started · ❌ N/A on MCU
 | HTTP audio | **esp-adf** `audio_pipeline`, or **libhelix-mp3** + custom HTTP | For 811/812 |
 | JSON config | **cJSON** (IDF bundled) | Port `phone_config.json` subset |
 | Web server | **esp_http_server** (IDF) | Status + download recordings |
-| File storage | **SPIFFS** / **LittleFS** / **FAT** on microSD (build B) | Recordings + clips |
+| File storage | **SPIFFS** (internal) done; **FAT on microSD** (build B) done via `sdcard` component, opt-in `CONFIG_BOARD_MICROSD` + 1 line | Recordings + clips |
 | ES8388 | Register driver from vendor / Espressif codec component | Wrap behind `codec/` API |
 | Wi-Fi provisioning | **wifi_provisioning** (IDF) | Replace Pi static IP docs for field install |
 

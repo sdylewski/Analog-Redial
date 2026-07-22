@@ -276,6 +276,16 @@ name are cleared.
   `sip_set <server> <user0> <pass0> [user1] [pass1]`, then reboot. Bench-tested
   registering both accounts and running an outbound call (echo test) end to
   end; no TLS/SRTP (LAN only). Check state with `sip_status`.
+- **microSD (SMD build B)** — the `sdcard` component mounts a FAT card over SPI
+  (CS=18, SCLK=19, MOSI=20, MISO=21, the pins Line 2 would otherwise use) at
+  `/sd`. It's a **build-time opt-in**: `idf.py menuconfig` → *Board
+  configuration* → enable **"SMD board uses microSD instead of line 2"** and set
+  **"Number of active phone lines" = 1**, then rebuild. On boot it logs whether
+  the card mounted; `sd_test` from the console prints card info + a
+  write/read/verify. Bench-tested mounting a 16 GB SDHC card and round-tripping
+  a file. (The default committed config is the **dual-line, no-SD** build.)
+  The `storage` layer still uses internal SPIFFS; routing recordings/clips onto
+  the SD card is a follow-on.
 - **Audio assets** (clips, prompts, recordings) are not yet stored in flash —
   those dial codes log their action and play a confirmation tone. The SPIFFS
   `storage` partition is reserved for them.

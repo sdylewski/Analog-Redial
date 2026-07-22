@@ -13,6 +13,7 @@
 #include "telephony.h"
 #include "wifi.h"
 #include "storage.h"
+#include "sdcard.h"
 #include "player.h"
 #include "voip.h"
 #include "esp_console.h"
@@ -641,6 +642,21 @@ static int cmd_sip_hangup(int argc, char **argv)
     return 0;
 }
 
+/* ---------- microSD ---------- */
+static int cmd_sd_test(int argc, char **argv)
+{
+    if (!sdcard_mounted()) {
+        printf("SD not mounted; trying to mount now...\n");
+        esp_err_t err = sdcard_init();
+        if (err != ESP_OK) {
+            printf("mount failed: %s\n", esp_err_to_name(err));
+            return 1;
+        }
+    }
+    sdcard_print_info();
+    return sdcard_selftest() == ESP_OK ? 0 : 1;
+}
+
 /* Compact help: one line per command ("cmd  description"), instead of the
  * built-in esp_console help command's 2-line-plus-blank-line-per-command
  * format. We already have every (command, help) pair at registration time,
@@ -746,6 +762,7 @@ void bringup_console_start(void)
     register_cmd("sip_status", "SIP registration status", cmd_sip_status);
     register_cmd("sip_call", "Test SIP INVITE (signaling only): sip_call <number> [line]", cmd_sip_call);
     register_cmd("sip_hangup", "Hang up a SIP call: sip_hangup [line]", cmd_sip_hangup);
+    register_cmd("sd_test", "microSD: mount (if needed), print card info, write/read/verify", cmd_sd_test);
 
     ESP_ERROR_CHECK(esp_console_start_repl(repl));
     ESP_LOGI(TAG, "bring-up console ready — type 'help'");
