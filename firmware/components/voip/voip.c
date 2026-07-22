@@ -822,6 +822,18 @@ bool voip_is_stub(void) { return false; }
 
 const char *voip_server(void) { return s_server; }
 
+const char *voip_user(int line)
+{
+    if (line < 0 || line >= NLINES) return "";
+    return s_l[line].user;
+}
+
+const char *voip_pass(int line)
+{
+    if (line < 0 || line >= NLINES) return "";
+    return s_l[line].pass;
+}
+
 /* ---------- runtime config setter (console/web) ---------- */
 
 esp_err_t voip_set_config(const char *server, const char *user0, const char *pass0,

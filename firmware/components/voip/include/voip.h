@@ -75,6 +75,17 @@ esp_err_t voip_set_config(const char *server, const char *user0, const char *pas
 /* Configured SIP server (host or IP), for status display. */
 const char *voip_server(void);
 
+/* Configured SIP user/extension for a line ("" if unset/out of range), for
+ * pre-filling the web UI's config form. */
+const char *voip_user(int line);
+
+/* Configured SIP password for a line. NOT used to pre-fill the settings
+ * form (that follows the WiFi form's "blank = leave unchanged" pattern) --
+ * only by the Asterisk server-script generator, which has to embed the
+ * actual password for the peer it's provisioning. Matches this project's
+ * existing "LAN bring-up tool, no auth" security posture (see webui.c). */
+const char *voip_pass(int line);
+
 #ifdef __cplusplus
 }
 #endif

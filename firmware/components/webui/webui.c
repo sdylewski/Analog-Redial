@@ -743,21 +743,55 @@ static int append_operator_tab(char *buf, size_t cap, int off,
 
 static int append_voip_tab(char *buf, size_t cap, int off)
 {
-    bool r0 = voip_is_registered(0), r1 = voip_is_registered(1);
-    return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    bool r0 = voip_is_registered(0);
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>VOIP</h2>"
         "<div class=\"statusrow\"><span class=\"label\">SIP server</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">Line 1</span>"
-        "<span class=\"pill %s\">%s</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">Line 2</span>"
-        "<span class=\"pill %s\">%s</span></div>"
-        "<p class=\"hint\">Embedded SIP/RTP (G.711 &micro;-law). Dial <code>555</code> + a "
-        "4-digit extension to place a call. Configure from the device console: "
-        "<code>sip_set &lt;server&gt; &lt;user0&gt; &lt;pass0&gt; [user1] [pass1]</code>, "
-        "then reboot. (A web form for this is a TODO.)</p></div>",
+        "<span class=\"pill %s\">%s</span></div>",
         voip_server()[0] ? voip_server() : "(not set)",
-        r0 ? "on" : "off", r0 ? "registered" : "not registered",
+        r0 ? "on" : "off", r0 ? "registered" : "not registered");
+#if CONFIG_BOARD_NUM_LINES > 1
+    bool r1 = voip_is_registered(1);
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"statusrow\"><span class=\"label\">Line 2</span>"
+        "<span class=\"pill %s\">%s</span></div>",
         r1 ? "on" : "off", r1 ? "registered" : "not registered");
+#endif
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<form method=\"POST\" action=\"/voip_set\" class=\"settings-form\">"
+        "<label>SIP server (host or IP) <input name=\"server\" value=\"%s\"></label>"
+        "<div class=\"grid2\">"
+        "<label>Line 1 extension/user <input name=\"user0\" value=\"%s\"></label>"
+        "<label>Line 1 password <input type=\"password\" name=\"pass0\" "
+        "placeholder=\"leave blank to keep\"></label>",
+        voip_server(), voip_user(0));
+#if CONFIG_BOARD_NUM_LINES > 1
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<label>Line 2 extension/user <input name=\"user1\" value=\"%s\"></label>"
+        "<label>Line 2 password <input type=\"password\" name=\"pass1\" "
+        "placeholder=\"leave blank to keep\"></label>",
+        voip_user(1));
+#endif
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "</div>"
+        "<div class=\"toolbar sub\">"
+        "<button type=\"submit\" class=\"primary\">Save (takes effect on reboot)</button>"
+        "<a class=\"button\" href=\"/voip_server_script\" download=\"rotary-voip-server-setup.sh\">"
+        "Download Asterisk server setup script</a>"
+        "</div></form>"
+        "<details><summary>VOIP setup instructions</summary><ol>"
+        "<li>Fill in the SIP server and extension/password above, Save, then reboot the phone.</li>"
+        "<li>Download the Asterisk server setup script and run it on your Asterisk/PBX box "
+        "(as root or with sudo) -- it adds this phone's line(s) as SIP peers without touching "
+        "any other peers already configured there.</li>"
+        "<li>Dial <code>555</code> + a 4-digit extension to place a call; check the pills above "
+        "after reboot to confirm registration.</li>"
+        "</ol></details>"
+        "<p class=\"hint\">Embedded SIP/RTP (G.711 &micro;-law), custom UA -- no TLS/SRTP "
+        "(LAN only).</p></div>");
+    return off;
 }
 
 static int append_interphone_tab(char *buf, size_t cap, int off,
@@ -1141,6 +1175,143 @@ static esp_err_t language_set_handler(httpd_req_t *req)
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
     httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /voip_set -- form body server=..&user0=..&pass0=..[&user1=..&pass1=..].
+ * Blank password fields mean "leave unchanged" (voip_set_config() already
+ * treats a NULL field that way; empty-string form fields are passed as
+ * NULL here for the same reason the WiFi form does). Takes effect on
+ * reboot, same as the console's sip_set command. */
+#define VOIP_FORM_MAX_BODY 512
+
+static esp_err_t voip_set_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= VOIP_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[VOIP_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char server[64] = {0}, user0[32] = {0}, pass0[48] = {0}, user1[32] = {0}, pass1[48] = {0};
+    form_field(body, "server", server, sizeof(server));
+    form_field(body, "user0", user0, sizeof(user0));
+    form_field(body, "pass0", pass0, sizeof(pass0));
+    form_field(body, "user1", user1, sizeof(user1));
+    form_field(body, "pass1", pass1, sizeof(pass1));
+
+    voip_set_config(server[0] ? server : NULL, user0[0] ? user0 : NULL, pass0[0] ? pass0 : NULL,
+                     user1[0] ? user1 : NULL, pass1[0] ? pass1 : NULL);
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=voip");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* GET /voip_server_script -- downloadable bash script that provisions this
+ * phone's line(s) as SIP peers on an Asterisk/PBX box, generated from the
+ * currently-saved config (Settings -> VOIP). Marker-tagged blocks (named
+ * after the board) so re-running it (config changed, or alongside other
+ * phones' scripts on the same server) replaces just this phone's own
+ * blocks -- sed-deletes the old marked block before appending the new one,
+ * rather than overwriting the whole file the way a from-scratch installer
+ * would. */
+static esp_err_t voip_server_script_handler(httpd_req_t *req)
+{
+    char name[32];
+    board_name_get(name, sizeof(name));
+
+    char *buf = malloc(4096);
+    if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
+    int off = 0;
+    off += snprintf(buf + off, 4096 - off,
+        "#!/bin/bash\n"
+        "# Asterisk setup for rotary phone gateway '%s' -- generated from its\n"
+        "# Settings -> VOIP page. Run on the Asterisk/PBX box (sudo).\n"
+        "set -e\n"
+        "which asterisk >/dev/null || { echo \"installing asterisk...\"; apt-get update && apt-get install -y asterisk; }\n"
+        "\n"
+        "PJSIP=/etc/asterisk/pjsip.conf\n"
+        "EXT=/etc/asterisk/extensions.conf\n"
+        "touch \"$PJSIP\" \"$EXT\"\n"
+        "\n"
+        "grep -q '^\\[transport-udp\\]' \"$PJSIP\" || cat >> \"$PJSIP\" <<'TRANSPORT'\n"
+        "[transport-udp]\n"
+        "type=transport\n"
+        "protocol=udp\n"
+        "bind=0.0.0.0:5060\n"
+        "TRANSPORT\n"
+        "\n"
+        "grep -q '^\\[rotary\\]' \"$EXT\" || cat >> \"$EXT\" <<'CONTEXT'\n"
+        "[rotary]\n"
+        "CONTEXT\n",
+        name);
+
+    for (int line = 0; line < CONFIG_BOARD_NUM_LINES; line++) {
+        const char *user = voip_user(line);
+        const char *pass = voip_pass(line);
+        if (!user[0]) continue; /* line not configured yet -- nothing to provision */
+        off += snprintf(buf + off, (off < 4096) ? (size_t)(4096 - off) : 0,
+            "\n"
+            "# ---- %s line %d (%s) ----\n"
+            "sed -i \"/^; BEGIN %s-line%d/,/^; END %s-line%d/d\" \"$PJSIP\"\n"
+            "cat >> \"$PJSIP\" <<PEER\n"
+            "; BEGIN %s-line%d\n"
+            "[%s]\n"
+            "type=aor\n"
+            "max_contacts=1\n"
+            "remove_existing=yes\n"
+            "\n"
+            "[%s]\n"
+            "type=auth\n"
+            "auth_type=userpass\n"
+            "username=%s\n"
+            "password=%s\n"
+            "\n"
+            "[%s]\n"
+            "type=endpoint\n"
+            "context=rotary\n"
+            "disallow=all\n"
+            "allow=ulaw,alaw,opus\n"
+            "auth=%s\n"
+            "aors=%s\n"
+            "transport=transport-udp\n"
+            "identify_by=username\n"
+            "; END %s-line%d\n"
+            "PEER\n"
+            /* awk, not sed's multi-line 'a' command (inconsistent across sed
+             * variants) -- drop any previous entry for this user, then
+             * insert the new one right after the [rotary] context header. */
+            "grep -v \"^exten => %s,\" \"$EXT\" > \"$EXT.tmp\" && mv \"$EXT.tmp\" \"$EXT\"\n"
+            "awk -v u=\"%s\" '{print} /^\\[rotary\\]$/{print \"exten => \" u \",1,Dial(PJSIP/\" u \",30)\"; print \" same => n,Hangup()\"}' \"$EXT\" > \"$EXT.tmp\" && mv \"$EXT.tmp\" \"$EXT\"\n",
+            name, line, user,           /* comment */
+            name, line, name, line,     /* sed delete marker range */
+            name, line,                 /* BEGIN marker */
+            user,                       /* [user] aor */
+            user,                       /* [user] auth */
+            user, pass,                 /* username=/password= */
+            user,                       /* [user] endpoint */
+            user, user,                 /* auth=/aors= */
+            name, line,                 /* END marker */
+            user,                       /* grep -v exten */
+            user);                      /* awk -v u= */
+    }
+
+    off += snprintf(buf + off, (off < 4096) ? 4096 - off : 0,
+        "\n"
+        "asterisk -rx \"pjsip reload\" 2>/dev/null || true\n"
+        "asterisk -rx \"dialplan reload\" 2>/dev/null || true\n"
+        "echo \"Done -- check with: asterisk -rx 'pjsip show contacts'\"\n");
+
+    httpd_resp_set_hdr(req, "Content-Disposition",
+        "attachment; filename=\"rotary-voip-server-setup.sh\"");
+    httpd_resp_set_type(req, "text/x-shellscript");
+    httpd_resp_send(req, buf, off);
+    free(buf);
     return ESP_OK;
 }
 
@@ -1869,9 +2040,8 @@ esp_err_t webui_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
-    /* Default is 8 -- we register 25 routes below (two share the media
-     * path, one GET, one POST, counted separately), plus headroom for the
-     * VoIP config-form routes landing next. Past the cap,
+    /* Default is 8 -- we register 27 routes below (two share the media
+     * path, one GET, one POST, counted separately). Past the cap,
      * httpd_register_uri_handler() just fails per-route, which used to go
      * unchecked below, silently dropping the last couple of routes. */
     config.max_uri_handlers = 30;
@@ -1911,6 +2081,8 @@ esp_err_t webui_start(void)
         { .uri = "/dialcode_delete/*",      .method = HTTP_POST, .handler = dialcode_delete_handler },
         { .uri = "/dialcode_upload",        .method = HTTP_POST, .handler = dialcode_upload_handler },
         { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },
+        { .uri = "/voip_set",               .method = HTTP_POST, .handler = voip_set_handler },
+        { .uri = "/voip_server_script",     .method = HTTP_GET,  .handler = voip_server_script_handler },
         /* Catch-all LAST: captive-portal redirect while provisioning, plain
          * 404 otherwise. The wildcard matcher tries handlers in registration
          * order, so every specific route above still wins. */
