@@ -1776,6 +1776,91 @@ static void sanitize_upload_name(const char *in, const char *fallback, char *out
  * locals plus a caller frame on top of it. */
 #define UPLOAD_HEADER_SCAN_BYTES 8192
 
+#ifdef CONFIG_AUDIO_CONVERT_MP3
+/* MP3 trial (see audio_convert's Kconfig) -- decodes frame-by-frame from a
+ * rolling compressed-bytes buffer (minimp3 needs a few KB of contiguous
+ * input per frame, not the whole file) into the same normalize/downmix/
+ * LPF/resample pipeline WAV uploads use. `prefetched` is the header-sniff
+ * buffer convert_upload_part() already read (up to UPLOAD_HEADER_SCAN_BYTES,
+ * <= this function's rolling buffer, so nothing from it is ever dropped). */
+#define MP3_ROLLING_BUF_SIZE UPLOAD_HEADER_SCAN_BYTES
+
+static const char *convert_mp3_upload(multipart_reader_t *mp, const char *dest_name,
+                                        const uint8_t *prefetched, size_t prefetched_len)
+{
+    audio_mp3_decoder_t *dec = audio_mp3_decoder_create();
+    if (!dec) return "out of memory";
+
+    uint8_t *rbuf = malloc(MP3_ROLLING_BUF_SIZE);
+    int16_t *pcm = malloc(AUDIO_CONVERT_MP3_MAX_SAMPLES * sizeof(int16_t));
+    if (!rbuf || !pcm) {
+        free(rbuf); free(pcm); audio_mp3_decoder_destroy(dec);
+        return "out of memory";
+    }
+    size_t rlen = prefetched_len; /* <= UPLOAD_HEADER_SCAN_BYTES == MP3_ROLLING_BUF_SIZE */
+    memcpy(rbuf, prefetched, rlen);
+    size_t rpos = 0;
+    bool more_input = true;
+
+    bool have_fmt = false;
+    audio_convert_ctx_t cvt;
+    storage_writer_t w;
+    size_t data_bytes = 0;
+    const char *err = NULL;
+
+    for (;;) {
+        if (rlen - rpos < MP3_ROLLING_BUF_SIZE / 2 && more_input) {
+            if (rpos > 0) { memmove(rbuf, rbuf + rpos, rlen - rpos); rlen -= rpos; rpos = 0; }
+            size_t n = multipart_read_body(mp, rbuf + rlen, MP3_ROLLING_BUF_SIZE - rlen);
+            if (n == 0) more_input = false;
+            else rlen += n;
+        }
+        if (rlen - rpos == 0) break;
+
+        int channels = 0;
+        uint32_t rate = 0;
+        size_t consumed = 0;
+        int samples = audio_mp3_decode_frame(dec, rbuf + rpos, rlen - rpos, pcm,
+                                               &channels, &rate, &consumed);
+        if (consumed == 0) {
+            if (!more_input) break; /* trailing bytes too short for a frame -- done */
+            continue; /* top up the buffer next iteration and retry the same bytes */
+        }
+        rpos += consumed;
+        if (samples <= 0) continue; /* skipped an ID3/garbage region */
+
+        if (!have_fmt) {
+            audio_convert_fmt_t fmt = {
+                .in_rate = rate, .in_channels = (uint16_t)channels, .in_bits = 16, .in_float = false,
+            };
+            audio_convert_init(&cvt, &fmt);
+            if (storage_write_begin(dest_name, 0, &w) != ESP_OK) {
+                err = "couldn't open storage for writing";
+                break;
+            }
+            uint8_t wav_hdr[44];
+            build_wav_header(wav_hdr, AUDIO_CONVERT_OUT_RATE, 0);
+            storage_write_chunk(&w, wav_hdr, sizeof(wav_hdr));
+            have_fmt = true;
+        }
+        data_bytes += convert_and_write(&cvt, &w, (const uint8_t *)pcm,
+                                          (size_t)samples * channels * sizeof(int16_t));
+    }
+
+    free(rbuf);
+    free(pcm);
+    audio_mp3_decoder_destroy(dec);
+    if (err) return err;
+    if (!have_fmt) return "not a valid MP3 (no frames decoded)";
+
+    storage_write_end(&w);
+    uint8_t sz[4];
+    wr_u32le(sz, 36 + (uint32_t)data_bytes); storage_patch(dest_name, 4, sz, 4);
+    wr_u32le(sz, (uint32_t)data_bytes);      storage_patch(dest_name, 40, sz, 4);
+    return NULL;
+}
+#endif /* CONFIG_AUDIO_CONVERT_MP3 */
+
 static const char *convert_upload_part(multipart_reader_t *mp, const char *dest_name)
 {
     uint8_t *header = malloc(UPLOAD_HEADER_SCAN_BYTES);
@@ -1786,6 +1871,14 @@ static const char *convert_upload_part(multipart_reader_t *mp, const char *dest_
         if (n == 0) break;
         got += n;
     }
+
+#ifdef CONFIG_AUDIO_CONVERT_MP3
+    if (audio_convert_mp3_magic(header, got)) {
+        const char *err = convert_mp3_upload(mp, dest_name, header, got);
+        free(header);
+        return err;
+    }
+#endif
 
     audio_wav_info_t wav;
     if (!audio_wav_parse(header, got, &wav) ||
@@ -2048,8 +2141,23 @@ esp_err_t webui_start(void)
     /* Default httpd task stack is 4 KB. Our page handlers stack a few
      * storage_entry_t[32]/dialplan_entry_info_t[40] arrays and then descend
      * into SPIFFS readdir -> esp_flash_read, which is itself stack-hungry;
-     * that combination overflowed the 4 KB guard on the Settings page. */
+     * that combination overflowed the 4 KB guard on the Settings page. 8 KB
+     * covers that. Only one httpd worker task exists (no concurrent-
+     * connection stack multiplication), so this is a one-time cost, not
+     * per-request. */
+#ifdef CONFIG_AUDIO_CONVERT_MP3
+    /* minimp3's own mp3dec_decode_frame() declares a ~16KB
+     * `mp3dec_scratch_t` local (grbuf/syn/maindata buffers, see
+     * minimp3/minimp3.h) -- confirmed via a live panic + addr2line against
+     * the crash PC, not a guess. 16 KB total wasn't enough either; this
+     * needs real headroom on top of that ~16KB single local. This is the
+     * REAL cost of MP3 support on this hardware (a permanent +24KB on the
+     * one always-running httpd task), not the ~23KB flash delta -- see
+     * audio_convert's Kconfig help text. */
+    config.stack_size = 32768;
+#else
     config.stack_size = 8192;
+#endif
 
     httpd_handle_t server = NULL;
     esp_err_t err = httpd_start(&server, &config);

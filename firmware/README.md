@@ -272,10 +272,16 @@ name are cleared.
 
 - **VoIP** (`components/voip`) is a custom embedded SIP UA + RTP/G.711
   (µ-law). It registers to a LAN Asterisk with MD5 digest auth and places/
-  answers calls; dial `555` + a 4-digit extension. Configure from the console:
-  `sip_set <server> <user0> <pass0> [user1] [pass1]`, then reboot. Bench-tested
-  registering both accounts and running an outbound call (echo test) end to
-  end; no TLS/SRTP (LAN only). Check state with `sip_status`.
+  answers calls; dial `555` + a 4-digit extension. Configure from Settings →
+  VOIP (server + per-line extension/username/password, takes effect on
+  reboot) or the console (`sip_set <server> <user0> <pass0> [user1] [pass1]`,
+  then reboot) — either writes the same NVS config. That same Settings tab
+  also has a "Download Asterisk server setup script" link that generates a
+  ready-to-run script for the Asterisk/PBX box (marker-tagged config blocks,
+  safe to run alongside other phones already configured on that server).
+  Bench-tested registering both accounts and running an outbound call (echo
+  test) end to end; no TLS/SRTP (LAN only). Check state with `sip_status`
+  or the registration pill on that same Settings page.
 - **microSD (SMD build B)** — the `sdcard` component mounts a FAT card over SPI
   (CS=18, SCLK=19, MOSI=20, MISO=21, the pins Line 2 would otherwise use) at
   `/sd`. It's a **build-time opt-in**: `idf.py menuconfig` → *Board
@@ -288,17 +294,30 @@ name are cleared.
   the SD card is a follow-on.
 - **Audio assets** live in two SPIFFS partitions (`components/storage`):
   `storage` (writable — recordings + anything uploaded over HTTP, subject to
-  eviction once near full) and `bundled` (built from `firmware/assets/` at
-  compile time via `spiffs_create_partition_image`, reflashed with every
-  `idf.py flash`, never touched by a recording). Playback and the `/media`
-  download route check `storage` first, then fall back to `bundled`, so an
-  upload of the same name overrides a bundled default without a rebuild. Only
-  `operator.wav` ships by default — see [`firmware/assets/README.md`](assets/README.md)
-  for the mechanism and why the fun-clip test set isn't bundled (copyright).
-  Dial codes with no matching file still log and play a confirmation tone.
-  Settings → General → "Custom dial codes" assigns a new number to any
-  already-available clip (bundled or uploaded) without touching the fixed
-  dial-plan table or rebuilding — persisted to NVS.
+  eviction once near full; protects everything except `rec_`/`cb_`-prefixed
+  transient files, not a fixed asset-name allowlist) and `bundled` (built
+  from `firmware/assets/` at compile time via `spiffs_create_partition_image`,
+  reflashed with every `idf.py flash`, never touched by a recording).
+  Playback and the `/media` download route check `storage` first, then fall
+  back to `bundled`, so an upload of the same name overrides a bundled
+  default without a rebuild. Only `operator.wav` ships by default — see
+  [`firmware/assets/README.md`](assets/README.md) for the mechanism and why
+  the fun-clip test set isn't bundled (copyright). Dial codes with no
+  matching file still log and play a confirmation tone.
+- **Dial codes** (`components/dialplan`) — the fixed compile-time `TABLE[]`
+  covers operator/record/inter-phone/radio/mode codes, but the "silly clip"
+  codes (401/411/…) are a separate mutable `dialplan_clip_entry_t` table
+  (code + filename + desc + builtin flag), seeded once from the 8 original
+  clips with plain filenames (`burp.wav`, not the old `clip_402.wav`
+  convention). Settings → Dial Codes lets you recode any of them and/or
+  upload new audio for them independently, plus add brand new codes — a real
+  `<input type=file>` browser upload (new `multipart.c` reader in `webui` +
+  the `audio_convert` component) converts whatever WAV comes in to 8kHz mono,
+  no host-side conversion step needed. Settings → Operator has the same kind
+  of upload form for `operator.wav` specifically (fixed code `0`, not part of
+  the mutable table). MP3 upload is available too behind
+  `CONFIG_AUDIO_CONVERT_MP3` (off by default) — see that Kconfig option's
+  help text for the real cost (not flash — the RAM/stack minimp3 needs).
 - Audio runs at **48 kHz stereo** so the codec sees a clean 12.288 MHz MCLK
   (256fs). VoIP will resample to 8 kHz G.711 in the `voip` component.
 - `PD` drive polarity is set in `board_pins.h` (`BOARD_PD_LEVEL_RUN`). Verify

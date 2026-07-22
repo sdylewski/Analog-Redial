@@ -9,6 +9,7 @@
  */
 #pragma once
 
+#include "sdkconfig.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -92,6 +93,43 @@ size_t audio_convert_push(audio_convert_ctx_t *ctx, const void *in_bytes, size_t
 /* Upper bound on samples audio_convert_push() could emit for `in_len` bytes
  * of input, for sizing the caller's `out` buffer. */
 size_t audio_convert_max_out(const audio_convert_ctx_t *ctx, size_t in_len);
+
+/* ---- MP3 upload support (trial, see this component's Kconfig) ----
+ * Only declared/usable when CONFIG_AUDIO_CONVERT_MP3 is on -- vendors
+ * minimp3 (CC0, third_party/minimp3/) in a separate translation unit
+ * (audio_convert_mp3.c) added to the build only by that Kconfig option, so
+ * the flash-size cost can be measured by toggling it and rebuilding. Pure
+ * decode logic here, no HTTP/multipart awareness -- callers (webui.c) own
+ * buffering compressed bytes off the wire and feeding them in. */
+#ifdef CONFIG_AUDIO_CONVERT_MP3
+#define AUDIO_CONVERT_MP3_MAX_SAMPLES (1152 * 2) /* minimp3's MINIMP3_MAX_SAMPLES_PER_FRAME */
+
+typedef struct audio_mp3_decoder audio_mp3_decoder_t; /* opaque */
+
+/* Heap-allocated (the decoder's internal state is a few KB -- too big for
+ * a stack local given this project's history with large stack arrays
+ * under the httpd task's 8KB stack). NULL on allocation failure. */
+audio_mp3_decoder_t *audio_mp3_decoder_create(void);
+void                 audio_mp3_decoder_destroy(audio_mp3_decoder_t *dec);
+
+/* True if `buf` (the first handful of bytes of an upload) looks like an
+ * MP3 -- an ID3v2 tag, or a raw frame sync. Checked before falling back
+ * to WAV parsing. */
+bool audio_convert_mp3_magic(const uint8_t *buf, size_t len);
+
+/* Decodes one frame from `in` (up to `in_len` bytes buffered -- caller's
+ * job to keep enough buffered; a real frame is at most a couple KB).
+ * *consumed is always <= in_len: 0 means not enough bytes were buffered
+ * for even one frame, caller must top up input and retry with the same
+ * (uncommitted) bytes still at the front. A non-zero *consumed with 0
+ * returned samples means a skipped ID3/garbage region -- just advance and
+ * keep calling. `out` must hold AUDIO_CONVERT_MP3_MAX_SAMPLES samples.
+ * Returns samples-per-channel decoded (interleaved in `out` by
+ * *out_channels if stereo). */
+int audio_mp3_decode_frame(audio_mp3_decoder_t *dec, const uint8_t *in, size_t in_len,
+                            int16_t *out, int *out_channels, uint32_t *out_rate,
+                            size_t *consumed);
+#endif /* CONFIG_AUDIO_CONVERT_MP3 */
 
 #ifdef __cplusplus
 }

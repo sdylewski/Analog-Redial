@@ -173,24 +173,30 @@ Once connected, the log prints the device's IP and its mDNS name (default
   partition, no rebuild/reflash needed. A same-named upload always overrides
   a bundled default.
 
-Well-known names: `operator.wav`, `clip_401.wav`…`clip_414.wav`. See
-[`pi_rotary_phone/docs/DIAL_CODES.md`](pi_rotary_phone/docs/DIAL_CODES.md) for
-what each code does.
+See [`pi_rotary_phone/docs/DIAL_CODES.md`](pi_rotary_phone/docs/DIAL_CODES.md)
+for what each code does.
 
-**Custom dial codes.** To assign a *new* number to a clip (bundled or
-uploaded) without touching the fixed dial-plan table or rebuilding, use
-Settings → General → "Custom dial codes": pick a 2–6 digit code and any
-already-available WAV from the dropdown. Stored in flash (NVS), takes effect
-immediately.
+**Browser upload.** Settings → Operator and Settings → Dial Codes both have a
+real file-upload form — pick a WAV (any common sample rate, 8/16/24/32-bit,
+mono or multi-channel) and it's converted to 8kHz mono automatically before
+being stored, no host-side conversion step needed. MP3 upload is available
+too if you've enabled `CONFIG_AUDIO_CONVERT_MP3` in menuconfig (off by
+default — real RAM cost, not just flash; see that option's help text).
 
-**VoIP (SIP).** To register to a LAN Asterisk/PBX and place calls (dial
-`555` + a 4-digit extension), configure from the console:
+**Dial Codes.** Settings → Dial Codes covers all the "silly clip" style
+codes (burp, ring of fire, ...): each one's dial code AND its audio file are
+independently editable at runtime, no rebuild — recode an existing one,
+upload new audio for it, or add a brand new code entirely. Stored in flash
+(NVS), takes effect immediately. Operator help (dial `0`) is separate — its
+code is fixed; replace its audio from Settings → Operator.
 
-```
-sip_set <server> <user0> <pass0> [user1] [pass1]
-```
-
-then reboot. Check with `sip_status`. LAN only (no TLS/SRTP).
+**VoIP (SIP).** Settings → VOIP has a form (server, per-line
+extension/username/password) plus a "Download Asterisk server setup script"
+link that generates a ready-to-run script for your Asterisk/PBX box. Save the
+form, reboot, then run the downloaded script on the Asterisk machine (not the
+phone) and check the registration status back on that same page. Dial `555`
++ a 4-digit extension to place a call. LAN only (no TLS/SRTP). The console's
+`sip_set`/`sip_status` commands still work too, if you prefer that.
 
 **microSD.** If you built with microSD enabled, the boot log shows whether the
 card mounted; `sd_test` from the console prints card info and runs a

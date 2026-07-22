@@ -46,21 +46,21 @@ interface, implemented later · ❌ dropped (host/Pi-only concept)
 | **Busy tone** (480+620, 0.5s) | ✅ | `tones` cadence |
 | **Mechanical ringing** | ✅ | `ag1170` RM + F/R cadence (US 2s/4s default) |
 | **Per-digit dial-plan dispatch** | ✅ | `dialplan` table ported from `DIAL_CODES.md` |
-| **Custom dial codes** (Settings → General) | ✅ | Assign a new number to any bundled/uploaded/recorded WAV at runtime, no rebuild — NVS-persisted, matched alongside the fixed table (not part of `DIAL_CODES.md`, an ESP32-only addition) |
+| **Dial codes** (Settings → Dial Codes) | ✅ | One mutable code↔filename table covers both the builtin "silly audio" clips and anything a user adds — both the dial code AND the audio file are independently editable/uploadable at runtime, no rebuild (not part of `DIAL_CODES.md`, an ESP32-only addition; see `dialplan_clip_entry_t`) |
 | **Call the other phone (inter-line)** | ✅ | Local bridge L↔R channels in `audio` |
 | **Busy when other line off-hook** | ✅ | state machine |
-| **Audio clip playback** (silly clips 4xx, banana line) | 🟡 | Asset pipeline done (`storage` writable + `bundled` build-time SPIFFS partitions, `firmware/assets/`); no clip WAVs ship by default (copyright) — bring your own via `sync_pi_audio.py`/`gen_prompt.py` |
+| **Audio clip playback** (silly clips 4xx, banana line) | ✅ | Browser upload (Settings → Dial Codes / Operator) converts any common WAV (any sample rate/bit-depth/channel count) to 8kHz mono via `audio_convert`, or bring your own via `sync_pi_audio.py`/`gen_prompt.py`. Optional MP3 upload support (`audio_convert`'s Kconfig, off by default — real RAM cost, see that Kconfig's help). No clip WAVs ship by default (copyright). |
 | **Record + playback (212/213/214/215)** | ✅ | `recorder` captures 8 kHz mono → plays back; high/low pitch via resample, Dalek flat (ring-mod TODO) |
 | **Record to web archive (211)** | ✅ | `recorder` → 8 kHz mono WAV in `storage`, downloadable from `/recordings` |
 | **Voice effects** (pitch/Dalek) | 🟡 | Simple on-device pitch shift; Dalek = ring-mod; not `sox`-grade |
 | **Internet radio (8xx)** | 🟡 | HTTP/Shoutcast stream → I²S; later milestone |
 | **Operator help / TTS (dial 0)** | ✅ | No on-device TTS; `operator.wav` ships by default (pre-rendered, baked into the `bundled` partition at build time) |
 | **Language** | ✅ | Deliberately not ported as-is: one language for the whole phone, set at setup time (`board_language_set`/Settings), no in-use switching or 901/902 codes |
-| **Play vs Call-only modes (931/932)** | ✅ | Mode flag gates fun codes |
 | **Digit readback on/off (921/922)** | ✅ | Mode flag, explicit set (not a toggle, matches Pi) |
 | **Wrong-number handling** | ✅ | Unmatched 3+ digit → prompt + dialtone |
 | **VoIP outbound (555-xxxx)** | ✅ | Custom embedded SIP UA + RTP/G.711; digest auth; tested registering + calling a real Asterisk |
 | **VoIP inbound (ext 1001/1002)** | ✅ | Inbound INVITE rings the line; answer on off-hook (signaling path implemented, bench-tested outbound) |
+| **VoIP setup (Settings → VOIP)** | ✅ | Web form (server/extension/user/password per line) calling `voip_set_config()`, plus a downloadable Asterisk server-script generator (marker-tagged pjsip.conf/extensions.conf blocks, safe alongside other phones on the same box) |
 | **Web UI (status/log/recordings)** | ✅ | `esp_http_server`; settings page has real tabs for modes/WiFi, placeholders for the rest |
 | **WiFi provisioning (first boot / factory reset)** | ✅ | No creds → open SoftAP `RotaryPhone-XXXX` + captive setup page; GPIO9 (BOOT) 3 s hold wipes creds |
 | **Event log (SQLite)** | 🟡 | Replaced by ring-buffer log + optional HTTP/JSON |

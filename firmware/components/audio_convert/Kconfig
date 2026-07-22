@@ -1,0 +1,28 @@
+menu "Audio conversion (audio_convert)"
+
+config AUDIO_CONVERT_MP3
+    bool "Support MP3 uploads (vendors minimp3)"
+    default n
+    help
+        Lets Settings -> Operator / Dial Codes accept .mp3 uploads directly
+        from the browser, decoded on-device via minimp3 (CC0) before going
+        through the same 8kHz-mono conversion as WAV uploads. WAV upload
+        works either way; MP3 sources also always work via the host-side
+        sync_pi_audio.py/gen_prompt.py --from song.mp3 workflow regardless
+        of this option.
+
+        Measured costs of turning this on (your own board -- rebuild and
+        compare if you want exact numbers):
+          - Flash: modest, ~23KB (minimp3 itself is small).
+          - RAM: NOT modest. minimp3's mp3dec_decode_frame() declares a
+            ~16KB local (its internal decode scratch buffers) -- confirmed
+            via a live "Stack protection fault" panic + addr2line, not a
+            guess. The web UI's httpd task stack has to be sized well past
+            that single local (32KB total, up from 8KB otherwise) to
+            avoid crashing on every MP3 upload, and that's a permanent
+            cost of the one always-running httpd worker task, not
+            something paid only during an upload. On a chip with ~342KB
+            total usable RAM, that's the real tradeoff to weigh, not the
+            flash number.
+
+endmenu
