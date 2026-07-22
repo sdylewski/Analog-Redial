@@ -487,6 +487,15 @@ esp_err_t dialplan_clip_remove(const char *code)
     return ESP_OK;
 }
 
+esp_err_t dialplan_clip_get_filename(const char *code, char *out, size_t out_len)
+{
+    int idx = clip_find_idx(code);
+    if (idx < 0) return ESP_ERR_NOT_FOUND;
+    strncpy(out, s_clips[idx].filename, out_len - 1);
+    out[out_len - 1] = '\0';
+    return ESP_OK;
+}
+
 size_t dialplan_list_clip_entries(dialplan_clip_entry_t *out, size_t max)
 {
     size_t n = 0;

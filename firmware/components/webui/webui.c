@@ -674,8 +674,14 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 clips[i].builtin ? " <span class=\"pill off\">built-in</span>" : "",
                 clips[i].code);
             off = append_file_select(buf, cap, off, "filename", clips[i].filename);
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-                "<button type=\"submit\">change audio</button></form></td><td>");
+            off += snprintf(buf + off, cap - off,
+                "<button type=\"submit\">use existing file</button></form> "
+                "<form method=\"POST\" action=\"/dialcode_upload\" enctype=\"multipart/form-data\" "
+                "style=\"display:inline\">"
+                "<input type=\"hidden\" name=\"code\" value=\"%s\">"
+                "<input type=\"file\" name=\"file\" accept=\"audio/wav\" required>"
+                "<button type=\"submit\">upload new audio</button></form></td><td>",
+                clips[i].code);
             if (!clips[i].builtin) {
                 off += snprintf(buf + off, cap - off,
                     "<form method=\"POST\" action=\"/dialcode_delete/%s\" "
@@ -690,6 +696,7 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<form method=\"POST\" action=\"/dialcode_add\" class=\"settings-form\">"
+        "<h3>Add a code for an existing file</h3>"
         "<div class=\"grid2\">"
         "<label>New code (2-6 digits) <input name=\"code\" pattern=\"[0-9]{2,6}\" "
         "maxlength=\"6\" required></label>"
@@ -699,6 +706,15 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         "</label>"
         "<label>Description (optional) <input name=\"desc\" maxlength=\"63\"></label></div>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Add dial code</button></div>"
+        "</form>"
+        "<form method=\"POST\" action=\"/dialcode_upload\" enctype=\"multipart/form-data\" class=\"settings-form\">"
+        "<h3>...or upload new audio for a new code</h3>"
+        "<div class=\"grid2\">"
+        "<label>New code (2-6 digits) <input name=\"new_code\" pattern=\"[0-9]{2,6}\" "
+        "maxlength=\"6\" required></label>"
+        "<label>Description (optional) <input name=\"desc\" maxlength=\"63\"></label></div>"
+        "<label>Audio file (WAV) <input type=\"file\" name=\"file\" accept=\"audio/wav\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Upload + add dial code</button></div>"
         "</form></div>");
     return off;
 }
@@ -1529,15 +1545,142 @@ static void build_wav_header(uint8_t *h, uint32_t rate, uint32_t data_bytes)
     memcpy(h + 36, "data", 4); wr_u32le(h + 40, data_bytes);
 }
 
-/* Browser upload path: a real <input type=file> multipart form, converting
- * whatever WAV comes in (common sample rates, 8/16/24/32-bit, mono or
- * multi-channel) to 8kHz mono 16-bit PCM via `audio_convert` and streaming
- * the result straight into storage under `dest_name` -- never buffers the
- * whole file (this hardware has hard-failed a single ~330KB malloc before).
- * Shared by /operator_upload and /dialcode_upload. */
-#define UPLOAD_HEADER_SCAN_BYTES 512 /* WAV header is always well under this */
+/* Reads the CURRENT part's whole body as text into `out` (NUL-terminated,
+ * truncated to fit `cap`) -- for small non-file form fields (code, desc,
+ * ...) in a multipart form. Drains the full part even if it's longer than
+ * `cap`, so the reader stays correctly positioned for the next part. */
+static void read_field_body(multipart_reader_t *mp, char *out, size_t cap)
+{
+    size_t got = 0;
+    uint8_t buf[64];
+    size_t n;
+    while ((n = multipart_read_body(mp, buf, sizeof(buf))) > 0) {
+        size_t space = (cap > got + 1) ? cap - 1 - got : 0;
+        size_t take = (n < space) ? n : space;
+        if (take > 0) { memcpy(out + got, buf, take); got += take; }
+    }
+    out[got] = '\0';
+}
 
-static esp_err_t upload_and_convert(httpd_req_t *req, const char *dest_name)
+/* Keeps only [A-Za-z0-9_.-] from `in` (browsers may send a full path in
+ * `filename`, and arbitrary punctuation isn't a safe bare storage name),
+ * forcing a .wav extension if the result doesn't already have one. Falls
+ * back to `fallback` if nothing usable is left. */
+static void sanitize_upload_name(const char *in, const char *fallback, char *out, size_t cap)
+{
+    const char *base = strrchr(in, '/');
+    base = base ? base + 1 : in;
+    const char *base2 = strrchr(base, '\\');
+    if (base2) base = base2 + 1;
+
+    size_t o = 0;
+    for (; *base && o + 1 < cap; base++) {
+        char c = *base;
+        bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                  (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.';
+        out[o++] = ok ? c : '_';
+    }
+    out[o] = '\0';
+    if (!out[0]) { strncpy(out, fallback, cap - 1); out[cap - 1] = '\0'; return; }
+    if (!is_wav_name(out)) {
+        size_t len = strlen(out);
+        if (len + 4 >= cap) len = (cap > 4) ? cap - 5 : 0;
+        memcpy(out + len, ".wav", 5);
+    }
+}
+
+/* Converts the CURRENT part's body (a WAV file, common sample rates,
+ * 8/16/24/32-bit, mono or multi-channel) to 8kHz mono 16-bit PCM via
+ * `audio_convert` and streams the result straight into storage under
+ * `dest_name` -- never buffers the whole file (this hardware has hard-
+ * failed a single ~330KB malloc before). Shared by /operator_upload and
+ * /dialcode_upload. Returns NULL on success, else a static error string. */
+/* Same bound player.c's playback path uses (HEADER_SCAN_BYTES) -- covers
+ * real-world files with extra chunks before "data" (macOS afconvert pads
+ * with a "FLLR" filler chunk, observed pushing the data chunk out to
+ * ~4096 bytes; this project's own operator.wav is generated that way).
+ * Heap-allocated, not a stack array: 8KB inline here blew the httpd task's
+ * stack once already (see the "Stack protection fault" this project hit
+ * building the multipart reader), and this function already has other
+ * locals plus a caller frame on top of it. */
+#define UPLOAD_HEADER_SCAN_BYTES 8192
+
+static const char *convert_upload_part(multipart_reader_t *mp, const char *dest_name)
+{
+    uint8_t *header = malloc(UPLOAD_HEADER_SCAN_BYTES);
+    if (!header) return "out of memory";
+    size_t got = 0;
+    while (got < UPLOAD_HEADER_SCAN_BYTES) {
+        size_t n = multipart_read_body(mp, header + got, UPLOAD_HEADER_SCAN_BYTES - got);
+        if (n == 0) break;
+        got += n;
+    }
+
+    audio_wav_info_t wav;
+    if (!audio_wav_parse(header, got, &wav) ||
+        (wav.audio_format != 1 && wav.audio_format != 3) ||
+        wav.channels == 0 || wav.channels > 8 ||
+        (wav.bits_per_sample != 8 && wav.bits_per_sample != 16 &&
+         wav.bits_per_sample != 24 && wav.bits_per_sample != 32) ||
+        wav.sample_rate < 4000 || wav.sample_rate > 192000 ||
+        wav.data_offset >= got) {
+        free(header);
+        return "not a supported WAV (PCM/float, 8/16/24/32-bit, 4kHz-192kHz)";
+    }
+
+    /* Estimate the converted (8kHz mono 16-bit) output size so the eviction
+     * cap has something meaningful to work with -- passing 0 here would
+     * skip proactively freeing space for a long upload. */
+    size_t in_bytes_per_frame = (size_t)wav.channels * (wav.bits_per_sample / 8);
+    uint64_t est_out_bytes = in_bytes_per_frame
+        ? (uint64_t)wav.data_bytes * AUDIO_CONVERT_OUT_RATE * 2
+              / ((uint64_t)in_bytes_per_frame * wav.sample_rate)
+        : 0;
+
+    storage_writer_t w;
+    if (storage_write_begin(dest_name, 44 + (size_t)est_out_bytes, &w) != ESP_OK) {
+        free(header);
+        return "couldn't open storage for writing";
+    }
+
+    /* Placeholder header -- sizes get patched in below once the real
+     * converted length is known (same pattern as recorder.c). */
+    uint8_t wav_hdr[44];
+    build_wav_header(wav_hdr, AUDIO_CONVERT_OUT_RATE, 0);
+    storage_write_chunk(&w, wav_hdr, sizeof(wav_hdr));
+
+    audio_convert_ctx_t cvt;
+    audio_convert_fmt_t fmt = {
+        .in_rate = wav.sample_rate,
+        .in_channels = wav.channels,
+        .in_bits = wav.bits_per_sample,
+        .in_float = (wav.audio_format == 3),
+    };
+    audio_convert_init(&cvt, &fmt);
+
+    /* Bytes after the WAV header in what we already scanned are the start
+     * of the actual audio data -- convert those before pulling any more
+     * from the multipart stream. */
+    size_t data_bytes = convert_and_write(&cvt, &w, header + wav.data_offset, got - wav.data_offset);
+
+    uint8_t chunk[2048];
+    size_t r;
+    while ((r = multipart_read_body(mp, chunk, sizeof(chunk))) > 0) {
+        data_bytes += convert_and_write(&cvt, &w, chunk, r);
+    }
+    storage_write_end(&w);
+
+    uint8_t sz[4];
+    wr_u32le(sz, 36 + (uint32_t)data_bytes); storage_patch(dest_name, 4, sz, 4);
+    wr_u32le(sz, (uint32_t)data_bytes);      storage_patch(dest_name, 40, sz, 4);
+    free(header);
+    return NULL;
+}
+
+/* POST /operator_upload -- multipart, field "file". Fixed target filename,
+ * no code/conflict logic at all -- the simplest possible use of
+ * convert_upload_part(). */
+static esp_err_t operator_upload_handler(httpd_req_t *req)
 {
     multipart_reader_t mp;
     if (multipart_reader_init(&mp, req) != ESP_OK) {
@@ -1550,80 +1693,14 @@ static esp_err_t upload_and_convert(httpd_req_t *req, const char *dest_name)
     const char *err_msg = "no file uploaded";
 
     while (multipart_next_part(&mp, part_name, sizeof(part_name), filename, sizeof(filename)) == ESP_OK) {
-        if (strcmp(part_name, "file") != 0 || !filename[0]) {
+        if (strcmp(part_name, "file") == 0 && filename[0]) {
+            const char *err = convert_upload_part(&mp, "operator.wav");
+            if (err) { err_msg = err; break; }
+            wrote = true;
+        } else {
             uint8_t scratch[128];
             while (multipart_read_body(&mp, scratch, sizeof(scratch)) > 0) { } /* discard */
-            continue;
         }
-
-        uint8_t header[UPLOAD_HEADER_SCAN_BYTES];
-        size_t got = 0;
-        while (got < sizeof(header)) {
-            size_t n = multipart_read_body(&mp, header + got, sizeof(header) - got);
-            if (n == 0) break;
-            got += n;
-        }
-
-        audio_wav_info_t wav;
-        if (!audio_wav_parse(header, got, &wav) ||
-            (wav.audio_format != 1 && wav.audio_format != 3) ||
-            wav.channels == 0 || wav.channels > 8 ||
-            (wav.bits_per_sample != 8 && wav.bits_per_sample != 16 &&
-             wav.bits_per_sample != 24 && wav.bits_per_sample != 32) ||
-            wav.sample_rate < 4000 || wav.sample_rate > 192000 ||
-            wav.data_offset >= got) {
-            err_msg = "not a supported WAV (PCM/float, 8/16/24/32-bit, 4kHz-192kHz)";
-            break;
-        }
-
-        /* Estimate the converted (8kHz mono 16-bit) output size so the
-         * eviction cap has something meaningful to work with -- passing 0
-         * here would skip proactively freeing space for a long upload. */
-        size_t in_bytes_per_frame = (size_t)wav.channels * (wav.bits_per_sample / 8);
-        uint64_t est_out_bytes = in_bytes_per_frame
-            ? (uint64_t)wav.data_bytes * AUDIO_CONVERT_OUT_RATE * 2
-                  / ((uint64_t)in_bytes_per_frame * wav.sample_rate)
-            : 0;
-
-        storage_writer_t w;
-        if (storage_write_begin(dest_name, 44 + (size_t)est_out_bytes, &w) != ESP_OK) {
-            err_msg = "couldn't open storage for writing";
-            break;
-        }
-
-        /* Placeholder header -- sizes get patched in below once the real
-         * converted length is known (same pattern as recorder.c). */
-        uint8_t wav_hdr[44];
-        build_wav_header(wav_hdr, AUDIO_CONVERT_OUT_RATE, 0);
-        storage_write_chunk(&w, wav_hdr, sizeof(wav_hdr));
-
-        audio_convert_ctx_t cvt;
-        audio_convert_fmt_t fmt = {
-            .in_rate = wav.sample_rate,
-            .in_channels = wav.channels,
-            .in_bits = wav.bits_per_sample,
-            .in_float = (wav.audio_format == 3),
-        };
-        audio_convert_init(&cvt, &fmt);
-
-        /* Bytes after the WAV header in what we already scanned are the
-         * start of the actual audio data -- convert those before pulling
-         * any more from the multipart stream. */
-        size_t data_bytes = convert_and_write(&cvt, &w, header + wav.data_offset, got - wav.data_offset);
-
-        uint8_t chunk[2048];
-        size_t r;
-        while ((r = multipart_read_body(&mp, chunk, sizeof(chunk))) > 0) {
-            data_bytes += convert_and_write(&cvt, &w, chunk, r);
-        }
-        storage_write_end(&w);
-
-        /* Patch the header's RIFF/data sizes now that the real converted
-         * length is known. */
-        uint8_t sz[4];
-        wr_u32le(sz, 36 + (uint32_t)data_bytes); storage_patch(dest_name, 4, sz, 4);
-        wr_u32le(sz, (uint32_t)data_bytes);      storage_patch(dest_name, 40, sz, 4);
-        wrote = true;
     }
     multipart_reader_close(&mp);
 
@@ -1631,17 +1708,84 @@ static esp_err_t upload_and_convert(httpd_req_t *req, const char *dest_name)
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, err_msg);
         return ESP_FAIL;
     }
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=operator");
+    httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
 
-/* POST /operator_upload -- multipart, field "file". Fixed target filename,
- * no code/conflict logic at all -- the simplest possible use of the
- * upload_and_convert() chain. */
-static esp_err_t operator_upload_handler(httpd_req_t *req)
+/* POST /dialcode_upload -- multipart, fields (in this order in the HTML
+ * forms, so they're parsed before the "file" part streams): "code" (an
+ * EXISTING code -- replaces its audio in place, same filename) OR
+ * "new_code" + optional "desc" (adds a brand new code, filename derived
+ * from the uploaded file's own name). Exactly one of code/new_code should
+ * be present -- the Dial Codes tab's two forms each send only one. */
+static esp_err_t dialcode_upload_handler(httpd_req_t *req)
 {
-    if (upload_and_convert(req, "operator.wav") != ESP_OK) return ESP_FAIL;
+    multipart_reader_t mp;
+    if (multipart_reader_init(&mp, req) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "expected multipart/form-data");
+        return ESP_FAIL;
+    }
+
+    char code[8] = {0}, new_code[8] = {0}, desc[64] = {0};
+    char part_name[32], filename[64];
+    bool wrote = false;
+    const char *err_msg = "no file uploaded";
+
+    while (multipart_next_part(&mp, part_name, sizeof(part_name), filename, sizeof(filename)) == ESP_OK) {
+        if (strcmp(part_name, "code") == 0) {
+            read_field_body(&mp, code, sizeof(code));
+        } else if (strcmp(part_name, "new_code") == 0) {
+            read_field_body(&mp, new_code, sizeof(new_code));
+        } else if (strcmp(part_name, "desc") == 0) {
+            read_field_body(&mp, desc, sizeof(desc));
+        } else if (strcmp(part_name, "file") == 0 && filename[0]) {
+            char dest[STORAGE_MAX_NAME];
+            if (new_code[0]) {
+                char fallback[24];
+                snprintf(fallback, sizeof(fallback), "clip_%s.wav", new_code);
+                sanitize_upload_name(filename, fallback, dest, sizeof(dest));
+            } else if (code[0]) {
+                if (dialplan_clip_get_filename(code, dest, sizeof(dest)) != ESP_OK) {
+                    err_msg = "code not found";
+                    break;
+                }
+            } else {
+                err_msg = "missing code";
+                break;
+            }
+
+            const char *err = convert_upload_part(&mp, dest);
+            if (err) { err_msg = err; break; }
+
+            if (new_code[0]) {
+                esp_err_t aerr = dialplan_clip_add(new_code, dest, desc[0] ? desc : dest);
+                if (aerr != ESP_OK) {
+                    /* Audio uploaded fine but the code itself couldn't be
+                     * added (bad code / conflict / table full) -- still
+                     * leave the file in storage; report the failure rather
+                     * than silently dropping it. */
+                    err_msg = (aerr == ESP_ERR_INVALID_ARG) ? "code must be 2-6 digits" :
+                              (aerr == ESP_ERR_INVALID_STATE) ? "that code conflicts with an existing one" :
+                              "dial code limit reached";
+                    break;
+                }
+            }
+            wrote = true;
+        } else {
+            uint8_t scratch[128];
+            while (multipart_read_body(&mp, scratch, sizeof(scratch)) > 0) { } /* discard */
+        }
+    }
+    multipart_reader_close(&mp);
+
+    if (!wrote) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, err_msg);
+        return ESP_FAIL;
+    }
     httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=operator");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -1725,11 +1869,12 @@ esp_err_t webui_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
-    /* Default is 8 -- we register 24 routes below (two share the media
-     * path, one GET, one POST, counted separately). Past the cap,
+    /* Default is 8 -- we register 25 routes below (two share the media
+     * path, one GET, one POST, counted separately), plus headroom for the
+     * VoIP config-form routes landing next. Past the cap,
      * httpd_register_uri_handler() just fails per-route, which used to go
      * unchecked below, silently dropping the last couple of routes. */
-    config.max_uri_handlers = 26;
+    config.max_uri_handlers = 30;
     /* Default httpd task stack is 4 KB. Our page handlers stack a few
      * storage_entry_t[32]/dialplan_entry_info_t[40] arrays and then descend
      * into SPIFFS readdir -> esp_flash_read, which is itself stack-hungry;
@@ -1764,6 +1909,7 @@ esp_err_t webui_start(void)
         { .uri = "/dialcode_set_code",      .method = HTTP_POST, .handler = dialcode_set_code_handler },
         { .uri = "/dialcode_set_filename",  .method = HTTP_POST, .handler = dialcode_set_filename_handler },
         { .uri = "/dialcode_delete/*",      .method = HTTP_POST, .handler = dialcode_delete_handler },
+        { .uri = "/dialcode_upload",        .method = HTTP_POST, .handler = dialcode_upload_handler },
         { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },
         /* Catch-all LAST: captive-portal redirect while provisioning, plain
          * 404 otherwise. The wildcard matcher tries handlers in registration
