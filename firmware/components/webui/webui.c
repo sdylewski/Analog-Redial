@@ -10,6 +10,8 @@
 #include "telephony.h"
 #include "dialplan.h"
 #include "voip.h"
+#include "multipart.h"
+#include "audio_convert.h"
 #include "esp_timer.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -712,9 +714,14 @@ static int append_operator_tab(char *buf, size_t cap, int off,
                                 entries[i].implemented);
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">No on-device TTS or script editor yet -- upload a pre-rendered "
-        "<code>operator.wav</code> with <code>firmware/bringup/gen_prompt.py</code> "
-        "(see Storage files below) to change what plays.</p></div>");
+        "<p class=\"hint\">No on-device TTS or script editor yet -- upload audio below to "
+        "replace what plays (converted automatically to 8kHz mono), or use "
+        "<code>firmware/bringup/gen_prompt.py</code> from the command line.</p>"
+        "<form method=\"POST\" action=\"/operator_upload\" enctype=\"multipart/form-data\" "
+        "class=\"settings-form\">"
+        "<label>Replacement audio (WAV) <input type=\"file\" name=\"file\" accept=\"audio/wav\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Upload</button></div>"
+        "</form></div>");
     return off;
 }
 
@@ -1476,6 +1483,169 @@ static esp_err_t media_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* Feeds one input blob through the conversion pipeline in small steps --
+ * caps how much a single audio_convert_push() call could ever need to write
+ * (see the 4000 Hz floor enforced by the caller: worst case is a 2x
+ * upsample, so 128 input bytes at 1 byte/frame (8-bit mono, the smallest
+ * possible frame) -> at most 256 output samples, matching pcm_out's size
+ * exactly). Small and fixed regardless of caller context so nothing here
+ * ever needs a stack buffer sized off the upload itself. */
+static size_t convert_and_write(audio_convert_ctx_t *cvt, storage_writer_t *w,
+                                  const uint8_t *data, size_t len)
+{
+    int16_t pcm_out[256];
+    const size_t IN_STEP = 128;
+    size_t off = 0, data_bytes = 0;
+    while (off < len) {
+        size_t take = (len - off < IN_STEP) ? len - off : IN_STEP;
+        size_t n = audio_convert_push(cvt, data + off, take, pcm_out, 256);
+        if (n > 0) {
+            storage_write_chunk(w, pcm_out, n * sizeof(int16_t));
+            data_bytes += n * sizeof(int16_t);
+        }
+        off += take;
+    }
+    return data_bytes;
+}
+
+static void wr_u16le(uint8_t *p, uint16_t v) { p[0] = (uint8_t)v; p[1] = (uint8_t)(v >> 8); }
+static void wr_u32le(uint8_t *p, uint32_t v) {
+    p[0] = (uint8_t)v; p[1] = (uint8_t)(v >> 8); p[2] = (uint8_t)(v >> 16); p[3] = (uint8_t)(v >> 24);
+}
+
+/* Mono 16-bit PCM WAV header, matching recorder.c's build_wav_header (same
+ * format, independent copy -- small enough that sharing it isn't worth a
+ * cross-component dependency). */
+static void build_wav_header(uint8_t *h, uint32_t rate, uint32_t data_bytes)
+{
+    memcpy(h, "RIFF", 4);      wr_u32le(h + 4, 36 + data_bytes); memcpy(h + 8, "WAVE", 4);
+    memcpy(h + 12, "fmt ", 4); wr_u32le(h + 16, 16);
+    wr_u16le(h + 20, 1);         /* PCM */
+    wr_u16le(h + 22, 1);         /* mono */
+    wr_u32le(h + 24, rate);
+    wr_u32le(h + 28, rate * 2);  /* byte rate = rate * channels * bytes/sample */
+    wr_u16le(h + 32, 2);         /* block align */
+    wr_u16le(h + 34, 16);        /* bits/sample */
+    memcpy(h + 36, "data", 4); wr_u32le(h + 40, data_bytes);
+}
+
+/* Browser upload path: a real <input type=file> multipart form, converting
+ * whatever WAV comes in (common sample rates, 8/16/24/32-bit, mono or
+ * multi-channel) to 8kHz mono 16-bit PCM via `audio_convert` and streaming
+ * the result straight into storage under `dest_name` -- never buffers the
+ * whole file (this hardware has hard-failed a single ~330KB malloc before).
+ * Shared by /operator_upload and /dialcode_upload. */
+#define UPLOAD_HEADER_SCAN_BYTES 512 /* WAV header is always well under this */
+
+static esp_err_t upload_and_convert(httpd_req_t *req, const char *dest_name)
+{
+    multipart_reader_t mp;
+    if (multipart_reader_init(&mp, req) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "expected multipart/form-data");
+        return ESP_FAIL;
+    }
+
+    char part_name[32], filename[64];
+    bool wrote = false;
+    const char *err_msg = "no file uploaded";
+
+    while (multipart_next_part(&mp, part_name, sizeof(part_name), filename, sizeof(filename)) == ESP_OK) {
+        if (strcmp(part_name, "file") != 0 || !filename[0]) {
+            uint8_t scratch[128];
+            while (multipart_read_body(&mp, scratch, sizeof(scratch)) > 0) { } /* discard */
+            continue;
+        }
+
+        uint8_t header[UPLOAD_HEADER_SCAN_BYTES];
+        size_t got = 0;
+        while (got < sizeof(header)) {
+            size_t n = multipart_read_body(&mp, header + got, sizeof(header) - got);
+            if (n == 0) break;
+            got += n;
+        }
+
+        audio_wav_info_t wav;
+        if (!audio_wav_parse(header, got, &wav) ||
+            (wav.audio_format != 1 && wav.audio_format != 3) ||
+            wav.channels == 0 || wav.channels > 8 ||
+            (wav.bits_per_sample != 8 && wav.bits_per_sample != 16 &&
+             wav.bits_per_sample != 24 && wav.bits_per_sample != 32) ||
+            wav.sample_rate < 4000 || wav.sample_rate > 192000 ||
+            wav.data_offset >= got) {
+            err_msg = "not a supported WAV (PCM/float, 8/16/24/32-bit, 4kHz-192kHz)";
+            break;
+        }
+
+        /* Estimate the converted (8kHz mono 16-bit) output size so the
+         * eviction cap has something meaningful to work with -- passing 0
+         * here would skip proactively freeing space for a long upload. */
+        size_t in_bytes_per_frame = (size_t)wav.channels * (wav.bits_per_sample / 8);
+        uint64_t est_out_bytes = in_bytes_per_frame
+            ? (uint64_t)wav.data_bytes * AUDIO_CONVERT_OUT_RATE * 2
+                  / ((uint64_t)in_bytes_per_frame * wav.sample_rate)
+            : 0;
+
+        storage_writer_t w;
+        if (storage_write_begin(dest_name, 44 + (size_t)est_out_bytes, &w) != ESP_OK) {
+            err_msg = "couldn't open storage for writing";
+            break;
+        }
+
+        /* Placeholder header -- sizes get patched in below once the real
+         * converted length is known (same pattern as recorder.c). */
+        uint8_t wav_hdr[44];
+        build_wav_header(wav_hdr, AUDIO_CONVERT_OUT_RATE, 0);
+        storage_write_chunk(&w, wav_hdr, sizeof(wav_hdr));
+
+        audio_convert_ctx_t cvt;
+        audio_convert_fmt_t fmt = {
+            .in_rate = wav.sample_rate,
+            .in_channels = wav.channels,
+            .in_bits = wav.bits_per_sample,
+            .in_float = (wav.audio_format == 3),
+        };
+        audio_convert_init(&cvt, &fmt);
+
+        /* Bytes after the WAV header in what we already scanned are the
+         * start of the actual audio data -- convert those before pulling
+         * any more from the multipart stream. */
+        size_t data_bytes = convert_and_write(&cvt, &w, header + wav.data_offset, got - wav.data_offset);
+
+        uint8_t chunk[2048];
+        size_t r;
+        while ((r = multipart_read_body(&mp, chunk, sizeof(chunk))) > 0) {
+            data_bytes += convert_and_write(&cvt, &w, chunk, r);
+        }
+        storage_write_end(&w);
+
+        /* Patch the header's RIFF/data sizes now that the real converted
+         * length is known. */
+        uint8_t sz[4];
+        wr_u32le(sz, 36 + (uint32_t)data_bytes); storage_patch(dest_name, 4, sz, 4);
+        wr_u32le(sz, (uint32_t)data_bytes);      storage_patch(dest_name, 40, sz, 4);
+        wrote = true;
+    }
+    multipart_reader_close(&mp);
+
+    if (!wrote) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, err_msg);
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+
+/* POST /operator_upload -- multipart, field "file". Fixed target filename,
+ * no code/conflict logic at all -- the simplest possible use of the
+ * upload_and_convert() chain. */
+static esp_err_t operator_upload_handler(httpd_req_t *req)
+{
+    if (upload_and_convert(req, "operator.wav") != ESP_OK) return ESP_FAIL;
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=operator");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 /* Upload path for host-generated prompt/clip WAVs (see tools/gen_prompt.py) --
  * PUT/POST the file body to /media/<name> and it lands directly in the
  * storage layer, same place `record`-produced clips live. No auth -- this
@@ -1594,6 +1764,7 @@ esp_err_t webui_start(void)
         { .uri = "/dialcode_set_code",      .method = HTTP_POST, .handler = dialcode_set_code_handler },
         { .uri = "/dialcode_set_filename",  .method = HTTP_POST, .handler = dialcode_set_filename_handler },
         { .uri = "/dialcode_delete/*",      .method = HTTP_POST, .handler = dialcode_delete_handler },
+        { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },
         /* Catch-all LAST: captive-portal redirect while provisioning, plain
          * 404 otherwise. The wildcard matcher tries handlers in registration
          * order, so every specific route above still wins. */
