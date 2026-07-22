@@ -4,6 +4,8 @@ A networked **rotary telephone** on custom hardware: **ESP32-C6**, a stereo **I�
 
 Successor to the Raspberry Pi stack in [`pi_rotary_phone`](../pi_rotary_phone) (Python v1.0 — see [`ESP32_PORT_PLAN.md`](ESP32_PORT_PLAN.md) for port scope).
 
+> **New here? Start with [`GETTING_STARTED.md`](GETTING_STARTED.md)** — install the toolchain, configure for your board, build/flash, and set up Wi-Fi from scratch.
+
 ---
 
 ## Two hardware sub-projects

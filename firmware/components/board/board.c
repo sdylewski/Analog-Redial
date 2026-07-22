@@ -229,29 +229,20 @@ void board_detect_line2_variant(void)
     for (int i = 0; i < 4; i++) {
         level[i] = gpio_get_level(pins[i]);
     }
-    ESP_LOGI(TAG, "line2 variant detect: SHK/SCLK=%d RM/MOSI=%d FR/MISO=%d PD/CS=%d "
-                  "(low=likely SLIC pulldown, see hardware/ROTARY_PHONE_SMD.md)",
-             level[0], level[1], level[2], level[3]);
-
-    /* SHK is the only pin with a *documented* passive network (R16-19, the
-     * 10k/15k SHK divider) -- RM/FR/PD are logged above for the empirical
-     * comparison in ROTARY_PHONE_SMD.md, but the mismatch warning below is
-     * anchored on SHK alone until we know whether they corroborate it. */
-    bool line2_slic_wired = level[0] == 0;
-
-    if (line2_slic_wired) {
+    /* Diagnostic only. This passive read was meant to tell a Line 2 SLIC from a
+     * microSD on the shared GPIO 18-21 pads, but it isn't reliable: with no
+     * SLIC the pins just float, and observed levels for a stuffed SLIC vs. an
+     * SD card overlap (both have read 0,0,0,1). The build-time config is the
+     * source of truth -- CONFIG_BOARD_MICROSD selects SD, and for SD the
+     * definitive "is a card here" check is whether sdcard_init() mounts it. */
+    ESP_LOGI(TAG, "line2/uSD pad levels (raw, diagnostic): SCLK=%d MOSI=%d MISO=%d CS=%d; "
+                  "mode is set by CONFIG_BOARD_MICROSD (%s)",
+             level[0], level[1], level[2], level[3],
 #if CONFIG_BOARD_MICROSD
-        ESP_LOGW(TAG, "firmware built for microSD (CONFIG_BOARD_MICROSD=y) but SHK/SCLK reads "
-                      "like the Line 2 SLIC pulldown is stuffed -- rebuild without "
-                      "CONFIG_BOARD_MICROSD if this is a dual-line board");
+             "microSD");
+#else
+             "Line 2 SLIC");
 #endif
-    } else {
-#if !CONFIG_BOARD_MICROSD
-        ESP_LOGW(TAG, "firmware built for Line 2 SLIC (CONFIG_BOARD_MICROSD not set) but "
-                      "SHK/SCLK doesn't read like the SLIC pulldown is stuffed -- check R7-R10 "
-                      "stuffing or rebuild with CONFIG_BOARD_MICROSD=y");
-#endif
-    }
 }
 #else
 void board_detect_line2_variant(void)

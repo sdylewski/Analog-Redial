@@ -1,4 +1,5 @@
 #include "dialplan.h"
+#include "sdkconfig.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -53,11 +54,16 @@ static const entry_t TABLE[] = {
     { "214", ACT_RECORD_PLAYBACK, FX_LOW,    0, true, "Record + play back (low pitch)", true },
     { "215", ACT_RECORD_PLAYBACK, FX_DALEK,  0, true, "Record + play back (robot, pitch TODO)", true },
 
-    /* 3xx -- call the other phone line (symmetric on both lines) */
+#if CONFIG_BOARD_NUM_LINES > 1
+    /* 3xx -- call the other phone line (symmetric on both lines). Only present
+     * on a 2-line board; a single-line build has no other line to ring, so
+     * these codes are omitted entirely (dialing 3xx -> wrong number) and the
+     * web UI's inter-phone card/tab drop out with them. */
     { "321", ACT_CALL_LINE, -1, FX_NORMAL, false, "Call other phone (normal voice)", true },
     { "322", ACT_CALL_LINE, -1, FX_HIGH,   false, "Call other phone (chipmunk)", true },
     { "323", ACT_CALL_LINE, -1, FX_LOW,    false, "Call other phone (low pitch)", true },
     { "324", ACT_CALL_LINE, -1, FX_DALEK,  false, "Call other phone (robot)", true },
+#endif
 
     /* 4xx -- silly audio clips (play mode) -- plays storage/clip_<N>.wav via
      * `player` if present, falls back to a confirm tone if it isn't */

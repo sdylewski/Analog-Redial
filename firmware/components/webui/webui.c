@@ -1,4 +1,5 @@
 #include "webui.h"
+#include "sdkconfig.h"
 #include "esp_http_server.h"
 #include "cJSON.h"
 #include "wifi.h"
@@ -24,6 +25,18 @@
 #include <ctype.h>
 
 static const char *TAG = "webui";
+
+/* Human-readable size: "4.19 MB", "188.7 kB", "0 B" (decimal units, matching
+ * how flash/card sizes are marketed). Writes into `out` and returns it so it
+ * can be used inline as an snprintf argument. Caller supplies one buffer per
+ * value shown (they're all live at once inside a single snprintf). */
+static const char *fmt_bytes(uint64_t n, char *out, size_t outsz)
+{
+    if (n >= 1000000ULL)   snprintf(out, outsz, "%.2f MB", (double)n / 1e6);
+    else if (n >= 1000ULL) snprintf(out, outsz, "%.1f kB", (double)n / 1e3);
+    else                   snprintf(out, outsz, "%u B", (unsigned)n);
+    return out;
+}
 
 /* Defined below (near guide_handler) -- forward-declared here so the
  * settings-tab renderers, which come first in this file, can reuse the same
@@ -308,6 +321,7 @@ static esp_err_t index_handler(httpd_req_t *req)
     char ip[16];
     wifi_get_ip_str(ip, sizeof(ip));
     int64_t uptime_s = esp_timer_get_time() / 1000000;
+    char hb[16], su[16], sc[16];
 
     /* Fetched up front so its size is known before sizing the page buffer --
      * each raw log line can roughly triple in size once wrapped in
@@ -330,18 +344,19 @@ static esp_err_t index_handler(httpd_req_t *req)
         "<div class=\"statusrow\"><span class=\"label\">WiFi</span><span>%s, %d dBm</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">IP</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">Uptime</span><span>%lld s</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">Free heap</span><span>%u bytes</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">Storage</span><span>%u / %u bytes%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">Free heap</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">Storage used</span><span>%s / %s%s</span></div>"
         "</div>",
         wifi_is_connected() ? "connected" : "disconnected",
         wifi_is_connected() ? " \xc2\xb7 " : "", wifi_is_connected() ? ip : "",
         wifi_get_ssid()[0] ? wifi_get_ssid() : "(not configured)", wifi_rssi(),
         ip, (long long)uptime_s,
-        (unsigned)esp_get_free_heap_size(),
-        (unsigned)storage_used_bytes(), (unsigned)storage_cap_bytes(),
+        fmt_bytes(esp_get_free_heap_size(), hb, sizeof(hb)),
+        fmt_bytes(storage_used_bytes(), su, sizeof(su)),
+        fmt_bytes(storage_cap_bytes(), sc, sizeof(sc)),
         storage_using_sd() ? " (SD)" : " (internal flash)");
 
-    for (int l = 0; l < 2 && off > 0 && (size_t)off < cap; l++) {
+    for (int l = 0; l < CONFIG_BOARD_NUM_LINES && off > 0 && (size_t)off < cap; l++) {
         tel_state_t st = telephony_state(l);
         off += snprintf(buf + off, cap - off,
             "<div class=\"card\"><h2>Line %d</h2>"
@@ -412,19 +427,22 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
             "<table><tr><th>Name</th><th>Size</th></tr>");
         for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
             if (!is_user_recording(entries[i].name)) continue;
+            char sz[16];
             off += snprintf(buf + off, cap - off,
-                "<tr><td><a href=\"/media/%s\">%s</a></td><td>%u bytes</td></tr>",
-                entries[i].name, entries[i].name, (unsigned)entries[i].size);
+                "<tr><td><a href=\"/media/%s\">%s</a></td><td>%s</td></tr>",
+                entries[i].name, entries[i].name, fmt_bytes(entries[i].size, sz, sizeof(sz)));
         }
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
     }
     if (off > 0 && (size_t)off < cap) {
+        char su[16], sc[16];
         off += snprintf(buf + off, cap - off,
             "</div>"
-            "<p class=\"hint\">Storage: %u / %u bytes%s. Raw list: "
+            "<p class=\"hint\">Storage: %s / %s%s. Raw list: "
             "<a href=\"/api/recordings\">recordings JSON</a>.</p>"
             "</main></body></html>",
-            (unsigned)storage_used_bytes(), (unsigned)storage_cap_bytes(),
+            fmt_bytes(storage_used_bytes(), su, sizeof(su)),
+            fmt_bytes(storage_cap_bytes(), sc, sizeof(sc)),
             storage_using_sd() ? " (SD)" : " (internal flash)");
     }
 
@@ -447,7 +465,9 @@ static const settings_tab_t SETTINGS_TABS[] = {
     { "general",    "General" },
     { "operator",   "Operator" },
     { "voip",       "VOIP" },
-    { "interphone", "Inter-phone" },
+#if CONFIG_BOARD_NUM_LINES > 1
+    { "interphone", "Inter-phone" }, /* 2-line only: no other line to call on a 1-line build */
+#endif
     { "record",     "Record message" },
     { "callback",   "Record & callback" },
     { "hardware",   "Hardware" },
@@ -651,9 +671,12 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
     esp_flash_get_size(NULL, &flash_bytes);
     size_t ram_total = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
     size_t ram_free  = esp_get_free_heap_size();
-    size_t st_used = storage_used_bytes();
+    size_t ram_used  = (ram_total > ram_free) ? ram_total - ram_free : 0;
     size_t st_cap  = storage_cap_bytes();
+    size_t st_used = storage_used_bytes();
+    size_t st_free = (st_cap > st_used) ? st_cap - st_used : 0;
 
+    char fl[16], ru[16], rf[16], su[16], sf[16];
     return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>Hardware</h2>"
         "<div class=\"statusrow\"><span class=\"label\">Type</span><span>%s</span></div>"
@@ -661,20 +684,20 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "<div class=\"statusrow\"><span class=\"label\">Serial (chip MAC)</span>"
         "<span><code>%s</code></span></div>"
         "<div class=\"statusrow\"><span class=\"label\">Firmware</span><span>ESP-IDF %s</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">Flash (total)</span><span>%u MB</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">RAM free</span><span>%u / %u KB</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">Storage used</span>"
-        "<span>%u / %u KB%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">Flash (total)</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">RAM used / free</span><span>%s / %s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">Storage used / free</span>"
+        "<span>%s / %s%s</span></div>"
         "<p class=\"hint\">Type is fixed at build time (<code>CONFIG_BOARD_TYPE_*</code>) since "
         "GPIO routing is per-PCB; the detected codec is probed live on the I2C bus and warns in "
         "the log if it disagrees. Serial is the factory MAC -- unique per chip, survives reflash. "
         "Flash is the whole chip; Storage is the file partition (recordings + uploaded clips); "
-        "RAM is live free heap. Uptime/WiFi are on the <a href=\"/\">Status</a> page.</p>"
+        "RAM is live internal heap. Uptime/WiFi are on the <a href=\"/\">Status</a> page.</p>"
         "</div>",
         hw, board_codec_name(detected), serial, esp_get_idf_version(),
-        (unsigned)(flash_bytes / (1024 * 1024)),
-        (unsigned)(ram_free / 1024), (unsigned)(ram_total / 1024),
-        (unsigned)(st_used / 1024), (unsigned)(st_cap / 1024),
+        fmt_bytes(flash_bytes, fl, sizeof(fl)),
+        fmt_bytes(ram_used, ru, sizeof(ru)), fmt_bytes(ram_free, rf, sizeof(rf)),
+        fmt_bytes(st_used, su, sizeof(su)), fmt_bytes(st_free, sf, sizeof(sf)),
         storage_using_sd() ? " (SD)" : "");
 }
 
@@ -691,13 +714,15 @@ static int append_storage_section(char *buf, size_t cap, int off)
     char ip[16];
     wifi_get_ip_str(ip, sizeof(ip));
 
+    char su[16], sc[16];
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\" style=\"margin-top:16px\"><h2>Storage files (%u)</h2>"
-        "<p class=\"hint\">%u / %u bytes used. Everything in the storage partition -- recordings, "
+        "<p class=\"hint\">%s / %s used. Everything in the storage partition -- recordings, "
         "uploaded prompt/clip WAVs, anything else. Upload with <code>curl -X POST "
         "--data-binary @file.wav http://%s/media/&lt;name&gt;</code> or "
         "<code>firmware/bringup/gen_prompt.py</code>.</p>",
-        (unsigned)n, (unsigned)storage_used_bytes(), (unsigned)storage_cap_bytes(), ip);
+        (unsigned)n, fmt_bytes(storage_used_bytes(), su, sizeof(su)),
+        fmt_bytes(storage_cap_bytes(), sc, sizeof(sc)), ip);
 
     if (n == 0) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
@@ -706,13 +731,14 @@ static int append_storage_section(char *buf, size_t cap, int off)
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<table><tr><th>Name</th><th>Size</th><th></th><th></th></tr>");
         for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
+            char sz[16];
             off += snprintf(buf + off, cap - off,
-                "<tr><td><code>%s</code></td><td>%u bytes</td>"
+                "<tr><td><code>%s</code></td><td>%s</td>"
                 "<td><a href=\"/media/%s\">download</a></td>"
                 "<td><form method=\"POST\" action=\"/media_delete/%s\" "
                 "onsubmit=\"return confirm('Delete %s?')\" style=\"display:inline\">"
                 "<button type=\"submit\">delete</button></form></td></tr>",
-                entries[i].name, (unsigned)entries[i].size,
+                entries[i].name, fmt_bytes(entries[i].size, sz, sizeof(sz)),
                 entries[i].name, entries[i].name, entries[i].name);
         }
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
@@ -1012,6 +1038,12 @@ static esp_err_t guide_handler(httpd_req_t *req)
         "</header><main><div class=\"cards\">");
 
     for (size_t g = 0; g < GUIDE_CATS_N && off > 0 && (size_t)off < cap; g++) {
+        /* Skip a category with no live codes (e.g. "Call other phone" on a
+         * single-line build, where the 3xx entries are compiled out). */
+        size_t in_cat = 0;
+        for (size_t i = 0; i < n; i++) if (entries[i].code[0] == GUIDE_CATS[g].prefix) in_cat++;
+        if (in_cat == 0) continue;
+
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<div class=\"card\"><h2>%s</h2>", GUIDE_CATS[g].heading);
         for (size_t i = 0; i < n && (size_t)off < cap; i++) {
