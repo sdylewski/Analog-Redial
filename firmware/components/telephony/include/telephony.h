@@ -58,6 +58,20 @@ void telephony_force_recover(int line);
  * default; bringup toggles it around a monitor command's run. */
 void telephony_set_monitor_suppress(bool on);
 
+/* ---- Test/verification hooks (host-driven DVT harness) ----
+ * Injection is gated behind test mode so it can never fire in normal
+ * operation. Lets an automated harness simulate a handset: off-hook,
+ * hang-up, and rotary/DTMF digits, without physically dialing. In test mode
+ * the injected hook state also shadows the real SLIC, so the FSM behaves
+ * exactly as it would with a real handset (e.g. returning to dial tone
+ * after a clip finishes only while "off-hook"). */
+void      telephony_test_set_enabled(bool on);
+bool      telephony_test_enabled(void);
+/* ESP_ERR_INVALID_STATE if test mode is off; ESP_ERR_INVALID_ARG for a bad
+ * line or (for digit) a non-'0'-'9' character. */
+esp_err_t telephony_test_hook(int line, bool offhook);
+esp_err_t telephony_test_digit(int line, char digit);
+
 #ifdef __cplusplus
 }
 #endif

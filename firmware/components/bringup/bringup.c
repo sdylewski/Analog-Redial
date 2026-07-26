@@ -16,6 +16,7 @@
 #include "sdcard.h"
 #include "player.h"
 #include "voip.h"
+#include "logctl.h"
 #include "esp_console.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -604,6 +605,80 @@ static int cmd_wifi_status(int argc, char **argv)
     return 0;
 }
 
+/* ---------- logging ---------- */
+static int cmd_log_level(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("log level: %s\n", logctl_level_name(logctl_get_level()));
+        printf("usage: log_level <none|error|warn|info|debug|verbose>\n");
+        printf("  debug shows rotary pulse + hook-switch timing and FSM state changes\n");
+        return 0;
+    }
+    esp_log_level_t lvl = logctl_level_from_name(argv[1]);
+    if (lvl > ESP_LOG_VERBOSE) {
+        printf("bad level '%s' (use none|error|warn|info|debug|verbose)\n", argv[1]);
+        return 1;
+    }
+    logctl_set_level(lvl);
+    printf("log level set to %s (persisted)\n", logctl_level_name(lvl));
+    return 0;
+}
+
+/* ---------- test / DVT harness ---------- */
+static int cmd_testmode(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("test mode: %s\n", telephony_test_enabled() ? "ON" : "off");
+        printf("usage: testmode <0|1>  (gates tinject hook/digit injection)\n");
+        return 0;
+    }
+    telephony_test_set_enabled(argv[1][0] == '1');
+    printf("test mode %s\n", telephony_test_enabled() ? "ON" : "off");
+    return 0;
+}
+
+static int cmd_tinject(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("usage: tinject <offhook|onhook|digit|dial> [line] [digit(s)]\n"
+               "  tinject offhook 0        simulate handset pickup on line 0\n"
+               "  tinject dial 0 402       pick digits (feeds 4,0,2 with spacing)\n"
+               "  tinject onhook 0         simulate hang-up\n"
+               "requires test mode: run 'testmode 1' first\n");
+        return 1;
+    }
+    if (!telephony_test_enabled()) { printf("enable test mode first: testmode 1\n"); return 1; }
+    int line = (argc >= 3 && argv[2][0] >= '0' && argv[2][0] <= '9') ? atoi(argv[2]) : 0;
+    esp_err_t err = ESP_OK;
+    if (strcmp(argv[1], "offhook") == 0)      err = telephony_test_hook(line, true);
+    else if (strcmp(argv[1], "onhook") == 0)  err = telephony_test_hook(line, false);
+    else if (strcmp(argv[1], "digit") == 0) {
+        if (argc < 4) { printf("usage: tinject digit <line> <d>\n"); return 1; }
+        err = telephony_test_digit(line, argv[3][0]);
+    } else if (strcmp(argv[1], "dial") == 0) {
+        if (argc < 4) { printf("usage: tinject dial <line> <digits>\n"); return 1; }
+        for (const char *d = argv[3]; *d && err == ESP_OK; d++) {
+            err = telephony_test_digit(line, *d);
+            vTaskDelay(pdMS_TO_TICKS(150));
+        }
+    } else { printf("unknown: %s\n", argv[1]); return 1; }
+    if (err != ESP_OK) { printf("inject failed: %s\n", esp_err_to_name(err)); return 1; }
+    printf("injected (read 'status' to see result)\n");
+    return 0;
+}
+
+static int cmd_txrx_loopback(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("txrx loopback: %s\n", audio_test_loopback() ? "ON" : "off");
+        printf("usage: txrx_loopback <0|1>  (feed synthesized TX back into RX detect/level)\n");
+        return 0;
+    }
+    audio_set_test_loopback(argv[1][0] == '1');
+    printf("txrx loopback %s\n", audio_test_loopback() ? "ON" : "off");
+    return 0;
+}
+
 /* ---------- VoIP (SIP) ---------- */
 static int cmd_sip_set(int argc, char **argv)
 {
@@ -768,6 +843,10 @@ void bringup_console_start(void)
     register_cmd("reset", "Force line(s) out of a stuck tone/reorder state: reset [line]", cmd_reset);
     register_cmd("wifi_set", "Save WiFi credentials + reconnect: wifi_set <ssid> <password>", cmd_wifi_set);
     register_cmd("wifi_status", "WiFi connection status", cmd_wifi_status);
+    register_cmd("log_level", "Get/set global log level: log_level [none|error|warn|info|debug|verbose]", cmd_log_level);
+    register_cmd("testmode", "Enable/disable telephony injection test mode: testmode <0|1>", cmd_testmode);
+    register_cmd("tinject", "Inject handset events (test mode): tinject <offhook|onhook|digit|dial> [line] [d]", cmd_tinject);
+    register_cmd("txrx_loopback", "Audio TX->RX digital loopback for tests: txrx_loopback <0|1>", cmd_txrx_loopback);
     register_cmd("sip_set", "Save SIP config: sip_set <server> <user0> <pass0> [user1] [pass1]", cmd_sip_set);
     register_cmd("sip_status", "SIP registration status", cmd_sip_status);
     register_cmd("sip_call", "Test SIP INVITE (signaling only): sip_call <number> [line]", cmd_sip_call);

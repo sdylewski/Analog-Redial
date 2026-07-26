@@ -23,6 +23,7 @@
 #include "storage.h"
 #include "sdcard.h"
 #include "logbuf.h"
+#include "logctl.h"
 #include "webui.h"
 #include "bringup.h"
 #include "esp_log.h"
@@ -49,6 +50,10 @@ void app_main(void)
     /* Before anything else logs, so the ring buffer catches the whole boot
      * sequence, not just whatever happens after this point. */
     logbuf_init();
+    /* Apply the saved runtime log level (default INFO) before subsystems
+     * start logging -- lets a DEBUG level chosen from the web UI/console
+     * persist across reboots (watch pulse/hook timing, etc.). */
+    logctl_init();
 
     ESP_LOGI(TAG, "Rotary Phone Gateway (ESP32-C6) starting");
 

@@ -182,6 +182,10 @@ static void service_hook(int line, int64_t now)
                 ls->level_since_us = now;
                 ls->glitch_cnt = 0;
 
+                ESP_LOGD(TAG, "line %d SHK %s (prev level held %lld ms)", line,
+                         raw ? "make (loop closed)" : "break (loop open)",
+                         (long long)(held_us / 1000));
+
                 if (old_level == 0 /*on-hook*/ && raw == 1 /*off-hook*/) {
                     /* loop just reclosed: was it a dial pulse? */
                     if (ls->offhook_reported &&
@@ -189,6 +193,9 @@ static void service_hook(int line, int64_t now)
                         ls->pulse_count++;
                         ls->last_pulse_end_us = now;
                         ls->counting_digit = true;
+                        ESP_LOGD(TAG, "line %d pulse #%d (break was %lld ms, <= %u max)",
+                                 line, ls->pulse_count, (long long)(held_us / 1000),
+                                 s_cfg.pulse_break_max_ms);
                     }
                 }
             }
@@ -210,6 +217,8 @@ static void service_hook(int line, int64_t now)
         ls->pulse_count = 0;
         ls->counting_digit = false;
         if (ls->ringing) ag1170_ring_stop(line);
+        ESP_LOGD(TAG, "line %d OFF-HOOK confirmed (stable %lld ms >= %u)", line,
+                 (long long)in_level_ms, s_cfg.offhook_confirm_ms);
         emit(line, AG1170_EV_OFFHOOK, -1);
     }
 
@@ -219,6 +228,8 @@ static void service_hook(int line, int64_t now)
         ls->offhook_reported = false;
         ls->pulse_count = 0;
         ls->counting_digit = false;
+        ESP_LOGD(TAG, "line %d ON-HOOK confirmed (stable %lld ms >= %u)", line,
+                 (long long)in_level_ms, s_cfg.onhook_confirm_ms);
         emit(line, AG1170_EV_ONHOOK, -1);
     }
 
@@ -227,6 +238,9 @@ static void service_hook(int line, int64_t now)
         ls->pulse_count > 0 &&
         ((now - ls->last_pulse_end_us) / 1000) >= s_cfg.interdigit_ms) {
         int digit = ls->pulse_count % 10; /* 10 pulses => 0 */
+        ESP_LOGD(TAG, "line %d DIGIT %d (%d pulses, quiet %lld ms >= %u)", line,
+                 digit, ls->pulse_count,
+                 (long long)((now - ls->last_pulse_end_us) / 1000), s_cfg.interdigit_ms);
         ls->pulse_count = 0;
         ls->counting_digit = false;
         emit(line, AG1170_EV_DIGIT, digit);

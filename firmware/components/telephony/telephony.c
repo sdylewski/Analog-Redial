@@ -1,6 +1,7 @@
 #include "telephony.h"
 #include "dialplan.h"
 #include "ag1170.h"
+#include "board_pins.h"   /* BOARD_NUM_LINES */
 #include "audio.h"
 #include "dtmf.h"
 #include "tones.h"
@@ -18,7 +19,15 @@
 
 static const char *TAG = "telephony";
 
+/* Array width stays 2 to match the codec's stereo L/R pair (AUDIO_NUM_LINES),
+ * so per-line state is never indexed out of bounds. But only BOARD_NUM_LINES
+ * lines are actually *serviced* -- on a 1-line board, line 1 has no SLIC, so
+ * feeding it hook/ring/VoIP events would leave a phantom line stuck (e.g. an
+ * inbound VoIP call to the 2nd extension "ringing" a handset that isn't
+ * there). Events for lines >= BOARD_NUM_LINES are dropped, and the periodic
+ * FSM servicing/taps only run for real lines. */
 #define NLINES        2
+#define NLINES_ACTIVE BOARD_NUM_LINES
 #define PEER_NONE     (-1)
 #define PEER_VOIP     (-2)
 
@@ -58,6 +67,20 @@ typedef struct {
 
 static line_t        s_line[NLINES];
 static QueueHandle_t s_q;
+
+/* Test-mode injection (host DVT harness). When enabled, off-hook/on-hook and
+ * dialed digits can be injected via telephony_test_*(); s_test_offhook shadows
+ * the real SLIC hook state so the FSM's hook-dependent branches (post-clip
+ * return to dial tone vs. idle, etc.) behave exactly as with a real handset. */
+static volatile bool s_test_enabled;
+static bool          s_test_offhook[NLINES];
+
+/* Effective hook state: injected shadow in test mode, else the real SLIC. */
+static bool line_offhook(int line)
+{
+    if (s_test_enabled) return (line >= 0 && line < NLINES) ? s_test_offhook[line] : false;
+    return ag1170_is_offhook(line);
+}
 
 const char *telephony_state_name(tel_state_t s)
 {
@@ -153,6 +176,7 @@ static void voip_cb(const voip_event_t *ev, void *ctx)
 /* ---- state helpers ---- */
 static void enter_idle(int line)
 {
+    ESP_LOGD(TAG, "line %d: %s -> IDLE", line, telephony_state_name(s_line[line].state));
     audio_tx_silence(line);
     s_line[line].state = TEL_IDLE;
     s_line[line].peer = PEER_NONE;
@@ -163,6 +187,7 @@ static void enter_idle(int line)
 
 static void enter_dialtone(int line)
 {
+    ESP_LOGD(TAG, "line %d: %s -> DIALTONE", line, telephony_state_name(s_line[line].state));
     audio_tx_tone(line, TONE_DIAL);
     s_line[line].state = TEL_DIALTONE;
     s_line[line].peer = PEER_NONE;
@@ -175,7 +200,7 @@ void telephony_force_recover(int line)
 {
     if (line < 0 || line >= NLINES) return;
     s_line[line].tone_return_us = 0;
-    if (ag1170_is_offhook(line)) {
+    if (line_offhook(line)) {
         enter_dialtone(line);
     } else {
         enter_idle(line);
@@ -194,6 +219,9 @@ void telephony_set_monitor_suppress(bool on)
 static void play_transient(int line, call_progress_t tone, uint32_t ms,
                            tel_state_t state, tel_state_t return_state)
 {
+    ESP_LOGD(TAG, "line %d: %s -> %s (transient tone %u ms, then %s)", line,
+             telephony_state_name(s_line[line].state), telephony_state_name(state),
+             (unsigned)ms, telephony_state_name(return_state));
     audio_tx_tone(line, tone);
     s_line[line].state = state;
     s_line[line].tone_return_us = esp_timer_get_time() + (int64_t)ms * 1000;
@@ -203,6 +231,8 @@ static void play_transient(int line, call_progress_t tone, uint32_t ms,
 /* persistent tone until hangup (e.g. busy / call-ended reorder) */
 static void play_persistent(int line, call_progress_t tone, tel_state_t state)
 {
+    ESP_LOGD(TAG, "line %d: %s -> %s (persistent tone until hangup)", line,
+             telephony_state_name(s_line[line].state), telephony_state_name(state));
     audio_tx_tone(line, tone);
     s_line[line].state = state;
     s_line[line].tone_return_us = 0;
@@ -215,7 +245,7 @@ static void start_local_call(int caller, int target, voice_effect_t fx)
         play_transient(caller, TONE_REORDER, 3000, TEL_REORDER, TEL_DIALTONE);
         return;
     }
-    if (s_line[target].state != TEL_IDLE || ag1170_is_offhook(target)) {
+    if (s_line[target].state != TEL_IDLE || line_offhook(target)) {
         play_persistent(caller, TONE_BUSY, TEL_BUSY);
         return;
     }
@@ -261,7 +291,7 @@ static void end_call(int line)
                 break;
             case TEL_INCALL:      /* connected -> tell peer call ended */
                 audio_tx_bridge(peer, line, false);
-                if (ag1170_is_offhook(peer)) {
+                if (line_offhook(peer)) {
                     play_persistent(peer, TONE_REORDER, TEL_REORDER);
                     s_line[peer].peer = PEER_NONE;
                 } else {
@@ -395,6 +425,8 @@ static void process_digit(int line, char ch)
     }
 
     dialplan_action_t a = dialplan_feed(&s_line[line].coll, line, ch);
+    ESP_LOGD(TAG, "line %d: digit '%c' -> collected '%s', action kind=%d", line,
+             ch, s_line[line].coll.buf, a.kind);
     if (a.kind != ACT_NONE) {
         handle_action(line, &a);
     }
@@ -454,6 +486,9 @@ static void fsm_task(void *arg)
     while (1) {
         in_evt_t e;
         while (xQueueReceive(s_q, &e, 0) == pdTRUE) {
+            /* Drop events for a line with no hardware (phantom line on a
+             * board configured for fewer lines than the array width). */
+            if (e.line < 0 || e.line >= NLINES_ACTIVE) continue;
             switch (e.type) {
                 case IN_OFFHOOK:        on_offhook(e.line); break;
                 case IN_ONHOOK:         on_onhook(e.line);  break;
@@ -467,7 +502,7 @@ static void fsm_task(void *arg)
                     break;
                 case IN_VOIP_CLOSED:
                     if (s_line[e.line].peer == PEER_VOIP) {
-                        if (ag1170_is_offhook(e.line))
+                        if (line_offhook(e.line))
                             play_persistent(e.line, TONE_REORDER, TEL_REORDER);
                         else
                             enter_idle(e.line);
@@ -477,14 +512,14 @@ static void fsm_task(void *arg)
                     /* Ignore if we've already moved on (e.g. hung up mid-clip --
                      * end_call() already handled state via player_stop()). */
                     if (s_line[e.line].state == TEL_PLAYING) {
-                        if (ag1170_is_offhook(e.line)) enter_dialtone(e.line);
+                        if (line_offhook(e.line)) enter_dialtone(e.line);
                         else enter_idle(e.line);
                     }
                     break;
                 case IN_REC_DONE: {
                     int l = e.line;
                     if (s_line[l].state != TEL_RECORDING) break; /* already moved on */
-                    bool play_back = s_line[l].rec_callback && ag1170_is_offhook(l);
+                    bool play_back = s_line[l].rec_callback && line_offhook(l);
                     if (play_back) {
                         /* Pitch effect: relabel the WAV's sample-rate field so the
                          * player's resampler shifts playback. ~8 kHz base; robot
@@ -501,7 +536,7 @@ static void fsm_task(void *arg)
                         }
                     }
                     /* Archive, or caller hung up on a callback: nothing to play. */
-                    if (ag1170_is_offhook(l)) enter_dialtone(l);
+                    if (line_offhook(l)) enter_dialtone(l);
                     else enter_idle(l);
                     break;
                 }
@@ -509,7 +544,7 @@ static void fsm_task(void *arg)
         }
 
         int64_t now = esp_timer_get_time();
-        for (int line = 0; line < NLINES; line++) {
+        for (int line = 0; line < NLINES_ACTIVE; line++) {
             /* inter-digit timeout */
             if (s_line[line].dialing &&
                 (now - s_line[line].last_digit_us) / 1000 >= dialplan_interdigit_ms()) {
@@ -543,6 +578,9 @@ esp_err_t telephony_start(void)
         memset(&s_line[line], 0, sizeof(s_line[line]));
         s_line[line].state = TEL_IDLE;
         s_line[line].peer = PEER_NONE;
+    }
+    /* DTMF detector + RX tap only for lines that actually exist. */
+    for (int line = 0; line < NLINES_ACTIVE; line++) {
         dtmf_detector_init(&s_line[line].det, audio_sample_rate());
         audio_set_rx_tap(line, dtmf_tap, NULL);
     }
@@ -553,6 +591,41 @@ esp_err_t telephony_start(void)
     BaseType_t ok = xTaskCreate(fsm_task, "tel_fsm", 4096, NULL, 5, NULL);
     if (ok != pdPASS) return ESP_FAIL;
 
-    ESP_LOGI(TAG, "telephony started (%d lines)", NLINES);
+    ESP_LOGI(TAG, "telephony started (%d line%s serviced)", NLINES_ACTIVE,
+             NLINES_ACTIVE == 1 ? "" : "s");
     return ESP_OK;
+}
+
+/* ---- test/verification injection (host DVT harness) ---- */
+void telephony_test_set_enabled(bool on)
+{
+    s_test_enabled = on;
+    if (!on) {
+        for (int i = 0; i < NLINES; i++) s_test_offhook[i] = false;
+    }
+    ESP_LOGW(TAG, "TEST MODE %s%s", on ? "ENABLED" : "disabled",
+             on ? " (hook/digit injection active)" : "");
+}
+
+bool telephony_test_enabled(void)
+{
+    return s_test_enabled;
+}
+
+esp_err_t telephony_test_hook(int line, bool offhook)
+{
+    if (!s_test_enabled) return ESP_ERR_INVALID_STATE;
+    if (line < 0 || line >= NLINES_ACTIVE) return ESP_ERR_INVALID_ARG;
+    s_test_offhook[line] = offhook;          /* shadow the SLIC before the FSM sees it */
+    in_evt_t e = { .line = line, .type = offhook ? IN_OFFHOOK : IN_ONHOOK, .digit = 0 };
+    return (xQueueSend(s_q, &e, pdMS_TO_TICKS(50)) == pdTRUE) ? ESP_OK : ESP_FAIL;
+}
+
+esp_err_t telephony_test_digit(int line, char digit)
+{
+    if (!s_test_enabled) return ESP_ERR_INVALID_STATE;
+    if (line < 0 || line >= NLINES_ACTIVE) return ESP_ERR_INVALID_ARG;
+    if (digit < '0' || digit > '9') return ESP_ERR_INVALID_ARG;
+    in_evt_t e = { .line = line, .type = IN_DIGIT, .digit = digit };
+    return (xQueueSend(s_q, &e, pdMS_TO_TICKS(50)) == pdTRUE) ? ESP_OK : ESP_FAIL;
 }

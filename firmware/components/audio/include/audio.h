@@ -66,6 +66,14 @@ size_t audio_rx_read(int line, int16_t *mono, size_t n, uint32_t timeout_ms);
 /* Simple RMS level (0..32767) of the most recent RX frame for a line. */
 uint16_t audio_rx_level(int line);
 
+/* Test-only digital loopback: feed the synthesized TX back into the RX
+ * processing chain (level meter / DTMF detector / rx read) so automated
+ * tests can confirm a played tone/DTMF/clip is actually produced and
+ * detectable without a physical handset. DSP-domain only -- does not
+ * exercise the analog codec path. */
+void audio_set_test_loopback(bool on);
+bool audio_test_loopback(void);
+
 #ifdef __cplusplus
 }
 #endif

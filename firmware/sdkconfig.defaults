@@ -13,6 +13,9 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 
 # Reasonable log default
 CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+# Raise the compile ceiling so ESP_LOGD (debug) isn't stripped -- lets the
+# runtime log level (logctl, web UI/console) reach DEBUG for pulse/hook timing.
+CONFIG_LOG_MAXIMUM_LEVEL_DEBUG=y
 
 # Filesystem partition for audio assets (later milestones)
 CONFIG_PARTITION_TABLE_CUSTOM=y

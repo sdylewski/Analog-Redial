@@ -12,6 +12,9 @@
 #include "voip.h"
 #include "multipart.h"
 #include "audio_convert.h"
+#include "logctl.h"
+#include "audio.h"
+#include "sdcard.h"
 #include "esp_timer.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -190,12 +193,18 @@ static cJSON *build_status_json(void)
     cJSON_AddNumberToObject(root, "storage_cap", (double)storage_cap_bytes());
     cJSON_AddBoolToObject(root, "storage_on_sd", storage_using_sd());
 
+    /* Diagnostics / DVT-harness introspection. */
+    cJSON_AddStringToObject(root, "log_level", logctl_level_name(logctl_get_level()));
+    cJSON_AddBoolToObject(root, "test_mode", telephony_test_enabled());
+    cJSON_AddBoolToObject(root, "test_loopback", audio_test_loopback());
+
     cJSON *lines = cJSON_AddArrayToObject(root, "lines");
-    for (int l = 0; l < 2; l++) {
+    for (int l = 0; l < CONFIG_BOARD_NUM_LINES; l++) {
         cJSON *jl = cJSON_CreateObject();
         cJSON_AddNumberToObject(jl, "line", l);
         cJSON_AddStringToObject(jl, "state", telephony_state_name(telephony_state(l)));
         cJSON_AddStringToObject(jl, "last_number", telephony_last_number(l));
+        cJSON_AddNumberToObject(jl, "rx_level", audio_rx_level(l));
         cJSON_AddItemToArray(lines, jl);
     }
     return root;
@@ -484,6 +493,7 @@ static const settings_tab_t SETTINGS_TABS[] = {
     { "record",     "Record message" },
     { "callback",   "Record & callback" },
     { "hardware",   "Hardware" },
+    { "diag",       "Diagnostics" },
 };
 #define SETTINGS_TABS_N (sizeof(SETTINGS_TABS) / sizeof(SETTINGS_TABS[0]))
 
@@ -887,6 +897,72 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         storage_using_sd() ? " (SD)" : "");
 }
 
+/* Diagnostics tab: runtime log level (and, in test builds, test-mode
+ * controls -- see Phase 2). */
+static int append_diag_tab(char *buf, size_t cap, int off)
+{
+    static const char *LEVELS[] = { "none", "error", "warn", "info", "debug", "verbose" };
+    esp_log_level_t cur = logctl_get_level();
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Logging</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">Current level</span>"
+        "<span class=\"pill on\">%s</span></div>"
+        "<form method=\"POST\" action=\"/log_level\" class=\"settings-form\">"
+        "<label>Level <select name=\"level\">",
+        logctl_level_name(cur));
+    for (size_t i = 0; i < sizeof(LEVELS) / sizeof(LEVELS[0]); i++) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<option value=\"%s\"%s>%s</option>",
+            LEVELS[i], ((size_t)cur == i) ? " selected" : "", LEVELS[i]);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "</select></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Set level</button></div>"
+        "</form>"
+        "<p class=\"hint\">Applies immediately and persists across reboots (NVS). "
+        "<code>debug</code> logs rotary pulse timing, hook-switch make/break with durations, "
+        "dialed-digit collection, and telephony state changes -- watch it live on the "
+        "<a href=\"/\">Status</a> page's log, or over the serial console "
+        "(<code>log_level debug</code>). WiFi/PHY noise stays at warn so it doesn't bury "
+        "the app's own debug output.</p></div>");
+
+    /* Test mode + audio loopback + SD self-test (DVT harness controls; also
+     * usable by hand here). */
+    bool tmode = telephony_test_enabled();
+    bool loop  = audio_test_loopback();
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Test mode</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">Injection</span>"
+        "<span class=\"pill %s\">%s</span></div>"
+        "<div class=\"toolbar sub\">"
+        "<form method=\"POST\" action=\"/test/mode\" style=\"display:inline\">"
+        "<input type=\"hidden\" name=\"on\" value=\"1\"><button type=\"submit\">Enable</button></form>"
+        "<form method=\"POST\" action=\"/test/mode\" style=\"display:inline\">"
+        "<input type=\"hidden\" name=\"on\" value=\"0\"><button type=\"submit\">Disable</button></form>"
+        "</div>"
+        "<div class=\"statusrow\"><span class=\"label\">Audio TX&rarr;RX loopback</span>"
+        "<span class=\"pill %s\">%s</span></div>"
+        "<div class=\"toolbar sub\">"
+        "<form method=\"POST\" action=\"/test/loopback\" style=\"display:inline\">"
+        "<input type=\"hidden\" name=\"on\" value=\"1\"><button type=\"submit\">Enable</button></form>"
+        "<form method=\"POST\" action=\"/test/loopback\" style=\"display:inline\">"
+        "<input type=\"hidden\" name=\"on\" value=\"0\"><button type=\"submit\">Disable</button></form>"
+        "</div>"
+        "<div class=\"toolbar sub\">"
+        "<form method=\"POST\" action=\"/test/sd\" style=\"display:inline\">"
+        "<button type=\"submit\">Run microSD self-test</button></form>"
+        "</div>"
+        "<p class=\"hint\">Test mode lets the design-verification harness simulate a handset "
+        "(off-hook, hang-up, dialed digits) without physical dialing. Loopback feeds "
+        "synthesized TX audio back into the RX detector so a played tone/DTMF is confirmable "
+        "without a handset. Leave both <b>off</b> for normal use. Full protocol + host runner: "
+        "<code>firmware/test/</code>.</p></div>",
+        tmode ? "on" : "off", tmode ? "ENABLED" : "off",
+        loop  ? "on" : "off", loop  ? "ENABLED" : "off");
+    return off;
+}
+
 /* Storage file manager -- lists every file in the storage layer (recordings,
  * uploaded prompt/clip WAVs, anything else that landed there) with size,
  * download, and delete. There's no type distinction in storage.c itself --
@@ -973,6 +1049,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     else if (strcmp(tab, "interphone") == 0) off = append_interphone_tab(buf, cap, off, entries, n);
     else if (strcmp(tab, "record") == 0) off = append_record_tab(buf, cap, off, entries, n);
     else if (strcmp(tab, "callback") == 0) off = append_callback_tab(buf, cap, off, entries, n);
+    else if (strcmp(tab, "diag") == 0) off = append_diag_tab(buf, cap, off);
     else off = append_hardware_tab(buf, cap, off);
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>" /* .cards */);
@@ -1209,6 +1286,121 @@ static esp_err_t voip_set_handler(httpd_req_t *req)
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/settings?tab=voip");
     httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /log_level -- form body level=<name>. Persists + applies (logctl). */
+static esp_err_t log_level_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char level[16] = {0};
+    form_field(body, "level", level, sizeof(level));
+    esp_log_level_t lvl = logctl_level_from_name(level);
+    if (lvl > ESP_LOG_VERBOSE) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad level");
+        return ESP_OK;
+    }
+    logctl_set_level(lvl);
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* ---- Test / DVT-harness endpoints ----
+ * All plain-text responses ("ok\n" / an error string) so a host script can
+ * parse them trivially; state is read back from /api/status. These are LAN
+ * bring-up/test hooks with no auth, same posture as the rest of this UI. */
+
+/* Reads a single urlencoded form field from the request body into `out`.
+ * Returns false on a body that's missing/oversized/unreadable. */
+static bool read_form_body(httpd_req_t *req, char *body, size_t cap)
+{
+    if (req->content_len == 0 || req->content_len >= cap) return false;
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) return false;
+    body[r] = '\0';
+    return true;
+}
+
+/* POST /test/mode  body on=0|1 -- enable/disable telephony injection test mode. */
+static esp_err_t test_mode_handler(httpd_req_t *req)
+{
+    char body[64], on[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "on", on, sizeof(on));
+    telephony_test_set_enabled(on[0] == '1');
+    /* Redirect so a browser form lands back on the tab; a host harness
+     * ignores the redirect and confirms via GET /api/status (test_mode). */
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /test/loopback  body on=0|1 -- audio TX->RX digital loopback. */
+static esp_err_t test_loopback_handler(httpd_req_t *req)
+{
+    char body[64], on[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "on", on, sizeof(on));
+    audio_set_test_loopback(on[0] == '1');
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /test/inject  body type=offhook|onhook|digit & line=N [& digit=D]
+ * -- simulate a handset event (requires test mode on). */
+static esp_err_t test_inject_handler(httpd_req_t *req)
+{
+    char body[96], type[12] = {0}, line_s[8] = {0}, digit_s[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "type", type, sizeof(type));
+    form_field(body, "line", line_s, sizeof(line_s));
+    form_field(body, "digit", digit_s, sizeof(digit_s));
+    int line = line_s[0] ? atoi(line_s) : 0;
+
+    esp_err_t err;
+    if (strcmp(type, "offhook") == 0)      err = telephony_test_hook(line, true);
+    else if (strcmp(type, "onhook") == 0)  err = telephony_test_hook(line, false);
+    else if (strcmp(type, "digit") == 0)   err = telephony_test_digit(line, digit_s[0]);
+    else { httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "type must be offhook|onhook|digit"); return ESP_OK; }
+
+    if (err == ESP_ERR_INVALID_STATE) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "test mode is off (POST /test/mode on=1 first)");
+    } else if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad line/digit");
+    } else {
+        httpd_resp_sendstr(req, "ok\n");
+    }
+    return ESP_OK;
+}
+
+/* POST /test/sd -- run the microSD write/read/verify self-test, mounting
+ * first if needed. Plain-text result the harness can grep. */
+static esp_err_t test_sd_handler(httpd_req_t *req)
+{
+    if (!sdcard_mounted()) sdcard_init();
+    if (!sdcard_mounted()) { httpd_resp_sendstr(req, "sd: not mounted\n"); return ESP_OK; }
+    esp_err_t err = sdcard_selftest();
+    httpd_resp_sendstr(req, err == ESP_OK ? "sd: ok\n" : "sd: FAIL\n");
     return ESP_OK;
 }
 
@@ -2137,7 +2329,7 @@ esp_err_t webui_start(void)
      * path, one GET, one POST, counted separately). Past the cap,
      * httpd_register_uri_handler() just fails per-route, which used to go
      * unchecked below, silently dropping the last couple of routes. */
-    config.max_uri_handlers = 30;
+    config.max_uri_handlers = 36;
     /* Default httpd task stack is 4 KB. Our page handlers stack a few
      * storage_entry_t[32]/dialplan_entry_info_t[40] arrays and then descend
      * into SPIFFS readdir -> esp_flash_read, which is itself stack-hungry;
@@ -2190,6 +2382,11 @@ esp_err_t webui_start(void)
         { .uri = "/dialcode_upload",        .method = HTTP_POST, .handler = dialcode_upload_handler },
         { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },
         { .uri = "/voip_set",               .method = HTTP_POST, .handler = voip_set_handler },
+        { .uri = "/log_level",              .method = HTTP_POST, .handler = log_level_handler },
+        { .uri = "/test/mode",              .method = HTTP_POST, .handler = test_mode_handler },
+        { .uri = "/test/loopback",          .method = HTTP_POST, .handler = test_loopback_handler },
+        { .uri = "/test/inject",            .method = HTTP_POST, .handler = test_inject_handler },
+        { .uri = "/test/sd",                .method = HTTP_POST, .handler = test_sd_handler },
         { .uri = "/voip_server_script",     .method = HTTP_GET,  .handler = voip_server_script_handler },
         /* Catch-all LAST: captive-portal redirect while provisioning, plain
          * 404 otherwise. The wildcard matcher tries handlers in registration

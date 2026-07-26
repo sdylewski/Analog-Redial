@@ -43,6 +43,15 @@ static size_t   s_frame = 480;
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
 static TaskHandle_t s_task;
 
+/* Test-only digital loopback: when on, the RX processing chain (level meter,
+ * DTMF detector tap, rx stream buffer) is fed the TX we just synthesized
+ * instead of the codec's real ADC input -- so an automated test can play a
+ * tone/DTMF/clip and confirm it's actually produced and detectable, without
+ * a physical handset. This is a DSP-domain loopback (TX buffer -> RX
+ * processing); it does NOT exercise the analog codec I/O, which is what the
+ * mic->speaker `loopback` command + a listen are for. */
+static volatile bool s_test_loopback;
+
 uint32_t audio_sample_rate(void) { return s_sr; }
 size_t   audio_frame_samples(void) { return s_frame; }
 
@@ -142,6 +151,16 @@ uint16_t audio_rx_level(int line)
     return s_line[line].rx_level;
 }
 
+void audio_set_test_loopback(bool on)
+{
+    s_test_loopback = on;
+}
+
+bool audio_test_loopback(void)
+{
+    return s_test_loopback;
+}
+
 /* Fill one line's mono TX frame according to its current source. */
 static void fill_tx_line(int line, int16_t *out, size_t n)
 {
@@ -218,22 +237,15 @@ static void audio_task(void *arg)
     }
 
     while (1) {
-        size_t bytes_read = 0;
-        /* RX first so the bridge sees fresh audio. */
+        /* Always drain the codec RX so the I2S channel can't back up, even
+         * when we're going to substitute the loopback source below. */
+        size_t bytes_read = 0, got = 0;
         if (i2s_channel_read(s_rx, interleaved, n * 2 * sizeof(int16_t),
                              &bytes_read, pdMS_TO_TICKS(100)) == ESP_OK) {
-            size_t got = bytes_read / (2 * sizeof(int16_t));
+            got = bytes_read / (2 * sizeof(int16_t));
             for (int line = 0; line < AUDIO_NUM_LINES; line++) {
-                int16_t *dst = s_rx_mono[line];
                 for (size_t i = 0; i < got; i++) {
-                    dst[i] = interleaved[2 * i + line];
-                }
-                s_line[line].rx_level = rms_of(dst, got);
-                if (s_line[line].rx_tap) {
-                    s_line[line].rx_tap(line, dst, got, s_line[line].rx_ctx);
-                }
-                if (s_line[line].rx) {
-                    xStreamBufferSend(s_line[line].rx, dst, got * sizeof(int16_t), 0);
+                    s_rx_mono[line][i] = interleaved[2 * i + line];
                 }
             }
         }
@@ -241,6 +253,24 @@ static void audio_task(void *arg)
         /* Build TX. */
         fill_tx_line(0, txL, n);
         fill_tx_line(1, txR, n);
+
+        /* RX processing: real ADC input, or (test loopback) the TX we just
+         * built, so a played tone/DTMF/clip is level-metered, DTMF-detected
+         * and readable back without a handset. */
+        bool loop = s_test_loopback;
+        size_t rxn = loop ? n : got;
+        for (int line = 0; line < AUDIO_NUM_LINES; line++) {
+            const int16_t *src = loop ? (line == 0 ? txL : txR) : s_rx_mono[line];
+            s_line[line].rx_level = rms_of(src, rxn);
+            if (rxn && s_line[line].rx_tap) {
+                s_line[line].rx_tap(line, src, rxn, s_line[line].rx_ctx);
+            }
+            if (rxn && s_line[line].rx) {
+                xStreamBufferSend(s_line[line].rx, src, rxn * sizeof(int16_t), 0);
+            }
+        }
+
+        /* Write TX. */
         for (size_t i = 0; i < n; i++) {
             interleaved[2 * i + 0] = txL[i];
             interleaved[2 * i + 1] = txR[i];
