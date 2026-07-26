@@ -14,84 +14,85 @@ Usage:
 
 Exit code = number of failed tests.
 """
-import argparse, http.client, json, os, re, subprocess, sys, time, urllib.parse
+import argparse, json, os, re, subprocess, sys, tempfile, time
 
-# ---------- small HTTP client (one reused connection, reconnect on error) ----
+# ---------- HTTP client via curl ----------
+# We shell out to curl rather than use Python sockets: on macOS the "Local
+# Network" privacy permission frequently blocks the Python interpreter from
+# reaching LAN IPs (EHOSTUNREACH) while curl -- an already-permitted system
+# binary -- works fine. curl is also universally available and needs no
+# Python packages.
 
 class Dev:
     def __init__(self, host, verbose=False):
         self.host = host
+        self.base = "http://%s" % host
         self.verbose = verbose
-        self.conn = None
 
-    def _connect(self):
-        if self.conn is None:
-            self.conn = http.client.HTTPConnection(self.host, 80, timeout=10)
-
-    def _request(self, method, path, body=None, headers=None, retries=3):
-        headers = headers or {}
-        last = None
+    def _curl(self, args, retries=3):
+        """Run curl; return (http_status:int, body:bytes). -1 status on failure."""
+        cmd = ["curl", "-s", "-m", "15", "-o", "-", "-w", "\n__HTTP__%{http_code}", *args]
+        last = b""
         for _ in range(retries):
-            try:
-                self._connect()
-                self.conn.request(method, path, body=body, headers=headers)
-                r = self.conn.getresponse()
-                data = r.read()
-                time.sleep(0.05)  # gentle pacing: this board's WiFi dislikes rapid-fire requests
-                return r.status, data
-            except Exception as e:  # noqa: BLE001
-                last = e
+            p = subprocess.run(cmd, capture_output=True)
+            out = p.stdout
+            m = out.rsplit(b"\n__HTTP__", 1)
+            if len(m) == 2 and m[1].strip():
                 try:
-                    self.conn.close()
-                except Exception:
+                    return int(m[1].strip()), m[0]
+                except ValueError:
                     pass
-                self.conn = None
-                time.sleep(0.3)
-        raise last
+            last = out
+            time.sleep(0.3)
+        return -1, last
 
     def get(self, path):
-        return self._request("GET", path)
+        return self._curl([self.base + path])
 
     def get_bytes(self, path):
-        s, d = self.get(path)
-        return s, d
+        return self.get(path)
 
     def post_form(self, path, fields):
-        body = urllib.parse.urlencode(fields)
-        return self._request("POST", path, body=body,
-                             headers={"Content-Type": "application/x-www-form-urlencoded"})
+        args = [self.base + path]
+        for k, v in fields.items():
+            args += ["--data-urlencode", "%s=%s" % (k, v)]
+        if not fields:
+            args += ["-X", "POST"]
+        return self._curl(args)
 
     def post_raw(self, path, data, ctype="application/octet-stream"):
-        return self._request("POST", path, body=data, headers={"Content-Type": ctype})
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            f.write(data)
+            tmp = f.name
+        try:
+            return self._curl(["-X", "POST", "-H", "Content-Type: " + ctype,
+                               "--data-binary", "@" + tmp, self.base + path])
+        finally:
+            os.unlink(tmp)
 
     def post_multipart(self, path, fields, filefield, filename, filedata):
-        boundary = "----dvtBoundary%d" % int(time.time() * 1000)
-        parts = []
-        for k, v in fields.items():
-            parts.append(("--%s\r\nContent-Disposition: form-data; name=\"%s\"\r\n\r\n%s\r\n"
-                          % (boundary, k, v)).encode())
-        parts.append(("--%s\r\nContent-Disposition: form-data; name=\"%s\"; filename=\"%s\"\r\n"
-                      "Content-Type: application/octet-stream\r\n\r\n"
-                      % (boundary, filefield, filename)).encode())
-        parts.append(filedata)
-        parts.append(("\r\n--%s--\r\n" % boundary).encode())
-        body = b"".join(parts)
-        return self._request("POST", path, body=body,
-                             headers={"Content-Type": "multipart/form-data; boundary=%s" % boundary})
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            f.write(filedata)
+            tmp = f.name
+        try:
+            args = [self.base + path]
+            for k, v in fields.items():
+                args += ["-F", "%s=%s" % (k, v)]
+            args += ["-F", "%s=@%s;filename=%s" % (filefield, tmp, filename)]
+            return self._curl(args)
+        finally:
+            os.unlink(tmp)
 
     def status(self):
         s, d = self.get("/api/status")
         return json.loads(d)
 
-    def wait_up(self, timeout=40):
+    def wait_up(self, timeout=45):
         end = time.time() + timeout
         while time.time() < end:
-            try:
-                s, _ = self.get("/")
-                if s == 200:
-                    return True
-            except Exception:
-                pass
+            s, _ = self.get("/")
+            if s == 200:
+                return True
             time.sleep(1)
         return False
 

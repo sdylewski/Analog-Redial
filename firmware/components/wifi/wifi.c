@@ -222,6 +222,13 @@ esp_err_t wifi_init(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
 
+    /* Disable modem power-save. The default (WIFI_PS_MIN_MODEM) sleeps the
+     * radio between DTIM beacons, which for this always-on, mains-powered
+     * gateway just means ~100 ms+ HTTP latency and intermittent "no route to
+     * host" dropouts under load -- bad for a device whose whole job is to
+     * serve a web UI and (eventually) carry VoIP RTP. Keep the radio awake. */
+    esp_wifi_set_ps(WIFI_PS_NONE);
+
     /* Background SNTP client -- syncs whenever there's connectivity, no need
      * to gate this on wifi being up yet. */
     esp_sntp_config_t sntp_cfg = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
