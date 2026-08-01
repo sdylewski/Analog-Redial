@@ -144,7 +144,9 @@ static int append_log_line(char *out, size_t out_len, int off, const char *raw)
 static int append_log_panel(char *out, size_t out_len, int off, char *log_snapshot)
 {
     off += snprintf(out + off, ((size_t)off < out_len) ? out_len - off : 0,
-        "<div class=\"logpanel\" style=\"margin-top:16px\"><h2>Recent log</h2><div class=\"logbody\">");
+        "<div class=\"logpanel\" style=\"margin-top:16px\"><h2>Recent log"
+        "<button type=\"button\" onclick=\"copyLog(this)\">Copy log</button>"
+        "</h2><div class=\"logbody\">");
 
     size_t max_lines = 600;
     char **lines = malloc(max_lines * sizeof(char *));
@@ -162,7 +164,25 @@ static int append_log_panel(char *out, size_t out_len, int off, char *log_snapsh
         free(lines);
     }
 
-    off += snprintf(out + off, ((size_t)off < out_len) ? out_len - off : 0, "</div></div>");
+    /* Plain execCommand fallback first because this page is normally loaded
+     * over http://<name>.local, which most browsers don't treat as a secure
+     * context -- navigator.clipboard is unavailable there, only on https or
+     * localhost. */
+    off += snprintf(out + off, ((size_t)off < out_len) ? out_len - off : 0, "</div></div>"
+        "<script>function copyLog(btn){"
+        "var text=btn.closest('.logpanel').querySelector('.logbody').innerText;"
+        "function fallback(){"
+        "var ta=document.createElement('textarea');ta.value=text;"
+        "ta.style.position='fixed';ta.style.opacity='0';"
+        "document.body.appendChild(ta);ta.focus();ta.select();"
+        "try{document.execCommand('copy');}catch(e){}"
+        "document.body.removeChild(ta);}"
+        "if(navigator.clipboard&&navigator.clipboard.writeText){"
+        "navigator.clipboard.writeText(text).catch(fallback);"
+        "}else{fallback();}"
+        "var t=btn.textContent;btn.textContent='Copied!';"
+        "setTimeout(function(){btn.textContent=t;},1500);}"
+        "</script>");
     return off;
 }
 
