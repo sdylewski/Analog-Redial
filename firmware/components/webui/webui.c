@@ -217,6 +217,13 @@ static cJSON *build_status_json(void)
     cJSON_AddStringToObject(root, "log_level", logctl_level_name(logctl_get_level()));
     cJSON_AddBoolToObject(root, "test_mode", telephony_test_enabled());
     cJSON_AddBoolToObject(root, "test_loopback", audio_test_loopback());
+    /* No passwords here -- server/user only, so a test harness can snapshot
+     * the persisted VoIP config before poking it and restore it after. */
+    cJSON_AddStringToObject(root, "voip_server", voip_server());
+    cJSON_AddStringToObject(root, "voip_user0", voip_user(0));
+#if CONFIG_BOARD_NUM_LINES > 1
+    cJSON_AddStringToObject(root, "voip_user1", voip_user(1));
+#endif
 
     cJSON *lines = cJSON_AddArrayToObject(root, "lines");
     for (int l = 0; l < CONFIG_BOARD_NUM_LINES; l++) {

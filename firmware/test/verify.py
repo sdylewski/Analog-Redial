@@ -394,19 +394,32 @@ def t_sd(ctx):
 
 @test("voip_config_script")
 def t_voip(ctx):
-    # save config (dummy), then check the generated Asterisk script is valid bash
-    ctx.dev.post_form("/voip_set", {"server": "dvt.local", "user0": "1000"})
-    s, d = ctx.dev.get_bytes("/voip_server_script")
-    if s != 200 or not d.startswith(b"#!/bin/bash"):
-        raise Fail("server script not generated (status %d)" % s)
-    # syntax-check with local bash
+    # save config (dummy), then check the generated Asterisk script is valid bash.
+    # This POST really persists to NVS (there's no simulated/dry-run mode), so
+    # snapshot the current server/user0 first and restore them afterward --
+    # otherwise a DVT run leaves the phone pointed at the dummy "dvt.local"
+    # forever (only user0/server are touched; passwords are never sent here,
+    # so voip_set_config() leaves them alone either way).
+    orig = ctx.dev.status()
+    orig_server = orig.get("voip_server", "")
+    orig_user0 = orig.get("voip_user0", "")
     try:
-        p = subprocess.run(["bash", "-n"], input=d, capture_output=True, timeout=10)
-        if p.returncode != 0:
-            raise Fail("generated script failed bash -n: %s" % p.stderr.decode()[:120])
-    except FileNotFoundError:
-        ctx.note("bash not available to syntax-check; script downloaded OK")
-    ctx.note("VoIP config saved; Asterisk script generated + valid")
+        ctx.dev.post_form("/voip_set", {"server": "dvt.local", "user0": "1000"})
+        s, d = ctx.dev.get_bytes("/voip_server_script")
+        if s != 200 or not d.startswith(b"#!/bin/bash"):
+            raise Fail("server script not generated (status %d)" % s)
+        # syntax-check with local bash
+        try:
+            p = subprocess.run(["bash", "-n"], input=d, capture_output=True, timeout=10)
+            if p.returncode != 0:
+                raise Fail("generated script failed bash -n: %s" % p.stderr.decode()[:120])
+        except FileNotFoundError:
+            ctx.note("bash not available to syntax-check; script downloaded OK")
+        ctx.note("VoIP config saved; Asterisk script generated + valid")
+    finally:
+        if orig_server or orig_user0:
+            ctx.dev.post_form("/voip_set", {"server": orig_server, "user0": orig_user0})
+            ctx.note("restored prior VoIP config (server=%r, user0=%r)" % (orig_server, orig_user0))
 
 # ---- serial-only tests ----
 

@@ -24,3 +24,9 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 # 4 MB flash to fit factory app + asset storage partition
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
+
+# Default (512) is too small for a real browser POST: modern Chrome/Safari
+# add Origin, Sec-Fetch-*, Sec-Ch-Ua, and a long User-Agent, which alone can
+# exceed 512 bytes and trip HTTPD_431_REQ_HDR_FIELDS_TOO_LARGE ("Header
+# fields too long") on form submits like /voip_set.
+CONFIG_HTTPD_MAX_REQ_HDR_LEN=1536
