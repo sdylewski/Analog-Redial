@@ -780,7 +780,7 @@ static int append_operator_tab(char *buf, size_t cap, int off,
     return off;
 }
 
-static int append_voip_tab(char *buf, size_t cap, int off)
+static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, const char *result)
 {
     bool r0 = voip_is_registered(0);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
@@ -798,7 +798,38 @@ static int append_voip_tab(char *buf, size_t cap, int off)
         r1 ? "on" : "off", r1 ? "registered" : "not registered");
 #endif
 
+    /* Check-before-you-commit: separate tiny form (its own number field, not
+     * tied to the save form below) so you can try a few candidates without
+     * touching your actual saved config. Server-rendered redirect-with-
+     * result, same no-JS pattern as the rest of this page. */
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<form method=\"POST\" action=\"/voip_check\" class=\"settings-form\">"
+        "<div class=\"grid2\">"
+        "<label>SIP server to check against <input name=\"server\" value=\"%s\"></label>"
+        "<label>Number to check <input name=\"number\" placeholder=\"e.g. 1101\" "
+        "pattern=\"[0-9]{2,6}\" required></label></div>"
+        "<div class=\"toolbar sub\"><button type=\"submit\">Check availability</button></div>"
+        "</form>",
+        voip_server());
+    if (checked && checked[0]) {
+        const char *cls = strcmp(result, "free") == 0 ? "on" : "off";
+        const char *label = strcmp(result, "free") == 0 ? "nothing answered -- looks free" :
+                             strcmp(result, "taken") == 0 ? "in use, or not confirmable" :
+                             "couldn't tell (server unreachable)";
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+            "<span class=\"pill %s\">%s</span></div>", checked, cls, label);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">Sends a SIP OPTIONS to that number on the server, nothing more -- "
+        "safe to try even before saving anything below. Only a clean 404 Not Found counts as "
+        "\"free\"; that's the one answer this can trust. On stock Asterisk/PJSIP "
+        "(<code>identify_by=username</code>), an unrecognized number usually gets challenged for "
+        "auth (401) exactly like a real endpoint with the wrong password would -- so \"in use, or "
+        "not confirmable\" often just means Asterisk couldn't be bothered to say no, not that the "
+        "number is actually taken. Treat a non-free result as inconclusive, and confirm on the "
+        "server itself: <code>asterisk -rx \"pjsip show endpoint &lt;number&gt;\"</code>.</p>"
+
         "<form method=\"POST\" action=\"/voip_set\" class=\"settings-form\">"
         "<label>SIP server (host or IP) <input name=\"server\" value=\"%s\"></label>"
         "<div class=\"grid2\">"
@@ -1035,9 +1066,27 @@ static int append_storage_section(char *buf, size_t cap, int off)
 static esp_err_t settings_page_handler(httpd_req_t *req)
 {
     char tab[16] = "general";
-    char query[64];
+    char checked[8] = "", result[8] = "";
+    char query[96];
     if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
         httpd_query_key_value(query, "tab", tab, sizeof(tab));
+        httpd_query_key_value(query, "checked", checked, sizeof(checked));
+        httpd_query_key_value(query, "result", result, sizeof(result));
+    }
+    /* checked/result land directly in the VOIP tab's HTML (no escaping) --
+     * this GET's query string is otherwise attacker-controlled input (unlike
+     * the values /voip_check itself generates), so validate defensively
+     * here too rather than trusting the redirect that normally produces
+     * them. */
+    {
+        size_t clen = strlen(checked);
+        bool cok = clen >= 2 && clen <= 6;
+        for (size_t i = 0; cok && i < clen; i++) cok = checked[i] >= '0' && checked[i] <= '9';
+        if (!cok) checked[0] = '\0';
+        if (strcmp(result, "free") != 0 && strcmp(result, "taken") != 0 && strcmp(result, "unknown") != 0) {
+            result[0] = '\0';
+        }
+        if (!checked[0] || !result[0]) { checked[0] = '\0'; result[0] = '\0'; }
     }
     bool known_tab = false;
     for (size_t i = 0; i < SETTINGS_TABS_N; i++) {
@@ -1065,7 +1114,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     if (strcmp(tab, "general") == 0) off = append_general_tab(buf, cap, off);
     else if (strcmp(tab, "dialcodes") == 0) off = append_dialcodes_tab(buf, cap, off);
     else if (strcmp(tab, "operator") == 0) off = append_operator_tab(buf, cap, off, entries, n);
-    else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off);
+    else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off, checked, result);
     else if (strcmp(tab, "interphone") == 0) off = append_interphone_tab(buf, cap, off, entries, n);
     else if (strcmp(tab, "record") == 0) off = append_record_tab(buf, cap, off, entries, n);
     else if (strcmp(tab, "diag") == 0) off = append_diag_tab(buf, cap, off);
@@ -1308,6 +1357,48 @@ static esp_err_t voip_set_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* POST /voip_check -- form body server=..&number=.. . Fires voip_probe_number()
+ * (blocks up to ~2s) and redirects back to the VOIP tab with the result in
+ * the query string, same request/redirect/re-render pattern as every other
+ * form on this page -- no separate JSON/AJAX endpoint needed. */
+static esp_err_t voip_check_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= VOIP_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[VOIP_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char server[64] = {0}, number[8] = {0};
+    form_field(body, "server", server, sizeof(server));
+    form_field(body, "number", number, sizeof(number));
+
+    /* Digits only, 2-6 chars (matches the HTML pattern= and dialplan's own
+     * valid_code() range) -- url_decode() above accepts arbitrary bytes, and
+     * `number` lands straight in a redirect Location header below, so this
+     * is a correctness AND a header-injection guard, not just cosmetic. */
+    size_t nlen = strlen(number);
+    bool ok = nlen >= 2 && nlen <= 6;
+    for (size_t i = 0; ok && i < nlen; i++) ok = number[i] >= '0' && number[i] <= '9';
+
+    char loc[80];
+    if (ok && server[0]) {
+        voip_probe_result_t pr = VOIP_PROBE_UNKNOWN;
+        voip_probe_number(server, number, &pr);
+        const char *result = pr == VOIP_PROBE_FREE ? "free" : pr == VOIP_PROBE_TAKEN ? "taken" : "unknown";
+        snprintf(loc, sizeof(loc), "/settings?tab=voip&checked=%s&result=%s", number, result);
+    } else {
+        snprintf(loc, sizeof(loc), "/settings?tab=voip");
+    }
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", loc);
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 /* POST /log_level -- form body level=<name>. Persists + applies (logctl). */
 static esp_err_t log_level_handler(httpd_req_t *req)
 {
@@ -1494,11 +1585,18 @@ static esp_err_t voip_server_script_handler(httpd_req_t *req)
             "identify_by=username\n"
             "; END %s-line%d\n"
             "PEER\n"
-            /* awk, not sed's multi-line 'a' command (inconsistent across sed
-             * variants) -- drop any previous entry for this user, then
-             * insert the new one right after the [rotary] context header. */
-            "grep -v \"^exten => %s,\" \"$EXT\" > \"$EXT.tmp\" && mv \"$EXT.tmp\" \"$EXT\"\n"
-            "awk -v u=\"%s\" '{print} /^\\[rotary\\]$/{print \"exten => \" u \",1,Dial(PJSIP/\" u \",30)\"; print \" same => n,Hangup()\"}' \"$EXT\" > \"$EXT.tmp\" && mv \"$EXT.tmp\" \"$EXT\"\n",
+            /* Same marker-delete-then-reinsert approach as the pjsip.conf
+             * block above, not a bare "grep -v the exten line" -- this
+             * dialplan entry is 2 lines (exten => + a continuation same =>),
+             * and grep -v only ever dropped the first, leaving an orphaned
+             * " same => n,Hangup()" behind on every re-run that silently
+             * glued itself onto whatever extension happened to follow it in
+             * the file. Wrapping the whole block in its own BEGIN/END
+             * markers makes the delete exact regardless of line count. */
+            "sed -i \"/^; BEGIN %s-line%d-ext/,/^; END %s-line%d-ext/d\" \"$EXT\"\n"
+            "awk -v u=\"%s\" '{print} /^\\[rotary\\]$/{print \"; BEGIN %s-line%d-ext\"; "
+            "print \"exten => \" u \",1,Dial(PJSIP/\" u \",30)\"; print \" same => n,Hangup()\"; "
+            "print \"; END %s-line%d-ext\"}' \"$EXT\" > \"$EXT.tmp\" && mv \"$EXT.tmp\" \"$EXT\"\n",
             name, line, user,           /* comment */
             name, line, name, line,     /* sed delete marker range */
             name, line,                 /* BEGIN marker */
@@ -1508,8 +1606,10 @@ static esp_err_t voip_server_script_handler(httpd_req_t *req)
             user,                       /* [user] endpoint */
             user, user,                 /* auth=/aors= */
             name, line,                 /* END marker */
-            user,                       /* grep -v exten */
-            user);                      /* awk -v u= */
+            name, line, name, line,     /* extensions.conf sed delete marker range */
+            user,                       /* awk -v u= */
+            name, line,                 /* extensions.conf BEGIN marker */
+            name, line);                /* extensions.conf END marker */
     }
 
     off += snprintf(buf + off, (off < 4096) ? 4096 - off : 0,
@@ -2361,10 +2461,11 @@ esp_err_t webui_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
-    /* Default is 8 -- we register 27 routes below (two share the media
-     * path, one GET, one POST, counted separately). Past the cap,
-     * httpd_register_uri_handler() just fails per-route, which used to go
-     * unchecked below, silently dropping the last couple of routes. */
+    /* Default is 8 -- we register 28 routes below (two share the media
+     * path, one GET, one POST, counted separately) and it keeps growing.
+     * Past the cap, httpd_register_uri_handler() just fails per-route, which
+     * used to go unchecked below, silently dropping the last couple of
+     * routes -- the loop below now at least logs it, but leave headroom. */
     config.max_uri_handlers = 36;
     /* Default httpd task stack is 4 KB. Our page handlers stack a few
      * storage_entry_t[32]/dialplan_entry_info_t[40] arrays and then descend
@@ -2418,6 +2519,7 @@ esp_err_t webui_start(void)
         { .uri = "/dialcode_upload",        .method = HTTP_POST, .handler = dialcode_upload_handler },
         { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },
         { .uri = "/voip_set",               .method = HTTP_POST, .handler = voip_set_handler },
+        { .uri = "/voip_check",             .method = HTTP_POST, .handler = voip_check_handler },
         { .uri = "/log_level",              .method = HTTP_POST, .handler = log_level_handler },
         { .uri = "/test/mode",              .method = HTTP_POST, .handler = test_mode_handler },
         { .uri = "/test/loopback",          .method = HTTP_POST, .handler = test_loopback_handler },

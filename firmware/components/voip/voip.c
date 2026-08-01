@@ -607,35 +607,42 @@ static void handle_request(const char *msg, const struct sockaddr_in *src)
 
 /* ---------- server resolution + main task ---------- */
 
-static bool resolve_server(void)
+/* Shared by resolve_server() (the configured account's server, cached into
+ * s_server_ip) and voip_probe_number() (an arbitrary candidate server/number
+ * check that must NOT disturb that cached state -- it may be run before
+ * VoIP is even configured, or against a different host entirely). */
+static bool resolve_host(const char *host, char *ip_out, size_t ip_out_len)
 {
     struct in_addr a;
-    if (inet_aton(s_server, &a)) { strncpy(s_server_ip, s_server, sizeof(s_server_ip) - 1); goto done; }
+    if (inet_aton(host, &a)) { strncpy(ip_out, host, ip_out_len - 1); ip_out[ip_out_len - 1] = 0; return true; }
 
-    size_t sl = strlen(s_server);
-    if (sl > 6 && strcasecmp(s_server + sl - 6, ".local") == 0) {
-        char host[64];
-        strncpy(host, s_server, sizeof(host) - 1); host[sizeof(host) - 1] = 0;
-        host[sl - 6] = '\0';
+    size_t hl = strlen(host);
+    if (hl > 6 && strcasecmp(host + hl - 6, ".local") == 0) {
+        char base[64];
+        strncpy(base, host, sizeof(base) - 1); base[sizeof(base) - 1] = 0;
+        base[hl - 6] = '\0';
         esp_ip4_addr_t ip;
-        if (mdns_query_a(host, 2000, &ip) == ESP_OK) {
-            snprintf(s_server_ip, sizeof(s_server_ip), IPSTR, IP2STR(&ip));
-            goto done;
+        if (mdns_query_a(base, 2000, &ip) == ESP_OK) {
+            snprintf(ip_out, ip_out_len, IPSTR, IP2STR(&ip));
+            return true;
         }
-        ESP_LOGW(TAG, "mDNS could not resolve %s", s_server);
+        ESP_LOGW(TAG, "mDNS could not resolve %s", host);
         return false;
     }
 
-    struct hostent *he = gethostbyname(s_server);
+    struct hostent *he = gethostbyname(host);
     if (he && he->h_addr_list[0]) {
         struct in_addr *ia = (struct in_addr *)he->h_addr_list[0];
-        strncpy(s_server_ip, inet_ntoa(*ia), sizeof(s_server_ip) - 1);
-        goto done;
+        strncpy(ip_out, inet_ntoa(*ia), ip_out_len - 1); ip_out[ip_out_len - 1] = 0;
+        return true;
     }
-    ESP_LOGW(TAG, "could not resolve SIP server '%s'", s_server);
+    ESP_LOGW(TAG, "could not resolve host '%s'", host);
     return false;
+}
 
-done:
+static bool resolve_server(void)
+{
+    if (!resolve_host(s_server, s_server_ip, sizeof(s_server_ip))) return false;
     memset(&s_server_addr, 0, sizeof(s_server_addr));
     s_server_addr.sin_family = AF_INET;
     s_server_addr.sin_port = htons(SIP_PORT);
@@ -851,4 +858,93 @@ esp_err_t voip_set_config(const char *server, const char *user0, const char *pas
     nvs_close(h);
     ESP_LOGI(TAG, "VoIP config saved; reboot to apply");
     return err;
+}
+
+/* ---------- number-availability probe (web UI: check before you commit) ----------
+ *
+ * Fires a standalone SIP OPTIONS at sip:<number>@<server> from a throwaway
+ * socket/port -- entirely separate from s_sock/sip_task's registered lines,
+ * so it's safe to call before VoIP is even configured, or against a server
+ * that isn't the one currently in use.
+ *
+ * Interpreting the result is inherently best-effort: this project uses one
+ * value (voip_user()) as both the SIP username and the dialable extension,
+ * so "is this number free" really means "does an endpoint/AOR by this name
+ * already exist". A clean 404 from Asterisk is a reliable "no such thing" --
+ * anything else (2xx, 401/403 challenging for auth, a redirect, or no
+ * response at all within the timeout) is reported as NOT confirmed free,
+ * since a false "it's free" is the failure mode that actually causes a
+ * collision. This is a convenience check, not a substitute for confirming
+ * on the server itself (`asterisk -rx "pjsip show endpoint <number>"`). */
+esp_err_t voip_probe_number(const char *server, const char *number, voip_probe_result_t *out_result)
+{
+    *out_result = VOIP_PROBE_UNKNOWN;
+    if (!server || !server[0] || !number || !number[0]) return ESP_ERR_INVALID_ARG;
+
+    char ip[16];
+    if (!resolve_host(server, ip, sizeof(ip))) return ESP_ERR_NOT_FOUND;
+
+    char my_ip[16];
+    wifi_get_ip_str(my_ip, sizeof(my_ip));
+    if (!my_ip[0] || strcmp(my_ip, "0.0.0.0") == 0) return ESP_ERR_INVALID_STATE;
+
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) return ESP_ERR_NO_MEM;
+    struct sockaddr_in local = { .sin_family = AF_INET, .sin_addr.s_addr = htonl(INADDR_ANY) };
+    if (bind(sock, (struct sockaddr *)&local, sizeof(local)) < 0) { close(sock); return ESP_FAIL; }
+    socklen_t local_len = sizeof(local);
+    getsockname(sock, (struct sockaddr *)&local, &local_len);
+    uint16_t my_port = ntohs(local.sin_port);
+
+    struct sockaddr_in to = { .sin_family = AF_INET, .sin_port = htons(SIP_PORT) };
+    to.sin_addr.s_addr = inet_addr(ip);
+
+    char branch[40], from_tag[24], call_id[32];
+    rand_hex(branch, sizeof(branch));
+    rand_hex(from_tag, sizeof(from_tag));
+    rand_hex(call_id, sizeof(call_id));
+    char buf[MSG_MAX];
+    int n = snprintf(buf, sizeof(buf),
+        "OPTIONS sip:%s@%s SIP/2.0\r\n"
+        "Via: SIP/2.0/UDP %s:%d;branch=z9hG4bK%s;rport\r\n"
+        "Max-Forwards: 70\r\n"
+        "From: <sip:probe@%s>;tag=%s\r\n"
+        "To: <sip:%s@%s>\r\n"
+        "Call-ID: %s\r\n"
+        "CSeq: 1 OPTIONS\r\n"
+        "Contact: <sip:probe@%s:%d>\r\n"
+        "User-Agent: RotaryPhone-ESP32\r\n"
+        "Content-Length: 0\r\n\r\n",
+        number, server,
+        my_ip, my_port, branch,
+        server, from_tag,
+        number, server,
+        call_id,
+        my_ip, my_port);
+    if (n <= 0 || n >= (int)sizeof(buf)) { close(sock); return ESP_ERR_INVALID_SIZE; }
+    sendto(sock, buf, n, 0, (const struct sockaddr *)&to, sizeof(to));
+
+    struct timeval tv = { .tv_sec = 2, .tv_usec = 0 };
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+    int64_t deadline = esp_timer_get_time() + 2000000;
+    int final_code = 0;
+    while (esp_timer_get_time() < deadline) {
+        int r = recvfrom(sock, buf, sizeof(buf) - 1, 0, NULL, NULL);
+        if (r <= 0) break; /* timeout or error -- no more coming */
+        buf[r] = '\0';
+        if (strncmp(buf, "SIP/2.0 ", 8) != 0) continue; /* not a status line */
+        int code = atoi(buf + 8);
+        if (code >= 200) { final_code = code; break; } /* final response; stop */
+        /* 1xx provisional -- keep waiting for the final response */
+    }
+    close(sock);
+
+    if (final_code == 404) *out_result = VOIP_PROBE_FREE;
+    else if (final_code > 0) *out_result = VOIP_PROBE_TAKEN;
+    else *out_result = VOIP_PROBE_UNKNOWN;
+    ESP_LOGI(TAG, "probe %s@%s -> SIP %d (%s)", number, server, final_code,
+             *out_result == VOIP_PROBE_FREE ? "free" :
+             *out_result == VOIP_PROBE_TAKEN ? "taken" : "unknown");
+    return ESP_OK;
 }

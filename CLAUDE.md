@@ -23,6 +23,7 @@ One firmware tree; board type selects pin map + codec driver.
 - [`MCU_VS_PI_ZERO_STACK.md`](MCU_VS_PI_ZERO_STACK.md) — MCU vs. Pi Zero tradeoffs
 - [`PROJECT_UPDATE_PLAN.md`](PROJECT_UPDATE_PLAN.md) — project update plan
 - [`firmware/README.md`](firmware/README.md) — ESP-IDF toolchain setup, build/flash
+- [`VOIP_SETUP.md`](VOIP_SETUP.md) — Asterisk server setup, extension-numbering registry shared with `pi_rotary_phone`, adding a line
 - Dial plan source of truth: `pi_rotary_phone/docs/DIAL_CODES.md` (sibling repo)
 
 ## Firmware architecture (summary)

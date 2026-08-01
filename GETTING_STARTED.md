@@ -196,7 +196,11 @@ link that generates a ready-to-run script for your Asterisk/PBX box. Save the
 form, reboot, then run the downloaded script on the Asterisk machine (not the
 phone) and check the registration status back on that same page. Dial `555`
 + a 4-digit extension to place a call. LAN only (no TLS/SRTP). The console's
-`sip_set`/`sip_status` commands still work too, if you prefer that.
+`sip_set`/`sip_status` commands still work too, if you prefer that. The same
+page also has a "Check availability" box for picking a number that isn't
+already in use elsewhere — see [`VOIP_SETUP.md`](VOIP_SETUP.md) for what
+that check can and can't tell you, and the shared numbering registry if
+you're also running `pi_rotary_phone` phones on the same Asterisk server.
 
 **microSD.** If you built with microSD enabled, the boot log shows whether the
 card mounted; `sd_test` from the console prints card info and runs a

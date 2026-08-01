@@ -86,6 +86,19 @@ const char *voip_user(int line);
  * existing "LAN bring-up tool, no auth" security posture (see webui.c). */
 const char *voip_pass(int line);
 
+typedef enum {
+    VOIP_PROBE_FREE = 0,  /* server answered 404 -- no endpoint/AOR by that name */
+    VOIP_PROBE_TAKEN,     /* server answered something else (2xx/401/403/3xx/...) */
+    VOIP_PROBE_UNKNOWN,   /* couldn't resolve the server, or no response at all */
+} voip_probe_result_t;
+
+/* Best-effort "is this number already in use on that server" check: fires a
+ * standalone SIP OPTIONS at sip:<number>@<server> and classifies the
+ * response (see voip.c for why only a clean 404 counts as free). Safe to
+ * call before VoIP is configured/running -- uses its own throwaway socket,
+ * not the registered lines' state. Blocks up to ~2s. */
+esp_err_t voip_probe_number(const char *server, const char *number, voip_probe_result_t *out_result);
+
 #ifdef __cplusplus
 }
 #endif
