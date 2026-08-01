@@ -31,10 +31,16 @@ typedef struct {
     size_t   filled;
     int32_t  coeff[8];  /* Q14 fixed-point: round(2*cos(w) * 16384) */
     int32_t  q1[8], q2[8];
-    /* debounce: a digit must persist N consecutive blocks, then a gap. */
+    /* debounce -- see dtmf_detector_push()'s comment for what each of these
+     * actually gates: tone-active tracking (in_tone/silence_blocks, short)
+     * vs. same-digit re-emission lockout (last_emitted/since_emit_blocks,
+     * longer -- rejects contact bounce / keypad auto-repeat that looks like
+     * a real release + re-press to the block-level detector). */
     char     last_emitted;
+    int      since_emit_blocks;
     char     candidate;
     int      candidate_blocks;
+    int      silence_blocks;
     bool     in_tone;
 } dtmf_detector_t;
 

@@ -14,6 +14,7 @@ static esp_log_level_t s_level = ESP_LOG_INFO;
  * global level is raised past WARN. */
 static const char *QUIET_TAGS[] = {
     "wifi", "wifi_init", "phy_init", "net80211", "pp", "esp_netif_handlers",
+    "esp_netif_lwip",
 };
 
 static void apply(esp_log_level_t level)

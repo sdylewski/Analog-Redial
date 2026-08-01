@@ -39,6 +39,10 @@ bool dtmf_make_osc(tone_osc_t *o, uint32_t sample_rate, char key, float amp)
     return true;
 }
 
+/* Minimum gap (in 10ms blocks) before the *same* digit can be emitted
+ * again -- see dtmf_detector_push()'s comment. 20 blocks = 200ms. */
+#define SAME_DIGIT_LOCKOUT_BLOCKS 20
+
 /* ---- Goertzel detector ----
  *
  * Fixed-point (Q14 coefficients, int32 state). The ESP32-C6's RISC-V core
@@ -125,25 +129,50 @@ char dtmf_detector_push(dtmf_detector_t *d, const int16_t *samples, size_t n)
         char digit = classify(mags);
         block_reset(d);
 
-        /* debounce + edge detection: emit once per key press */
+        /* debounce + edge detection: emit once per key press.
+         * Two separate, deliberately-decoupled timers:
+         *  - in_tone/silence_blocks: is a tone (any digit) active right
+         *    now? Clears after a short (50ms) real quiet gap, so a
+         *    *different* next digit is still recognized promptly.
+         *  - since_emit_blocks: how long since we last emitted THIS
+         *    digit. A real analog phone/keypad can chatter -- contact
+         *    bounce, or a cheap keypad's own auto-repeat -- and drop the
+         *    tone entirely for tens of ms mid-press, which looks exactly
+         *    like "released, pressed again" to the block-level detector.
+         *    Gating same-digit re-emission on a longer, dialing-speed
+         *    window (not just "was there a brief quiet gap") is what
+         *    actually rejects that, without slowing down a genuinely
+         *    different next digit. */
+        if (d->since_emit_blocks < SAME_DIGIT_LOCKOUT_BLOCKS) d->since_emit_blocks++;
+
         if (digit != 0) {
+            d->silence_blocks = 0;
             if (digit == d->candidate) {
                 d->candidate_blocks++;
             } else {
                 d->candidate = digit;
                 d->candidate_blocks = 1;
             }
-            if (!d->in_tone && d->candidate_blocks >= 2 && digit != d->last_emitted) {
-                d->in_tone = true;
-                d->last_emitted = digit;
-                emitted = digit;
+            if (!d->in_tone && d->candidate_blocks >= 2) {
+                d->in_tone = true; /* track this occurrence either way */
+                bool too_soon = (digit == d->last_emitted) &&
+                                 (d->since_emit_blocks < SAME_DIGIT_LOCKOUT_BLOCKS);
+                if (!too_soon) {
+                    d->last_emitted = digit;
+                    d->since_emit_blocks = 0;
+                    emitted = digit;
+                }
             }
         } else {
-            /* silence block: end of tone, allow same key again next time */
+            /* non-classifying block: only declare the tone over after a
+             * few of these in a row -- a single one is as likely to be a
+             * momentary dip mid-tone (line noise/echo) as a real release. */
             d->candidate = 0;
             d->candidate_blocks = 0;
-            d->in_tone = false;
-            d->last_emitted = 0;
+            if (d->in_tone && ++d->silence_blocks >= 5) {
+                d->in_tone = false;
+                d->silence_blocks = 0;
+            }
         }
     }
     return emitted;
