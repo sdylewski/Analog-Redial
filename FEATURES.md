@@ -47,8 +47,8 @@ interface, implemented later · ❌ dropped (host/Pi-only concept)
 | **Call the other phone (inter-line)** | ✅ | Local bridge L↔R channels in `audio` |
 | **Busy when other line off-hook** | ✅ | state machine |
 | **Audio clip playback** (silly clips 4xx, banana line) | ✅ | Browser upload (Settings → Dial Codes / Operator) converts any common WAV (any sample rate/bit-depth/channel count) to 8kHz mono via `audio_convert`, or bring your own via `sync_pi_audio.py`/`gen_prompt.py`. Optional MP3 upload support (`audio_convert`'s Kconfig, off by default — real RAM cost, see that Kconfig's help). No clip WAVs ship by default (copyright). |
-| **Record + playback (212/213/214/215)** | ✅ | `recorder` captures 8 kHz mono → plays back; high/low pitch via resample, Dalek flat (ring-mod TODO) |
-| **Record to web archive (211)** | ✅ | `recorder` → 8 kHz mono WAV in `storage`, downloadable from `/recordings` |
+| **Record + playback (212/213/214/215)** | 🗄️ archived | Not used enough to justify the FSM complexity; removed 2026-07-31, see "Archived features" below |
+| **Record to web archive (211)** | ✅ | `recorder` → 8 kHz mono WAV in `storage`, timestamped filename (UTC), downloadable/playable from `/recordings` |
 | **Voice effects** (pitch/Dalek) | 🟡 | Simple on-device pitch shift; Dalek = ring-mod; not `sox`-grade |
 | **Internet radio (8xx)** | 🟡 | HTTP/Shoutcast stream → I²S; later milestone |
 | **Operator help / TTS (dial 0)** | ✅ | No on-device TTS; `operator.wav` ships by default (pre-rendered, baked into the `bundled` partition at build time) |
@@ -62,6 +62,38 @@ interface, implemented later · ❌ dropped (host/Pi-only concept)
 | **WiFi provisioning (first boot / factory reset)** | ✅ | No creds → open SoftAP `RotaryPhone-XXXX` + captive setup page; GPIO9 (BOOT) 3 s hold wipes creds |
 | **Event log (SQLite)** | 🟡 | Replaced by ring-buffer log + optional HTTP/JSON |
 | **Single-instance lock** | ❌ | N/A on MCU |
+
+---
+
+### Archived features
+
+Removed features live on in git history, tagged rather than just buried in a
+commit, so reviving one is a `git show`/`git diff` away instead of a blame
+hunt. To see the exact code: `git show archive/record-and-callback:<path>`,
+or `git diff archive/record-and-callback -- <path>` against current code.
+
+**Record + playback (dial 212-215), removed 2026-07-31.** The Pi's
+hang-up-and-ring-back callback, ported as an immediate on-handset
+record/playback instead (no ringing back — same handset, same call). Dial
+212 (normal), 213 (chipmunk), 214 (low pitch), or 215 (robot, pitch shift
+never implemented — always played flat); speak, then pause ~2s or hit the
+12s cap; it plays straight back. Removed for low usage relative to the FSM
+complexity it added (a `rec_callback`/`rec_fx` pair threaded through the
+recording state in `telephony.c`, a `cb_l<line>.wav` transient file with its
+own eviction-protection carve-out in `storage.c`, a dedicated Settings tab).
+
+To revive it, `git tag archive/record-and-callback` (before the removal
+commit) has the full working code:
+- `firmware/components/dialplan/include/dialplan.h` — `ACT_RECORD_PLAYBACK`
+  enum value
+- `firmware/components/dialplan/dialplan.c` — TABLE[] entries for 212-215
+- `firmware/components/telephony/telephony.c` — `rec_callback`/`rec_fx`
+  fields, the `ACT_RECORD_PLAYBACK` case in `handle_action()`, and the
+  pitch-shift playback branch in the `IN_REC_DONE` handler
+- `firmware/components/webui/webui.c` — the `callback` settings tab
+  (`append_callback_tab()`) and its `SETTINGS_TABS[]` entry
+- `firmware/components/storage/storage.c` — `is_protected_asset()`'s
+  `cb_` prefix carve-out
 
 ---
 

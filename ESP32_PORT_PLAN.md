@@ -68,7 +68,7 @@ Legend: ✅ done or close · 🟡 partial · 🔜 not started · ❌ N/A on MCU
 | Operator 0 (TTS help) | ✅ | ✅ | — | `operator.wav` ships by default via the `bundled` SPIFFS partition (`firmware/assets/`), baked in at build/flash time; Settings → Operator has a real upload form for replacing it |
 | Clips 4xx | ✅ | ✅ | — | Settings → Dial Codes: code AND filename are both independently editable/uploadable at runtime (`dialplan_clip_entry_t`, seeded once from 8 builtins with plain filenames, not the old `clip_<code>.wav` convention); no clip WAVs ship by default (copyright — bring your own via the web UI, `sync_pi_audio.py`, or `gen_prompt.py`) |
 | Record 211 | ✅ | ✅ | — | `recorder` component: 8 kHz mono WAV to `storage`, auto-stop on hangup/silence/30 s |
-| Callback 212–215 | ✅ | ✅ | — | Record then play back on the handset; high/low via resample, Dalek flat (ring-mod TODO) |
+| Callback 212–215 | ✅ | 🗄️ archived | — | Record then play back on the handset; removed 2026-07-31 for low usage — see FEATURES.md "Archived features" / `archive/record-and-callback` git tag |
 | Internet radio 811/812 | ✅ | 🔜 | **3** | [`esp-adf`](https://github.com/espressif/esp-adf) or `esp_http_client` + decoder |
 | VoIP 555-xxxx + inbound | ✅ | ✅ | — | Custom SIP UA (`voip.c`) + RTP/G.711 (`rtp.c`); digest auth; registers + calls a real Asterisk (bench-verified) |
 | Web status / log / recordings | ✅ | ✅ | — | `esp_http_server`; status/log/recordings pages done |

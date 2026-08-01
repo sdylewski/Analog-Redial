@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Batch-convert the pi_rotary_phone Pi's audio clips into the 8 kHz mono
-16-bit PCM WAVs this firmware's dialplan expects (clip_401.wav etc.), and
-optionally upload them all to a phone in one command.
+16-bit PCM WAVs this firmware's dialplan expects (ring_of_fire.wav etc. --
+see CLIP_MAP below, which mirrors dialplan_defaults.h), and optionally
+upload them all to a phone in one command.
 
 This is the "copy the Pi's .wav files over" tool -- for one file at a time,
 or to synthesize a new prompt from text, use gen_prompt.py directly (this
@@ -22,8 +23,8 @@ Examples:
     # ringfire/crocodile_rock), plus the Italian operator script:
     ./sync_pi_audio.py --src /Volumes/scott/Telephone/Audio --lang it --upload phone.local
 
-Storage note: clip_*.wav and operator.wav are never auto-evicted by the
-device's storage cap (see storage.c) -- only files named rec_*/cb_* (actual
+Storage note: clip audio and operator.wav are never auto-evicted by the
+device's storage cap (see storage.c) -- only files named rec_* (actual
 recordings) are, so uploading these once is durable across normal use.
 """
 from __future__ import annotations
@@ -35,16 +36,20 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from gen_prompt import convert_to_wav, trim_wav, synthesize, upload, DEFAULT_VOICE  # noqa: E402
 
-# dest name -> (english source, italian source or None if no separate dub)
+# dest name -> (english source, italian source or None if no separate dub).
+# Dest names must match dialplan_defaults.h's CLIP_DEFAULTS -- that's what
+# actually gets seeded into the device's mutable clip table on first boot,
+# not a fixed compile-time filename convention (the old clip_401.wav-style
+# names this used to target were retired when that table became editable).
 CLIP_MAP: dict[str, tuple[str, str | None]] = {
-    "clip_401.wav": ("ringfire.wav", "thats_amore.wav"),   # Ring of Fire / That's Amore
-    "clip_402.wav": ("burp.wav", None),                     # Burp
-    "clip_403.wav": ("crocodile_rock.wav", "crocfa.wav"),   # Crocodile Rock / Crocfa
-    "clip_404.wav": ("martians.wav", None),                 # Martians
-    "clip_411.wav": ("bananaphone.wav", None),              # Banana Phone
-    "clip_412.wav": ("bananaboat.wav", None),               # Banana Boat
-    "clip_413.wav": ("bananasplit.wav", None),              # Banana Split
-    "clip_414.wav": ("limeincoconut.wav", None),            # Lime in the Coconut
+    "ring_of_fire.wav":    ("ringfire.wav", "thats_amore.wav"),   # Ring of Fire / That's Amore
+    "burp.wav":            ("burp.wav", None),                     # Burp
+    "crocodile_rock.wav":  ("crocodile_rock.wav", "crocfa.wav"),   # Crocodile Rock / Crocfa
+    "martians.wav":        ("martians.wav", None),                 # Martians
+    "banana_phone.wav":    ("bananaphone.wav", None),              # Banana Phone
+    "banana_boat.wav":     ("bananaboat.wav", None),                # Banana Boat
+    "banana_split.wav":    ("bananasplit.wav", None),               # Banana Split
+    "lime_in_coconut.wav": ("limeincoconut.wav", None),             # Lime in the Coconut
 }
 
 # Operator help script text, read from the Pi's own prompt files (see

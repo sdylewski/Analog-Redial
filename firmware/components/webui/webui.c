@@ -438,8 +438,8 @@ static esp_err_t index_handler(httpd_req_t *req)
 
 /* A "recording" is something the user recorded from a handset (211 "leave a
  * message" archives, named rec_*.wav). Everything else in the storage
- * partition -- operator.wav, clip_*.wav fun clips, cb_*.wav callback temps --
- * is a built-in/uploaded asset, managed under Settings, not shown here. */
+ * partition -- operator.wav, clip_*.wav fun clips -- is a built-in/uploaded
+ * asset, managed under Settings, not shown here. */
 static bool is_user_recording(const char *name)
 {
     return strncmp(name, "rec_", 4) == 0;
@@ -455,7 +455,7 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
     size_t shown = 0;
     for (size_t i = 0; i < n; i++) if (is_user_recording(entries[i].name)) shown++;
 
-    size_t cap = 2048 + n * 160;
+    size_t cap = 2048 + n * 260; /* each row now also carries an <audio> element */
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
@@ -472,13 +472,15 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
             "<div class=\"empty\">none yet \xe2\x80\x94 dial 211, leave a message, hang up</div>");
     } else {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<table><tr><th>Name</th><th>Size</th></tr>");
+            "<table><tr><th>Name</th><th>Size</th><th>Play</th></tr>");
         for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
             if (!is_user_recording(entries[i].name)) continue;
             char sz[16];
             off += snprintf(buf + off, cap - off,
-                "<tr><td><a href=\"/media/%s\">%s</a></td><td>%s</td></tr>",
-                entries[i].name, entries[i].name, fmt_bytes(entries[i].size, sz, sizeof(sz)));
+                "<tr><td><a href=\"/media/%s\">%s</a></td><td>%s</td>"
+                "<td><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></td></tr>",
+                entries[i].name, entries[i].name, fmt_bytes(entries[i].size, sz, sizeof(sz)),
+                entries[i].name);
         }
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
     }
@@ -500,14 +502,15 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* Tab set mirrors the Pi's settings.html exactly (General / Operator / VOIP /
- * Inter-phone / Record message / Record & callback / Hardware) so the shape
- * previews where each section will land, even though most of them are still
- * placeholders here -- radio, recording, and VoIP aren't wired up on the
- * ESP32 yet (see ESP32_PORT_PLAN.md). Server-rendered via ?tab=, not client
- * JS: every other page in this component is a plain server-rendered form,
- * and a full reload per tab click keeps this page consistent with that
- * instead of introducing the only script tag in the whole UI. */
+/* Tab set mirrors the Pi's settings.html (General / Operator / VOIP /
+ * Inter-phone / Record message / Hardware) so the shape previews where each
+ * section will land, even though most of them are still placeholders here --
+ * radio and VoIP aren't wired up on the ESP32 yet (see ESP32_PORT_PLAN.md).
+ * "Record & callback" (212-215) was part of this set too until it was
+ * archived -- see FEATURES.md "Archived features". Server-rendered via
+ * ?tab=, not client JS: every other page in this component is a plain
+ * server-rendered form, and a full reload per tab click keeps this page
+ * consistent with that instead of adding another script tag. */
 typedef struct { const char *id; const char *label; } settings_tab_t;
 static const settings_tab_t SETTINGS_TABS[] = {
     { "general",    "General" },
@@ -518,7 +521,6 @@ static const settings_tab_t SETTINGS_TABS[] = {
     { "interphone", "Inter-phone" }, /* 2-line only: no other line to call on a 1-line build */
 #endif
     { "record",     "Record message" },
-    { "callback",   "Record & callback" },
     { "hardware",   "Hardware" },
     { "diag",       "Diagnostics" },
 };
@@ -866,23 +868,6 @@ static int append_record_tab(char *buf, size_t cap, int off,
     return off;
 }
 
-static int append_callback_tab(char *buf, size_t cap, int off,
-                                dialplan_entry_info_t *entries, size_t n)
-{
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Record &amp; call back</h2>");
-    for (size_t i = 0; i < n; i++) {
-        if (entries[i].code[0] != '2' || strcmp(entries[i].code, "211") == 0) continue;
-        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
-                                entries[i].implemented);
-    }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Dial one of these, speak, then pause (or wait out 12 s) and it plays "
-        "straight back on the handset. High/low shift pitch; robot (Dalek) plays flat for now "
-        "(ring-mod TODO). This is the ESP32 take on the Pi's hang-up-and-ring-back callback.</p></div>");
-    return off;
-}
-
 static int append_hardware_tab(char *buf, size_t cap, int off)
 {
     char hw[64], serial[16];
@@ -1021,16 +1006,24 @@ static int append_storage_section(char *buf, size_t cap, int off)
             "<div class=\"empty\">none yet</div>");
     } else {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<table><tr><th>Name</th><th>Size</th><th></th><th></th></tr>");
+            "<table><tr><th>Name</th><th>Size</th><th>Play</th><th></th><th></th></tr>");
         for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
             char sz[16];
+            char play[160];
+            if (is_wav_name(entries[i].name)) {
+                snprintf(play, sizeof(play),
+                    "<audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio>",
+                    entries[i].name);
+            } else {
+                play[0] = '\0';
+            }
             off += snprintf(buf + off, cap - off,
-                "<tr><td><code>%s</code></td><td>%s</td>"
+                "<tr><td><code>%s</code></td><td>%s</td><td>%s</td>"
                 "<td><a href=\"/media/%s\">download</a></td>"
                 "<td><form method=\"POST\" action=\"/media_delete/%s\" "
                 "onsubmit=\"return confirm('Delete %s?')\" style=\"display:inline\">"
                 "<button type=\"submit\">delete</button></form></td></tr>",
-                entries[i].name, fmt_bytes(entries[i].size, sz, sizeof(sz)),
+                entries[i].name, fmt_bytes(entries[i].size, sz, sizeof(sz)), play,
                 entries[i].name, entries[i].name, entries[i].name);
         }
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
@@ -1059,7 +1052,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * section (up to 32 files, listed there). Don't storage_list() here just
      * to count -- that's a deep SPIFFS+flash walk, and doing it on top of this
      * handler's stack arrays is what overflowed the httpd task's stack. */
-    size_t cap = 6144 + n * 220 + 32 * 220;
+    size_t cap = 6144 + n * 220 + 32 * 340; /* storage rows now also carry an <audio> element */
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
@@ -1075,7 +1068,6 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off);
     else if (strcmp(tab, "interphone") == 0) off = append_interphone_tab(buf, cap, off, entries, n);
     else if (strcmp(tab, "record") == 0) off = append_record_tab(buf, cap, off, entries, n);
-    else if (strcmp(tab, "callback") == 0) off = append_callback_tab(buf, cap, off, entries, n);
     else if (strcmp(tab, "diag") == 0) off = append_diag_tab(buf, cap, off);
     else off = append_hardware_tab(buf, cap, off);
 
@@ -1839,7 +1831,14 @@ static esp_err_t media_handler(httpd_req_t *req)
         httpd_resp_send_404(req);
         return ESP_OK;
     }
-    const char *name = req->uri + strlen(prefix);
+    /* req->uri includes any query string (e.g. "foo.wav?inline=1") -- strip
+     * it before using this as a filename, both for lookups below and so the
+     * query-string handling further down doesn't see it munged in. */
+    char name[STORAGE_MAX_NAME];
+    strncpy(name, req->uri + strlen(prefix), sizeof(name) - 1);
+    name[sizeof(name) - 1] = '\0';
+    char *qmark = strchr(name, '?');
+    if (qmark) *qmark = '\0';
 
     storage_entry_t entries[32];
     size_t n_entries = storage_list(entries, 32);
@@ -1871,10 +1870,20 @@ static esp_err_t media_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    char disp[64];
-    snprintf(disp, sizeof(disp), "attachment; filename=\"%s\"", name);
-    httpd_resp_set_hdr(req, "Content-Disposition", disp);
-    httpd_resp_set_type(req, "application/octet-stream");
+    /* Same URL serves both the "download" links and the <audio> players --
+     * an inline request (from the player, e.g. /media/foo.wav?inline=1)
+     * skips Content-Disposition: attachment so browsers play it in place
+     * instead of offering a save dialog; a bare /media/foo.wav still forces
+     * a download, matching every existing link to this route. */
+    char query[32];
+    bool inline_req = httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK &&
+                       strstr(query, "inline=1") != NULL;
+    if (!inline_req) {
+        char disp[64];
+        snprintf(disp, sizeof(disp), "attachment; filename=\"%s\"", name);
+        httpd_resp_set_hdr(req, "Content-Disposition", disp);
+    }
+    httpd_resp_set_type(req, is_wav_name(name) ? "audio/wav" : "application/octet-stream");
 
     char chunk[2048];
     size_t got;

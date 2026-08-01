@@ -130,11 +130,26 @@ esp_err_t player_play(int line, const char *storage_name, player_done_cb_t done_
     if (line < 0 || line >= AUDIO_NUM_LINES) return ESP_ERR_INVALID_ARG;
     if (s_line[line].active) return ESP_ERR_INVALID_STATE;
 
+    /* Same two-partition check storage_read_open() itself falls back to
+     * (writable storage/uploads/recordings first, then the read-only bundled
+     * defaults) -- done up front so a missing clip fails synchronously here
+     * instead of after already spawning the play task. Checking storage_list()
+     * alone used to reject anything that only existed in `bundled` (e.g. a
+     * clip baked in at build time but never uploaded to the writable
+     * partition), which meant even operator.wav or the default 4xx clips
+     * could 404 despite storage_read_open() being able to read them fine. */
     storage_entry_t entries[32];
     size_t n = storage_list(entries, 32);
     bool found = false;
     for (size_t i = 0; i < n; i++) {
         if (strcmp(entries[i].name, storage_name) == 0) { found = true; break; }
+    }
+    if (!found) {
+        storage_entry_t bundled[16];
+        size_t nb = storage_list_bundled(bundled, 16);
+        for (size_t i = 0; i < nb; i++) {
+            if (strcmp(bundled[i].name, storage_name) == 0) { found = true; break; }
+        }
     }
     if (!found) return ESP_ERR_NOT_FOUND;
 

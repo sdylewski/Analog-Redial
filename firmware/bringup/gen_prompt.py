@@ -22,15 +22,16 @@ Examples:
         --name operator.wav --upload phone.local
 
     # Convert an existing recording instead of synthesizing speech:
-    ./gen_prompt.py --from banana_song.mp3 --name clip_411.wav --upload phone.local
+    ./gen_prompt.py --from banana_song.mp3 --name banana_phone.wav --upload phone.local
 
-Well-known names the firmware looks for (see telephony.c's handle_action()
-and dialplan.c's TABLE[], ported from pi_rotary_phone/docs/DIAL_CODES.md):
-    operator.wav                        -- dial 0
-    clip_401.wav .. clip_404.wav        -- dial 401-404 (silly clips, PLAY mode)
-    clip_411.wav .. clip_414.wav        -- dial 411-414 (banana line)
-Anything else just needs a matching filename if/when you wire more dial
-codes to ACT_PLAY_CLIP.
+Well-known names the firmware looks for: operator.wav (dial 0, fixed). The
+401/402/403/404/411/412/413/414 "silly clip" codes are NOT fixed filenames
+any more -- they're a mutable code<->filename table seeded from
+dialplan/dialplan_defaults.h (see CLIP_DEFAULTS there, and CLIP_MAP in
+sync_pi_audio.py) and editable at runtime from Settings -> Dial Codes.
+Match whatever filename that table currently points a code at, or add a new
+code/filename pair from the web UI after uploading -- no firmware rebuild
+needed for that part.
 """
 
 from __future__ import annotations

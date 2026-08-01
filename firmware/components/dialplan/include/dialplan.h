@@ -24,8 +24,7 @@ typedef enum {
     ACT_WRONG_NUMBER,   /* no match possible */
     ACT_OPERATOR_HELP,  /* dial 0 */
     ACT_PLAY_CLIP,      /* filename[] holds the clip to play (see dialplan_clip_entry_t) */
-    ACT_RECORD_PLAYBACK,/* arg = voice effect */
-    ACT_RECORD_ARCHIVE, /* dial 111 */
+    ACT_RECORD_ARCHIVE, /* dial 211 */
     ACT_CALL_LINE,      /* arg = target line index; effect in arg2 */
     ACT_RADIO,          /* arg = station index */
     ACT_VOIP_DIAL,      /* number[] holds digits (e.g. 555xxxx) */

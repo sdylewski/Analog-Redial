@@ -40,13 +40,11 @@ static const entry_t TABLE[] = {
     { "0",   ACT_OPERATOR_HELP, 0, 0,
       "Operator help prompt", true },
 
-    /* 2xx -- leave a message / record & play back */
+    /* 2xx -- leave a message. 212-215 ("record + call back") lived here too
+     * until it was archived -- see FEATURES.md "Archived features" and the
+     * archive/record-and-callback git tag to revive it. */
     { "211", ACT_RECORD_ARCHIVE, 0, 0,
       "Leave a message (record to storage, download on web UI)", true },
-    { "212", ACT_RECORD_PLAYBACK, FX_NORMAL, 0, "Record + play back (normal voice)", true },
-    { "213", ACT_RECORD_PLAYBACK, FX_HIGH,   0, "Record + play back (chipmunk)", true },
-    { "214", ACT_RECORD_PLAYBACK, FX_LOW,    0, "Record + play back (low pitch)", true },
-    { "215", ACT_RECORD_PLAYBACK, FX_DALEK,  0, "Record + play back (robot, pitch TODO)", true },
 
 #if CONFIG_BOARD_NUM_LINES > 1
     /* 3xx -- call the other phone line (symmetric on both lines). Only present

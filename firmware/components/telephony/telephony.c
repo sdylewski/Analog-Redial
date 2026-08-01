@@ -16,8 +16,28 @@
 #include "freertos/queue.h"
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
 
 static const char *TAG = "telephony";
+
+/* SNTP (see wifi.c) sets the system clock without a TZ, so this is UTC.
+ * Before it syncs, time() reads from the 1970 epoch -- anything before
+ * ~2024 is obviously unsynced, so fall back to a boot-relative tag rather
+ * than naming every early recording "19700101_000003.wav" and colliding. */
+static void rec_name_timestamped(char *out, size_t out_len, int line)
+{
+    time_t now = time(NULL);
+    if (now < 1700000000) {
+        snprintf(out, out_len, "rec_l%d_boot%lld.wav", line,
+                 (long long)(esp_timer_get_time() / 1000));
+        return;
+    }
+    struct tm t;
+    gmtime_r(&now, &t);
+    snprintf(out, out_len, "rec_l%d_%04d%02d%02d_%02d%02d%02dZ.wav", line,
+             t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
+             t.tm_hour, t.tm_min, t.tm_sec);
+}
 
 /* Array width stays 2 to match the codec's stereo L/R pair (AUDIO_NUM_LINES),
  * so per-line state is never indexed out of bounds. But only BOARD_NUM_LINES
@@ -59,9 +79,7 @@ typedef struct {
     /* transient tone auto-return */
     int64_t              tone_return_us; /* 0 = no auto-return */
     tel_state_t          tone_return_state;
-    /* active recording (211 archive / 212-215 callback) */
-    bool                 rec_callback;   /* true = play it back after (212-215) */
-    voice_effect_t       rec_fx;         /* pitch effect for callback playback */
+    /* active recording (211 archive) */
     char                 rec_name[STORAGE_MAX_NAME];
 } line_t;
 
@@ -154,7 +172,7 @@ static void clip_done_cb(int line, void *ctx)
 }
 
 /* recorder_start()'s done_cb -- same pattern: enqueue so the FSM decides what
- * happens next (archive: back to dial tone; callback: play it back). */
+ * happens next (back to dial tone, or idle if the caller already hung up). */
 static void rec_done_cb(int line, bool ok, void *ctx)
 {
     in_evt_t e = { .line = line, .type = IN_REC_DONE, .digit = 0 };
@@ -339,26 +357,8 @@ static void handle_action(int line, const dialplan_action_t *a)
             }
             break;
 
-        case ACT_RECORD_PLAYBACK: { /* 212-215: record, then play it back */
-            snprintf(s_line[line].rec_name, sizeof(s_line[line].rec_name),
-                     "cb_l%d.wav", line);
-            s_line[line].rec_callback = true;
-            s_line[line].rec_fx = (voice_effect_t)a->arg;
-            audio_tx_silence(line);
-            if (recorder_start(line, s_line[line].rec_name, 12000, 2000,
-                               rec_done_cb, NULL) == ESP_OK) {
-                s_line[line].state = TEL_RECORDING;
-            } else {
-                ESP_LOGW(TAG, "line %d: record+playback couldn't start", line);
-                play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
-            }
-            break;
-        }
-
         case ACT_RECORD_ARCHIVE: { /* 211: record a message to storage */
-            snprintf(s_line[line].rec_name, sizeof(s_line[line].rec_name),
-                     "rec_l%d_%lld.wav", line, (long long)(esp_timer_get_time() / 1000));
-            s_line[line].rec_callback = false;
+            rec_name_timestamped(s_line[line].rec_name, sizeof(s_line[line].rec_name), line);
             audio_tx_silence(line);
             if (recorder_start(line, s_line[line].rec_name, 30000, 2000,
                                rec_done_cb, NULL) == ESP_OK) {
@@ -519,23 +519,6 @@ static void fsm_task(void *arg)
                 case IN_REC_DONE: {
                     int l = e.line;
                     if (s_line[l].state != TEL_RECORDING) break; /* already moved on */
-                    bool play_back = s_line[l].rec_callback && line_offhook(l);
-                    if (play_back) {
-                        /* Pitch effect: relabel the WAV's sample-rate field so the
-                         * player's resampler shifts playback. ~8 kHz base; robot
-                         * (Dalek) needs ring-mod we don't have yet, so it plays flat. */
-                        uint32_t base = audio_sample_rate() / (audio_sample_rate() / 8000);
-                        uint32_t rate = base;
-                        if (s_line[l].rec_fx == FX_HIGH) rate = base * 3 / 2;
-                        else if (s_line[l].rec_fx == FX_LOW) rate = base * 2 / 3;
-                        uint8_t b[4] = { rate, rate >> 8, rate >> 16, rate >> 24 };
-                        storage_patch(s_line[l].rec_name, 24, b, 4);
-                        if (player_play(l, s_line[l].rec_name, clip_done_cb, NULL) == ESP_OK) {
-                            s_line[l].state = TEL_PLAYING;
-                            break;
-                        }
-                    }
-                    /* Archive, or caller hung up on a callback: nothing to play. */
                     if (line_offhook(l)) enter_dialtone(l);
                     else enter_idle(l);
                     break;

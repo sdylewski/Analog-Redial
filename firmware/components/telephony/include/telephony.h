@@ -28,7 +28,7 @@ typedef enum {
     TEL_BUSY,       /* busy tone */
     TEL_REORDER,    /* reorder / wrong-number tone */
     TEL_PLAYING,    /* playing a prompt/clip (operator help, fun clips, ...) */
-    TEL_RECORDING,  /* capturing a message (211 archive, 212-215 callback) */
+    TEL_RECORDING,  /* capturing a message (211 archive) */
 } tel_state_t;
 
 esp_err_t telephony_start(void);
