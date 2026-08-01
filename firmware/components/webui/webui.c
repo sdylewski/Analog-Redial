@@ -1,6 +1,7 @@
 #include "webui.h"
 #include "sdkconfig.h"
 #include "esp_http_server.h"
+#include "esp_http_client.h"
 #include "cJSON.h"
 #include "wifi.h"
 #include "board.h"
@@ -780,7 +781,8 @@ static int append_operator_tab(char *buf, size_t cap, int off,
     return off;
 }
 
-static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, const char *result)
+static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, const char *result,
+                            const char *created, const char *createresult)
 {
     bool r0 = voip_is_registered(0);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
@@ -797,12 +799,40 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "<span class=\"pill %s\">%s</span></div>",
         r1 ? "on" : "off", r1 ? "registered" : "not registered");
 #endif
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+
+    /* Auto-provisioning: the optional companion service (voip_provisioner/,
+     * repo root) that can create this line's extension on a FreePBX server
+     * directly -- see VOIP_SETUP.md for why FreePBX needs a real service
+     * for this instead of the downloadable script further down (which only
+     * works against plain Asterisk; FreePBX regenerates its config from its
+     * own database and would discard hand-edited files). Takes effect
+     * immediately, no reboot -- these aren't read at boot by anything. */
+    const char *prov_host = voip_provisioner_host();
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Auto-provisioning (optional)</h2>"
+        "<p class=\"hint\">Point this at a <code>voip_provisioner</code> companion service "
+        "(runs on the PBX host, not this phone -- see <code>voip_provisioner/README.md</code>) "
+        "to create/check extensions on a FreePBX server directly from this page. Leave blank to "
+        "use the SIP-probe check and the downloadable script further down instead.</p>"
+        "<form method=\"POST\" action=\"/voip_set_provisioner\" class=\"settings-form\">"
+        "<div class=\"grid2\">"
+        "<label>Provisioner host:port <input name=\"host\" value=\"%s\" "
+        "placeholder=\"feynman.local:8088\"></label>"
+        "<label>Setup password <input type=\"password\" name=\"password\" "
+        "placeholder=\"%s\"></label></div>"
+        "<div class=\"toolbar sub\"><button type=\"submit\">Save</button></div>"
+        "</form></div>",
+        prov_host, prov_host[0] ? "leave blank to keep" : "not set");
 
     /* Check-before-you-commit: separate tiny form (its own number field, not
      * tied to the save form below) so you can try a few candidates without
      * touching your actual saved config. Server-rendered redirect-with-
-     * result, same no-JS pattern as the rest of this page. */
+     * result, same no-JS pattern as the rest of this page. Uses the
+     * provisioner above when configured (authoritative DB lookup); falls
+     * back to a SIP OPTIONS probe otherwise (voip_check_handler). */
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\">"
         "<form method=\"POST\" action=\"/voip_check\" class=\"settings-form\">"
         "<div class=\"grid2\">"
         "<label>SIP server to check against <input name=\"server\" value=\"%s\"></label>"
@@ -813,23 +843,84 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         voip_server());
     if (checked && checked[0]) {
         const char *cls = strcmp(result, "free") == 0 ? "on" : "off";
-        const char *label = strcmp(result, "free") == 0 ? "nothing answered -- looks free" :
-                             strcmp(result, "taken") == 0 ? "in use, or not confirmable" :
-                             "couldn't tell (server unreachable)";
+        const char *label;
+        if (prov_host[0]) {
+            label = strcmp(result, "free") == 0 ? "free (confirmed on the server)" :
+                    strcmp(result, "taken") == 0 ? "already in use" : "couldn't reach the provisioner";
+        } else {
+            label = strcmp(result, "free") == 0 ? "nothing answered -- looks free" :
+                    strcmp(result, "taken") == 0 ? "in use, or not confirmable" :
+                    "couldn't tell (server unreachable)";
+        }
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<div class=\"statusrow\"><span class=\"label\">%s</span>"
             "<span class=\"pill %s\">%s</span></div>", checked, cls, label);
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Sends a SIP OPTIONS to that number on the server, nothing more -- "
-        "safe to try even before saving anything below. Only a clean 404 Not Found counts as "
-        "\"free\"; that's the one answer this can trust. On stock Asterisk/PJSIP "
-        "(<code>identify_by=username</code>), an unrecognized number usually gets challenged for "
-        "auth (401) exactly like a real endpoint with the wrong password would -- so \"in use, or "
-        "not confirmable\" often just means Asterisk couldn't be bothered to say no, not that the "
-        "number is actually taken. Treat a non-free result as inconclusive, and confirm on the "
-        "server itself: <code>asterisk -rx \"pjsip show endpoint &lt;number&gt;\"</code>.</p>"
+    if (prov_host[0]) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<p class=\"hint\">Asking the provisioner: a direct database lookup on the PBX, "
+            "authoritative either way (unlike the plain SIP probe below).</p>");
+    } else {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<p class=\"hint\">No provisioner configured above, so this sends a SIP OPTIONS to "
+            "that number on the server instead, nothing more. Only a clean 404 Not Found counts "
+            "as \"free\"; that's the one answer this can trust. On stock Asterisk/PJSIP "
+            "(<code>identify_by=username</code>), an unrecognized number usually gets challenged "
+            "for auth (401) exactly like a real endpoint with the wrong password would -- so "
+            "\"in use, or not confirmable\" often just means Asterisk couldn't be bothered to say "
+            "no, not that the number is actually taken. Treat a non-free result as inconclusive, "
+            "and confirm on the server itself: "
+            "<code>asterisk -rx \"pjsip show endpoint &lt;number&gt;\"</code>.</p>");
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
+    /* Auto-provision a line: deliberately its own form, not wired to the
+     * Save form below or to voip_user(0)/voip_pass(0) -- those only update
+     * in RAM at boot (see voip_set_config()'s own doc comment), so right
+     * after clicking Save further down they'd still read the *previous*
+     * config here until a reboot. Independent fields avoid that trap; the
+     * values below are just a convenient starting point, editable before
+     * you click Create. */
+    if (prov_host[0]) {
+        char board_name[32];
+        board_name_get(board_name, sizeof(board_name));
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"card\"><h2>Auto-provision a line</h2>"
+            "<form method=\"POST\" action=\"/voip_provision\" class=\"settings-form\">"
+            "<div class=\"grid2\">"
+            "<label>Extension to create <input name=\"extension\" value=\"%s\" "
+            "placeholder=\"e.g. 1101\" pattern=\"[0-9]{2,6}\" required></label>"
+            "<label>SIP password for it <input name=\"secret\" value=\"%s\" "
+            "placeholder=\"6+ characters\" required></label>"
+            "<label>Display name <input name=\"name\" value=\"%s\" required></label>"
+            "</div>"
+            "<div class=\"toolbar sub\"><button type=\"submit\">Create on server</button></div>"
+            "</form>",
+            voip_user(0), voip_pass(0), board_name);
+        if (created && created[0]) {
+            const char *cls = strcmp(createresult, "ok") == 0 ? "on" :
+                               strcmp(createresult, "needsreload") == 0 ? "amber" : "off";
+            const char *label = strcmp(createresult, "ok") == 0 ? "created and live" :
+                strcmp(createresult, "needsreload") == 0 ?
+                    "created, but the server's config reload failed -- run 'fwconsole reload' "
+                    "or GUI Apply Config on the server" :
+                strcmp(createresult, "exists") == 0 ? "already exists on the server" :
+                "failed -- check the phone's log";
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+                "<span class=\"pill %s\">%s</span></div>", created, cls, label);
+        }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<p class=\"hint\">Creates a plain SIP-only extension on the FreePBX server (no "
+            "voicemail box, no user-manager login) via its own "
+            "<code>Core::processQuickCreate()</code> -- the same call FreePBX's GUI and API use, "
+            "so it survives the server's own config regeneration. Once created, enter this same "
+            "extension/password into a Line field below, Save, and reboot the phone to actually "
+            "register.</p></div>");
+    }
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\">"
         "<form method=\"POST\" action=\"/voip_set\" class=\"settings-form\">"
         "<label>SIP server (host or IP) <input name=\"server\" value=\"%s\"></label>"
         "<div class=\"grid2\">"
@@ -852,8 +943,13 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "Download Asterisk server setup script</a>"
         "</div></form>"
         "<details><summary>VOIP setup instructions</summary><ol>"
+        "<li>Pick a free extension (Check availability, or Auto-provision above if you have a "
+        "provisioner set up) and, for FreePBX, create it there directly -- the downloaded script "
+        "below only works against <b>plain Asterisk</b>; FreePBX regenerates pjsip.conf/"
+        "extensions.conf from its own database and would discard hand edits on the next Apply "
+        "Config. See <code>VOIP_SETUP.md</code> for the full FreePBX flow.</li>"
         "<li>Fill in the SIP server and extension/password above, Save, then reboot the phone.</li>"
-        "<li>Download the Asterisk server setup script and run it on your Asterisk/PBX box "
+        "<li>Plain Asterisk only: download the setup script and run it on your Asterisk box "
         "(as root or with sudo) -- it adds this phone's line(s) as SIP peers without touching "
         "any other peers already configured there.</li>"
         "<li>Dial <code>555</code> + a 4-digit extension to place a call; check the pills above "
@@ -1067,17 +1163,20 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
 {
     char tab[16] = "general";
     char checked[8] = "", result[8] = "";
-    char query[96];
+    char created[8] = "", createresult[16] = "";
+    char query[144];
     if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
         httpd_query_key_value(query, "tab", tab, sizeof(tab));
         httpd_query_key_value(query, "checked", checked, sizeof(checked));
         httpd_query_key_value(query, "result", result, sizeof(result));
+        httpd_query_key_value(query, "created", created, sizeof(created));
+        httpd_query_key_value(query, "createresult", createresult, sizeof(createresult));
     }
-    /* checked/result land directly in the VOIP tab's HTML (no escaping) --
-     * this GET's query string is otherwise attacker-controlled input (unlike
-     * the values /voip_check itself generates), so validate defensively
-     * here too rather than trusting the redirect that normally produces
-     * them. */
+    /* checked/result/created/createresult land directly in the VOIP tab's
+     * HTML (no escaping) -- this GET's query string is otherwise
+     * attacker-controlled input (unlike the values the POST handlers above
+     * generate for their own redirects), so validate defensively here too
+     * rather than trusting the redirect that normally produces them. */
     {
         size_t clen = strlen(checked);
         bool cok = clen >= 2 && clen <= 6;
@@ -1087,6 +1186,16 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
             result[0] = '\0';
         }
         if (!checked[0] || !result[0]) { checked[0] = '\0'; result[0] = '\0'; }
+
+        size_t dlen = strlen(created);
+        bool dok = dlen >= 2 && dlen <= 6;
+        for (size_t i = 0; dok && i < dlen; i++) dok = created[i] >= '0' && created[i] <= '9';
+        if (!dok) created[0] = '\0';
+        if (strcmp(createresult, "ok") != 0 && strcmp(createresult, "exists") != 0 &&
+            strcmp(createresult, "needsreload") != 0 && strcmp(createresult, "failed") != 0) {
+            createresult[0] = '\0';
+        }
+        if (!created[0] || !createresult[0]) { created[0] = '\0'; createresult[0] = '\0'; }
     }
     bool known_tab = false;
     for (size_t i = 0; i < SETTINGS_TABS_N; i++) {
@@ -1114,7 +1223,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     if (strcmp(tab, "general") == 0) off = append_general_tab(buf, cap, off);
     else if (strcmp(tab, "dialcodes") == 0) off = append_dialcodes_tab(buf, cap, off);
     else if (strcmp(tab, "operator") == 0) off = append_operator_tab(buf, cap, off, entries, n);
-    else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off, checked, result);
+    else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off, checked, result, created, createresult);
     else if (strcmp(tab, "interphone") == 0) off = append_interphone_tab(buf, cap, off, entries, n);
     else if (strcmp(tab, "record") == 0) off = append_record_tab(buf, cap, off, entries, n);
     else if (strcmp(tab, "diag") == 0) off = append_diag_tab(buf, cap, off);
@@ -1357,10 +1466,78 @@ static esp_err_t voip_set_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* POST /voip_check -- form body server=..&number=.. . Fires voip_probe_number()
- * (blocks up to ~2s) and redirects back to the VOIP tab with the result in
- * the query string, same request/redirect/re-render pattern as every other
- * form on this page -- no separate JSON/AJAX endpoint needed. */
+/* ---------- voip_provisioner companion service client ----------
+ * See voip_provisioner/README.md (repo root) for what this calls into and
+ * why it has to be a separate service on the PBX host at all: FreePBX owns
+ * its own config files and regenerates them from its database on every
+ * Apply Config, so hand-editing them the way the plain-Asterisk generated
+ * script does (voip_server_script_handler below) doesn't survive. */
+
+typedef struct {
+    char *buf;
+    size_t cap;
+    size_t len;
+} http_capture_t;
+
+static esp_err_t http_capture_event(esp_http_client_event_t *evt)
+{
+    if (evt->event_id == HTTP_EVENT_ON_DATA) {
+        http_capture_t *c = (http_capture_t *)evt->user_data;
+        if (c && c->buf && c->len + 1 < c->cap) {
+            size_t room = c->cap - 1 - c->len;
+            size_t n = ((size_t)evt->data_len < room) ? (size_t)evt->data_len : room;
+            memcpy(c->buf + c->len, evt->data, n);
+            c->len += n;
+            c->buf[c->len] = '\0';
+        }
+    }
+    return ESP_OK;
+}
+
+/* POST (if body != NULL) or GET to http://<host><path>, capturing the
+ * response body (small JSON, always) into resp/resp_cap. Returns the HTTP
+ * status code, or <0 on transport failure (couldn't even connect --
+ * distinct from a real HTTP error status, which the caller should read the
+ * response body for: the provisioner always answers in JSON, errors
+ * included). Blocks up to ~5s. */
+static int provisioner_call(const char *host, const char *path, const char *body,
+                             char *resp, size_t resp_cap)
+{
+    char url[160];
+    snprintf(url, sizeof(url), "http://%s%s", host, path);
+    resp[0] = '\0';
+    http_capture_t cap = { .buf = resp, .cap = resp_cap, .len = 0 };
+    esp_http_client_config_t config = {
+        .url = url,
+        .method = body ? HTTP_METHOD_POST : HTTP_METHOD_GET,
+        .timeout_ms = 5000,
+        .event_handler = http_capture_event,
+        .user_data = &cap,
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    if (!client) return -1;
+    if (body) {
+        esp_http_client_set_header(client, "Content-Type", "application/json");
+        esp_http_client_set_post_field(client, body, strlen(body));
+    }
+    esp_err_t err = esp_http_client_perform(client);
+    int status = (err == ESP_OK) ? esp_http_client_get_status_code(client) : -1;
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "provisioner_call %s: %s", url, esp_err_to_name(err));
+    }
+    esp_http_client_cleanup(client);
+    return status;
+}
+
+/* POST /voip_check -- form body server=..&number=.. . If a provisioner is
+ * configured (voip_provisioner_host()[0]), asks it -- that's a direct
+ * database lookup on the PBX, authoritative either way. Otherwise falls
+ * back to voip_probe_number()'s best-effort SIP OPTIONS probe (blocks up to
+ * ~2s), which can only ever confirm "free", never "taken" for sure -- see
+ * that function's own doc comment. Either way, redirects back to the VOIP
+ * tab with the result in the query string, same request/redirect/re-render
+ * pattern as every other form on this page -- no separate JSON/AJAX
+ * endpoint needed. */
 static esp_err_t voip_check_handler(httpd_req_t *req)
 {
     if (req->content_len == 0 || req->content_len >= VOIP_FORM_MAX_BODY) {
@@ -1385,7 +1562,27 @@ static esp_err_t voip_check_handler(httpd_req_t *req)
     for (size_t i = 0; ok && i < nlen; i++) ok = number[i] >= '0' && number[i] <= '9';
 
     char loc[80];
-    if (ok && server[0]) {
+    const char *prov_host = voip_provisioner_host();
+    if (ok && prov_host[0]) {
+        cJSON *req_json = cJSON_CreateObject();
+        cJSON_AddStringToObject(req_json, "password", voip_provisioner_password());
+        cJSON_AddStringToObject(req_json, "extension", number);
+        char *req_body = cJSON_PrintUnformatted(req_json);
+        cJSON_Delete(req_json);
+        char resp[256];
+        int status = req_body ? provisioner_call(prov_host, "/check", req_body, resp, sizeof(resp)) : -1;
+        free(req_body);
+        const char *result = "unknown";
+        if (status == 200) {
+            cJSON *rj = cJSON_Parse(resp);
+            if (rj) {
+                cJSON *in_use = cJSON_GetObjectItem(rj, "in_use");
+                if (cJSON_IsBool(in_use)) result = cJSON_IsTrue(in_use) ? "taken" : "free";
+                cJSON_Delete(rj);
+            }
+        }
+        snprintf(loc, sizeof(loc), "/settings?tab=voip&checked=%s&result=%s", number, result);
+    } else if (ok && server[0]) {
         voip_probe_result_t pr = VOIP_PROBE_UNKNOWN;
         voip_probe_number(server, number, &pr);
         const char *result = pr == VOIP_PROBE_FREE ? "free" : pr == VOIP_PROBE_TAKEN ? "taken" : "unknown";
@@ -1393,6 +1590,98 @@ static esp_err_t voip_check_handler(httpd_req_t *req)
     } else {
         snprintf(loc, sizeof(loc), "/settings?tab=voip");
     }
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", loc);
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /voip_set_provisioner -- form body host=..&password=.. . Unlike
+ * /voip_set, takes effect immediately (voip_set_provisioner() updates the
+ * in-RAM copy itself) -- nothing caches these at boot, so no reboot. Blank
+ * password means "leave unchanged", same convention as the main form. */
+static esp_err_t voip_set_provisioner_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= VOIP_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[VOIP_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char host[80] = {0}, password[80] = {0};
+    form_field(body, "host", host, sizeof(host));
+    form_field(body, "password", password, sizeof(password));
+    voip_set_provisioner(host[0] ? host : NULL, password[0] ? password : NULL);
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=voip");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /voip_provision -- form body extension=..&secret=..&name=.. .
+ * Deliberately independent of the main Save form / voip_user(0)/pass0 --
+ * see the "Auto-provision a line" card's own comment in append_voip_tab()
+ * for why (those only update in RAM at boot, so right after a Save they'd
+ * still read the *previous* line's config here). Asks the companion
+ * service (voip_provisioner_host()) to create the extension on the PBX,
+ * then redirects back with a short result code -- the provisioner's own
+ * free-text message doesn't fit in a redirect URL, so only a bounded
+ * enum makes the round trip; check the phone's own log (or the
+ * provisioner's stdout on the server) for the full message for now if
+ * something needs debugging further than "ok/exists/failed". */
+static esp_err_t voip_provision_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= VOIP_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[VOIP_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char extension[8] = {0}, secret[64] = {0}, name[64] = {0};
+    form_field(body, "extension", extension, sizeof(extension));
+    form_field(body, "secret", secret, sizeof(secret));
+    form_field(body, "name", name, sizeof(name));
+
+    size_t elen = strlen(extension);
+    bool ext_ok = elen >= 2 && elen <= 6;
+    for (size_t i = 0; ext_ok && i < elen; i++) ext_ok = extension[i] >= '0' && extension[i] <= '9';
+
+    const char *prov_host = voip_provisioner_host();
+    const char *outcome = "failed";
+    if (ext_ok && secret[0] && name[0] && prov_host[0]) {
+        cJSON *req_json = cJSON_CreateObject();
+        cJSON_AddStringToObject(req_json, "password", voip_provisioner_password());
+        cJSON_AddStringToObject(req_json, "extension", extension);
+        cJSON_AddStringToObject(req_json, "secret", secret);
+        cJSON_AddStringToObject(req_json, "name", name);
+        char *req_body = cJSON_PrintUnformatted(req_json);
+        cJSON_Delete(req_json);
+        char resp[512];
+        int status = req_body ? provisioner_call(prov_host, "/provision", req_body, resp, sizeof(resp)) : -1;
+        free(req_body);
+        ESP_LOGI(TAG, "voip_provision %s -> HTTP %d: %s", extension, status, resp);
+        if (status == 200 || status == 409) {
+            cJSON *rj = cJSON_Parse(resp);
+            if (rj) {
+                cJSON *ok = cJSON_GetObjectItem(rj, "ok");
+                cJSON *reload_ok = cJSON_GetObjectItem(rj, "reload_ok");
+                if (cJSON_IsTrue(ok) && (!reload_ok || cJSON_IsTrue(reload_ok))) outcome = "ok";
+                else if (cJSON_IsTrue(ok)) outcome = "needsreload";
+                else if (status == 409) outcome = "exists";
+                cJSON_Delete(rj);
+            }
+        }
+    }
+
+    char loc[96];
+    snprintf(loc, sizeof(loc), "/settings?tab=voip&created=%s&createresult=%s", extension, outcome);
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", loc);
     httpd_resp_send(req, NULL, 0);
@@ -2461,7 +2750,7 @@ esp_err_t webui_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
-    /* Default is 8 -- we register 28 routes below (two share the media
+    /* Default is 8 -- we register 30 routes below (two share the media
      * path, one GET, one POST, counted separately) and it keeps growing.
      * Past the cap, httpd_register_uri_handler() just fails per-route, which
      * used to go unchecked below, silently dropping the last couple of
@@ -2520,6 +2809,8 @@ esp_err_t webui_start(void)
         { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },
         { .uri = "/voip_set",               .method = HTTP_POST, .handler = voip_set_handler },
         { .uri = "/voip_check",             .method = HTTP_POST, .handler = voip_check_handler },
+        { .uri = "/voip_set_provisioner",   .method = HTTP_POST, .handler = voip_set_provisioner_handler },
+        { .uri = "/voip_provision",         .method = HTTP_POST, .handler = voip_provision_handler },
         { .uri = "/log_level",              .method = HTTP_POST, .handler = log_level_handler },
         { .uri = "/test/mode",              .method = HTTP_POST, .handler = test_mode_handler },
         { .uri = "/test/loopback",          .method = HTTP_POST, .handler = test_loopback_handler },

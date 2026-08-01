@@ -86,6 +86,15 @@ const char *voip_user(int line);
  * existing "LAN bring-up tool, no auth" security posture (see webui.c). */
 const char *voip_pass(int line);
 
+/* voip_provisioner companion service config (see firmware/../voip_provisioner/
+ * at the repo root -- runs on the PBX host, not this device): host:port and
+ * its shared setup password, for webui.c's HTTP client to call. "" means
+ * not configured. Unlike voip_set_config(), takes effect immediately --
+ * nothing caches these at boot, so no reboot is needed after saving. */
+const char *voip_provisioner_host(void);
+const char *voip_provisioner_password(void);
+esp_err_t   voip_set_provisioner(const char *host, const char *password);
+
 typedef enum {
     VOIP_PROBE_FREE = 0,  /* server answered 404 -- no endpoint/AOR by that name */
     VOIP_PROBE_TAKEN,     /* server answered something else (2xx/401/403/3xx/...) */
