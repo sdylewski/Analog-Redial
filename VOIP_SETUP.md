@@ -47,14 +47,15 @@ then **add a row here** once you've committed to it.
 | Extension | Device | Purpose | Notes |
 |-----------|--------|---------|-------|
 | `101`-`104` | Personal/staff softphones | Not this project | Don't touch — see above |
-| `105` | MaxPhone (ESP32, single-line) | this project | registered |
-| `106` | Scott's laptop (Linphone) | dev/test softphone, not a rotary phone | for exercising calls to/from `105` during bring-up |
-| `107`+ | *(next free block for rotary phones — Pi and ESP32 both)* | this project | — |
+| `105`, `106` | *(retired)* | — | Superseded by `1055`/`1066` below — the dial plan only recognizes `555` + a 4-digit extension (see "Dialing between lines"), so 3-digit numbers aren't reachable. Left in place on the server, harmless; safe to remove later. |
+| `1055` | MaxPhone (ESP32, single-line) | this project | registered — dial as `5551055` |
+| `1066` | Scott's laptop (Linphone) | dev/test softphone, not a rotary phone | dial as `5551066` |
+| `1067`+ | *(next free block for rotary phones — Pi and ESP32 both)* | this project | — |
 
-**Recommendation:** number rotary phones sequentially from `107` — no need
-for the old 4-digit `1000`/`1100` split between Pi and ESP32 boards now
-that both retired configs are gone; there's no ambiguity to avoid on a
-fresh registry. A 2-line board uses two consecutive numbers.
+**Recommendation:** number rotary phones sequentially from `1067` — every
+number must be a 4-digit `10xx` value dialed as `555` + those 4 digits (see
+"Dialing between lines" below); there's no shorter form. A 2-line board
+uses two consecutive numbers.
 
 ## Checking whether a number is free
 
@@ -86,23 +87,23 @@ asterisk -rx "pjsip show endpoint <number>"
 
 ## Dialing between lines
 
-The rotary phone firmware supports two VoIP dial patterns
-(`firmware/components/dialplan/dialplan.c`):
+The rotary phone firmware only has one VoIP dial pattern
+(`firmware/components/dialplan/dialplan.c`): **`555` + a 4-digit
+extension**, exactly 7 digits total. It fires the instant the 7th digit
+lands, strips the `555` prefix, and dials the remaining 4 digits. This is
+why every extension in the registry above is 4 digits (`10xx`) — there's
+no shorter form, and no separate "local" dial pattern.
 
-- **Bare local extension** (e.g. dial `1`-`0`-`5` on the rotary dial): any
-  number starting with `1` is treated as a local extension on this
-  server — 2 to 6 digits, no fixed length, so the phone just waits for you
-  to stop dialing (same ~900 ms pause as any other code) and then places
-  the call. This is the normal way to call another number in the registry
-  above.
-- **`555` + 4 digits** (legacy/remote scheme, still supported): fires the
-  instant the 7th digit lands, strips the `555` prefix, and dials the
-  remaining 4 digits — kept for a remote/legacy PBX that expects that
-  format, not needed for anything on `feynman.local`.
+(An earlier version of this doc described a second, bare 2-6-digit local
+extension pattern that didn't need the `555` prefix. It was reverted
+after real-hardware testing turned up a dial-plan bug — a lone first
+digit, paused on, fell through to a "wrong number" tone instead of
+continuing to wait for more digits — and because the fixed-length `555`
+scheme is simpler and already proven. If you see stray references to
+bare 3-digit dialing elsewhere, they're stale.)
 
-Both directions of a `105` ↔ `106` test call: dial `106` from the rotary
-phone; dial `105` (or whatever Linphone's own dial pad sends) from
-Linphone.
+Both directions of a `1055` ↔ `1066` test call: dial `5551066` from the
+rotary phone; dial `5551055` from Linphone.
 
 ## Linphone (softphone) setup
 
@@ -111,7 +112,7 @@ a second physical board. Third-party SIP account fields:
 
 | Field | Value |
 |---|---|
-| Username | the extension (e.g. `106`) |
+| Username | the extension (e.g. `1066`) |
 | Password | the SIP password set when that extension was provisioned |
 | Domain | `192.168.0.155` (bare IP or hostname — **no** `sip:` prefix, no port) |
 | Registrar URI | `sip:192.168.0.155` |
@@ -133,7 +134,7 @@ if the same error persists after visually double-checking the value.
   phone's own line), so you don't have to cross-reference the registry
   table above by hand. Would need either a new provisioner endpoint (e.g.
   `GET /registered` wrapping `asterisk -rx "pjsip show endpoints"`) or the
-  phone polling that itself. Flagged during initial `105`/`106` bring-up,
+  phone polling that itself. Flagged during initial `1055`/`1066` bring-up,
   not started.
 
 ## Adding one more line (the common case, with the provisioner)
@@ -144,8 +145,8 @@ if the same error persists after visually double-checking the value.
 2. On the new board: **Settings → VOIP → Auto-provisioning** → fill in
    the provisioner's `host:port` (e.g. `feynman.local:8088`) and its setup
    password → Save. Takes effect immediately, no reboot.
-3. **Check availability** on a number from the registry above (`105`,
-   `106`, ...) to confirm it's free.
+3. **Check availability** on a 4-digit number from the registry above
+   (`1067`, `1068`, ...) to confirm it's free.
 4. **Auto-provision a line** → same number, a real SIP password, a display
    name → **Create on server**. Unlike the old FreePBX setup, there's no
    separate "reload" step that can fail for unrelated reasons — native
