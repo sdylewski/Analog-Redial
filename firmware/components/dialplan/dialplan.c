@@ -317,6 +317,16 @@ dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit)
         return fire_clip(cl);
     }
 
+    /* VoIP: bare local extension (VOIP_SETUP.md's 1xx+ rotary-phone
+     * registry -- 101-104 belong to an unrelated system, 105+ are ours).
+     * Unlike 555-xxxx there's no fixed digit count (the provisioner
+     * accepts 2-6 digits), so this can't fire on a length check the way
+     * that does -- just keep collecting and let dialplan_timeout() decide
+     * the caller is done, same as any other ambiguous/prefix code below. */
+    if (c->buf[0] == '1') {
+        return make(ACT_NONE, 0, 0);
+    }
+
     /* no exact match: is the buffer still a viable prefix? */
     if (longer || (c->len < 3 && c->buf[0] == '5')) {
         return make(ACT_NONE, 0, 0);
@@ -345,6 +355,16 @@ dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line)
     const dialplan_clip_entry_t *cl = clip_exact_match(c->buf);
     if (cl) return fire_clip(cl);
 
+    /* Local extension (1xx...): the caller paused, so whatever's been
+     * dialed so far is the whole number -- fire it as a VoIP dial. Require
+     * at least 2 digits (the provisioner's own minimum) so a single stray
+     * "1" doesn't get dialed out as an extension. */
+    if (c->buf[0] == '1' && c->len >= 2) {
+        dialplan_action_t a = make(ACT_VOIP_DIAL, 0, 0);
+        strncpy(a.number, c->buf, sizeof(a.number) - 1);
+        return a;
+    }
+
     /* Still a viable prefix of a longer code (slow rotary inter-digit):
      * keep waiting rather than declaring a wrong number. */
     if (has_longer_prefix(c->buf) || clip_has_longer_prefix(c->buf)) {
@@ -368,9 +388,13 @@ size_t dialplan_list(dialplan_entry_info_t *out, size_t max)
 /* True if `code` exactly matches, or is a prefix of / has as a prefix, any
  * existing code -- the fixed table, another clip entry (other than
  * `except_idx`, if >= 0 -- used when recoding an entry so it doesn't
- * conflict with itself), or the 555-xxxx VoIP prefix specifically (NOT every
+ * conflict with itself), the 555-xxxx VoIP prefix specifically (NOT every
  * code starting with '5': dialplan_feed() only special-cases "5"/"55"/
- * "555..." itself, so e.g. "501" is fine and must not be rejected here).
+ * "555..." itself, so e.g. "501" is fine and must not be rejected here), or
+ * any code starting with '1' (the bare local-extension VoIP prefix --
+ * unlike 555, this one really does claim the whole '1' branch, since
+ * dialplan_feed() treats every "1..." buffer as a local extension in
+ * progress regardless of length).
  * Comparing only the first min(lengths) characters catches both "equal" and
  * "one is a prefix of the other". */
 static bool code_conflicts_except(const char *code, int except_idx)
@@ -378,6 +402,7 @@ static bool code_conflicts_except(const char *code, int except_idx)
     size_t clen = strlen(code);
     size_t vlen = (clen < 3) ? clen : 3;
     if (strncmp(code, "555", vlen) == 0) return true; /* shares a prefix with 555-xxxx */
+    if (code[0] == '1') return true; /* shares a prefix with the local-extension dial */
 
     for (size_t i = 0; i < TABLE_N; i++) {
         size_t tlen = strlen(TABLE[i].code);

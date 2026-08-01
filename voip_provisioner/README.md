@@ -29,17 +29,24 @@ needs none of that — just two text files and `asterisk -rx`.
 
 ## Install (on feynman.local, or wherever Asterisk actually runs)
 
-```bash
-# 1. Copy this directory to the Asterisk host
-scp -r voip_provisioner/ scott@feynman.local:/home/scott/asterisk-config/
+Deployed under `/opt`, not a home directory — the `asterisk` user can't
+traverse a typical `750` home directory at all, which fails with a
+confusing `200/CHDIR` (or a silent permission-denied reading the password
+file) even if you `chown` the individual files correctly.
 
-# 2. Pick a real setup password and lock the file down. It has to be
-#    readable by the `asterisk` user (the service runs as), not just scott.
+```bash
+# 1. Copy this directory to the Asterisk host, then move it into /opt
+scp -r voip_provisioner/ scott@feynman.local:/tmp/voip_provisioner
 ssh scott@feynman.local
-cd /home/scott/asterisk-config/voip_provisioner
-python3 -c "import secrets; print(secrets.token_urlsafe(18))" > setup_password.txt
-sudo chown asterisk:asterisk setup_password.txt
-chmod 600 setup_password.txt
+sudo mv /tmp/voip_provisioner /opt/rotary-voip-provisioner
+cd /opt/rotary-voip-provisioner
+
+# 2. Pick a real setup password and lock the whole directory down to the
+#    asterisk user (the service runs as) -- not scott, not "other".
+sudo python3 -c "import secrets; print(secrets.token_urlsafe(18))" | sudo tee setup_password.txt >/dev/null
+sudo chown -R asterisk:asterisk /opt/rotary-voip-provisioner
+sudo chmod 700 /opt/rotary-voip-provisioner
+sudo chmod 600 setup_password.txt
 
 # 3. Install + start the service
 sudo cp rotary-voip-provisioner.service /etc/systemd/system/

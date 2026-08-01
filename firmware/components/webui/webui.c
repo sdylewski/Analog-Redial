@@ -903,8 +903,8 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
                                strcmp(createresult, "needsreload") == 0 ? "amber" : "off";
             const char *label = strcmp(createresult, "ok") == 0 ? "created and live" :
                 strcmp(createresult, "needsreload") == 0 ?
-                    "created, but the server's config reload failed -- run 'fwconsole reload' "
-                    "or GUI Apply Config on the server" :
+                    "created, but the server's 'asterisk -rx pjsip/dialplan reload' failed -- "
+                    "check the Asterisk server" :
                 strcmp(createresult, "exists") == 0 ? "already exists on the server" :
                 "failed -- check the phone's log";
             off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
@@ -912,10 +912,10 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
                 "<span class=\"pill %s\">%s</span></div>", created, cls, label);
         }
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<p class=\"hint\">Creates a plain SIP-only extension on the FreePBX server (no "
-            "voicemail box, no user-manager login) via its own "
-            "<code>Core::processQuickCreate()</code> -- the same call FreePBX's GUI and API use, "
-            "so it survives the server's own config regeneration. Once created, enter this same "
+            "<p class=\"hint\">Creates a plain SIP-only extension on the Asterisk server (no "
+            "voicemail box -- this is a hardware phone, not a person with a mailbox) by writing "
+            "an AOR/auth/endpoint trio straight into <code>pjsip.conf</code> and a matching entry "
+            "into <code>extensions.conf</code>, then reloading. Once created, enter this same "
             "extension/password into a Line field below, Save, and reboot the phone to actually "
             "register.</p></div>");
     }
@@ -943,16 +943,16 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "</div></form>"
         "<details><summary>VOIP setup instructions</summary><ol>"
         "<li>Pick a free extension (Check availability, or Auto-provision above if you have a "
-        "provisioner set up) and, for FreePBX, create it there directly -- the downloaded script "
-        "below only works against <b>plain Asterisk</b>; FreePBX regenerates pjsip.conf/"
-        "extensions.conf from its own database and would discard hand edits on the next Apply "
-        "Config. See <code>VOIP_SETUP.md</code> for the full FreePBX flow.</li>"
+        "provisioner set up) -- see <code>VOIP_SETUP.md</code> for this project's shared "
+        "numbering registry.</li>"
         "<li>Fill in the SIP server and extension/password above, Save, then reboot the phone.</li>"
-        "<li>Plain Asterisk only: download the setup script and run it on your Asterisk box "
+        "<li>No provisioner? Download the setup script below and run it on your Asterisk box "
         "(as root or with sudo) -- it adds this phone's line(s) as SIP peers without touching "
         "any other peers already configured there.</li>"
-        "<li>Dial <code>555</code> + a 4-digit extension to place a call; check the pills above "
-        "after reboot to confirm registration.</li>"
+        "<li>To dial another local extension, just dial its number directly (e.g. <code>105</code>"
+        ") -- no <code>555</code> prefix needed for numbers on this same server. <code>555</code> "
+        "+ a 4-digit extension still works too, for a remote/legacy PBX that expects that scheme. "
+        "Check the pills above after reboot to confirm registration.</li>"
         "</ol></details>"
         "<details><summary>Manual: add this line by hand (no provisioner)</summary><ol>"
         "<li>SSH into the Asterisk server.</li>"
@@ -2178,13 +2178,17 @@ static esp_err_t guide_handler(httpd_req_t *req)
     }
 
     if (off > 0 && (size_t)off < cap) {
-        /* Synthetic row: 555xxxx is matched directly in dialplan_feed(),
-         * not a TABLE entry, so it isn't in dialplan_list()'s output. */
+        /* Synthetic rows: both VoIP dial patterns are matched directly in
+         * dialplan_feed()/dialplan_timeout(), not TABLE entries, so neither
+         * is in dialplan_list()'s output. */
         off += snprintf(buf + off, cap - off,
             "<div class=\"card\"><h2>VoIP</h2>"
+            "<div class=\"code-row\"><span class=\"code\">1-x-x\xe2\x80\xa6</span>"
+            "<span class=\"desc\">local extension (2-6 digits, pause to dial)</span>"
+            "<span class=\"pill on\">working</span></div>"
             "<div class=\"code-row\"><span class=\"code\">5-5-5-x-x-x-x</span>"
-            "<span class=\"desc\">7-digit extension</span>"
-            "<span class=\"pill off\">not yet</span></div></div>"
+            "<span class=\"desc\">7-digit extension (remote/legacy PBX)</span>"
+            "<span class=\"pill on\">working</span></div></div>"
             "</div>"
             "<p class=\"hint\">Source of truth: <code>components/dialplan/dialplan.c</code> -- "
             "this list is generated from the same table the phone actually matches against, "

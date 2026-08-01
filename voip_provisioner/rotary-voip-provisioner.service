@@ -10,9 +10,14 @@ Type=simple
 # /var/run/asterisk/asterisk.ctl for `asterisk -rx` reloads.
 User=asterisk
 Group=asterisk
-WorkingDirectory=/home/scott/asterisk-config/voip_provisioner
-ExecStart=/usr/bin/python3 /home/scott/asterisk-config/voip_provisioner/provisioner.py \
-    --password-file /home/scott/asterisk-config/voip_provisioner/setup_password.txt \
+# No WorkingDirectory: ExecStart is all absolute paths.
+# Deployed under /opt, not /home/scott -- home directories are typically
+# 750 owner-only, which the `asterisk` user can't traverse at all (this
+# previously failed with 200/CHDIR even after WorkingDirectory was removed,
+# because open()ing the absolute paths below still walks through
+# /home/scott first).
+ExecStart=/usr/bin/python3 /opt/rotary-voip-provisioner/provisioner.py \
+    --password-file /opt/rotary-voip-provisioner/setup_password.txt \
     --port 8088
 Restart=on-failure
 RestartSec=5

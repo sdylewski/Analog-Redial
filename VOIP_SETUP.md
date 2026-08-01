@@ -47,16 +47,14 @@ then **add a row here** once you've committed to it.
 | Extension | Device | Purpose | Notes |
 |-----------|--------|---------|-------|
 | `101`-`104` | Personal/staff softphones | Not this project | Don't touch — see above |
-| `105`+ | *(reserved block for rotary phones — Pi and ESP32 both)* | this project | — |
+| `105` | MaxPhone (ESP32, single-line) | this project | registered |
+| `106` | Scott's laptop (Linphone) | dev/test softphone, not a rotary phone | for exercising calls to/from `105` during bring-up |
+| `107`+ | *(next free block for rotary phones — Pi and ESP32 both)* | this project | — |
 
-**Recommendation:** number rotary phones sequentially from `105` — no need
+**Recommendation:** number rotary phones sequentially from `107` — no need
 for the old 4-digit `1000`/`1100` split between Pi and ESP32 boards now
 that both retired configs are gone; there's no ambiguity to avoid on a
 fresh registry. A 2-line board uses two consecutive numbers.
-
-> **As of this writing:** board "MaxPhone" needs to be (re-)provisioned
-> here — its old FreePBX-era extension (`1234`) no longer exists on this
-> server at all. Give it `105` (see "Adding one more line" below).
 
 ## Checking whether a number is free
 
@@ -85,6 +83,58 @@ asterisk -rx "pjsip show endpoint <number>"
 ```
 
 "Unable to find object" means that number is genuinely free.
+
+## Dialing between lines
+
+The rotary phone firmware supports two VoIP dial patterns
+(`firmware/components/dialplan/dialplan.c`):
+
+- **Bare local extension** (e.g. dial `1`-`0`-`5` on the rotary dial): any
+  number starting with `1` is treated as a local extension on this
+  server — 2 to 6 digits, no fixed length, so the phone just waits for you
+  to stop dialing (same ~900 ms pause as any other code) and then places
+  the call. This is the normal way to call another number in the registry
+  above.
+- **`555` + 4 digits** (legacy/remote scheme, still supported): fires the
+  instant the 7th digit lands, strips the `555` prefix, and dials the
+  remaining 4 digits — kept for a remote/legacy PBX that expects that
+  format, not needed for anything on `feynman.local`.
+
+Both directions of a `105` ↔ `106` test call: dial `106` from the rotary
+phone; dial `105` (or whatever Linphone's own dial pad sends) from
+Linphone.
+
+## Linphone (softphone) setup
+
+Useful as a quick second "phone" for testing a rotary line without needing
+a second physical board. Third-party SIP account fields:
+
+| Field | Value |
+|---|---|
+| Username | the extension (e.g. `106`) |
+| Password | the SIP password set when that extension was provisioned |
+| Domain | `192.168.0.155` (bare IP or hostname — **no** `sip:` prefix, no port) |
+| Registrar URI | `sip:192.168.0.155` |
+| Outbound SIP Proxy URI | `sip:192.168.0.155:5060;transport=udp` (**no** angle brackets) |
+| Transport | UDP |
+
+**Debugging note:** if Linphone rejects the form with "Unable to create
+proxy address, please check the domain name" even though every field
+*looks* correct, check for a leading/trailing space in one of the fields —
+easy to introduce by copying values out of a rendered markdown table (a
+table cell's padding can carry an invisible space along with the text) or
+any other rich-text source. Retype the field by hand rather than pasting
+if the same error persists after visually double-checking the value.
+
+## Future ideas (not implemented)
+
+- **Address book / registered-numbers list on the VOIP tab**: show which
+  extensions are currently registered on the server (not just this
+  phone's own line), so you don't have to cross-reference the registry
+  table above by hand. Would need either a new provisioner endpoint (e.g.
+  `GET /registered` wrapping `asterisk -rx "pjsip show endpoints"`) or the
+  phone polling that itself. Flagged during initial `105`/`106` bring-up,
+  not started.
 
 ## Adding one more line (the common case, with the provisioner)
 
