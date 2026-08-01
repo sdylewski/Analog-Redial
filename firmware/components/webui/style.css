@@ -46,6 +46,10 @@ nav a.active { color: var(--text); border-bottom: 2px solid var(--accent); paddi
 main { padding: 22px; max-width: 1100px; margin: 0 auto; }
 
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+/* A card with real form fields (server names, passwords, ...) shouldn't get
+ * squeezed into one of several narrow auto-fit columns on a wide screen --
+ * span the full row regardless of how many sibling cards there are. */
+.card.wide { grid-column: 1 / -1; }
 
 .card {
   background: var(--panel);

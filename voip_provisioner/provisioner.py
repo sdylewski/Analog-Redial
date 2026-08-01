@@ -70,10 +70,11 @@ def create_extension(container: str, extension: str, secret: str, name: str) -> 
         return result
 
     # Best-effort: FreePBX's own config regen (fwconsole reload / GUI Apply
-    # Config) currently fails on some fresh installs until a Sangoma account
-    # is linked (unmet "sipsettings" -> "backup" module dependency) -- see
-    # VOIP_SETUP.md. The extension is correctly in FreePBX's database either
-    # way; only making it *live* on the wire needs this to succeed.
+    # Config) can fail on a fresh install with an unmet "sipsettings" ->
+    # "backup" module dependency -- fixed by installing both directly (see
+    # README.md's install step 3; NOT a Sangoma-account issue, despite the
+    # error message). The extension is correctly in FreePBX's database
+    # either way; only making it *live* on the wire needs this to succeed.
     reload_p = subprocess.run(
         ["docker", "exec", container, "fwconsole", "reload"],
         capture_output=True, text=True, timeout=60,

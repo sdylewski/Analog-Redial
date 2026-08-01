@@ -44,12 +44,22 @@ cd /home/scott/docker/freepbx/voip_provisioner
 python3 -c "import secrets; print(secrets.token_urlsafe(18))" > setup_password.txt
 chmod 600 setup_password.txt
 
-# 3. Install + start the service
+# 3. One-time fix on a fresh FreePBX install: `fwconsole reload` (which this
+#    service calls after every create) needs the "sipsettings" module,
+#    which itself needs "backup" -- neither ships by default. Install both
+#    directly (NOT `fwconsole ma installlocal`, which has a broken
+#    dependency-resolution path and will report a confusing "Cant Reach
+#    Online Server"/"Retrieved Module XML Was Empty" even though the repo
+#    is reachable fine -- no Sangoma account needed, that's a red herring):
+docker exec freepbx-freepbx-1 fwconsole ma downloadinstall backup sipsettings
+docker exec freepbx-freepbx-1 fwconsole reload   # should print "Reload Complete"
+
+# 4. Install + start the service
 sudo cp rotary-voip-provisioner.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now rotary-voip-provisioner
 
-# 4. Confirm it's up
+# 5. Confirm it's up
 systemctl status rotary-voip-provisioner --no-pager
 curl -s http://localhost:8088/check?extension=1101\&password=$(cat setup_password.txt)
 ```
@@ -69,14 +79,14 @@ fields — see `VOIP_SETUP.md`.
 - Doesn't reach the FreePBX GraphQL API or need the "api" module at all —
   it calls the same underlying `Core::processQuickCreate()` FreePBX's own
   GUI and API both call.
-- **Doesn't guarantee the extension is live on the wire.** It also runs
-  `fwconsole reload` after creating the extension, but on a fresh install
-  that can fail until a Sangoma account is linked (unmet `sipsettings` →
-  `backup` module dependency — this is a FreePBX-install issue, not
-  something this tool causes). If `reload_ok` comes back `false` in the
-  response, the extension exists in FreePBX's database but you'll need to
-  run `fwconsole reload` (or GUI → Apply Config) on the server yourself
-  once that's sorted.
+- **Doesn't guarantee the extension is live on the wire** if the server's
+  own `fwconsole reload` is broken for unrelated reasons (see step 3 of
+  Install above — a fresh install is commonly missing the `sipsettings`/
+  `backup` modules, not a Sangoma-account issue). If `reload_ok` comes back
+  `false` in the response, the extension exists in FreePBX's database but
+  isn't live yet; fix the underlying `fwconsole reload` failure on the
+  server and re-run it (`docker exec freepbx-freepbx-1 fwconsole reload`) —
+  no need to recreate the extension.
 
 ## Security notes
 

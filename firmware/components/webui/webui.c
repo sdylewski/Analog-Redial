@@ -786,7 +786,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
 {
     bool r0 = voip_is_registered(0);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>VOIP</h2>"
+        "<div class=\"card wide\"><h2>VOIP</h2>"
         "<div class=\"statusrow\"><span class=\"label\">SIP server</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">Line 1</span>"
         "<span class=\"pill %s\">%s</span></div>",
@@ -807,20 +807,21 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
      * for this instead of the downloadable script further down (which only
      * works against plain Asterisk; FreePBX regenerates its config from its
      * own database and would discard hand-edited files). Takes effect
-     * immediately, no reboot -- these aren't read at boot by anything. */
+     * immediately, no reboot -- these aren't read at boot by anything.
+     * Fields stack one-per-row (no grid2) -- this card holds server names
+     * and passwords, which just get uselessly narrow split 2-up. */
     const char *prov_host = voip_provisioner_host();
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Auto-provisioning (optional)</h2>"
+        "<div class=\"card wide\"><h2>Auto-provisioning (optional)</h2>"
         "<p class=\"hint\">Point this at a <code>voip_provisioner</code> companion service "
         "(runs on the PBX host, not this phone -- see <code>voip_provisioner/README.md</code>) "
         "to create/check extensions on a FreePBX server directly from this page. Leave blank to "
         "use the SIP-probe check and the downloadable script further down instead.</p>"
         "<form method=\"POST\" action=\"/voip_set_provisioner\" class=\"settings-form\">"
-        "<div class=\"grid2\">"
         "<label>Provisioner host:port <input name=\"host\" value=\"%s\" "
         "placeholder=\"feynman.local:8088\"></label>"
         "<label>Setup password <input type=\"password\" name=\"password\" "
-        "placeholder=\"%s\"></label></div>"
+        "placeholder=\"%s\"></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\">Save</button></div>"
         "</form></div>",
         prov_host, prov_host[0] ? "leave blank to keep" : "not set");
@@ -830,17 +831,17 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
      * touching your actual saved config. Server-rendered redirect-with-
      * result, same no-JS pattern as the rest of this page. Uses the
      * provisioner above when configured (authoritative DB lookup); falls
-     * back to a SIP OPTIONS probe otherwise (voip_check_handler). */
+     * back to a SIP OPTIONS probe against the currently-saved SIP server
+     * otherwise (voip_check_handler) -- no separate "server" field here:
+     * it used to duplicate the one in the Save form below with different
+     * wording, which just read as two different settings. */
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\">"
+        "<div class=\"card wide\">"
         "<form method=\"POST\" action=\"/voip_check\" class=\"settings-form\">"
-        "<div class=\"grid2\">"
-        "<label>SIP server to check against <input name=\"server\" value=\"%s\"></label>"
         "<label>Number to check <input name=\"number\" placeholder=\"e.g. 1101\" "
-        "pattern=\"[0-9]{2,6}\" required></label></div>"
+        "pattern=\"[0-9]{2,6}\" required></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\">Check availability</button></div>"
-        "</form>",
-        voip_server());
+        "</form>");
     if (checked && checked[0]) {
         const char *cls = strcmp(result, "free") == 0 ? "on" : "off";
         const char *label;
@@ -858,19 +859,21 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     }
     if (prov_host[0]) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<p class=\"hint\">Asking the provisioner: a direct database lookup on the PBX, "
-            "authoritative either way (unlike the plain SIP probe below).</p>");
+            "<p class=\"hint\">Checks against %s via the provisioner above: a direct database "
+            "lookup on the PBX, authoritative either way (unlike the plain SIP probe used when "
+            "no provisioner is configured).</p>", voip_server()[0] ? voip_server() : "(no SIP server saved yet)");
     } else {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<p class=\"hint\">No provisioner configured above, so this sends a SIP OPTIONS to "
-            "that number on the server instead, nothing more. Only a clean 404 Not Found counts "
+            "that number on %s instead, nothing more. Only a clean 404 Not Found counts "
             "as \"free\"; that's the one answer this can trust. On stock Asterisk/PJSIP "
             "(<code>identify_by=username</code>), an unrecognized number usually gets challenged "
             "for auth (401) exactly like a real endpoint with the wrong password would -- so "
             "\"in use, or not confirmable\" often just means Asterisk couldn't be bothered to say "
             "no, not that the number is actually taken. Treat a non-free result as inconclusive, "
             "and confirm on the server itself: "
-            "<code>asterisk -rx \"pjsip show endpoint &lt;number&gt;\"</code>.</p>");
+            "<code>asterisk -rx \"pjsip show endpoint &lt;number&gt;\"</code>.</p>",
+            voip_server()[0] ? voip_server() : "(no SIP server saved yet)");
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
@@ -885,15 +888,13 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         char board_name[32];
         board_name_get(board_name, sizeof(board_name));
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"card\"><h2>Auto-provision a line</h2>"
+            "<div class=\"card wide\"><h2>Auto-provision a line</h2>"
             "<form method=\"POST\" action=\"/voip_provision\" class=\"settings-form\">"
-            "<div class=\"grid2\">"
             "<label>Extension to create <input name=\"extension\" value=\"%s\" "
             "placeholder=\"e.g. 1101\" pattern=\"[0-9]{2,6}\" required></label>"
             "<label>SIP password for it <input name=\"secret\" value=\"%s\" "
             "placeholder=\"6+ characters\" required></label>"
             "<label>Display name <input name=\"name\" value=\"%s\" required></label>"
-            "</div>"
             "<div class=\"toolbar sub\"><button type=\"submit\">Create on server</button></div>"
             "</form>",
             voip_user(0), voip_pass(0), board_name);
@@ -920,10 +921,9 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     }
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\">"
+        "<div class=\"card wide\">"
         "<form method=\"POST\" action=\"/voip_set\" class=\"settings-form\">"
         "<label>SIP server (host or IP) <input name=\"server\" value=\"%s\"></label>"
-        "<div class=\"grid2\">"
         "<label>Line 1 extension/user <input name=\"user0\" value=\"%s\"></label>"
         "<label>Line 1 password <input type=\"password\" name=\"pass0\" "
         "placeholder=\"leave blank to keep\"></label>",
@@ -936,7 +936,6 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         voip_user(1));
 #endif
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "</div>"
         "<div class=\"toolbar sub\">"
         "<button type=\"submit\" class=\"primary\">Save (takes effect on reboot)</button>"
         "<a class=\"button\" href=\"/voip_server_script\" download=\"rotary-voip-server-setup.sh\">"
@@ -955,6 +954,21 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "<li>Dial <code>555</code> + a 4-digit extension to place a call; check the pills above "
         "after reboot to confirm registration.</li>"
         "</ol></details>"
+        "<details><summary>Manual: add this line in the FreePBX GUI</summary><ol>"
+        "<li>Log into the FreePBX admin GUI (<code>http://&lt;server&gt;:8080</code> or "
+        "<code>:8443</code> for HTTPS, if it's the Docker setup this project documents).</li>"
+        "<li><b>Applications &rarr; Extensions &rarr; + Add Extension &rarr; PJSIP</b>.</li>"
+        "<li><b>User Extension</b>: the number from the registry (e.g. <code>1101</code>). "
+        "<b>Display Name</b>: anything recognizable, e.g. this board's name. <b>Secret</b>: a "
+        "real password -- this is what you'll also enter as the Line password below.</li>"
+        "<li>Leave voicemail off unless you actually want a mailbox for a hardware phone.</li>"
+        "<li><b>Submit</b>, then click the orange <b>Apply Config</b> bar at the top of the "
+        "page -- extensions aren't live until you do this.</li>"
+        "<li>Back here: same server/extension/password into the Line fields above, Save, reboot "
+        "the phone, confirm \"registered\" above.</li>"
+        "</ol><p class=\"hint\">This is exactly what Auto-provision a line does for you above, "
+        "if you have a <code>voip_provisioner</code> set up -- these steps are the fallback for "
+        "when you don't, or just prefer doing it by hand.</p></details>"
         "<p class=\"hint\">Embedded SIP/RTP (G.711 &micro;-law), custom UA -- no TLS/SRTP "
         "(LAN only).</p></div>");
     return off;
@@ -1529,13 +1543,18 @@ static int provisioner_call(const char *host, const char *path, const char *body
     return status;
 }
 
-/* POST /voip_check -- form body server=..&number=.. . If a provisioner is
- * configured (voip_provisioner_host()[0]), asks it -- that's a direct
- * database lookup on the PBX, authoritative either way. Otherwise falls
- * back to voip_probe_number()'s best-effort SIP OPTIONS probe (blocks up to
- * ~2s), which can only ever confirm "free", never "taken" for sure -- see
- * that function's own doc comment. Either way, redirects back to the VOIP
- * tab with the result in the query string, same request/redirect/re-render
+/* POST /voip_check -- form body number=.. . Always checks against the
+ * currently-*saved* SIP server (voip_server()) -- there used to be a
+ * second "server" field here, independent of the one in the Save form
+ * below with different wording ("to check against" vs "(host or IP)"),
+ * which just read as two unrelated server settings instead of the same
+ * value entered twice. If a provisioner is configured
+ * (voip_provisioner_host()[0]), asks it -- that's a direct database lookup
+ * on the PBX, authoritative either way. Otherwise falls back to
+ * voip_probe_number()'s best-effort SIP OPTIONS probe (blocks up to ~2s),
+ * which can only ever confirm "free", never "taken" for sure -- see that
+ * function's own doc comment. Either way, redirects back to the VOIP tab
+ * with the result in the query string, same request/redirect/re-render
  * pattern as every other form on this page -- no separate JSON/AJAX
  * endpoint needed. */
 static esp_err_t voip_check_handler(httpd_req_t *req)
@@ -1549,9 +1568,9 @@ static esp_err_t voip_check_handler(httpd_req_t *req)
     if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
     body[r] = '\0';
 
-    char server[64] = {0}, number[8] = {0};
-    form_field(body, "server", server, sizeof(server));
+    char number[8] = {0};
     form_field(body, "number", number, sizeof(number));
+    const char *server = voip_server();
 
     /* Digits only, 2-6 chars (matches the HTML pattern= and dialplan's own
      * valid_code() range) -- url_decode() above accepts arbitrary bytes, and

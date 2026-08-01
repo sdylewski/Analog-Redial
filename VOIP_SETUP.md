@@ -134,12 +134,14 @@ docker exec freepbx-freepbx-1 asterisk -rx "pjsip show endpoint <number>"
    `1101`, ...) to confirm it's free.
 4. **Auto-provision a line** → same number, a real SIP password, a display
    name → **Create on server**. If the result says "created, but the
-   server's config reload failed," that's the known `fwconsole reload`
-   issue (see [`voip_provisioner/README.md`](voip_provisioner/README.md))
-   — the extension exists in FreePBX's database; you'll need to reload the
-   server manually (`docker exec freepbx-freepbx-1 fwconsole reload`, or
-   GUI → Apply Config) once, until a Sangoma account gets linked to fix
-   `fwconsole reload` generally.
+   server's config reload failed," `fwconsole reload` itself is broken on
+   the server — almost always the missing `sipsettings`/`backup` modules on
+   a fresh install (see [`voip_provisioner/README.md`](voip_provisioner/README.md)'s
+   install step 3 for the one-time fix; it's **not** a Sangoma-account
+   issue, despite what the error message implies). The extension already
+   exists in FreePBX's database either way — fix the reload, then
+   `docker exec freepbx-freepbx-1 fwconsole reload` once more to make it
+   live; no need to recreate it.
 5. Back in the main **Save** form further down the same page: same
    extension as "Line N extension/user", same password, Save, reboot the
    phone.
