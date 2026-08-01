@@ -1,2 +1,3 @@
 # Real credential -- never commit this
 setup_password.txt
+__pycache__/

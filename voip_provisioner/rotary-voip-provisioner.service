@@ -1,21 +1,22 @@
 [Unit]
-Description=Rotary phone VoIP provisioner (ESP32 -> FreePBX extension creation)
-After=docker.service
-Requires=docker.service
+Description=Rotary phone VoIP provisioner (ESP32 -> native Asterisk extension creation)
+After=asterisk.service
+Requires=asterisk.service
 
 [Service]
 Type=simple
-User=scott
-WorkingDirectory=/home/scott/docker/freepbx/voip_provisioner
-ExecStart=/usr/bin/python3 /home/scott/docker/freepbx/voip_provisioner/provisioner.py \
-    --password-file /home/scott/docker/freepbx/voip_provisioner/setup_password.txt \
-    --container freepbx-freepbx-1 \
+# Must run as the `asterisk` system user: it owns /etc/asterisk/*.conf
+# (mode 644, owner-write-only) and is the only account that can reach
+# /var/run/asterisk/asterisk.ctl for `asterisk -rx` reloads.
+User=asterisk
+Group=asterisk
+WorkingDirectory=/home/scott/asterisk-config/voip_provisioner
+ExecStart=/usr/bin/python3 /home/scott/asterisk-config/voip_provisioner/provisioner.py \
+    --password-file /home/scott/asterisk-config/voip_provisioner/setup_password.txt \
     --port 8088
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
-ProtectSystem=strict
-ReadWritePaths=/home/scott/docker/freepbx/voip_provisioner
 
 [Install]
 WantedBy=multi-user.target
