@@ -189,7 +189,7 @@ dialplan_modes_t *dialplan_modes(void) { return &s_modes; }
  * declared a wrong number. 900ms was too tight for a human pausing between
  * digits (easy to trip while reading off an extension); real POTS interdigit
  * timeouts are several seconds, so this gives a caller room to pause. */
-uint32_t dialplan_interdigit_ms(void) { return 8000; }
+uint32_t dialplan_interdigit_ms(void) { return 15000; }
 
 void dialplan_collector_reset(dialplan_collector_t *c)
 {
