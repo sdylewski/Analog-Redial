@@ -182,7 +182,14 @@ void dialplan_init(void)
 }
 
 dialplan_modes_t *dialplan_modes(void) { return &s_modes; }
-uint32_t dialplan_interdigit_ms(void) { return 900; } /* matches Pi pulse completion feel */
+/* Not to be confused with ag1170's own (much shorter, ~300ms) interdigit_ms,
+ * which decides when a train of rotary pulses adds up to one finished digit.
+ * This one decides when the *whole number* is considered abandoned/complete
+ * -- e.g. a partial 555-xxx (< 7 digits) that goes quiet this long is
+ * declared a wrong number. 900ms was too tight for a human pausing between
+ * digits (easy to trip while reading off an extension); real POTS interdigit
+ * timeouts are several seconds, so this gives a caller room to pause. */
+uint32_t dialplan_interdigit_ms(void) { return 8000; }
 
 void dialplan_collector_reset(dialplan_collector_t *c)
 {
