@@ -42,6 +42,8 @@ typedef struct {
     int      candidate_blocks;
     int      silence_blocks;
     bool     in_tone;
+    char     press_digit;    /* digit of the *current* press, START to END */
+    int64_t  press_start_us; /* for start/end timing logs, see dtmf.c */
 } dtmf_detector_t;
 
 void dtmf_detector_init(dtmf_detector_t *d, uint32_t sample_rate);

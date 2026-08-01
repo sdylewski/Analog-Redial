@@ -1,6 +1,10 @@
 #include "dtmf.h"
 #include <math.h>
 #include <string.h>
+#include "esp_log.h"
+#include "esp_timer.h"
+
+static const char *TAG = "dtmf";
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -39,9 +43,10 @@ bool dtmf_make_osc(tone_osc_t *o, uint32_t sample_rate, char key, float amp)
     return true;
 }
 
-/* Minimum gap (in 10ms blocks) before the *same* digit can be emitted
- * again -- see dtmf_detector_push()'s comment. 20 blocks = 200ms. */
-#define SAME_DIGIT_LOCKOUT_BLOCKS 20
+/* Minimum gap (in ~25.6ms Goertzel blocks -- see dtmf_detector_init()) before
+ * the *same* digit can be emitted again -- see dtmf_detector_push()'s
+ * comment. 8 blocks =~ 205ms. */
+#define SAME_DIGIT_LOCKOUT_BLOCKS 8
 
 /* ---- Goertzel detector ----
  *
@@ -85,7 +90,14 @@ void dtmf_detector_init(dtmf_detector_t *d, uint32_t sample_rate)
 {
     memset(d, 0, sizeof(*d));
     d->sample_rate = sample_rate;
-    d->block_n = sample_rate / 100; /* 10 ms blocks */
+    /* 205 samples @ 8kHz (~25.6ms) is the standard Bellcore/ITU-T DTMF
+     * Goertzel block size -- ~39Hz bin spacing. A 10ms block (100Hz bins,
+     * what this used to be) can't resolve 852Hz and 941Hz: they're only
+     * 89Hz apart, so both round to the *same* bin, tie exactly, and the
+     * dominance check in classify() then rejects the ambiguous result as
+     * noise. That silently broke every row-3/row-4 key against each
+     * other -- '7'/'8'/'9' vs '*'/'0'/'#' -- not just '0'/'*'/'#' alone. */
+    d->block_n = (size_t)(((uint64_t)sample_rate * 205 + 4000) / 8000);
     if (d->block_n < 64) d->block_n = 64;
 
     /* One-time setup -- float/cosf here is fine, this isn't the hot loop. */
@@ -155,23 +167,31 @@ char dtmf_detector_push(dtmf_detector_t *d, const int16_t *samples, size_t n)
             }
             if (!d->in_tone && d->candidate_blocks >= 2) {
                 d->in_tone = true; /* track this occurrence either way */
+                d->press_digit = digit;
+                d->press_start_us = esp_timer_get_time();
                 bool too_soon = (digit == d->last_emitted) &&
                                  (d->since_emit_blocks < SAME_DIGIT_LOCKOUT_BLOCKS);
                 if (!too_soon) {
                     d->last_emitted = digit;
                     d->since_emit_blocks = 0;
                     emitted = digit;
+                    ESP_LOGD(TAG, "'%c' START", digit);
+                } else {
+                    ESP_LOGD(TAG, "'%c' START (suppressed, repeat too soon)", digit);
                 }
             }
         } else {
             /* non-classifying block: only declare the tone over after a
-             * few of these in a row -- a single one is as likely to be a
-             * momentary dip mid-tone (line noise/echo) as a real release. */
+             * couple of these in a row (~51ms) -- a single one is as likely
+             * to be a momentary dip mid-tone (line noise/echo) as a real
+             * release. */
             d->candidate = 0;
             d->candidate_blocks = 0;
-            if (d->in_tone && ++d->silence_blocks >= 5) {
+            if (d->in_tone && ++d->silence_blocks >= 2) {
                 d->in_tone = false;
                 d->silence_blocks = 0;
+                int64_t held_ms = (esp_timer_get_time() - d->press_start_us) / 1000;
+                ESP_LOGD(TAG, "'%c' END (held %lld ms)", d->press_digit, (long long)held_ms);
             }
         }
     }
