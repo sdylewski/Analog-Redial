@@ -193,6 +193,69 @@ static int cmd_tone(int argc, char **argv)
     return 0;
 }
 
+/* ---------- echopulse: periodic tone burst for echo/hybrid path debugging ----------
+ * Plays a short, distinctive 1kHz burst on `line` every `period_ms`, logging
+ * the exact esp_timer_get_time() of each one to correlate against an
+ * oscilloscope trace or your own ears/recording -- gives a precisely-timed,
+ * known signal instead of trying to eyeball delay in a live conversation.
+ * Goes out through the same DAC -> codec -> SLIC path a real call uses (NOT
+ * the digital test_loopback tap, which explicitly bypasses the analog
+ * codec/hybrid you're trying to characterize), so it exercises the actual
+ * hardware. Runs independent of hook/call state -- it's a raw audio-layer
+ * primitive -- so you can test purely locally (probe the codec output and,
+ * if you have a second point, the mic/ADC input, and see whether the pulse
+ * reappears there and how long it takes) or during a real call to the other
+ * board/Linphone (have the far end listen for the periodic pulse arriving,
+ * then listen on *this* end for a delayed, quieter repeat of it -- that
+ * repeat's timing, measured against this command's own timestamps, is your
+ * echo path length, hard numbers instead of a guess). */
+#define ECHOPULSE_MAX_LINES 2
+static TaskHandle_t s_echopulse_task[ECHOPULSE_MAX_LINES];
+static volatile int s_echopulse_period_ms[ECHOPULSE_MAX_LINES];
+
+static void echopulse_task(void *arg)
+{
+    int line = (int)(intptr_t)arg;
+    while (1) {
+        printf("echopulse line %d: PULSE at t=%lld ms\n",
+               line, (long long)(esp_timer_get_time() / 1000));
+        audio_tx_burst(line, 1000.0f, 0.0f, 0.6f, 150);
+        int period = s_echopulse_period_ms[line];
+        vTaskDelay(pdMS_TO_TICKS((period > 150) ? (period - 150) : period));
+    }
+}
+
+static int cmd_echopulse(int argc, char **argv)
+{
+    if (argc < 3) {
+        printf("usage: echopulse <line> <on|off> [period_ms, default 2000]\n");
+        return 1;
+    }
+    int line = atoi(argv[1]);
+    if (line < 0 || line >= ECHOPULSE_MAX_LINES) {
+        printf("bad line (0-%d)\n", ECHOPULSE_MAX_LINES - 1);
+        return 1;
+    }
+    if (strcmp(argv[2], "on") == 0) {
+        if (s_echopulse_task[line]) {
+            printf("echopulse already running on line %d\n", line);
+            return 0;
+        }
+        s_echopulse_period_ms[line] = (argc > 3) ? atoi(argv[3]) : 2000;
+        xTaskCreate(echopulse_task, "echopulse", 3072, (void *)(intptr_t)line,
+                    tskIDLE_PRIORITY + 2, &s_echopulse_task[line]);
+        printf("echopulse line %d: started, 1kHz/150ms burst every %d ms\n",
+               line, s_echopulse_period_ms[line]);
+    } else {
+        if (s_echopulse_task[line]) {
+            vTaskDelete(s_echopulse_task[line]);
+            s_echopulse_task[line] = NULL;
+        }
+        printf("echopulse line %d: stopped\n", line);
+    }
+    return 0;
+}
+
 /* ---------- call-progress tones ---------- */
 static int cmd_progress(int argc, char **argv)
 {
@@ -831,6 +894,7 @@ void bringup_console_start(void)
     register_cmd("silence", "Stop audio: silence [line]", cmd_silence);
     register_cmd("loopback", "Mic->speaker: loopback [line] [0|1]", cmd_loopback);
     register_cmd("capture", "RX level meter, both lines simultaneously: capture [ms]", cmd_capture);
+    register_cmd("echopulse", "Periodic 1kHz burst for echo/hybrid debugging: echopulse <line> <on|off> [period_ms]", cmd_echopulse);
     register_cmd("record", "Raw mic capture to storage, no live playback: record <ms> [line]", cmd_record);
     register_cmd("play", "Play a storage WAV out a line: play <name> [line]", cmd_play);
     register_cmd("dtmf_gen", "Emit DTMF: dtmf_gen <digits> [line]", cmd_dtmf_gen);
