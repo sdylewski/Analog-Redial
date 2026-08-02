@@ -2395,8 +2395,9 @@ static esp_err_t media_handler(httpd_req_t *req)
     storage_entry_t entries[32];
     size_t n_entries = storage_list(entries, 32);
     bool found = false;
+    size_t total = 0;
     for (size_t i = 0; i < n_entries; i++) {
-        if (strcmp(entries[i].name, name) == 0) { found = true; break; }
+        if (strcmp(entries[i].name, name) == 0) { found = true; total = entries[i].size; break; }
     }
     if (!found) {
         /* Not an upload/recording -- check the bundled (build-time) assets
@@ -2404,7 +2405,7 @@ static esp_err_t media_handler(httpd_req_t *req)
         storage_entry_t bundled[16];
         size_t nb = storage_list_bundled(bundled, 16);
         for (size_t i = 0; i < nb; i++) {
-            if (strcmp(bundled[i].name, name) == 0) { found = true; break; }
+            if (strcmp(bundled[i].name, name) == 0) { found = true; total = bundled[i].size; break; }
         }
     }
     if (!found) {
@@ -2422,6 +2423,32 @@ static esp_err_t media_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+    /* HTTP Range support: browsers' <audio> elements routinely probe with
+     * "Range: bytes=0-" (or similar) before they'll even attempt playback --
+     * without a proper 206 response, several browsers (Safari especially)
+     * refuse to play at all and surface a bare "error", even though a plain
+     * GET of the same URL returns a perfectly valid file (confirmed via
+     * curl). start/end are an inclusive byte range, end defaulting to EOF
+     * when the client leaves it open ("bytes=1234-"). */
+    size_t start = 0, end = total ? total - 1 : 0;
+    bool has_range = false;
+    char rng[64];
+    if (total > 0 && httpd_req_get_hdr_value_str(req, "Range", rng, sizeof(rng)) == ESP_OK) {
+        size_t rs, re;
+        if (sscanf(rng, "bytes=%zu-%zu", &rs, &re) == 2) { start = rs; end = re; has_range = true; }
+        else if (sscanf(rng, "bytes=%zu-", &rs) == 1)    { start = rs; has_range = true; }
+        if (has_range && (start >= total || start > end)) {
+            char cr[48];
+            snprintf(cr, sizeof(cr), "bytes */%zu", total);
+            httpd_resp_set_hdr(req, "Content-Range", cr);
+            httpd_resp_set_status(req, "416 Range Not Satisfiable");
+            httpd_resp_send(req, NULL, 0);
+            storage_read_close(&r);
+            return ESP_OK;
+        }
+        if (end > total - 1) end = total - 1;
+    }
+
     /* Same URL serves both the "download" links and the <audio> players --
      * an inline request (from the player, e.g. /media/foo.wav?inline=1)
      * skips Content-Disposition: attachment so browsers play it in place
@@ -2436,13 +2463,24 @@ static esp_err_t media_handler(httpd_req_t *req)
         httpd_resp_set_hdr(req, "Content-Disposition", disp);
     }
     httpd_resp_set_type(req, is_wav_name(name) ? "audio/wav" : "application/octet-stream");
+    httpd_resp_set_hdr(req, "Accept-Ranges", "bytes");
+    if (has_range) {
+        char cr[64];
+        snprintf(cr, sizeof(cr), "bytes %zu-%zu/%zu", start, end, total);
+        httpd_resp_set_hdr(req, "Content-Range", cr);
+        httpd_resp_set_status(req, "206 Partial Content");
+        storage_read_seek(&r, start);
+    }
 
     char chunk[2048];
+    size_t remaining = has_range ? (end - start + 1) : SIZE_MAX;
     size_t got;
     esp_err_t send_err = ESP_OK;
-    while ((got = storage_read_chunk(&r, chunk, sizeof(chunk))) > 0) {
+    while (remaining > 0 &&
+           (got = storage_read_chunk(&r, chunk, (remaining < sizeof(chunk)) ? remaining : sizeof(chunk))) > 0) {
         send_err = httpd_resp_send_chunk(req, chunk, got);
         if (send_err != ESP_OK) break;
+        remaining -= got;
     }
     storage_read_close(&r);
     if (send_err != ESP_OK) return ESP_FAIL;

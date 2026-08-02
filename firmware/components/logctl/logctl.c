@@ -15,6 +15,11 @@ static esp_log_level_t s_level = ESP_LOG_INFO;
 static const char *QUIET_TAGS[] = {
     "wifi", "wifi_init", "phy_init", "net80211", "pp", "esp_netif_handlers",
     "esp_netif_lwip",
+    /* esp_http_server's own per-request parse/session/tx-rx tracing --
+     * every header line, every parse state transition. Not useful for
+     * debugging this project's own code, and (see webui.c's .k CSS fix)
+     * its tag names are also longer than anything else this firmware logs. */
+    "httpd", "httpd_parse", "httpd_sess", "httpd_txrx", "httpd_uri",
 };
 
 static void apply(esp_log_level_t level)
