@@ -37,6 +37,11 @@ esp_err_t telephony_start(void);
 tel_state_t telephony_state(int line);
 const char *telephony_state_name(tel_state_t s);
 const char *telephony_last_number(int line);
+/* Caller ID of the most recent inbound VoIP call on `line` (kept after that
+ * call ends, so "who last called" survives hangup). Name is "" when the
+ * caller sent only a bare SIP URI -- display the number in that case. */
+const char *telephony_caller_name(int line);
+const char *telephony_caller_number(int line);
 /* Most recently detected DTMF key on `line` ('0'-'9','*','#','A'-'D'), 0 if
  * none yet. *at_us is the esp_timer_get_time() timestamp of that detection
  * (undefined if the return value is 0). The detector runs continuously

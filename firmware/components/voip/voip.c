@@ -16,6 +16,7 @@
 #include "rtp.h"
 #include "audio.h"
 #include "wifi.h"
+#include "board.h"
 #include "esp_log.h"
 #include "esp_random.h"
 #include "esp_timer.h"
@@ -62,6 +63,7 @@ typedef struct {
     char     branch[40];          /* INVITE transaction branch (for ACK/CANCEL) */
     char     remote_target[128];  /* peer Contact URI for in-dialog requests */
     char     remote_uri[96];      /* the URI we INVITEd / the peer's From URI */
+    char     remote_name[40];     /* caller-ID display name, "" if none sent */
     char     peer_rtp_ip[16];
     uint16_t peer_rtp_port;
     bool     call_authed_once;
@@ -181,6 +183,50 @@ static void auth_param(const char *h, const char *key, char *out, size_t outsz)
 }
 
 /* Angle-bracketed URI from a Contact/To value: <sip:...> -> sip:... */
+/* Caller-ID name from a From/To header value: the display name that precedes
+ * the <sip:...> URI, quoted ("Max Phone" <sip:...>) or bare (Max <sip:...>).
+ * Yields "" when there's no display name at all -- plenty of UAs send a bare
+ * URI, and this firmware's own outbound INVITEs did until recently -- so
+ * callers must treat "no name" as normal and fall back to the number. */
+static void get_display_name(const char *hdrval, char *out, size_t outsz)
+{
+    out[0] = '\0';
+    while (*hdrval == ' ' || *hdrval == '\t') hdrval++;
+
+    if (*hdrval == '"') {
+        hdrval++;
+        size_t i = 0;
+        while (*hdrval && *hdrval != '"' && i < outsz - 1) {
+            if (*hdrval == '\\' && hdrval[1]) hdrval++; /* quoted-pair escape */
+            out[i++] = *hdrval++;
+        }
+        out[i] = '\0';
+        return;
+    }
+
+    /* Unquoted: everything before '<', trailing whitespace trimmed. No '<'
+     * at all means the header is a bare URI (no display name) -- not a name,
+     * so leave the result empty rather than returning "sip:1066@host". */
+    const char *lt = strchr(hdrval, '<');
+    if (!lt) return;
+    size_t n = (size_t)(lt - hdrval);
+    while (n > 0 && (hdrval[n - 1] == ' ' || hdrval[n - 1] == '\t')) n--;
+    if (n > outsz - 1) n = outsz - 1;
+    memcpy(out, hdrval, n);
+    out[n] = '\0';
+}
+
+/* User part of a SIP URI: "sip:1066@host:port" -> "1066". Falls back to
+ * copying the whole thing when there's no user@ to extract. */
+static void uri_user(const char *uri, char *out, size_t outsz)
+{
+    const char *s = strchr(uri, ':');
+    s = s ? s + 1 : uri;
+    size_t i = 0;
+    while (s[i] && s[i] != '@' && i < outsz - 1) { out[i] = s[i]; i++; }
+    out[i] = '\0';
+}
+
 static void get_uri(const char *hdrval, char *out, size_t outsz)
 {
     const char *a = strchr(hdrval, '<');
@@ -296,12 +342,26 @@ static void send_invite(int line, const char *auth_hdr)
         "m=audio %u RTP/AVP 0 101\r\na=rtpmap:0 PCMU/8000\r\n"
         "a=rtpmap:101 telephone-event/8000\r\na=fmtp:101 0-16\r\na=ptime:20\r\na=sendrecv\r\n",
         (unsigned)esp_random(), (unsigned)esp_random(), s_myip, s_myip, rtp_local_port(line));
+    /* Outbound caller ID: the board's own name ("MaxPhone"), as the From
+     * display name -- this is what shows up on the callee's screen and in
+     * the PBX's CDR. Quoted per RFC 3261, with any embedded quote/backslash
+     * dropped rather than escaped, since a board name is user-settable and
+     * an unescaped one would corrupt the header. */
+    char bname[32], cid[40] = "";
+    board_name_get(bname, sizeof(bname));
+    size_t ci = 0;
+    for (size_t i = 0; bname[i] && ci < sizeof(cid) - 4; i++) {
+        if (bname[i] == '"' || bname[i] == '\\') continue;
+        cid[ci++] = bname[i];
+    }
+    cid[ci] = '\0';
+
     char buf[MSG_MAX];
     int n = snprintf(buf, sizeof(buf),
         "INVITE %s SIP/2.0\r\n"
         "Via: SIP/2.0/UDP %s:%d;branch=z9hG4bK%s;rport\r\n"
         "Max-Forwards: 70\r\n"
-        "From: <sip:%s@%s>;tag=%s\r\n"
+        "From: \"%s\" <sip:%s@%s>;tag=%s\r\n"
         "To: <%s>\r\n"
         "Call-ID: %s\r\n"
         "CSeq: %u INVITE\r\n"
@@ -312,12 +372,38 @@ static void send_invite(int line, const char *auth_hdr)
         "Content-Length: %d\r\n\r\n%s",
         L->dial_uri,
         s_myip, SIP_PORT, L->branch,
-        L->user, s_server, L->from_tag,
+        cid, L->user, s_server, L->from_tag,
         L->dial_uri,
         L->call_id, (unsigned)L->cseq,
         L->user, s_myip, SIP_PORT,
         auth_hdr ? auth_hdr : "",
         slen, sdp);
+    if (n > 0 && n < (int)sizeof(buf)) udp_send(buf, &s_server_addr);
+}
+
+/* Cancels our own outstanding INVITE (call still ringing, not yet
+ * answered). Per RFC 3261 SS9.1, unlike BYE (a new transaction), CANCEL
+ * MUST reuse the exact same Via branch and CSeq number as the INVITE it's
+ * cancelling -- L->branch/L->cseq are still exactly what send_invite() set
+ * them to, since nothing touches them again before a final response. */
+static void send_cancel(int line)
+{
+    line_t *L = &s_l[line];
+    char buf[MSG_MAX];
+    int n = snprintf(buf, sizeof(buf),
+        "CANCEL %s SIP/2.0\r\n"
+        "Via: SIP/2.0/UDP %s:%d;branch=z9hG4bK%s;rport\r\n"
+        "Max-Forwards: 70\r\n"
+        "From: <sip:%s@%s>;tag=%s\r\n"
+        "To: <%s>%s%s\r\n"
+        "Call-ID: %s\r\n"
+        "CSeq: %u CANCEL\r\n"
+        "Content-Length: 0\r\n\r\n",
+        L->dial_uri,
+        s_myip, SIP_PORT, L->branch,
+        L->user, s_server, L->from_tag,
+        L->dial_uri, L->to_tag[0] ? ";tag=" : "", L->to_tag,
+        L->call_id, (unsigned)L->cseq);
     if (n > 0 && n < (int)sizeof(buf)) udp_send(buf, &s_server_addr);
 }
 
@@ -420,7 +506,7 @@ static int line_for_callid(const char *callid)
 static void reset_call(line_t *L)
 {
     L->state = CALL_IDLE;
-    L->to_tag[0] = L->remote_target[0] = L->remote_uri[0] = 0;
+    L->to_tag[0] = L->remote_target[0] = L->remote_uri[0] = L->remote_name[0] = 0;
     L->peer_rtp_ip[0] = 0; L->peer_rtp_port = 0;
     L->call_authed_once = false;
 }
@@ -534,6 +620,32 @@ static void handle_request(const char *msg, const struct sockaddr_in *src)
     }
 
     if (strcmp(method, "INVITE") == 0) {
+        /* Re-INVITE (same Call-ID as an already-established call on one of
+         * our lines) vs. a genuinely new call: MUST be checked before the
+         * ruri_user/CALL_IDLE logic below, which has no way to tell "this
+         * call is already ours, being renegotiated" from "someone else is
+         * calling while I'm busy" -- both look like "line busy" to it, and
+         * it used to answer a re-INVITE with 486 Busy Here into the very
+         * dialog it was renegotiating. Asterisk commonly sends one of
+         * these seconds after answer (its own default direct_media/
+         * session-timer behavior); we don't support renegotiating, so just
+         * re-confirm the SDP we already answered with -- same RTP port,
+         * nothing actually changes -- which is the standard way a device
+         * that can't renegotiate mid-call satisfies this without dropping
+         * the call. */
+        int re_line = line_for_callid(callid);
+        if (re_line >= 0) {
+            line_t *L = &s_l[re_line];
+            get_header(msg, "Via", "v", L->in_via, sizeof(L->in_via));
+            get_header(msg, "From", "f", L->in_from, sizeof(L->in_from));
+            get_header(msg, "To", "t", L->in_to, sizeof(L->in_to));
+            char cseq[64]; get_header(msg, "CSeq", NULL, cseq, sizeof(cseq)); L->in_cseq = atoi(cseq);
+            L->reply_addr = *src;
+            send_response(L, 200, "OK", "INVITE", true, re_line);
+            ESP_LOGI(TAG, "line %d: re-INVITE, re-confirmed existing SDP", re_line);
+            return;
+        }
+
         char ruri_user[40] = "", to[160], from[160];
         const char *u = strchr(msg, ':'); /* "INVITE sip:USER@host ..." */
         if (u) { u++; size_t i = 0; while (u[i] && u[i] != '@' && i < sizeof(ruri_user) - 1) { ruri_user[i] = u[i]; i++; } ruri_user[i] = 0; }
@@ -559,6 +671,7 @@ static void handle_request(const char *msg, const struct sockaddr_in *src)
         get_header(msg, "To", "t", to, sizeof(to));
         get_header(msg, "From", "f", from, sizeof(from));
         get_uri(from, L->remote_uri, sizeof(L->remote_uri));
+        get_display_name(from, L->remote_name, sizeof(L->remote_name));
         char contact[160];
         if (get_header(msg, "Contact", "m", contact, sizeof(contact)))
             get_uri(contact, L->remote_target, sizeof(L->remote_target));
@@ -578,7 +691,9 @@ static void handle_request(const char *msg, const struct sockaddr_in *src)
         send_response(L, 100, "Trying", "INVITE", false, line);
         send_response(L, 180, "Ringing", "INVITE", false, line);
         emit(line, VOIP_EV_INCOMING, L->remote_uri);
-        ESP_LOGI(TAG, "line %d: incoming call from %s", line, L->remote_uri);
+        ESP_LOGI(TAG, "line %d: incoming call from %s%s%s%s", line,
+                 L->remote_name[0] ? "\"" : "", L->remote_name,
+                 L->remote_name[0] ? "\" " : "", L->remote_uri);
         return;
     }
 
@@ -825,14 +940,38 @@ esp_err_t voip_hangup(int line)
     if (line < 0 || line >= NLINES) return ESP_ERR_INVALID_ARG;
     line_t *L = &s_l[line];
     switch (L->state) {
-        case CALL_ACTIVE:
-        case CALL_OUTGOING: send_bye(line); break;
+        /* Answered call: BYE. Still-ringing outbound call: CANCEL, not BYE
+         * -- BYE only applies to an established dialog (needs a to_tag
+         * from a final response we don't have yet); sending it here used
+         * to produce a malformed request Asterisk couldn't match to
+         * anything, so it never learned we hung up and just left the
+         * callee ringing until answered or its own timeout. */
+        case CALL_ACTIVE:   send_bye(line);    break;
+        case CALL_OUTGOING: send_cancel(line); break;
         case CALL_INCOMING: send_response(L, 603, "Decline", "INVITE", false, line); break;
         default: break;
     }
     rtp_stop(line);
     reset_call(L);
     return ESP_OK;
+}
+
+const char *voip_peer_name(int line)
+{
+    if (line < 0 || line >= NLINES) return "";
+    return s_l[line].remote_name;
+}
+
+/* Static scratch, not a line_t field: the user part is only ever needed
+ * transiently (telephony copies it into its own state on the ringing
+ * event), so deriving it on demand beats carrying another buffer per line
+ * that has to be kept in sync with remote_uri. */
+const char *voip_peer_number(int line)
+{
+    static char num[40];
+    if (line < 0 || line >= NLINES || !s_l[line].remote_uri[0]) return "";
+    uri_user(s_l[line].remote_uri, num, sizeof(num));
+    return num;
 }
 
 bool voip_is_stub(void) { return false; }

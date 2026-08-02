@@ -63,6 +63,15 @@ esp_err_t voip_answer(int line);
 /* Hang up / cancel any call on a line. */
 esp_err_t voip_hangup(int line);
 
+/* Caller ID of the call currently ringing/active on a line, from the
+ * inbound INVITE's From header. Valid from VOIP_EV_INCOMING until the call
+ * ends; "" outside that window, and voip_peer_name() is "" whenever the
+ * caller sent only a bare URI (common -- always fall back to the number).
+ * Both return a pointer into internal state, so copy what you need rather
+ * than holding it across events. */
+const char *voip_peer_name(int line);   /* display name, e.g. "Max Phone" */
+const char *voip_peer_number(int line); /* user part of the URI, e.g. "1066" */
+
 /* True if the implementation is a stub (no SIP stack compiled in). */
 bool      voip_is_stub(void);
 

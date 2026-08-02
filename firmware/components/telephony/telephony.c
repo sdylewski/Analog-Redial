@@ -74,6 +74,11 @@ typedef struct {
     voice_effect_t       call_fx;
     dtmf_detector_t      det;
     char                 last_number[16];
+    /* Caller ID of the most recent inbound VoIP call (kept after the call
+     * ends so the web UI can show who last called). caller_name is "" when
+     * the caller sent no display name. */
+    char                 caller_name[40];
+    char                 caller_number[32];
     char                 last_dtmf_digit;   /* for tonemon/bringup introspection */
     int64_t              last_dtmf_us;
     /* transient tone auto-return */
@@ -124,6 +129,16 @@ tel_state_t telephony_state(int line)
 const char *telephony_last_number(int line)
 {
     return (line >= 0 && line < NLINES) ? s_line[line].last_number : "";
+}
+
+const char *telephony_caller_name(int line)
+{
+    return (line >= 0 && line < NLINES) ? s_line[line].caller_name : "";
+}
+
+const char *telephony_caller_number(int line)
+{
+    return (line >= 0 && line < NLINES) ? s_line[line].caller_number : "";
 }
 
 char telephony_last_dtmf(int line, int64_t *at_us)
@@ -475,6 +490,13 @@ static void on_voip_incoming(int line)
         voip_hangup(line); /* busy */
         return;
     }
+    /* Snapshot caller ID now: voip clears it when the call ends, but the
+     * web UI wants to still show who last called after that. */
+    strlcpy(s_line[line].caller_name, voip_peer_name(line), sizeof(s_line[line].caller_name));
+    strlcpy(s_line[line].caller_number, voip_peer_number(line), sizeof(s_line[line].caller_number));
+    ESP_LOGI(TAG, "line %d: ringing -- caller %s <%s>", line,
+             s_line[line].caller_name[0] ? s_line[line].caller_name : "(no name)",
+             s_line[line].caller_number);
     s_line[line].state = TEL_RINGING;
     s_line[line].peer = PEER_VOIP;
     ag1170_ring_start(line);
@@ -501,9 +523,16 @@ static void fsm_task(void *arg)
                     }
                     break;
                 case IN_VOIP_CLOSED:
+                    /* Far end hung up (or declined/never answered). Give
+                     * dial tone if still off-hook, ready to dial again
+                     * immediately, rather than a persistent reorder tone
+                     * that forces an on-hook/off-hook cycle first -- this
+                     * is a private extension line, not a PSTN trunk, so
+                     * there's no "your call cannot be completed" signal
+                     * worth holding up the line for here. */
                     if (s_line[e.line].peer == PEER_VOIP) {
                         if (line_offhook(e.line))
-                            play_persistent(e.line, TONE_REORDER, TEL_REORDER);
+                            enter_dialtone(e.line);
                         else
                             enter_idle(e.line);
                     }

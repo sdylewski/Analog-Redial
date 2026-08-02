@@ -138,6 +138,7 @@ button.danger:hover { border-color: var(--red); }
   font: inherit;
 }
 .settings-form textarea { resize: vertical; min-height: 60px; }
+.fieldhint { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; font-weight: normal; }
 .settings-form fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 0; }
 .settings-form legend { padding: 0 6px; color: var(--muted); font-size: 12px; text-transform: uppercase; }
 .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }

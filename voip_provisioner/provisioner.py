@@ -34,6 +34,10 @@ Endpoints (all LAN-plain-HTTP, JSON in/out):
                        -> {"ok": bool, "message": str, "reload_ok": bool}
     POST /check       {"password": "...", "extension": "105"}
                        -> {"ok": bool, "in_use": bool}
+    GET  /registered?password=...
+                       -> {"ok": bool, "extensions": [
+                              {"extension": "105", "name": "MaxPhone",
+                               "registered": bool}, ...]}
 """
 from __future__ import annotations
 
@@ -170,6 +174,50 @@ def check_extension(extension: str) -> dict:
     return {"ok": True, "in_use": section_exists(extension)}
 
 
+def registered_contacts() -> set[str]:
+    """AORs with at least one live registered contact right now, via
+    `asterisk -rx "pjsip show contacts"`. Best-effort text parsing of
+    Asterisk's CLI output -- there's no lighter-weight way to ask "is this
+    extension actually online" from outside Asterisk itself. Falls back to
+    an empty set (nobody shown as registered) if parsing or the command
+    itself fails, rather than raising -- this is a nice-to-have status
+    display, not something that should break list_extensions()."""
+    try:
+        p = subprocess.run(["asterisk", "-rx", "pjsip show contacts"],
+                            capture_output=True, text=True, timeout=10)
+    except Exception:
+        return set()
+    live = set()
+    for line in p.stdout.splitlines():
+        # Rows look like " <aor>/<contact-uri>  <hash>  Avail  <rtt>".
+        m = re.match(r"\s*(\S+)/\S+\s+\S+\s+(\S+)", line)
+        if m and m.group(2) == "Avail":
+            live.add(m.group(1))
+    return live
+
+
+def list_extensions() -> dict:
+    """Every extension defined in pjsip.conf (ours and hand-created alike,
+    e.g. 101-104), with a friendly name where we know one (only for
+    extensions this tool created -- parsed from our own marker comment)
+    and whether it's currently registered."""
+    text = PJSIP_CONF.read_text(encoding="utf-8")
+    seen: dict[str, None] = {}
+    for m in re.finditer(r"^\[(\S+)\]\n((?:(?!^\[).)*)", text, re.MULTILINE | re.DOTALL):
+        if "type=endpoint" in m.group(2):
+            seen.setdefault(m.group(1), None)
+
+    names = {m.group(1): m.group(2)
+             for m in re.finditer(r"── Extension (\S+) \((.*?)\) ──", text)}
+    live = registered_contacts()
+
+    exts = sorted(seen, key=lambda e: (len(e), e))
+    return {"ok": True, "extensions": [
+        {"extension": e, "name": names.get(e, ""), "registered": e in live}
+        for e in exts
+    ]}
+
+
 class Handler(BaseHTTPRequestHandler):
     password: str = ""
 
@@ -236,14 +284,24 @@ class Handler(BaseHTTPRequestHandler):
         self._send_json(404, {"ok": False, "message": "not found"})
 
     def do_GET(self) -> None:
-        # Query-string form of /check, kept for quick curl/browser testing --
-        # the ESP32 firmware always uses the POST form above.
-        if not self.path.startswith("/check"):
+        # Query-string forms, kept for quick curl/browser testing -- the
+        # ESP32 firmware always uses the POST forms above (except
+        # /registered, which is GET-only -- it takes no other input).
+        from urllib.parse import parse_qs, urlparse
+        parsed = urlparse(self.path)
+        q = parse_qs(parsed.query)
+        supplied = (q.get("password") or [""])[0]
+
+        if parsed.path == "/registered":
+            if not self._check_password(supplied):
+                self._send_json(403, {"ok": False, "message": "bad setup password"})
+                return
+            self._send_json(200, list_extensions())
+            return
+
+        if not parsed.path.startswith("/check"):
             self._send_json(404, {"ok": False, "message": "not found"})
             return
-        from urllib.parse import parse_qs, urlparse
-        q = parse_qs(urlparse(self.path).query)
-        supplied = (q.get("password") or [""])[0]
         extension = (q.get("extension") or [""])[0]
         if not self._check_password(supplied):
             self._send_json(403, {"ok": False, "message": "bad setup password"})

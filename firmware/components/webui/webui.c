@@ -232,6 +232,10 @@ static cJSON *build_status_json(void)
         cJSON_AddNumberToObject(jl, "line", l);
         cJSON_AddStringToObject(jl, "state", telephony_state_name(telephony_state(l)));
         cJSON_AddStringToObject(jl, "last_number", telephony_last_number(l));
+        /* No escaping here (unlike the HTML page): cJSON handles JSON string
+         * quoting itself, and consumers of this API get the raw value. */
+        cJSON_AddStringToObject(jl, "caller_name", telephony_caller_name(l));
+        cJSON_AddStringToObject(jl, "caller_number", telephony_caller_number(l));
         cJSON_AddNumberToObject(jl, "rx_level", audio_rx_level(l));
         cJSON_AddItemToArray(lines, jl);
     }
@@ -258,6 +262,38 @@ static esp_err_t static_css_handler(httpd_req_t *req)
     httpd_resp_send(req, (const char *)style_css_start,
                      style_css_end - style_css_start);
     return ESP_OK;
+}
+
+/* Escape text that came from off-device into HTML body text. Needed for
+ * caller ID specifically: the display name and number are copied verbatim
+ * out of a remote UA's SIP From header, so they're attacker-controlled
+ * strings being rendered into this page -- everything else the status page
+ * prints originates on this device. Truncates rather than overflowing;
+ * always NUL-terminates. */
+static void html_escape(const char *in, char *out, size_t outsz)
+{
+    size_t o = 0;
+    if (outsz == 0) return;
+    for (size_t i = 0; in[i] && o < outsz - 1; i++) {
+        const char *rep = NULL;
+        switch (in[i]) {
+            case '<':  rep = "&lt;";   break;
+            case '>':  rep = "&gt;";   break;
+            case '&':  rep = "&amp;";  break;
+            case '"':  rep = "&quot;"; break;
+            case '\'': rep = "&#39;";  break;
+            default: break;
+        }
+        if (rep) {
+            size_t rl = strlen(rep);
+            if (o + rl >= outsz) break; /* no room for the whole entity */
+            memcpy(out + o, rep, rl);
+            o += rl;
+        } else {
+            out[o++] = in[i];
+        }
+    }
+    out[o] = '\0';
 }
 
 /* Same green/gray/amber "pill" classes the Pi UI uses for line state. */
@@ -407,13 +443,23 @@ static esp_err_t index_handler(httpd_req_t *req)
 
     for (int l = 0; l < CONFIG_BOARD_NUM_LINES && off > 0 && (size_t)off < cap; l++) {
         tel_state_t st = telephony_state(l);
+        /* Caller ID is remote-supplied -- escape before rendering. */
+        char cname[160], cnum[128], caller[300];
+        html_escape(telephony_caller_name(l), cname, sizeof(cname));
+        html_escape(telephony_caller_number(l), cnum, sizeof(cnum));
+        if (cnum[0] && cname[0])      snprintf(caller, sizeof(caller), "%s (%s)", cname, cnum);
+        else if (cnum[0])             snprintf(caller, sizeof(caller), "%s", cnum);
+        else                          snprintf(caller, sizeof(caller), "%s", "&mdash;");
+
         off += snprintf(buf + off, cap - off,
             "<div class=\"card\"><h2>Line %d</h2>"
             "<div class=\"statusrow\"><span class=\"label\">State</span>"
             "<span class=\"pill %s\">%s</span></div>"
             "<div class=\"statusrow\"><span class=\"label\">Last number</span><span>%s</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
             "</div>",
-            l, pill_class_for(st), telephony_state_name(st), telephony_last_number(l));
+            l, pill_class_for(st), telephony_state_name(st), telephony_last_number(l),
+            st == TEL_RINGING ? "Incoming call" : "Last caller", caller);
     }
     if (off > 0 && (size_t)off < cap) {
         off += snprintf(buf + off, cap - off, "</div>" /* .cards */);
@@ -781,6 +827,9 @@ static int append_operator_tab(char *buf, size_t cap, int off,
     return off;
 }
 
+/* Defined further down (near provisioner_call(), which it uses). */
+static int append_registered_lines(char *buf, size_t cap, int off, const char *prov_host);
+
 static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, const char *result,
                             const char *created, const char *createresult)
 {
@@ -802,29 +851,41 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
     /* Auto-provisioning: the optional companion service (voip_provisioner/,
-     * repo root) that can create this line's extension on a FreePBX server
-     * directly -- see VOIP_SETUP.md for why FreePBX needs a real service
-     * for this instead of the downloadable script further down (which only
-     * works against plain Asterisk; FreePBX regenerates its config from its
-     * own database and would discard hand-edited files). Takes effect
-     * immediately, no reboot -- these aren't read at boot by anything.
-     * Fields stack one-per-row (no grid2) -- this card holds server names
-     * and passwords, which just get uselessly narrow split 2-up. */
+     * repo root) that creates/checks extensions on the Asterisk server
+     * directly from this page instead of hand-editing pjsip.conf over SSH.
+     * Takes effect immediately, no reboot -- these aren't read at boot by
+     * anything. Fields stack one-per-row (no grid2) -- this card holds
+     * server names and passwords, which just get uselessly narrow split
+     * 2-up. */
     const char *prov_host = voip_provisioner_host();
+    bool prov_pw_set = voip_provisioner_password()[0] != '\0';
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\"><h2>Auto-provisioning (optional)</h2>"
-        "<p class=\"hint\">Point this at a <code>voip_provisioner</code> companion service "
-        "(runs on the PBX host, not this phone -- see <code>voip_provisioner/README.md</code>) "
-        "to create/check extensions on a FreePBX server directly from this page. Leave blank to "
-        "use the SIP-probe check and the downloadable script further down instead.</p>"
+        "<div class=\"card wide\"><h2>1. Auto-provisioning setup (do this once per board)</h2>"
+        "<p class=\"hint\">Point this at the <code>voip_provisioner</code> service running on "
+        "your Asterisk server (see <code>voip_provisioner/README.md</code> if you haven't set "
+        "one up) so this page can create and check extensions for you. This is <em>per board</em> "
+        "&mdash; every phone needs its own copy of these two values, they don't sync anywhere. "
+        "Leave both fields blank if you'd rather skip this and do everything by hand (see "
+        "\"Manual\" at the bottom of this page).</p>"
         "<form method=\"POST\" action=\"/voip_set_provisioner\" class=\"settings-form\">"
-        "<label>Provisioner host:port <input name=\"host\" value=\"%s\" "
-        "placeholder=\"feynman.local:8088\"></label>"
-        "<label>Setup password <input type=\"password\" name=\"password\" "
-        "placeholder=\"%s\"></label>"
+        "<label>Provisioner host:port"
+        "<input name=\"host\" value=\"%s\" placeholder=\"feynman.local:8088\">"
+        "<span class=\"fieldhint\">The Asterisk server's hostname/IP, plus the port "
+        "<code>voip_provisioner</code> listens on (8088 unless you changed it).</span>"
+        "</label>"
+        "<label>Setup password"
+        "<input type=\"password\" name=\"password\" placeholder=\"%s\">"
+        "<span class=\"fieldhint\">%s Found in <code>setup_password.txt</code> on the Asterisk "
+        "server (<code>voip_provisioner/</code> install directory) -- it's a shared secret for "
+        "this one tool, not your Asterisk/SIP account password.</span>"
+        "</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\">Save</button></div>"
         "</form></div>",
-        prov_host, prov_host[0] ? "leave blank to keep" : "not set");
+        prov_host, prov_pw_set ? "\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2" : "not set",
+        prov_pw_set ? "Already set on this board -- leave blank to keep it, or type a new one to replace it."
+                    : "Not set yet.");
+
+    off = append_registered_lines(buf, cap, off, prov_host);
 
     /* Check-before-you-commit: separate tiny form (its own number field, not
      * tied to the save form below) so you can try a few candidates without
@@ -836,7 +897,10 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
      * it used to duplicate the one in the Save form below with different
      * wording, which just read as two different settings. */
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\">"
+        "<div class=\"card wide\"><h2>2. Pick a number</h2>"
+        "<p class=\"hint\">Check the \"Lines on this server\" table above (or your project's "
+        "shared registry doc) for numbers already spoken for, then confirm here before you "
+        "commit to one.</p>"
         "<form method=\"POST\" action=\"/voip_check\" class=\"settings-form\">"
         "<label>Number to check <input name=\"number\" placeholder=\"e.g. 1101\" "
         "pattern=\"[0-9]{2,6}\" required></label>"
@@ -888,7 +952,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         char board_name[32];
         board_name_get(board_name, sizeof(board_name));
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"card wide\"><h2>Auto-provision a line</h2>"
+            "<div class=\"card wide\"><h2>3. Create the extension on the server</h2>"
             "<form method=\"POST\" action=\"/voip_provision\" class=\"settings-form\">"
             "<label>Extension to create <input name=\"extension\" value=\"%s\" "
             "placeholder=\"e.g. 1101\" pattern=\"[0-9]{2,6}\" required></label>"
@@ -921,7 +985,10 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     }
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\">"
+        "<div class=\"card wide\"><h2>4. Point this phone at it</h2>"
+        "<p class=\"hint\">This is the part that actually makes <em>this board</em> use the "
+        "extension(s) above -- everything before this step only touched the server. Same "
+        "extension/password you created in step 3.</p>"
         "<form method=\"POST\" action=\"/voip_set\" class=\"settings-form\">"
         "<label>SIP server (host or IP) <input name=\"server\" value=\"%s\"></label>"
         "<label>Line 1 extension/user <input name=\"user0\" value=\"%s\"></label>"
@@ -1486,10 +1553,11 @@ static esp_err_t voip_set_handler(httpd_req_t *req)
 
 /* ---------- voip_provisioner companion service client ----------
  * See voip_provisioner/README.md (repo root) for what this calls into and
- * why it has to be a separate service on the PBX host at all: FreePBX owns
- * its own config files and regenerates them from its database on every
- * Apply Config, so hand-editing them the way the plain-Asterisk generated
- * script does (voip_server_script_handler below) doesn't survive. */
+ * why it has to be a separate service on the PBX host at all: writing
+ * pjsip.conf/extensions.conf and reloading Asterisk needs to run as the
+ * `asterisk` system user (owner of those files and the only account that
+ * can reach the reload control socket), which this device obviously isn't
+ * -- it has to ask something on that host to do it instead. */
 
 typedef struct {
     char *buf;
@@ -1545,6 +1613,78 @@ static int provisioner_call(const char *host, const char *path, const char *body
     }
     esp_http_client_cleanup(client);
     return status;
+}
+
+/* Percent-encode for a URL query value. The provisioner's own generated
+ * passwords are always token_urlsafe() (alnum, '-', '_' only, never needs
+ * this), but a hand-typed one could contain anything. */
+static void url_encode(const char *in, char *out, size_t outsz)
+{
+    static const char hex[] = "0123456789ABCDEF";
+    size_t o = 0;
+    for (size_t i = 0; in[i] && o + 4 < outsz; i++) {
+        unsigned char c = (unsigned char)in[i];
+        bool safe = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+                    (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '~';
+        if (safe) {
+            out[o++] = (char)c;
+        } else {
+            out[o++] = '%'; out[o++] = hex[c >> 4]; out[o++] = hex[c & 0xF];
+        }
+    }
+    out[o] = '\0';
+}
+
+/* Fetches the provisioner's live extension roster (GET /registered) and
+ * renders it as a table -- every extension defined on the server, a
+ * friendly name where the provisioner knows one, and whether it's
+ * registered *right now*. Silently renders nothing if no provisioner is
+ * configured or the call fails; this is a nice-to-have status view on an
+ * already-optional feature, not worth an error banner. */
+static int append_registered_lines(char *buf, size_t cap, int off, const char *prov_host)
+{
+    if (!prov_host[0]) return off;
+
+    char enc_pw[128];
+    url_encode(voip_provisioner_password(), enc_pw, sizeof(enc_pw));
+    char path[160];
+    snprintf(path, sizeof(path), "/registered?password=%s", enc_pw);
+    char resp[2048];
+    int status = provisioner_call(prov_host, path, NULL, resp, sizeof(resp));
+    if (status != 200) return off;
+
+    cJSON *rj = cJSON_Parse(resp);
+    if (!rj) return off;
+    cJSON *exts = cJSON_GetObjectItem(rj, "extensions");
+    if (!cJSON_IsArray(exts) || cJSON_GetArraySize(exts) == 0) {
+        cJSON_Delete(rj);
+        return off;
+    }
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card wide\"><h2>Lines on this server</h2>"
+        "<p class=\"hint\">Every extension %s knows about right now, and whether it's "
+        "actually registered (a phone is powered on and reachable) at this moment -- "
+        "not just configured. Refreshes each time you load this page.</p>"
+        "<table><tr><th>Extension</th><th>Name</th><th>Status</th></tr>",
+        prov_host);
+    cJSON *item;
+    cJSON_ArrayForEach(item, exts) {
+        cJSON *je = cJSON_GetObjectItem(item, "extension");
+        cJSON *jn = cJSON_GetObjectItem(item, "name");
+        cJSON *jr = cJSON_GetObjectItem(item, "registered");
+        char ext[160] = "", name[160] = "";
+        html_escape(cJSON_IsString(je) ? je->valuestring : "", ext, sizeof(ext));
+        html_escape(cJSON_IsString(jn) ? jn->valuestring : "", name, sizeof(name));
+        bool reg = cJSON_IsTrue(jr);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<tr><td>%s</td><td>%s</td><td><span class=\"pill %s\">%s</span></td></tr>",
+            ext, name[0] ? name : "&mdash;", reg ? "on" : "off",
+            reg ? "registered" : "not registered");
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table></div>");
+    cJSON_Delete(rj);
+    return off;
 }
 
 /* POST /voip_check -- form body number=.. . Always checks against the
