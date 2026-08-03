@@ -140,3 +140,7 @@ status
 `codec_bypass <0|1>` also exists but only does anything on the WM8731 (THT)
 board — the ES8388 driver doesn't implement an analog bypass path yet; use
 `loopback` (a DSP/I2S loopback) instead.
+
+`echopulse <line> <on|off> [period_ms]` — periodic timestamped test tone
+for characterizing hybrid/line echo on real hardware (oscilloscope or ear,
+not a log-timestamp exercise). See [`../../ECHO_DEBUGGING.md`](../../ECHO_DEBUGGING.md).
