@@ -65,15 +65,17 @@ just for the Pi-populated case) if the board grows.
 
 ## Raspberry Pi header compatibility
 
-The design goal: **one PCB layout, one set of peripheral nets**
-(ES8388's I2S+I2C, each SLIC's control GPIO, optionally a shared
-microSD), driven by **either** the ESP32-DevKit **or** a Raspberry Pi,
-whichever is physically populated. They're never both active — no
-cross-wiring is needed *between* the ESP32 and the Pi's own pins, since
-they don't talk to each other directly. What matters is that both
-driver options land their respective (fixed for the Pi, flexible for the
-ESP32) hardware-peripheral pins on the *same* nets going to the shared
-peripherals.
+Design goal, confirmed with the board's designer: this is meant to be
+released as an **open-hardware board that works with either driver** —
+not a product that ships with both. **One PCB layout, one set of
+peripheral nets** (ES8388's I2S+I2C, each SLIC's control GPIO, optionally
+a shared microSD), driven by **either** the ESP32-DevKit **or** a
+Raspberry Pi, whichever someone building the board chooses to populate.
+They're never both active on the same board — no cross-wiring is needed
+*between* the ESP32 and the Pi's own pins, since they don't talk to each
+other directly. What matters is that both driver options land their
+respective (fixed for the Pi, flexible for the ESP32) hardware-peripheral
+pins on the *same* nets going to the shared peripherals.
 
 The Pi's 40-pin header has **fixed-position** hardware peripherals
 (I2C1, SPI0, I2S0, UART0 always live on the same physical pins on every
@@ -151,19 +153,23 @@ the Pi being a "dumb driver, no local storage" option), this section
 doesn't matter — skip it and just keep SMD2's existing GPIO18-21 XOR with
 line-2 SLIC.
 
-### UART — needs a decision, not obviously needed by default
+### UART — resolved: no cross-wiring, optional Pi-side debug header for parity
 
-Unlike I2C/I2S/SPI, there's no **shared peripheral on this board** that
-needs a UART bus from either driver — nothing here is a UART device. The
-ESP32-DevKit already has its own console over its own USB-C (USB-CDC/
-JTAG); a Pi typically uses SSH/HDMI or its own separate debug UART setup.
-So cross-wiring the Pi's UART0 (BCM14/TXD = pin 8, BCM15/RXD = pin 10) to
-the ESP32's UART pins isn't obviously necessary here — **unless** the
-actual goal is something more specific, like wanting the ESP32 to remain
-present as a co-processor even when the Pi is the main driver (which
-would contradict "one or the other"), or wanting a debug link between the
-two during bring-up. Worth confirming intent before spending header pins
-and routing on this — flagged as **open question** below.
+Confirmed with the board's designer: the ESP32 and Pi are **never both
+populated at once** — this board is meant to be released as an
+open-hardware design usable with *either* driver, not a dual-driver
+product. So there's no cross-wiring need between the Pi's UART0 and the
+ESP32's UART pins; nothing on the board is a shared UART device for them
+to both talk to.
+
+That said, the ESP32-DevKit side already has an **optional debug UART
+break-out** (`J3`/`J4` in the SMD2 design, `GPIO16`/`GPIO17`) alongside
+its main USB-CDC console. For parity between the two driver options (the
+whole point of an open-hardware "either/or" board), it's worth giving the
+Pi build the **same kind** of optional break-out — its own UART0
+(`BCM14`/TXD = pin 8, `BCM15`/RXD = pin 10) broken out to a header, wired
+to nothing else on the board. Independent implementations of the same
+idea, not a shared net.
 
 ### Power / ground
 
@@ -201,8 +207,6 @@ wiring from the start, not carry the bodges forward as the "real" design:
 
 ## Open questions
 
-- **UART cross-wiring**: confirm actual intent (see [UART](#uart--needs-a-decision-not-obviously-needed-by-default))
-  before routing/spending header pins on it.
 - **Shared microSD or ESP32-only SD**: confirms whether the SPI0 section
   above is needed at all.
 - **Pi 3.3V budget**: if the Pi-populated case ever needs more than just
