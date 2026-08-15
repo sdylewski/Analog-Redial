@@ -40,6 +40,7 @@ static const char *TAG = "voip";
 #define NLINES          2
 #define VOIP_NVS_NS     "voip"
 #define REG_EXPIRES     120        /* seconds; refresh at half */
+#define REG_RETRY_S     5          /* safety-net retry if a REGISTER round trip goes unanswered */
 #define MSG_MAX         1600
 
 typedef enum { CALL_IDLE = 0, CALL_OUTGOING, CALL_INCOMING, CALL_ACTIVE } call_state_t;
@@ -330,6 +331,19 @@ static void send_register(int line, const char *auth_hdr)
         REG_EXPIRES,
         auth_hdr ? auth_hdr : "");
     if (n > 0 && n < (int)sizeof(buf)) udp_send(buf, &s_server_addr);
+    /* Safety-net retry: REGISTER's 401-challenge/authenticated-retry dance
+     * is two UDP round trips with no reliability of its own -- if any leg
+     * (this send, the 401, the retry, or the final 200 OK) gets lost, there
+     * was previously no fallback at all: reg_refresh_at_us only ever got
+     * (re)armed by handle_response()'s 200 OK case, so a single dropped
+     * packet silently stopped every future refresh forever, while
+     * `registered` stayed true locally (never corrected) until reboot --
+     * exactly what happened to a board that had been up 35 minutes with no
+     * indication anything was wrong. Arming a short retry on every send,
+     * unconditionally, means a lost packet self-heals within REG_RETRY_S
+     * instead of needing a power cycle; an actual 200 OK below overrides
+     * this with the real REG_EXPIRES/2 interval. */
+    L->reg_refresh_at_us = esp_timer_get_time() + (int64_t)REG_RETRY_S * 1000000;
 }
 
 static void send_invite(int line, const char *auth_hdr)
@@ -829,7 +843,12 @@ static void sip_task(void *arg)
         }
         int64_t now = esp_timer_get_time();
         for (int i = 0; i < NLINES; i++) {
-            if (s_l[i].registered && s_l[i].reg_refresh_at_us && now >= s_l[i].reg_refresh_at_us) {
+            /* Not gated on s_l[i].registered: this timer now also covers
+             * initial registration (register_all() arms it the same way
+             * send_register() always does), so a line stuck never having
+             * registered at all -- e.g. its very first REGISTER's response
+             * lost -- retries instead of waiting forever. */
+            if (s_l[i].reg_refresh_at_us && now >= s_l[i].reg_refresh_at_us) {
                 s_l[i].reg_refresh_at_us = 0;
                 s_l[i].reg_authed_once = false;
                 send_register(i, NULL);
