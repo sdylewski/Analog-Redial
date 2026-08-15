@@ -33,7 +33,7 @@ doesn't fit that story on its own and needs to be measured, not guessed.
 ## The tool: `echopulse`
 
 Added to the bring-up console (`firmware/components/bringup/bringup.c`)
-specifically for this. Plays a short, distinctive 1kHz/150ms tone burst on
+specifically for this. Plays a short, distinctive 1kHz/10ms tone burst on
 a fixed period, logging the exact timestamp of each one:
 
 ```
@@ -42,7 +42,7 @@ echopulse <line> <on|off> [period_ms, default 2000]
 
 ```
 phone> echopulse 0 on
-echopulse line 0: started, 1kHz/150ms burst every 2000 ms
+echopulse line 0: started, 1kHz/10ms burst every 2000 ms
 echopulse line 0: PULSE at t=123456 ms
 echopulse line 0: PULSE at t=125456 ms
 ...
@@ -111,6 +111,10 @@ of these two very different implementations is actually needed.
 
 ## See also
 
-- `firmware/components/bringup/bringup.c` — `cmd_echopulse`, `cmd_capture`
+- [`ECHO_REDUCTION_TESTS.md`](ECHO_REDUCTION_TESTS.md) — live test log:
+  results of everything tried, loudness-standard reference values, and
+  what's left to test
+- `firmware/components/bringup/bringup.c` — `cmd_echopulse`, `cmd_capture`,
+  `cmd_echosweep`, `cmd_micamp`, `cmd_spkamp`
 - `firmware/bringup/README.md` — full console command reference
 - `HARDWARE_SIGNAL_LEVELS.md` — SLIC levels, SHK dividers
