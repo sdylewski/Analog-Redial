@@ -171,6 +171,41 @@ static int cmd_micamp(int argc, char **argv)
 #endif
 }
 
+/* ---------- spkamp (ES8388 LOUT1/ROUT1 earpiece drive level, live tuning) ----------
+ * Companion to micamp: while a call is live and echoing, dial this down (or
+ * micamp down) and see whether the echo weakens -- directly tests "is this
+ * gain-dependent" without ending the call. Raw LOUT1VOL/ROUT1VOL register
+ * value, not an abstracted step count like micamp (the two ES8388 volume
+ * fields use different underlying encodings, so this mirrors es8388.c's own
+ * es8388_set_dac_volume() convention directly rather than inventing a new
+ * one). */
+static int cmd_spkamp(int argc, char **argv)
+{
+#if CONFIG_BOARD_TYPE_SMD2
+    if (argc < 3) {
+        printf("usage: spkamp <left 0-63> <right 0-63>   (0=mute, 33=0dB, 1dB/step)\n"
+               "current LOUT1VOL/ROUT1VOL = 0x%02X / 0x%02X\n",
+               es8388_shadow(ES8388_REG_LOUT1VOL), es8388_shadow(ES8388_REG_ROUT1VOL));
+        return 1;
+    }
+    int l = atoi(argv[1]), r = atoi(argv[2]);
+    if (l < 0 || l > 63 || r < 0 || r > 63) {
+        printf("left/right must each be 0-63\n");
+        return 1;
+    }
+    esp_err_t err = es8388_set_dac_volume((uint8_t)l, (uint8_t)r);
+    if (err != ESP_OK) {
+        printf("write failed: %s\n", esp_err_to_name(err));
+        return 1;
+    }
+    printf("LOUT1VOL=%d ROUT1VOL=%d (0dB at 33, 1dB/step)\n", l, r);
+    return 0;
+#else
+    printf("spkamp: SMD2/ES8388 only\n");
+    return 1;
+#endif
+}
+
 /* ---------- tone ---------- */
 static struct {
     struct arg_dbl *hz;
@@ -210,6 +245,10 @@ static int cmd_tone(int argc, char **argv)
  * repeat's timing, measured against this command's own timestamps, is your
  * echo path length, hard numbers instead of a guess). */
 #define ECHOPULSE_MAX_LINES 2
+/* Short on purpose: long enough to be an unmistakable 1kHz burst (10 cycles),
+ * short enough to see the whole pulse -- and any echo of it -- in one
+ * oscilloscope sweep without a long flat top obscuring the edges. */
+#define ECHOPULSE_BURST_MS 10
 static TaskHandle_t s_echopulse_task[ECHOPULSE_MAX_LINES];
 static volatile int s_echopulse_period_ms[ECHOPULSE_MAX_LINES];
 
@@ -219,9 +258,9 @@ static void echopulse_task(void *arg)
     while (1) {
         printf("echopulse line %d: PULSE at t=%lld ms\n",
                line, (long long)(esp_timer_get_time() / 1000));
-        audio_tx_burst(line, 1000.0f, 0.0f, 0.6f, 150);
+        audio_tx_burst(line, 1000.0f, 0.0f, 0.6f, ECHOPULSE_BURST_MS);
         int period = s_echopulse_period_ms[line];
-        vTaskDelay(pdMS_TO_TICKS((period > 150) ? (period - 150) : period));
+        vTaskDelay(pdMS_TO_TICKS((period > ECHOPULSE_BURST_MS) ? (period - ECHOPULSE_BURST_MS) : period));
     }
 }
 
@@ -244,14 +283,82 @@ static int cmd_echopulse(int argc, char **argv)
         s_echopulse_period_ms[line] = (argc > 3) ? atoi(argv[3]) : 2000;
         xTaskCreate(echopulse_task, "echopulse", 3072, (void *)(intptr_t)line,
                     tskIDLE_PRIORITY + 2, &s_echopulse_task[line]);
-        printf("echopulse line %d: started, 1kHz/150ms burst every %d ms\n",
-               line, s_echopulse_period_ms[line]);
+        printf("echopulse line %d: started, 1kHz/%dms burst every %d ms\n",
+               line, ECHOPULSE_BURST_MS, s_echopulse_period_ms[line]);
     } else {
         if (s_echopulse_task[line]) {
             vTaskDelete(s_echopulse_task[line]);
             s_echopulse_task[line] = NULL;
         }
         printf("echopulse line %d: stopped\n", line);
+    }
+    return 0;
+}
+
+/* ---------- echosweep: step through several frequencies for echo debugging ----------
+ * echopulse's fixed 1kHz burst didn't reliably reproduce the reported echo,
+ * where real speech did -- one real possibility is a handset with its own
+ * mic->earpiece acoustic feed-through (separate from anything on this
+ * board) that couples some frequencies much better than others, the way
+ * any small acoustic cavity (earpiece/mouthpiece) tends to have real
+ * resonances. This cycles through 9 tones spanning classic telephone
+ * bandwidth (300-3400Hz) so you can listen for -- or capture and compare --
+ * whether some frequencies echo more than others, rather than assuming a
+ * single 1kHz probe represents the whole band. Same real DAC->codec->SLIC
+ * path as echopulse, same reasoning for why (exercises actual hardware,
+ * not the digital test_loopback tap). */
+#define ECHOSWEEP_MAX_LINES 2
+#define ECHOSWEEP_BURST_MS 150 /* longer than echopulse's 10ms -- audible/identifiable by ear */
+static const float ECHOSWEEP_FREQS_HZ[] = { 300, 500, 700, 1000, 1500, 2000, 2500, 3000, 3400 };
+#define ECHOSWEEP_N_FREQS (sizeof(ECHOSWEEP_FREQS_HZ) / sizeof(ECHOSWEEP_FREQS_HZ[0]))
+static TaskHandle_t s_echosweep_task[ECHOSWEEP_MAX_LINES];
+static volatile int s_echosweep_period_ms[ECHOSWEEP_MAX_LINES];
+
+static void echosweep_task(void *arg)
+{
+    int line = (int)(intptr_t)arg;
+    size_t i = 0;
+    while (1) {
+        float hz = ECHOSWEEP_FREQS_HZ[i % ECHOSWEEP_N_FREQS];
+        printf("echosweep line %d: %.0f Hz PULSE at t=%lld ms\n",
+               line, hz, (long long)(esp_timer_get_time() / 1000));
+        audio_tx_burst(line, hz, 0.0f, 0.6f, ECHOSWEEP_BURST_MS);
+        i++;
+        int period = s_echosweep_period_ms[line];
+        vTaskDelay(pdMS_TO_TICKS((period > ECHOSWEEP_BURST_MS) ? (period - ECHOSWEEP_BURST_MS) : period));
+    }
+}
+
+static int cmd_echosweep(int argc, char **argv)
+{
+    if (argc < 3) {
+        printf("usage: echosweep <line> <on|off> [period_ms, default 2000]\n");
+        printf("cycles through: ");
+        for (size_t i = 0; i < ECHOSWEEP_N_FREQS; i++) printf("%.0fHz ", ECHOSWEEP_FREQS_HZ[i]);
+        printf("\n");
+        return 1;
+    }
+    int line = atoi(argv[1]);
+    if (line < 0 || line >= ECHOSWEEP_MAX_LINES) {
+        printf("bad line (0-%d)\n", ECHOSWEEP_MAX_LINES - 1);
+        return 1;
+    }
+    if (strcmp(argv[2], "on") == 0) {
+        if (s_echosweep_task[line]) {
+            printf("echosweep already running on line %d\n", line);
+            return 0;
+        }
+        s_echosweep_period_ms[line] = (argc > 3) ? atoi(argv[3]) : 2000;
+        xTaskCreate(echosweep_task, "echosweep", 3072, (void *)(intptr_t)line,
+                    tskIDLE_PRIORITY + 2, &s_echosweep_task[line]);
+        printf("echosweep line %d: started, %dms bursts every %d ms, cycling %u frequencies\n",
+               line, ECHOSWEEP_BURST_MS, s_echosweep_period_ms[line], (unsigned)ECHOSWEEP_N_FREQS);
+    } else {
+        if (s_echosweep_task[line]) {
+            vTaskDelete(s_echosweep_task[line]);
+            s_echosweep_task[line] = NULL;
+        }
+        printf("echosweep line %d: stopped\n", line);
     }
     return 0;
 }
@@ -874,6 +981,7 @@ void bringup_console_start(void)
     register_cmd("codec_dump", "Dump codec shadow registers", cmd_codec_dump);
     register_cmd("codec_bypass", "Analog bypass on/off (WM8731 only): codec_bypass <0|1>", cmd_codec_bypass);
     register_cmd("micamp", "ES8388 ADC PGA gain (SMD2): micamp <left 0-8> <right 0-8>, 3dB/step", cmd_micamp);
+    register_cmd("spkamp", "ES8388 earpiece drive level (SMD2): spkamp <left 0-63> <right 0-63>, 1dB/step, 33=0dB", cmd_spkamp);
 
     tone_args.hz   = arg_dbl0(NULL, NULL, "<hz>", "frequency (default 1000)");
     tone_args.ms   = arg_int0(NULL, NULL, "<ms>", "duration ms (default 1000)");
@@ -895,6 +1003,7 @@ void bringup_console_start(void)
     register_cmd("loopback", "Mic->speaker: loopback [line] [0|1]", cmd_loopback);
     register_cmd("capture", "RX level meter, both lines simultaneously: capture [ms]", cmd_capture);
     register_cmd("echopulse", "Periodic 1kHz burst for echo/hybrid debugging: echopulse <line> <on|off> [period_ms]", cmd_echopulse);
+    register_cmd("echosweep", "Cycles 9 tones 300-3400Hz for echo/resonance debugging: echosweep <line> <on|off> [period_ms]", cmd_echosweep);
     register_cmd("record", "Raw mic capture to storage, no live playback: record <ms> [line]", cmd_record);
     register_cmd("play", "Play a storage WAV out a line: play <name> [line]", cmd_play);
     register_cmd("dtmf_gen", "Emit DTMF: dtmf_gen <digits> [line]", cmd_dtmf_gen);
