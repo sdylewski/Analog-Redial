@@ -1,6 +1,7 @@
 #include "rtp.h"
 #include "g711.h"
 #include "audio.h"
+#include "aec.h"
 #include "esp_log.h"
 #include "esp_random.h"
 #include "freertos/FreeRTOS.h"
@@ -65,24 +66,43 @@ static void tx_task(void *arg)
     rtp_line_t *r = &s_rtp[line];
     int16_t *in = malloc(SAMPLES_48K * sizeof(int16_t));
     uint8_t *pkt = malloc(RTP_HDR_LEN + SAMPLES_8K);
-    if (!in || !pkt) { ESP_LOGE(TAG, "line %d tx alloc failed", line); goto out; }
+    int16_t *aec8 = malloc(SAMPLES_8K * sizeof(int16_t));
+    if (!in || !pkt || !aec8) { ESP_LOGE(TAG, "line %d tx alloc failed", line); goto out; }
 
     TickType_t next = xTaskGetTickCount();
-    while (r->active) {
-        read_uplink_48k(line, in);
 
-        /* decimate 48k -> 8k by averaging groups of 6 (carried across packets) */
+    while (r->active) {
         uint8_t *payload = pkt + RTP_HDR_LEN;
         size_t on = 0;
-        for (size_t i = 0; i < SAMPLES_48K && on < SAMPLES_8K; i++) {
-            r->dn_acc += in[i];
-            if (++r->dn_n == DECIM) {
-                payload[on++] = ulaw_encode((int16_t)(r->dn_acc / DECIM));
-                r->dn_acc = 0;
-                r->dn_n = 0;
+
+        if (aec_is_enabled(line)) {
+            /* Echo canceller active: audio.c has already cancelled AND
+             * decimated to 8 kHz (it is the only place where the played frame
+             * and the captured frame are aligned -- see audio.h). Draining the
+             * 48 kHz path too would steal the recorder's/diag tap's samples,
+             * so this branch reads only the cancelled stream. */
+            size_t got = 0;
+            int64_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(PTIME_MS + 10);
+            while (got < SAMPLES_8K) {
+                size_t n = audio_aec_read(line, aec8 + got, SAMPLES_8K - got, PTIME_MS);
+                got += n;
+                if (n == 0 && xTaskGetTickCount() >= deadline) break;
             }
+            for (size_t i = got; i < SAMPLES_8K; i++) aec8[i] = 0; /* pad underrun */
+            for (; on < SAMPLES_8K; on++) payload[on] = ulaw_encode(aec8[on]);
+        } else {
+            read_uplink_48k(line, in);
+            /* decimate 48k -> 8k by averaging groups of 6 (carried across packets) */
+            for (size_t i = 0; i < SAMPLES_48K && on < SAMPLES_8K; i++) {
+                r->dn_acc += in[i];
+                if (++r->dn_n == DECIM) {
+                    payload[on++] = ulaw_encode((int16_t)(r->dn_acc / DECIM));
+                    r->dn_acc = 0;
+                    r->dn_n = 0;
+                }
+            }
+            while (on < SAMPLES_8K) payload[on++] = ulaw_encode(0);
         }
-        while (on < SAMPLES_8K) payload[on++] = ulaw_encode(0);
 
         /* RTP header (RFC 3550): V=2, PT=0 (PCMU) */
         pkt[0] = 0x80;
@@ -101,6 +121,7 @@ static void tx_task(void *arg)
 out:
     free(in);
     free(pkt);
+    free(aec8);
     r->tx_task = NULL;
     vTaskDelete(NULL);
 }

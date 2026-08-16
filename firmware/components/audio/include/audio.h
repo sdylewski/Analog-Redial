@@ -86,6 +86,19 @@ void audio_remove_diag_tap(int line);
 /* Simple RMS level (0..32767) of the most recent RX frame for a line. */
 uint16_t audio_rx_level(int line);
 
+/* ---- echo-cancelled uplink (8 kHz) ----
+ * Only produced while the canceller is enabled for the line (see aec.h). The
+ * engine already has both signals the canceller needs -- the frame about to
+ * be played and the frame just captured -- aligned in one audio_task pass, so
+ * cancellation happens there and the result is published here at 8 kHz, ready
+ * for G.711 without the caller re-decimating.
+ *
+ * The 48 kHz audio_rx_read() path is deliberately left carrying the RAW mic
+ * signal: recording and echoprobe have to keep measuring the hardware, not
+ * the canceller's output. */
+#define AUDIO_AEC_BLOCK 80 /* 10 ms at 8 kHz -- one engine frame decimated 6:1 */
+size_t audio_aec_read(int line, int16_t *mono, size_t n, uint32_t timeout_ms);
+
 /* Test-only digital loopback: feed the synthesized TX back into the RX
  * processing chain (level meter / DTMF detector / rx read) so automated
  * tests can confirm a played tone/DTMF/clip is actually produced and

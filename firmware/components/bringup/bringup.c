@@ -8,6 +8,7 @@
 #include "wm8731.h"
 #endif
 #include "audio.h"
+#include "aec.h"
 #include "ag1170.h"
 #include "dtmf.h"
 #include "telephony.h"
@@ -590,6 +591,56 @@ static int cmd_echoprobe(int argc, char **argv)
     }
     free(cap);
     return 0;
+}
+
+/* ---------- aec (echo canceller control + live measurement) ---------- */
+static int cmd_aec(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("usage: aec <on|off|status|reset|delay <ms>> [line]\n");
+        return 1;
+    }
+    const char *sub = argv[1];
+    int line = 0;
+    if (strcmp(sub, "delay") == 0) { if (argc > 3) line = atoi(argv[3]); }
+    else if (argc > 2) line = atoi(argv[2]);
+    if (line < 0 || line > 1) { printf("line must be 0 or 1\n"); return 1; }
+
+    if (strcmp(sub, "on") == 0 || strcmp(sub, "off") == 0) {
+        aec_set_enabled(line, strcmp(sub, "on") == 0);
+        printf("line %d: AEC %s\n", line, aec_is_enabled(line) ? "on" : "off");
+        return 0;
+    }
+    if (strcmp(sub, "reset") == 0) {
+        aec_reset(line);
+        printf("line %d: AEC filter reset\n", line);
+        return 0;
+    }
+    if (strcmp(sub, "delay") == 0) {
+        if (argc < 3) { printf("usage: aec delay <ms> [line]\n"); return 1; }
+        uint32_t ms = (uint32_t)atoi(argv[2]);
+        if (aec_set_delay_ms(line, ms) != ESP_OK) {
+            printf("delay must be 0-%d ms\n", AEC_MAX_DELAY_MS);
+            return 1;
+        }
+        printf("line %d: AEC bulk delay %u ms (filter reset)\n", line, (unsigned)ms);
+        return 0;
+    }
+    if (strcmp(sub, "status") == 0) {
+        aec_status_t st;
+        aec_get_status(line, &st);
+        printf("line %d AEC: %s, delay %u ms, %d taps\n", line,
+               st.enabled ? "ON" : "off", (unsigned)st.delay_ms, AEC_TAPS);
+        printf("  ERLE %d dB   adaptation frozen %d%% of blocks   %s\n",
+               st.erle_db, st.freeze_pct,
+               st.converged ? "converged" : "not converged yet");
+        printf("  (ERLE is how much quieter the outgoing signal got. It only\n"
+               "   means anything while the FAR end is talking -- there is no\n"
+               "   echo to cancel during silence. Stats reset on each read.)\n");
+        return 0;
+    }
+    printf("unknown subcommand '%s'\n", sub);
+    return 1;
 }
 
 static int cmd_record(int argc, char **argv)
@@ -1205,6 +1256,7 @@ void bringup_console_start(void)
     register_cmd("echopulse", "Periodic 1kHz burst for echo/hybrid debugging: echopulse <line> <on|off> [period_ms]", cmd_echopulse);
     register_cmd("echosweep", "Cycles 9 tones 300-3400Hz for echo/resonance debugging: echosweep <line> <on|off> [period_ms]", cmd_echosweep);
     register_cmd("record", "Raw mic capture to storage, no live playback, safe during an active call: record <ms> [line]", cmd_record);
+    register_cmd("aec", "Echo canceller: aec <on|off|status|reset|delay <ms>> [line]", cmd_aec);
     register_cmd("echoprobe", "Measure the local earpiece->mic echo path (bulk delay + tail) for AEC sizing: echoprobe [line]", cmd_echoprobe);
     register_cmd("play", "Play a storage WAV out a line: play <name> [line]", cmd_play);
     register_cmd("dtmf_gen", "Emit DTMF: dtmf_gen <digits> [line]", cmd_dtmf_gen);

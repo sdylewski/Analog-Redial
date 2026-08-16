@@ -1,6 +1,7 @@
 #include "audio.h"
 #include "board_pins.h"
 #include "dtmf.h"
+#include "aec.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -34,6 +35,14 @@ typedef struct {
     void           *diag_ctx;
     StreamBufferHandle_t rx;  /* uplink capture for voip/record */
     uint16_t        rx_level;
+    /* AEC path: 8 kHz echo-cancelled uplink, fed only while the canceller is
+     * enabled. Kept separate from `rx` above so the 48 kHz raw capture stays
+     * exactly that -- recorder/diag taps/echoprobe must keep seeing the true
+     * uncancelled mic signal, or they'd be measuring the canceller instead of
+     * the hardware. */
+    StreamBufferHandle_t aec_out;
+    int32_t         dec_ref_acc, dec_near_acc; /* 48k->8k decimation accumulators */
+    uint32_t        dec_n;
 } line_t;
 
 static line_t s_line[AUDIO_NUM_LINES];
@@ -165,6 +174,13 @@ size_t audio_rx_read(int line, int16_t *mono, size_t n, uint32_t timeout_ms)
                                 pdMS_TO_TICKS(timeout_ms)) / sizeof(int16_t);
 }
 
+size_t audio_aec_read(int line, int16_t *mono, size_t n, uint32_t timeout_ms)
+{
+    if (line < 0 || line >= AUDIO_NUM_LINES || !s_line[line].aec_out) return 0;
+    return xStreamBufferReceive(s_line[line].aec_out, mono, n * sizeof(int16_t),
+                                pdMS_TO_TICKS(timeout_ms)) / sizeof(int16_t);
+}
+
 uint16_t audio_rx_level(int line)
 {
     if (line < 0 || line >= AUDIO_NUM_LINES) return 0;
@@ -291,6 +307,35 @@ static void audio_task(void *arg)
             if (rxn && s_line[line].rx) {
                 xStreamBufferSend(s_line[line].rx, src, rxn * sizeof(int16_t), 0);
             }
+            /* Echo cancellation. Both signals are taken from HERE on purpose:
+             * `tx` is the frame about to be handed to I2S (what will actually
+             * be played), and `src` is the frame the mic just captured -- same
+             * task, same iteration, so the offset between them is the fixed
+             * hardware pipeline delay that aec_set_delay_ms() compensates.
+             * Taking the reference from where RTP arrives instead would add
+             * the variable playout-buffer depth and no fixed delay could
+             * align it. Decimated 6:1 to the canceller's 8 kHz (see aec.h for
+             * why it doesn't run at 48 kHz). */
+            if (rxn && s_line[line].aec_out && aec_is_enabled(line)) {
+                const int16_t *tx = (line == 0) ? txL : txR;
+                int16_t ref8[AUDIO_AEC_BLOCK], near8[AUDIO_AEC_BLOCK];
+                size_t m = 0;
+                for (size_t i = 0; i < rxn && m < AUDIO_AEC_BLOCK; i++) {
+                    s_line[line].dec_ref_acc  += tx[i];
+                    s_line[line].dec_near_acc += src[i];
+                    if (++s_line[line].dec_n == 6) {
+                        ref8[m]  = (int16_t)(s_line[line].dec_ref_acc / 6);
+                        near8[m] = (int16_t)(s_line[line].dec_near_acc / 6);
+                        m++;
+                        s_line[line].dec_ref_acc = s_line[line].dec_near_acc = 0;
+                        s_line[line].dec_n = 0;
+                    }
+                }
+                if (m) {
+                    aec_process(line, ref8, near8, near8, m); /* in-place */
+                    xStreamBufferSend(s_line[line].aec_out, near8, m * sizeof(int16_t), 0);
+                }
+            }
         }
 
         /* Write TX. */
@@ -317,8 +362,10 @@ esp_err_t audio_init(const audio_config_t *cfg)
         s_line[i].bridge_from = -1;
         s_line[i].ext = xStreamBufferCreate(s_frame * 8 * sizeof(int16_t), 1);
         s_line[i].rx  = xStreamBufferCreate(s_frame * 8 * sizeof(int16_t), 1);
+        /* 8 kHz, so an eighth the byte count of `rx` for the same time span. */
+        s_line[i].aec_out = xStreamBufferCreate(AUDIO_AEC_BLOCK * 8 * sizeof(int16_t), 1);
         s_rx_mono[i]  = calloc(s_frame, sizeof(int16_t));
-        if (!s_line[i].ext || !s_line[i].rx || !s_rx_mono[i]) {
+        if (!s_line[i].ext || !s_line[i].rx || !s_line[i].aec_out || !s_rx_mono[i]) {
             ESP_LOGE(TAG, "line %d buffer alloc failed", i);
             return ESP_ERR_NO_MEM;
         }
