@@ -8,9 +8,10 @@
  * file evicted first once that's hit -- a ring buffer, not a permanent
  * archive.
  *
- * When a microSD backend exists (CONFIG_BOARD_MICROSD build), this is the
- * seam to swap it in behind the same API -- callers (console commands, the
- * web UI) never touch the filesystem directly, only these functions.
+ * When a microSD backend exists (board configured for it, see sdcard.h),
+ * this is the seam to swap it in behind the same API -- callers (console
+ * commands, the web UI) never touch the filesystem directly, only these
+ * functions.
  */
 #pragma once
 

@@ -93,9 +93,10 @@ void app_main(void)
     }
 
     /* 4. SLIC line interface. Line 2 vs. microSD on the shared GPIO 18-21
-     * pads is a build-time choice (CONFIG_BOARD_MICROSD) -- there's no
-     * reliable runtime read to distinguish them (a stuffed SLIC and an SD
-     * card produce the same floating-pin levels), so we don't try. */
+     * pads is a runtime choice now (board_hw_config_get(), board.h) rather
+     * than a separate firmware build -- ag1170_init() itself reads that
+     * config and only claims line 2's GPIO as a SLIC if it's actually
+     * configured that way. */
     ag1170_config_t scfg = AG1170_DEFAULT_CONFIG();
     ESP_ERROR_CHECK(ag1170_init(&scfg));
 
@@ -122,14 +123,16 @@ void app_main(void)
         ESP_LOGW(TAG, "storage_init failed: %s", esp_err_to_name(err));
         board_led_set_state(BOARD_LED_ERROR);
     }
-#if CONFIG_BOARD_MICROSD
-    /* microSD build (Line 2 traded for the SD card): mount it here so the boot
-     * log shows whether the card actually came up. Non-fatal. */
-    if ((err = sdcard_init()) != ESP_OK) {
-        ESP_LOGW(TAG, "sdcard_init failed: %s (insert a FAT-formatted card, then 'sd_test')",
-                 esp_err_to_name(err));
+    if (board_hw_config_get().has_microsd) {
+        /* microSD configured (line 2 traded for the SD card, board.h): mount
+         * it here so the boot log shows whether the card actually came up.
+         * Non-fatal -- sdcard_init() itself no-ops harmlessly if this board
+         * isn't actually configured for SD. */
+        if ((err = sdcard_init()) != ESP_OK) {
+            ESP_LOGW(TAG, "sdcard_init failed: %s (insert a FAT-formatted card, then 'sd_test')",
+                     esp_err_to_name(err));
+        }
     }
-#endif
     if ((err = webui_start()) != ESP_OK) {
         ESP_LOGW(TAG, "webui_start failed: %s", esp_err_to_name(err));
         board_led_set_state(BOARD_LED_ERROR);

@@ -41,6 +41,18 @@ static const char *TAG = "voip";
 #define VOIP_NVS_NS     "voip"
 #define REG_EXPIRES     120        /* seconds; refresh at half */
 #define REG_RETRY_S     5          /* safety-net retry if a REGISTER round trip goes unanswered */
+#define REG_FAIL_BACKOFF_S 120     /* retry interval after a DEFINITIVE rejection (401 even with
+                                    * correct-looking auth) -- REG_RETRY_S is for silence/packet
+                                    * loss, not this: retrying unchanged bad credentials every 5s
+                                    * forever just hammers the server and, worse, was observed to
+                                    * starve this device's own WiFi/UDP stack badly enough to hang
+                                    * the web UI. */
+#define REG_AUTH_RETRY_SAFETY_S 20 /* safety-net for the authenticated retry specifically --
+                                    * longer than REG_RETRY_S so a slow (not lost) 401/200 on a
+                                    * lossy link doesn't get raced by the periodic safety-net
+                                    * resetting reg_authed_once before that response is even
+                                    * processed, which was silently defeating REG_FAIL_BACKOFF_S
+                                    * above (see send_register()'s doc comment). */
 #define MSG_MAX         1600
 
 typedef enum { CALL_IDLE = 0, CALL_OUTGOING, CALL_INCOMING, CALL_ACTIVE } call_state_t;
@@ -304,7 +316,7 @@ static void udp_send(const char *msg, const struct sockaddr_in *to)
     sendto(s_sock, msg, strlen(msg), 0, (const struct sockaddr *)to, sizeof(*to));
 }
 
-static void send_register(int line, const char *auth_hdr)
+static void send_register(int line, const char *auth_hdr, int safety_net_s)
 {
     line_t *L = &s_l[line];
     char branch[40]; rand_hex(branch, sizeof(branch));
@@ -339,11 +351,23 @@ static void send_register(int line, const char *auth_hdr)
      * packet silently stopped every future refresh forever, while
      * `registered` stayed true locally (never corrected) until reboot --
      * exactly what happened to a board that had been up 35 minutes with no
-     * indication anything was wrong. Arming a short retry on every send,
-     * unconditionally, means a lost packet self-heals within REG_RETRY_S
-     * instead of needing a power cycle; an actual 200 OK below overrides
-     * this with the real REG_EXPIRES/2 interval. */
-    L->reg_refresh_at_us = esp_timer_get_time() + (int64_t)REG_RETRY_S * 1000000;
+     * indication anything was wrong. Arming a retry on every send,
+     * unconditionally, means a lost packet self-heals instead of needing a
+     * power cycle; an actual 200 OK below overrides this with the real
+     * REG_EXPIRES/2 interval.
+     *
+     * `safety_net_s` differs by call site on purpose: the bare (challenge)
+     * send uses the short REG_RETRY_S, but the authenticated retry (sent
+     * from handle_response()'s 401 handler) needs longer -- on a lossy link,
+     * REG_RETRY_S can elapse before that retry's OWN response comes back,
+     * and this same periodic path is what resets reg_authed_once to false
+     * to try again. If that happens before the retry's 401/200 is even
+     * processed, reg_authed_once never gets to be true when a second 401
+     * actually arrives, so handle_response()'s "definitive rejection, back
+     * off" branch can never fire -- seen live: a bad password produced a
+     * 401 every ~5-9s forever instead of the intended one-shot-then-120s-
+     * backoff, and that storm alone was enough to starve the web UI again. */
+    L->reg_refresh_at_us = esp_timer_get_time() + (int64_t)safety_net_s * 1000000;
 }
 
 static void send_invite(int line, const char *auth_hdr)
@@ -543,8 +567,15 @@ static void handle_response(const char *msg, const struct sockaddr_in *src)
         if (code == 401 || code == 407) {
             if (L->reg_authed_once) {
                 L->registered = false;
+                /* Definitive rejection, not silence -- retrying the same bad
+                 * credentials via the REG_RETRY_S safety net every 5s would
+                 * just repeat this forever (seen live: it starved the WiFi/
+                 * UDP stack badly enough to hang the web UI). Back off hard;
+                 * still retries eventually in case the server-side password
+                 * changes without a device reboot. */
+                L->reg_refresh_at_us = esp_timer_get_time() + (int64_t)REG_FAIL_BACKOFF_S * 1000000;
                 ESP_LOGW(TAG, "line %d: REGISTER auth rejected (%d) -- wrong SIP password? "
-                              "set it with 'sip_set'", line, code);
+                              "set it with 'sip_set'. Backing off %ds.", line, code, REG_FAIL_BACKOFF_S);
                 emit(line, VOIP_EV_REGISTER_FAILED, NULL);
                 return;
             }
@@ -556,7 +587,7 @@ static void handle_response(const char *msg, const struct sockaddr_in *src)
                 build_authorization(L, "REGISTER", uri, www, auth, sizeof(auth),
                                      code == 407 ? "Proxy-Authorization" : "Authorization");
                 L->reg_authed_once = true;
-                send_register(line, auth);
+                send_register(line, auth, REG_AUTH_RETRY_SAFETY_S);
             }
         } else if (code >= 200 && code < 300) {
             if (!L->registered) { L->registered = true; emit(line, VOIP_EV_REGISTERED, NULL); }
@@ -796,7 +827,7 @@ static void register_all(void)
         rand_hex(s_l[i].call_id, sizeof(s_l[i].call_id));
         s_l[i].reg_authed_once = false;
         ESP_LOGI(TAG, "REGISTER -> %s:%d as '%s'", s_server_ip, SIP_PORT, s_l[i].user);
-        send_register(i, NULL);
+        send_register(i, NULL, REG_RETRY_S);
     }
 }
 
@@ -851,7 +882,7 @@ static void sip_task(void *arg)
             if (s_l[i].reg_refresh_at_us && now >= s_l[i].reg_refresh_at_us) {
                 s_l[i].reg_refresh_at_us = 0;
                 s_l[i].reg_authed_once = false;
-                send_register(i, NULL);
+                send_register(i, NULL, REG_RETRY_S);
             }
         }
         if (!s_server_ip[0] && now >= next_resolve) {
@@ -904,7 +935,7 @@ esp_err_t voip_init(voip_event_cb cb, void *ctx)
 esp_err_t voip_register(const voip_account_t *acct)
 {
     if (acct && acct->line >= 0 && acct->line < NLINES && s_server_ip[0]) {
-        send_register(acct->line, NULL);
+        send_register(acct->line, NULL, REG_RETRY_S);
         return ESP_OK;
     }
     return ESP_ERR_INVALID_STATE;

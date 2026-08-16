@@ -5,6 +5,7 @@
 #include "cJSON.h"
 #include "wifi.h"
 #include "board.h"
+#include "board_config.h"
 #include "esp_idf_version.h"
 #include "storage.h"
 #include "logbuf.h"
@@ -192,6 +193,7 @@ static cJSON *build_status_json(void)
     cJSON *root = cJSON_CreateObject();
     char ip[16];
     wifi_get_ip_str(ip, sizeof(ip));
+    int num_lines = board_hw_config_get().num_lines;
 
     /* Board identity up top so a script polling every board's /api/status can
      * tell them apart (name), group by hardware, or key on the serial. */
@@ -222,12 +224,12 @@ static cJSON *build_status_json(void)
      * the persisted VoIP config before poking it and restore it after. */
     cJSON_AddStringToObject(root, "voip_server", voip_server());
     cJSON_AddStringToObject(root, "voip_user0", voip_user(0));
-#if CONFIG_BOARD_NUM_LINES > 1
-    cJSON_AddStringToObject(root, "voip_user1", voip_user(1));
-#endif
+    if (num_lines > 1) {
+        cJSON_AddStringToObject(root, "voip_user1", voip_user(1));
+    }
 
     cJSON *lines = cJSON_AddArrayToObject(root, "lines");
-    for (int l = 0; l < CONFIG_BOARD_NUM_LINES; l++) {
+    for (int l = 0; l < num_lines; l++) {
         cJSON *jl = cJSON_CreateObject();
         cJSON_AddNumberToObject(jl, "line", l);
         cJSON_AddStringToObject(jl, "state", telephony_state_name(telephony_state(l)));
@@ -441,7 +443,8 @@ static esp_err_t index_handler(httpd_req_t *req)
         fmt_bytes(storage_cap_bytes(), sc, sizeof(sc)),
         storage_using_sd() ? " (SD)" : " (internal flash)");
 
-    for (int l = 0; l < CONFIG_BOARD_NUM_LINES && off > 0 && (size_t)off < cap; l++) {
+    int num_lines = board_hw_config_get().num_lines;
+    for (int l = 0; l < num_lines && off > 0 && (size_t)off < cap; l++) {
         tel_state_t st = telephony_state(l);
         /* Caller ID is remote-supplied -- escape before rendering. */
         char cname[160], cnum[128], caller[300];
@@ -564,9 +567,7 @@ static const settings_tab_t SETTINGS_TABS[] = {
     { "dialcodes",  "Dial Codes" },
     { "operator",   "Operator" },
     { "voip",       "VOIP" },
-#if CONFIG_BOARD_NUM_LINES > 1
-    { "interphone", "Inter-phone" }, /* 2-line only: no other line to call on a 1-line build */
-#endif
+    { "interphone", "Inter-phone" }, /* skipped below unless num_lines > 1 -- no other line to call on a 1-line board */
     { "record",     "Record message" },
     { "hardware",   "Hardware" },
     { "diag",       "Diagnostics" },
@@ -575,9 +576,11 @@ static const settings_tab_t SETTINGS_TABS[] = {
 
 static int append_settings_tabs(char *buf, size_t cap, int off, const char *active)
 {
+    bool two_lines = board_hw_config_get().num_lines > 1;
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<nav class=\"settings-tabs\">");
     for (size_t i = 0; i < SETTINGS_TABS_N; i++) {
+        if (!two_lines && strcmp(SETTINGS_TABS[i].id, "interphone") == 0) continue;
         bool is_active = strcmp(SETTINGS_TABS[i].id, active) == 0;
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<a class=\"tab-btn%s\" href=\"/settings?tab=%s\">%s</a>",
@@ -665,6 +668,30 @@ static int append_general_tab(char *buf, size_t cap, int off)
         "<p class=\"hint\">Saved to flash (NVS); the device reconnects immediately, no reboot needed.</p>"
         "</div>",
         ssid[0] ? ssid : "(not configured)", ssid);
+
+    board_offhook_alert_t roh = board_offhook_alert_get();
+    char roh_status[48];
+    if (roh.enabled) snprintf(roh_status, sizeof(roh_status), "on, after %u s", (unsigned)roh.seconds);
+    else             snprintf(roh_status, sizeof(roh_status), "off");
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Off-hook alert</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">Current</span><span>%s</span></div>"
+        "<form method=\"POST\" action=\"/offhook_alert\" class=\"settings-form\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> Enabled</label>"
+        "<label>Seconds on dial tone before the alert "
+        "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+        "</form>"
+        "<p class=\"hint\">A handset left off the hook sits on dial tone forever, and the line "
+        "is unreachable the whole time (callers get busy) with nothing to draw attention to it. "
+        "This plays the loud, warbling \"receiver off-hook\" alert real phone switches use "
+        "(1400+2060+2450+2600&nbsp;Hz, 100&nbsp;ms on/off, per Telcordia GR-506-CORE) once dial "
+        "tone has gone untouched this long. Hanging up stops it. The clock restarts on every "
+        "return to dial tone, so only a genuinely forgotten handset ever reaches it. "
+        "Takes effect on the next dial tone -- no reboot.</p></div>",
+        roh_status,
+        roh.enabled ? " checked" : "",
+        (unsigned)roh.seconds, BOARD_OFFHOOK_ALERT_MIN_S, BOARD_OFFHOOK_ALERT_MAX_S);
 
     dialplan_modes_t *m = dialplan_modes();
     off = append_mode_card(buf, cap, off, "Digit readback",
@@ -841,13 +868,17 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "<span class=\"pill %s\">%s</span></div>",
         voip_server()[0] ? voip_server() : "(not set)",
         r0 ? "on" : "off", r0 ? "registered" : "not registered");
-#if CONFIG_BOARD_NUM_LINES > 1
-    bool r1 = voip_is_registered(1);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"statusrow\"><span class=\"label\">Line 2</span>"
-        "<span class=\"pill %s\">%s</span></div>",
-        r1 ? "on" : "off", r1 ? "registered" : "not registered");
-#endif
+    /* Shown for a genuine 2-line board, but also whenever a line-2 account
+     * is still configured on a 1-line board -- e.g. a board reconfigured
+     * down from 2 lines to 1, or a stale account from before -- so there's
+     * still a status pill (and, below, form fields) to clear it by. */
+    if (board_hw_config_get().num_lines > 1 || voip_user(1)[0]) {
+        bool r1 = voip_is_registered(1);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"statusrow\"><span class=\"label\">Line 2</span>"
+            "<span class=\"pill %s\">%s</span></div>",
+            r1 ? "on" : "off", r1 ? "registered" : "not registered");
+    }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
     /* Auto-provisioning: the optional companion service (voip_provisioner/,
@@ -995,13 +1026,17 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "<label>Line 1 password <input type=\"password\" name=\"pass0\" "
         "placeholder=\"leave blank to keep\"></label>",
         voip_server(), voip_user(0));
-#if CONFIG_BOARD_NUM_LINES > 1
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<label>Line 2 extension/user <input name=\"user1\" value=\"%s\"></label>"
-        "<label>Line 2 password <input type=\"password\" name=\"pass1\" "
-        "placeholder=\"leave blank to keep\"></label>",
-        voip_user(1));
-#endif
+    /* Same "or a stale account exists" condition as the status pill above
+     * -- otherwise a 1-line board with a leftover line-2 config (e.g.
+     * reconfigured down from 2 lines) has no way to ever clear it: the
+     * fields to submit blank would themselves be hidden. */
+    if (board_hw_config_get().num_lines > 1 || voip_user(1)[0]) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<label>Line 2 extension/user <input name=\"user1\" value=\"%s\"></label>"
+            "<label>Line 2 password <input type=\"password\" name=\"pass1\" "
+            "placeholder=\"leave blank to keep\"></label>",
+            voip_user(1));
+    }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"toolbar sub\">"
         "<button type=\"submit\" class=\"primary\">Save (takes effect on reboot)</button>"
@@ -1050,6 +1085,12 @@ static int append_interphone_tab(char *buf, size_t cap, int off,
 {
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>Inter-phone calls</h2>");
+    if (board_hw_config_get().num_lines <= 1) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<p class=\"hint\">This board is configured for 1 line -- no other "
+            "line to call. See Settings -> Hardware.</p></div>");
+        return off;
+    }
     for (size_t i = 0; i < n; i++) {
         if (entries[i].code[0] != '3') continue;
         off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
@@ -1119,6 +1160,66 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         fmt_bytes(ram_used, ru, sizeof(ru)), fmt_bytes(ram_free, rf, sizeof(rf)),
         fmt_bytes(st_used, su, sizeof(su)), fmt_bytes(st_free, sf, sizeof(sf)),
         storage_using_sd() ? " (SD)" : "");
+}
+
+/* SMD2-only: the "line 2 or microSD" GPIO18-21 config card. THT has no such
+ * tradeoff (dedicated pins for both lines, no SD at all), so this whole card
+ * is skipped there -- board_hw_config_get() already hardcodes (2, false) for
+ * THT and there's nothing for a human to confirm. */
+static int append_hw_config_tab(char *buf, size_t cap, int off)
+{
+    if (board_current_type() != BOARD_TYPE_SMD) return off;
+
+    board_hw_config_t cfg = board_hw_config_get();
+    bool confirmed = board_hw_config_is_set();
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Line 2 / microSD configuration</h2>"
+        "<p class=\"hint\">This board's GPIO 18-21 are wired to <em>either</em> a second "
+        "SLIC (line 2) <em>or</em> a microSD socket, never both -- whichever set of 0R "
+        "jumpers got populated when the board was assembled (see "
+        "<code>ROTARY_PHONE_SMD.md</code>, \"Build options\"). Firmware can't see the "
+        "jumpers themselves, so it has to be told which one is actually stuffed. Getting "
+        "this wrong doesn't just misbehave in software -- it drives real GPIO pins as the "
+        "wrong peripheral. Until confirmed, this board defaults to the safe option: 1 line, "
+        "no microSD.</p>"
+        "<div class=\"statusrow\"><span class=\"label\">Current setting</span><span>%s%s</span></div>",
+        cfg.num_lines > 1 ? "2-line board (0R jumpers on line 2 populated)"
+                           : (cfg.has_microsd ? "1-line board, microSD populated"
+                                               : "1-line board, no microSD"),
+        confirmed ? "" : " -- <strong>unconfirmed default, please check below</strong>");
+
+    if (!confirmed) {
+        board_hw_evidence_t ev = board_hw_detect_evidence();
+        if (ev.valid) {
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<div class=\"statusrow\"><span class=\"label\">Advisory evidence</span>"
+                "<span>GPIO18-21 raw levels: %d %d %d %d -- %s</span></div>"
+                "<p class=\"hint\">Passive read of the shared pins before anything has "
+                "claimed them, offered as a hint only -- not proof, and never applied "
+                "automatically. Please confirm which board you actually have below.</p>",
+                ev.raw_levels[0], ev.raw_levels[1], ev.raw_levels[2], ev.raw_levels[3],
+                ev.looks_like_line2 ? "looks more like a populated line 2 (SHK divider idle-low)"
+                                     : "looks more like an unpopulated/floating line 2 (no SD "
+                                       "hardware would explain this either)");
+        }
+    }
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<form method=\"POST\" action=\"/board_hw_set\" class=\"settings-form\">"
+        "<label>Board variant"
+        "<select name=\"variant\">"
+        "<option value=\"2line\"%s>2-line board (0R jumpers present, line 2 populated)</option>"
+        "<option value=\"1line_sd\"%s>1-line board (jumpers removed), microSD populated</option>"
+        "<option value=\"1line_nosd\"%s>1-line board (jumpers removed), no microSD</option>"
+        "</select></label>"
+        "<button type=\"submit\">Save (takes effect on reboot)</button>"
+        "</form></div>",
+        cfg.num_lines > 1 ? " selected" : "",
+        (cfg.num_lines == 1 && cfg.has_microsd) ? " selected" : "",
+        (cfg.num_lines == 1 && !cfg.has_microsd) ? " selected" : "");
+
+    return off;
 }
 
 /* Diagnostics tab: runtime log level (and, in test builds, test-mode
@@ -1312,7 +1413,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     else if (strcmp(tab, "interphone") == 0) off = append_interphone_tab(buf, cap, off, entries, n);
     else if (strcmp(tab, "record") == 0) off = append_record_tab(buf, cap, off, entries, n);
     else if (strcmp(tab, "diag") == 0) off = append_diag_tab(buf, cap, off);
-    else off = append_hardware_tab(buf, cap, off);
+    else { off = append_hw_config_tab(buf, cap, off); off = append_hardware_tab(buf, cap, off); }
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>" /* .cards */);
     off = append_storage_section(buf, cap, off);
@@ -1517,11 +1618,89 @@ static esp_err_t language_set_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* POST /offhook_alert -- form body [enabled=1&]seconds=N. An unchecked
+ * checkbox submits nothing at all, so a missing `enabled` field means "off"
+ * -- it can't be treated as "leave unchanged" the way blank password fields
+ * elsewhere in this file are. */
+static esp_err_t offhook_alert_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char enabled[8] = {0}, seconds[12] = {0};
+    form_field(body, "enabled", enabled, sizeof(enabled));
+    form_field(body, "seconds", seconds, sizeof(seconds));
+
+    board_offhook_alert_t cfg = {
+        .enabled = (enabled[0] == '1'),
+        .seconds = seconds[0] ? (uint32_t)strtoul(seconds, NULL, 10) : 0,
+    };
+    if (board_offhook_alert_set(cfg) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "seconds out of range");
+        return ESP_OK;
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /board_hw_set -- form body variant=2line|1line_sd|1line_nosd. The
+ * human's explicit confirmation of which GPIO18-21 peripheral is actually
+ * populated on this board (board.h's board_hw_config_set()) -- see that
+ * file's doc comment for why this can't be guessed automatically. Takes
+ * effect on reboot, same as every other hardware config in this project. */
+static esp_err_t board_hw_set_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char variant[16] = {0};
+    form_field(body, "variant", variant, sizeof(variant));
+
+    board_hw_config_t cfg;
+    if (strcmp(variant, "2line") == 0) {
+        cfg = (board_hw_config_t){ .num_lines = 2, .has_microsd = false };
+    } else if (strcmp(variant, "1line_sd") == 0) {
+        cfg = (board_hw_config_t){ .num_lines = 1, .has_microsd = true };
+    } else if (strcmp(variant, "1line_nosd") == 0) {
+        cfg = (board_hw_config_t){ .num_lines = 1, .has_microsd = false };
+    } else {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "unknown variant");
+        return ESP_OK;
+    }
+    board_hw_config_set(cfg);
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=hardware");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 /* POST /voip_set -- form body server=..&user0=..&pass0=..[&user1=..&pass1=..].
  * Blank password fields mean "leave unchanged" (voip_set_config() already
  * treats a NULL field that way; empty-string form fields are passed as
- * NULL here for the same reason the WiFi form does). Takes effect on
- * reboot, same as the console's sip_set command. */
+ * NULL here for the same reason the WiFi form does). user1 is the one
+ * exception: unlike a password, there's no need to hide it, so a blank
+ * user1 field is passed through as "" (not collapsed to NULL) -- this is
+ * how you actually clear a stale/unused line 2, e.g. a 1-line board that
+ * still has a leftover line-2 account from before it was reconfigured, and
+ * otherwise retries registering it forever. Clearing user1 also clears
+ * pass1 (an orphaned password serves no purpose once its extension is
+ * gone). Takes effect on reboot, same as the console's sip_set command. */
 #define VOIP_FORM_MAX_BODY 512
 
 static esp_err_t voip_set_handler(httpd_req_t *req)
@@ -1543,7 +1722,7 @@ static esp_err_t voip_set_handler(httpd_req_t *req)
     form_field(body, "pass1", pass1, sizeof(pass1));
 
     voip_set_config(server[0] ? server : NULL, user0[0] ? user0 : NULL, pass0[0] ? pass0 : NULL,
-                     user1[0] ? user1 : NULL, pass1[0] ? pass1 : NULL);
+                     user1, user1[0] ? (pass1[0] ? pass1 : NULL) : "");
 
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/settings?tab=voip");
@@ -2005,7 +2184,8 @@ static esp_err_t voip_server_script_handler(httpd_req_t *req)
         "CONTEXT\n",
         name);
 
-    for (int line = 0; line < CONFIG_BOARD_NUM_LINES; line++) {
+    int num_lines = board_hw_config_get().num_lines;
+    for (int line = 0; line < num_lines; line++) {
         const char *user = voip_user(line);
         const char *pass = voip_pass(line);
         if (!user[0]) continue; /* line not configured yet -- nothing to provision */
@@ -3002,6 +3182,8 @@ esp_err_t webui_start(void)
         { .uri = "/wifi_set",        .method = HTTP_POST, .handler = wifi_set_handler },
         { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
         { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },
+        { .uri = "/board_hw_set",    .method = HTTP_POST, .handler = board_hw_set_handler },
+        { .uri = "/offhook_alert",   .method = HTTP_POST, .handler = offhook_alert_handler },
         { .uri = "/dialcode_add",           .method = HTTP_POST, .handler = dialcode_add_handler },
         { .uri = "/dialcode_set_code",      .method = HTTP_POST, .handler = dialcode_set_code_handler },
         { .uri = "/dialcode_set_filename",  .method = HTTP_POST, .handler = dialcode_set_filename_handler },

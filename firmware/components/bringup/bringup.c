@@ -24,11 +24,14 @@
 #include "argtable3/argtable3.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/stream_buffer.h"
 #include "driver/i2c_master.h"
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <time.h>
+#include <math.h>
 
 static const char *TAG = "bringup";
 
@@ -370,6 +373,7 @@ static int cmd_progress(int argc, char **argv)
     call_progress_t t = TONE_DIAL;
     if (strcmp(argv[0], "ringback") == 0) t = TONE_RINGBACK;
     else if (strcmp(argv[0], "busy") == 0) t = TONE_BUSY;
+    else if (strcmp(argv[0], "roh") == 0) t = TONE_OFFHOOK_ALERT;
     printf("line %d: %s\n", line, argv[0]);
     audio_tx_tone(line, t);
     return 0;
@@ -427,6 +431,167 @@ static void wav_put_u16(uint8_t *p, uint16_t v)
  * does with it). Saved as a standard 44-byte-header mono 16-bit PCM WAV to
  * the existing storage layer -- downloadable from the web UI's /recordings
  * page or GET /media/<name>. */
+/* record's tap callback: runs on the audio task (audio.c's audio_task()),
+ * same synchronous point DTMF detection taps in from -- must stay fast, no
+ * blocking/malloc/logging, so it just hands samples off to a dedicated
+ * StreamBufferHandle_t (created fresh per recording, single producer here /
+ * single consumer in cmd_record() below -- NOT the shared per-line rx stream
+ * buffer the RTP task owns, so this can't hit the same-buffer, two-readers
+ * crash audio_rx_read()'s doc comment describes). Non-blocking send: if the
+ * console task somehow falls behind and the ring fills, samples are dropped
+ * rather than blocking the audio task. */
+typedef struct {
+    StreamBufferHandle_t sb;
+} record_tap_ctx_t;
+
+static void record_tap(int line, const int16_t *mono, size_t n, void *ctx)
+{
+    (void)line;
+    record_tap_ctx_t *rc = ctx;
+    xStreamBufferSend(rc->sb, mono, n * sizeof(int16_t), 0);
+}
+
+/* Streams straight to storage (storage_write_begin/chunk/end + storage_patch
+ * for the header sizes once the final length's known -- same pattern
+ * recorder.c uses) instead of one big malloc for the whole clip. That's what
+ * makes a real 10-15s capture possible *during* an active call: RAM is tight
+ * enough mid-call that the old single-malloc version got capped to ~1s,
+ * nowhere near enough to coordinate a manual echo test. */
+#define RECORD_CHUNK_SAMPLES 1536
+#define RECORD_SB_BYTES (RECORD_CHUNK_SAMPLES * 8 * sizeof(int16_t))
+
+/* Same format/fallback as telephony.c's rec_name_timestamped() (the "record
+ * message" feature) -- duplicated rather than shared since it's a tiny,
+ * self-contained helper (matches this file's own wav_put_u16/u32 style of
+ * not pulling in a cross-component utility for a few lines). Wall-clock date
+ * + time (UTC) once SNTP has synced, so two console recordings don't collide
+ * under a bare uptime-ms name and are actually meaningful to sort/find later;
+ * falls back to a boot-relative tag before sync (guards against every early
+ * recording naming itself "19700101_000003.wav" and colliding with the
+ * next one). */
+static void record_name_timestamped(char *out, size_t out_len, int line)
+{
+    time_t now = time(NULL);
+    if (now < 1700000000) {
+        snprintf(out, out_len, "rec_l%d_boot%lld.wav", line,
+                 (long long)(esp_timer_get_time() / 1000));
+        return;
+    }
+    struct tm t;
+    gmtime_r(&now, &t);
+    snprintf(out, out_len, "rec_l%d_%04d%02d%02d_%02d%02d%02dZ.wav", line,
+             t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
+             t.tm_hour, t.tm_min, t.tm_sec);
+}
+
+/* ---------- echoprobe: measure the LOCAL earpiece -> mic echo path ----------
+ *
+ * The ~355 ms figure measured end-to-end over a call is ROUND-TRIP NETWORK
+ * delay (mic -> RTP -> Asterisk -> RTP -> far earpiece -> leak -> back
+ * again). That governs how *annoying* the echo is (ITU-T G.131), but it is
+ * NOT what sizes an echo canceller: an AEC runs on the leaking device and
+ * models only its own earpiece -> mic path. What that filter has to span is
+ * the LOCAL bulk delay -- I2S TX DMA depth + codec group delay + the
+ * acoustic/hybrid hop + I2S RX DMA depth -- plus however long the impulse
+ * response rings.
+ *
+ * So: emit a short burst, capture the mic through the diagnostic tap (which
+ * is safe to run alongside anything else, unlike audio_rx_read), and report
+ * where the burst comes back and how strongly. Run it with the handset
+ * off-hook and NOT in a call, so the only thing the mic can hear is this
+ * board's own earpiece.
+ *
+ * Two numbers come out of it, both needed before writing a canceller:
+ *   - bulk delay (ms)  -> how far back the reference has to be aligned
+ *   - tail length (ms) -> how many adaptive taps are actually required
+ */
+#define ECHOPROBE_MS        400   /* capture window */
+#define ECHOPROBE_BURST_MS  10
+#define ECHOPROBE_BURST_HZ  1000.0f
+
+static int cmd_echoprobe(int argc, char **argv)
+{
+    int line = (argc > 1) ? atoi(argv[1]) : 0;
+    if (line < 0 || line > 1) { printf("usage: echoprobe [line]\n"); return 1; }
+
+    uint32_t sr = audio_sample_rate();
+    size_t n_samples = (size_t)((uint64_t)sr * ECHOPROBE_MS / 1000);
+
+    int16_t *cap = malloc(n_samples * sizeof(int16_t));
+    if (!cap) { printf("malloc failed\n"); return 1; }
+
+    StreamBufferHandle_t sb = xStreamBufferCreate(RECORD_SB_BYTES, 1);
+    if (!sb) { free(cap); printf("xStreamBufferCreate failed\n"); return 1; }
+
+    printf("echoprobe line %d: %.0f Hz burst %d ms, listening %d ms...\n",
+           line, ECHOPROBE_BURST_HZ, ECHOPROBE_BURST_MS, ECHOPROBE_MS);
+
+    record_tap_ctx_t rc = { .sb = sb };
+    audio_add_diag_tap(line, record_tap, &rc);
+    /* Tap first, THEN emit: starting the burst before the tap is armed would
+     * lose the very leading edge this measurement is all about. */
+    audio_tx_burst(line, ECHOPROBE_BURST_HZ, 0.0f, 0.8f, ECHOPROBE_BURST_MS);
+
+    size_t got = 0;
+    while (got < n_samples) {
+        size_t want = n_samples - got;
+        if (want > RECORD_CHUNK_SAMPLES) want = RECORD_CHUNK_SAMPLES;
+        size_t n = xStreamBufferReceive(sb, cap + got, want * sizeof(int16_t),
+                                        pdMS_TO_TICKS(500));
+        if (n == 0) break;
+        got += n / sizeof(int16_t);
+    }
+    audio_remove_diag_tap(line);
+    vStreamBufferDelete(sb);
+    audio_tx_silence(line);
+
+    if (got == 0) { free(cap); printf("no audio captured\n"); return 1; }
+
+    /* Peak + noise floor. The floor is taken from the first 2 ms, which is
+     * always before any plausible echo return (bulk delay is dominated by
+     * DMA buffering, tens of ms) -- so it measures ambient/self-noise, not
+     * the thing we're looking for. */
+    size_t floor_n = (size_t)(sr * 2 / 1000);
+    if (floor_n > got) floor_n = got;
+    uint64_t acc = 0;
+    for (size_t i = 0; i < floor_n; i++) acc += (uint64_t)((int32_t)cap[i] * cap[i]);
+    uint32_t noise_rms = floor_n ? (uint32_t)sqrt((double)acc / (double)floor_n) : 0;
+
+    int32_t peak = 0; size_t peak_i = 0;
+    for (size_t i = 0; i < got; i++) {
+        int32_t a = cap[i] < 0 ? -cap[i] : cap[i];
+        if (a > peak) { peak = a; peak_i = i; }
+    }
+
+    /* Tail: last sample still above max(4x noise floor, 5% of peak), scanned
+     * from the end so a mid-burst dip doesn't cut it short. */
+    int32_t thresh = (int32_t)noise_rms * 4;
+    if (thresh < peak / 20) thresh = peak / 20;
+    size_t tail_i = peak_i;
+    for (size_t i = got; i > peak_i; i--) {
+        int32_t a = cap[i - 1] < 0 ? -cap[i - 1] : cap[i - 1];
+        if (a > thresh) { tail_i = i - 1; break; }
+    }
+
+    printf("  captured %u ms, noise floor rms=%u\n",
+           (unsigned)((uint64_t)got * 1000 / sr), (unsigned)noise_rms);
+    printf("  peak %d at %.1f ms  <- bulk delay (DMA + codec + acoustic)\n",
+           (int)peak, (double)peak_i * 1000.0 / (double)sr);
+    printf("  decays below %d by %.1f ms  -> tail ~%.1f ms after peak\n",
+           (int)thresh, (double)tail_i * 1000.0 / (double)sr,
+           (double)(tail_i - peak_i) * 1000.0 / (double)sr);
+    if (peak < (int32_t)noise_rms * 4) {
+        printf("  NOTE: peak barely above noise -- little/no local leak on this line,\n"
+               "        or the handset is on-hook. AEC would have nothing to cancel.\n");
+    } else {
+        printf("  => AEC filter must span ~%.0f ms (%u taps @ 8 kHz)\n",
+               (double)tail_i * 1000.0 / (double)sr,
+               (unsigned)((uint64_t)tail_i * 8000 / sr));
+    }
+    free(cap);
+    return 0;
+}
+
 static int cmd_record(int argc, char **argv)
 {
     if (argc < 2) { printf("usage: record <ms> [line]\n"); return 1; }
@@ -436,62 +601,96 @@ static int cmd_record(int argc, char **argv)
 
     uint32_t sr = audio_sample_rate();
     size_t n_samples = (size_t)((int64_t)sr * ms / 1000);
-    size_t wav_bytes = 44 + n_samples * sizeof(int16_t);
+    size_t expected_bytes = 44 + n_samples * sizeof(int16_t);
 
-    /* Single-shot malloc for the whole clip -- keep it within what's
-     * actually free, capping duration rather than failing outright. */
-    size_t free_heap = esp_get_free_heap_size();
-    size_t safety = 32768; /* headroom for other tasks/allocs while we run */
-    size_t max_bytes = (free_heap > safety) ? (free_heap - safety) : 0;
-    if (wav_bytes > max_bytes) {
-        size_t max_samples = (max_bytes > 44) ? (max_bytes - 44) / sizeof(int16_t) : 0;
-        if (max_samples == 0) { printf("not enough free heap to record anything\n"); return 1; }
-        printf("%d ms exceeds free heap -- capping to %u ms\n",
-               ms, (unsigned)((uint64_t)max_samples * 1000 / sr));
-        n_samples = max_samples;
-        wav_bytes = 44 + n_samples * sizeof(int16_t);
+    char name[STORAGE_MAX_NAME];
+    record_name_timestamped(name, sizeof(name), line);
+
+    storage_writer_t w = {0};
+    if (storage_write_begin(name, expected_bytes, &w) != ESP_OK) {
+        printf("storage_write_begin failed (not enough space for %u bytes?)\n",
+               (unsigned)expected_bytes);
+        return 1;
     }
 
-    uint8_t *wav = malloc(wav_bytes);
-    if (!wav) { printf("malloc(%u) failed\n", (unsigned)wav_bytes); return 1; }
-
-    size_t data_bytes = n_samples * sizeof(int16_t);
-    memcpy(wav, "RIFF", 4);
-    wav_put_u32(wav + 4, 36 + (uint32_t)data_bytes);
-    memcpy(wav + 8, "WAVE", 4);
-    memcpy(wav + 12, "fmt ", 4);
-    wav_put_u32(wav + 16, 16);
-    wav_put_u16(wav + 20, 1);            /* PCM */
-    wav_put_u16(wav + 22, 1);            /* mono */
-    wav_put_u32(wav + 24, sr);
-    wav_put_u32(wav + 28, sr * 2);       /* byte rate: sr * channels * bytes/sample */
-    wav_put_u16(wav + 32, 2);            /* block align */
-    wav_put_u16(wav + 34, 16);           /* bits per sample */
-    memcpy(wav + 36, "data", 4);
-    wav_put_u32(wav + 40, (uint32_t)data_bytes);
+    uint8_t hdr[44];
+    memcpy(hdr, "RIFF", 4);
+    wav_put_u32(hdr + 4, 36); /* sizes patched at the end */
+    memcpy(hdr + 8, "WAVE", 4);
+    memcpy(hdr + 12, "fmt ", 4);
+    wav_put_u32(hdr + 16, 16);
+    wav_put_u16(hdr + 20, 1);            /* PCM */
+    wav_put_u16(hdr + 22, 1);            /* mono */
+    wav_put_u32(hdr + 24, sr);
+    wav_put_u32(hdr + 28, sr * 2);       /* byte rate: sr * channels * bytes/sample */
+    wav_put_u16(hdr + 32, 2);            /* block align */
+    wav_put_u16(hdr + 34, 16);           /* bits per sample */
+    memcpy(hdr + 36, "data", 4);
+    wav_put_u32(hdr + 40, 0);
+    if (storage_write_chunk(&w, hdr, sizeof(hdr)) != ESP_OK) {
+        storage_write_abort(&w);
+        printf("storage_write_chunk (header) failed\n");
+        return 1;
+    }
 
     printf("recording line %d for %u ms (%u samples)...\n",
            line, (unsigned)((uint64_t)n_samples * 1000 / sr), (unsigned)n_samples);
-    int16_t *pcm = (int16_t *)(wav + 44);
-    size_t got = 0;
-    while (got < n_samples) {
-        size_t chunk = audio_rx_read(line, pcm + got, n_samples - got, 2000);
-        if (chunk == 0) { printf("audio_rx_read timed out after %u/%u samples\n",
-                                  (unsigned)got, (unsigned)n_samples); break; }
-        got += chunk;
-    }
 
-    char name[STORAGE_MAX_NAME];
-    snprintf(name, sizeof(name), "rec_l%d_%lld.wav", line, (long long)(esp_timer_get_time() / 1000));
-    size_t final_bytes = 44 + got * sizeof(int16_t);
-    wav_put_u32(wav + 4, 36 + (uint32_t)(got * sizeof(int16_t)));
-    wav_put_u32(wav + 40, (uint32_t)(got * sizeof(int16_t)));
-    esp_err_t err = storage_write(name, wav, final_bytes);
-    free(wav);
-    if (err != ESP_OK) {
-        printf("storage_write failed: %s\n", esp_err_to_name(err));
+    StreamBufferHandle_t sb = xStreamBufferCreate(RECORD_SB_BYTES, 1);
+    if (!sb) {
+        storage_write_abort(&w);
+        printf("xStreamBufferCreate failed\n");
         return 1;
     }
+    record_tap_ctx_t rc = { .sb = sb };
+    audio_add_diag_tap(line, record_tap, &rc);
+
+    /* Heap, not a stack array: this runs directly on the console REPL task,
+     * whose stack is sized for ordinary command handlers, not a few KB of
+     * local buffer on top of printf's/argtable's own usage -- a stack
+     * version of this crashed with a stack-protection fault. recorder.c's
+     * task-based capture can afford a stack array because it runs on its
+     * own dedicated 4096-byte task; this can't assume that. */
+    int16_t *chunk = malloc(RECORD_CHUNK_SAMPLES * sizeof(int16_t));
+    size_t got = 0;
+    esp_err_t werr = ESP_OK;
+    if (!chunk) {
+        printf("malloc failed\n");
+        werr = ESP_ERR_NO_MEM;
+    }
+    /* Generous per-chunk timeout: capture should never actually starve this
+     * long (the audio task feeds it every ~10ms), so hitting it means the
+     * audio task itself has stalled -- stop rather than hang the console. */
+    while (chunk && got < n_samples && werr == ESP_OK) {
+        size_t want = n_samples - got;
+        if (want > RECORD_CHUNK_SAMPLES) want = RECORD_CHUNK_SAMPLES;
+        size_t n = xStreamBufferReceive(sb, chunk, want * sizeof(int16_t), pdMS_TO_TICKS(2000));
+        if (n == 0) {
+            printf("capture stalled after %u/%u samples\n", (unsigned)got, (unsigned)n_samples);
+            break;
+        }
+        size_t nsamp = n / sizeof(int16_t);
+        werr = storage_write_chunk(&w, chunk, nsamp * sizeof(int16_t));
+        got += nsamp;
+    }
+    free(chunk);
+
+    audio_remove_diag_tap(line);
+    vStreamBufferDelete(sb);
+
+    if (werr != ESP_OK) {
+        storage_write_abort(&w);
+        printf("storage_write_chunk failed: %s\n", esp_err_to_name(werr));
+        return 1;
+    }
+    storage_write_end(&w);
+
+    size_t data_bytes = got * sizeof(int16_t);
+    uint8_t sz[4];
+    wav_put_u32(sz, 36 + (uint32_t)data_bytes); storage_patch(name, 4, sz, 4);
+    wav_put_u32(sz, (uint32_t)data_bytes);      storage_patch(name, 40, sz, 4);
+
+    size_t final_bytes = 44 + data_bytes;
     printf("saved %s (%u bytes) -- download at /media/%s or the web UI's Recordings tab\n",
            name, (unsigned)final_bytes, name);
     return 0;
@@ -999,12 +1198,14 @@ void bringup_console_start(void)
     register_cmd("dialtone", "Dial tone: dialtone [line]", cmd_progress);
     register_cmd("ringback", "Ringback tone: ringback [line]", cmd_progress);
     register_cmd("busy", "Busy tone: busy [line]", cmd_progress);
+    register_cmd("roh", "Off-hook (receiver-off-hook) alert tone: roh [line]", cmd_progress);
     register_cmd("silence", "Stop audio: silence [line]", cmd_silence);
     register_cmd("loopback", "Mic->speaker: loopback [line] [0|1]", cmd_loopback);
     register_cmd("capture", "RX level meter, both lines simultaneously: capture [ms]", cmd_capture);
     register_cmd("echopulse", "Periodic 1kHz burst for echo/hybrid debugging: echopulse <line> <on|off> [period_ms]", cmd_echopulse);
     register_cmd("echosweep", "Cycles 9 tones 300-3400Hz for echo/resonance debugging: echosweep <line> <on|off> [period_ms]", cmd_echosweep);
-    register_cmd("record", "Raw mic capture to storage, no live playback: record <ms> [line]", cmd_record);
+    register_cmd("record", "Raw mic capture to storage, no live playback, safe during an active call: record <ms> [line]", cmd_record);
+    register_cmd("echoprobe", "Measure the local earpiece->mic echo path (bulk delay + tail) for AEC sizing: echoprobe [line]", cmd_echoprobe);
     register_cmd("play", "Play a storage WAV out a line: play <name> [line]", cmd_play);
     register_cmd("dtmf_gen", "Emit DTMF: dtmf_gen <digits> [line]", cmd_dtmf_gen);
     register_cmd("slic", "SLIC pin: slic <line> <pd|fr|rm> <0|1>", cmd_slic);

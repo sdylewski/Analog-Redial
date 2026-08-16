@@ -36,38 +36,59 @@ static inline int16_t sine_lookup(uint32_t phase)
     return s_sine[phase >> (32 - SINE_BITS)];
 }
 
-void tone_osc_init(tone_osc_t *o, uint32_t sample_rate, float f1, float f2, float amp)
+void tone_osc_init_multi(tone_osc_t *o, uint32_t sample_rate,
+                         const float *freqs, uint8_t n, float amp)
 {
     ensure_sine_table();
-    o->f1 = f1;
-    o->f2 = f2;
+    if (n < 1) n = 1;
+    if (n > TONE_OSC_MAX_F) n = TONE_OSC_MAX_F;
+
     o->amp = amp;
     o->sample_rate = sample_rate;
-    o->phase1 = 0;
-    o->phase2 = 0;
 
     /* One-time float/double math here is fine -- it's the per-sample loop
      * in tone_osc_fill() that can't afford soft-float, not tone start. */
-    o->inc1 = (uint32_t)((double)f1 / (double)sample_rate * 4294967296.0);
-    o->inc2 = (f2 > 0.0f)
-                  ? (uint32_t)((double)f2 / (double)sample_rate * 4294967296.0)
-                  : 0;
-    /* Scale so the sum of two tones never clips (Q15). */
-    float scale_f = amp * 32768.0f * ((f2 > 0.0f) ? 0.5f : 1.0f);
+    uint8_t active = 0;
+    for (uint8_t i = 0; i < n; i++) {
+        float fi = freqs[i];
+        o->f[i] = fi;
+        o->phase[i] = 0;
+        o->inc[i] = (fi > 0.0f)
+                        ? (uint32_t)((double)fi / (double)sample_rate * 4294967296.0)
+                        : 0;
+        if (o->inc[i]) active++;
+    }
+    for (uint8_t i = n; i < TONE_OSC_MAX_F; i++) {
+        o->f[i] = 0; o->phase[i] = 0; o->inc[i] = 0;
+    }
+    o->n_f = n;
+
+    /* Scale so the summed tones never clip (Q15): divide by however many are
+     * actually oscillating, not by `n` -- a caller passing f2 == 0 for a
+     * single tone would otherwise get a needlessly halved amplitude. */
+    if (active < 1) active = 1;
+    float scale_f = amp * 32768.0f / (float)active;
     o->scale = (int32_t)lroundf(scale_f);
+}
+
+void tone_osc_init(tone_osc_t *o, uint32_t sample_rate, float f1, float f2, float amp)
+{
+    const float freqs[2] = { f1, f2 };
+    tone_osc_init_multi(o, sample_rate, freqs, 2, amp);
 }
 
 void tone_osc_fill(tone_osc_t *o, int16_t *out, size_t n)
 {
-    const bool two = o->inc2 != 0;
+    const uint8_t nf = o->n_f;
 
     for (size_t i = 0; i < n; i++) {
-        int32_t s = sine_lookup(o->phase1);
-        if (two) s += sine_lookup(o->phase2);
+        int32_t s = 0;
+        for (uint8_t k = 0; k < nf; k++) {
+            if (!o->inc[k]) continue;
+            s += sine_lookup(o->phase[k]);
+            o->phase[k] += o->inc[k];
+        }
         out[i] = (int16_t)((s * o->scale) >> 15);
-
-        o->phase1 += o->inc1;
-        if (two) o->phase2 += o->inc2;
     }
 }
 
@@ -113,6 +134,11 @@ static bool cadence_on(const progress_tone_t *p, uint32_t pos)
  * resolve_cadence()/cadence_on() path. */
 static const tone_spec_t TONE_SPEC_REORDER = { 480, 620, { {250, 250}, 2 } };
 
+/* Off-hook (ROH) alert -- 4 frequencies, so it doesn't fit tone_spec_t's
+ * f1/f2 pair; the cadence still does. See TONE_OFFHOOK_ALERT in tones.h. */
+static const float TONE_ROH_FREQS[4] = { 1400.0f, 2060.0f, 2450.0f, 2600.0f };
+static const tone_cadence_t TONE_ROH_CADENCE = { {100, 100}, 2 };
+
 void progress_tone_start(progress_tone_t *p, uint32_t sample_rate, call_progress_t kind)
 {
     p->kind = kind;
@@ -147,6 +173,13 @@ void progress_tone_start(progress_tone_t *p, uint32_t sample_rate, call_progress
         case TONE_CONFIRM:
             f1 = 350; f2 = 440; /* handled as a one-shot special case below, not a cadence */
             break;
+        case TONE_OFFHOOK_ALERT:
+            /* Only 4-frequency tone here, and the only one at full amplitude
+             * (see tones.h) -- init'd directly and returned early rather than
+             * squeezed through the f1/f2 path below. */
+            resolve_cadence(p, &TONE_ROH_CADENCE);
+            tone_osc_init_multi(&p->osc, sample_rate, TONE_ROH_FREQS, 4, 1.0f);
+            return;
         default:
             f1 = 0; f2 = 0;
             break;

@@ -1,26 +1,29 @@
 #include "sdcard.h"
 #include "sdkconfig.h"
+#include "board.h"
+#include "board_pins.h"
 #include "esp_log.h"
-#include <stdio.h>
-
-static const char *TAG = "sdcard";
-#define SD_MOUNT "/sd"
-
-#if CONFIG_BOARD_MICROSD
-
-#include "board_pins_smd.h"
 #include "esp_vfs_fat.h"
 #include "sdmmc_cmd.h"
 #include "driver/sdspi_host.h"
 #include "driver/spi_common.h"
 #include <string.h>
 #include <unistd.h>
+#include <stdio.h>
+
+static const char *TAG = "sdcard";
+#define SD_MOUNT "/sd"
 
 static sdmmc_card_t *s_card;
 
 esp_err_t sdcard_init(void)
 {
     if (s_card) return ESP_OK;
+    /* microSD is a runtime board config now (board.h), not a separate
+     * firmware build -- GPIO18-21 might be wired to line 2's SLIC instead
+     * on this specific board, so bail out before touching any SPI/GPIO
+     * hardware at all if that's not what's configured. */
+    if (!board_hw_config_get().has_microsd) return ESP_ERR_NOT_SUPPORTED;
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = SPI2_HOST;
@@ -70,6 +73,12 @@ bool sdcard_mounted(void) { return s_card != NULL; }
 
 void sdcard_print_info(void)
 {
+    if (!board_hw_config_get().has_microsd) {
+        printf("SD: this board isn't configured for microSD (Settings -> "
+               "Hardware, or it's set to 2-line mode -- GPIO18-21 are "
+               "line 2's SLIC instead).\n");
+        return;
+    }
     if (!s_card) { printf("SD: not mounted\n"); return; }
     sdmmc_card_print_info(stdout, s_card);
     uint64_t total = 0, freeb = 0;
@@ -105,16 +114,3 @@ esp_err_t sdcard_selftest(void)
     printf("SD: write+read+verify OK\n");
     return ESP_OK;
 }
-
-#else /* !CONFIG_BOARD_MICROSD */
-
-esp_err_t sdcard_init(void) { return ESP_ERR_NOT_SUPPORTED; }
-bool sdcard_mounted(void) { return false; }
-void sdcard_print_info(void)
-{
-    printf("SD: this firmware isn't built with CONFIG_BOARD_MICROSD "
-           "(dual-line SLIC build). Rebuild with microSD enabled + 1 line.\n");
-}
-esp_err_t sdcard_selftest(void) { return ESP_ERR_NOT_SUPPORTED; }
-
-#endif

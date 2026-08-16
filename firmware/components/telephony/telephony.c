@@ -11,6 +11,7 @@
 #include "storage.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "board.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -84,6 +85,9 @@ typedef struct {
     /* transient tone auto-return */
     int64_t              tone_return_us; /* 0 = no auto-return */
     tel_state_t          tone_return_state;
+    /* off-hook alert: when the current dial-tone dwell expires (0 = not
+     * armed, i.e. not sitting on dial tone or the feature is disabled) */
+    int64_t              offhook_alert_at_us;
     /* active recording (211 archive) */
     char                 rec_name[STORAGE_MAX_NAME];
 } line_t;
@@ -118,6 +122,7 @@ const char *telephony_state_name(tel_state_t s)
         case TEL_REORDER: return "REORDER";
         case TEL_PLAYING: return "PLAYING";
         case TEL_RECORDING: return "RECORDING";
+        case TEL_OFFHOOK_ALERT: return "OFFHOOK_ALERT";
         default: return "?";
     }
 }
@@ -227,6 +232,16 @@ static void enter_dialtone(int line)
     s_line[line].dialing = false;
     s_line[line].tone_return_us = 0;
     dialplan_collector_reset(&s_line[line].coll);
+
+    /* (Re)start the off-hook dwell clock. Read per entry rather than cached
+     * at boot so a settings change applies to the next dial tone without a
+     * reboot. Every path back to dial tone (hang-up of a call, inter-digit
+     * timeout, clip finishing) comes through here, so the timer restarts
+     * whenever the user is plausibly "back at the top" again -- only a
+     * genuinely untouched handset accumulates the full dwell. */
+    board_offhook_alert_t roh = board_offhook_alert_get();
+    s_line[line].offhook_alert_at_us =
+        roh.enabled ? esp_timer_get_time() + (int64_t)roh.seconds * 1000000 : 0;
 }
 
 void telephony_force_recover(int line)
@@ -531,6 +546,15 @@ static void fsm_task(void *arg)
                      * there's no "your call cannot be completed" signal
                      * worth holding up the line for here. */
                     if (s_line[e.line].peer == PEER_VOIP) {
+                        /* If we were still ringing (incoming call closed --
+                         * caller hung up/CANCELed -- before anyone picked
+                         * up), the SLIC's bell is only ever silenced by
+                         * ag1170_ring_stop() or an actual answer (service_hook()'s
+                         * ring-trip path). Neither happens here on its own --
+                         * without this, the physical bell keeps ringing
+                         * indefinitely even though the FSM below moves on. */
+                        if (s_line[e.line].state == TEL_RINGING)
+                            ag1170_ring_stop(e.line);
                         if (line_offhook(e.line))
                             enter_dialtone(e.line);
                         else
@@ -573,6 +597,18 @@ static void fsm_task(void *arg)
                          line, telephony_state_name(ret));
                 if (ret == TEL_DIALTONE) enter_dialtone(line);
                 else if (ret == TEL_IDLE) enter_idle(line);
+            }
+            /* Handset left off-hook on dial tone -> loud alert (board.h).
+             * Gated on still being in DIALTONE, so the armed deadline is
+             * self-invalidating: any transition out (dialing, a call, going
+             * on-hook) simply stops it from ever being consulted, and coming
+             * back to dial tone re-arms it in enter_dialtone(). */
+            if (s_line[line].state == TEL_DIALTONE &&
+                s_line[line].offhook_alert_at_us &&
+                now >= s_line[line].offhook_alert_at_us) {
+                s_line[line].offhook_alert_at_us = 0;
+                ESP_LOGI(TAG, "line %d: off-hook too long on dial tone -- alert tone", line);
+                play_persistent(line, TONE_OFFHOOK_ALERT, TEL_OFFHOOK_ALERT);
             }
         }
         vTaskDelay(tick);

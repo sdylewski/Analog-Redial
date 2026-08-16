@@ -15,19 +15,31 @@
 extern "C" {
 #endif
 
-/* A dual-tone oscillator with phase continuity across buffer fills.
- * Phase-accumulator/sine-table internally (see tones.c) -- no float math in
- * the per-sample path, only at tone_osc_init() (one-time, not hot-loop). */
+/* A multi-tone oscillator (up to TONE_OSC_MAX_F simultaneous frequencies)
+ * with phase continuity across buffer fills. Phase-accumulator/sine-table
+ * internally (see tones.c) -- no float math in the per-sample path, only at
+ * tone_osc_init() (one-time, not hot-loop).
+ *
+ * Two frequencies covers every call-progress tone except the off-hook alert
+ * (TONE_OFFHOOK_ALERT), which is a 4-frequency superposition per Telcordia
+ * GR-506-CORE -- hence the arrays rather than the f1/f2 pair this started as. */
+#define TONE_OSC_MAX_F 4
 typedef struct {
-    float    f1, f2;        /* Hz (f2 may be 0 for a single tone) */
-    float    amp;           /* 0..1 of full scale */
+    float    f[TONE_OSC_MAX_F];  /* Hz; entries past n_f are unused */
+    float    amp;                /* 0..1 of full scale */
     uint32_t sample_rate;
-    uint32_t phase1, phase2; /* Q32 phase accumulators */
-    uint32_t inc1, inc2;     /* Q32 phase increment per sample (inc2 == 0 => single tone) */
-    int32_t  scale;          /* Q15 amplitude factor, already folds in the two-tone half-scale */
+    uint32_t phase[TONE_OSC_MAX_F]; /* Q32 phase accumulators */
+    uint32_t inc[TONE_OSC_MAX_F];   /* Q32 phase increment per sample */
+    uint8_t  n_f;                /* active frequency count (1..TONE_OSC_MAX_F) */
+    int32_t  scale;              /* Q15 amplitude, already folds in the 1/n_f headroom */
 } tone_osc_t;
 
+/* Convenience wrapper for the common 1- or 2-tone case (f2 == 0 => single). */
 void tone_osc_init(tone_osc_t *o, uint32_t sample_rate, float f1, float f2, float amp);
+
+/* General form: `n` frequencies from `freqs` (1..TONE_OSC_MAX_F). */
+void tone_osc_init_multi(tone_osc_t *o, uint32_t sample_rate,
+                         const float *freqs, uint8_t n, float amp);
 
 /* Fill `n` mono samples. Phase is preserved for the next call. */
 void tone_osc_fill(tone_osc_t *o, int16_t *out, size_t n);
@@ -45,6 +57,13 @@ typedef enum {
     TONE_BUSY,       /* region-dependent (NA default: 480+620 Hz, 0.5 s on / 0.5 s off) */
     TONE_REORDER,    /* 480+620 Hz, 0.25 s on / 0.25 s off (fast busy) -- not regionalized */
     TONE_CONFIRM,    /* 350+440 Hz triple beep (stutter/confirmation) -- not regionalized */
+    /* "Receiver off-hook" (ROH) / howler: 1400+2060+2450+2600 Hz, 100 ms on /
+     * 100 ms off, per Telcordia GR-506-CORE SS17.2.8 (North American). Played
+     * at full amplitude, unlike the 0.6 the others use -- the entire point is
+     * to be heard across a room from a handset lying on a table, so it is
+     * deliberately loud and dissonant. Not regionalized (other countries use
+     * quite different alerts; this is the one this project implements). */
+    TONE_OFFHOOK_ALERT,
 } call_progress_t;
 
 /* A cadence is an alternating on/off/on/off/... sequence of phase lengths

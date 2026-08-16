@@ -1,5 +1,6 @@
 #include "dialplan.h"
 #include "sdkconfig.h"
+#include "board.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -46,16 +47,16 @@ static const entry_t TABLE[] = {
     { "211", ACT_RECORD_ARCHIVE, 0, 0,
       "Leave a message (record to storage, download on web UI)", true },
 
-#if CONFIG_BOARD_NUM_LINES > 1
-    /* 3xx -- call the other phone line (symmetric on both lines). Only present
-     * on a 2-line board; a single-line build has no other line to ring, so
-     * these codes are omitted entirely (dialing 3xx -> wrong number) and the
-     * web UI's inter-phone card/tab drop out with them. */
+    /* 3xx -- call the other phone line (symmetric on both lines). Always
+     * compiled in now (board line count is runtime, board.h), but
+     * entry_available() below hides these from lookup/listing on a board
+     * currently configured for 1 line -- dialing 3xx -> wrong number, and
+     * the web UI's inter-phone card/tab drop out with them, same observable
+     * behavior as when this used to be #if CONFIG_BOARD_NUM_LINES > 1. */
     { "321", ACT_CALL_LINE, -1, FX_NORMAL, "Call other phone (normal voice)", true },
     { "322", ACT_CALL_LINE, -1, FX_HIGH,   "Call other phone (chipmunk)", true },
     { "323", ACT_CALL_LINE, -1, FX_LOW,    "Call other phone (low pitch)", true },
     { "324", ACT_CALL_LINE, -1, FX_DALEK,  "Call other phone (robot)", true },
-#endif
 
     /* 8xx -- internet radio; only 811/812 are configured on the Pi today,
      * 813-819 are documented gaps, not real codes yet */
@@ -212,10 +213,26 @@ void dialplan_apply_mode(int line, dialplan_mode_change_t change)
              change, line, s_modes.readback_digits);
 }
 
+/* ACT_CALL_LINE entries (321-324) stay in TABLE unconditionally (board line
+ * count is a runtime setting now, board.h) but only "exist" for dialing/
+ * listing purposes when a second line is actually configured -- matches
+ * the observable behavior from when these were compiled out entirely on a
+ * 1-line build. Everything else in TABLE is always available; only
+ * ACT_CALL_LINE depends on board config. code_conflicts_except() below
+ * deliberately does NOT use this gate -- 321-324 stay reserved against
+ * custom clip codes even while hidden, so switching a board from 1 to 2
+ * lines at runtime (no rebuild needed now) can't have silently let a custom
+ * code claim them in the meantime. */
+static bool entry_available(const entry_t *e)
+{
+    if (e->kind == ACT_CALL_LINE) return board_hw_config_get().num_lines > 1;
+    return true;
+}
+
 static const entry_t *exact_match(const char *buf)
 {
     for (size_t i = 0; i < TABLE_N; i++) {
-        if (strcmp(TABLE[i].code, buf) == 0) return &TABLE[i];
+        if (strcmp(TABLE[i].code, buf) == 0 && entry_available(&TABLE[i])) return &TABLE[i];
     }
     return NULL;
 }
@@ -233,7 +250,8 @@ static bool has_longer_prefix(const char *buf)
     size_t blen = strlen(buf);
     for (size_t i = 0; i < TABLE_N; i++) {
         if (strlen(TABLE[i].code) > blen &&
-            strncmp(TABLE[i].code, buf, blen) == 0) {
+            strncmp(TABLE[i].code, buf, blen) == 0 &&
+            entry_available(&TABLE[i])) {
             return true;
         }
     }
@@ -363,11 +381,13 @@ dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line)
 
 size_t dialplan_list(dialplan_entry_info_t *out, size_t max)
 {
-    size_t n = (TABLE_N < max) ? TABLE_N : max;
-    for (size_t i = 0; i < n; i++) {
-        out[i].code = TABLE[i].code;
-        out[i].desc = TABLE[i].desc;
-        out[i].implemented = TABLE[i].implemented;
+    size_t n = 0;
+    for (size_t i = 0; i < TABLE_N && n < max; i++) {
+        if (!entry_available(&TABLE[i])) continue; /* e.g. 321-324 on a 1-line board */
+        out[n].code = TABLE[i].code;
+        out[n].desc = TABLE[i].desc;
+        out[n].implemented = TABLE[i].implemented;
+        n++;
     }
     return n;
 }

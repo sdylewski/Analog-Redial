@@ -30,6 +30,8 @@ typedef struct {
 
     audio_rx_tap_fn rx_tap;
     void           *rx_ctx;
+    audio_rx_tap_fn diag_tap; /* second, independent slot -- see audio_add_diag_tap() */
+    void           *diag_ctx;
     StreamBufferHandle_t rx;  /* uplink capture for voip/record */
     uint16_t        rx_level;
 } line_t;
@@ -135,6 +137,24 @@ void audio_set_rx_tap(int line, audio_rx_tap_fn fn, void *ctx)
     portENTER_CRITICAL(&s_mux);
     s_line[line].rx_tap = fn;
     s_line[line].rx_ctx = ctx;
+    portEXIT_CRITICAL(&s_mux);
+}
+
+void audio_add_diag_tap(int line, audio_rx_tap_fn fn, void *ctx)
+{
+    if (line < 0 || line >= AUDIO_NUM_LINES) return;
+    portENTER_CRITICAL(&s_mux);
+    s_line[line].diag_tap = fn;
+    s_line[line].diag_ctx = ctx;
+    portEXIT_CRITICAL(&s_mux);
+}
+
+void audio_remove_diag_tap(int line)
+{
+    if (line < 0 || line >= AUDIO_NUM_LINES) return;
+    portENTER_CRITICAL(&s_mux);
+    s_line[line].diag_tap = NULL;
+    s_line[line].diag_ctx = NULL;
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -264,6 +284,9 @@ static void audio_task(void *arg)
             s_line[line].rx_level = rms_of(src, rxn);
             if (rxn && s_line[line].rx_tap) {
                 s_line[line].rx_tap(line, src, rxn, s_line[line].rx_ctx);
+            }
+            if (rxn && s_line[line].diag_tap) {
+                s_line[line].diag_tap(line, src, rxn, s_line[line].diag_ctx);
             }
             if (rxn && s_line[line].rx) {
                 xStreamBufferSend(s_line[line].rx, src, rxn * sizeof(int16_t), 0);

@@ -60,8 +60,28 @@ size_t audio_ext_write(int line, const int16_t *mono, size_t n);
 
 /* ---- receive ---- */
 void   audio_set_rx_tap(int line, audio_rx_tap_fn fn, void *ctx);
-/* Pull engine-rate mono PCM captured from a line's mic (uplink). */
+/* Pull engine-rate mono PCM captured from a line's mic (uplink). BACKED BY A
+ * SINGLE-READER STREAM BUFFER: exactly one consumer may block on this per
+ * line at a time (this is what the VoIP RTP tx task uses while a call is
+ * up). Calling this concurrently from a second task (e.g. a console 'record'
+ * command) on a line that's already mid-call WILL crash -- FreeRTOS asserts
+ * on a second task blocking to receive on the same stream buffer. For a
+ * diagnostic capture that needs to run *alongside* whatever's already
+ * consuming this line (the whole point of most echo/audio debugging), use
+ * audio_add_diag_tap() instead -- a synchronous callback, not a second
+ * stream-buffer reader, so it can't collide with the RTP task. */
 size_t audio_rx_read(int line, int16_t *mono, size_t n, uint32_t timeout_ms);
+
+/* Second, independent RX tap slot reserved for diagnostics (console 'record',
+ * echo debugging tools, etc.) -- separate from audio_set_rx_tap()'s slot,
+ * which telephony.c owns permanently for DTMF detection. Coexists safely
+ * with an active call: both taps and the rx stream buffer are fed from the
+ * same synchronous point in the audio task, so a diag tap never competes
+ * with the RTP task's audio_rx_read(). Callback runs on the audio task --
+ * keep it fast, no blocking/malloc/logging. Only one diag tap per line;
+ * audio_add_diag_tap() replaces whatever was previously registered. */
+void audio_add_diag_tap(int line, audio_rx_tap_fn fn, void *ctx);
+void audio_remove_diag_tap(int line);
 
 /* Simple RMS level (0..32767) of the most recent RX frame for a line. */
 uint16_t audio_rx_level(int line);

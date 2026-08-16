@@ -15,11 +15,10 @@
 #include "driver/gpio.h"
 #include "board_config.h"
 
-#ifndef CONFIG_BOARD_NUM_LINES
-#define CONFIG_BOARD_NUM_LINES 2
-#endif
-
-#define BOARD_NUM_LINES CONFIG_BOARD_NUM_LINES
+/* Always 2 -- unlike SMD2, this PCB has no line2/microSD GPIO-sharing
+ * tradeoff (dedicated pins for both lines, see below), so there's no
+ * board_hw_config_get()-style runtime choice to make here at all. */
+#define BOARD_NUM_LINES 2
 
 /* ---- I2S (WM8731 codec, ESP32 is master) ---- */
 #define BOARD_I2S_MCLK    GPIO_NUM_0   /* XTI/MCLK  -> codec pin 25 */
@@ -49,6 +48,18 @@
 #define BOARD_LINE1_FR    GPIO_NUM_21
 #define BOARD_LINE1_RM    GPIO_NUM_20
 #define BOARD_LINE1_PD    GPIO_NUM_18
+
+/* This PCB has no microSD socket at all (unlike SMD2, where it's an
+ * alternate use of line 2's GPIO pads) -- board_hw_config_get() (board.h)
+ * always reports has_microsd=false here, so sdcard_init() returns early
+ * before ever touching these. Placeholders only exist so sdcard.c, which
+ * now always compiles its real implementation (board line count/microSD
+ * are runtime choices, not separate firmware builds), has something to
+ * reference on this board type too. */
+#define BOARD_SD_CS       GPIO_NUM_NC
+#define BOARD_SD_SCLK     GPIO_NUM_NC
+#define BOARD_SD_MOSI     GPIO_NUM_NC
+#define BOARD_SD_MISO     GPIO_NUM_NC
 
 /*
  * PD drive polarity.

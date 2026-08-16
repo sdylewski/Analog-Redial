@@ -26,6 +26,8 @@ static board_codec_t s_detected_codec = BOARD_CODEC_NONE;
 #define BOARD_NAME_MAX     32
 #define BOARD_LANG_NVS_KEY "lang"
 #define BOARD_LANG_MAX     8
+#define BOARD_ROH_EN_KEY   "roh_en"
+#define BOARD_ROH_SECS_KEY "roh_secs"
 
 esp_err_t board_i2c_init(void)
 {
@@ -209,6 +211,142 @@ esp_err_t board_language_set(const char *lang)
     nvs_close(h);
     if (err == ESP_OK) ESP_LOGI(TAG, "phone language set to '%s'", trimmed);
     return err;
+}
+
+board_offhook_alert_t board_offhook_alert_get(void)
+{
+    /* Defaults: on, 120 s. Real switches escalate in stages over ~30-60 s
+     * (see the ROH notes in tones.h); 2 minutes is deliberately more patient
+     * than a PSTN switch would be -- this is a home phone where sitting on
+     * dial tone thinking for a minute is normal, and the alert is loud. */
+    board_offhook_alert_t cfg = { .enabled = true, .seconds = 120 };
+
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return cfg;
+    uint8_t en;
+    if (nvs_get_u8(h, BOARD_ROH_EN_KEY, &en) == ESP_OK) cfg.enabled = (en != 0);
+    uint32_t secs;
+    if (nvs_get_u32(h, BOARD_ROH_SECS_KEY, &secs) == ESP_OK &&
+        secs >= BOARD_OFFHOOK_ALERT_MIN_S && secs <= BOARD_OFFHOOK_ALERT_MAX_S) {
+        cfg.seconds = secs;
+    }
+    nvs_close(h);
+    return cfg;
+}
+
+esp_err_t board_offhook_alert_set(board_offhook_alert_t cfg)
+{
+    if (cfg.seconds < BOARD_OFFHOOK_ALERT_MIN_S ||
+        cfg.seconds > BOARD_OFFHOOK_ALERT_MAX_S) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, BOARD_ROH_EN_KEY, cfg.enabled ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_u32(h, BOARD_ROH_SECS_KEY, cfg.seconds);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "off-hook alert %s, %u s",
+                 cfg.enabled ? "enabled" : "disabled", (unsigned)cfg.seconds);
+    }
+    return err;
+}
+
+#define HW_CONFIG_NVS_NS       "board"
+#define HW_CONFIG_NVS_KEY_LINES "hw_lines"  /* u8: 1 or 2 */
+#define HW_CONFIG_NVS_KEY_SD    "hw_sd"     /* u8: 0 or 1 */
+
+board_hw_config_t board_hw_config_get(void)
+{
+    /* THT has no GPIO-sharing tradeoff at all (see board_pins_tht.h) --
+     * always 2 lines, no microSD, not a runtime question there. */
+    if (board_current_type() != BOARD_TYPE_SMD) {
+        return (board_hw_config_t){ .num_lines = 2, .has_microsd = false };
+    }
+    board_hw_config_t cfg = { .num_lines = 1, .has_microsd = false }; /* safe default */
+    nvs_handle_t h;
+    if (nvs_open(HW_CONFIG_NVS_NS, NVS_READONLY, &h) == ESP_OK) {
+        uint8_t lines = 0, sd = 0;
+        if (nvs_get_u8(h, HW_CONFIG_NVS_KEY_LINES, &lines) == ESP_OK && (lines == 1 || lines == 2)) {
+            cfg.num_lines = lines;
+        }
+        if (nvs_get_u8(h, HW_CONFIG_NVS_KEY_SD, &sd) == ESP_OK) {
+            cfg.has_microsd = (sd != 0);
+        }
+        nvs_close(h);
+    }
+    return cfg;
+}
+
+bool board_hw_config_is_set(void)
+{
+    if (board_current_type() != BOARD_TYPE_SMD) return true; /* nothing to configure */
+    nvs_handle_t h;
+    if (nvs_open(HW_CONFIG_NVS_NS, NVS_READONLY, &h) != ESP_OK) return false;
+    uint8_t lines = 0;
+    esp_err_t err = nvs_get_u8(h, HW_CONFIG_NVS_KEY_LINES, &lines);
+    nvs_close(h);
+    return err == ESP_OK;
+}
+
+esp_err_t board_hw_config_set(board_hw_config_t cfg)
+{
+    if (cfg.num_lines < 1 || cfg.num_lines > 2) return ESP_ERR_INVALID_ARG;
+    if (cfg.num_lines == 2 && cfg.has_microsd) return ESP_ERR_INVALID_ARG; /* GPIO18-21 conflict */
+
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(HW_CONFIG_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, HW_CONFIG_NVS_KEY_LINES, (uint8_t)cfg.num_lines);
+    if (err == ESP_OK) err = nvs_set_u8(h, HW_CONFIG_NVS_KEY_SD, cfg.has_microsd ? 1 : 0);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "hardware config set: %d line%s, microSD %s",
+                 cfg.num_lines, cfg.num_lines == 1 ? "" : "s",
+                 cfg.has_microsd ? "yes" : "no");
+    }
+    return err;
+}
+
+board_hw_evidence_t board_hw_detect_evidence(void)
+{
+    board_hw_evidence_t ev = { .valid = false };
+    if (board_current_type() != BOARD_TYPE_SMD) return ev;
+    /* GPIO18-21 are only safe to reconfigure as plain inputs here if NO
+     * driver has claimed them yet. Once the config is explicitly confirmed
+     * (board_hw_config_is_set()), ag1170_init() may already own them as a
+     * SLIC (line 2) or sdcard_init() may own them as SPI (microSD) -- in
+     * either case, yanking them to GPIO_MODE_INPUT mid-run would glitch a
+     * live peripheral (e.g. an in-flight SD SPI transaction). Evidence is
+     * only meaningful/safe before that point anyway: it exists to help the
+     * user make the FIRST confirmation, not to second-guess one already
+     * made. */
+    if (board_hw_config_is_set()) return ev;
+
+    const gpio_num_t pins[4] = {
+        BOARD_LINE2_PIN_PD_CS, BOARD_LINE2_PIN_SHK_SCLK,
+        BOARD_LINE2_PIN_RM_MOSI, BOARD_LINE2_PIN_FR_MISO,
+    };
+    for (int i = 0; i < 4; i++) {
+        gpio_config_t c = {
+            .pin_bit_mask = 1ULL << pins[i],
+            .mode = GPIO_MODE_INPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        };
+        gpio_config(&c);
+        ev.raw_levels[i] = gpio_get_level(pins[i]);
+    }
+    /* An idle/on-hook AG1171 SHK divider (see HARDWARE_SIGNAL_LEVELS.md)
+     * pulls this low at rest; an unpopulated/floating microSD CLK pin has no
+     * such reason to read consistently low. Weak evidence, not proof --
+     * purely advisory, see board.h. */
+    ev.looks_like_line2 = (ev.raw_levels[1] == 0);
+    ev.valid = true;
+    return ev;
 }
 
 void board_hostname(char *out, size_t len)

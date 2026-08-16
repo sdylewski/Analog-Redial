@@ -1,6 +1,7 @@
 #include "ag1170.h"
 #include "board_pins.h"
 #include "board_config.h"
+#include "board.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -31,11 +32,21 @@ typedef struct {
     int     fr_level;
 } line_state_t;
 
-static line_state_t   s_ls[BOARD_NUM_LINES];
+static line_state_t   s_ls[BOARD_NUM_LINES]; /* array is always max width; see s_active_lines */
 static ag1170_config_t s_cfg;
 static ag1170_event_cb s_cb;
 static void           *s_cb_ctx;
 static TaskHandle_t    s_task;
+
+/* How many lines are actually populated as SLICs, cached from
+ * board_hw_config_get() once at init (NVS read; not something to repeat
+ * every 1ms in monitor_task()). On a board configured for microSD instead
+ * of line 2, GPIO18-21 are wired to the SD card, not a SLIC -- config_line_gpio()
+ * must never be called for that line, and every per-line accessor below
+ * checks against this (not just the raw array bound), so an inactive line
+ * can't end up toggling whatever pins its zero-initialized s_ls[] entry
+ * happens to contain. */
+static int s_active_lines = 1;
 
 static void emit(int line, ag1170_event_type_t type, int digit)
 {
@@ -76,27 +87,27 @@ static void set_pd_run(gpio_num_t pd, bool run)
 
 esp_err_t ag1170_set_power(int line, bool run)
 {
-    if (line < 0 || line >= BOARD_NUM_LINES) return ESP_ERR_INVALID_ARG;
+    if (line < 0 || line >= s_active_lines) return ESP_ERR_INVALID_ARG;
     set_pd_run(s_ls[line].pins.pd, run);
     return ESP_OK;
 }
 
 void ag1170_set_fr(int line, int level)
 {
-    if (line < 0 || line >= BOARD_NUM_LINES) return;
+    if (line < 0 || line >= s_active_lines) return;
     s_ls[line].fr_level = level ? 1 : 0;
     gpio_set_level(s_ls[line].pins.fr, s_ls[line].fr_level);
 }
 
 void ag1170_set_rm(int line, int level)
 {
-    if (line < 0 || line >= BOARD_NUM_LINES) return;
+    if (line < 0 || line >= s_active_lines) return;
     gpio_set_level(s_ls[line].pins.rm, level ? 1 : 0);
 }
 
 void ag1170_ring_start(int line)
 {
-    if (line < 0 || line >= BOARD_NUM_LINES) return;
+    if (line < 0 || line >= s_active_lines) return;
     int64_t now = esp_timer_get_time();
     s_ls[line].ringing = true;
     s_ls[line].ring_phase_start_us = now;
@@ -106,7 +117,7 @@ void ag1170_ring_start(int line)
 
 void ag1170_ring_stop(int line)
 {
-    if (line < 0 || line >= BOARD_NUM_LINES) return;
+    if (line < 0 || line >= s_active_lines) return;
     s_ls[line].ringing = false;
     ag1170_set_rm(line, 0);
     ESP_LOGI(TAG, "line %d ring stop", line);
@@ -114,31 +125,31 @@ void ag1170_ring_stop(int line)
 
 bool ag1170_is_ringing(int line)
 {
-    if (line < 0 || line >= BOARD_NUM_LINES) return false;
+    if (line < 0 || line >= s_active_lines) return false;
     return s_ls[line].ringing;
 }
 
 bool ag1170_is_offhook(int line)
 {
-    if (line < 0 || line >= BOARD_NUM_LINES) return false;
+    if (line < 0 || line >= s_active_lines) return false;
     return s_ls[line].offhook_reported;
 }
 
 int ag1170_raw_shk(int line)
 {
-    if (line < 0 || line >= BOARD_NUM_LINES) return -1;
+    if (line < 0 || line >= s_active_lines) return -1;
     return gpio_get_level(s_ls[line].pins.shk);
 }
 
 int ag1170_pulse_count(int line)
 {
-    if (line < 0 || line >= BOARD_NUM_LINES) return -1;
+    if (line < 0 || line >= s_active_lines) return -1;
     return s_ls[line].pulse_count;
 }
 
 bool ag1170_is_counting_digit(int line)
 {
-    if (line < 0 || line >= BOARD_NUM_LINES) return false;
+    if (line < 0 || line >= s_active_lines) return false;
     return s_ls[line].counting_digit;
 }
 
@@ -253,7 +264,7 @@ static void monitor_task(void *arg)
     TickType_t last = xTaskGetTickCount();
     while (1) {
         int64_t now = esp_timer_get_time();
-        for (int line = 0; line < BOARD_NUM_LINES; line++) {
+        for (int line = 0; line < s_active_lines; line++) {
             service_hook(line, now);
             service_ring(line, now);
         }
@@ -301,7 +312,12 @@ esp_err_t ag1170_init(const ag1170_config_t *cfg)
     s_cfg = cfg ? *cfg : AG1170_DEFAULT_CONFIG();
     if (s_cfg.ring_freq_hz == 0) s_cfg.ring_freq_hz = 20;
 
-    for (int line = 0; line < BOARD_NUM_LINES; line++) {
+    /* Read once here, not per-call -- see s_active_lines' own comment. On a
+     * board configured for microSD, this is 1: GPIO18-21 belong to the SD
+     * card, and line 1 (index 1) must never be configured as a SLIC. */
+    s_active_lines = board_hw_config_get().num_lines;
+
+    for (int line = 0; line < s_active_lines; line++) {
         memset(&s_ls[line], 0, sizeof(s_ls[line]));
         config_line_gpio(line);
     }
@@ -313,6 +329,6 @@ esp_err_t ag1170_init(const ag1170_config_t *cfg)
         return ESP_FAIL;
     }
     ESP_LOGI(TAG, "init: %d lines, ring %u Hz %u/%u ms",
-             BOARD_NUM_LINES, s_cfg.ring_freq_hz, s_cfg.ring_on_ms, s_cfg.ring_off_ms);
+             s_active_lines, s_cfg.ring_freq_hz, s_cfg.ring_on_ms, s_cfg.ring_off_ms);
     return ESP_OK;
 }

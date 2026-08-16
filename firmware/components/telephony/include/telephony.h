@@ -29,6 +29,9 @@ typedef enum {
     TEL_REORDER,    /* reorder / wrong-number tone */
     TEL_PLAYING,    /* playing a prompt/clip (operator help, fun clips, ...) */
     TEL_RECORDING,  /* capturing a message (211 archive) */
+    TEL_OFFHOOK_ALERT, /* left off-hook on dial tone too long -- loud ROH tone
+                        * until the handset goes back on-hook (board.h's
+                        * board_offhook_alert_get() configures the delay) */
 } tel_state_t;
 
 esp_err_t telephony_start(void);

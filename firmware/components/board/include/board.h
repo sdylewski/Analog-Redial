@@ -4,6 +4,8 @@
 #include "esp_err.h"
 #include "driver/i2c_master.h"
 #include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -102,6 +104,81 @@ void board_hostname(char *out, size_t len);
  * firmware change, just matching audio assets. */
 void      board_language_get(char *out, size_t len); /* defaults to "en" */
 esp_err_t board_language_set(const char *lang);
+
+/* ---- Off-hook ("receiver off-hook" / ROH) alert ----
+ * A handset left off the hook sits on dial tone forever otherwise: the line
+ * is unreachable (callers get busy) with nothing to draw attention to it.
+ * Real switches escalate to a deliberately loud, dissonant alert tone after
+ * a timeout; this reproduces that (TONE_OFFHOOK_ALERT, tones.h), triggered
+ * from the dial-tone state only -- the other idle-ish states either already
+ * play something attention-getting (reorder) or represent a real call.
+ * Hanging up clears it, same as any other state. */
+#define BOARD_OFFHOOK_ALERT_MIN_S 10
+#define BOARD_OFFHOOK_ALERT_MAX_S 3600
+typedef struct {
+    bool     enabled;
+    uint32_t seconds; /* dial-tone dwell before the alert starts */
+} board_offhook_alert_t;
+
+/* Defaults to enabled / 120 s until board_offhook_alert_set() says otherwise. */
+board_offhook_alert_t board_offhook_alert_get(void);
+/* ESP_ERR_INVALID_ARG outside BOARD_OFFHOOK_ALERT_MIN_S..MAX_S. Takes effect
+ * on the next dial tone -- no reboot (the FSM reads this when it starts the
+ * dwell timer). */
+esp_err_t board_offhook_alert_set(board_offhook_alert_t cfg);
+
+/* ---- Line/microSD hardware configuration (SMD2 only) ----
+ * The SMD2 PCB's GPIO 18-21 are wired to EITHER a second AG1171 SLIC (line
+ * 2) OR a microSD socket, never both -- a BOM/jumper choice made when the
+ * board was assembled (see ROTARY_PHONE_SMD.md's "Build options": populate
+ * line 2's 0R jumpers, or the microSD's 0R jumpers, one set only). This used
+ * to be a build-time choice (CONFIG_BOARD_NUM_LINES/CONFIG_BOARD_MICROSD),
+ * meaning a separate firmware image per board variant. Now runtime,
+ * NVS-backed, so one firmware image works on either board -- but that means
+ * something has to decide which peripheral those 4 pins actually are, and a
+ * wrong guess doesn't just misbehave in software, it drives real GPIO pins
+ * as the wrong peripheral (the line-2 side of that pair carries SLIC
+ * control signals). So: defaults to the SAFEST option (1 line, no SD) until
+ * a human explicitly confirms otherwise -- see board_hw_config_set(). */
+typedef struct {
+    int  num_lines;    /* 1 or 2 */
+    bool has_microsd;  /* only meaningful combined with num_lines == 1 */
+} board_hw_config_t;
+
+/* Current config. (1, false) -- the safe default -- until
+ * board_hw_config_set() has been called at least once; see
+ * board_hw_config_is_set() to tell "explicitly configured to 1-line" apart
+ * from "never configured, still on the default". */
+board_hw_config_t board_hw_config_get(void);
+
+/* True once a human has explicitly confirmed a configuration. The web UI
+ * (and, on the SMD2 THT-style first-boot flow, WiFi setup) should prompt
+ * for this if false, rather than silently trusting the untouched default
+ * forever. */
+bool board_hw_config_is_set(void);
+
+/* Rejects num_lines outside 1-2, and num_lines==2 combined with
+ * has_microsd==true (the GPIO conflict this whole API exists to prevent),
+ * with ESP_ERR_INVALID_ARG. Takes effect on reboot -- like every other
+ * hardware config in this project, peripheral GPIO/driver init only runs
+ * once at boot. */
+esp_err_t board_hw_config_set(board_hw_config_t cfg);
+
+/* Best-effort, purely advisory evidence for the config UI to show a human
+ * before they confirm -- NOT authoritative, and deliberately not used to
+ * drive behavior automatically (see the risk this whole file's comment
+ * above describes). Just a raw, passive GPIO18-21 level read before any
+ * peripheral has claimed them -- safe (input-only, drives nothing) but not
+ * proof: a floating/undriven pin reads as whatever noise it picks up. Only
+ * meaningful if called before ag1170's line-2 init or sdcard_init(), i.e.
+ * very early in app_main() -- after boot, whichever driver is active owns
+ * those pins and this will just reflect that instead. */
+typedef struct {
+    bool valid;               /* false if board type isn't SMD2 -- no GPIO18-21 pair to read */
+    int  raw_levels[4];        /* GPIO 18,19,20,21 as read, 0/1 each */
+    bool looks_like_line2;     /* SHK-equivalent (GPIO19) reads low at rest, as a bare/idle AG1171 SHK divider would */
+} board_hw_evidence_t;
+board_hw_evidence_t board_hw_detect_evidence(void);
 
 #ifdef __cplusplus
 }
