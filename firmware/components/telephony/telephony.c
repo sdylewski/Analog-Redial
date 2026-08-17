@@ -168,6 +168,16 @@ static void ag_cb(const ag1170_event_t *ev, void *ctx)
 
 static void dtmf_tap(int line, const int16_t *mono, size_t n, void *ctx)
 {
+    /* On-hook, the only thing on this input is SLIC/line noise -- which the
+     * Goertzel detector was intermittently reading as a real '6' continuously
+     * while idle (seen live: a steady stream of false START/END pairs with
+     * nobody near the phone). Gating on off-hook matches every real source of
+     * DTMF (a live call, or `tonemon`'s own instructions to dial while off-
+     * hook) and costs nothing: bench-testing generated tones via test_loopback
+     * (audio.c) still goes through this same tap when actually off-hook, and
+     * `dtmf_gen`'s own test script (test_dtmf.py) never touches the detector
+     * at all, just plays tones for a human to listen to. */
+    if (!line_offhook(line)) return;
     char d = dtmf_detector_push(&s_line[line].det, mono, n);
     if (d) {
         /* Recorded for tonemon/bringup introspection regardless of key --
