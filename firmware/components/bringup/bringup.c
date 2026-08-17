@@ -594,13 +594,17 @@ static int cmd_echoprobe(int argc, char **argv)
 }
 
 /* ---------- aec (echo canceller control + live measurement) ---------- */
+static int cmd_aec_sweep(int argc, char **argv);
+
 static int cmd_aec(int argc, char **argv)
 {
     if (argc < 2) {
-        printf("usage: aec <on|off|status|reset|delay <ms>> [line]\n");
+        printf("usage: aec <on|off|status|reset|sweep|delay <ms>> [line]\n");
         return 1;
     }
     const char *sub = argv[1];
+    if (strcmp(sub, "sweep") == 0) return cmd_aec_sweep(argc - 1, &argv[1]);
+
     int line = 0;
     if (strcmp(sub, "delay") == 0) { if (argc > 3) line = atoi(argv[3]); }
     else if (argc > 2) line = atoi(argv[2]);
@@ -641,6 +645,90 @@ static int cmd_aec(int argc, char **argv)
     }
     printf("unknown subcommand '%s'\n", sub);
     return 1;
+}
+
+/* ---------- aec sweep (auto-search the bulk delay) ----------
+ *
+ * `echoprobe`'s bulk-delay measurement turned out NOT to be directly usable
+ * as `aec delay`: it timestamps end-to-end (console command -> burst ->
+ * captured echo), while the canceller pairs `ref`/`near` samples that are
+ * already sitting together within one audio_task iteration -- a different
+ * reference point with its own inherent frame-level offset echoprobe never
+ * saw. Confirmed live: echoprobe measured MaxPhone's bulk delay at 36 ms,
+ * but `aec delay 36` measured WORSE (0-3 dB ERLE) than the default 28 ms
+ * (10 dB). So: search empirically against the canceller's own ERLE instead
+ * of trusting the hardware measurement -- also means this adapts to a
+ * different board/handset without needing new firmware, just a re-run.
+ *
+ * Needs real, continuous far-end audio for the whole sweep -- ERLE is
+ * meaningless against silence (nothing to cancel). Each candidate gets a
+ * settle period (let the filter reconverge from the reset aec_set_delay_ms()
+ * causes) before its dwell period (accumulate stats) is read.
+ */
+#define AEC_SWEEP_SETTLE_MS  200
+#define AEC_SWEEP_DWELL_MS   400
+#define AEC_SWEEP_COARSE_STEP_MS 4
+
+static int aec_sweep_try(int line, uint32_t delay_ms)
+{
+    aec_set_delay_ms(line, delay_ms); /* resets the filter */
+    vTaskDelay(pdMS_TO_TICKS(AEC_SWEEP_SETTLE_MS));
+    aec_status_t discard;
+    aec_get_status(line, &discard); /* clear settle-period stats */
+    vTaskDelay(pdMS_TO_TICKS(AEC_SWEEP_DWELL_MS));
+    aec_status_t st;
+    aec_get_status(line, &st);
+    printf("  %2u ms: ERLE %3d dB%s\n", (unsigned)delay_ms, st.erle_db,
+           st.freeze_pct > 80 ? "  (mostly frozen -- near end talking too?)" : "");
+    return st.erle_db;
+}
+
+static int cmd_aec_sweep(int argc, char **argv)
+{
+    int line = (argc > 1) ? atoi(argv[1]) : 0;
+    if (line < 0 || line > 1) { printf("usage: aec sweep [line]\n"); return 1; }
+
+    if (telephony_state(line) != TEL_INCALL) {
+        printf("line %d is not in a call (state=%s) -- sweep needs live far-end "
+               "audio to measure against. Get a call connected first.\n",
+               line, telephony_state_name(telephony_state(line)));
+        return 1;
+    }
+
+    uint32_t total_steps = (AEC_MAX_DELAY_MS / AEC_SWEEP_COARSE_STEP_MS) + 1 + 7;
+    printf("Sweeping AEC delay on line %d -- keep the FAR END talking continuously "
+           "for the next ~%u s.\n", line,
+           (unsigned)(total_steps * (AEC_SWEEP_SETTLE_MS + AEC_SWEEP_DWELL_MS) / 1000));
+    aec_set_enabled(line, true);
+
+    printf("coarse pass (%u ms steps):\n", AEC_SWEEP_COARSE_STEP_MS);
+    int best_delay = 0, best_erle = -1000;
+    for (uint32_t d = 0; d <= AEC_MAX_DELAY_MS; d += AEC_SWEEP_COARSE_STEP_MS) {
+        int erle = aec_sweep_try(line, d);
+        if (erle > best_erle) { best_erle = erle; best_delay = (int)d; }
+    }
+
+    int fine_lo = best_delay - 3; if (fine_lo < 0) fine_lo = 0;
+    int fine_hi = best_delay + 3; if (fine_hi > AEC_MAX_DELAY_MS) fine_hi = AEC_MAX_DELAY_MS;
+    printf("fine pass around %d ms:\n", best_delay);
+    for (int d = fine_lo; d <= fine_hi; d++) {
+        if (d % AEC_SWEEP_COARSE_STEP_MS == 0) continue; /* already measured in the coarse pass */
+        int erle = aec_sweep_try(line, d);
+        if (erle > best_erle) { best_erle = erle; best_delay = d; }
+    }
+
+    aec_set_delay_ms(line, (uint32_t)best_delay);
+    aec_reset(line);
+    if (best_erle < 3) {
+        printf("Best found: %d ms, but ERLE never exceeded %d dB anywhere in the "
+               "sweep -- was the far end actually talking the whole time? Applied "
+               "anyway, but this doesn't look like a confident result. Try again.\n",
+               best_delay, best_erle);
+    } else {
+        printf("Best: %d ms (ERLE %d dB). Delay set, filter reset, AEC left on.\n",
+               best_delay, best_erle);
+    }
+    return 0;
 }
 
 static int cmd_record(int argc, char **argv)
@@ -1256,7 +1344,8 @@ void bringup_console_start(void)
     register_cmd("echopulse", "Periodic 1kHz burst for echo/hybrid debugging: echopulse <line> <on|off> [period_ms]", cmd_echopulse);
     register_cmd("echosweep", "Cycles 9 tones 300-3400Hz for echo/resonance debugging: echosweep <line> <on|off> [period_ms]", cmd_echosweep);
     register_cmd("record", "Raw mic capture to storage, no live playback, safe during an active call: record <ms> [line]", cmd_record);
-    register_cmd("aec", "Echo canceller: aec <on|off|status|reset|delay <ms>> [line]", cmd_aec);
+    register_cmd("aec", "Echo canceller: aec <on|off|status|reset|sweep|delay <ms>> [line] "
+                        "(sweep needs a live call with the far end talking)", cmd_aec);
     register_cmd("echoprobe", "Measure the local earpiece->mic echo path (bulk delay + tail) for AEC sizing: echoprobe [line]", cmd_echoprobe);
     register_cmd("play", "Play a storage WAV out a line: play <name> [line]", cmd_play);
     register_cmd("dtmf_gen", "Emit DTMF: dtmf_gen <digits> [line]", cmd_dtmf_gen);
