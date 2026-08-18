@@ -1,4 +1,5 @@
 #include "storage.h"
+#include "sdcard.h"
 #include "esp_spiffs.h"
 #include "esp_log.h"
 #include <sys/stat.h>
@@ -7,22 +8,60 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdint.h>
 
 static const char *TAG = "storage";
 #define MOUNT_POINT "/assets"          /* writable: recordings + uploads */
+#define SD_MOUNT_POINT "/sd"           /* mirrors sdcard.c's SD_MOUNT -- kept as a separate
+                                        * literal rather than a shared header so this component
+                                        * doesn't need to reach into sdcard's internals, just its
+                                        * public sdcard_mounted()/sdcard_capacity() */
 #define BUNDLED_MOUNT_POINT "/bundled" /* read-only-in-spirit: baked in at build time */
 
 static bool s_bundled_mounted;
 
-static char full_path(char *out, size_t out_len, const char *name)
+static void full_path(char *out, size_t out_len, const char *name)
 {
     snprintf(out, out_len, MOUNT_POINT "/%s", name);
-    return 0;
+}
+
+static void sd_full_path(char *out, size_t out_len, const char *name)
+{
+    snprintf(out, out_len, SD_MOUNT_POINT "/%s", name);
 }
 
 static void bundled_path(char *out, size_t out_len, const char *name)
 {
     snprintf(out, out_len, BUNDLED_MOUNT_POINT "/%s", name);
+}
+
+/* Saturate a 64-bit byte count into this chip's 32-bit size_t rather than
+ * silently wrapping -- only matters for the legacy primary-backend API
+ * (storage_cap_bytes() et al) once an SD card past ~4 GB is primary; the
+ * dedicated *_sd() getters report the real uint64_t value instead. */
+static size_t saturate_size(uint64_t v)
+{
+    return (v > (uint64_t)SIZE_MAX) ? SIZE_MAX : (size_t)v;
+}
+
+/* Tries the primary backend (SD if mounted, else internal), then the other
+ * one, writing whichever path actually has `name` into `out`. Used by reads/
+ * delete/patch so a file made before a card was inserted (or after one was
+ * removed) doesn't just vanish -- see storage.h. Returns false if neither
+ * backend has it (caller decides whether to also try bundled). */
+static bool resolve_existing_path(const char *name, char *out, size_t out_len)
+{
+    bool sd = sdcard_mounted();
+    if (sd) {
+        sd_full_path(out, out_len, name);
+        if (access(out, F_OK) == 0) return true;
+        full_path(out, out_len, name);
+        if (access(out, F_OK) == 0) return true;
+    } else {
+        full_path(out, out_len, name);
+        if (access(out, F_OK) == 0) return true;
+    }
+    return false;
 }
 
 esp_err_t storage_init(void)
@@ -69,24 +108,57 @@ esp_err_t storage_init(void)
     return ESP_OK;
 }
 
-size_t storage_used_bytes(void)
+static size_t dir_used_bytes(const char *mount)
 {
     size_t total = 0;
-    DIR *d = opendir(MOUNT_POINT);
+    DIR *d = opendir(mount);
     if (!d) return 0;
     struct dirent *de;
     char path[288];
     struct stat st;
     while ((de = readdir(d)) != NULL) {
-        full_path(path, sizeof(path), de->d_name);
+        snprintf(path, sizeof(path), "%s/%s", mount, de->d_name);
         if (stat(path, &st) == 0) total += (size_t)st.st_size;
     }
     closedir(d);
     return total;
 }
 
-size_t storage_cap_bytes(void) { return CONFIG_STORAGE_RECORDING_CAP_BYTES; }
-bool   storage_using_sd(void) { return false; }
+size_t storage_used_bytes_internal(void) { return dir_used_bytes(MOUNT_POINT); }
+size_t storage_cap_bytes_internal(void) { return CONFIG_STORAGE_RECORDING_CAP_BYTES; }
+
+/* FATFS's own accounting, not a directory walk -- faster and accounts for
+ * filesystem overhead a plain file-size sum would miss. 0/0/false whenever
+ * nothing's actually mounted (not configured for SD, or configured but no
+ * card inserted right now). */
+uint64_t storage_used_bytes_sd(void)
+{
+    if (!sdcard_mounted()) return 0;
+    uint64_t total = 0, free_b = 0;
+    if (sdcard_capacity(&total, &free_b) != ESP_OK) return 0;
+    return (total > free_b) ? (total - free_b) : 0;
+}
+
+uint64_t storage_cap_bytes_sd(void)
+{
+    if (!sdcard_mounted()) return 0;
+    uint64_t total = 0, free_b = 0;
+    return (sdcard_capacity(&total, &free_b) == ESP_OK) ? total : 0;
+}
+
+bool storage_sd_present(void) { return sdcard_mounted(); }
+
+size_t storage_used_bytes(void)
+{
+    return sdcard_mounted() ? saturate_size(storage_used_bytes_sd()) : storage_used_bytes_internal();
+}
+
+size_t storage_cap_bytes(void)
+{
+    return sdcard_mounted() ? saturate_size(storage_cap_bytes_sd()) : storage_cap_bytes_internal();
+}
+
+bool storage_using_sd(void) { return sdcard_mounted(); }
 
 /* Audio assets (fun clips, the operator prompt, anything uploaded and wired
  * to a dial code) share this partition with user recordings but aren't
@@ -137,25 +209,40 @@ esp_err_t storage_write_begin(const char *name, size_t expected_len, storage_wri
 {
     w->file = NULL;
     w->path[0] = '\0';
-    if (expected_len > (size_t)CONFIG_STORAGE_RECORDING_CAP_BYTES) {
-        return ESP_ERR_INVALID_SIZE;
+    bool sd = sdcard_mounted();
+
+    if (sd) {
+        /* No eviction on SD -- see storage.h. A card is big enough that
+         * silently deleting old recordings to make room would be a bad
+         * surprise; fail instead once it's genuinely out of free space. */
+        uint64_t total = 0, free_b = 0;
+        if (sdcard_capacity(&total, &free_b) == ESP_OK && (uint64_t)expected_len > free_b) {
+            return ESP_ERR_NO_MEM;
+        }
+        sd_full_path(w->path, sizeof(w->path), name);
+    } else {
+        if (expected_len > (size_t)CONFIG_STORAGE_RECORDING_CAP_BYTES) {
+            return ESP_ERR_INVALID_SIZE;
+        }
+        full_path(w->path, sizeof(w->path), name);
     }
-    full_path(w->path, sizeof(w->path), name);
 
     /* Overwriting an existing file of the same name: remove it first so its
      * old size isn't double-counted against the cap. */
     struct stat st;
     if (stat(w->path, &st) == 0) unlink(w->path);
 
-    size_t used = storage_used_bytes();
-    int guard = 64; /* bounded -- never loop forever if the dir is somehow stuck */
-    while (used + expected_len > (size_t)CONFIG_STORAGE_RECORDING_CAP_BYTES && guard-- > 0) {
-        size_t freed = evict_oldest();
-        if (freed == 0) break; /* nothing left to evict */
-        used -= freed;
-    }
-    if (used + expected_len > (size_t)CONFIG_STORAGE_RECORDING_CAP_BYTES) {
-        return ESP_ERR_NO_MEM;
+    if (!sd) {
+        size_t used = storage_used_bytes_internal();
+        int guard = 64; /* bounded -- never loop forever if the dir is somehow stuck */
+        while (used + expected_len > (size_t)CONFIG_STORAGE_RECORDING_CAP_BYTES && guard-- > 0) {
+            size_t freed = evict_oldest();
+            if (freed == 0) break; /* nothing left to evict */
+            used -= freed;
+        }
+        if (used + expected_len > (size_t)CONFIG_STORAGE_RECORDING_CAP_BYTES) {
+            return ESP_ERR_NO_MEM;
+        }
     }
 
     FILE *f = fopen(w->path, "wb");
@@ -204,9 +291,10 @@ esp_err_t storage_write(const char *name, const void *data, size_t len)
 esp_err_t storage_read(const char *name, void *buf, size_t buf_len, size_t *out_len)
 {
     char path[288];
-    full_path(path, sizeof(path), name);
-    FILE *f = fopen(path, "rb");
-    if (!f && s_bundled_mounted) {
+    FILE *f = NULL;
+    if (resolve_existing_path(name, path, sizeof(path))) {
+        f = fopen(path, "rb");
+    } else if (s_bundled_mounted) {
         bundled_path(path, sizeof(path), name);
         f = fopen(path, "rb");
     }
@@ -219,12 +307,14 @@ esp_err_t storage_read(const char *name, void *buf, size_t buf_len, size_t *out_
 
 esp_err_t storage_read_open(const char *name, storage_reader_t *r)
 {
-    /* Writable storage first, so an upload/recording of the same name
+    /* Writable storage first (primary backend, then the other one -- see
+     * resolve_existing_path()), so an upload/recording of the same name
      * overrides a bundled default without a rebuild. */
     char path[288];
-    full_path(path, sizeof(path), name);
-    FILE *f = fopen(path, "rb");
-    if (!f && s_bundled_mounted) {
+    FILE *f = NULL;
+    if (resolve_existing_path(name, path, sizeof(path))) {
+        f = fopen(path, "rb");
+    } else if (s_bundled_mounted) {
         bundled_path(path, sizeof(path), name);
         f = fopen(path, "rb");
     }
@@ -256,14 +346,14 @@ void storage_read_close(storage_reader_t *r)
 esp_err_t storage_delete(const char *name)
 {
     char path[288];
-    full_path(path, sizeof(path), name);
+    if (!resolve_existing_path(name, path, sizeof(path))) return ESP_ERR_NOT_FOUND;
     return (unlink(path) == 0) ? ESP_OK : ESP_ERR_NOT_FOUND;
 }
 
 esp_err_t storage_patch(const char *name, size_t offset, const void *data, size_t len)
 {
     char path[288];
-    full_path(path, sizeof(path), name);
+    if (!resolve_existing_path(name, path, sizeof(path))) return ESP_ERR_NOT_FOUND;
     FILE *f = fopen(path, "r+b");
     if (!f) return ESP_ERR_NOT_FOUND;
     esp_err_t err = ESP_OK;
@@ -282,9 +372,9 @@ static int cmp_mtime(const void *a, const void *b)
     return 0;
 }
 
-static size_t list_dir(bool bundled, storage_entry_t *out, size_t max_entries)
+static size_t list_dir(const char *mount, storage_entry_t *out, size_t max_entries)
 {
-    DIR *d = opendir(bundled ? BUNDLED_MOUNT_POINT : MOUNT_POINT);
+    DIR *d = opendir(mount);
     if (!d) return 0;
 
     /* Small, bounded (recordings are capped in the low hundreds of KB-MB
@@ -308,10 +398,7 @@ static size_t list_dir(bool bundled, storage_entry_t *out, size_t max_entries)
     }
 
     while ((de = readdir(d)) != NULL && n < cap) {
-        /* Literal-prefixed format (not a runtime mount string) so the
-         * compiler can bound the worst case -- same pattern as full_path(). */
-        if (bundled) snprintf(path, sizeof(path), BUNDLED_MOUNT_POINT "/%s", de->d_name);
-        else         snprintf(path, sizeof(path), MOUNT_POINT "/%s", de->d_name);
+        snprintf(path, sizeof(path), "%s/%s", mount, de->d_name);
         if (stat(path, &st) != 0) continue;
         strncpy(names[n], de->d_name, STORAGE_MAX_NAME - 1);
         names[n][STORAGE_MAX_NAME - 1] = 0;
@@ -346,13 +433,24 @@ static size_t list_dir(bool bundled, storage_entry_t *out, size_t max_entries)
     return copied;
 }
 
+size_t storage_list_internal(storage_entry_t *out, size_t max_entries)
+{
+    return list_dir(MOUNT_POINT, out, max_entries);
+}
+
+size_t storage_list_sd(storage_entry_t *out, size_t max_entries)
+{
+    if (!sdcard_mounted()) return 0;
+    return list_dir(SD_MOUNT_POINT, out, max_entries);
+}
+
 size_t storage_list(storage_entry_t *out, size_t max_entries)
 {
-    return list_dir(false, out, max_entries);
+    return sdcard_mounted() ? storage_list_sd(out, max_entries) : storage_list_internal(out, max_entries);
 }
 
 size_t storage_list_bundled(storage_entry_t *out, size_t max_entries)
 {
     if (!s_bundled_mounted) return 0;
-    return list_dir(true, out, max_entries);
+    return list_dir(BUNDLED_MOUNT_POINT, out, max_entries);
 }

@@ -2,21 +2,40 @@
  * storage.h — capacity-capped file storage for recordings (and, later,
  * prompt/clip assets).
  *
- * Backing store today: SPIFFS on the internal "storage" flash partition
- * (2MB, see partitions.csv), mounted at /assets. Recordings are capped at
- * CONFIG_STORAGE_RECORDING_CAP_BYTES rather than the full partition, oldest
- * file evicted first once that's hit -- a ring buffer, not a permanent
- * archive.
+ * Two backends, callers never touch the filesystem directly:
+ *   - internal: SPIFFS on the "storage" flash partition (a few MB), /assets.
+ *     Recordings are capped at CONFIG_STORAGE_RECORDING_CAP_BYTES rather than
+ *     the full partition, oldest file evicted first once that's hit -- a
+ *     ring buffer, not a permanent archive. This is the only backend on a
+ *     board with no microSD.
+ *   - sd: microSD (sdcard.h), when the board is configured for it AND a card
+ *     is actually mounted. No eviction -- a card is big enough that treating
+ *     it as a ring buffer would surprise someone expecting their recordings
+ *     to just... stay. storage_write_begin() fails once it's genuinely full
+ *     rather than silently deleting anything.
  *
- * When a microSD backend exists (board configured for it, see sdcard.h),
- * this is the seam to swap it in behind the same API -- callers (console
- * commands, the web UI) never touch the filesystem directly, only these
- * functions.
+ * The plain API (storage_write(), storage_read(), storage_list(),
+ * storage_used_bytes(), storage_cap_bytes(), ...) always targets whichever backend is PRIMARY:
+ * the SD card when one's mounted, internal flash otherwise. Existing callers
+ * (recorder.c, dialplan clip playback, the web UI's general summary) don't
+ * need to know or care which -- inserting a card just gives them more room,
+ * with no code changes. storage_using_sd() reports which one that currently is.
+ *
+ * Reads (storage_read/storage_read_open) and storage_delete()/storage_patch()
+ * also fall back to the OTHER backend if a name isn't on the primary one --
+ * so recordings made before a card was inserted stay reachable afterward,
+ * rather than silently disappearing from view. Order: primary, then the
+ * other backend, then (reads only) the read-only bundled partition.
+ *
+ * For UI surfaces that want to show both backends explicitly rather than
+ * just "whichever is primary" (Settings -> Storage files), use the
+ * _internal() / _sd() variants below instead.
  */
 #pragma once
 
 #include "esp_err.h"
 #include <stddef.h>
+#include <stdint.h>
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -110,9 +129,23 @@ size_t storage_list(storage_entry_t *out, size_t max_entries);
  * takes priority over a bundled one at playback (storage_read_open()). */
 size_t storage_list_bundled(storage_entry_t *out, size_t max_entries);
 
+/* PRIMARY backend: SD if mounted, else internal. See the file header. */
 size_t storage_used_bytes(void);
 size_t storage_cap_bytes(void);
-bool   storage_using_sd(void); /* always false until an SD backend exists */
+bool   storage_using_sd(void); /* == sdcard_mounted(); false if this board has no SD at all */
+
+/* ---- explicit-backend access, for showing both at once (Settings -> Storage files) ---- */
+bool     storage_sd_present(void); /* same as storage_using_sd() -- named for clarity at call sites that show both */
+
+size_t   storage_list_internal(storage_entry_t *out, size_t max_entries);
+size_t   storage_used_bytes_internal(void);
+size_t   storage_cap_bytes_internal(void); /* always CONFIG_STORAGE_RECORDING_CAP_BYTES */
+
+/* 0 for all three if no card is mounted. uint64_t, not size_t -- a card can
+ * exceed 4 GB, which would wrap this chip's 32-bit size_t silently. */
+size_t   storage_list_sd(storage_entry_t *out, size_t max_entries);
+uint64_t storage_used_bytes_sd(void);
+uint64_t storage_cap_bytes_sd(void);
 
 #ifdef __cplusplus
 }

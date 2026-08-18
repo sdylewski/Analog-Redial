@@ -71,6 +71,12 @@ esp_err_t sdcard_init(void)
 
 bool sdcard_mounted(void) { return s_card != NULL; }
 
+esp_err_t sdcard_capacity(uint64_t *total_bytes, uint64_t *free_bytes)
+{
+    if (!s_card) return ESP_ERR_INVALID_STATE;
+    return esp_vfs_fat_info(SD_MOUNT, total_bytes, free_bytes);
+}
+
 void sdcard_print_info(void)
 {
     if (!board_hw_config_get().has_microsd) {

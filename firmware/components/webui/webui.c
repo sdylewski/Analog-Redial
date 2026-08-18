@@ -40,9 +40,13 @@ static const char *TAG = "webui";
  * value shown (they're all live at once inside a single snprintf). */
 static const char *fmt_bytes(uint64_t n, char *out, size_t outsz)
 {
-    if (n >= 1000000ULL)   snprintf(out, outsz, "%.2f MB", (double)n / 1e6);
-    else if (n >= 1000ULL) snprintf(out, outsz, "%.1f kB", (double)n / 1e3);
-    else                   snprintf(out, outsz, "%u B", (unsigned)n);
+    /* GB tier added once storage.c started reporting real microSD capacity
+     * (storage.h) -- internal flash never gets remotely close to it, but an
+     * SD card in the tens of GB rendering as "14900.00 MB" was silly. */
+    if (n >= 1000000000ULL)      snprintf(out, outsz, "%.2f GB", (double)n / 1e9);
+    else if (n >= 1000000ULL)    snprintf(out, outsz, "%.2f MB", (double)n / 1e6);
+    else if (n >= 1000ULL)       snprintf(out, outsz, "%.1f kB", (double)n / 1e3);
+    else                         snprintf(out, outsz, "%u B", (unsigned)n);
     return out;
 }
 
@@ -439,8 +443,10 @@ static esp_err_t index_handler(httpd_req_t *req)
         wifi_get_ssid()[0] ? wifi_get_ssid() : "(not configured)", wifi_rssi(),
         ip, (long long)uptime_s,
         fmt_bytes(esp_get_free_heap_size(), hb, sizeof(hb)),
-        fmt_bytes(storage_used_bytes(), su, sizeof(su)),
-        fmt_bytes(storage_cap_bytes(), sc, sizeof(sc)),
+        /* True uint64_t SD getters, not the saturating primary-backend ones
+         * -- see the matching comment in recordings_page_handler(). */
+        fmt_bytes(storage_sd_present() ? storage_used_bytes_sd() : storage_used_bytes_internal(), su, sizeof(su)),
+        fmt_bytes(storage_sd_present() ? storage_cap_bytes_sd() : storage_cap_bytes_internal(), sc, sizeof(sc)),
         storage_using_sd() ? " (SD)" : " (internal flash)");
 
     int num_lines = board_hw_config_get().num_lines;
@@ -500,8 +506,16 @@ static bool is_user_recording(const char *name)
  * flat storage partition. Manage those under Settings -> Storage files. */
 static esp_err_t recordings_page_handler(httpd_req_t *req)
 {
-    storage_entry_t entries[32];
-    size_t n = storage_list(entries, 32);
+    /* Both backends, not just primary: unlike Settings -> Storage files
+     * (which shows microSD and internal flash as separate, clearly-labeled
+     * cards for management), this is the casual "your messages" page --
+     * merging avoids a 211 recording made before a card was inserted just
+     * vanishing from view once the card takes over as primary. SD entries
+     * first since they're the newer ones in every practical case (a card
+     * added partway through this board's life, not before). */
+    storage_entry_t entries[64];
+    size_t n = storage_sd_present() ? storage_list_sd(entries, 32) : 0;
+    n += storage_list_internal(entries + n, 64 - n);
     size_t shown = 0;
     for (size_t i = 0; i < n; i++) if (is_user_recording(entries[i].name)) shown++;
 
@@ -536,14 +550,20 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
     }
     if (off > 0 && (size_t)off < cap) {
         char su[16], sc[16];
+        bool sd = storage_sd_present();
+        /* True uint64_t SD getters here, not the primary-backend
+         * storage_used_bytes()/storage_cap_bytes() -- those saturate at
+         * SIZE_MAX (~4.29 GB) for a bigger card (see storage.c), which would
+         * under-report a real card's capacity right next to the Hardware
+         * tab's correct figure for the same card. */
         off += snprintf(buf + off, cap - off,
             "</div>"
             "<p class=\"hint\">Storage: %s / %s%s. Raw list: "
             "<a href=\"/api/recordings\">recordings JSON</a>.</p>"
             "</main></body></html>",
-            fmt_bytes(storage_used_bytes(), su, sizeof(su)),
-            fmt_bytes(storage_cap_bytes(), sc, sizeof(sc)),
-            storage_using_sd() ? " (SD)" : " (internal flash)");
+            fmt_bytes(sd ? storage_used_bytes_sd() : storage_used_bytes_internal(), su, sizeof(su)),
+            fmt_bytes(sd ? storage_cap_bytes_sd() : storage_cap_bytes_internal(), sc, sizeof(sc)),
+            sd ? " (SD)" : " (internal flash)");
     }
 
     httpd_resp_set_type(req, "text/html");
@@ -1137,6 +1157,28 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
     size_t st_used = storage_used_bytes();
     size_t st_free = (st_cap > st_used) ? st_cap - st_used : 0;
 
+    /* microSD row: only shown at all if this board is even configured for
+     * it (board_hw_config_get().has_microsd -- a 2-line board, or a 1-line
+     * board still on the safe unconfirmed default, has no SD tradeoff to
+     * report on). Distinguishes "configured but no card detected" from
+     * "present" explicitly, rather than just folding it into the Storage
+     * row's existing "(SD)" suffix -- that suffix already means "SD is
+     * primary right now," which says nothing when it isn't. */
+    char sd_row[160] = "";
+    if (board_hw_config_get().has_microsd) {
+        if (storage_sd_present()) {
+            char sdc[16];
+            snprintf(sd_row, sizeof(sd_row),
+                "<div class=\"statusrow\"><span class=\"label\">microSD</span>"
+                "<span class=\"pill on\">present, %s</span></div>",
+                fmt_bytes(storage_cap_bytes_sd(), sdc, sizeof(sdc)));
+        } else {
+            snprintf(sd_row, sizeof(sd_row),
+                "<div class=\"statusrow\"><span class=\"label\">microSD</span>"
+                "<span class=\"pill off\">not detected -- inserted &amp; FAT-formatted?</span></div>");
+        }
+    }
+
     char fl[16], ru[16], rf[16], su[16], sf[16];
     return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>Hardware</h2>"
@@ -1147,17 +1189,19 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "<div class=\"statusrow\"><span class=\"label\">Firmware</span><span>ESP-IDF %s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">Flash (total)</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">RAM used / free</span><span>%s / %s</span></div>"
+        "%s"
         "<div class=\"statusrow\"><span class=\"label\">Storage used / free</span>"
         "<span>%s / %s%s</span></div>"
         "<p class=\"hint\">Type is fixed at build time (<code>CONFIG_BOARD_TYPE_*</code>) since "
         "GPIO routing is per-PCB; the detected codec is probed live on the I2C bus and warns in "
         "the log if it disagrees. Serial is the factory MAC -- unique per chip, survives reflash. "
-        "Flash is the whole chip; Storage is the file partition (recordings + uploaded clips); "
-        "RAM is live internal heap. Uptime/WiFi are on the <a href=\"/\">Status</a> page.</p>"
-        "</div>",
+        "Flash is the whole chip; Storage is whichever backend is primary (the microSD card "
+        "above, if present, otherwise internal flash) -- see Storage below for both listed "
+        "separately. RAM is live internal heap. Uptime/WiFi are on the <a href=\"/\">Status</a> "
+        "page.</p></div>",
         hw, board_codec_name(detected), serial, esp_get_idf_version(),
         fmt_bytes(flash_bytes, fl, sizeof(fl)),
-        fmt_bytes(ram_used, ru, sizeof(ru)), fmt_bytes(ram_free, rf, sizeof(rf)),
+        fmt_bytes(ram_used, ru, sizeof(ru)), fmt_bytes(ram_free, rf, sizeof(rf)), sd_row,
         fmt_bytes(st_used, su, sizeof(su)), fmt_bytes(st_free, sf, sizeof(sf)),
         storage_using_sd() ? " (SD)" : "");
 }
@@ -1288,60 +1332,103 @@ static int append_diag_tab(char *buf, size_t cap, int off)
     return off;
 }
 
-/* Storage file manager -- lists every file in the storage layer (recordings,
- * uploaded prompt/clip WAVs, anything else that landed there) with size,
- * download, and delete. There's no type distinction in storage.c itself --
- * it's all just files in the same SPIFFS-backed partition -- so this stays
- * outside the tabs (clip uploads, operator.wav, and recordings all land
- * here together; no single tab owns it). */
-static int append_storage_section(char *buf, size_t cap, int off)
+/* Renders just the <table> (or "none yet") for one backend's file list --
+ * shared by the microSD and internal-flash cards below, since the row
+ * markup (name/size/play/download/delete) doesn't depend on which backend
+ * the entries came from. */
+static int append_storage_table(char *buf, size_t cap, int off,
+                                storage_entry_t *entries, size_t n)
 {
-    storage_entry_t entries[32];
-    size_t n = storage_list(entries, 32);
-    char ip[16];
-    wifi_get_ip_str(ip, sizeof(ip));
-
-    char su[16], sc[16];
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\" style=\"margin-top:16px\"><h2>Storage files (%u)</h2>"
-        "<p class=\"hint\">%s / %s used. Everything in the storage partition -- recordings, "
-        "uploaded prompt/clip WAVs, anything else. Upload with <code>curl -X POST "
-        "--data-binary @file.wav http://%s/media/&lt;name&gt;</code>, "
-        "<code>firmware/bringup/gen_prompt.py</code>, or (to bulk-copy from the Pi) "
-        "<code>firmware/bringup/sync_pi_audio.py</code>. <code>operator.wav</code> and "
-        "<code>clip_*.wav</code> are never auto-deleted to make room for recordings -- only "
-        "explicit deletes (below) remove them.</p>",
-        (unsigned)n, fmt_bytes(storage_used_bytes(), su, sizeof(su)),
-        fmt_bytes(storage_cap_bytes(), sc, sizeof(sc)), ip);
-
     if (n == 0) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<div class=\"empty\">none yet</div>");
-    } else {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<table><tr><th>Name</th><th>Size</th><th>Play</th><th></th><th></th></tr>");
-        for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
-            char sz[16];
-            char play[160];
-            if (is_wav_name(entries[i].name)) {
-                snprintf(play, sizeof(play),
-                    "<audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio>",
-                    entries[i].name);
-            } else {
-                play[0] = '\0';
-            }
-            off += snprintf(buf + off, cap - off,
-                "<tr><td><code>%s</code></td><td>%s</td><td>%s</td>"
-                "<td><a href=\"/media/%s\">download</a></td>"
-                "<td><form method=\"POST\" action=\"/media_delete/%s\" "
-                "onsubmit=\"return confirm('Delete %s?')\" style=\"display:inline\">"
-                "<button type=\"submit\">delete</button></form></td></tr>",
-                entries[i].name, fmt_bytes(entries[i].size, sz, sizeof(sz)), play,
-                entries[i].name, entries[i].name, entries[i].name);
-        }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
+        return off;
     }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<table><tr><th>Name</th><th>Size</th><th>Play</th><th></th><th></th></tr>");
+    for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
+        char sz[16];
+        char play[160];
+        if (is_wav_name(entries[i].name)) {
+            snprintf(play, sizeof(play),
+                "<audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio>",
+                entries[i].name);
+        } else {
+            play[0] = '\0';
+        }
+        off += snprintf(buf + off, cap - off,
+            "<tr><td><code>%s</code></td><td>%s</td><td>%s</td>"
+            "<td><a href=\"/media/%s\">download</a></td>"
+            "<td><form method=\"POST\" action=\"/media_delete/%s\" "
+            "onsubmit=\"return confirm('Delete %s?')\" style=\"display:inline\">"
+            "<button type=\"submit\">delete</button></form></td></tr>",
+            entries[i].name, fmt_bytes(entries[i].size, sz, sizeof(sz)), play,
+            entries[i].name, entries[i].name, entries[i].name);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
+    return off;
+}
+
+/* Storage file manager -- lists every file in the storage layer(s):
+ * recordings, uploaded prompt/clip WAVs, anything else that landed there.
+ * No type distinction in storage.c itself -- it's all just files -- so this
+ * stays outside the tabs (clip uploads, operator.wav, and recordings all
+ * land here together; no single tab owns it).
+ *
+ * One card (internal flash) normally; a microSD card adds a second, shown
+ * first since it's primary for new recordings/uploads once present (see
+ * storage.h) -- but the internal-flash card stays visible too, so anything
+ * saved before the card was inserted doesn't just vanish from view. Both
+ * tables' delete/download/play links work regardless of which card they're
+ * in: storage.c's storage_read_open()/storage_delete() search both backends
+ * by name, not just whichever is currently primary. */
+static int append_storage_section(char *buf, size_t cap, int off)
+{
+    char ip[16];
+    wifi_get_ip_str(ip, sizeof(ip));
+    bool sd = storage_sd_present();
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\" style=\"margin-top:16px\"><h2>Storage</h2>"
+        "<p class=\"hint\">Recordings, uploaded prompt/clip WAVs, anything else. Upload with "
+        "<code>curl -X POST --data-binary @file.wav http://%s/media/&lt;name&gt;</code> or "
+        "<code>firmware/bringup/gen_prompt.py</code>. <code>operator.wav</code> and "
+        "<code>clip_*.wav</code> are never auto-deleted to make room for recordings -- only "
+        "explicit deletes (below) remove them.%s</p></div>",
+        ip, sd ? " A microSD card is present and takes priority for new recordings/uploads "
+                 "-- internal flash is never evicted to make room on the card, and stays "
+                 "listed below in its own section so anything saved before the card was "
+                 "inserted is still reachable." : "");
+
+    if (sd) {
+        storage_entry_t sd_entries[32];
+        size_t sd_n = storage_list_sd(sd_entries, 32);
+        char su[16], sc[16];
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"card\" style=\"margin-top:16px\"><h2>microSD (%u file%s)</h2>"
+            "<p class=\"hint\">%s / %s used. New recordings and uploads go here.</p>",
+            (unsigned)sd_n, sd_n == 1 ? "" : "s",
+            fmt_bytes(storage_used_bytes_sd(), su, sizeof(su)),
+            fmt_bytes(storage_cap_bytes_sd(), sc, sizeof(sc)));
+        off = append_storage_table(buf, cap, off, sd_entries, sd_n);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    }
+
+    storage_entry_t in_entries[32];
+    size_t in_n = storage_list_internal(in_entries, 32);
+    char isu[16], isc[16];
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\" style=\"margin-top:16px\"><h2>%s (%u file%s)</h2>"
+        "<p class=\"hint\">%s / %s used.%s</p>",
+        sd ? "Internal flash" : "Storage files",
+        (unsigned)in_n, in_n == 1 ? "" : "s",
+        fmt_bytes(storage_used_bytes_internal(), isu, sizeof(isu)),
+        fmt_bytes(storage_cap_bytes_internal(), isc, sizeof(isc)),
+        sd ? "" : " Capped at this size -- oldest recording evicted first once it's hit "
+                  "(uploaded clips/operator.wav are never auto-evicted).");
+    off = append_storage_table(buf, cap, off, in_entries, in_n);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+
     return off;
 }
 

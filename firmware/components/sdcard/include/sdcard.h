@@ -12,6 +12,7 @@
 
 #include "esp_err.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,6 +23,14 @@ extern "C" {
 esp_err_t sdcard_init(void);
 
 bool sdcard_mounted(void);
+
+/* Total/free bytes on the mounted card, straight from FATFS's own
+ * bookkeeping (not a directory walk -- storage.c uses this for the SD
+ * listing's capacity display, and needs it fast and accurate for real free
+ * space, not just "sum of files we happen to know about"). uint64_t, not
+ * size_t: a card can easily exceed 4 GB, which would silently wrap on this
+ * chip's 32-bit size_t. ESP_ERR_INVALID_STATE if not mounted. */
+esp_err_t sdcard_capacity(uint64_t *total_bytes, uint64_t *free_bytes);
 
 /* Print card details (type, capacity) + FAT total/free to stdout (console). */
 void sdcard_print_info(void);
