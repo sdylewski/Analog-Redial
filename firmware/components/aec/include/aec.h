@@ -16,12 +16,22 @@
  *
  * WHY A BULK DELAY IS COMPENSATED SEPARATELY: `echoprobe` (bringup.c) on real
  * hardware measured the leak arriving ~36-41 ms after playout, with only ~9 ms
- * of actual ringing after that. Nearly all of that 36-41 ms is fixed I2S DMA
- * buffering on the TX and RX sides -- a constant integer sample offset, not
- * something an adaptive filter needs to model. Aligning the reference by that
- * offset first means the adaptive part only has to cover the ~9 ms tail plus
- * margin, cutting the tap count (and CPU) by more than half. AEC_DELAY_MS is
- * that offset and is runtime-tunable, since it differs a little per board.
+ * of actual ringing after that -- but that measurement used a standalone burst
+ * outside a call. Aligning the reference by an offset first means the
+ * adaptive part doesn't have to spend taps re-learning a delay that's mostly
+ * just fixed I2S DMA buffering.
+ *
+ * THE FILTER IS WIDER THAN THAT TAIL SUGGESTS, on purpose: `aec sweep`
+ * (bringup.c) run live against a real call found TWO separate ERLE peaks,
+ * roughly 20 ms and 36 ms, both real and reproducible run to run -- not
+ * measurement noise, but (most likely) two distinct leak paths landing at
+ * different delays (plausibly an electrical leak arriving sooner, and the
+ * acoustic earpiece->mic leak echoprobe characterized arriving later, though
+ * that's inferred from the timing pattern rather than confirmed directly).
+ * A filter narrower than the gap between them can only capture one at a
+ * time -- whichever the anchor happens to favor -- which is exactly what
+ * capped ERLE around 10-16 dB instead of cancelling both together. AEC_TAPS
+ * and AEC_DEFAULT_DELAY_MS are sized so one anchor brackets both.
  *
  * NOT modelled: nonlinearity (speaker/SLIC distortion) and any path change
  * faster than the filter adapts. A moving handset re-converges in well under
@@ -39,10 +49,15 @@ extern "C" {
 #endif
 
 #define AEC_RATE_HZ   8000
-/* 192 taps = 24 ms at 8 kHz. Covers the measured ~9 ms tail with generous
- * margin for the bulk-delay estimate being a few ms off in either direction. */
-#define AEC_TAPS      192
-#define AEC_DEFAULT_DELAY_MS 28
+/* 320 taps = 40 ms at 8 kHz. Anchored at AEC_DEFAULT_DELAY_MS=12, the window
+ * spans 12-52 ms -- comfortably bracketing both observed ERLE peaks (~20 ms
+ * and ~36 ms, see above) with margin on either side for a different board
+ * or handset landing a bit differently. Cost: 320 taps * 8000 Hz * 2 MACs
+ * = 5.1M MAC/s, ~32% of a 160 MHz core with no FPU -- more than the original
+ * 192-tap estimate (~19%) but still far under the ~half-a-core cost 48 kHz
+ * cancellation would have been for the same time span. */
+#define AEC_TAPS      320
+#define AEC_DEFAULT_DELAY_MS 12
 #define AEC_MAX_DELAY_MS     60
 
 typedef struct {
