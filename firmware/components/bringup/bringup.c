@@ -1287,7 +1287,20 @@ void bringup_console_start(void)
 {
     esp_console_repl_t *repl = NULL;
     esp_console_repl_config_t repl_cfg = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
-    repl_cfg.prompt = "phone>";
+    /* Board name (lowercased), not the generic "phone>" -- static, since the
+     * REPL just holds a pointer to this for its whole lifetime. Once useful
+     * when you're juggling two boards' monitor sessions side by side (which
+     * log is which stops being a guess). */
+    static char s_prompt[40];
+    char name[32];
+    board_name_get(name, sizeof(name));
+    size_t i = 0;
+    for (; name[i] && i < sizeof(s_prompt) - 2; i++) {
+        s_prompt[i] = (name[i] >= 'A' && name[i] <= 'Z') ? (char)(name[i] + 32) : name[i];
+    }
+    s_prompt[i++] = '>';
+    s_prompt[i] = '\0';
+    repl_cfg.prompt = s_prompt;
     repl_cfg.max_cmdline_length = 128;
 
     /* esp_console_new_repl_*() below calls esp_console_common_init()
