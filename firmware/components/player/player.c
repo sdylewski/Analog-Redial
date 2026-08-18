@@ -138,18 +138,28 @@ esp_err_t player_play(int line, const char *storage_name, player_done_cb_t done_
      * clip baked in at build time but never uploaded to the writable
      * partition), which meant even operator.wav or the default 4xx clips
      * could 404 despite storage_read_open() being able to read them fine. */
-    storage_entry_t entries[32];
+    /* Heap, not stack -- 32+16 storage_entry_t (~1.9KB) is fine on webui's
+     * 8KB httpd worker task but overflows callers like telephony's 4KB
+     * tel_fsm task (confirmed live: a "Stack protection fault" in tel_fsm
+     * the first time 211's new record-prompt playback exercised this path
+     * from that task -- ACT_OPERATOR_HELP/ACT_PLAY_CLIP happened to fit
+     * before, barely). */
+    storage_entry_t *entries = malloc(32 * sizeof(storage_entry_t));
+    if (!entries) return ESP_ERR_NO_MEM;
     size_t n = storage_list(entries, 32);
     bool found = false;
     for (size_t i = 0; i < n; i++) {
         if (strcmp(entries[i].name, storage_name) == 0) { found = true; break; }
     }
+    free(entries);
     if (!found) {
-        storage_entry_t bundled[16];
+        storage_entry_t *bundled = malloc(16 * sizeof(storage_entry_t));
+        if (!bundled) return ESP_ERR_NO_MEM;
         size_t nb = storage_list_bundled(bundled, 16);
         for (size_t i = 0; i < nb; i++) {
             if (strcmp(bundled[i].name, storage_name) == 0) { found = true; break; }
         }
+        free(bundled);
     }
     if (!found) return ESP_ERR_NOT_FOUND;
 

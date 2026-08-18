@@ -32,7 +32,22 @@ typedef enum {
     TEL_OFFHOOK_ALERT, /* left off-hook on dial tone too long -- loud ROH tone
                         * until the handset goes back on-hook (board.h's
                         * board_offhook_alert_get() configures the delay) */
+    TEL_PLAYING_RECORD_PROMPT, /* 211: playing RECORD_PROMPT_NAME before the
+                                * beep, if that clip's been generated -- a
+                                * distinct state from TEL_PLAYING so
+                                * IN_CLIP_DONE knows to continue into the beep
+                                * rather than just returning to dial tone */
+    TEL_RECORD_BEEP,           /* 211: beep tone playing, recording starts
+                                * when it finishes */
 } tel_state_t;
+
+/* 211's optional spoken prompt ("record your message after the beep...").
+ * Well-known name, like operator.wav -- prompts.h tracks the desired text
+ * for it under this exact filename, gen_prompt.py --sync generates and
+ * uploads it here, and telephony.c plays it (if present) before the beep.
+ * No prompt configured is a normal, silent-but-working state: falls
+ * straight through to the beep. */
+#define RECORD_PROMPT_NAME "record_prompt.wav"
 
 esp_err_t telephony_start(void);
 

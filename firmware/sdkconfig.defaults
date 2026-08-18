@@ -30,3 +30,14 @@ CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
 # exceed 512 bytes and trip HTTPD_431_REQ_HDR_FIELDS_TOO_LARGE ("Header
 # fields too long") on form submits like /voip_set.
 CONFIG_HTTPD_MAX_REQ_HDR_LEN=1536
+
+# Default is 8.3 short names only (LFN_NONE) -- silently rejects any longer
+# filename (fopen() fails, no useful errno). That includes this project's own
+# real filenames: recorder.c's rec_l0_20260818_120000Z.wav-style timestamps,
+# and prompts like record_prompt.wav -- both well over 8.3. Heap (not stack)
+# so it doesn't add to every task's fixed stack for a rarely-hot-path
+# operation; 64 covers STORAGE_MAX_NAME (32) with headroom, not the 255
+# default (smaller heap alloc per lookup).
+# CONFIG_FATFS_LFN_NONE is not set
+CONFIG_FATFS_LFN_HEAP=y
+CONFIG_FATFS_MAX_LFN=64

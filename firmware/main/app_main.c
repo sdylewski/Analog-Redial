@@ -17,6 +17,7 @@
 #endif
 #include "audio.h"
 #include "aec.h"
+#include "prompts.h"
 #include "ag1170.h"
 #include "dialplan.h"
 #include "telephony.h"
@@ -96,6 +97,7 @@ void app_main(void)
     /* 3b. Echo canceller state (starts disabled; enable per line at runtime
      * once a call is up -- see aec.h and the `aec` console command). */
     aec_init();
+    prompts_init();
 
     /* 4. SLIC line interface. Line 2 vs. microSD on the shared GPIO 18-21
      * pads is a runtime choice now (board_hw_config_get(), board.h) rather

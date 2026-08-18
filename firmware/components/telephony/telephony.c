@@ -123,6 +123,8 @@ const char *telephony_state_name(tel_state_t s)
         case TEL_PLAYING: return "PLAYING";
         case TEL_RECORDING: return "RECORDING";
         case TEL_OFFHOOK_ALERT: return "OFFHOOK_ALERT";
+        case TEL_PLAYING_RECORD_PROMPT: return "PLAYING_RECORD_PROMPT";
+        case TEL_RECORD_BEEP: return "RECORD_BEEP";
         default: return "?";
     }
 }
@@ -296,6 +298,31 @@ static void play_persistent(int line, call_progress_t tone, tel_state_t state)
     s_line[line].tone_return_us = 0;
 }
 
+/* 211: actually start capturing to storage. Factored out of
+ * ACT_RECORD_ARCHIVE so the tick loop's tone-return path (after the beep)
+ * can call it too, without duplicating the recorder_start()/failure logic. */
+static void start_recording(int line)
+{
+    rec_name_timestamped(s_line[line].rec_name, sizeof(s_line[line].rec_name), line);
+    audio_tx_silence(line);
+    if (recorder_start(line, s_line[line].rec_name, 30000, 2000,
+                       rec_done_cb, NULL) == ESP_OK) {
+        s_line[line].state = TEL_RECORDING;
+    } else {
+        ESP_LOGW(TAG, "line %d: record-to-archive couldn't start", line);
+        play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+    }
+}
+
+/* 211: beep cue before start_recording() -- reuses TONE_CONFIRM (already a
+ * distinct stutter beep used elsewhere for confirmation) rather than adding
+ * a tone just for this. Runs whether or not RECORD_PROMPT_NAME played first. */
+#define RECORD_BEEP_MS 700
+static void start_record_beep(int line)
+{
+    play_transient(line, TONE_CONFIRM, RECORD_BEEP_MS, TEL_RECORD_BEEP, TEL_RECORDING);
+}
+
 /* ---- inter-line local call ---- */
 static void start_local_call(int caller, int target, voice_effect_t fx)
 {
@@ -338,7 +365,8 @@ static void end_call(int line)
     audio_tx_bridge(line, peer, false);
     audio_tx_silence(line);
     voip_hangup(line);
-    if (s_line[line].state == TEL_PLAYING) player_stop(line);
+    if (s_line[line].state == TEL_PLAYING ||
+        s_line[line].state == TEL_PLAYING_RECORD_PROMPT) player_stop(line);
     if (s_line[line].state == TEL_RECORDING) recorder_stop(line);
 
     if (peer >= 0 && peer < NLINES) {
@@ -397,18 +425,15 @@ static void handle_action(int line, const dialplan_action_t *a)
             }
             break;
 
-        case ACT_RECORD_ARCHIVE: { /* 211: record a message to storage */
-            rec_name_timestamped(s_line[line].rec_name, sizeof(s_line[line].rec_name), line);
-            audio_tx_silence(line);
-            if (recorder_start(line, s_line[line].rec_name, 30000, 2000,
-                               rec_done_cb, NULL) == ESP_OK) {
-                s_line[line].state = TEL_RECORDING;
+        case ACT_RECORD_ARCHIVE: /* 211: prompt (if configured) -> beep -> record */
+            if (player_play(line, RECORD_PROMPT_NAME, clip_done_cb, NULL) == ESP_OK) {
+                s_line[line].state = TEL_PLAYING_RECORD_PROMPT;
             } else {
-                ESP_LOGW(TAG, "line %d: record-to-archive couldn't start", line);
-                play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+                /* No record_prompt.wav generated yet -- normal, silent
+                 * fallback straight to the beep, not an error. */
+                start_record_beep(line);
             }
             break;
-        }
 
         case ACT_RADIO:
             ESP_LOGI(TAG, "line %d: radio station %d (stream TODO)", line, a->arg);
@@ -577,6 +602,12 @@ static void fsm_task(void *arg)
                     if (s_line[e.line].state == TEL_PLAYING) {
                         if (line_offhook(e.line)) enter_dialtone(e.line);
                         else enter_idle(e.line);
+                    } else if (s_line[e.line].state == TEL_PLAYING_RECORD_PROMPT) {
+                        /* 211's "leave a message after the beep" clip
+                         * finished -- continue into the beep, don't just
+                         * drop back to dial tone like a normal clip. */
+                        if (line_offhook(e.line)) start_record_beep(e.line);
+                        else enter_idle(e.line);
                     }
                     break;
                 case IN_REC_DONE: {
@@ -607,6 +638,11 @@ static void fsm_task(void *arg)
                          line, telephony_state_name(ret));
                 if (ret == TEL_DIALTONE) enter_dialtone(line);
                 else if (ret == TEL_IDLE) enter_idle(line);
+                else if (ret == TEL_RECORDING) {
+                    /* 211's beep just finished. */
+                    if (line_offhook(line)) start_recording(line);
+                    else enter_idle(line);
+                }
             }
             /* Handset left off-hook on dial tone -> loud alert (board.h).
              * Gated on still being in DIALTONE, so the armed deadline is
@@ -646,7 +682,13 @@ esp_err_t telephony_start(void)
     ag1170_set_event_cb(ag_cb, NULL);
     voip_init(voip_cb, NULL);
 
-    BaseType_t ok = xTaskCreate(fsm_task, "tel_fsm", 4096, NULL, 5, NULL);
+    /* Was 4096 -- confirmed live via a "Stack protection fault" panic in this
+     * task the first time 211's new record-prompt path called into
+     * player_play() from here (player.c's own lookup arrays are heap now,
+     * not stack, but this task's other call chains -- storage/dialplan/audio
+     * -- were clearly already close to the edge). Headroom, not exact
+     * measurement. */
+    BaseType_t ok = xTaskCreate(fsm_task, "tel_fsm", 6144, NULL, 5, NULL);
     if (ok != pdPASS) return ESP_FAIL;
 
     ESP_LOGI(TAG, "telephony started (%d line%s serviced)", NLINES_ACTIVE,

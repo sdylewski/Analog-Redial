@@ -13,8 +13,31 @@ decoder needed: player.c resamples on playback, so the device's live
 telephony audio (still 48kHz) is untouched. Pass --rate 48000 if you'd
 rather skip resampling for some reason.
 
+Text-to-speech uses Piper (preferred, cross-platform, `pip install
+piper-tts` -- also grab a voice model from
+https://huggingface.co/rhasspy/piper-voices and point --piper-model at it,
+or drop it under firmware/bringup/piper_voices/) or espeak-ng (fallback,
+`apt install espeak-ng` / `brew install espeak-ng`). macOS's `say` still
+works via --engine say, but isn't the default -- boards aren't only run from
+a Mac.
+
+Two ways to use this:
+
+  1. One-shot, same as before: pass text (or --from an existing audio file)
+     and --name, optionally --upload HOST to push it straight to a board.
+
+  2. --sync HOST --secret ...: ask the board itself what it wants generated
+     (Settings -> Operator/Record/Dial Codes -> "Spoken prompt text" on each
+     page, POST /prompt_text_set) via GET /api/prompt_requests, synthesize
+     everything that's pending, and upload each result back. --secret is
+     the same setup password as the VOIP auto-provisioner (Settings -> VOIP)
+     -- one shared secret per board, not a new one to manage. This is the
+     no-server-dependency path: nothing but this script and a local TTS
+     engine, so a board running on someone else's Asterisk server doesn't
+     need access to *your* infrastructure to generate its own prompts.
+
 Examples:
-    # Text-to-speech (macOS `say`), saved locally only:
+    # Text-to-speech (Piper/espeak-ng, auto-picked), saved locally only:
     ./gen_prompt.py "For assistance, please hang up and try again." --name operator.wav
 
     # Same, uploaded straight to the phone:
@@ -24,7 +47,11 @@ Examples:
     # Convert an existing recording instead of synthesizing speech:
     ./gen_prompt.py --from banana_song.mp3 --name banana_phone.wav --upload phone.local
 
-Well-known names the firmware looks for: operator.wav (dial 0, fixed). The
+    # Generate + upload everything the board has pending text for:
+    ./gen_prompt.py --sync phone.local --secret "$(cat setup_password.txt)"
+
+Well-known names the firmware looks for: operator.wav (dial 0, fixed),
+record_prompt.wav (played before the beep on 211, dial 211). The
 401/402/403/404/411/412/413/414 "silly clip" codes are NOT fixed filenames
 any more -- they're a mutable code<->filename table seeded from
 dialplan/dialplan_defaults.h (see CLIP_DEFAULTS there, and CLIP_MAP in
@@ -37,24 +64,102 @@ needed for that part.
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
 DEFAULT_RATE = 8000
-DEFAULT_VOICE = "Samantha"
+DEFAULT_SAY_VOICE = "Samantha"       # --engine say (macOS only)
+DEFAULT_ESPEAK_VOICE = "en-us"       # --engine espeak
+PIPER_VOICES_DIR = Path(__file__).resolve().parent / "piper_voices"
 
 
-def synthesize(text: str, voice: str, aiff_path: Path) -> None:
-    if shutil.which("say") is None:
-        raise SystemExit(
-            "'say' not found -- this text-to-speech path is macOS-only. "
-            "Use --from <audio file> instead on other platforms."
-        )
-    subprocess.run(["say", "-v", voice, "-o", str(aiff_path), text], check=True)
+def _which(cmd: str) -> str | None:
+    return shutil.which(cmd)
+
+
+def _resolve_piper_model(explicit: str | None) -> Path | None:
+    """Explicit --piper-model wins. Otherwise, exactly one *.onnx dropped
+    under piper_voices/ next to this script is picked automatically -- more
+    than one is ambiguous (which voice?), so that's an error, not a guess."""
+    if explicit:
+        p = Path(explicit)
+        if not p.is_file():
+            raise SystemExit(f"--piper-model {p} not found")
+        return p
+    if PIPER_VOICES_DIR.is_dir():
+        found = sorted(PIPER_VOICES_DIR.glob("*.onnx"))
+        if len(found) == 1:
+            return found[0]
+        if len(found) > 1:
+            names = "\n".join(f"  {f}" for f in found)
+            raise SystemExit(
+                f"multiple Piper voices in {PIPER_VOICES_DIR}, pass --piper-model to pick one:\n{names}"
+            )
+    return None
+
+
+def speak_piper(text: str, model_path: Path, out_wav: Path) -> None:
+    cmd = ["piper", "--model", str(model_path), "--output_file", str(out_wav)]
+    subprocess.run(cmd, input=text.encode("utf-8"), check=True)
+
+
+def speak_espeak(text: str, voice: str, out_wav: Path) -> None:
+    subprocess.run(["espeak-ng", "-v", voice, "-s", "135", "-w", str(out_wav), text], check=True)
+
+
+def speak_say(text: str, voice: str, out_aiff: Path) -> None:
+    subprocess.run(["say", "-v", voice, "-o", str(out_aiff), text], check=True)
+
+
+def synthesize(text: str, engine: str, piper_model: str | None,
+                espeak_voice: str, say_voice: str, raw_path: Path) -> Path:
+    """Synthesizes `text` with whichever engine `engine` picks ("auto" tries
+    Piper, then espeak-ng, then macOS `say` as a last resort). Returns the
+    path actually written (raw_path itself, except for `say`'s AIFF output) --
+    still needs convert_to_wav() to reach the device's target format."""
+    if engine in ("auto", "piper"):
+        model = _resolve_piper_model(piper_model)
+        if model:
+            speak_piper(text, model, raw_path)
+            return raw_path
+        if engine == "piper":
+            raise SystemExit(
+                "Piper requested (--engine piper) but no voice model found. Install the "
+                "engine with 'pip install piper-tts', grab a voice from "
+                "https://huggingface.co/rhasspy/piper-voices, and either pass --piper-model "
+                f"or drop it under {PIPER_VOICES_DIR}/."
+            )
+
+    if engine in ("auto", "espeak"):
+        if _which("espeak-ng"):
+            speak_espeak(text, espeak_voice, raw_path)
+            return raw_path
+        if engine == "espeak":
+            raise SystemExit(
+                "espeak-ng requested but not found on PATH -- install it "
+                "(apt install espeak-ng / brew install espeak-ng)."
+            )
+
+    if engine in ("auto", "say") and _which("say"):
+        aiff_path = raw_path.with_suffix(".aiff")
+        speak_say(text, say_voice, aiff_path)
+        return aiff_path
+    if engine == "say":
+        raise SystemExit("--engine say requires macOS's 'say' command, not found here.")
+
+    raise SystemExit(
+        "No TTS engine available. Install one of:\n"
+        "  pip install piper-tts   (recommended, cross-platform -- also grab a voice model from\n"
+        "                           https://huggingface.co/rhasspy/piper-voices and pass\n"
+        f"                           --piper-model, or drop it under {PIPER_VOICES_DIR}/)\n"
+        "  espeak-ng                (apt install espeak-ng / brew install espeak-ng)\n"
+    )
 
 
 def convert_to_wav(src: Path, dst: Path, rate: int) -> None:
@@ -113,10 +218,14 @@ def trim_wav(path: Path, max_seconds: float, rate: int) -> None:
     path.write_bytes(raw[:new_len])
 
 
-def upload(path: Path, host: str, name: str) -> None:
+def _base_url(host: str) -> str:
     if not host.startswith("http://") and not host.startswith("https://"):
         host = f"http://{host}"
-    url = f"{host.rstrip('/')}/media/{name}"
+    return host.rstrip("/")
+
+
+def upload(path: Path, host: str, name: str) -> None:
+    url = f"{_base_url(host)}/media/{name}"
     data = path.read_bytes()
     req = urllib.request.Request(url, data=data, method="POST",
                                   headers={"Content-Type": "audio/wav"})
@@ -125,16 +234,53 @@ def upload(path: Path, host: str, name: str) -> None:
     print(f"uploaded -> {url} ({len(data)} bytes): {body}")
 
 
+def fetch_prompt_requests(host: str, secret: str) -> list[dict]:
+    url = f"{_base_url(host)}/api/prompt_requests?secret={urllib.parse.quote(secret)}"
+    with urllib.request.urlopen(url, timeout=15) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def sync_prompts(host: str, secret: str, engine: str, piper_model: str | None,
+                  espeak_voice: str, say_voice: str, rate: int, out_dir: Path,
+                  only: list[str] | None) -> None:
+    entries = fetch_prompt_requests(host, secret)
+    pending = [e for e in entries if e.get("pending") and e.get("text")]
+    if only:
+        pending = [e for e in pending if e["name"] in only]
+    if not pending:
+        print("nothing to generate -- all tracked prompts are up to date "
+              "(or none have text set yet -- see Settings -> Operator/Record/Dial Codes)")
+        return
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for e in pending:
+        name, text = e["name"], e["text"]
+        print(f"generating '{name}': {text!r}")
+        out_path = out_dir / name
+        with tempfile.TemporaryDirectory() as td:
+            raw = synthesize(text, engine, piper_model, espeak_voice, say_voice,
+                              Path(td) / "speech.wav")
+            convert_to_wav(raw, out_path, rate)
+        upload(out_path, host, name)
+    print(f"synced {len(pending)} prompt(s)")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    src_group = p.add_mutually_exclusive_group(required=True)
-    src_group.add_argument("text", nargs="?", help="Text to speak (macOS 'say')")
-    src_group.add_argument("--from", dest="from_file", metavar="FILE",
-                            help="Convert an existing audio file instead of synthesizing speech")
-    p.add_argument("--name", required=True,
-                    help="Output filename, e.g. operator.wav or clip_401.wav (see module docstring)")
-    p.add_argument("--voice", default=DEFAULT_VOICE, help=f"macOS 'say' voice (default: {DEFAULT_VOICE})")
+    p.add_argument("text", nargs="?", help="Text to speak")
+    p.add_argument("--from", dest="from_file", metavar="FILE",
+                    help="Convert an existing audio file instead of synthesizing speech")
+    p.add_argument("--name",
+                    help="Output filename, e.g. operator.wav or clip_401.wav (see module "
+                         "docstring). Required unless --sync.")
+    p.add_argument("--engine", default="auto", choices=("auto", "piper", "espeak", "say"),
+                    help="TTS engine (default: auto -- Piper, then espeak-ng, then macOS 'say')")
+    p.add_argument("--piper-model", help="Path to a Piper .onnx voice model")
+    p.add_argument("--espeak-voice", default=DEFAULT_ESPEAK_VOICE,
+                    help=f"espeak-ng voice (default: {DEFAULT_ESPEAK_VOICE})")
+    p.add_argument("--voice", dest="say_voice", default=DEFAULT_SAY_VOICE,
+                    help=f"macOS 'say' voice, only used with --engine say (default: {DEFAULT_SAY_VOICE})")
     p.add_argument("--rate", type=int, default=DEFAULT_RATE,
                     help=f"Output sample rate in Hz -- must match the device's audio_sample_rate() "
                          f"(default: {DEFAULT_RATE})")
@@ -145,7 +291,29 @@ def main() -> None:
     p.add_argument("--upload", metavar="HOST",
                     help="Also POST the result to http://HOST/media/<name>, e.g. --upload phone.local "
                          "or --upload 192.168.0.148")
+    p.add_argument("--sync", metavar="HOST",
+                    help="Instead of a one-shot generate: fetch pending prompt text from the board "
+                         "(GET /api/prompt_requests), generate + upload audio for each. Requires "
+                         "--secret. Ignores text/--from/--name/--upload/--max-seconds.")
+    p.add_argument("--secret", help="Setup password for --sync (Settings -> VOIP on the board -- "
+                                     "same shared secret as the auto-provisioner)")
+    p.add_argument("--only", action="append", metavar="NAME",
+                    help="With --sync, only generate this clip name (repeatable). Default: everything pending.")
     args = p.parse_args()
+
+    if args.sync:
+        if not args.secret:
+            p.error("--sync requires --secret")
+        sync_prompts(args.sync, args.secret, args.engine, args.piper_model,
+                     args.espeak_voice, args.say_voice, args.rate, Path(args.out_dir), args.only)
+        return
+
+    if args.text and args.from_file:
+        p.error("text and --from are mutually exclusive")
+    if not args.text and not args.from_file:
+        p.error("one of: text, --from FILE, or --sync HOST is required")
+    if not args.name:
+        p.error("--name is required")
 
     out_path = Path(args.out_dir) / args.name
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -154,9 +322,9 @@ def main() -> None:
         convert_to_wav(Path(args.from_file), out_path, args.rate)
     else:
         with tempfile.TemporaryDirectory() as td:
-            aiff_path = Path(td) / "speech.aiff"
-            synthesize(args.text, args.voice, aiff_path)
-            convert_to_wav(aiff_path, out_path, args.rate)
+            raw = synthesize(args.text, args.engine, args.piper_model,
+                              args.espeak_voice, args.say_voice, Path(td) / "speech.wav")
+            convert_to_wav(raw, out_path, args.rate)
 
     if args.max_seconds:
         trim_wav(out_path, args.max_seconds, args.rate)

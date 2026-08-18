@@ -10,6 +10,7 @@
 #include "storage.h"
 #include "logbuf.h"
 #include "telephony.h"
+#include "prompts.h"
 #include "dialplan.h"
 #include "voip.h"
 #include "multipart.h"
@@ -773,6 +774,48 @@ static int append_file_select(char *buf, size_t cap, int off, const char *field_
  * can't be deleted, only recoded/re-pointed at a different file. Operator
  * help (dial 0) isn't here -- its code is fixed and its audio is replaced
  * from Settings -> Operator instead. */
+/* Renders a "prompt text" form (POST /prompt_text_set) for the WAV named
+ * `clip_name` -- used on the Operator, Record, and (per-row) Dial Codes
+ * pages so each spoken clip's desired text lives right next to the setting
+ * it belongs to, rather than on a separate "Prompts" page. Saving text here
+ * doesn't generate audio: firmware/bringup/gen_prompt.py --sync reads it
+ * back off the board (gated by the same setup password as the VOIP
+ * auto-provisioner, see voip_provisioner_password()), synthesizes it
+ * locally, and uploads the WAV -- which is what actually clears "pending". */
+static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_name)
+{
+    prompt_entry_t pe;
+    bool have = prompts_get(clip_name, &pe);
+    const char *text = have ? pe.text : "";
+    bool pending = have && strcmp(pe.text, pe.generated_text) != 0;
+
+    char etext[PROMPT_TEXT_MAX * 6];
+    html_escape(text, etext, sizeof(etext));
+    char ename[PROMPT_NAME_MAX * 6];
+    html_escape(clip_name, ename, sizeof(ename));
+
+    const char *status = !have || !text[0]
+        ? "No text set -- this clip stays silent/skipped until generated."
+        : pending
+            ? "Pending: text changed since last generate."
+            : "Up to date with the generated audio.";
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<form method=\"POST\" action=\"/prompt_text_set\" class=\"settings-form\">"
+        "<input type=\"hidden\" name=\"name\" value=\"%s\">"
+        "<label>Spoken prompt text"
+        "<textarea name=\"text\" maxlength=\"%d\" rows=\"2\" placeholder="
+        "\"Leave blank for no spoken prompt\">%s</textarea>"
+        "<span class=\"fieldhint\">%s Generate + upload with "
+        "<code>firmware/bringup/gen_prompt.py --sync HOST --secret ...</code> "
+        "(local text-to-speech, no server dependency).</span>"
+        "</label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\">Save text</button></div>"
+        "</form>",
+        ename, PROMPT_TEXT_MAX - 1, etext, status);
+    return off;
+}
+
 static int append_dialcodes_tab(char *buf, size_t cap, int off)
 {
     dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
@@ -823,6 +866,15 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                     clips[i].code, clips[i].code);
             }
             off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</td></tr>");
+            /* Collapsed by default -- a prompt-text form per row would
+             * otherwise dominate the table for boards with more than a
+             * couple of dial codes. */
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<tr><td colspan=\"5\"><details><summary>Spoken prompt text for %s</summary>",
+                clips[i].filename);
+            off = append_prompt_field(buf, cap, off, clips[i].filename);
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "</details></td></tr>");
         }
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
     }
@@ -862,10 +914,10 @@ static int append_operator_tab(char *buf, size_t cap, int off,
         off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
                                 entries[i].implemented);
     }
+    off = append_prompt_field(buf, cap, off, "operator.wav");
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">No on-device TTS or script editor yet -- upload audio below to "
-        "replace what plays (converted automatically to 8kHz mono), or use "
-        "<code>firmware/bringup/gen_prompt.py</code> from the command line.</p>"
+        "<p class=\"hint\">Or upload audio directly below (converted automatically to 8kHz "
+        "mono) -- either way replaces what plays.</p>"
         "<form method=\"POST\" action=\"/operator_upload\" enctype=\"multipart/form-data\" "
         "class=\"settings-form\">"
         "<label>Replacement audio (WAV) <input type=\"file\" name=\"file\" accept=\"audio/wav\" required></label>"
@@ -1134,10 +1186,13 @@ static int append_record_tab(char *buf, size_t cap, int off,
                                 entries[i].implemented);
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Dial 211, speak, then hang up (or pause ~2 s / hit 30 s). The message "
-        "is saved as an 8 kHz mono WAV in <a href=\"/recordings\">Recordings</a> / Storage below. "
-        "Editable max-length and warning beeps aren't exposed here yet.</p>"
-        "</div>");
+        "<p class=\"hint\">Dial 211: if the prompt below is generated, it plays first, then a "
+        "beep, then recording starts. With no prompt generated, it goes straight to the beep. "
+        "Speak, then hang up (or pause ~2 s / hit 30 s). The message is saved as an 8 kHz mono "
+        "WAV in <a href=\"/recordings\">Recordings</a> / Storage below. Editable max-length "
+        "isn't exposed here yet.</p>");
+    off = append_prompt_field(buf, cap, off, RECORD_PROMPT_NAME);
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
     return off;
 }
 
@@ -3057,6 +3112,7 @@ static esp_err_t operator_upload_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, err_msg);
         return ESP_FAIL;
     }
+    prompts_mark_generated("operator.wav");
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/settings?tab=operator");
     httpd_resp_send(req, NULL, 0);
@@ -3079,6 +3135,7 @@ static esp_err_t dialcode_upload_handler(httpd_req_t *req)
 
     char code[8] = {0}, new_code[8] = {0}, desc[64] = {0};
     char part_name[32], filename[64];
+    char dest[STORAGE_MAX_NAME] = {0};
     bool wrote = false;
     const char *err_msg = "no file uploaded";
 
@@ -3090,7 +3147,6 @@ static esp_err_t dialcode_upload_handler(httpd_req_t *req)
         } else if (strcmp(part_name, "desc") == 0) {
             read_field_body(&mp, desc, sizeof(desc));
         } else if (strcmp(part_name, "file") == 0 && filename[0]) {
-            char dest[STORAGE_MAX_NAME];
             if (new_code[0]) {
                 char fallback[24];
                 snprintf(fallback, sizeof(fallback), "clip_%s.wav", new_code);
@@ -3133,6 +3189,7 @@ static esp_err_t dialcode_upload_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, err_msg);
         return ESP_FAIL;
     }
+    if (dest[0]) prompts_mark_generated(dest);
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
     httpd_resp_send(req, NULL, 0);
@@ -3209,8 +3266,107 @@ static esp_err_t media_upload_handler(httpd_req_t *req)
     free(chunk);
     storage_write_end(&w);
 
+    prompts_mark_generated(name);
     ESP_LOGI(TAG, "uploaded '%s' (%u bytes)", name, (unsigned)received);
     httpd_resp_sendstr(req, "ok\n");
+    return ESP_OK;
+}
+
+/* POST /prompt_text_set -- form body name=..&text=.. (see append_prompt_field()).
+ * Sets/updates the desired spoken text for a clip; doesn't touch the audio
+ * itself -- that only changes once gen_prompt.py --sync uploads a WAV under
+ * the same name (media_upload_handler above, which calls
+ * prompts_mark_generated()). Blank text removes the tracked entry. */
+#define PROMPT_FORM_MAX_BODY 1024
+static esp_err_t prompt_text_set_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= PROMPT_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[PROMPT_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char name[PROMPT_NAME_MAX] = {0}, text[PROMPT_TEXT_MAX] = {0};
+    form_field(body, "name", name, sizeof(name));
+    form_field(body, "text", text, sizeof(text));
+
+    esp_err_t err = prompts_set_text(name, text);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "prompt_text_set '%s' failed: %s", name, esp_err_to_name(err));
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, esp_err_to_name(err));
+        return ESP_OK;
+    }
+
+    /* Bounce back to whichever tab sent the form -- Referer is the only
+     * place that's recorded, since this one endpoint serves three different
+     * settings tabs (operator/record/dialcodes). Falls back to the general
+     * tab, which is harmless (not "settings.php-style redirect" territory --
+     * nothing else reads this header). */
+    char referer[128];
+    if (httpd_req_get_hdr_value_str(req, "Referer", referer, sizeof(referer)) == ESP_OK) {
+        httpd_resp_set_status(req, "303 See Other");
+        httpd_resp_set_hdr(req, "Location", referer);
+    } else {
+        httpd_resp_set_status(req, "303 See Other");
+        httpd_resp_set_hdr(req, "Location", "/settings");
+    }
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* GET /api/prompt_requests?secret=... -- lets a host-side script (gen_prompt.py
+ * --sync) fetch the list of tracked prompts without needing any other
+ * credential on the board. Reuses the VOIP auto-provisioner's setup
+ * password (voip_provisioner_password()) rather than a separate secret --
+ * same "per board, shared with tools you trust" security model, at the
+ * user's request. Refuses to serve at all if that password was never set,
+ * rather than falling back to "no auth". */
+static esp_err_t prompt_requests_json_handler(httpd_req_t *req)
+{
+    const char *want = voip_provisioner_password();
+    if (!want[0]) {
+        httpd_resp_send_err(req, HTTPD_403_FORBIDDEN,
+                             "set a VOIP auto-provisioning password first (Settings -> VOIP)");
+        return ESP_OK;
+    }
+
+    char query[160], secret[64] = {0};
+    if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
+        httpd_query_key_value(query, "secret", secret, sizeof(secret));
+    }
+    if (strcmp(secret, want) != 0) {
+        httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "bad secret");
+        return ESP_OK;
+    }
+
+    /* Heap, not stack -- PROMPT_MAX_ENTRIES * sizeof(prompt_entry_t) is
+     * ~6.9KB (each entry carries two 200-byte text fields), which overflowed
+     * the httpd worker task's 8KB stack when it was a local array here
+     * (silent corruption/hang, not a clean panic -- see media_upload_handler
+     * above for the same fix on the same task). */
+    prompt_entry_t *list = malloc(PROMPT_MAX_ENTRIES * sizeof(prompt_entry_t));
+    if (!list) {
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+    size_t n = prompts_list(list, PROMPT_MAX_ENTRIES);
+    cJSON *arr = cJSON_CreateArray();
+    for (size_t i = 0; i < n; i++) {
+        cJSON *e = cJSON_CreateObject();
+        cJSON_AddStringToObject(e, "name", list[i].name);
+        cJSON_AddStringToObject(e, "text", list[i].text);
+        cJSON_AddBoolToObject(e, "pending", strcmp(list[i].text, list[i].generated_text) != 0);
+        cJSON_AddItemToArray(arr, e);
+    }
+    free(list);
+    char *out = cJSON_PrintUnformatted(arr);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, out ? out : "[]");
+    cJSON_Delete(arr);
+    free(out);
     return ESP_OK;
 }
 
@@ -3218,12 +3374,12 @@ esp_err_t webui_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
-    /* Default is 8 -- we register 30 routes below (two share the media
+    /* Default is 8 -- we register 37 routes below (two share the media
      * path, one GET, one POST, counted separately) and it keeps growing.
      * Past the cap, httpd_register_uri_handler() just fails per-route, which
      * used to go unchecked below, silently dropping the last couple of
      * routes -- the loop below now at least logs it, but leave headroom. */
-    config.max_uri_handlers = 36;
+    config.max_uri_handlers = 44;
     /* Default httpd task stack is 4 KB. Our page handlers stack a few
      * storage_entry_t[32]/dialplan_entry_info_t[40] arrays and then descend
      * into SPIFFS readdir -> esp_flash_read, which is itself stack-hungry;
@@ -3277,6 +3433,8 @@ esp_err_t webui_start(void)
         { .uri = "/dialcode_delete/*",      .method = HTTP_POST, .handler = dialcode_delete_handler },
         { .uri = "/dialcode_upload",        .method = HTTP_POST, .handler = dialcode_upload_handler },
         { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },
+        { .uri = "/prompt_text_set",        .method = HTTP_POST, .handler = prompt_text_set_handler },
+        { .uri = "/api/prompt_requests",    .method = HTTP_GET,  .handler = prompt_requests_json_handler },
         { .uri = "/voip_set",               .method = HTTP_POST, .handler = voip_set_handler },
         { .uri = "/voip_check",             .method = HTTP_POST, .handler = voip_check_handler },
         { .uri = "/voip_set_provisioner",   .method = HTTP_POST, .handler = voip_set_provisioner_handler },
