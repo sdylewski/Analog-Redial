@@ -205,11 +205,16 @@ static size_t evict_oldest(void)
     return sz;
 }
 
-esp_err_t storage_write_begin(const char *name, size_t expected_len, storage_writer_t *w)
+/* `prefer_sd` false forces internal flash regardless of whether a card is
+ * mounted -- see storage_write_begin_local() in storage.h for why (clips/
+ * prompts need to survive the card being pulled mid-use; only real
+ * recordings should follow it). */
+static esp_err_t write_begin_ex(const char *name, size_t expected_len, bool prefer_sd,
+                                 storage_writer_t *w)
 {
     w->file = NULL;
     w->path[0] = '\0';
-    bool sd = sdcard_mounted();
+    bool sd = prefer_sd && sdcard_mounted();
 
     if (sd) {
         /* No eviction on SD -- see storage.h. A card is big enough that
@@ -225,6 +230,20 @@ esp_err_t storage_write_begin(const char *name, size_t expected_len, storage_wri
             return ESP_ERR_INVALID_SIZE;
         }
         full_path(w->path, sizeof(w->path), name);
+
+        /* A forced-local write (prefer_sd=false) can leave a stale SD-side
+         * copy of `name` around from before this split existed, or from a
+         * name reused while a card was primary -- resolve_existing_path()'s
+         * SD-first read order would keep resolving to that stale copy and
+         * shadow this fresh internal write. A real SD-preferred write never
+         * reaches this branch while a card is mounted, so this is a no-op
+         * for recorder.c's callers. */
+        if (!prefer_sd && sdcard_mounted()) {
+            char sd_path[sizeof(w->path)];
+            sd_full_path(sd_path, sizeof(sd_path), name);
+            struct stat sdst;
+            if (stat(sd_path, &sdst) == 0) unlink(sd_path);
+        }
     }
 
     /* Overwriting an existing file of the same name: remove it first so its
@@ -249,6 +268,16 @@ esp_err_t storage_write_begin(const char *name, size_t expected_len, storage_wri
     if (!f) return ESP_FAIL;
     w->file = f;
     return ESP_OK;
+}
+
+esp_err_t storage_write_begin(const char *name, size_t expected_len, storage_writer_t *w)
+{
+    return write_begin_ex(name, expected_len, true, w);
+}
+
+esp_err_t storage_write_begin_local(const char *name, size_t expected_len, storage_writer_t *w)
+{
+    return write_begin_ex(name, expected_len, false, w);
 }
 
 esp_err_t storage_write_chunk(storage_writer_t *w, const void *data, size_t len)

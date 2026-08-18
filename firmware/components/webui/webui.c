@@ -1449,8 +1449,10 @@ static int append_storage_section(char *buf, size_t cap, int off)
         "<code>curl -X POST --data-binary @file.wav http://%s/media/&lt;name&gt;</code> or "
         "<code>firmware/bringup/gen_prompt.py</code>. <code>operator.wav</code> and "
         "<code>clip_*.wav</code> are never auto-deleted to make room for recordings -- only "
-        "explicit deletes (below) remove them.%s</p></div>",
-        ip, sd ? " A microSD card is present and takes priority for new recordings/uploads "
+        "explicit deletes (below) remove them. Prompt/clip uploads always go to internal "
+        "flash (so pulling the card mid-use can't take dial tone or the operator message "
+        "with it) -- only 211 recordings prefer the card.%s</p></div>",
+        ip, sd ? " A microSD card is present and takes priority for new recordings "
                  "-- internal flash is never evicted to make room on the card, and stays "
                  "listed below in its own section so anything saved before the card was "
                  "inserted is still reachable." : "");
@@ -2974,7 +2976,7 @@ static const char *convert_mp3_upload(multipart_reader_t *mp, const char *dest_n
                 .in_rate = rate, .in_channels = (uint16_t)channels, .in_bits = 16, .in_float = false,
             };
             audio_convert_init(&cvt, &fmt);
-            if (storage_write_begin(dest_name, 0, &w) != ESP_OK) {
+            if (storage_write_begin_local(dest_name, 0, &w) != ESP_OK) {
                 err = "couldn't open storage for writing";
                 break;
             }
@@ -3042,7 +3044,7 @@ static const char *convert_upload_part(multipart_reader_t *mp, const char *dest_
         : 0;
 
     storage_writer_t w;
-    if (storage_write_begin(dest_name, 44 + (size_t)est_out_bytes, &w) != ESP_OK) {
+    if (storage_write_begin_local(dest_name, 44 + (size_t)est_out_bytes, &w) != ESP_OK) {
         free(header);
         return "couldn't open storage for writing";
     }
@@ -3226,9 +3228,9 @@ static esp_err_t media_upload_handler(httpd_req_t *req)
      * mono is already a few hundred KB, more than fits alongside WiFi/httpd
      * in free heap). */
     storage_writer_t w;
-    esp_err_t err = storage_write_begin(name, total, &w);
+    esp_err_t err = storage_write_begin_local(name, total, &w);
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "upload '%s': storage_write_begin failed: %s", name, esp_err_to_name(err));
+        ESP_LOGW(TAG, "upload '%s': storage_write_begin_local failed: %s", name, esp_err_to_name(err));
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }

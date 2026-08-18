@@ -30,6 +30,12 @@
  * For UI surfaces that want to show both backends explicitly rather than
  * just "whichever is primary" (Settings -> Storage files), use the
  * _internal() / _sd() variants below instead.
+ *
+ * Clips/prompts (operator.wav, dial-code clips, record_prompt.wav) are the
+ * one exception to "primary": they always use storage_write_begin_local(),
+ * which forces internal flash regardless of SD presence, so pulling the
+ * card mid-use can never take dial tone, the operator message, or 211's
+ * prompt/beep with it. Only real recordings (recorder.c) follow the card.
  */
 #pragma once
 
@@ -77,6 +83,16 @@ typedef struct {
 } storage_writer_t;
 
 esp_err_t storage_write_begin(const char *name, size_t expected_len, storage_writer_t *w);
+
+/* Same, but always internal flash -- never the SD card, even when one's
+ * mounted and would otherwise be primary. For clips/prompts (operator.wav,
+ * dial-code clips, record_prompt.wav: anything the phone needs to keep
+ * working on its own, not something the user is archiving) so pulling the
+ * microSD card mid-use never takes dial tone, the operator message, or
+ * 211's prompt/beep with it. Real recordings (recorder.c) should keep using
+ * storage_write_begin() -- those are the thing the card is *for*. */
+esp_err_t storage_write_begin_local(const char *name, size_t expected_len, storage_writer_t *w);
+
 esp_err_t storage_write_chunk(storage_writer_t *w, const void *data, size_t len);
 esp_err_t storage_write_end(storage_writer_t *w);
 /* Closes and deletes the partial file. Safe to call after any failed
