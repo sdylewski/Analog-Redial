@@ -2,6 +2,8 @@
 
 This note is derived from the **local datasheet copies** in `datasheets/` (text extractions: `*_extracted.txt`). Numbers cite **Wolfson WM8731** production data **Rev 3.4, April 2004** and **Silvertel AG1170** full datasheet (local PDF; revision/date on cover sheet — see extract). Optional **AG1171** PDF remains in `datasheets/` as a **sibling-part** reference only.
 
+**Covers both hardware variants:** §1 is the through-hole reference board (WM8731 + AG1170 + Pi Zero 2 W / ESP32). §1B is the SMD2/SMD3 production board (ES8388 + AG1171 + ESP32) — same signal-chain questions, different parts, added 2026-08 after a live clipping investigation on that board.
+
 ---
 
 ## 1. WM8731 (codec)
@@ -62,6 +64,118 @@ That is **2× DAC + 2× ADC** at **telephone bandwidth**, which is exactly what 
 
 - Use **AC coupling** (e.g. **1 µF** film/ceramic + biasing per Wolfson “line input application”) between **AG1170 VOUT/VIN** and **WM8731 LLINEIN/RLINEIN / LOUT/ROUT**, consistent with Silvertel AG1170 (**connect VIN/VOUT to the codec via a 100 nF capacitor** per datasheet). Your BOM may add **larger caps** or Silvertel app-note parts — follow the **AG1170** applications drawings in the full PDF.
 - **Measure** peak VOUT from the SLIC in worst-case (ring trip, loud room); if peaks clip the ADC, add a **resistive pad** (divider) or reduce codec **line input gain** in software.
+
+---
+
+## 1B. ES8388 + AG1171 (SMD2/SMD3 production board) — measured DTMF clipping, 2026-08
+
+**Symptom:** real DTMF dialing on a physical handset (MaxPhone, DualPhone —
+both SMD2, confirmed identical circuit) intermittently failed to register
+digits. Root-caused to hard ADC clipping, not a detector bug — captured
+live via a temporary `peak` diagnostic in `dtmf_detector_push()`
+(`firmware/components/dtmf/dtmf.c`): **every correctly-classified digit
+showed `peak=32768`**, i.e. int16 full-scale, on both boards.
+
+### Datasheet numbers (`datasheets/ES8388.pdf` §8.3, "ADC Analog and Filter
+Characteristics")
+
+| Parameter | Value | Notes |
+|---|---|---|
+| Full Scale Input Level | **AVDD/3.3 Vrms** → **1.0 Vrms** at AVDD = 3.3 V (this board) | RMS of a single-tone test signal — see crest-factor caveat below |
+| Input Impedance | **20 kΩ** | Divider sizing needs to account for this loading, not just the nominal ratio |
+
+(A `pdftotext -layout` extraction of this PDF now exists alongside the
+other `*_extracted.txt` files — see §6 below.)
+
+### Measured levels (oscilloscope, DualPhone, wire tapped on the AC side of
+AG1171 VOUT — i.e. before the existing SLIC→codec coupling cap)
+
+| Signal | Vmin | Vmax | Vpp | Vrms (scope reading) |
+|---|---|---|---|---|
+| Dial tone (locally generated, firmware `audio_tx_tone()`) | 4.3 V | 4.6 V | 0.3 V | 4.5 V |
+| Real DTMF digit "5" (physical handset) | 3.3 V | 5.8 V | 2.5 V | 4.6 V |
+
+Note: the scope's Vrms reading is dominated by the ~4.5 V DC bias the
+signal rides on (AC-coupled at the codec end, but this tap point is
+*before* that cap) — it's not directly comparable to the datasheet's
+Vrms-of-AC-signal spec. Vpp is the more useful number here.
+
+Dial tone (0.3 Vpp) does not clip. Real DTMF (2.5 Vpp) clips hard, despite
+being — on a naive single-tone RMS estimate — not obviously over the 1.0
+Vrms full-scale spec. The gap is DTMF's **crest factor**: it's two tones
+summed, and a summed dual-tone signal's instantaneous peaks run well above
+what a same-RMS single tone would produce (this is *why* telecom designs
+conventionally spec extra headroom for DTMF specifically, not a fluke of
+this board). The datasheet's RMS spec doesn't warn you about this by
+itself; the scope measurement is what caught it.
+
+### Ruled out: codec gain
+
+`micamp 0 0` (ES8388 ADC PGA at its floor, 0 dB — console command,
+`firmware/components/bringup/bringup.c`) still clips identically on every
+digit. This proves the problem is upstream of the codec's programmable
+gain stage entirely — the raw analog signal already exceeds the ADC's
+input range before the codec's own gain has any say. Not fixable in
+software; needs an analog attenuator between AG1171 VOUT and the ES8388
+input pin.
+
+### Recommended divider (starting point, not final — see below)
+
+Target: get the 2.5 Vpp DTMF signal down to roughly **1.0–1.2 Vpp** at the
+codec pin (real margin below the ~2.8 Vpp single-tone-equivalent full
+scale, to cover DTMF's crest factor).
+
+**Starting values: 10 kΩ series (R1) + 7.5 kΩ shunt-to-ground (R2)** —
+nominal ratio ≈0.43, giving ~1.07 Vpp from 2.5 Vpp input. The ES8388's 20
+kΩ input impedance loads the shunt leg (7.5 kΩ ∥ 20 kΩ ≈ 5.45 kΩ),
+pulling the *effective* ratio closer to ~0.35 in practice — likely still
+in the target range, but the loading interaction is why these aren't
+treated as exact/final values.
+
+**Placement — after the coupling cap, not before:**
+
+- The divider goes on the AC side of the existing SLIC→codec coupling
+  cap, close to the codec, not directly across AG1171 VOUT. Putting it on
+  the SLIC's raw output would load that output stage (SLIC output drivers
+  are designed for a given minimum load impedance) and fight the DC bias
+  the cap is there to strip.
+- **Rework plan for an already-populated board** (cap footprint sits right
+  at the codec, no room for a 3rd component in series): desolder the
+  existing SMD coupling cap, put **R1 in its vacated pad**, and bridge a
+  new leaded/flying-lead capacitor from AG1171 VOUT to that same pad's
+  SLIC-side node — recovers the cap-then-resistor order without needing
+  new PCB real estate.
+- **R2 (shunt to ground) goes after R1, at the codec side** — not between
+  the cap and R1. If R2 sits between the cap and R1 instead, it forms a
+  frequency-dependent high-pass network with the cap's own impedance
+  rather than a clean resistive divider, and the codec pin ends up
+  depending on the ES8388's own 20 kΩ input impedance to set the ratio
+  instead of a known value. With R2 after R1, the cap's impedance is
+  negligible at audio frequencies, so R1/R2 alone set the ratio.
+  Convenient side effect of the rework above: R1's relocated pad is
+  already right next to the codec — exactly where R2 needs to land too.
+- **Minor side effect to be aware of:** adding R1+R2 downstream of the
+  coupling cap raises its high-pass corner slightly (rough estimate with a
+  100 nF cap: ~80 Hz today, bare 20 kΩ codec load, → ~105 Hz with the
+  divider's ~15-17 kΩ added). Still well below the 300 Hz+ phone band, so
+  this shouldn't be audible — noted here in case a low-frequency response
+  question ever comes up later.
+
+**Verification method:** live digital readback via the `dtmf` component's
+`peak` diagnostic (temporary — see git log for `firmware/components/dtmf/dtmf.c`)
+watched through `tonemon` (bring-up console) while dialing real digits.
+`micamp 0 0` first, to isolate codec-gain from the real problem before
+building anything. Bench-test candidate resistor values with wire leads
+before committing to a permanent rework, checking `peak=` drops below
+32768 on every digit as the pass/fail signal.
+
+### Re-tuning after the hardware fix
+
+`micamp 0 0` was diagnostic only — once the divider brings the signal into
+range, bring codec gain back up from that floor and re-tune for voice SNR
+(probably not all the way back to the +3dB default, but not left at 0 dB
+either). Re-check both boards (MaxPhone confirmed same circuit as
+DualPhone) once a value is settled.
 
 ---
 
@@ -134,10 +248,12 @@ Pin descriptions (AG1170 text):
 | `WM8731_Wolfson_audio_CODEC_extracted.txt` | **Searchable** text dump (extraction imperfect on figures). |
 | `AG1170_Silvertel_datasheet.pdf` | **Silvertel AG1170** full datasheet (canonical). |
 | `AG1170_Silvertel_datasheet_extracted.txt` | **Searchable** text dump (`pypdf`; tables may be mis-spaced). |
-| `AG1171_Silvertel_datasheet.pdf` | **AG1171** sibling part (optional cross-check; not required for AG1170 design). |
+| `AG1171_Silvertel_datasheet.pdf` | **AG1171** sibling part — canonical for §1B (SMD2/SMD3 uses AG1171, not AG1170). |
 | `AG1171_Silvertel_datasheet_extracted.txt` | Text dump for grep / comparison. |
+| `ES8388.pdf` | **ES8388** codec (SMD2/SMD3) full datasheet — see §1B. |
+| `ES8388_extracted.txt` | Text dump (`pdftotext -layout`; §8.3 "ADC Analog and Filter Characteristics" has the input-level spec). |
 
-**Regenerate extractions** (optional): project venv `.venv-datasheet` with `pypdf` was used once to build `*_extracted.txt`; you can delete that venv if you do not want it on disk.
+**Regenerate extractions** (optional): project venv `.venv-datasheet` with `pypdf` was used once to build `*_extracted.txt`; you can delete that venv if you do not want it on disk. `ES8388_extracted.txt` was built directly with `pdftotext -layout` instead (simpler for a one-off, same idea).
 
 ---
 
@@ -149,6 +265,7 @@ Pin descriptions (AG1170 text):
 - [ ] **SHK → MCU** verified if **VPWR = 5 V** (**divider or translator**).
 - [ ] **PD** pin wired per Silvertel (**never illegal high**).
 - [ ] **AC coupling + optional pad** on **VIN/VOUT** to codec; **measure** clipping margins.
+- [ ] **SMD3 (next spin):** lay out the SLIC→codec audio path with a real divider footprint (series R + shunt-to-ground R pads after the coupling cap, per §1B) from the start — SMD2 needed a desolder-the-cap bodge to add this after the fact because the cap footprint sat with no room for a 3rd component in series.
 
 ---
 
