@@ -74,8 +74,16 @@ static char classify(const int64_t mags[8])
     if (rmag < MIN_MAG || cmag < MIN_MAG) return 0;
 
     /* twist: row/col should be within a reasonable ratio (cross-multiplied
-     * to avoid division). */
-    if (rmag > 8 * cmag || cmag > 8 * rmag) return 0;
+     * to avoid division). Real DTMF twist (ITU-T Q.24/Bellcore GR-506) is a
+     * few dB at most either direction -- nowhere near 8x (~18dB). 8x was
+     * loose enough to also accept a real, reproducible false positive:
+     * measured live (see telephony.c's dtmf_tap comment -- some line/board
+     * noise sits at ~770Hz, the row-1 frequency), every captured instance
+     * had the row 4.1-7.7x the column, comfortably below the old limit and
+     * comfortably above this one. 3x has margin on both sides: it clears
+     * every measured false trigger by >35% and is still far looser than any
+     * real phone/generator's twist should ever need. */
+    if (rmag > 3 * cmag || cmag > 3 * rmag) return 0;
 
     /* second-harmonic / spurious rejection: the chosen row & col must
      * clearly dominate the other three in their group. */

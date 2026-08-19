@@ -372,6 +372,20 @@ esp_err_t audio_init(const audio_config_t *cfg)
     }
 
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+    /* Default (dma_desc_num=6, dma_frame_num=240) is 1440 frames = 30ms of
+     * DMA ring per direction at 48kHz -- up to ~60ms round-trip just from
+     * this, which is most of the 12-52ms local echo-path delay the AEC has
+     * to cover (the ES8388 codec itself adds negligible delay; this ring is
+     * the real "buffering" for a digital I2S link). Halved here: 4x180 =
+     * 720 frames = 15ms/direction. Still >= 2 descriptors' worth of slack
+     * ahead of audio_task's own 10ms (s_frame) processing block, so a
+     * single late wakeup doesn't starve the ring -- but less slack than
+     * before, so a *sustained* stall (WiFi/SD/etc. blocking audio_task for
+     * multiple frames) is more likely to produce an audible glitch than it
+     * was. Tune via aec sweep; revert to the default pair above if this
+     * causes audible clicks in normal use. */
+    chan_cfg.dma_desc_num = 4;
+    chan_cfg.dma_frame_num = 180;
     esp_err_t err = i2s_new_channel(&chan_cfg, &s_tx, &s_rx);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "i2s_new_channel: %s", esp_err_to_name(err));
