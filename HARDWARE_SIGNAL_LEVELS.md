@@ -132,6 +132,21 @@ pulling the *effective* ratio closer to ~0.35 in practice — likely still
 in the target range, but the loading interaction is why these aren't
 treated as exact/final values.
 
+**Built and confirmed working (DualPhone, 2026-08-19):** 100 nF coupling
+cap (unchanged value, relocated to leaded/flying-lead per the rework plan
+below) + **10 kΩ series / 8.2 kΩ shunt** (8.2 kΩ picked over 6.8 kΩ for
+slightly better voice SNR margin — both were safely under the clipping
+ceiling on paper, see the resistor-choice discussion in this session's
+history). `tonemon` with all 12 keys (`0-9`, `*`, `#`) dialed on a real
+handset: every digit classified correctly, `peak=` topped out around
+14,000-16,900 — comfortably under the 32768 ceiling, roughly half of full
+scale. Twist ratios on the accepted blocks also tightened up dramatically
+(clustered ~0.6-1.2, vs. the wild 0.4-400+ swings seen while clipping) —
+a clean signal now, not just technically under the ceiling. Verified with
+`micamp` back at its normal boot-time default (0x11, +3dB/+3dB — see the
+re-tuning note below), so this margin holds under normal operating gain,
+not just the artificially-reduced 0 dB used during diagnosis.
+
 **Placement — after the coupling cap, not before:**
 
 - The divider goes on the AC side of the existing SLIC→codec coupling
@@ -171,11 +186,16 @@ before committing to a permanent rework, checking `peak=` drops below
 
 ### Re-tuning after the hardware fix
 
-`micamp 0 0` was diagnostic only — once the divider brings the signal into
-range, bring codec gain back up from that floor and re-tune for voice SNR
-(probably not all the way back to the +3dB default, but not left at 0 dB
-either). Re-check both boards (MaxPhone confirmed same circuit as
-DualPhone) once a value is settled.
+`micamp 0 0` was diagnostic only, to isolate codec-gain from the real
+(upstream) problem. Turned out to be moot in practice: `micamp` is a live
+I2C register poke, not persisted to NVS, so it reverts to the firmware's
++3dB/+3dB boot default on any reset regardless — and the divider holds off
+clipping fine at that default gain (see "Built and confirmed working"
+above), so no further gain re-tuning was needed.
+
+**Still to do:** MaxPhone (confirmed same circuit as DualPhone) hasn't had
+the physical rework yet — same values should apply, but verify with the
+same `tonemon` + `peak=` method once it's done.
 
 ---
 
