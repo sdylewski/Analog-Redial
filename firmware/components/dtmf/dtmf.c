@@ -74,25 +74,22 @@ static char classify(const int64_t mags[8])
     if (rmag < MIN_MAG || cmag < MIN_MAG) return 0;
 
     /* twist: row/col should be within a reasonable ratio (cross-multiplied
-     * to avoid division). Tiered by loudness -- confirmed live these are
-     * two genuinely different regimes on this hardware, not just a
-     * threshold-picking problem:
-     *   - the false-positive this is guarding against (~770Hz line/board
-     *     noise, see telephony.c's dtmf_tap comment) measured 3-8e8 in this
-     *     energy metric, twist 4.1-7.7x.
-     *   - real DTMF from an actual handset clips the ADC on this board
-     *     (peak hits int16 full scale on every correctly-detected digit,
-     *     measured live via tonemon) -- clipping distorts twist
-     *     unpredictably block-to-block, up to 245x on the noisy attack/
-     *     decay edges around a press, even though the clean mid-tone
-     *     blocks that actually carry the digit stay tight (0.4-1.08x).
-     *     Real energy here starts around 1e12 -- a thousand-fold gap above
-     *     the false-positive's ceiling, so 1e10 cleanly separates "quiet
-     *     enough to be that noise, hold it to a tight ratio" from "loud
-     *     enough to be a real press, allow the wider tolerance real
-     *     clipping needs". */
-    const int64_t LOUD_MAG = 10000000000LL; /* 1e10 */
-    int64_t twist_limit = (rmag > LOUD_MAG || cmag > LOUD_MAG) ? 8 : 3;
+     * to avoid division). A single tight limit, not tiered by loudness --
+     * this used to need an 8x "loud" tier specifically to tolerate ADC
+     * clipping (a real handset's DTMF was hitting int16 full scale on
+     * this board, distorting twist unpredictably block-to-block, up to
+     * 245x on the noisy attack/decay edges around a press). Clipping is
+     * now fixed at the analog level (voltage divider between the SLIC and
+     * codec, see HARDWARE_SIGNAL_LEVELS.md), and the AGC below keeps
+     * captured levels in a consistent, predictable range on top of that
+     * regardless of a given phone's natural loudness -- so nothing should
+     * be arriving distorted anymore, and one limit close to real DTMF
+     * spec (ITU-T Q.24's normal twist tolerance is roughly 1.6-2.5x; 3x
+     * keeps a bit of margin) should cover real presses on any properly-
+     * functioning phone. The original false-positive this also guards
+     * against (~770Hz line/board noise, see telephony.c's dtmf_tap
+     * comment) measured twist 4.1-7.7x, comfortably rejected by 3x. */
+    const int64_t twist_limit = 3;
     if (rmag > twist_limit * cmag || cmag > twist_limit * rmag) return 0;
 
     /* second-harmonic / spurious rejection: the chosen row & col must
@@ -142,6 +139,8 @@ void dtmf_detector_init(dtmf_detector_t *d, uint32_t sample_rate)
         d->coeff[i] = (int32_t)lroundf(2.0f * cosf(w) * 16384.0f); /* Q14 */
         d->q1[i] = d->q2[i] = 0;
     }
+
+    d->agc_gain_q8 = 256; /* unity -- see dtmf_detector_push() */
 }
 
 static void block_reset(dtmf_detector_t *d)
@@ -150,12 +149,43 @@ static void block_reset(dtmf_detector_t *d)
     d->filled = 0;
 }
 
+/* AGC tuning. Target/gate are raw int16 sample-amplitude units (peak, not
+ * Goertzel magnitude); gain is Q8 fixed point (256 = 1.0x).
+ *   - AGC_TARGET_PEAK: ~49% of int16 full scale -- comfortably matches what
+ *     a real press looks like post-divider on this hardware (measured
+ *     9000-17000), with headroom below clipping for a phone that runs a
+ *     bit hotter.
+ *   - AGC_GATE_PEAK: only adapt the gain estimate from blocks that clear
+ *     this -- gates on "plausibly real signal, not silence/background",
+ *     distinct from (and higher than) MIN_MAG's much lower noise-floor
+ *     gate in classify(). Below it, HOLD the current gain rather than
+ *     decay toward unity, so a quiet gap mid-dialing doesn't erase what
+ *     was just learned about this call's line/handset. Doesn't reopen the
+ *     original false-positive: that noise was always rejected by twist/
+ *     dominance (ratio checks, scale-invariant -- unaffected by a uniform
+ *     gain), never by MIN_MAG, so amplifying it doesn't help it pass.
+ *   - MIN/MAX_GAIN: 0.25x-8x -- wide enough for a genuinely quiet old
+ *     phone or a hot one, bounded so a stray transient can't send gain to
+ *     an extreme in one step.
+ *   - SMOOTH_DIV: converges over ~4 blocks (~100ms) -- fast enough to
+ *     settle within a single press (presses run 6-11 blocks in the data
+ *     this was tuned against), slow enough not to chase every block. */
+#define AGC_TARGET_PEAK 16000
+#define AGC_GATE_PEAK    4000
+#define AGC_MIN_GAIN_Q8    64
+#define AGC_MAX_GAIN_Q8  2048
+#define AGC_SMOOTH_DIV      4
+
 char dtmf_detector_push(dtmf_detector_t *d, const int16_t *samples, size_t n)
 {
     char emitted = 0;
 
     for (size_t s = 0; s < n; s++) {
-        int32_t in = samples[s];
+        int32_t raw = samples[s];
+        int32_t a = raw < 0 ? -raw : raw;
+        if (a > d->agc_block_peak) d->agc_block_peak = a;
+
+        int32_t in = (raw * d->agc_gain_q8) >> 8;
         for (int i = 0; i < 8; i++) {
             int32_t q0 = (int32_t)(((int64_t)d->coeff[i] * d->q1[i]) >> 14) - d->q2[i] + in;
             d->q2[i] = d->q1[i];
@@ -173,6 +203,19 @@ char dtmf_detector_push(dtmf_detector_t *d, const int16_t *samples, size_t n)
             mags[i] = q1 * q1 + q2 * q2 - cross;
         }
         char digit = classify(mags);
+
+        /* AGC: re-estimate gain for the *next* block from this block's
+         * peak (one-block lag is inherent -- the peak isn't known until
+         * the last sample of the block has been seen). Gated per the
+         * comment above AGC_TARGET_PEAK. */
+        if (d->agc_block_peak >= AGC_GATE_PEAK) {
+            int32_t target = (int32_t)(((int64_t)AGC_TARGET_PEAK << 8) / d->agc_block_peak);
+            if (target < AGC_MIN_GAIN_Q8) target = AGC_MIN_GAIN_Q8;
+            if (target > AGC_MAX_GAIN_Q8) target = AGC_MAX_GAIN_Q8;
+            d->agc_gain_q8 += (target - d->agc_gain_q8) / AGC_SMOOTH_DIV;
+        }
+        d->agc_block_peak = 0;
+
         block_reset(d);
 
         /* debounce + edge detection: emit once per key press.

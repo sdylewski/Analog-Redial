@@ -44,6 +44,13 @@ typedef struct {
     bool     in_tone;
     char     press_digit;    /* digit of the *current* press, START to END */
     int64_t  press_start_us; /* for start/end timing logs, see dtmf.c */
+    /* AGC (automatic gain control) -- normalizes real signal content
+     * toward a consistent level before Goertzel analysis, so one set of
+     * amplitude-based thresholds works across different phones' natural
+     * DTMF loudness instead of needing per-phone tuning. See
+     * dtmf_detector_push()'s comment for the gating rationale. */
+    int32_t  agc_gain_q8;    /* current gain, Q8 (256 = 1.0x) */
+    int32_t  agc_block_peak; /* running peak |raw sample| for the block in progress */
 } dtmf_detector_t;
 
 void dtmf_detector_init(dtmf_detector_t *d, uint32_t sample_rate);
