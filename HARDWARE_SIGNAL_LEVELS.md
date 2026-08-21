@@ -119,18 +119,20 @@ input range before the codec's own gain has any say. Not fixable in
 software; needs an analog attenuator between AG1171 VOUT and the ES8388
 input pin.
 
-### Recommended divider (starting point, not final — see below)
+### Recommended divider (final V3 values — see "Built and confirmed working" below)
 
 Target: get the 2.5 Vpp DTMF signal down to roughly **1.0–1.2 Vpp** at the
 codec pin (real margin below the ~2.8 Vpp single-tone-equivalent full
 scale, to cover DTMF's crest factor).
 
-**Starting values: 10 kΩ series (R1) + 7.5 kΩ shunt-to-ground (R2)** —
+**Initial estimate: 10 kΩ series (R1) + 7.5 kΩ shunt-to-ground (R2)** —
 nominal ratio ≈0.43, giving ~1.07 Vpp from 2.5 Vpp input. The ES8388's 20
 kΩ input impedance loads the shunt leg (7.5 kΩ ∥ 20 kΩ ≈ 5.45 kΩ),
-pulling the *effective* ratio closer to ~0.35 in practice — likely still
-in the target range, but the loading interaction is why these aren't
-treated as exact/final values.
+pulling the *effective* ratio closer to ~0.35 in practice — the loading
+interaction is why this starting estimate wasn't treated as exact, and
+why it was bench-verified against actual resistors on hand rather than
+built to spec sight-unseen (see "Built and confirmed working" below for
+the actual final values, 10 kΩ / 8.2 kΩ, not 7.5 kΩ).
 
 **Built and confirmed working (DualPhone, 2026-08-19):** 100 nF coupling
 cap (unchanged value, relocated to leaded/flying-lead per the rework plan
@@ -193,9 +195,11 @@ I2C register poke, not persisted to NVS, so it reverts to the firmware's
 clipping fine at that default gain (see "Built and confirmed working"
 above), so no further gain re-tuning was needed.
 
-**Still to do:** MaxPhone (confirmed same circuit as DualPhone) hasn't had
-the physical rework yet — same values should apply, but verify with the
-same `tonemon` + `peak=` method once it's done.
+**MaxPhone:** now has the same 10 kΩ/8.2 kΩ rework applied (confirmed same
+circuit as DualPhone). MaxPhone has a rotary handset (no keypad), so the
+`tonemon` + `peak=` DTMF verification above doesn't apply there directly —
+its line has only been exercised via pulse dialing so far, not confirmed
+against a `peak=` reading the way DualPhone's DTMF path was.
 
 ---
 
