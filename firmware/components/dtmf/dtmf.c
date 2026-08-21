@@ -74,24 +74,50 @@ static char classify(const int64_t mags[8])
     if (rmag < MIN_MAG || cmag < MIN_MAG) return 0;
 
     /* twist: row/col should be within a reasonable ratio (cross-multiplied
-     * to avoid division). Real DTMF twist (ITU-T Q.24/Bellcore GR-506) is a
-     * few dB at most either direction -- nowhere near 8x (~18dB). 8x was
-     * loose enough to also accept a real, reproducible false positive:
-     * measured live (see telephony.c's dtmf_tap comment -- some line/board
-     * noise sits at ~770Hz, the row-1 frequency), every captured instance
-     * had the row 4.1-7.7x the column, comfortably below the old limit and
-     * comfortably above this one. 3x has margin on both sides: it clears
-     * every measured false trigger by >35% and is still far looser than any
-     * real phone/generator's twist should ever need. */
-    if (rmag > 3 * cmag || cmag > 3 * rmag) return 0;
+     * to avoid division). Tiered by loudness -- confirmed live these are
+     * two genuinely different regimes on this hardware, not just a
+     * threshold-picking problem:
+     *   - the false-positive this is guarding against (~770Hz line/board
+     *     noise, see telephony.c's dtmf_tap comment) measured 3-8e8 in this
+     *     energy metric, twist 4.1-7.7x.
+     *   - real DTMF from an actual handset clips the ADC on this board
+     *     (peak hits int16 full scale on every correctly-detected digit,
+     *     measured live via tonemon) -- clipping distorts twist
+     *     unpredictably block-to-block, up to 245x on the noisy attack/
+     *     decay edges around a press, even though the clean mid-tone
+     *     blocks that actually carry the digit stay tight (0.4-1.08x).
+     *     Real energy here starts around 1e12 -- a thousand-fold gap above
+     *     the false-positive's ceiling, so 1e10 cleanly separates "quiet
+     *     enough to be that noise, hold it to a tight ratio" from "loud
+     *     enough to be a real press, allow the wider tolerance real
+     *     clipping needs". */
+    const int64_t LOUD_MAG = 10000000000LL; /* 1e10 */
+    int64_t twist_limit = (rmag > LOUD_MAG || cmag > LOUD_MAG) ? 8 : 3;
+    if (rmag > twist_limit * cmag || cmag > twist_limit * rmag) return 0;
 
     /* second-harmonic / spurious rejection: the chosen row & col must
-     * clearly dominate the other three in their group. */
+     * clearly dominate the other three in their group. Row0/row1
+     * (697/770Hz) get a looser cross-check than the rest -- measured live
+     * on a real handset, its '3'/'6' keys produce real, simultaneous
+     * energy at BOTH 697 and 770Hz (confirmed: synthetic dtmf_gen tones
+     * for the same digits are perfectly clean via digital loopback, which
+     * bypasses codec+SLIC entirely -- so it's the handset, not the
+     * board). The real tone is still reliably 20-90% louder than the
+     * companion across most of a press's blocks (only ever a handful of
+     * blocks near-tied or briefly reversed) -- just never near the
+     * 4x/75% separation this check demands elsewhere. 80% (~1.25x)
+     * clears every observed multi-block run with margin while staying
+     * well short of the ~99-100% ties -- candidate_blocks>=2 (below) is
+     * the second layer against a single ambiguous block slipping through. */
+    char result = KEYPAD[rb][cb];
     for (int i = 0; i < 4; i++) {
-        if (i != rb && mags[i]     * 4 > rmag) return 0;
+        if (i != rb) {
+            bool row01_pair = (rb == 0 && i == 1) || (rb == 1 && i == 0);
+            if (row01_pair ? (mags[i] * 5 > rmag * 4) : (mags[i] * 4 > rmag)) return 0;
+        }
         if (i != cb && mags[4 + i] * 4 > cmag) return 0;
     }
-    return KEYPAD[rb][cb];
+    return result;
 }
 
 void dtmf_detector_init(dtmf_detector_t *d, uint32_t sample_rate)
