@@ -254,6 +254,38 @@ esp_err_t board_offhook_alert_set(board_offhook_alert_t cfg)
     return err;
 }
 
+#define AEC_DELAY_NVS_KEY0 "aec_delay0"
+#define AEC_DELAY_NVS_KEY1 "aec_delay1"
+
+static const char *aec_delay_key(int line)
+{
+    return (line == 1) ? AEC_DELAY_NVS_KEY1 : AEC_DELAY_NVS_KEY0;
+}
+
+uint32_t board_aec_delay_get(int line, uint32_t fallback_ms)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return fallback_ms;
+    uint32_t ms;
+    esp_err_t err = nvs_get_u32(h, aec_delay_key(line), &ms);
+    nvs_close(h);
+    return (err == ESP_OK) ? ms : fallback_ms;
+}
+
+esp_err_t board_aec_delay_set(int line, uint32_t ms)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u32(h, aec_delay_key(line), ms);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "line %d: AEC delay %u ms persisted", line, (unsigned)ms);
+    }
+    return err;
+}
+
 #define HW_CONFIG_NVS_NS       "board"
 #define HW_CONFIG_NVS_KEY_LINES "hw_lines"  /* u8: 1 or 2 */
 #define HW_CONFIG_NVS_KEY_SD    "hw_sd"     /* u8: 0 or 1 */

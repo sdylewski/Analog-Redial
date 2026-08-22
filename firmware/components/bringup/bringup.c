@@ -509,23 +509,36 @@ static void record_name_timestamped(char *out, size_t out_len, int line)
 #define ECHOPROBE_MS        400   /* capture window */
 #define ECHOPROBE_BURST_MS  10
 #define ECHOPROBE_BURST_HZ  1000.0f
+#define ECHOPROBE_BUCKET_MS   5   /* plot resolution -- single-run mode only */
+#define ECHOPROBE_SETTLE_MS 300   /* gap between repeats so one run's tail
+                                    * (up to the full 400ms window, per what
+                                    * DualPhone measured) can't bleed into the
+                                    * next run's noise-floor sample */
+#define ECHOPROBE_BAR_COLS   50   /* fixed absolute scale (of int16 full
+                                    * scale), so bars are comparable run to
+                                    * run and board to board, not just within
+                                    * one capture */
 
-static int cmd_echoprobe(int argc, char **argv)
+/* One run's worth of the numbers cmd_echoprobe_run() extracts, so repeat
+ * mode can aggregate across N runs without re-deriving them from the raw
+ * capture each time. */
+typedef struct {
+    bool     leak_detected; /* peak cleared 4x noise floor */
+    uint32_t noise_rms;
+    int32_t  peak;
+    double   delay_ms;      /* peak_i */
+    double   tail_ms;       /* tail_i - peak_i */
+} echoprobe_result_t;
+
+/* Runs one burst+capture+analyze pass. `plot` prints the 5ms-bucket RMS bar
+ * chart (single-run mode); repeat mode skips it -- N of those would be
+ * mostly noise to scroll past when what's actually wanted is whether the
+ * numbers hold up run to run. */
+static bool cmd_echoprobe_run(int line, uint32_t sr, size_t n_samples,
+                               int16_t *cap, bool plot, echoprobe_result_t *out)
 {
-    int line = (argc > 1) ? atoi(argv[1]) : 0;
-    if (line < 0 || line > 1) { printf("usage: echoprobe [line]\n"); return 1; }
-
-    uint32_t sr = audio_sample_rate();
-    size_t n_samples = (size_t)((uint64_t)sr * ECHOPROBE_MS / 1000);
-
-    int16_t *cap = malloc(n_samples * sizeof(int16_t));
-    if (!cap) { printf("malloc failed\n"); return 1; }
-
     StreamBufferHandle_t sb = xStreamBufferCreate(RECORD_SB_BYTES, 1);
-    if (!sb) { free(cap); printf("xStreamBufferCreate failed\n"); return 1; }
-
-    printf("echoprobe line %d: %.0f Hz burst %d ms, listening %d ms...\n",
-           line, ECHOPROBE_BURST_HZ, ECHOPROBE_BURST_MS, ECHOPROBE_MS);
+    if (!sb) { printf("xStreamBufferCreate failed\n"); return false; }
 
     record_tap_ctx_t rc = { .sb = sb };
     audio_add_diag_tap(line, record_tap, &rc);
@@ -546,7 +559,7 @@ static int cmd_echoprobe(int argc, char **argv)
     vStreamBufferDelete(sb);
     audio_tx_silence(line);
 
-    if (got == 0) { free(cap); printf("no audio captured\n"); return 1; }
+    if (got == 0) { printf("no audio captured\n"); return false; }
 
     /* Peak + noise floor. The floor is taken from the first 2 ms, which is
      * always before any plausible echo return (bulk delay is dominated by
@@ -574,21 +587,116 @@ static int cmd_echoprobe(int argc, char **argv)
         if (a > thresh) { tail_i = i - 1; break; }
     }
 
-    printf("  captured %u ms, noise floor rms=%u\n",
-           (unsigned)((uint64_t)got * 1000 / sr), (unsigned)noise_rms);
-    printf("  peak %d at %.1f ms  <- bulk delay (DMA + codec + acoustic)\n",
-           (int)peak, (double)peak_i * 1000.0 / (double)sr);
-    printf("  decays below %d by %.1f ms  -> tail ~%.1f ms after peak\n",
-           (int)thresh, (double)tail_i * 1000.0 / (double)sr,
-           (double)(tail_i - peak_i) * 1000.0 / (double)sr);
-    if (peak < (int32_t)noise_rms * 4) {
-        printf("  NOTE: peak barely above noise -- little/no local leak on this line,\n"
-               "        or the handset is on-hook. AEC would have nothing to cancel.\n");
-    } else {
-        printf("  => AEC filter must span ~%.0f ms (%u taps @ 8 kHz)\n",
-               (double)tail_i * 1000.0 / (double)sr,
-               (unsigned)((uint64_t)tail_i * 8000 / sr));
+    bool leak = peak >= (int32_t)noise_rms * 4;
+    out->leak_detected = leak;
+    out->noise_rms = noise_rms;
+    out->peak = peak;
+    out->delay_ms = (double)peak_i * 1000.0 / (double)sr;
+    out->tail_ms = (double)(tail_i - peak_i) * 1000.0 / (double)sr;
+
+    if (plot) {
+        printf("  captured %u ms, noise floor rms=%u\n",
+               (unsigned)((uint64_t)got * 1000 / sr), (unsigned)noise_rms);
+        printf("  peak %d at %.1f ms  <- bulk delay (DMA + codec + acoustic)\n",
+               (int)peak, out->delay_ms);
+        printf("  decays below %d by %.1f ms  -> tail ~%.1f ms after peak\n",
+               (int)thresh, (double)tail_i * 1000.0 / (double)sr, out->tail_ms);
+        if (!leak) {
+            printf("  NOTE: peak barely above noise -- little/no local leak on this line,\n"
+                   "        or the handset is on-hook. AEC would have nothing to cancel.\n");
+        } else {
+            printf("  => AEC filter must span ~%.0f ms (%u taps @ 8 kHz)\n",
+                   (double)tail_i * 1000.0 / (double)sr,
+                   (unsigned)((uint64_t)tail_i * 8000 / sr));
+        }
+
+        /* Amplitude-vs-time plot, RMS per ECHOPROBE_BUCKET_MS bucket (RMS
+         * rather than a raw per-sample peak so a single-sample glitch can't
+         * spike one bar -- the point here is showing the envelope shape).
+         * Fixed absolute bar scale (ECHOPROBE_BAR_COLS / 32767), not
+         * normalized to this run's own peak, so it's meaningful to eyeball
+         * against a different run or a different board. */
+        printf("  envelope (%d ms/row, rms, fixed scale):\n", ECHOPROBE_BUCKET_MS);
+        size_t bucket_n = (size_t)((uint64_t)sr * ECHOPROBE_BUCKET_MS / 1000);
+        if (bucket_n < 1) bucket_n = 1;
+        char bar[ECHOPROBE_BAR_COLS + 1];
+        for (size_t b0 = 0; b0 < got; b0 += bucket_n) {
+            size_t b1 = b0 + bucket_n; if (b1 > got) b1 = got;
+            uint64_t bacc = 0;
+            for (size_t i = b0; i < b1; i++) bacc += (uint64_t)((int32_t)cap[i] * cap[i]);
+            uint32_t brms = (uint32_t)sqrt((double)bacc / (double)(b1 - b0));
+            int cols = (int)(((uint64_t)brms * ECHOPROBE_BAR_COLS) / 32767);
+            if (cols > ECHOPROBE_BAR_COLS) cols = ECHOPROBE_BAR_COLS;
+            memset(bar, '#', cols);
+            bar[cols] = '\0';
+            printf("  %5.1f ms  rms=%5u |%s\n",
+                   (double)b0 * 1000.0 / (double)sr, (unsigned)brms, bar);
+        }
     }
+    return true;
+}
+
+static int cmd_echoprobe(int argc, char **argv)
+{
+    int line = (argc > 1) ? atoi(argv[1]) : 0;
+    int reps = (argc > 2) ? atoi(argv[2]) : 1;
+    if (line < 0 || line > 1) { printf("usage: echoprobe [line] [# repeats]\n"); return 1; }
+    if (reps < 1) reps = 1;
+
+    uint32_t sr = audio_sample_rate();
+    size_t n_samples = (size_t)((uint64_t)sr * ECHOPROBE_MS / 1000);
+
+    int16_t *cap = malloc(n_samples * sizeof(int16_t));
+    if (!cap) { printf("malloc failed\n"); return 1; }
+
+    printf("echoprobe line %d: %.0f Hz burst %d ms, listening %d ms, %d run%s...\n",
+           line, ECHOPROBE_BURST_HZ, ECHOPROBE_BURST_MS, ECHOPROBE_MS,
+           reps, reps > 1 ? "s" : "");
+
+    int hits = 0;
+    double delay_sum = 0, delay_min = 1e9, delay_max = -1e9;
+    double tail_sum = 0, tail_min = 1e9, tail_max = -1e9;
+    int ok_runs = 0;
+
+    for (int r = 0; r < reps; r++) {
+        if (reps > 1) printf("run %d/%d:\n", r + 1, reps);
+        echoprobe_result_t res;
+        if (!cmd_echoprobe_run(line, sr, n_samples, cap, reps == 1, &res)) continue;
+        ok_runs++;
+        if (reps > 1) {
+            printf("  noise=%u  peak=%d  delay=%.1fms  tail=%.1fms%s\n",
+                   (unsigned)res.noise_rms, (int)res.peak, res.delay_ms, res.tail_ms,
+                   res.leak_detected ? "" : "  (no leak above noise)");
+        }
+        if (res.leak_detected) {
+            hits++;
+            delay_sum += res.delay_ms;
+            if (res.delay_ms < delay_min) delay_min = res.delay_ms;
+            if (res.delay_ms > delay_max) delay_max = res.delay_ms;
+            tail_sum += res.tail_ms;
+            if (res.tail_ms < tail_min) tail_min = res.tail_ms;
+            if (res.tail_ms > tail_max) tail_max = res.tail_ms;
+        }
+        if (r + 1 < reps) vTaskDelay(pdMS_TO_TICKS(ECHOPROBE_SETTLE_MS));
+    }
+
+    if (reps > 1) {
+        printf("---\n");
+        if (ok_runs == 0) {
+            printf("no successful captures\n");
+        } else if (hits == 0) {
+            printf("leak detected in 0/%d runs -- no repeatable echo above noise floor\n", ok_runs);
+        } else {
+            printf("leak detected in %d/%d runs -- %s\n", hits, ok_runs,
+                   hits == ok_runs ? "consistent, real echo" :
+                   "intermittent -- background noise may be contaminating some runs");
+            printf("  delay: min=%.1fms max=%.1fms mean=%.1fms\n",
+                   delay_min, delay_max, delay_sum / hits);
+            printf("  tail:  min=%.1fms max=%.1fms mean=%.1fms\n",
+                   tail_min, tail_max, tail_sum / hits);
+        }
+    }
+
     free(cap);
     return 0;
 }
@@ -627,7 +735,13 @@ static int cmd_aec(int argc, char **argv)
             printf("delay must be 0-%d ms\n", AEC_MAX_DELAY_MS);
             return 1;
         }
-        printf("line %d: AEC bulk delay %u ms (filter reset)\n", line, (unsigned)ms);
+        /* A human deliberately typing this (unlike aec_sweep_try()'s rapid
+         * internal probing, which calls aec_set_delay_ms() directly and
+         * never touches NVS) means "make this the default" -- each board's
+         * bulk delay is its own device-specific property (see
+         * board_aec_delay_get()'s comment), so persist it. */
+        board_aec_delay_set(line, ms);
+        printf("line %d: AEC bulk delay %u ms (filter reset, saved as default)\n", line, (unsigned)ms);
         return 0;
     }
     if (strcmp(sub, "status") == 0) {
@@ -722,12 +836,15 @@ static int cmd_aec_sweep(int argc, char **argv)
     if (best_erle < 3) {
         printf("Best found: %d ms, but ERLE never exceeded %d dB anywhere in the "
                "sweep -- was the far end actually talking the whole time? Applied "
-               "anyway, but this doesn't look like a confident result. Try again.\n",
+               "anyway, but NOT saved as the default (not a confident result). Try again.\n",
                best_delay, best_erle);
     } else {
-        printf("Best: %d ms (ERLE %d dB). Delay set, filter reset, AEC left on.\n",
+        board_aec_delay_set(line, (uint32_t)best_delay);
+        printf("Best: %d ms (ERLE %d dB). Delay set, filter reset, saved as default.\n",
                best_delay, best_erle);
     }
+    printf("AEC is left ON for line %d -- it does NOT turn off on hangup. "
+           "Remember to `aec off %d` when you're done testing.\n", line, line);
     return 0;
 }
 
@@ -1359,7 +1476,7 @@ void bringup_console_start(void)
     register_cmd("record", "Raw mic capture to storage, no live playback, safe during an active call: record <ms> [line]", cmd_record);
     register_cmd("aec", "Echo canceller: aec <on|off|status|reset|sweep|delay <ms>> [line] "
                         "(sweep needs a live call with the far end talking)", cmd_aec);
-    register_cmd("echoprobe", "Measure the local earpiece->mic echo path (bulk delay + tail) for AEC sizing: echoprobe [line]", cmd_echoprobe);
+    register_cmd("echoprobe", "Measure the local earpiece->mic echo path (bulk delay + tail) for AEC sizing: echoprobe [line] [# repeats]", cmd_echoprobe);
     register_cmd("play", "Play a storage WAV out a line: play <name> [line]", cmd_play);
     register_cmd("dtmf_gen", "Emit DTMF: dtmf_gen <digits> [line]", cmd_dtmf_gen);
     register_cmd("slic", "SLIC pin: slic <line> <pd|fr|rm> <0|1>", cmd_slic);

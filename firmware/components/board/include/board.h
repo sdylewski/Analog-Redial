@@ -127,6 +127,20 @@ board_offhook_alert_t board_offhook_alert_get(void);
  * dwell timer). */
 esp_err_t board_offhook_alert_set(board_offhook_alert_t cfg);
 
+/* ---- AEC bulk delay (per-line, per-device) ----
+ * Each physical board's own I2S/codec/acoustic path has a slightly different
+ * bulk delay (measured via the bringup `echoprobe` command, applied by hand
+ * or via `aec sweep`) -- one firmware image serves every board of a given
+ * type, so this can't be a compile-time default the way most of aec.h's
+ * tuning constants are. Persisted per line so a value set by hand or found
+ * by `aec sweep` survives a reboot instead of reverting to the generic
+ * compiled default every time. */
+/* Returns the persisted value for `line`, or `fallback_ms` if nothing has
+ * been persisted yet -- callers pass their own compiled default so this
+ * component doesn't need to know AEC's tuning constants. */
+uint32_t board_aec_delay_get(int line, uint32_t fallback_ms);
+esp_err_t board_aec_delay_set(int line, uint32_t ms);
+
 /* ---- Line/microSD hardware configuration (SMD2 only) ----
  * The SMD2 PCB's GPIO 18-21 are wired to EITHER a second AG1171 SLIC (line
  * 2) OR a microSD socket, never both -- a BOM/jumper choice made when the

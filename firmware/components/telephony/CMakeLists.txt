@@ -1,5 +1,5 @@
 idf_component_register(
     SRCS "telephony.c"
     INCLUDE_DIRS "include"
-    REQUIRES dialplan ag1170 audio aec dtmf tones voip player recorder storage board esp_timer
+    REQUIRES dialplan ag1170 audio dtmf tones voip player recorder storage board esp_timer
 )

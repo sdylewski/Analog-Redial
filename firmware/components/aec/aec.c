@@ -1,4 +1,5 @@
 #include "aec.h"
+#include "board.h"
 #include "esp_log.h"
 #include <string.h>
 
@@ -84,8 +85,16 @@ esp_err_t aec_init(void)
 {
     for (int i = 0; i < NLINES; i++) {
         s_l[i].enabled = false;
-        s_l[i].delay_ms = AEC_DEFAULT_DELAY_MS;
-        s_l[i].delay_samp = AEC_DEFAULT_DELAY_MS * AEC_RATE_HZ / 1000;
+        /* Bulk delay is a per-device property (each board's own I2S/codec/
+         * acoustic path timing, measured via `echoprobe`) -- one firmware
+         * image serves every board of a type, so it can't be a single
+         * compile-time constant. board_aec_delay_get() returns whatever was
+         * persisted via `aec delay <ms> [line]` or a completed `aec sweep`,
+         * falling back to AEC_DEFAULT_DELAY_MS if nothing's been set yet. */
+        uint32_t ms = board_aec_delay_get(i, AEC_DEFAULT_DELAY_MS);
+        if (ms > AEC_MAX_DELAY_MS) ms = AEC_DEFAULT_DELAY_MS; /* guard a corrupt/stale NVS value */
+        s_l[i].delay_ms = ms;
+        s_l[i].delay_samp = ms * AEC_RATE_HZ / 1000;
         reset_locked(&s_l[i]);
     }
     return ESP_OK;
