@@ -235,6 +235,77 @@ against a `peak=` reading the way DualPhone's DTMF path was.
 
 ---
 
+## 1C. Local echo (AEC) path timing — measured, 2026-08-22
+
+Sizing the software echo canceller (`firmware/components/aec/`) needs two
+numbers per board: **bulk delay** (how far back to anchor the adaptive
+filter) and **tail length** (how far past that it has to reach). Measured
+with the bring-up `echoprobe [line] [# repeats]` command (10 ms, 1 kHz burst
+out the earpiece, listens on the same line's own mic — see the command's own
+comment in `bringup.c` for why this, not a live call, is what actually sizes
+a canceller). Repeat mode runs N probes back-to-back and reports how many
+found a real leak, since a single run is vulnerable to ambient room noise
+inflating the "noise floor" baseline and hiding a real echo behind the
+auto-detect threshold — every result below is from repeat mode (5 runs) or a
+clean (low, single-digit noise floor) single run.
+
+| Board | Handset position | Bulk delay | Tail | Total span | Consistency |
+|---|---|---|---|---|---|
+| DualPhone | Against ear (earpiece covered) | 23.2 ms | 12.5 ms | ~36 ms (285 taps) | 5/5 (1 discarded — noisy) |
+| DualPhone | Face-down on desk | 23.2 ms | 12.5 ms | ~36 ms (285 taps) | 5/5 |
+| DualPhone | Face-up on desk | 23.2 ms | 12.5 ms | ~36 ms (285 taps) | 5/5 — **but see note below** |
+| MaxPhone | Against ear (earpiece covered) | 20.3 ms | 10.8 ms | ~31 ms (248 taps) | 4/5 (1 discarded — noisy) |
+| MaxPhone | Face-down on desk | 21.3 ms | 10.1 ms | ~31 ms (246–248 taps) | 5/5 |
+| MaxPhone | Face-up on desk | 20.3 ms | 10.6 ms | ~31 ms (246–248 taps) | 5/5 |
+
+Bulk delay is very tightly consistent *within* a session (DualPhone read
+23.2 ms in every clean run here regardless of position; MaxPhone's 20.3 vs.
+21.3 ms across positions is likely the same kind of jitter, not a real
+per-position difference), but drifted a few ms *between* sessions — an
+earlier session measured DualPhone at 26.9–27.0 ms. Total span (delay +
+tail) stays well inside the 40 ms filter either way, so this doesn't change
+the conclusion below, but it's worth knowing the exact bulk-delay figure
+isn't perfectly stable boot to boot (likely I2S/DMA buffer phase alignment
+at startup, not measurement error — each session's own repeat-mode runs
+agree with each other tightly).
+
+**Conclusion: the current filter (320 taps = 40 ms) already comfortably
+covers the real, repeatable local echo path on both boards, in every
+position tested — no `AEC_TAPS` increase needed.** Both boards' bulk
+delay + tail lands in the ~30–36 ms range regardless of handset position,
+including face-down (the original suspected "worst case"). This directly
+supersedes an earlier single, uncontrolled measurement that showed a ~380 ms
+tail on DualPhone — with the earpiece open to the room and no repeat/noise
+filtering, that number turned out to be a room-acoustics artifact of the
+test setup, not a property of the board or handset (see below).
+
+**Anomaly — intermittent long-tail room reflection, DualPhone face-up
+only:** one single-run capture (handset face-up on the desk, otherwise
+identical setup to the clean 5/5 run directly before it) showed a real,
+structured return continuing to **~335 ms** (2,681 taps) — but the 5-run
+repeat taken moments earlier, same position, untouched, showed a consistent
+~36 ms span every time. Not reproduced on MaxPhone in any position tested.
+Two things distinguish it from a real echo-cancellation requirement: (1) not
+reproducible even holding the position fixed — comes and goes for reasons
+not isolated (room airflow, minor settling, etc.), and (2) far too quiet to
+matter even when present — its peak envelope RMS was ~12–58 across that
+long tail, vs. ~700–2,000+ RMS for the real (~30 ms) echo on the same
+board. Physically consistent with open-air reflection off a distant surface
+(ceiling/wall) that only the face-up, unobstructed orientation can reach —
+both "against ear" and "face-down" block that path, which is also why it
+never shows up in the position the phone is actually used in. Not something
+the AEC's fixed tap length needs to reach.
+
+**AEC delay defaults (NVS-persisted per board, not a firmware constant —
+see `board_aec_delay_get/set()` in `board.c`):** set from the table above —
+DualPhone `aec delay 23 0`, MaxPhone `aec delay 20 0`. One firmware image
+runs on both boards, but each has its own measured bulk delay, so this
+can't be a single compiled default (`AEC_DEFAULT_DELAY_MS` in `aec.h`
+remains the fallback for a board that's never had `aec delay`/`aec sweep`
+run on it).
+
+---
+
 ## 2. Silvertel AG1170 (full datasheet)
 
 ### Module supply
