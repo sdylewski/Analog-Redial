@@ -186,14 +186,46 @@ building anything. Bench-test candidate resistor values with wire leads
 before committing to a permanent rework, checking `peak=` drops below
 32768 on every digit as the pass/fail signal.
 
-### Re-tuning after the hardware fix
+### Re-tuning after the hardware fix — mic PGA gain must stay at 0dB
 
-`micamp 0 0` was diagnostic only, to isolate codec-gain from the real
-(upstream) problem. Turned out to be moot in practice: `micamp` is a live
-I2C register poke, not persisted to NVS, so it reverts to the firmware's
-+3dB/+3dB boot default on any reset regardless — and the divider holds off
-clipping fine at that default gain (see "Built and confirmed working"
-above), so no further gain re-tuning was needed.
+`micamp 0 0` was originally used only as a diagnostic, to isolate codec-gain
+from the upstream ADC-clipping problem before the divider existed. It turned
+out to matter for real, for an unrelated reason discovered later: once the
+divider was in place, normal speech on the divided line came through as
+near-silence (`capture` RMS ~0–300, vs. line 2's unmodified ~3000+ baseline)
+at the firmware's then-default +3dB/+3dB mic gain, while DTMF still
+classified fine through the same path — a "tone dialing works, voice
+doesn't" split that pointed at gain, not the resistor rework.
+
+**Root cause:** the ES8388's mic PGA is (empirically observed, not spelled
+out in the datasheet) a resistive-feedback gain stage whose *input*
+impedance drops as its gain setting increases. The divider's ratio was
+designed against the codec's datasheet-quoted static ~20 kΩ input
+impedance (see the table at the top of this section) — that spec is
+apparently only accurate at 0dB. At +3dB and above, the real input
+impedance collapses far enough to swamp the 8.2 kΩ shunt, and the fixed
+10 kΩ series resistor (R1) then drops most of the signal before it ever
+reaches the ADC. DTMF still worked at +3dB purely because it's so much
+louder than voice to begin with (that's the whole reason it was clipping
+pre-divider) — enough survived the collapse to clear the detector's
+thresholds; ordinary speech didn't have that margin.
+
+**Fix:** `micamp` is a live I2C register poke, not persisted to NVS, so the
+firmware's *boot default* is what actually matters. Changed the default in
+`components/es8388/es8388.c` from +3dB/+3dB (`0x11`) to 0dB/0dB (`0x00`,
+also the chip's own power-on-reset default). Confirmed on real hardware
+(DualPhone, 2026-08-21): `capture` during loud talking went from flickering
+between ~0 and a few hundred RMS at +3dB to a sustained, consistent
+800–2100 RMS at 0dB — matching the divider's expected ratio applied to
+line 2's unmodified baseline. Re-verified `tonemon` with all 12 keys at
+0dB: every digit still classifies correctly, so this doesn't cost DTMF
+anything.
+
+The original +3dB default existed to break an unrelated acoustic/sidetone
+feedback loop (both lines' mic+speaker live simultaneously) discovered
+2026-07-20 — see the comment in `es8388.c` above the register write. 0dB is
+strictly less gain than the +3dB that already killed that loop, so it
+doesn't reopen it.
 
 **MaxPhone:** now has the same 10 kΩ/8.2 kΩ rework applied (confirmed same
 circuit as DualPhone). MaxPhone has a rotary handset (no keypad), so the

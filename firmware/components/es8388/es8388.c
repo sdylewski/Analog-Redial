@@ -164,19 +164,32 @@ esp_err_t es8388_init(const es8388_config_t *cfg)
     raw_write(ES8388_REG_ROUT2VOL, 0x1E);              /* ROUT2 mirrors ROUT1 (J5 debug header) */
 
     raw_write(ES8388_REG_ADCPOWER, 0xFF);              /* hold ADC down while configuring */
-    /* MicAmpL=MicAmpR=+3dB. Originally left ran the old default (+24dB-ish)
-     * and right was cut to +12dB, on the theory that the hand-soldered RIN1
-     * bodge wire was just noisy. That wasn't the real story: with both
-     * lines' mic+speaker live simultaneously for the first time ever (true
-     * duplex was structurally impossible before the RIN1 bodge -- only one
-     * ADC channel was ever captured), high gain on both channels closed a
-     * real positive-feedback loop (acoustic handset coupling and/or the
-     * AG1171's normal sidetone) -- confirmed by the "static" ramping up
-     * over ~0.5s to full volume, the signature of loop gain > 1, not a
-     * fixed noise floor. Dropping both channels to +3dB broke the loop;
-     * clean and clear on a real two-line call. Tuned empirically via the
-     * `micamp` bring-up command on real hardware, 2026-07-20. */
-    raw_write(ES8388_REG_ADCCONTROL1, 0x11);
+    /* MicAmpL=MicAmpR=0dB (chip's own power-on default -- explicit here so
+     * the intent is documented, not left implicit). This used to be +3dB,
+     * tuned 2026-07-20 to break a real acoustic/sidetone feedback loop that
+     * appeared once both lines' mic+speaker were live simultaneously; 0dB
+     * is strictly less gain than the +3dB that already killed that loop, so
+     * it stays broken here too.
+     *
+     * Dropped from +3dB back to 0dB on 2026-08-21 for an unrelated reason:
+     * once the SLIC->codec voltage divider was added (see
+     * HARDWARE_SIGNAL_LEVELS.md Sec.1B) to stop DTMF from clipping the ADC,
+     * normal speech on the divided line came through as near-silence
+     * (capture RMS ~0-300) at +3dB/+9dB, while DTMF still classified fine.
+     * Root cause: the ES8388's mic PGA is (empirically, not documented)
+     * a resistive-feedback gain stage whose INPUT impedance drops as gain
+     * increases, which the divider's fixed 10k series resistor is sensitive
+     * to -- at +3dB+ it collapses the divider ratio far below what the
+     * resistor values alone predict. DTMF still worked at +3dB because it's
+     * far louder than voice to begin with (that's why it was clipping
+     * pre-divider) -- enough margin survived the collapse to clear the
+     * detector's thresholds; ordinary speech didn't. At 0dB the codec's
+     * input impedance matches the ~20k the divider was designed against,
+     * giving a consistent, correctly-scaled signal (confirmed via `capture`
+     * live on real hardware, RMS tracking the divider's expected ratio) --
+     * confirmed DTMF still classifies all 12 keys correctly at 0dB too, via
+     * `tonemon` on the real handset. */
+    raw_write(ES8388_REG_ADCCONTROL1, 0x00);
     /* LINSEL=00 (LINPUT1, Line 0), RINSEL=00 (RINPUT1, Line 1) -- both fixed
      * forever now that each has its own dedicated ADC channel (see file
      * header). DSSEL/DSR (differential mode) left at 0, unused. */
