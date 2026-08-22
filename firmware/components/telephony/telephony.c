@@ -3,6 +3,7 @@
 #include "ag1170.h"
 #include "board_pins.h"   /* BOARD_NUM_LINES */
 #include "audio.h"
+#include "aec.h"
 #include "dtmf.h"
 #include "tones.h"
 #include "voip.h"
@@ -233,6 +234,14 @@ static void enter_idle(int line)
     s_line[line].dialing = false;
     s_line[line].tone_return_us = 0;
     dialplan_collector_reset(&s_line[line].coll);
+    /* AEC has no reason to keep running once a call is over -- it's only
+     * ever turned on by hand via the `aec`/`aec sweep` bring-up commands,
+     * which don't turn themselves back off, so without this it just keeps
+     * running against whatever silence/tone audio flows next indefinitely.
+     * Every hangup path (on-hook, remote BYE, peer hangup, VOIP_CLOSED)
+     * funnels through here, so this is the one place that reliably catches
+     * all of them. Cheap no-op if it was already off. */
+    aec_set_enabled(line, false);
 }
 
 static void enter_dialtone(int line)
