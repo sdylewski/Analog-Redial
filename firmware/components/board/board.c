@@ -286,6 +286,38 @@ esp_err_t board_aec_delay_set(int line, uint32_t ms)
     return err;
 }
 
+#define SPK_VOL_NVS_KEY0 "spk_vol0"
+#define SPK_VOL_NVS_KEY1 "spk_vol1"
+
+static const char *spk_vol_key(int line)
+{
+    return (line == 1) ? SPK_VOL_NVS_KEY1 : SPK_VOL_NVS_KEY0;
+}
+
+uint8_t board_speaker_volume_get(int line, uint8_t fallback)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return fallback;
+    uint8_t vol;
+    esp_err_t err = nvs_get_u8(h, spk_vol_key(line), &vol);
+    nvs_close(h);
+    return (err == ESP_OK) ? vol : fallback;
+}
+
+esp_err_t board_speaker_volume_set(int line, uint8_t vol)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, spk_vol_key(line), vol);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "line %d: speaker volume %u persisted", line, (unsigned)vol);
+    }
+    return err;
+}
+
 #define HW_CONFIG_NVS_NS       "board"
 #define HW_CONFIG_NVS_KEY_LINES "hw_lines"  /* u8: 1 or 2 */
 #define HW_CONFIG_NVS_KEY_SD    "hw_sd"     /* u8: 0 or 1 */

@@ -107,6 +107,32 @@ size_t audio_aec_read(int line, int16_t *mono, size_t n, uint32_t timeout_ms);
 void audio_set_test_loopback(bool on);
 bool audio_test_loopback(void);
 
+/* ---- Echo probe (local earpiece->mic path measurement) ----
+ * Plays a short burst out a line's own earpiece and listens on that same
+ * line's own mic, reporting where the burst comes back (bulk delay) and how
+ * long it takes to decay (tail) -- the two numbers that size an echo
+ * canceller (see firmware/components/aec/). This, not a live call's
+ * round-trip, is what actually needs measuring: an AEC only ever models its
+ * own device's earpiece->mic path, never the far end's. Run off-hook and
+ * NOT in a call, so the only thing the mic can hear is this board's own
+ * earpiece. */
+typedef struct {
+    bool     leak_detected; /* peak cleared 4x the ambient noise floor */
+    uint32_t noise_rms;
+    int32_t  peak;
+    double   delay_ms;      /* time from burst start to the return peak */
+    double   tail_ms;       /* time from the peak until it decays back down */
+} audio_echo_probe_t;
+
+/* `cap_out`/`cap_out_n` are optional (pass NULL/0 to skip) -- if given, the
+ * raw capture is also copied there (e.g. for plotting the envelope), up to
+ * cap_out_n samples. Returns false only on a hard failure (no audio
+ * captured at all, alloc/stream-buffer failure) -- a clean "no leak" result
+ * still returns true, check out->leak_detected. */
+bool audio_echo_probe(int line, uint32_t burst_hz, uint32_t burst_ms,
+                       uint32_t listen_ms, int16_t *cap_out, size_t cap_out_n,
+                       audio_echo_probe_t *out);
+
 #ifdef __cplusplus
 }
 #endif

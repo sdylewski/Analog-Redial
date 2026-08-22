@@ -159,9 +159,17 @@ esp_err_t es8388_init(const es8388_config_t *cfg)
     raw_write(ES8388_REG_LDACVOL, 0x00);               /* 0 dB */
     raw_write(ES8388_REG_RDACVOL, 0x00);               /* 0 dB */
 
-    es8388_set_dac_volume(0x1E, 0x1E);                 /* LOUT1/ROUT1 ~0 dB-ish */
-    raw_write(ES8388_REG_LOUT2VOL, 0x1E);              /* LOUT2 mirrors LOUT1 (J5 debug header) */
-    raw_write(ES8388_REG_ROUT2VOL, 0x1E);              /* ROUT2 mirrors ROUT1 (J5 debug header) */
+    /* LOUT1/ROUT1: per-line earpiece drive level. 0x1E (30 = -3dB, see
+     * es8388_set_dac_volume()'s comment for the 0/33/1dB-step convention) is
+     * the compiled fallback; board_speaker_volume_get() returns whatever was
+     * persisted via the bring-up `spkamp` command or the webui volume
+     * control, so a level tuned by ear survives a reboot instead of
+     * reverting to the fallback every time. */
+    uint8_t spk_l = board_speaker_volume_get(0, 0x1E);
+    uint8_t spk_r = board_speaker_volume_get(1, 0x1E);
+    es8388_set_dac_volume(spk_l, spk_r);
+    raw_write(ES8388_REG_LOUT2VOL, spk_l);             /* LOUT2 mirrors LOUT1 (J5 debug header) */
+    raw_write(ES8388_REG_ROUT2VOL, spk_r);             /* ROUT2 mirrors ROUT1 (J5 debug header) */
 
     raw_write(ES8388_REG_ADCPOWER, 0xFF);              /* hold ADC down while configuring */
     /* MicAmpL=MicAmpR=0dB (chip's own power-on default -- explicit here so

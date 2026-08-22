@@ -17,6 +17,8 @@
 #include "audio_convert.h"
 #include "logctl.h"
 #include "audio.h"
+#include "aec.h"
+#include "es8388.h"
 #include "sdcard.h"
 #include "esp_timer.h"
 #include "esp_log.h"
@@ -1384,6 +1386,74 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         "<code>firmware/test/</code>.</p></div>",
         tmode ? "on" : "off", tmode ? "ENABLED" : "off",
         loop  ? "on" : "off", loop  ? "ENABLED" : "off");
+
+    int num_lines = board_hw_config_get().num_lines;
+
+#if CONFIG_BOARD_TYPE_SMD2
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Speaker (earpiece) volume</h2>");
+    for (int l = 0; l < num_lines; l++) {
+        uint8_t vol = board_speaker_volume_get(l, 0x1E);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<form method=\"POST\" action=\"/speaker_volume\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<label>Line %d (%u/63) <input type=\"range\" name=\"vol\" min=\"0\" max=\"63\" "
+            "value=\"%u\" oninput=\"spkLive(%d,this.value)\"></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save line %d</button></div>"
+            "</form>",
+            l, l, (unsigned)vol, (unsigned)vol, l, l);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">Drag while on a call to hear the change live (applied "
+        "immediately, not saved yet) -- click Save once you land on a level you like. "
+        "0=mute, 33=0dB, 1dB/step, 63=max. Same register the bring-up <code>spkamp</code> "
+        "console command tunes.</p></div>");
+#endif
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Echo cancellation calibration</h2>");
+    for (int l = 0; l < num_lines; l++) {
+        uint32_t ms = board_aec_delay_get(l, AEC_DEFAULT_DELAY_MS);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"statusrow\"><span class=\"label\">Line %d current delay</span>"
+            "<span>%u ms</span></div>"
+            "<div class=\"toolbar sub\">"
+            "<button type=\"button\" id=\"aecbtn%d\" onclick=\"aecMeasure(%d)\">Measure line %d</button>"
+            "</div><div id=\"aecresult%d\" class=\"hint\"></div>",
+            l, (unsigned)ms, l, l, l, l);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">Pick up the handset (off-hook) and make sure it's NOT in a "
+        "call, then click Measure -- plays a short burst out the earpiece and listens on "
+        "the same line's own mic to find its local echo delay, the number the canceller "
+        "needs to align against. Takes about 2 seconds (3 quick measurements averaged for "
+        "reliability). Applying saves it and takes effect immediately, no reboot.</p></div>"
+        "<script>"
+        "function spkLive(line,vol){fetch('/speaker_volume_live',{method:'POST',"
+        "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
+        "body:'line='+line+'&vol='+vol});}"
+        "function aecMeasure(line){"
+        "var btn=document.getElementById('aecbtn'+line);"
+        "var out=document.getElementById('aecresult'+line);"
+        "btn.disabled=true;out.textContent='Measuring...';"
+        "fetch('/aec_measure',{method:'POST',"
+        "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
+        "body:'line='+line})"
+        ".then(function(r){return r.json();})"
+        ".then(function(d){btn.disabled=false;"
+        "if(!d.ok){out.textContent='No echo detected in '+d.hits+'/'+d.attempts+"
+        "' tries -- off-hook and not in a call?';return;}"
+        "var ms=Math.round(d.delay_ms);"
+        "out.innerHTML='Delay '+d.delay_ms.toFixed(1)+'ms, tail '+d.tail_ms.toFixed(1)+"
+        "'ms, span ~'+d.span_ms.toFixed(0)+'ms ('+Math.round(d.taps)+' taps), '+"
+        "d.hits+'/'+d.attempts+' consistent. '+"
+        "'<form method=\"POST\" action=\"/aec_delay_apply\" style=\"display:inline\">'+"
+        "'<input type=\"hidden\" name=\"line\" value=\"'+line+'\">'+"
+        "'<input type=\"hidden\" name=\"ms\" value=\"'+ms+'\">'+"
+        "'<button type=\"submit\">Apply '+ms+'ms as default</button></form>';})"
+        ".catch(function(){btn.disabled=false;out.textContent='Measurement failed.';});"
+        "}"
+        "</script>");
     return off;
 }
 
@@ -2286,6 +2356,165 @@ static esp_err_t test_sd_handler(httpd_req_t *req)
     if (!sdcard_mounted()) { httpd_resp_sendstr(req, "sd: not mounted\n"); return ESP_OK; }
     esp_err_t err = sdcard_selftest();
     httpd_resp_sendstr(req, err == ESP_OK ? "sd: ok\n" : "sd: FAIL\n");
+    return ESP_OK;
+}
+
+/* ---- Speaker (earpiece) volume: live tuning + persistence ----
+ * Webui counterpart to the bring-up `spkamp` console command -- same
+ * ES8388 LOUT1VOL/ROUT1VOL convention (0=mute, 33=0dB, 1dB/step), same
+ * per-line NVS persistence (board_speaker_volume_get/set). ES8388/SMD2
+ * only: LOUT1VOL/ROUT1VOL doesn't exist on the THT board's WM8731. */
+#if CONFIG_BOARD_TYPE_SMD2
+/* Sets one line's channel while preserving the other's current value --
+ * es8388_set_dac_volume() always writes both at once, and this endpoint is
+ * only ever asked to change one. */
+static esp_err_t speaker_volume_apply(int line, uint8_t vol)
+{
+    uint8_t l = (line == 0) ? vol : es8388_shadow(ES8388_REG_LOUT1VOL);
+    uint8_t r = (line == 1) ? vol : es8388_shadow(ES8388_REG_ROUT1VOL);
+    return es8388_set_dac_volume(l, r);
+}
+
+/* POST /speaker_volume_live -- body line=N&vol=N. Applies immediately,
+ * does NOT persist -- the slider calls this on every drag tick (see the
+ * settings page's inline script) so listening while adjusting doesn't spam
+ * NVS writes. Plain-text response (not a redirect): called via fetch(),
+ * never a real form submit. */
+static esp_err_t speaker_volume_live_handler(httpd_req_t *req)
+{
+    char body[64], line_s[8] = {0}, vol_s[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "line", line_s, sizeof(line_s));
+    form_field(body, "vol", vol_s, sizeof(vol_s));
+    int line = atoi(line_s);
+    int vol = atoi(vol_s);
+    if (line < 0 || line > 1 || vol < 0 || vol > 63) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "line 0-1, vol 0-63"); return ESP_OK;
+    }
+    speaker_volume_apply(line, (uint8_t)vol);
+    httpd_resp_sendstr(req, "ok\n");
+    return ESP_OK;
+}
+
+/* POST /speaker_volume -- body line=N&vol=N. Applies AND persists -- the
+ * "Save" button next to the slider, a real form submit (unlike the live
+ * endpoint above), so it redirects back to the settings page like every
+ * other settings form in this file. */
+static esp_err_t speaker_volume_handler(httpd_req_t *req)
+{
+    char body[64], line_s[8] = {0}, vol_s[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "line", line_s, sizeof(line_s));
+    form_field(body, "vol", vol_s, sizeof(vol_s));
+    int line = atoi(line_s);
+    int vol = atoi(vol_s);
+    if (line < 0 || line > 1 || vol < 0 || vol > 63) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "line 0-1, vol 0-63"); return ESP_OK;
+    }
+    speaker_volume_apply(line, (uint8_t)vol);
+    board_speaker_volume_set(line, (uint8_t)vol);
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+#endif /* CONFIG_BOARD_TYPE_SMD2 */
+
+/* ---- AEC calibration wizard ----
+ * Webui counterpart to the bring-up `echoprobe` console command, for a
+ * public build where users won't have serial access. Not board-type gated
+ * -- audio_echo_probe() and the AEC delay it feeds are generic across
+ * codecs (see HARDWARE_SIGNAL_LEVELS.md Sec.1C for why this, not a live
+ * call, is what actually sizes a canceller, and why the per-board delay
+ * can't be a shared firmware constant). */
+
+#define AEC_CAL_REPEATS      3   /* same reasoning as echoprobe's repeat mode:
+                                   * a single run is vulnerable to ambient
+                                   * noise inflating the noise floor and
+                                   * hiding a real echo */
+#define AEC_CAL_SETTLE_MS  300
+
+/* POST /aec_measure -- body line=N. Runs a few probes back to back (see
+ * AEC_CAL_REPEATS) and returns JSON with the averaged result. Read-only --
+ * doesn't touch the persisted or live delay, so it's safe to call via
+ * fetch() from the settings page without a page reload, unlike the actual
+ * apply step below. */
+static esp_err_t aec_measure_handler(httpd_req_t *req)
+{
+    char body[64], line_s[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "line", line_s, sizeof(line_s));
+    int line = atoi(line_s);
+    if (line < 0 || line > 1) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "line 0-1"); return ESP_OK;
+    }
+
+    int hits = 0;
+    double delay_sum = 0, tail_sum = 0;
+    for (int i = 0; i < AEC_CAL_REPEATS; i++) {
+        audio_echo_probe_t res;
+        if (audio_echo_probe(line, 1000, 10, 400, NULL, 0, &res) && res.leak_detected) {
+            hits++;
+            delay_sum += res.delay_ms;
+            tail_sum += res.tail_ms;
+        }
+        if (i + 1 < AEC_CAL_REPEATS) vTaskDelay(pdMS_TO_TICKS(AEC_CAL_SETTLE_MS));
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "attempts", AEC_CAL_REPEATS);
+    cJSON_AddNumberToObject(root, "hits", hits);
+    if (hits > 0) {
+        double delay_ms = delay_sum / hits, tail_ms = tail_sum / hits;
+        double span_ms = delay_ms + tail_ms;
+        cJSON_AddBoolToObject(root, "ok", true);
+        cJSON_AddNumberToObject(root, "delay_ms", delay_ms);
+        cJSON_AddNumberToObject(root, "tail_ms", tail_ms);
+        cJSON_AddNumberToObject(root, "span_ms", span_ms);
+        cJSON_AddNumberToObject(root, "taps", span_ms * 8.0);
+    } else {
+        cJSON_AddBoolToObject(root, "ok", false);
+    }
+    char *text = cJSON_PrintUnformatted(root);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, text ? text : "{}");
+    cJSON_Delete(root);
+    free(text);
+    return ESP_OK;
+}
+
+/* POST /aec_delay_apply -- body line=N&ms=N. The wizard's "Apply this
+ * value" step: persists (survives reboot) and applies live (aec_set_delay_ms
+ * resets the adaptive filter, same as the console `aec delay` command) so
+ * it takes effect on the next call without one. A real form submit, so it
+ * redirects like every other settings form here. */
+static esp_err_t aec_delay_apply_handler(httpd_req_t *req)
+{
+    char body[64], line_s[8] = {0}, ms_s[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "line", line_s, sizeof(line_s));
+    form_field(body, "ms", ms_s, sizeof(ms_s));
+    int line = atoi(line_s);
+    long ms = strtol(ms_s, NULL, 10);
+    if (line < 0 || line > 1 || ms < 0 || ms > AEC_MAX_DELAY_MS) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad line/ms"); return ESP_OK;
+    }
+    if (aec_set_delay_ms(line, (uint32_t)ms) == ESP_OK) {
+        board_aec_delay_set(line, (uint32_t)ms);
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
+    httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
 
@@ -3376,12 +3605,12 @@ esp_err_t webui_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
-    /* Default is 8 -- we register 37 routes below (two share the media
+    /* Default is 8 -- we register 41 routes below (two share the media
      * path, one GET, one POST, counted separately) and it keeps growing.
      * Past the cap, httpd_register_uri_handler() just fails per-route, which
      * used to go unchecked below, silently dropping the last couple of
      * routes -- the loop below now at least logs it, but leave headroom. */
-    config.max_uri_handlers = 44;
+    config.max_uri_handlers = 48;
     /* Default httpd task stack is 4 KB. Our page handlers stack a few
      * storage_entry_t[32]/dialplan_entry_info_t[40] arrays and then descend
      * into SPIFFS readdir -> esp_flash_read, which is itself stack-hungry;
@@ -3446,6 +3675,12 @@ esp_err_t webui_start(void)
         { .uri = "/test/loopback",          .method = HTTP_POST, .handler = test_loopback_handler },
         { .uri = "/test/inject",            .method = HTTP_POST, .handler = test_inject_handler },
         { .uri = "/test/sd",                .method = HTTP_POST, .handler = test_sd_handler },
+#if CONFIG_BOARD_TYPE_SMD2
+        { .uri = "/speaker_volume_live",    .method = HTTP_POST, .handler = speaker_volume_live_handler },
+        { .uri = "/speaker_volume",         .method = HTTP_POST, .handler = speaker_volume_handler },
+#endif
+        { .uri = "/aec_measure",            .method = HTTP_POST, .handler = aec_measure_handler },
+        { .uri = "/aec_delay_apply",        .method = HTTP_POST, .handler = aec_delay_apply_handler },
         { .uri = "/voip_server_script",     .method = HTTP_GET,  .handler = voip_server_script_handler },
         /* Catch-all LAST: captive-portal redirect while provisioning, plain
          * 404 otherwise. The wildcard matcher tries handlers in registration

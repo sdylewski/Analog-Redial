@@ -141,6 +141,14 @@ esp_err_t board_offhook_alert_set(board_offhook_alert_t cfg);
 uint32_t board_aec_delay_get(int line, uint32_t fallback_ms);
 esp_err_t board_aec_delay_set(int line, uint32_t ms);
 
+/* ---- Speaker (earpiece) drive level, per line ----
+ * ES8388 LOUT1VOL/ROUT1VOL convention (see es8388.h / the bring-up `spkamp`
+ * command): 0 = mute, 33 = 0 dB, 1 dB/step, 63 = max. Persisted so a level
+ * tuned by ear (console `spkamp`, or the webui volume control) survives a
+ * reboot instead of reverting to the compiled boot default every time. */
+uint8_t board_speaker_volume_get(int line, uint8_t fallback);
+esp_err_t board_speaker_volume_set(int line, uint8_t vol);
+
 /* ---- Line/microSD hardware configuration (SMD2 only) ----
  * The SMD2 PCB's GPIO 18-21 are wired to EITHER a second AG1171 SLIC (line
  * 2) OR a microSD socket, never both -- a BOM/jumper choice made when the

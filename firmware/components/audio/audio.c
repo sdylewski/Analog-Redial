@@ -167,6 +167,109 @@ void audio_remove_diag_tap(int line)
     portEXIT_CRITICAL(&s_mux);
 }
 
+/* record_tap-style plumbing, private to audio_echo_probe() -- deliberately
+ * not reusing audio_rx_read()'s stream buffer (see its own doc comment: one
+ * reader max, and the RTP task may already own it) or bringup.c's identical
+ * helper for `record` (that one streams to storage in chunks; this one just
+ * needs a single bounded in-RAM capture). */
+typedef struct {
+    StreamBufferHandle_t sb;
+} echo_probe_tap_ctx_t;
+
+static void echo_probe_tap(int line, const int16_t *mono, size_t n, void *ctx)
+{
+    (void)line;
+    echo_probe_tap_ctx_t *c = ctx;
+    xStreamBufferSend(c->sb, mono, n * sizeof(int16_t), 0);
+}
+
+bool audio_echo_probe(int line, uint32_t burst_hz, uint32_t burst_ms,
+                       uint32_t listen_ms, int16_t *cap_out, size_t cap_out_n,
+                       audio_echo_probe_t *out)
+{
+    if (line < 0 || line >= AUDIO_NUM_LINES || !out) return false;
+    memset(out, 0, sizeof(*out));
+
+    uint32_t sr = s_sr;
+    size_t n_samples = (size_t)((uint64_t)sr * listen_ms / 1000);
+    int16_t *cap = malloc(n_samples * sizeof(int16_t));
+    if (!cap) return false;
+
+    /* Sized to the whole capture, not just enough for typical producer/
+     * consumer pacing: echo_probe_tap()'s xStreamBufferSend() is
+     * non-blocking (the audio task can never block), so an undersized
+     * buffer here would silently drop samples and corrupt the capture
+     * rather than raise an error. */
+    StreamBufferHandle_t sb = xStreamBufferCreate(n_samples * sizeof(int16_t), 1);
+    if (!sb) { free(cap); return false; }
+
+    echo_probe_tap_ctx_t ctx = { .sb = sb };
+    audio_add_diag_tap(line, echo_probe_tap, &ctx);
+    /* Tap first, THEN emit: starting the burst before the tap is armed would
+     * lose the very leading edge this measurement is all about. */
+    audio_tx_burst(line, (float)burst_hz, 0.0f, 0.8f, burst_ms);
+
+    size_t got = 0;
+    while (got < n_samples) {
+        size_t want = n_samples - got;
+        size_t n = xStreamBufferReceive(sb, cap + got, want * sizeof(int16_t),
+                                        pdMS_TO_TICKS(500));
+        if (n == 0) break;
+        got += n / sizeof(int16_t);
+    }
+    audio_remove_diag_tap(line);
+    vStreamBufferDelete(sb);
+    audio_tx_silence(line);
+
+    if (got == 0) { free(cap); return false; }
+
+    /* Peak + noise floor. The floor is taken from the first 2 ms, which is
+     * always before any plausible echo return (bulk delay is dominated by
+     * DMA buffering, tens of ms) -- so it measures ambient/self-noise, not
+     * the thing we're looking for. */
+    size_t floor_n = (size_t)(sr * 2 / 1000);
+    if (floor_n > got) floor_n = got;
+    uint64_t acc = 0;
+    for (size_t i = 0; i < floor_n; i++) acc += (uint64_t)((int32_t)cap[i] * cap[i]);
+    uint32_t noise_rms = floor_n ? (uint32_t)sqrt((double)acc / (double)floor_n) : 0;
+
+    int32_t peak = 0; size_t peak_i = 0;
+    for (size_t i = 0; i < got; i++) {
+        int32_t a = cap[i] < 0 ? -cap[i] : cap[i];
+        if (a > peak) { peak = a; peak_i = i; }
+    }
+
+    /* Tail: last sample still above max(4x noise floor, 5% of peak), scanned
+     * from the end so a mid-burst dip doesn't cut it short. */
+    int32_t thresh = (int32_t)noise_rms * 4;
+    if (thresh < peak / 20) thresh = peak / 20;
+    size_t tail_i = peak_i;
+    for (size_t i = got; i > peak_i; i--) {
+        int32_t a = cap[i - 1] < 0 ? -cap[i - 1] : cap[i - 1];
+        if (a > thresh) { tail_i = i - 1; break; }
+    }
+
+    out->leak_detected = peak >= (int32_t)noise_rms * 4;
+    out->noise_rms = noise_rms;
+    out->peak = peak;
+    out->delay_ms = (double)peak_i * 1000.0 / (double)sr;
+    out->tail_ms = (double)(tail_i - peak_i) * 1000.0 / (double)sr;
+
+    if (cap_out && cap_out_n) {
+        size_t n_copy = (got < cap_out_n) ? got : cap_out_n;
+        memcpy(cap_out, cap, n_copy * sizeof(int16_t));
+        /* A short capture (stream stalled before n_samples) only fills
+         * n_copy of the caller's buffer -- zero the rest so a consumer
+         * plotting/scanning it (e.g. bringup's envelope chart) sees clean
+         * silence instead of whatever was previously in that memory. */
+        if (n_copy < cap_out_n) {
+            memset(cap_out + n_copy, 0, (cap_out_n - n_copy) * sizeof(int16_t));
+        }
+    }
+    free(cap);
+    return true;
+}
+
 size_t audio_rx_read(int line, int16_t *mono, size_t n, uint32_t timeout_ms)
 {
     if (line < 0 || line >= AUDIO_NUM_LINES || !s_line[line].rx) return 0;

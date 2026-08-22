@@ -202,7 +202,12 @@ static int cmd_spkamp(int argc, char **argv)
         printf("write failed: %s\n", esp_err_to_name(err));
         return 1;
     }
-    printf("LOUT1VOL=%d ROUT1VOL=%d (0dB at 33, 1dB/step)\n", l, r);
+    /* Unlike micamp (diagnostic-only, deliberately never persisted -- see
+     * its own comment), this is a real per-device setting a user tunes by
+     * ear once and expects to keep -- same treatment as `aec delay`. */
+    board_speaker_volume_set(0, (uint8_t)l);
+    board_speaker_volume_set(1, (uint8_t)r);
+    printf("LOUT1VOL=%d ROUT1VOL=%d (0dB at 33, 1dB/step, saved as default)\n", l, r);
     return 0;
 #else
     printf("spkamp: SMD2/ES8388 only\n");
@@ -519,95 +524,38 @@ static void record_name_timestamped(char *out, size_t out_len, int line)
                                     * run and board to board, not just within
                                     * one capture */
 
-/* One run's worth of the numbers cmd_echoprobe_run() extracts, so repeat
- * mode can aggregate across N runs without re-deriving them from the raw
- * capture each time. */
-typedef struct {
-    bool     leak_detected; /* peak cleared 4x noise floor */
-    uint32_t noise_rms;
-    int32_t  peak;
-    double   delay_ms;      /* peak_i */
-    double   tail_ms;       /* tail_i - peak_i */
-} echoprobe_result_t;
-
-/* Runs one burst+capture+analyze pass. `plot` prints the 5ms-bucket RMS bar
+/* Runs one probe via the shared audio_echo_probe() (also used by the webui
+ * AEC calibration wizard, so the console and the web UI can never disagree
+ * about what a measurement means). `plot` prints the 5ms-bucket RMS bar
  * chart (single-run mode); repeat mode skips it -- N of those would be
  * mostly noise to scroll past when what's actually wanted is whether the
  * numbers hold up run to run. */
 static bool cmd_echoprobe_run(int line, uint32_t sr, size_t n_samples,
-                               int16_t *cap, bool plot, echoprobe_result_t *out)
+                               int16_t *cap, bool plot, audio_echo_probe_t *out)
 {
-    StreamBufferHandle_t sb = xStreamBufferCreate(RECORD_SB_BYTES, 1);
-    if (!sb) { printf("xStreamBufferCreate failed\n"); return false; }
-
-    record_tap_ctx_t rc = { .sb = sb };
-    audio_add_diag_tap(line, record_tap, &rc);
-    /* Tap first, THEN emit: starting the burst before the tap is armed would
-     * lose the very leading edge this measurement is all about. */
-    audio_tx_burst(line, ECHOPROBE_BURST_HZ, 0.0f, 0.8f, ECHOPROBE_BURST_MS);
-
-    size_t got = 0;
-    while (got < n_samples) {
-        size_t want = n_samples - got;
-        if (want > RECORD_CHUNK_SAMPLES) want = RECORD_CHUNK_SAMPLES;
-        size_t n = xStreamBufferReceive(sb, cap + got, want * sizeof(int16_t),
-                                        pdMS_TO_TICKS(500));
-        if (n == 0) break;
-        got += n / sizeof(int16_t);
+    if (!audio_echo_probe(line, (uint32_t)ECHOPROBE_BURST_HZ, ECHOPROBE_BURST_MS,
+                           ECHOPROBE_MS, cap, n_samples, out)) {
+        printf("no audio captured\n");
+        return false;
     }
-    audio_remove_diag_tap(line);
-    vStreamBufferDelete(sb);
-    audio_tx_silence(line);
-
-    if (got == 0) { printf("no audio captured\n"); return false; }
-
-    /* Peak + noise floor. The floor is taken from the first 2 ms, which is
-     * always before any plausible echo return (bulk delay is dominated by
-     * DMA buffering, tens of ms) -- so it measures ambient/self-noise, not
-     * the thing we're looking for. */
-    size_t floor_n = (size_t)(sr * 2 / 1000);
-    if (floor_n > got) floor_n = got;
-    uint64_t acc = 0;
-    for (size_t i = 0; i < floor_n; i++) acc += (uint64_t)((int32_t)cap[i] * cap[i]);
-    uint32_t noise_rms = floor_n ? (uint32_t)sqrt((double)acc / (double)floor_n) : 0;
-
-    int32_t peak = 0; size_t peak_i = 0;
-    for (size_t i = 0; i < got; i++) {
-        int32_t a = cap[i] < 0 ? -cap[i] : cap[i];
-        if (a > peak) { peak = a; peak_i = i; }
-    }
-
-    /* Tail: last sample still above max(4x noise floor, 5% of peak), scanned
-     * from the end so a mid-burst dip doesn't cut it short. */
-    int32_t thresh = (int32_t)noise_rms * 4;
-    if (thresh < peak / 20) thresh = peak / 20;
-    size_t tail_i = peak_i;
-    for (size_t i = got; i > peak_i; i--) {
-        int32_t a = cap[i - 1] < 0 ? -cap[i - 1] : cap[i - 1];
-        if (a > thresh) { tail_i = i - 1; break; }
-    }
-
-    bool leak = peak >= (int32_t)noise_rms * 4;
-    out->leak_detected = leak;
-    out->noise_rms = noise_rms;
-    out->peak = peak;
-    out->delay_ms = (double)peak_i * 1000.0 / (double)sr;
-    out->tail_ms = (double)(tail_i - peak_i) * 1000.0 / (double)sr;
+    size_t got = n_samples; /* audio_echo_probe() fills up to n_samples; short
+                              * captures just leave the tail as silence, which
+                              * only affects the plot's trailing rows */
 
     if (plot) {
-        printf("  captured %u ms, noise floor rms=%u\n",
-               (unsigned)((uint64_t)got * 1000 / sr), (unsigned)noise_rms);
+        printf("  noise floor rms=%u\n", (unsigned)out->noise_rms);
         printf("  peak %d at %.1f ms  <- bulk delay (DMA + codec + acoustic)\n",
-               (int)peak, out->delay_ms);
-        printf("  decays below %d by %.1f ms  -> tail ~%.1f ms after peak\n",
-               (int)thresh, (double)tail_i * 1000.0 / (double)sr, out->tail_ms);
-        if (!leak) {
+               (int)out->peak, out->delay_ms);
+        printf("  tail ~%.1f ms after peak\n", out->tail_ms);
+        if (!out->leak_detected) {
             printf("  NOTE: peak barely above noise -- little/no local leak on this line,\n"
                    "        or the handset is on-hook. AEC would have nothing to cancel.\n");
         } else {
+            /* Total span from t=0 (burst start), not just the post-peak
+             * tail -- this is what the filter actually has to reach. */
+            double span_ms = out->delay_ms + out->tail_ms;
             printf("  => AEC filter must span ~%.0f ms (%u taps @ 8 kHz)\n",
-                   (double)tail_i * 1000.0 / (double)sr,
-                   (unsigned)((uint64_t)tail_i * 8000 / sr));
+                   span_ms, (unsigned)((uint64_t)(span_ms * 8000.0 / 1000.0)));
         }
 
         /* Amplitude-vs-time plot, RMS per ECHOPROBE_BUCKET_MS bucket (RMS
@@ -660,7 +608,7 @@ static int cmd_echoprobe(int argc, char **argv)
 
     for (int r = 0; r < reps; r++) {
         if (reps > 1) printf("run %d/%d:\n", r + 1, reps);
-        echoprobe_result_t res;
+        audio_echo_probe_t res;
         if (!cmd_echoprobe_run(line, sr, n_samples, cap, reps == 1, &res)) continue;
         ok_runs++;
         if (reps > 1) {
