@@ -923,12 +923,60 @@ static int record_capture(int ms, int line, const char *name_tag,
     return 0;
 }
 
+/* record_capture() blocks for the whole capture duration (ms), which used
+ * to mean it ran directly on the console REPL task -- so the console
+ * couldn't accept ANY further input (not even Enter) until it finished.
+ * Fine for a standalone `record` where nothing else needs typing during
+ * the capture, but it's a hard blocker for anything that needs a SECOND
+ * command run on the SAME console while the first is still recording (e.g.
+ * `record_downlink` then `play` on the same board, for a local audio-
+ * quality test loop -- confirmed live: the console was completely
+ * unresponsive for the whole 20s, `play` could never be typed in time).
+ * Both commands now spawn record_capture() on its own task and return
+ * immediately instead, so the console stays usable; the "saved ..."
+ * (or failure) message still prints, just asynchronously once it's done. */
+typedef struct {
+    int ms, line;
+    char name_tag[8];
+    tap_add_fn add_tap;
+    tap_remove_fn remove_tap;
+} record_task_args_t;
+
+static void record_task(void *arg)
+{
+    record_task_args_t *a = arg;
+    record_capture(a->ms, a->line, a->name_tag, a->add_tap, a->remove_tap);
+    free(a);
+    vTaskDelete(NULL);
+}
+
+static bool record_start(int ms, int line, const char *name_tag,
+                          tap_add_fn add_tap, tap_remove_fn remove_tap)
+{
+    record_task_args_t *a = malloc(sizeof(*a));
+    if (!a) { printf("malloc failed\n"); return false; }
+    a->ms = ms;
+    a->line = line;
+    strncpy(a->name_tag, name_tag, sizeof(a->name_tag) - 1);
+    a->name_tag[sizeof(a->name_tag) - 1] = '\0';
+    a->add_tap = add_tap;
+    a->remove_tap = remove_tap;
+    if (xTaskCreate(record_task, "record", 4096, a, tskIDLE_PRIORITY + 2, NULL) != pdPASS) {
+        printf("xTaskCreate failed\n");
+        free(a);
+        return false;
+    }
+    printf("recording line %d for %d ms in the background -- console still usable, "
+           "\"saved ...\" prints here when it's done\n", line, ms);
+    return true;
+}
+
 static int cmd_record(int argc, char **argv)
 {
     if (argc < 2) { printf("usage: record <ms> [line]\n"); return 1; }
     int ms = atoi(argv[1]);
     int line = (argc > 2) ? atoi(argv[2]) : 0;
-    return record_capture(ms, line, "", audio_add_diag_tap, audio_remove_diag_tap);
+    return record_start(ms, line, "", audio_add_diag_tap, audio_remove_diag_tap) ? 0 : 1;
 }
 
 /* Captures what's about to be PLAYED on a line -- for an active call, the
@@ -940,13 +988,15 @@ static int cmd_record(int argc, char **argv)
  * (play a known clip from one board, `record_downlink` on the other, and
  * compare); or on the ORIGINATING board after enabling `txrx_loopback 1`
  * on the far end mid-call, which echoes whatever it receives straight back
- * -- letting you capture the full round trip from a single board. */
+ * -- letting you capture the full round trip from a single board (this
+ * runs in the background specifically so that single board's console is
+ * still free to run `play` right after starting the capture). */
 static int cmd_record_downlink(int argc, char **argv)
 {
     if (argc < 2) { printf("usage: record_downlink <ms> [line]\n"); return 1; }
     int ms = atoi(argv[1]);
     int line = (argc > 2) ? atoi(argv[2]) : 0;
-    return record_capture(ms, line, "dl_", audio_add_downlink_tap, audio_remove_downlink_tap);
+    return record_start(ms, line, "dl_", audio_add_downlink_tap, audio_remove_downlink_tap) ? 0 : 1;
 }
 
 /* ---------- play (test the player component standalone) ---------- */
