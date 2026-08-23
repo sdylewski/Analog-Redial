@@ -33,6 +33,8 @@ typedef struct {
     void           *rx_ctx;
     audio_rx_tap_fn diag_tap; /* second, independent slot -- see audio_add_diag_tap() */
     void           *diag_ctx;
+    audio_rx_tap_fn downlink_tap; /* see audio_add_downlink_tap() */
+    void           *downlink_ctx;
     StreamBufferHandle_t rx;  /* uplink capture for voip/record */
     uint16_t        rx_level;
     /* AEC path: 8 kHz echo-cancelled uplink, fed only while the canceller is
@@ -164,6 +166,24 @@ void audio_remove_diag_tap(int line)
     portENTER_CRITICAL(&s_mux);
     s_line[line].diag_tap = NULL;
     s_line[line].diag_ctx = NULL;
+    portEXIT_CRITICAL(&s_mux);
+}
+
+void audio_add_downlink_tap(int line, audio_rx_tap_fn fn, void *ctx)
+{
+    if (line < 0 || line >= AUDIO_NUM_LINES) return;
+    portENTER_CRITICAL(&s_mux);
+    s_line[line].downlink_tap = fn;
+    s_line[line].downlink_ctx = ctx;
+    portEXIT_CRITICAL(&s_mux);
+}
+
+void audio_remove_downlink_tap(int line)
+{
+    if (line < 0 || line >= AUDIO_NUM_LINES) return;
+    portENTER_CRITICAL(&s_mux);
+    s_line[line].downlink_tap = NULL;
+    s_line[line].downlink_ctx = NULL;
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -392,6 +412,16 @@ static void audio_task(void *arg)
         /* Build TX. */
         fill_tx_line(0, txL, n);
         fill_tx_line(1, txR, n);
+
+        /* Downlink tap: observes exactly what's about to be played on this
+         * line -- for a call, the decoded network audio, before it ever
+         * reaches the DAC/earpiece. Independent of test_loopback (which
+         * only affects the uplink/RX-processing side below) and of the
+         * uplink-side rx_tap/diag_tap (which observe the mic/uplink signal,
+         * the opposite direction) -- see audio_add_downlink_tap()'s comment
+         * in audio.h for what this is for. */
+        if (s_line[0].downlink_tap) s_line[0].downlink_tap(0, txL, n, s_line[0].downlink_ctx);
+        if (s_line[1].downlink_tap) s_line[1].downlink_tap(1, txR, n, s_line[1].downlink_ctx);
 
         /* RX processing: real ADC input, or (test loopback) the TX we just
          * built, so a played tone/DTMF/clip is level-metered, DTMF-detected

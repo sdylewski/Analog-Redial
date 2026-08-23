@@ -796,11 +796,20 @@ static int cmd_aec_sweep(int argc, char **argv)
     return 0;
 }
 
-static int cmd_record(int argc, char **argv)
+typedef void (*tap_add_fn)(int line, audio_rx_tap_fn fn, void *ctx);
+typedef void (*tap_remove_fn)(int line);
+
+/* Shared by `record` (mic/uplink) and `record_downlink` (network/downlink)
+ * below -- identical in every way except which tap API captures the
+ * samples, so that's the only thing parameterized. `name_tag` is inserted
+ * right after "rec_l<N>_" in the generated filename (empty string for
+ * plain `record`) so the two are easy to tell apart in the storage list
+ * without inventing a whole second naming/eviction category -- these still
+ * start with "rec_" so is_protected_asset() treats them as ordinary,
+ * evictable recordings like any other, not permanent assets. */
+static int record_capture(int ms, int line, const char *name_tag,
+                           tap_add_fn add_tap, tap_remove_fn remove_tap)
 {
-    if (argc < 2) { printf("usage: record <ms> [line]\n"); return 1; }
-    int ms = atoi(argv[1]);
-    int line = (argc > 2) ? atoi(argv[2]) : 0;
     if (ms <= 0 || line < 0 || line > 1) { printf("bad args\n"); return 1; }
 
     uint32_t sr = audio_sample_rate();
@@ -809,6 +818,20 @@ static int cmd_record(int argc, char **argv)
 
     char name[STORAGE_MAX_NAME];
     record_name_timestamped(name, sizeof(name), line);
+    if (name_tag && name_tag[0]) {
+        /* Splice the tag in right after "rec_l<N>_" -- record_name_timestamped()
+         * always produces that fixed prefix, so find it once rather than
+         * re-deriving the line number's digit width. */
+        char *insert_at = strchr(name, '_');
+        insert_at = insert_at ? strchr(insert_at + 1, '_') : NULL;
+        if (insert_at) {
+            char rest[STORAGE_MAX_NAME];
+            strncpy(rest, insert_at + 1, sizeof(rest) - 1);
+            rest[sizeof(rest) - 1] = '\0';
+            snprintf(insert_at + 1, sizeof(name) - (size_t)(insert_at + 1 - name),
+                     "%s%s", name_tag, rest);
+        }
+    }
 
     storage_writer_t w = {0};
     if (storage_write_begin(name, expected_bytes, &w) != ESP_OK) {
@@ -847,7 +870,7 @@ static int cmd_record(int argc, char **argv)
         return 1;
     }
     record_tap_ctx_t rc = { .sb = sb };
-    audio_add_diag_tap(line, record_tap, &rc);
+    add_tap(line, record_tap, &rc);
 
     /* Heap, not a stack array: this runs directly on the console REPL task,
      * whose stack is sized for ordinary command handlers, not a few KB of
@@ -879,7 +902,7 @@ static int cmd_record(int argc, char **argv)
     }
     free(chunk);
 
-    audio_remove_diag_tap(line);
+    remove_tap(line);
     vStreamBufferDelete(sb);
 
     if (werr != ESP_OK) {
@@ -898,6 +921,32 @@ static int cmd_record(int argc, char **argv)
     printf("saved %s (%u bytes) -- download at /media/%s or the web UI's Recordings tab\n",
            name, (unsigned)final_bytes, name);
     return 0;
+}
+
+static int cmd_record(int argc, char **argv)
+{
+    if (argc < 2) { printf("usage: record <ms> [line]\n"); return 1; }
+    int ms = atoi(argv[1]);
+    int line = (argc > 2) ? atoi(argv[2]) : 0;
+    return record_capture(ms, line, "", audio_add_diag_tap, audio_remove_diag_tap);
+}
+
+/* Captures what's about to be PLAYED on a line -- for an active call, the
+ * decoded network audio, before it ever reaches the DAC/earpiece. No
+ * acoustic path involved (unlike `record`, which taps the mic), so this is
+ * what actually isolates a network/decode/DMA dropout from ordinary room
+ * noise or echo -- see audio_add_downlink_tap()'s doc comment in audio.h.
+ * Also what to use on the RECEIVING end of a two-board audio-quality test
+ * (play a known clip from one board, `record_downlink` on the other, and
+ * compare); or on the ORIGINATING board after enabling `txrx_loopback 1`
+ * on the far end mid-call, which echoes whatever it receives straight back
+ * -- letting you capture the full round trip from a single board. */
+static int cmd_record_downlink(int argc, char **argv)
+{
+    if (argc < 2) { printf("usage: record_downlink <ms> [line]\n"); return 1; }
+    int ms = atoi(argv[1]);
+    int line = (argc > 2) ? atoi(argv[2]) : 0;
+    return record_capture(ms, line, "dl_", audio_add_downlink_tap, audio_remove_downlink_tap);
 }
 
 /* ---------- play (test the player component standalone) ---------- */
@@ -1422,6 +1471,7 @@ void bringup_console_start(void)
     register_cmd("echopulse", "Periodic 1kHz burst for echo/hybrid debugging: echopulse <line> <on|off> [period_ms]", cmd_echopulse);
     register_cmd("echosweep", "Cycles 9 tones 300-3400Hz for echo/resonance debugging: echosweep <line> <on|off> [period_ms]", cmd_echosweep);
     register_cmd("record", "Raw mic capture to storage, no live playback, safe during an active call: record <ms> [line]", cmd_record);
+    register_cmd("record_downlink", "Capture what's about to be played (network audio for a call), before the DAC -- no acoustic path: record_downlink <ms> [line]", cmd_record_downlink);
     register_cmd("aec", "Echo canceller: aec <on|off|status|reset|sweep|delay <ms>> [line] "
                         "(sweep needs a live call with the far end talking)", cmd_aec);
     register_cmd("echoprobe", "Measure the local earpiece->mic echo path (bulk delay + tail) for AEC sizing: echoprobe [line] [# repeats]", cmd_echoprobe);

@@ -83,6 +83,20 @@ size_t audio_rx_read(int line, int16_t *mono, size_t n, uint32_t timeout_ms);
 void audio_add_diag_tap(int line, audio_rx_tap_fn fn, void *ctx);
 void audio_remove_diag_tap(int line);
 
+/* Downlink tap: observes what's about to be PLAYED on a line -- the
+ * opposite direction from rx_tap/diag_tap above (both of which see the
+ * mic/uplink signal). For an active call this is the decoded network
+ * audio, captured before it ever reaches the DAC/earpiece -- no acoustic
+ * path, no echo, no room noise, so it's what actually shows whether a
+ * dropout happened somewhere upstream (network/jitter/decode/DMA), as
+ * opposed to the receiving handset's own analog path. Independent of
+ * test_loopback (which only substitutes the uplink/RX-processing side) and
+ * of the AEC path (which is derived from the uplink, not this). Same
+ * fast/non-blocking constraints as the taps above -- runs on the audio
+ * task. See bring-up's `record_downlink` console command. */
+void audio_add_downlink_tap(int line, audio_rx_tap_fn fn, void *ctx);
+void audio_remove_downlink_tap(int line);
+
 /* Simple RMS level (0..32767) of the most recent RX frame for a line. */
 uint16_t audio_rx_level(int line);
 
