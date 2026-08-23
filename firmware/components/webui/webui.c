@@ -37,6 +37,16 @@
 
 static const char *TAG = "webui";
 
+/* Same bound player.c's playback path uses (HEADER_SCAN_BYTES) -- covers
+ * real-world files with extra chunks before "data" (macOS afconvert pads
+ * with a "FLLR" filler chunk, observed pushing the data chunk out to
+ * ~4096 bytes; this project's own operator.wav is generated that way).
+ * Always heap-allocate this, never a stack array: 8KB inline blew the
+ * httpd task's stack once already (see the "Stack protection fault" this
+ * project hit building the multipart reader), and every caller here already
+ * has other locals plus a caller frame on top of it. */
+#define UPLOAD_HEADER_SCAN_BYTES 8192
+
 /* Human-readable size: "4.19 MB", "188.7 kB", "0 B" (decimal units, matching
  * how flash/card sizes are marketed). Writes into `out` and returns it so it
  * can be used inline as an snprintf argument. Caller supplies one buffer per
@@ -1394,42 +1404,70 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         "<div class=\"card\"><h2>Speaker (earpiece) volume</h2>");
     for (int l = 0; l < num_lines; l++) {
         uint8_t vol = board_speaker_volume_get(l, 0x1E);
+        /* Displayed as a percentage (0-200%, 100% = the register's 0dB
+         * point) rather than the raw 0-63/dB-step register value -- dB
+         * isn't a meaningful unit for most people tuning this by ear. The
+         * underlying value submitted to the backend is still the raw 0-63
+         * register step; only the label is converted (see spkPct() below),
+         * so es8388_set_dac_volume()'s convention doesn't have to change. */
+        unsigned pct = (unsigned)((vol * 200u + 31) / 63u);
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<form method=\"POST\" action=\"/speaker_volume\" class=\"settings-form\">"
             "<input type=\"hidden\" name=\"line\" value=\"%d\">"
-            "<label>Line %d (%u/63) <input type=\"range\" name=\"vol\" min=\"0\" max=\"63\" "
-            "value=\"%u\" oninput=\"spkLive(%d,this.value)\"></label>"
+            "<label>Line %d <input type=\"range\" name=\"vol\" min=\"0\" max=\"63\" "
+            "value=\"%u\" oninput=\"spkLive(%d,this.value)\"> "
+            "<span id=\"spkpct%d\">%u%%</span></label>"
             "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save line %d</button></div>"
             "</form>",
-            l, l, (unsigned)vol, (unsigned)vol, l, l);
+            l, l, (unsigned)vol, l, l, pct, l);
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<p class=\"hint\">Drag while on a call to hear the change live (applied "
         "immediately, not saved yet) -- click Save once you land on a level you like. "
-        "0=mute, 33=0dB, 1dB/step, 63=max. Same register the bring-up <code>spkamp</code> "
-        "console command tunes.</p></div>");
+        "100%% is the codec's 0dB reference point, 200%% is max. Same register the "
+        "bring-up <code>spkamp</code> console command tunes.</p></div>");
 #endif
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Echo cancellation calibration</h2>");
+        "<div class=\"card\"><h2>Echo cancellation</h2>");
     for (int l = 0; l < num_lines; l++) {
         uint32_t ms = board_aec_delay_get(l, AEC_DEFAULT_DELAY_MS);
+        bool aec_on = aec_is_enabled(l);
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"statusrow\"><span class=\"label\">Line %d current delay</span>"
+            "<div class=\"statusrow\"><span class=\"label\">Line %d</span>"
+            "<span class=\"pill %s\">%s</span></div>"
+            "<div class=\"toolbar sub\">"
+            "<form method=\"POST\" action=\"/aec_enable\" style=\"display:inline\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<input type=\"hidden\" name=\"on\" value=\"1\">"
+            "<button type=\"submit\">Enable</button></form> "
+            "<form method=\"POST\" action=\"/aec_enable\" style=\"display:inline\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<input type=\"hidden\" name=\"on\" value=\"0\">"
+            "<button type=\"submit\">Disable</button></form>"
+            "</div>"
+            "<div class=\"statusrow\"><span class=\"label\">Line %d delay</span>"
             "<span>%u ms</span></div>"
             "<div class=\"toolbar sub\">"
             "<button type=\"button\" id=\"aecbtn%d\" onclick=\"aecMeasure(%d)\">Measure line %d</button>"
             "</div><div id=\"aecresult%d\" class=\"hint\"></div>",
-            l, (unsigned)ms, l, l, l, l);
+            l, aec_on ? "on" : "off", aec_on ? "ENABLED" : "off",
+            l, l, l, (unsigned)ms, l, l, l, l);
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Pick up the handset (off-hook) and make sure it's NOT in a "
+        "<p class=\"hint\">Enable/Disable is for testing -- leave off for normal use "
+        "unless a real echo has actually been measured and calibrated below (an "
+        "uncalibrated or wrongly-delayed canceller can make echo worse, not better). "
+        "To calibrate: pick up the handset (off-hook) and make sure it's NOT in a "
         "call, then click Measure -- plays a short burst out the earpiece and listens on "
         "the same line's own mic to find its local echo delay, the number the canceller "
         "needs to align against. Takes about 2 seconds (3 quick measurements averaged for "
         "reliability). Applying saves it and takes effect immediately, no reboot.</p></div>"
         "<script>"
-        "function spkLive(line,vol){fetch('/speaker_volume_live',{method:'POST',"
+        "function spkLive(line,vol){"
+        "document.getElementById('spkpct'+line).textContent="
+        "Math.round(vol*200/63)+'%%';"
+        "fetch('/speaker_volume_live',{method:'POST',"
         "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
         "body:'line='+line+'&vol='+vol});}"
         "function aecMeasure(line){"
@@ -1461,6 +1499,41 @@ static int append_diag_tab(char *buf, size_t cap, int off)
  * shared by the microSD and internal-flash cards below, since the row
  * markup (name/size/play/download/delete) doesn't depend on which backend
  * the entries came from. */
+/* Reads just enough of a stored WAV's header to compute its duration --
+ * short reads are fine, audio_wav_parse() is a tolerant chunk walker (see
+ * its own doc comment). UPLOAD_HEADER_SCAN_BYTES (not a smaller guess): a
+ * canonical WAV header is 44 bytes, but real-world files can carry several
+ * KB of filler/metadata before `data` (macOS afconvert's FLLR chunk,
+ * observed on this project's own clips pushing it out ~4KB) -- confirmed
+ * live that 512 bytes silently produced a blank duration for such a file.
+ * Heap-allocated per UPLOAD_HEADER_SCAN_BYTES's own doc comment (never an
+ * 8KB stack array here -- this runs inside append_storage_table()'s
+ * per-row loop, itself nested inside the settings page handler, both of
+ * which already have their own locals on the same stack). Blank output
+ * (not an error) for anything that doesn't parse as PCM WAV -- this is a
+ * display nicety, not something worth failing the whole page render over. */
+static void wav_duration_str(const char *name, char *out, size_t out_len)
+{
+    out[0] = '\0';
+    uint8_t *header = malloc(UPLOAD_HEADER_SCAN_BYTES);
+    if (!header) return;
+    size_t got = 0;
+    esp_err_t err = storage_read(name, header, UPLOAD_HEADER_SCAN_BYTES, &got);
+    if (err != ESP_OK || got == 0) { free(header); return; }
+    audio_wav_info_t wav;
+    bool ok = audio_wav_parse(header, got, &wav) && wav.sample_rate != 0 &&
+              wav.channels != 0 && wav.bits_per_sample != 0;
+    free(header);
+    if (!ok) return;
+    double secs = (double)wav.data_bytes /
+        ((double)wav.sample_rate * wav.channels * (wav.bits_per_sample / 8));
+    if (secs >= 60.0) {
+        snprintf(out, out_len, "%u:%02u", (unsigned)(secs / 60), (unsigned)secs % 60);
+    } else {
+        snprintf(out, out_len, "%.1fs", secs);
+    }
+}
+
 static int append_storage_table(char *buf, size_t cap, int off,
                                 storage_entry_t *entries, size_t n)
 {
@@ -1470,24 +1543,27 @@ static int append_storage_table(char *buf, size_t cap, int off,
         return off;
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<table><tr><th>Name</th><th>Size</th><th>Play</th><th></th><th></th></tr>");
+        "<table><tr><th>Name</th><th>Size</th><th>Length</th><th>Play</th><th></th><th></th></tr>");
     for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
         char sz[16];
+        char dur[16];
         char play[160];
         if (is_wav_name(entries[i].name)) {
             snprintf(play, sizeof(play),
                 "<audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio>",
                 entries[i].name);
+            wav_duration_str(entries[i].name, dur, sizeof(dur));
         } else {
             play[0] = '\0';
+            dur[0] = '\0';
         }
         off += snprintf(buf + off, cap - off,
-            "<tr><td><code>%s</code></td><td>%s</td><td>%s</td>"
+            "<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td>%s</td>"
             "<td><a href=\"/media/%s\">download</a></td>"
             "<td><form method=\"POST\" action=\"/media_delete/%s\" "
             "onsubmit=\"return confirm('Delete %s?')\" style=\"display:inline\">"
             "<button type=\"submit\">delete</button></form></td></tr>",
-            entries[i].name, fmt_bytes(entries[i].size, sz, sizeof(sz)), play,
+            entries[i].name, fmt_bytes(entries[i].size, sz, sizeof(sz)), dur, play,
             entries[i].name, entries[i].name, entries[i].name);
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
@@ -1514,7 +1590,7 @@ static int append_storage_section(char *buf, size_t cap, int off)
     bool sd = storage_sd_present();
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\" style=\"margin-top:16px\"><h2>Storage</h2>"
+        "<div id=\"storage\" class=\"card\" style=\"margin-top:16px\"><h2>Storage</h2>"
         "<p class=\"hint\">Recordings, uploaded prompt/clip WAVs, anything else. Upload with "
         "<code>curl -X POST --data-binary @file.wav http://%s/media/&lt;name&gt;</code> or "
         "<code>firmware/bringup/gen_prompt.py</code>. <code>operator.wav</code> and "
@@ -2518,6 +2594,29 @@ static esp_err_t aec_delay_apply_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* POST /aec_enable -- body line=N&on=0|1. Testing toggle -- see the
+ * calibration card's hint text for why this isn't meant to be left on
+ * without also calibrating the delay below it. */
+static esp_err_t aec_enable_handler(httpd_req_t *req)
+{
+    char body[64], line_s[8] = {0}, on_s[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "line", line_s, sizeof(line_s));
+    form_field(body, "on", on_s, sizeof(on_s));
+    int line = atoi(line_s);
+    if (line < 0 || line > 1) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad line"); return ESP_OK;
+    }
+    aec_set_enabled(line, on_s[0] == '1');
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 /* GET /voip_server_script -- downloadable bash script that provisions this
  * phone's line(s) as SIP peers on an Asterisk/PBX box, generated from the
  * currently-saved config (Settings -> VOIP). Marker-tagged blocks (named
@@ -2770,7 +2869,7 @@ static esp_err_t media_delete_handler(httpd_req_t *req)
     }
 
     httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings");
+    httpd_resp_set_hdr(req, "Location", "/settings#storage");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -3137,16 +3236,6 @@ static void sanitize_upload_name(const char *in, const char *fallback, char *out
  * `dest_name` -- never buffers the whole file (this hardware has hard-
  * failed a single ~330KB malloc before). Shared by /operator_upload and
  * /dialcode_upload. Returns NULL on success, else a static error string. */
-/* Same bound player.c's playback path uses (HEADER_SCAN_BYTES) -- covers
- * real-world files with extra chunks before "data" (macOS afconvert pads
- * with a "FLLR" filler chunk, observed pushing the data chunk out to
- * ~4096 bytes; this project's own operator.wav is generated that way).
- * Heap-allocated, not a stack array: 8KB inline here blew the httpd task's
- * stack once already (see the "Stack protection fault" this project hit
- * building the multipart reader), and this function already has other
- * locals plus a caller frame on top of it. */
-#define UPLOAD_HEADER_SCAN_BYTES 8192
-
 #ifdef CONFIG_AUDIO_CONVERT_MP3
 /* MP3 trial (see audio_convert's Kconfig) -- decodes frame-by-frame from a
  * rolling compressed-bytes buffer (minimp3 needs a few KB of contiguous
@@ -3605,7 +3694,7 @@ esp_err_t webui_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
-    /* Default is 8 -- we register 41 routes below (two share the media
+    /* Default is 8 -- we register 42 routes below (two share the media
      * path, one GET, one POST, counted separately) and it keeps growing.
      * Past the cap, httpd_register_uri_handler() just fails per-route, which
      * used to go unchecked below, silently dropping the last couple of
@@ -3681,6 +3770,7 @@ esp_err_t webui_start(void)
 #endif
         { .uri = "/aec_measure",            .method = HTTP_POST, .handler = aec_measure_handler },
         { .uri = "/aec_delay_apply",        .method = HTTP_POST, .handler = aec_delay_apply_handler },
+        { .uri = "/aec_enable",             .method = HTTP_POST, .handler = aec_enable_handler },
         { .uri = "/voip_server_script",     .method = HTTP_GET,  .handler = voip_server_script_handler },
         /* Catch-all LAST: captive-portal redirect while provisioning, plain
          * 404 otherwise. The wildcard matcher tries handlers in registration

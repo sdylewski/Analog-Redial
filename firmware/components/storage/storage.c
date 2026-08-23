@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <errno.h>
 
 static const char *TAG = "storage";
 #define MOUNT_POINT "/assets"          /* writable: recordings + uploads */
@@ -49,17 +50,31 @@ static size_t saturate_size(uint64_t v)
  * delete/patch so a file made before a card was inserted (or after one was
  * removed) doesn't just vanish -- see storage.h. Returns false if neither
  * backend has it (caller decides whether to also try bundled). */
+static bool path_exists(const char *path)
+{
+    /* stat(), not access() -- list_dir() (which every existing-file listing
+     * in this component goes through) already relies on stat() succeeding
+     * for a file to be listed at all, so if a listed file's existence check
+     * here disagrees, access() is the one that's wrong, not the file.
+     * Confirmed live: several uploaded clips listed fine (stat-based) but
+     * resolve_existing_path()'s old access()-based check couldn't find them
+     * -- delete and even plain playback (/media/<name>) both silently 500'd
+     * for files that clearly existed. */
+    struct stat st;
+    return stat(path, &st) == 0;
+}
+
 static bool resolve_existing_path(const char *name, char *out, size_t out_len)
 {
     bool sd = sdcard_mounted();
     if (sd) {
         sd_full_path(out, out_len, name);
-        if (access(out, F_OK) == 0) return true;
+        if (path_exists(out)) return true;
         full_path(out, out_len, name);
-        if (access(out, F_OK) == 0) return true;
+        if (path_exists(out)) return true;
     } else {
         full_path(out, out_len, name);
-        if (access(out, F_OK) == 0) return true;
+        if (path_exists(out)) return true;
     }
     return false;
 }
@@ -375,8 +390,18 @@ void storage_read_close(storage_reader_t *r)
 esp_err_t storage_delete(const char *name)
 {
     char path[288];
-    if (!resolve_existing_path(name, path, sizeof(path))) return ESP_ERR_NOT_FOUND;
-    return (unlink(path) == 0) ? ESP_OK : ESP_ERR_NOT_FOUND;
+    if (!resolve_existing_path(name, path, sizeof(path))) {
+        ESP_LOGW(TAG, "delete '%s': not found on any backend", name);
+        return ESP_ERR_NOT_FOUND;
+    }
+    if (unlink(path) == 0) return ESP_OK;
+    /* Log the real errno -- collapsing every unlink() failure into
+     * ESP_ERR_NOT_FOUND (the old behavior) hid whatever the actual SPIFFS/
+     * VFS error was, which made this impossible to diagnose from the webui
+     * alone (it only ever reports the same generic "not found" either way). */
+    ESP_LOGW(TAG, "delete '%s' (%s): unlink failed, errno=%d (%s)",
+             name, path, errno, strerror(errno));
+    return ESP_FAIL;
 }
 
 esp_err_t storage_patch(const char *name, size_t offset, const void *data, size_t len)
