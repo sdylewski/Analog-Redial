@@ -130,38 +130,27 @@ esp_err_t player_play(int line, const char *storage_name, player_done_cb_t done_
     if (line < 0 || line >= AUDIO_NUM_LINES) return ESP_ERR_INVALID_ARG;
     if (s_line[line].active) return ESP_ERR_INVALID_STATE;
 
-    /* Same two-partition check storage_read_open() itself falls back to
-     * (writable storage/uploads/recordings first, then the read-only bundled
-     * defaults) -- done up front so a missing clip fails synchronously here
-     * instead of after already spawning the play task. Checking storage_list()
-     * alone used to reject anything that only existed in `bundled` (e.g. a
-     * clip baked in at build time but never uploaded to the writable
-     * partition), which meant even operator.wav or the default 4xx clips
-     * could 404 despite storage_read_open() being able to read them fine. */
-    /* Heap, not stack -- 32+16 storage_entry_t (~1.9KB) is fine on webui's
-     * 8KB httpd worker task but overflows callers like telephony's 4KB
-     * tel_fsm task (confirmed live: a "Stack protection fault" in tel_fsm
-     * the first time 211's new record-prompt playback exercised this path
-     * from that task -- ACT_OPERATOR_HELP/ACT_PLAY_CLIP happened to fit
-     * before, barely). */
-    storage_entry_t *entries = malloc(32 * sizeof(storage_entry_t));
-    if (!entries) return ESP_ERR_NO_MEM;
-    size_t n = storage_list(entries, 32);
-    bool found = false;
-    for (size_t i = 0; i < n; i++) {
-        if (strcmp(entries[i].name, storage_name) == 0) { found = true; break; }
-    }
-    free(entries);
-    if (!found) {
-        storage_entry_t *bundled = malloc(16 * sizeof(storage_entry_t));
-        if (!bundled) return ESP_ERR_NO_MEM;
-        size_t nb = storage_list_bundled(bundled, 16);
-        for (size_t i = 0; i < nb; i++) {
-            if (strcmp(bundled[i].name, storage_name) == 0) { found = true; break; }
-        }
-        free(bundled);
-    }
-    if (!found) return ESP_ERR_NOT_FOUND;
+    /* Existence pre-check, so a missing clip fails synchronously here
+     * instead of after already spawning the play task. Probes with
+     * storage_read_open() itself rather than re-deriving its fallback
+     * chain (writable storage -- SD or internal, whichever actually has
+     * the file -- then the read-only bundled defaults) via storage_list()
+     * calls: that used to be two separate, independently-maintained checks,
+     * and they drifted out of sync twice. First: storage_list() alone
+     * missed anything that only existed in `bundled` (e.g. a clip baked in
+     * at build time but never uploaded), 404ing even operator.wav despite
+     * storage_read_open() reading it fine. Fixed by also checking
+     * storage_list_bundled() -- but that fix kept the same underlying
+     * flaw: storage_list() alone only reports whichever ONE writable
+     * backend (SD or internal) is currently active, not the fallback
+     * across both storage_read_open() actually does. Confirmed live: every
+     * clip (which by design always lives on internal flash, specifically
+     * so it survives an SD card being inserted/removed -- see storage.c)
+     * became unplayable via this check the moment an SD card was mounted,
+     * even though storage_read_open() could still read it fine. */
+    storage_reader_t probe = {0};
+    if (storage_read_open(storage_name, &probe) != ESP_OK) return ESP_ERR_NOT_FOUND;
+    storage_read_close(&probe);
 
     play_args_t *a = malloc(sizeof(*a));
     if (!a) return ESP_ERR_NO_MEM;
