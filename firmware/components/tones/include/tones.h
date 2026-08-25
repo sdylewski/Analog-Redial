@@ -64,6 +64,15 @@ typedef enum {
      * deliberately loud and dissonant. Not regionalized (other countries use
      * quite different alerts; this is the one this project implements). */
     TONE_OFFHOOK_ALERT,
+    /* 211's "your time is up" cue: three short 900 Hz beeps played back to
+     * back at increasing loudness and decreasing gap (see telephony.c's
+     * start_record_ending()) instead of just cutting to dial tone. Not
+     * PSTN call-progress tones, so not regionalized -- same reasoning as
+     * REORDER/CONFIRM. Same frequency for all three; only amplitude
+     * differs (0.3/0.6/1.0 -- see tones.c). */
+    TONE_RECORD_END_1,
+    TONE_RECORD_END_2,
+    TONE_RECORD_END_3,
 } call_progress_t;
 
 /* A cadence is an alternating on/off/on/off/... sequence of phase lengths

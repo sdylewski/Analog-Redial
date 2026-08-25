@@ -39,6 +39,13 @@ typedef enum {
                                 * rather than just returning to dial tone */
     TEL_RECORD_BEEP,           /* 211: beep tone playing, recording starts
                                 * when it finishes */
+    TEL_RECORD_ENDING,         /* 211: recording just hit its max duration --
+                                * first of 3 escalating "wrapping up" beeps
+                                * (TONE_RECORD_END_1/2/3, see tones.h) before
+                                * dropping back to dial tone/idle, instead of
+                                * cutting off with no warning */
+    TEL_RECORD_ENDING_2,       /* second beep */
+    TEL_RECORD_ENDING_3,       /* third (loudest) beep */
 } tel_state_t;
 
 /* 211's optional spoken prompt ("record your message after the beep...").

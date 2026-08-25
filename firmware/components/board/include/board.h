@@ -141,6 +141,16 @@ esp_err_t board_offhook_alert_set(board_offhook_alert_t cfg);
 uint32_t board_aec_delay_get(int line, uint32_t fallback_ms);
 esp_err_t board_aec_delay_set(int line, uint32_t ms);
 
+/* ---- 211 "record a message" max duration ----
+ * Board-wide (not per-line): recording is a local feature, not something
+ * that varies by which line placed the call. Returns `fallback_ms` if
+ * never set. */
+#define BOARD_RECORD_MAX_MS_MIN  5000   /* 5 s -- below this isn't a useful message */
+#define BOARD_RECORD_MAX_MS_MAX 120000  /* 2 min -- generous ceiling, storage is the real limit */
+uint32_t board_record_max_ms_get(uint32_t fallback_ms);
+/* ESP_ERR_INVALID_ARG outside BOARD_RECORD_MAX_MS_MIN..MAX. */
+esp_err_t board_record_max_ms_set(uint32_t ms);
+
 /* ---- Speaker (earpiece) drive level, per line ----
  * ES8388 LOUT1VOL/ROUT1VOL convention (see es8388.h / the bring-up `spkamp`
  * command): 0 = mute, 33 = 0 dB, 1 dB/step, 63 = max. Persisted so a level

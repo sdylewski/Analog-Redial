@@ -318,6 +318,35 @@ esp_err_t board_speaker_volume_set(int line, uint8_t vol)
     return err;
 }
 
+#define RECORD_MAX_MS_NVS_KEY "rec_max_ms"
+
+uint32_t board_record_max_ms_get(uint32_t fallback_ms)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return fallback_ms;
+    uint32_t ms;
+    esp_err_t err = nvs_get_u32(h, RECORD_MAX_MS_NVS_KEY, &ms);
+    nvs_close(h);
+    return (err == ESP_OK) ? ms : fallback_ms;
+}
+
+esp_err_t board_record_max_ms_set(uint32_t ms)
+{
+    if (ms < BOARD_RECORD_MAX_MS_MIN || ms > BOARD_RECORD_MAX_MS_MAX) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u32(h, RECORD_MAX_MS_NVS_KEY, ms);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "record max duration %u ms persisted", (unsigned)ms);
+    }
+    return err;
+}
+
 #define HW_CONFIG_NVS_NS       "board"
 #define HW_CONFIG_NVS_KEY_LINES "hw_lines"  /* u8: 1 or 2 */
 #define HW_CONFIG_NVS_KEY_SD    "hw_sd"     /* u8: 0 or 1 */

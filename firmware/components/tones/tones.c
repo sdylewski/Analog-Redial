@@ -139,6 +139,15 @@ static const tone_spec_t TONE_SPEC_REORDER = { 480, 620, { {250, 250}, 2 } };
 static const float TONE_ROH_FREQS[4] = { 1400.0f, 2060.0f, 2450.0f, 2600.0f };
 static const tone_cadence_t TONE_ROH_CADENCE = { {100, 100}, 2 };
 
+/* TONE_RECORD_END_1/2/3: each is a single on/off period -- telephony.c's
+ * start_record_ending() cuts it off via play_transient() before the cadence
+ * would repeat, so only the first "on" then "off" matters. Gaps shrink
+ * (220/150/50 ms) as amplitude rises (see progress_tone_start()), so the
+ * three beeps read as getting more urgent, not just louder. */
+static const tone_cadence_t TONE_RECORD_END_1_CADENCE = { {80, 220}, 2 };
+static const tone_cadence_t TONE_RECORD_END_2_CADENCE = { {100, 150}, 2 };
+static const tone_cadence_t TONE_RECORD_END_3_CADENCE = { {150, 50}, 2 };
+
 void progress_tone_start(progress_tone_t *p, uint32_t sample_rate, call_progress_t kind)
 {
     p->kind = kind;
@@ -180,11 +189,27 @@ void progress_tone_start(progress_tone_t *p, uint32_t sample_rate, call_progress
             resolve_cadence(p, &TONE_ROH_CADENCE);
             tone_osc_init_multi(&p->osc, sample_rate, TONE_ROH_FREQS, 4, 1.0f);
             return;
+        case TONE_RECORD_END_1:
+            f1 = 900; f2 = 0;
+            resolve_cadence(p, &TONE_RECORD_END_1_CADENCE);
+            break;
+        case TONE_RECORD_END_2:
+            f1 = 900; f2 = 0;
+            resolve_cadence(p, &TONE_RECORD_END_2_CADENCE);
+            break;
+        case TONE_RECORD_END_3:
+            f1 = 900; f2 = 0;
+            resolve_cadence(p, &TONE_RECORD_END_3_CADENCE);
+            break;
         default:
             f1 = 0; f2 = 0;
             break;
     }
-    tone_osc_init(&p->osc, sample_rate, f1, f2, 0.6f);
+    float amp = 0.6f;
+    if (kind == TONE_RECORD_END_1) amp = 0.3f;
+    else if (kind == TONE_RECORD_END_2) amp = 0.6f;
+    else if (kind == TONE_RECORD_END_3) amp = 1.0f;
+    tone_osc_init(&p->osc, sample_rate, f1, f2, amp);
 }
 
 void progress_tone_fill(progress_tone_t *p, int16_t *out, size_t n)

@@ -322,7 +322,10 @@ static const char *pill_class_for(tel_state_t s)
     case TEL_IDLE: return "off";
     case TEL_BUSY:
     case TEL_REORDER:
-    case TEL_RECORDING: return "busy";
+    case TEL_RECORDING:
+    case TEL_RECORD_ENDING:
+    case TEL_RECORD_ENDING_2:
+    case TEL_RECORD_ENDING_3: return "busy";
     default: return "on"; /* dialtone/dialing/ringback/ringing/incall/playing */
     }
 }
@@ -794,11 +797,17 @@ static int append_file_select(char *buf, size_t cap, int off, const char *field_
  * back off the board (gated by the same setup password as the VOIP
  * auto-provisioner, see voip_provisioner_password()), synthesizes it
  * locally, and uploads the WAV -- which is what actually clears "pending". */
-static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_name)
+/* `default_text` (NULL for none) is shown pre-filled when nothing's been
+ * tracked for `clip_name` yet -- a starting point to edit, not itself
+ * persisted anywhere until the user actually saves it. Used for the
+ * Operator prompt specifically (a sensible greeting to edit rather than a
+ * blank box); other callers pass NULL. */
+static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_name,
+                                const char *default_text)
 {
     prompt_entry_t pe;
     bool have = prompts_get(clip_name, &pe);
-    const char *text = have ? pe.text : "";
+    const char *text = have ? pe.text : (default_text ? default_text : "");
     bool pending = have && strcmp(pe.text, pe.generated_text) != 0;
 
     char etext[PROMPT_TEXT_MAX * 6];
@@ -806,11 +815,11 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
     char ename[PROMPT_NAME_MAX * 6];
     html_escape(clip_name, ename, sizeof(ename));
 
-    const char *status = !have || !text[0]
-        ? "No text set -- this clip stays silent/skipped until generated."
-        : pending
-            ? "Pending: text changed since last generate."
-            : "Up to date with the generated audio.";
+    const char *status = have
+        ? (pending ? "Pending: text changed since last generate."
+                   : "Up to date with the generated audio.")
+        : (text[0] ? "Suggested default -- edit and Save to actually set it."
+                   : "No text set -- this clip stays silent/skipped until generated.");
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<form method=\"POST\" action=\"/prompt_text_set\" class=\"settings-form\">"
@@ -846,7 +855,7 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
             "<div class=\"empty\">none yet</div>");
     } else {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<table><tr><th>Code</th><th>Plays</th><th>Description</th><th></th><th></th></tr>");
+            "<table><tr><th>Code</th><th>Plays</th><th>Play</th><th>Description</th><th></th><th></th></tr>");
         for (size_t i = 0; i < nclips && (size_t)off < cap; i++) {
             off += snprintf(buf + off, cap - off,
                 "<tr><td>"
@@ -855,10 +864,13 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 "<input name=\"new_code\" value=\"%s\" pattern=\"[0-9]{2,6}\" maxlength=\"6\" "
                 "size=\"6\" required>"
                 "<button type=\"submit\">save</button></form></td>"
-                "<td><code>%s</code></td><td>%s%s</td>"
+                "<td><code>%s</code></td>"
+                "<td><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></td>"
+                "<td>%s%s</td>"
                 "<td><form method=\"POST\" action=\"/dialcode_set_filename\" style=\"display:inline\">"
                 "<input type=\"hidden\" name=\"code\" value=\"%s\">",
-                clips[i].code, clips[i].code, clips[i].filename, clips[i].desc,
+                clips[i].code, clips[i].code, clips[i].filename, clips[i].filename,
+                clips[i].desc,
                 clips[i].builtin ? " <span class=\"pill off\">built-in</span>" : "",
                 clips[i].code);
             off = append_file_select(buf, cap, off, "filename", clips[i].filename);
@@ -878,15 +890,6 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                     clips[i].code, clips[i].code);
             }
             off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</td></tr>");
-            /* Collapsed by default -- a prompt-text form per row would
-             * otherwise dominate the table for boards with more than a
-             * couple of dial codes. */
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-                "<tr><td colspan=\"5\"><details><summary>Spoken prompt text for %s</summary>",
-                clips[i].filename);
-            off = append_prompt_field(buf, cap, off, clips[i].filename);
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-                "</details></td></tr>");
         }
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
     }
@@ -926,7 +929,9 @@ static int append_operator_tab(char *buf, size_t cap, int off,
         off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
                                 entries[i].implemented);
     }
-    off = append_prompt_field(buf, cap, off, "operator.wav");
+    off = append_prompt_field(buf, cap, off, "operator.wav",
+        "You've reached the operator line. To leave a message, dial 2-1-1. "
+        "For other features, please refer to your phone's guide.");
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<p class=\"hint\">Or upload audio directly below (converted automatically to 8kHz "
         "mono) -- either way replaces what plays.</p>"
@@ -1197,13 +1202,20 @@ static int append_record_tab(char *buf, size_t cap, int off,
         off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
                                 entries[i].implemented);
     }
+    uint32_t max_ms = board_record_max_ms_get(30000);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<p class=\"hint\">Dial 211: if the prompt below is generated, it plays first, then a "
-        "beep, then recording starts. With no prompt generated, it goes straight to the beep. "
-        "Speak, then hang up (or pause ~2 s / hit 30 s). The message is saved as an 8 kHz mono "
-        "WAV in <a href=\"/recordings\">Recordings</a> / Storage below. Editable max-length "
-        "isn't exposed here yet.</p>");
-    off = append_prompt_field(buf, cap, off, RECORD_PROMPT_NAME);
+        "beep, then recording starts. Speak, then hang up (or pause ~2 s / hit the max length "
+        "below, after which three beeps play to warn the call is ending). The message is saved "
+        "as an 8 kHz mono WAV in <a href=\"/recordings\">Recordings</a> / Storage below.</p>"
+        "<form method=\"POST\" action=\"/record_max_ms\" class=\"settings-form\">"
+        "<label>Max recording length (seconds) "
+        "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%u\" max=\"%u\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+        "</form>",
+        (unsigned)(max_ms / 1000),
+        (unsigned)(BOARD_RECORD_MAX_MS_MIN / 1000), (unsigned)(BOARD_RECORD_MAX_MS_MAX / 1000));
+    off = append_prompt_field(buf, cap, off, RECORD_PROMPT_NAME, NULL);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
     return off;
 }
@@ -1938,6 +1950,33 @@ static esp_err_t offhook_alert_handler(httpd_req_t *req)
 
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /record_max_ms -- form body seconds=N (whole seconds; board.h stores
+ * ms). Mirrors offhook_alert_handler's shape. */
+static esp_err_t record_max_ms_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char seconds[12] = {0};
+    form_field(body, "seconds", seconds, sizeof(seconds));
+    uint32_t ms = seconds[0] ? (uint32_t)strtoul(seconds, NULL, 10) * 1000 : 0;
+    if (board_record_max_ms_set(ms) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "seconds out of range");
+        return ESP_OK;
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=record");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -3761,6 +3800,7 @@ esp_err_t webui_start(void)
         { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },
         { .uri = "/board_hw_set",    .method = HTTP_POST, .handler = board_hw_set_handler },
         { .uri = "/offhook_alert",   .method = HTTP_POST, .handler = offhook_alert_handler },
+        { .uri = "/record_max_ms",   .method = HTTP_POST, .handler = record_max_ms_handler },
         { .uri = "/dialcode_add",           .method = HTTP_POST, .handler = dialcode_add_handler },
         { .uri = "/dialcode_set_code",      .method = HTTP_POST, .handler = dialcode_set_code_handler },
         { .uri = "/dialcode_set_filename",  .method = HTTP_POST, .handler = dialcode_set_filename_handler },

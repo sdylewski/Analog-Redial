@@ -111,19 +111,43 @@ def find_sync_offset_ms(samples: list[int], sample_rate: int, sync_hz: float,
     return best_start * 1000.0 / sample_rate
 
 
-def analyze(samples: list[int], sample_rate: int, ref: dict) -> tuple[list[dict], bool]:
+def analyze(samples: list[int], sample_rate: int, ref: dict, search_window_s: float = 4.0) -> tuple[list[dict], bool]:
     sync_ms = ref["segments"][0]["duration_ms"]
-    offset_ms = find_sync_offset_ms(samples, sample_rate, ref["sync_hz"], sync_ms)
+    offset_ms = find_sync_offset_ms(samples, sample_rate, ref["sync_hz"], sync_ms,
+                                     search_window_s=search_window_s)
     if offset_ms is None:
         return [], False
 
-    # Noise floor from a clean silent stretch: the gap right after the sync
-    # tone (see gen_test_tone.py's GAP_MS), shifted by the same offset.
-    sync_end_ms = offset_ms + sync_ms
-    floor_n = int(sample_rate * 0.05)
-    floor_start = int(sample_rate * sync_end_ms / 1000)
-    floor_samples = samples[floor_start: floor_start + floor_n]
-    noise_rms = rms(floor_samples) if floor_samples else 1.0
+    # Noise floor: median RMS across every inter-segment gap (see
+    # gen_test_tone.py's GAP_MS), not just one fixed spot. A single window
+    # is fragile -- if the sync-offset estimate is off by even a little (the
+    # search steps in 10ms increments, and a tone's own decay ring doesn't
+    # stop instantly), that one window can clip into real signal and report
+    # a falsely high floor, which then wrongly flags every segment as
+    # "dropped" even though the segments themselves are clean (confirmed
+    # live: this happened, with real segment RMS 9000-16000 all flagged
+    # because the single floor sample came out at 11000+). Sampling every
+    # gap and taking the median means one bad window can't skew the result.
+    gap_ms = 20  # margin trimmed from each edge of the 100ms inter-segment
+                 # gap, so a fade-in/out or timing slop can't bleed in
+    floor_readings = []
+    prev_end_ms = None
+    for seg in ref["segments"]:
+        seg_start = seg["start_ms"] + offset_ms
+        if prev_end_ms is not None and seg_start > prev_end_ms:
+            g0 = int(sample_rate * (prev_end_ms + gap_ms) / 1000)
+            g1 = int(sample_rate * (seg_start - gap_ms) / 1000)
+            if g1 > g0:
+                gap_samples = samples[g0:g1]
+                if gap_samples:
+                    floor_readings.append(rms(gap_samples))
+        prev_end_ms = seg_start + seg["duration_ms"]
+
+    if floor_readings:
+        floor_readings.sort()
+        noise_rms = floor_readings[len(floor_readings) // 2]
+    else:
+        noise_rms = 1.0
     noise_rms = max(noise_rms, 1.0)  # avoid a zero floor making everything "pass"
 
     results = []
@@ -169,6 +193,10 @@ def main() -> int:
                                       formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("captured_wav", help="Recording to check (from `record_downlink`/`record`)")
     parser.add_argument("--reference", required=True, help="JSON sidecar from gen_test_tone.py")
+    parser.add_argument("--search-window", type=float, default=4.0,
+                         help="Seconds of the capture to search for the sync tone (default: 4.0) -- "
+                              "widen this if the recording started well before playback did (e.g. "
+                              "manual two-console coordination), up to the capture's own length")
     args = parser.parse_args()
 
     ref = json.loads(Path(args.reference).read_text())
@@ -176,7 +204,7 @@ def main() -> int:
     duration_s = len(samples) / sample_rate if sample_rate else 0
     print(f"{args.captured_wav}: {len(samples)} samples @ {sample_rate}Hz ({duration_s:.1f}s)")
 
-    results, all_ok = analyze(samples, sample_rate, ref)
+    results, all_ok = analyze(samples, sample_rate, ref, search_window_s=args.search_window)
     if not results:
         print("FAIL: could not find the sync tone anywhere in the first few seconds -- "
               "capture doesn't contain this clip, or is silent/misaligned")

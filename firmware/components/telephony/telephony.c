@@ -125,6 +125,9 @@ const char *telephony_state_name(tel_state_t s)
         case TEL_OFFHOOK_ALERT: return "OFFHOOK_ALERT";
         case TEL_PLAYING_RECORD_PROMPT: return "PLAYING_RECORD_PROMPT";
         case TEL_RECORD_BEEP: return "RECORD_BEEP";
+        case TEL_RECORD_ENDING: return "RECORD_ENDING";
+        case TEL_RECORD_ENDING_2: return "RECORD_ENDING_2";
+        case TEL_RECORD_ENDING_3: return "RECORD_ENDING_3";
         default: return "?";
     }
 }
@@ -309,6 +312,10 @@ static void play_persistent(int line, call_progress_t tone, tel_state_t state)
     s_line[line].tone_return_us = 0;
 }
 
+/* 30s compiled fallback -- board_record_max_ms_get() returns whatever was
+ * set via Settings -> Record message once it's been saved there. */
+#define RECORD_MAX_MS_DEFAULT 30000
+
 /* 211: actually start capturing to storage. Factored out of
  * ACT_RECORD_ARCHIVE so the tick loop's tone-return path (after the beep)
  * can call it too, without duplicating the recorder_start()/failure logic. */
@@ -316,7 +323,8 @@ static void start_recording(int line)
 {
     rec_name_timestamped(s_line[line].rec_name, sizeof(s_line[line].rec_name), line);
     audio_tx_silence(line);
-    if (recorder_start(line, s_line[line].rec_name, 30000, 2000,
+    uint32_t max_ms = board_record_max_ms_get(RECORD_MAX_MS_DEFAULT);
+    if (recorder_start(line, s_line[line].rec_name, max_ms, 2000,
                        rec_done_cb, NULL) == ESP_OK) {
         s_line[line].state = TEL_RECORDING;
     } else {
@@ -332,6 +340,19 @@ static void start_recording(int line)
 static void start_record_beep(int line)
 {
     play_transient(line, TONE_CONFIRM, RECORD_BEEP_MS, TEL_RECORD_BEEP, TEL_RECORDING);
+}
+
+/* 211: a recording just hit its max duration. Rather than cutting straight
+ * to dial tone/idle with no warning, play 3 escalating beeps first (see
+ * TONE_RECORD_END_1/2/3, tones.h) so whoever's talking hears the call
+ * wrapping up. Each tone's own cadence (tones.c) bakes in the on/off gap;
+ * the ms passed here just needs to cover that tone's full on+off period so
+ * play_transient() doesn't cut it off mid-beep -- chaining through
+ * TEL_RECORD_ENDING -> _2 -> _3 happens in the tick loop's transient-return
+ * handling below, same mechanism as every other play_transient() chain. */
+static void start_record_ending(int line)
+{
+    play_transient(line, TONE_RECORD_END_1, 300, TEL_RECORD_ENDING, TEL_RECORD_ENDING_2);
 }
 
 /* ---- inter-line local call ---- */
@@ -624,7 +645,11 @@ static void fsm_task(void *arg)
                 case IN_REC_DONE: {
                     int l = e.line;
                     if (s_line[l].state != TEL_RECORDING) break; /* already moved on */
-                    if (line_offhook(l)) enter_dialtone(l);
+                    /* Still on the line -- play the wrapping-up beeps rather
+                     * than cutting straight to dial tone. If they already
+                     * hung up (recorder hit max duration after that), there's
+                     * no one to hear a warning -- go straight to idle. */
+                    if (line_offhook(l)) start_record_ending(l);
                     else enter_idle(l);
                     break;
                 }
@@ -653,6 +678,21 @@ static void fsm_task(void *arg)
                     /* 211's beep just finished. */
                     if (line_offhook(line)) start_recording(line);
                     else enter_idle(line);
+                }
+                else if (ret == TEL_RECORD_ENDING_2) {
+                    /* Beep 1 done -- chain into beep 2, unless they've
+                     * already hung up mid-sequence. */
+                    if (line_offhook(line))
+                        play_transient(line, TONE_RECORD_END_2, 250, TEL_RECORD_ENDING_2, TEL_RECORD_ENDING_3);
+                    else
+                        enter_idle(line);
+                }
+                else if (ret == TEL_RECORD_ENDING_3) {
+                    /* Beep 2 done -- chain into beep 3 (the loudest/last). */
+                    if (line_offhook(line))
+                        play_transient(line, TONE_RECORD_END_3, 200, TEL_RECORD_ENDING_3, TEL_DIALTONE);
+                    else
+                        enter_idle(line);
                 }
             }
             /* Handset left off-hook on dial tone -> loud alert (board.h).
