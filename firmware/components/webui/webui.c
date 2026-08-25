@@ -3718,7 +3718,21 @@ esp_err_t webui_start(void)
      * audio_convert's Kconfig help text. */
     config.stack_size = 32768;
 #else
-    config.stack_size = 8192;
+    /* 8 KB was sized for SPIFFS-only traversal (see the comment above this
+     * block). Confirmed live: the Dial Codes tab -- append_dialcodes_tab()
+     * calls append_file_select() once per row plus once more for the "add"
+     * form, and each call puts storage_entry_t files[32]+bundled[16]
+     * (~2KB) on the stack on top of settings_page_handler()'s and
+     * append_dialcodes_tab()'s own locals -- reliably crashed/rebooted a
+     * board with a microSD card mounted (storage_list() there hits
+     * FATFS/SDMMC, not SPIFFS) while the identical request against a board
+     * with no card worked fine. FATFS/SDMMC is a known heavier stack
+     * consumer than SPIFFS in ESP-IDF; 8 KB not accounting for that is the
+     * likely culprit, though this wasn't confirmed via addr2line the way
+     * the MP3 case above was (no crash log was available at the time).
+     * 16 KB is a generous, cheap (one-time, single always-running task)
+     * bump rather than a tightly-measured minimum. */
+    config.stack_size = 16384;
 #endif
 
     httpd_handle_t server = NULL;
