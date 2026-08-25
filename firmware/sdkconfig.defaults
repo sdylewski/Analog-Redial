@@ -17,6 +17,18 @@ CONFIG_LOG_DEFAULT_LEVEL_INFO=y
 # runtime log level (logctl, web UI/console) reach DEBUG for pulse/hook timing.
 CONFIG_LOG_MAXIMUM_LEVEL_DEBUG=y
 
+# Real (SNTP-synced) wall-clock timestamps in log lines -- "HH:MM:SS.mmm"
+# (UTC, no TZ configured) instead of milliseconds-since-boot. Reads as
+# 00:00:00.000-ish before SNTP has synced, same idea as
+# record_name_timestamped()'s boot-relative fallback. Comparing two boards'
+# logs by hand (different boot times, so their boot-relative numbers never
+# lined up) is what motivated this -- see 2026-08 session notes correlating
+# DualPhone/MaxPhone timestamps by manually computing each board's boot
+# epoch from uptime_s, which real timestamps make unnecessary. Binary blobs
+# (WiFi/BT libs) always print boot-relative regardless -- ESP-IDF limitation,
+# not something this setting can reach.
+CONFIG_LOG_TIMESTAMP_SOURCE_SYSTEM=y
+
 # Filesystem partition for audio assets (later milestones)
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
