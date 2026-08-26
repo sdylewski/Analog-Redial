@@ -25,6 +25,8 @@
 #include "esp_system.h"
 #include "esp_heap_caps.h"
 #include "esp_flash.h"
+#include "esp_netif.h"
+#include "lwip/sockets.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <stdlib.h>
@@ -3706,29 +3708,78 @@ static esp_err_t prompt_text_set_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* True if `req`'s peer address is in the same IPv4 subnet as this board's
+ * own WiFi-STA address (peer & netmask == our_ip & netmask). Lets
+ * gen_prompt.py --sync skip the setup-password check entirely when it's
+ * unmistakably a local, on-LAN caller -- the same trust boundary as every
+ * other endpoint on this web UI (nothing else here has auth either). The
+ * secret stays meaningful for the case this is really for: a board set up
+ * over VPN/port-forward/etc. from off the local network, where "same
+ * subnet" naturally fails closed and the password is still required.
+ * Best-effort and fails closed (false, i.e. "still require the secret") on
+ * anything that doesn't cleanly resolve to an IPv4 peer against our own
+ * IPv4 STA netif -- a real IPv6 peer, no STA netif, a lookup error, etc. --
+ * so an unexpected setup never silently grants LAN trust it can't verify. */
+static bool peer_on_lan(httpd_req_t *req)
+{
+    int sockfd = httpd_req_to_sockfd(req);
+    if (sockfd < 0) return false;
+
+    struct sockaddr_in6 peer = {0};
+    socklen_t peer_len = sizeof(peer);
+    if (getpeername(sockfd, (struct sockaddr *)&peer, &peer_len) != 0) return false;
+
+    /* esp_http_server listens on a single AF_INET6 socket when LWIP_IPV6 is
+     * on (it is here) -- real IPv4 peers show up v4-mapped (::ffff:a.b.c.d),
+     * not as a plain AF_INET sockaddr. Pull the last 4 bytes out of that
+     * form; anything else (a genuine IPv6 peer) has no IPv4 subnet to
+     * compare against. */
+    static const uint8_t v4_mapped_prefix[12] = {0,0,0,0,0,0,0,0,0,0,0xff,0xff};
+    if (peer.sin6_family != AF_INET6 ||
+        memcmp(peer.sin6_addr.s6_addr, v4_mapped_prefix, sizeof(v4_mapped_prefix)) != 0) {
+        return false;
+    }
+    uint32_t peer_ip;
+    memcpy(&peer_ip, &peer.sin6_addr.s6_addr[12], sizeof(peer_ip));
+
+    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (!sta) return false;
+    esp_netif_ip_info_t ip_info;
+    if (esp_netif_get_ip_info(sta, &ip_info) != ESP_OK) return false;
+
+    return (peer_ip & ip_info.netmask.addr) == (ip_info.ip.addr & ip_info.netmask.addr);
+}
+
 /* GET /api/prompt_requests?secret=... -- lets a host-side script (gen_prompt.py
  * --sync) fetch the list of tracked prompts without needing any other
  * credential on the board. Reuses the VOIP auto-provisioner's setup
  * password (voip_provisioner_password()) rather than a separate secret --
  * same "per board, shared with tools you trust" security model, at the
- * user's request. Refuses to serve at all if that password was never set,
- * rather than falling back to "no auth". */
+ * user's request. Skipped entirely for same-subnet callers (peer_on_lan())
+ * -- everything else on this UI already trusts the LAN unconditionally, so
+ * gating just this one endpoint bought nothing once the settings pages
+ * themselves show this same prompt text with no auth at all. Off-LAN
+ * callers (VPN/port-forward/etc.) still need it, and get refused outright
+ * if it was never set, rather than falling back to "no auth". */
 static esp_err_t prompt_requests_json_handler(httpd_req_t *req)
 {
-    const char *want = voip_provisioner_password();
-    if (!want[0]) {
-        httpd_resp_send_err(req, HTTPD_403_FORBIDDEN,
-                             "set a VOIP auto-provisioning password first (Settings -> VOIP)");
-        return ESP_OK;
-    }
+    if (!peer_on_lan(req)) {
+        const char *want = voip_provisioner_password();
+        if (!want[0]) {
+            httpd_resp_send_err(req, HTTPD_403_FORBIDDEN,
+                                 "set a VOIP auto-provisioning password first (Settings -> VOIP) "
+                                 "-- only needed for off-LAN access, e.g. over a VPN");
+            return ESP_OK;
+        }
 
-    char query[160], secret[64] = {0};
-    if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
-        httpd_query_key_value(query, "secret", secret, sizeof(secret));
-    }
-    if (strcmp(secret, want) != 0) {
-        httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "bad secret");
-        return ESP_OK;
+        char query[160], secret[64] = {0};
+        if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
+            httpd_query_key_value(query, "secret", secret, sizeof(secret));
+        }
+        if (strcmp(secret, want) != 0) {
+            httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "bad secret");
+            return ESP_OK;
+        }
     }
 
     /* Heap, not stack -- PROMPT_MAX_ENTRIES * sizeof(prompt_entry_t) is

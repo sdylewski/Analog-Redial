@@ -36,15 +36,20 @@ Two ways to use this:
   1. One-shot, same as before: pass text (or --from an existing audio file)
      and --name, optionally --upload HOST to push it straight to a board.
 
-  2. --sync HOST --secret ...: ask the board itself what it wants generated
-     (Settings -> Operator/Record/Dial Codes -> "Spoken prompt text" on each
-     page, POST /prompt_text_set) via GET /api/prompt_requests, synthesize
-     everything that's pending, and upload each result back. --secret is
-     the same setup password as the VOIP auto-provisioner (Settings -> VOIP)
-     -- one shared secret per board, not a new one to manage. This is the
-     no-server-dependency path: nothing but this script and a local TTS
-     engine, so a board running on someone else's Asterisk server doesn't
-     need access to *your* infrastructure to generate its own prompts.
+  2. --sync HOST [--secret ...]: ask the board itself what it wants
+     generated (Settings -> Operator/Record/Dial Codes -> "Spoken prompt
+     text" on each page, POST /prompt_text_set) via GET /api/prompt_requests,
+     synthesize everything that's pending, and upload each result back.
+     --secret is the same setup password as the VOIP auto-provisioner
+     (Settings -> VOIP) -- one shared secret per board, not a new one to
+     manage. The board skips checking it entirely for callers on the same
+     LAN subnet it's on (its own security model, not something this script
+     enforces) -- so --secret is only actually required when this runs
+     somewhere else on the network than the board, e.g. over a VPN into a
+     remotely-hosted phone. This is otherwise the no-server-dependency path:
+     nothing but this script and a local TTS engine, so a board running on
+     someone else's Asterisk server doesn't need access to *your*
+     infrastructure to generate its own prompts.
 
 Examples:
     # Text-to-speech (Piper/espeak-ng, auto-picked), saved locally only:
@@ -54,11 +59,15 @@ Examples:
     ./gen_prompt.py "For assistance, please hang up and try again." \\
         --name operator.wav --upload phone.local
 
+    # Generate + upload everything the board has pending text for, run from
+    # the same LAN the board's on (no --secret needed):
+    ./gen_prompt.py --sync phone.local
+
+    # Same, but the board's on a different network (VPN, remote setup):
+    ./gen_prompt.py --sync phone.local --secret "$(cat setup_password.txt)"
+
     # Convert an existing recording instead of synthesizing speech:
     ./gen_prompt.py --from banana_song.mp3 --name banana_phone.wav --upload phone.local
-
-    # Generate + upload everything the board has pending text for:
-    ./gen_prompt.py --sync phone.local --secret "$(cat setup_password.txt)"
 
 Well-known names the firmware looks for: operator.wav (dial 0, fixed),
 record_prompt.wav (played before the beep on 211, dial 211). The
@@ -314,13 +323,24 @@ def upload(path: Path, host: str, name: str) -> None:
     print(f"uploaded -> {url} ({len(data)} bytes): {body}")
 
 
-def fetch_prompt_requests(host: str, secret: str) -> list[dict]:
-    url = f"{_base_url(host)}/api/prompt_requests?secret={urllib.parse.quote(secret)}"
-    with urllib.request.urlopen(url, timeout=15) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+def fetch_prompt_requests(host: str, secret: str | None) -> list[dict]:
+    url = f"{_base_url(host)}/api/prompt_requests"
+    if secret:
+        url += f"?secret={urllib.parse.quote(secret)}"
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            raise SystemExit(
+                f"{host} rejected this request ({e.code}) -- if this script isn't running on "
+                "the same LAN subnet as the board, pass --secret (Settings -> VOIP's setup "
+                "password on the board)."
+            ) from e
+        raise
 
 
-def sync_prompts(host: str, secret: str, engine: str, piper_model: str | None,
+def sync_prompts(host: str, secret: str | None, engine: str, piper_model: str | None,
                   espeak_voice: str, say_voice: str, rate: int, out_dir: Path,
                   only: list[str] | None, auto_install: bool = True) -> None:
     entries = fetch_prompt_requests(host, secret)
@@ -373,10 +393,14 @@ def main() -> None:
                          "or --upload 192.168.0.148")
     p.add_argument("--sync", metavar="HOST",
                     help="Instead of a one-shot generate: fetch pending prompt text from the board "
-                         "(GET /api/prompt_requests), generate + upload audio for each. Requires "
-                         "--secret. Ignores text/--from/--name/--upload/--max-seconds.")
+                         "(GET /api/prompt_requests), generate + upload audio for each. --secret is "
+                         "only needed if this isn't running on the board's own LAN subnet. Ignores "
+                         "text/--from/--name/--upload/--max-seconds.")
     p.add_argument("--secret", help="Setup password for --sync (Settings -> VOIP on the board -- "
-                                     "same shared secret as the auto-provisioner)")
+                                     "same shared secret as the auto-provisioner). Not needed when "
+                                     "running --sync from the same LAN subnet as the board -- only "
+                                     "for a board reachable over a different network (VPN, remote "
+                                     "setup, etc).")
     p.add_argument("--only", action="append", metavar="NAME",
                     help="With --sync, only generate this clip name (repeatable). Default: everything pending.")
     p.add_argument("--no-auto-install", action="store_true",
@@ -387,8 +411,6 @@ def main() -> None:
     auto_install = not args.no_auto_install
 
     if args.sync:
-        if not args.secret:
-            p.error("--sync requires --secret")
         sync_prompts(args.sync, args.secret, args.engine, args.piper_model,
                      args.espeak_voice, args.say_voice, args.rate, Path(args.out_dir), args.only,
                      auto_install)
