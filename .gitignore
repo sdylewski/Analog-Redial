@@ -41,6 +41,10 @@ __pycache__/
 firmware/bringup/*.wav
 firmware/bringup/*.aiff
 
+# Piper TTS voice models -- gen_prompt.py downloads these itself (~60MB
+# each), not something to commit
+firmware/bringup/piper_voices/
+
 # IDE
 .idea/
 .vscode/
