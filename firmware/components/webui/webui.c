@@ -827,13 +827,43 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
         "<label>Spoken prompt text"
         "<textarea name=\"text\" maxlength=\"%d\" rows=\"2\" placeholder="
         "\"Leave blank for no spoken prompt\">%s</textarea>"
-        "<span class=\"fieldhint\">%s Generate + upload with "
-        "<code>firmware/bringup/gen_prompt.py --sync HOST --secret ...</code> "
-        "(local text-to-speech, no server dependency).</span>"
+        "<span class=\"fieldhint\">%s</span>"
         "</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\">Save text</button></div>"
         "</form>",
         ename, PROMPT_TEXT_MAX - 1, etext, status);
+
+    /* A ready-to-paste --sync command for just this one clip (--only), with
+     * the real secret filled in -- at the user's request, plaintext rather
+     * than the usual masked-bullets treatment (compare the VOIP tab's own
+     * password field). That's a deliberate exception, not an oversight: this
+     * secret already has no confidentiality left to protect once you can
+     * load this settings page at all, since the VOIP tab lets that same
+     * visitor read/replace it (masked only against shoulder-surfing the
+     * input box, not against page access) and reuse it to hit
+     * /api/prompt_requests directly. Spelling it out here just saves a trip
+     * to that tab and a manual copy. */
+    const char *pw = voip_provisioner_password();
+    if (pw[0]) {
+        char ip[16];
+        wifi_get_ip_str(ip, sizeof(ip));
+        char cmd[256];
+        snprintf(cmd, sizeof(cmd),
+                 "firmware/bringup/gen_prompt.py --sync %s --secret \"%s\" --only %s",
+                 ip, pw, clip_name);
+        char ecmd[256 * 6];
+        html_escape(cmd, ecmd, sizeof(ecmd));
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<p class=\"hint\">Generate + upload this clip's audio (run from the repo root):"
+            "<br><code style=\"user-select:all\">%s</code></p>", ecmd);
+    } else {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<p class=\"hint\">Generate + upload with "
+            "<code>firmware/bringup/gen_prompt.py --sync HOST --secret ...</code> "
+            "(local text-to-speech, no server dependency) -- set a VOIP "
+            "auto-provisioning password on the VOIP tab first to get an exact, "
+            "ready-to-paste command here.</p>");
+    }
     return off;
 }
 
