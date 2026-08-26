@@ -26,9 +26,18 @@ static const clip_default_t CLIP_DEFAULTS[] = {
     { "402", "burp.wav",            "Burp" },
     { "403", "crocodile_rock.wav",  "Crocodile Rock / Crocfa" },
     { "404", "martians.wav",        "Martians" },
-    { "411", "banana_phone.wav",    "Banana Phone" },
-    { "412", "banana_boat.wav",     "Banana Boat" },
-    { "413", "banana_split.wav",    "Banana Split" },
-    { "414", "lime_in_coconut.wav", "Lime in the Coconut" },
+    { "412", "dialup.mp3",          "Dial-up modem connection" },
+    /* 412 used to be "Banana Boat" -- repurposed (Wikimedia Commons,
+     * "Dial_up_connection.ogg", public domain) once its own source audio
+     * turned out to be the first real test of CONFIG_PLAYER_MP3 playback
+     * (see player/Kconfig): full-length at 40kbps mono MP3 is ~197KB vs.
+     * ~630KB as 8kHz/16-bit PCM WAV, a real difference on a device with a
+     * few MB of flash for everything combined. See gen_prompt.py's
+     * convert_to_mp3()/--name *.mp3 for the host-side encode half.
+     * 411/413/414 (Banana Phone/Split, Lime in the Coconut) retired --
+     * their pi_rotary_phone source audio was never part of this checkout
+     * and isn't coming; see dialplan_clip_remove()'s "still_default" check
+     * for how already-provisioned boards drop these from their persisted
+     * table too, not just fresh ones. */
 };
 #define CLIP_DEFAULTS_N (sizeof(CLIP_DEFAULTS) / sizeof(CLIP_DEFAULTS[0]))

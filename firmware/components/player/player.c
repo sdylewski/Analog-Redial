@@ -38,6 +38,115 @@ static void finish(int line, bool call_cb, player_done_cb_t cb, void *ctx)
 #define HEADER_SCAN_BYTES 8192
 #define PLAYBACK_CHUNK_BYTES 4096
 
+#if defined(CONFIG_PLAYER_MP3)
+/* Streams and decodes an MP3 frame-by-frame, reusing `buf` (already primed
+ * with `have` bytes from the initial header scan -- unlike the WAV path,
+ * which re-seeks to wav.data_offset and reads fresh, there's no header to
+ * skip past here, so those same first bytes are exactly where decoding
+ * starts) as a sliding input window up to HEADER_SCAN_BYTES capacity.
+ * Mono only (matches the WAV path's `wav.channels != 1` rejection) -- our
+ * own encode pipeline (gen_prompt.py) never produces anything else, and
+ * downmixing an arbitrary stereo source isn't needed yet. Returns true if
+ * playback ran to completion (not stopped, no decode error). */
+static bool play_mp3(int line, storage_reader_t *rd, uint8_t *buf, size_t have,
+                     volatile bool *stop_requested, const char *name)
+{
+    audio_mp3_decoder_t *dec = audio_mp3_decoder_create();
+    if (!dec) {
+        ESP_LOGE(TAG, "line %d: MP3 decoder alloc failed", line);
+        return false;
+    }
+
+    size_t pos = 0; /* consumed offset within buf[0..have) */
+    bool eof = false;
+    bool decode_ok = true;
+    bool rs_ready = false;
+    bool need_resample = false;
+    audio_resampler_t rs;
+    int16_t pcm[AUDIO_CONVERT_MP3_MAX_SAMPLES];
+    int16_t *resampled = NULL;
+    size_t resampled_cap = 0;
+
+    audio_tx_external(line, true);
+    while (!*stop_requested) {
+        if (pos > 0) {
+            memmove(buf, buf + pos, have - pos);
+            have -= pos;
+            pos = 0;
+        }
+        if (have < HEADER_SCAN_BYTES && !eof) {
+            size_t got = storage_read_chunk(rd, buf + have, HEADER_SCAN_BYTES - have);
+            have += got;
+            if (got == 0) eof = true;
+        }
+        if (have == 0) break; /* nothing left to decode */
+
+        int out_channels = 0;
+        uint32_t out_rate = 0;
+        size_t consumed = 0;
+        int samples = audio_mp3_decode_frame(dec, buf, have, pcm, &out_channels, &out_rate, &consumed);
+        pos = consumed;
+
+        if (consumed == 0 && samples <= 0) {
+            /* Not enough buffered for even one frame, even after topping
+             * up to a full HEADER_SCAN_BYTES window -- either truly done
+             * (eof) or a real frame here is implausibly large. Either way,
+             * this stream has nothing more usable to offer. */
+            break;
+        }
+        if (samples <= 0) continue; /* skipped ID3/garbage -- no audio this round */
+
+        if (out_channels != 1) {
+            ESP_LOGW(TAG, "line %d: '%s' is %d-channel MP3, only mono is supported",
+                     line, name, out_channels);
+            decode_ok = false;
+            break;
+        }
+        if (!rs_ready) {
+            need_resample = (out_rate != audio_sample_rate());
+            if (need_resample) {
+                audio_resampler_init(&rs, out_rate, audio_sample_rate());
+                resampled_cap = audio_resampler_max_out(&rs, AUDIO_CONVERT_MP3_MAX_SAMPLES);
+                resampled = malloc(resampled_cap * sizeof(int16_t));
+                if (!resampled) {
+                    ESP_LOGE(TAG, "line %d: resample buffer alloc failed", line);
+                    decode_ok = false;
+                    break;
+                }
+                ESP_LOGI(TAG, "line %d: '%s' is %u Hz, resampling to device rate %u Hz",
+                         line, name, (unsigned)out_rate, (unsigned)audio_sample_rate());
+            }
+            rs_ready = true;
+        }
+
+        int16_t *out_pcm = pcm;
+        size_t n_samples = (size_t)samples;
+        if (need_resample) {
+            n_samples = audio_resampler_push(&rs, pcm, n_samples, resampled, resampled_cap);
+            out_pcm = resampled;
+        }
+        size_t sent = 0;
+        while (sent < n_samples && !*stop_requested) {
+            size_t wrote = audio_ext_write(line, out_pcm + sent, n_samples - sent);
+            if (wrote == 0) { vTaskDelay(pdMS_TO_TICKS(5)); continue; }
+            sent += wrote;
+        }
+    }
+    free(resampled);
+    audio_mp3_decoder_destroy(dec);
+
+    bool stopped = *stop_requested;
+    if (!stopped) {
+        /* let what's still queued in the ext stream buffer actually play
+         * out before switching the line's audio source away -- same
+         * settle delay the WAV path uses. */
+        vTaskDelay(pdMS_TO_TICKS(120));
+    }
+    audio_tx_silence(line);
+    return !stopped && decode_ok;
+}
+#endif /* CONFIG_PLAYER_MP3 */
+
 static void play_task(void *arg)
 {
     play_args_t *a = (play_args_t *)arg;
@@ -57,6 +166,17 @@ static void play_task(void *arg)
 
     {
         size_t scanned = storage_read_chunk(&rd, buf, HEADER_SCAN_BYTES);
+
+#if defined(CONFIG_PLAYER_MP3)
+        /* Checked before WAV parsing -- a WAV always starts "RIFF", which
+         * never collides with an MP3's ID3 tag or frame-sync magic, so this
+         * is an unambiguous fork, not a fallback guess. */
+        if (audio_convert_mp3_magic(buf, scanned)) {
+            ok = play_mp3(line, &rd, buf, scanned, &s_line[line].stop_requested, a->name);
+            goto out;
+        }
+#endif
+
         audio_wav_info_t wav;
         if (!audio_wav_parse(buf, scanned, &wav) || wav.audio_format != 1 || wav.channels != 1 ||
             wav.bits_per_sample != 16) {
@@ -163,7 +283,18 @@ esp_err_t player_play(int line, const char *storage_name, player_done_cb_t done_
     s_line[line].active = true;
     s_line[line].stop_requested = false;
 
-    if (xTaskCreate(play_task, "player", 4096, a, tskIDLE_PRIORITY + 3, NULL) != pdPASS) {
+    /* Whichever clip this turns out to be isn't known until play_task
+     * actually peeks at it -- so with MP3 playback compiled in, every
+     * play_task gets the bigger stack minimp3 needs (~16KB internal decode
+     * locals, measured -- see player/Kconfig), not just MP3 ones. Paid only
+     * per active playback task and freed when it ends, unlike the
+     * permanent tax CONFIG_AUDIO_CONVERT_MP3's httpd-worker path pays. */
+#if defined(CONFIG_PLAYER_MP3)
+    const uint32_t stack_bytes = 28672;
+#else
+    const uint32_t stack_bytes = 4096;
+#endif
+    if (xTaskCreate(play_task, "player", stack_bytes, a, tskIDLE_PRIORITY + 3, NULL) != pdPASS) {
         s_line[line].active = false;
         free(a);
         return ESP_FAIL;

@@ -94,14 +94,17 @@ size_t audio_convert_push(audio_convert_ctx_t *ctx, const void *in_bytes, size_t
  * of input, for sizing the caller's `out` buffer. */
 size_t audio_convert_max_out(const audio_convert_ctx_t *ctx, size_t in_len);
 
-/* ---- MP3 upload support (trial, see this component's Kconfig) ----
- * Only declared/usable when CONFIG_AUDIO_CONVERT_MP3 is on -- vendors
+/* ---- MP3 decode support ----
+ * Declared/usable when either CONFIG_AUDIO_CONVERT_MP3 (webui.c's
+ * browser-upload decode, "trial") or CONFIG_PLAYER_MP3 (player.c's
+ * playback decode -- see that component's Kconfig for why this is a
+ * separate option with a very different RAM-cost profile) is on. Vendors
  * minimp3 (CC0, third_party/minimp3/) in a separate translation unit
- * (audio_convert_mp3.c) added to the build only by that Kconfig option, so
- * the flash-size cost can be measured by toggling it and rebuilding. Pure
- * decode logic here, no HTTP/multipart awareness -- callers (webui.c) own
- * buffering compressed bytes off the wire and feeding them in. */
-#ifdef CONFIG_AUDIO_CONVERT_MP3
+ * (audio_convert_mp3.c) added to the build only when needed, so the
+ * flash-size cost can be measured by toggling both off and rebuilding.
+ * Pure decode logic here, no HTTP/multipart/storage awareness -- callers
+ * own buffering compressed bytes and feeding them in. */
+#if defined(CONFIG_AUDIO_CONVERT_MP3) || defined(CONFIG_PLAYER_MP3)
 #define AUDIO_CONVERT_MP3_MAX_SAMPLES (1152 * 2) /* minimp3's MINIMP3_MAX_SAMPLES_PER_FRAME */
 
 typedef struct audio_mp3_decoder audio_mp3_decoder_t; /* opaque */
@@ -129,7 +132,7 @@ bool audio_convert_mp3_magic(const uint8_t *buf, size_t len);
 int audio_mp3_decode_frame(audio_mp3_decoder_t *dec, const uint8_t *in, size_t in_len,
                             int16_t *out, int *out_channels, uint32_t *out_rate,
                             size_t *consumed);
-#endif /* CONFIG_AUDIO_CONVERT_MP3 */
+#endif /* CONFIG_AUDIO_CONVERT_MP3 || CONFIG_PLAYER_MP3 */
 
 #ifdef __cplusplus
 }

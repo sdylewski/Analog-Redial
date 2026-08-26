@@ -490,7 +490,21 @@ esp_err_t dialplan_clip_remove(const char *code)
 {
     int idx = clip_find_idx(code);
     if (idx < 0) return ESP_ERR_NOT_FOUND;
-    if (s_clips[idx].builtin) return ESP_ERR_INVALID_STATE;
+    if (s_clips[idx].builtin) {
+        /* `builtin` protects a CURRENTLY-supported default from an
+         * accidental UI delete -- but a board provisioned by an older
+         * firmware can carry a builtin flag for a code that's since been
+         * retired from CLIP_DEFAULTS entirely (e.g. 411/413/414, whose
+         * source audio never made it into this checkout and isn't coming).
+         * That's just a stale relic at that point, not something worth
+         * protecting forever -- only refuse if it's still a real default
+         * in the firmware actually running right now. */
+        bool still_default = false;
+        for (size_t i = 0; i < CLIP_DEFAULTS_N; i++) {
+            if (strcmp(CLIP_DEFAULTS[i].code, code) == 0) { still_default = true; break; }
+        }
+        if (still_default) return ESP_ERR_INVALID_STATE;
+    }
     ESP_LOGI(TAG, "clip code removed: %s (was -> %s)", code, s_clips[idx].filename);
     memset(&s_clips[idx], 0, sizeof(s_clips[idx]));
     clips_save();

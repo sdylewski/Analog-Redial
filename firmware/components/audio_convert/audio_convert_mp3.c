@@ -1,13 +1,14 @@
 /*
- * MP3 decode support (trial -- see this component's Kconfig). Vendors
- * minimp3 (CC0, third_party/minimp3/), a small single-header decoder,
- * rather than a heavier one like Helix. Only compiled in when
- * CONFIG_AUDIO_CONVERT_MP3 is on (see CMakeLists.txt), so its flash cost
- * can be measured directly by toggling the option and comparing .bin size.
+ * MP3 decode support. Vendors minimp3 (CC0, third_party/minimp3/), a small
+ * single-header decoder, rather than a heavier one like Helix. Only
+ * compiled in when CONFIG_AUDIO_CONVERT_MP3 (webui.c upload) or
+ * CONFIG_PLAYER_MP3 (player.c playback) is on (see CMakeLists.txt), so its
+ * flash cost can be measured directly by toggling both off and comparing
+ * .bin size.
  */
 #include "audio_convert.h"
 
-#ifdef CONFIG_AUDIO_CONVERT_MP3
+#if defined(CONFIG_AUDIO_CONVERT_MP3) || defined(CONFIG_PLAYER_MP3)
 
 #include <stdlib.h>
 #include <string.h>
@@ -52,4 +53,4 @@ int audio_mp3_decode_frame(audio_mp3_decoder_t *dec, const uint8_t *in, size_t i
     return samples;
 }
 
-#endif /* CONFIG_AUDIO_CONVERT_MP3 */
+#endif /* CONFIG_AUDIO_CONVERT_MP3 || CONFIG_PLAYER_MP3 */

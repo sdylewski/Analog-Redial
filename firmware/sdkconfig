@@ -1833,6 +1833,12 @@ CONFIG_BOARD_TYPE_SMD2=y
 # end of Board configuration
 
 #
+# Player configuration
+#
+CONFIG_PLAYER_MP3=y
+# end of Player configuration
+
+#
 # Storage configuration
 #
 CONFIG_STORAGE_RECORDING_CAP_BYTES=4194304

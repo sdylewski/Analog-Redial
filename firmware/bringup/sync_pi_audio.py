@@ -34,7 +34,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from gen_prompt import convert_to_wav, trim_wav, synthesize, upload, DEFAULT_VOICE  # noqa: E402
+from gen_prompt import convert_to_wav, trim_wav, synthesize, upload, DEFAULT_SAY_VOICE  # noqa: E402
 
 # dest name -> (english source, italian source or None if no separate dub).
 # Dest names must match dialplan_defaults.h's CLIP_DEFAULTS -- that's what
@@ -46,10 +46,10 @@ CLIP_MAP: dict[str, tuple[str, str | None]] = {
     "burp.wav":            ("burp.wav", None),                     # Burp
     "crocodile_rock.wav":  ("crocodile_rock.wav", "crocfa.wav"),   # Crocodile Rock / Crocfa
     "martians.wav":        ("martians.wav", None),                 # Martians
-    "banana_phone.wav":    ("bananaphone.wav", None),              # Banana Phone
-    "banana_boat.wav":     ("bananaboat.wav", None),                # Banana Boat
-    "banana_split.wav":    ("bananasplit.wav", None),               # Banana Split
-    "lime_in_coconut.wav": ("limeincoconut.wav", None),             # Lime in the Coconut
+    # banana_phone/boat/split.wav, lime_in_coconut.wav dropped -- their
+    # pi_rotary_phone source audio was never part of this checkout and
+    # isn't coming (dial codes 411/413/414 retired; 412 repurposed for a
+    # different, non-Pi source -- see dialplan_defaults.h).
 }
 
 # Operator help script text, read from the Pi's own prompt files (see
@@ -90,7 +90,7 @@ def main() -> None:
                    help="Also POST every converted file to http://HOST/media/<name>, e.g. phone.local")
     p.add_argument("--skip-operator", action="store_true",
                    help="Don't synthesize operator.wav (skip if 'say' unavailable / not macOS)")
-    p.add_argument("--voice", default=DEFAULT_VOICE, help="macOS 'say' voice for the operator script")
+    p.add_argument("--voice", default=DEFAULT_SAY_VOICE, help="macOS 'say' voice for the operator script")
     args = p.parse_args()
 
     src_dir = Path(args.src)
@@ -125,9 +125,9 @@ def main() -> None:
             try:
                 import tempfile
                 with tempfile.TemporaryDirectory() as td:
-                    aiff = Path(td) / "speech.aiff"
-                    synthesize(text, args.voice, aiff)
-                    convert_to_wav(aiff, dst_path, args.rate)
+                    raw = synthesize(text, "say", None, "en-us", args.voice,
+                                      Path(td) / "speech.wav")
+                    convert_to_wav(raw, dst_path, args.rate)
                 size = dst_path.stat().st_size
                 print(f"  {script_name:28s} -> operator.wav   ({size:,} bytes, TTS)")
                 ok.append(dst_path)

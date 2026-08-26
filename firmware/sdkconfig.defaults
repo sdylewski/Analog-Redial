@@ -53,3 +53,12 @@ CONFIG_HTTPD_MAX_REQ_HDR_LEN=1536
 # CONFIG_FATFS_LFN_NONE is not set
 CONFIG_FATFS_LFN_HEAP=y
 CONFIG_FATFS_MAX_LFN=64
+
+# MP3 playback (player.c) -- lets full-length song-style clips ship as a
+# compressed format instead of raw 8kHz/16-bit PCM WAV, a real difference
+# on a device with a few MB of flash for all clips/recordings combined.
+# See player/Kconfig for the RAM tradeoff (paid per active playback task,
+# not permanently) and why this is a separate option from
+# CONFIG_AUDIO_CONVERT_MP3 (browser-upload decode, left off -- see that
+# option's own Kconfig for its very different, permanent RAM cost).
+CONFIG_PLAYER_MP3=y

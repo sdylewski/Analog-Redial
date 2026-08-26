@@ -18,26 +18,37 @@ from `storage` (recordings + anything uploaded over HTTP at runtime), so:
 **`operator.wav`** — synthesized from `pi_rotary_phone/operator_help_en.txt`
 (original project text, not copyrighted). Dial `0` to hear it.
 
-Plus four of the eight 4xx "silly clip" defaults, sourced from
+Four of the five remaining 4xx "silly clip" defaults, sourced from
 `pi_rotary_phone/Audio_files/` (personal library, not copyrighted-song
 originals redistributed elsewhere) and trimmed to 20s at 8kHz mono:
 `ring_of_fire.wav` (401), `burp.wav` (402), `crocodile_rock.wav` (403),
-`martians.wav` (404). The banana-line codes (411-414: Banana Phone/Boat/
-Split, Lime in the Coconut) have no source audio in `Audio_files/` yet — see
-`dialplan_defaults.h` for the filenames they expect once you have some.
+`martians.wav` (404). (411/413/414 -- Banana Phone/Split, Lime in the
+Coconut -- were retired: no source audio for them ever existed in
+`Audio_files/`.)
+
+**`dialup.mp3`** (412, "Dial-up modem connection") — public domain
+(Wikimedia Commons, `Dial_up_connection.ogg`), full length (~39s) rather
+than trimmed, encoded as MP3 instead of WAV -- see `CONFIG_PLAYER_MP3`
+(`components/player/Kconfig`) and `gen_prompt.py`'s `convert_to_mp3()`.
+A full song at 8kHz/16-bit PCM WAV runs 2-3MB; the same audio as ~40kbps
+mono MP3 is 3-4x smaller, which is the difference between "fits" and
+"doesn't" when clips share a few MB of flash with recordings. Any `--name`
+ending in `.mp3` (one-shot `gen_prompt.py`, or `Settings -> Dial Codes` /
+`Operator` uploads) gets this treatment automatically; `.wav` is unaffected
+and stays raw PCM.
 
 ## Adding your own (fun clips, other prompts)
 
-The banana-line clips above (and anything else you want) aren't bundled
-**on purpose** when there's no source for them, or when the source is a
-copyrighted commercial song that doesn't belong in a public repo or a build
-anyone can download. To add your own, from audio you own the rights to:
+Codes with no source audio aren't bundled **on purpose**, same as when the
+source is a copyrighted commercial song that doesn't belong in a public repo
+or a build anyone can download. To add your own, from audio you own the
+rights to:
 
 ```bash
 cd firmware/bringup
 ./sync_pi_audio.py --src /path/to/your/audio --out-dir ../assets
-# or convert one file at a time:
-./gen_prompt.py --from your_song.mp3 --name banana_phone.wav --out-dir ../assets
+# or convert one file at a time (name it *.mp3 for the compressed path):
+./gen_prompt.py --from your_song.mp3 --name your_song.mp3 --out-dir ../assets
 ```
 
 Everything except `operator.wav` in this directory is gitignored — see

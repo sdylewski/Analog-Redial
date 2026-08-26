@@ -1,0 +1,32 @@
+menu "Player configuration"
+
+config PLAYER_MP3
+    bool "Support MP3 playback (dial-code clips, prompts)"
+    default n
+    help
+        Lets player_play() stream-decode MP3 files (vendors minimp3, same
+        decoder audio_convert's upload-time CONFIG_AUDIO_CONVERT_MP3 option
+        uses -- turning either one on compiles it in) instead of requiring
+        everything to be raw PCM WAV. The point is storage: a full-length
+        song at a low mono bitrate (e.g. 32kbps) is 3-4x smaller than the
+        same audio as 8kHz/16-bit PCM WAV, which matters on a device with a
+        few MB of flash for all its clips/recordings combined. See
+        firmware/bringup/gen_prompt.py's --name *.mp3 handling for the
+        host-side encode half of this.
+
+        Deliberately a SEPARATE option from CONFIG_AUDIO_CONVERT_MP3 rather
+        than reusing it, even though both compile the same decoder: that
+        option's RAM cost is a PERMANENT one (its own Kconfig help explains
+        why -- the httpd worker task, which runs for the device's entire
+        uptime, needs a much bigger stack to survive minimp3's ~16KB decode
+        local). This option's cost is instead paid only by player.c's own
+        task, and only while something is actually playing (its stack is
+        freed again afterward) -- a real but much cheaper and temporary
+        tradeoff, not something you pay for just by having WiFi up. Turning
+        this on with the upload option OFF gets MP3 PLAYBACK without also
+        paying for MP3 BROWSER UPLOADS you may not need (gen_prompt.py's
+        host-side pipeline uploads pre-encoded files through the plain
+        byte-for-byte /media/<name> endpoint either way, upload option or
+        not).
+
+endmenu

@@ -273,6 +273,56 @@ def convert_to_wav(src: Path, dst: Path, rate: int) -> None:
     )
 
 
+# Mono voice/music at telephone bandwidth (~300-3400Hz, matching this
+# project's 8kHz WAV convention -- see the module docstring) holds up fine
+# at a low bitrate; this is the same ballpark LAME's own docs suggest for
+# mono speech/simple-music content. Chosen for a solid ~3-4x size win over
+# 8kHz/16-bit PCM (128kbps) without being so low it gets warbly -- raise
+# per-file with --mp3-bitrate if a specific clip sounds rough.
+DEFAULT_MP3_KBPS = 40
+
+
+def convert_to_mp3(src: Path, dst: Path, rate: int, kbps: int = DEFAULT_MP3_KBPS,
+                    max_seconds: float | None = None) -> None:
+    """Encodes to MP3 -- for player.c's CONFIG_PLAYER_MP3 playback path, not
+    upload-time decode (this device never re-encodes; whatever's uploaded
+    is what gets stored and played back as-is). ffmpeg-only: unlike WAV,
+    afconvert doesn't do this (no MP3 encoder on macOS's Core Audio side).
+    `rate` matters here more than it does for WAV -- MPEG-1 Layer III only
+    supports 32/44.1/48kHz; 8kHz (this project's usual rate) needs the
+    MPEG-2.5 extension, which LAME picks automatically for a low enough
+    output rate, and which minimp3 (player.c's decoder) fully supports.
+    `max_seconds`, if given, trims during encode (`-t`) -- trim_wav()'s
+    raw-PCM byte surgery doesn't apply to a compressed stream."""
+    if shutil.which("ffmpeg") is None:
+        raise SystemExit(
+            "Need 'ffmpeg' (with libmp3lame) on PATH to encode MP3 -- "
+            "afconvert can't do this. brew install ffmpeg / apt install ffmpeg."
+        )
+    cmd = ["ffmpeg", "-y", "-i", str(src)]
+    if max_seconds:
+        cmd += ["-t", str(max_seconds)]
+    cmd += ["-ar", str(rate), "-ac", "1", "-codec:a", "libmp3lame", "-b:a", f"{kbps}k", str(dst)]
+    subprocess.run(cmd, check=True, capture_output=True)
+
+
+def convert_to_target(src: Path, dst: Path, rate: int, kbps: int = DEFAULT_MP3_KBPS,
+                       max_seconds: float | None = None) -> None:
+    """Picks WAV vs MP3 encoding by `dst`'s extension -- name a clip
+    something.mp3 (vs .wav) to get the compressed, CONFIG_PLAYER_MP3 path
+    instead of raw PCM. Same convention gen_prompt.py already uses for
+    picking a TTS engine from a flag, just keyed off the output name
+    instead, since that's the one thing every caller (one-shot, --sync,
+    sync_pi_audio.py) already has to specify anyway. WAV trimming still
+    goes through the separate trim_wav() (byte-surgery on already-written
+    PCM) -- callers should skip that call for an MP3 dst, since
+    max_seconds is handled here instead, during encode."""
+    if dst.suffix.lower() == ".mp3":
+        convert_to_mp3(src, dst, rate, kbps, max_seconds)
+    else:
+        convert_to_wav(src, dst, rate)
+
+
 def trim_wav(path: Path, max_seconds: float, rate: int) -> None:
     """Truncate a mono 16-bit PCM WAV's data chunk in place. Some of the
     original pi_rotary_phone audio files are multi-minute songs (the Pi just
@@ -388,6 +438,10 @@ def main() -> None:
     p.add_argument("--max-seconds", type=float, default=None,
                     help="Trim to at most this many seconds (from the start) -- storage is capped "
                          "at 4MB total on the device, so multi-minute source files need this")
+    p.add_argument("--mp3-bitrate", type=int, default=DEFAULT_MP3_KBPS, metavar="KBPS",
+                    help=f"Bitrate for a .mp3 --name (default: {DEFAULT_MP3_KBPS}, mono) -- only "
+                         "used when --name/--sync's clip name ends in .mp3; a .wav name is "
+                         "unaffected and stays raw PCM.")
     p.add_argument("--upload", metavar="HOST",
                     help="Also POST the result to http://HOST/media/<name>, e.g. --upload phone.local "
                          "or --upload 192.168.0.148")
@@ -426,16 +480,19 @@ def main() -> None:
     out_path = Path(args.out_dir) / args.name
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
+    is_mp3 = out_path.suffix.lower() == ".mp3"
     if args.from_file:
-        convert_to_wav(Path(args.from_file), out_path, args.rate)
+        convert_to_target(Path(args.from_file), out_path, args.rate, args.mp3_bitrate,
+                           args.max_seconds if is_mp3 else None)
     else:
         with tempfile.TemporaryDirectory() as td:
             raw = synthesize(args.text, args.engine, args.piper_model,
                               args.espeak_voice, args.say_voice, Path(td) / "speech.wav",
                               auto_install)
-            convert_to_wav(raw, out_path, args.rate)
+            convert_to_target(raw, out_path, args.rate, args.mp3_bitrate,
+                               args.max_seconds if is_mp3 else None)
 
-    if args.max_seconds:
+    if args.max_seconds and not is_mp3:
         trim_wav(out_path, args.max_seconds, args.rate)
 
     size = out_path.stat().st_size
