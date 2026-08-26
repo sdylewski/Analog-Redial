@@ -26,7 +26,7 @@ originals redistributed elsewhere) and trimmed to 20s at 8kHz mono:
 Coconut -- were retired: no source audio for them ever existed in
 `Audio_files/`.)
 
-**`dialup.mp3`** (412, "Dial-up modem connection") — public domain
+**`dialup.mp3`** (412, "Dial up modem") — public domain
 (Wikimedia Commons, `Dial_up_connection.ogg`), full length (~39s) rather
 than trimmed, encoded as MP3 instead of WAV -- see `CONFIG_PLAYER_MP3`
 (`components/player/Kconfig`) and `gen_prompt.py`'s `convert_to_mp3()`.
@@ -36,6 +36,19 @@ mono MP3 is 3-4x smaller, which is the difference between "fits" and
 ending in `.mp3` (one-shot `gen_prompt.py`, or `Settings -> Dial Codes` /
 `Operator` uploads) gets this treatment automatically; `.wav` is unaffected
 and stays raw PCM.
+
+Full-length MP3 versions of 401/403/404 (Ring of Fire ~750KB, Crocodile
+Rock ~628KB, Martians ~863KB at 40kbps) exist too, but aren't bundled here
+-- combined with everything else, the three of them alone don't fit in
+this partition's 2MB (see the math above: worth it for one clip, not for
+three at once). Instead they live on each board's writable `storage`
+partition (6MB, plenty of room) via a plain upload under a new `*.mp3`
+name, with the dial code's `filename` repointed at it (`Settings -> Dial
+Codes`, or `dialplan_clip_set_filename()`/`/dialcode_set_filename`) -- the
+short WAV versions here stay as-is, so a board that's never had this done
+still works out of the box, just trimmed. Not scripted (yet) since it's a
+per-board choice, not a firmware default -- see gen_prompt.py's `--from
+... --name ring_of_fire.mp3` to redo it on another board.
 
 ## Adding your own (fun clips, other prompts)
 

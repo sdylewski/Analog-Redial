@@ -486,6 +486,17 @@ esp_err_t dialplan_clip_set_filename(const char *code, const char *filename)
     return ESP_OK;
 }
 
+esp_err_t dialplan_clip_set_desc(const char *code, const char *desc)
+{
+    int idx = clip_find_idx(code);
+    if (idx < 0) return ESP_ERR_NOT_FOUND;
+    strncpy(s_clips[idx].desc, desc ? desc : "", sizeof(s_clips[idx].desc) - 1);
+    s_clips[idx].desc[sizeof(s_clips[idx].desc) - 1] = '\0';
+    clips_save();
+    ESP_LOGI(TAG, "clip code %s relabeled: %s", code, s_clips[idx].desc);
+    return ESP_OK;
+}
+
 esp_err_t dialplan_clip_remove(const char *code)
 {
     int idx = clip_find_idx(code);

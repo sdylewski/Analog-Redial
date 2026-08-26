@@ -80,6 +80,19 @@ static bool is_wav_name(const char *name)
     return len > 4 && strcasecmp(name + len - 4, ".wav") == 0;
 }
 
+/* CONFIG_PLAYER_MP3 clips (see player/Kconfig) -- a real, playable audio
+ * asset just like a .wav one, so anywhere is_wav_name() gates "is this a
+ * pickable/playable clip, not README.md/.gitignore" needs this alongside
+ * it. Kept as a separate helper (not folded into is_wav_name()) because a
+ * few call sites -- media_handler's Content-Type, wav_duration_str()'s
+ * header parsing -- genuinely need to tell the two formats apart, not just
+ * "is it audio". */
+static bool is_mp3_name(const char *name)
+{
+    size_t len = strlen(name);
+    return len > 4 && strcasecmp(name + len - 4, ".mp3") == 0;
+}
+
 /* Best-effort categorization of an ESP_LOG tag/message into the Pi UI's
  * .k.digit / .k.hook / .k.action / .k.debug color classes -- this project's
  * tags don't map 1:1 onto the Pi's original categories, so this is a
@@ -760,7 +773,7 @@ static int append_file_select(char *buf, size_t cap, int off, const char *field_
             "<option value=\"\">(no files uploaded yet)</option>");
     }
     for (size_t i = 0; i < nfiles && (size_t)off < cap; i++) {
-        if (!is_wav_name(files[i].name)) continue;
+        if (!is_wav_name(files[i].name) && !is_mp3_name(files[i].name)) continue;
         bool sel = selected && strcmp(selected, files[i].name) == 0;
         off += snprintf(buf + off, cap - off,
             "<option value=\"%s\"%s>%s</option>", files[i].name,
@@ -770,7 +783,7 @@ static int append_file_select(char *buf, size_t cap, int off, const char *field_
         /* firmware/assets/ also ships README.md and .gitignore alongside
          * the actual clips (see that directory) -- not playable, so keep
          * them out of this "pick a clip" list. */
-        if (!is_wav_name(bundled[i].name)) continue;
+        if (!is_wav_name(bundled[i].name) && !is_mp3_name(bundled[i].name)) continue;
         bool shadowed = false;
         for (size_t j = 0; j < nfiles; j++) {
             if (strcmp(files[j].name, bundled[i].name) == 0) { shadowed = true; break; }
@@ -889,6 +902,8 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<table><tr><th>Code</th><th>Plays</th><th>Play</th><th>Description</th><th></th><th></th></tr>");
         for (size_t i = 0; i < nclips && (size_t)off < cap; i++) {
+            char edesc[64 * 6];
+            html_escape(clips[i].desc, edesc, sizeof(edesc));
             off += snprintf(buf + off, cap - off,
                 "<tr><td>"
                 "<form method=\"POST\" action=\"/dialcode_set_code\" style=\"display:inline\">"
@@ -898,11 +913,14 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 "<button type=\"submit\">save</button></form></td>"
                 "<td><code>%s</code></td>"
                 "<td><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></td>"
-                "<td>%s%s</td>"
+                "<td><form method=\"POST\" action=\"/dialcode_set_desc\" style=\"display:inline\">"
+                "<input type=\"hidden\" name=\"code\" value=\"%s\">"
+                "<input name=\"desc\" value=\"%s\" maxlength=\"63\" size=\"20\">"
+                "<button type=\"submit\">save</button></form>%s</td>"
                 "<td><form method=\"POST\" action=\"/dialcode_set_filename\" style=\"display:inline\">"
                 "<input type=\"hidden\" name=\"code\" value=\"%s\">",
                 clips[i].code, clips[i].code, clips[i].filename, clips[i].filename,
-                clips[i].desc,
+                clips[i].code, edesc,
                 clips[i].builtin ? " <span class=\"pill off\">built-in</span>" : "",
                 clips[i].code);
             off = append_file_select(buf, cap, off, "filename", clips[i].filename);
@@ -1592,11 +1610,16 @@ static int append_storage_table(char *buf, size_t cap, int off,
         char sz[16];
         char dur[16];
         char play[160];
-        if (is_wav_name(entries[i].name)) {
+        if (is_wav_name(entries[i].name) || is_mp3_name(entries[i].name)) {
             snprintf(play, sizeof(play),
                 "<audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio>",
                 entries[i].name);
-            wav_duration_str(entries[i].name, dur, sizeof(dur));
+            /* wav_duration_str() reads a RIFF/WAV header -- doesn't apply to
+             * MP3's frame-based format, and the browser's own <audio>
+             * element shows its duration once loaded anyway, so this just
+             * stays blank rather than computing/guessing one. */
+            if (is_wav_name(entries[i].name)) wav_duration_str(entries[i].name, dur, sizeof(dur));
+            else dur[0] = '\0';
         } else {
             play[0] = '\0';
             dur[0] = '\0';
@@ -2900,6 +2923,36 @@ static esp_err_t dialcode_set_filename_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* POST /dialcode_set_desc -- form body code=..&desc=.. (relabels an
+ * existing code, builtin or not -- see dialplan_clip_set_desc()). */
+static esp_err_t dialcode_set_desc_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char code[8] = {0}, desc[64] = {0};
+    form_field(body, "code", code, sizeof(code));
+    form_field(body, "desc", desc, sizeof(desc));
+
+    esp_err_t err = dialplan_clip_set_desc(code, desc);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "dialcode_set_desc '%s' -> '%s' failed: %s", code, desc, esp_err_to_name(err));
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, esp_err_to_name(err));
+        return ESP_OK;
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 /* POST /dialcode_delete/<code> */
 static esp_err_t dialcode_delete_handler(httpd_req_t *req)
 {
@@ -3185,7 +3238,8 @@ static esp_err_t media_handler(httpd_req_t *req)
         snprintf(disp, sizeof(disp), "attachment; filename=\"%s\"", name);
         httpd_resp_set_hdr(req, "Content-Disposition", disp);
     }
-    httpd_resp_set_type(req, is_wav_name(name) ? "audio/wav" : "application/octet-stream");
+    httpd_resp_set_type(req, is_wav_name(name) ? "audio/wav" :
+                              is_mp3_name(name) ? "audio/mpeg" : "application/octet-stream");
     httpd_resp_set_hdr(req, "Accept-Ranges", "bytes");
     if (has_range) {
         char cr[64];
@@ -3885,6 +3939,7 @@ esp_err_t webui_start(void)
         { .uri = "/dialcode_add",           .method = HTTP_POST, .handler = dialcode_add_handler },
         { .uri = "/dialcode_set_code",      .method = HTTP_POST, .handler = dialcode_set_code_handler },
         { .uri = "/dialcode_set_filename",  .method = HTTP_POST, .handler = dialcode_set_filename_handler },
+        { .uri = "/dialcode_set_desc",      .method = HTTP_POST, .handler = dialcode_set_desc_handler },
         { .uri = "/dialcode_delete/*",      .method = HTTP_POST, .handler = dialcode_delete_handler },
         { .uri = "/dialcode_upload",        .method = HTTP_POST, .handler = dialcode_upload_handler },
         { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },

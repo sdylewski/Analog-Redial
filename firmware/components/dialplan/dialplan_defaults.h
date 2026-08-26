@@ -26,7 +26,7 @@ static const clip_default_t CLIP_DEFAULTS[] = {
     { "402", "burp.wav",            "Burp" },
     { "403", "crocodile_rock.wav",  "Crocodile Rock / Crocfa" },
     { "404", "martians.wav",        "Martians" },
-    { "412", "dialup.mp3",          "Dial-up modem connection" },
+    { "412", "dialup.mp3",          "Dial up modem" },
     /* 412 used to be "Banana Boat" -- repurposed (Wikimedia Commons,
      * "Dial_up_connection.ogg", public domain) once its own source audio
      * turned out to be the first real test of CONFIG_PLAYER_MP3 playback
