@@ -324,7 +324,13 @@ static void start_recording(int line)
     rec_name_timestamped(s_line[line].rec_name, sizeof(s_line[line].rec_name), line);
     audio_tx_silence(line);
     uint32_t max_ms = board_record_max_ms_get(RECORD_MAX_MS_DEFAULT);
-    if (recorder_start(line, s_line[line].rec_name, max_ms, 2000,
+    /* Trailing-silence auto-stop: 2000ms was cutting real messages short on
+     * an ordinary mid-sentence pause (confirmed live -- a caller got cut
+     * off after ~5s of actually talking, not staying silent). 5000ms gives
+     * room to think without sitting through the full max_ms on every short
+     * message that ends with the caller just hanging up quietly instead of
+     * a clean pause. */
+    if (recorder_start(line, s_line[line].rec_name, max_ms, 5000,
                        rec_done_cb, NULL) == ESP_OK) {
         s_line[line].state = TEL_RECORDING;
     } else {
@@ -333,13 +339,14 @@ static void start_recording(int line)
     }
 }
 
-/* 211: beep cue before start_recording() -- reuses TONE_CONFIRM (already a
- * distinct stutter beep used elsewhere for confirmation) rather than adding
- * a tone just for this. Runs whether or not RECORD_PROMPT_NAME played first. */
-#define RECORD_BEEP_MS 700
+/* 211: beep cue before start_recording() -- a single clean tone
+ * (TONE_ANSWERING_BEEP), not TONE_CONFIRM's triple stutter (that read as a
+ * generic "confirmation chime," not an answering-machine beep -- confirmed
+ * live). Runs whether or not RECORD_PROMPT_NAME played first. */
+#define RECORD_BEEP_MS 600
 static void start_record_beep(int line)
 {
-    play_transient(line, TONE_CONFIRM, RECORD_BEEP_MS, TEL_RECORD_BEEP, TEL_RECORDING);
+    play_transient(line, TONE_ANSWERING_BEEP, RECORD_BEEP_MS, TEL_RECORD_BEEP, TEL_RECORDING);
 }
 
 /* 211: a recording just hit its max duration. Rather than cutting straight

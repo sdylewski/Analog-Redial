@@ -201,6 +201,12 @@ void progress_tone_start(progress_tone_t *p, uint32_t sample_rate, call_progress
             f1 = 900; f2 = 0;
             resolve_cadence(p, &TONE_RECORD_END_3_CADENCE);
             break;
+        case TONE_ANSWERING_BEEP:
+            /* Continuous for its whole duration (n_phases stays 0, i.e.
+             * "always on") -- telephony.c's play_transient() times the
+             * ~600 ms via its `ms` argument, same as CONFIRM. */
+            f1 = 1000; f2 = 0;
+            break;
         default:
             f1 = 0; f2 = 0;
             break;
@@ -209,6 +215,7 @@ void progress_tone_start(progress_tone_t *p, uint32_t sample_rate, call_progress
     if (kind == TONE_RECORD_END_1) amp = 0.3f;
     else if (kind == TONE_RECORD_END_2) amp = 0.6f;
     else if (kind == TONE_RECORD_END_3) amp = 1.0f;
+    else if (kind == TONE_ANSWERING_BEEP) amp = 0.8f; /* clearly audible "go" cue */
     tone_osc_init(&p->osc, sample_rate, f1, f2, amp);
 }
 

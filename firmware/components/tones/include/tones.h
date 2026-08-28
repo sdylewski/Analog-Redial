@@ -73,6 +73,14 @@ typedef enum {
     TONE_RECORD_END_1,
     TONE_RECORD_END_2,
     TONE_RECORD_END_3,
+    /* 211's "leave your message after the beep" cue -- a single clean
+     * 1000 Hz tone, ~600 ms, matching the classic answering-machine beep
+     * (not TONE_CONFIRM's 350+440 Hz triple stutter, which reads as a
+     * "confirmation chime" -- confirmed live: a caller who'd specifically
+     * asked for "a beep like an answering machine" said the stutter tone
+     * "wasn't like an answering machine, very different"). Not
+     * regionalized -- same reasoning as REORDER/CONFIRM. */
+    TONE_ANSWERING_BEEP,
 } call_progress_t;
 
 /* A cadence is an alternating on/off/on/off/... sequence of phase lengths
