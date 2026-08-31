@@ -9,8 +9,11 @@ KiCad project: `hardware/kicad/Rotary_phone_SMD3/`.
 
 ## Status
 
-In progress — schematic/layout work just starting. This doc tracks
-decisions as they're made, not a finished design.
+Schematic wired and pin-mapped; layout in progress (traces being
+permuted/re-routed for board geometry as of 2026-08-30). ERC/DRC reviewed
+against `hardware/kicad/Rotary_phone_SMD3/` on that date — see
+[Review findings](#review-findings-2026-08-30) for what came out of that
+pass. This doc tracks decisions as they're made, not a finished design.
 
 ## What's different from SMD2
 
@@ -68,26 +71,191 @@ Pi's 40-pin header) is preserved in git history on this file.
 
 Both of these were found on the hand-soldered SMD2 board and bodge-fixed
 there (see [`ROTARY_PHONE_SMD.md`'s "Signal flow" section](ROTARY_PHONE_SMD.md#signal-flow-audio-path)
-for full root-cause detail) — SMD3's schematic needs to have the *correct*
-wiring from the start, not carry the bodges forward as the "real" design:
+for full root-cause detail). **Both confirmed correctly wired in the
+SMD3 schematic** (traced through the actual netlist 2026-08-30, not just
+eyeballed):
 
-1. **SLIC Vin/Vout swap**: coupling caps had codec `LIN1`/`LIN2` (ADC
-   inputs, passive) landing on the SLIC's **Vin** pin (needs an external
-   driver) and codec `LOUT1`/`ROUT1` (DAC outputs, actively driven)
-   landing on **Vout** (the pin the SLIC itself drives) — backwards on
-   both lines. Fix: swap the net assignment so `LOUT1`/`ROUT1` connect to
-   each SLIC's `Vin` and `LIN1`/`LIN2` connect to each SLIC's `Vout`.
-2. **Mono ADC input**: both lines' mic signals shared one ES8388 ADC
-   channel via the `LINSEL` mux, so only one line's mic was ever
-   capturable during a bridge. Fix: route each line's mic into its own
-   dedicated ADC channel from the start (line 1 → `LIN1`, line 2 →
-   `RIN1`) instead of both landing on `LIN1`/`LIN2`.
+1. **SLIC Vin/Vout swap**: codec `LOUT1`/`ROUT1` (DAC outputs, actively
+   driven) now correctly land on each SLIC's **Vin** (needs an external
+   driver), and each SLIC's own driven **Vout** feeds the codec's ADC
+   input — the reverse of SMD2's bug. Confirmed: `LOUT1`→(C12)→U4.Vin,
+   `ROUT1`→(C15)→U3.Vin, U4.Vout→(C13)→R10→codec `LIN1`, U3.Vout→(C14)→R11→codec
+   `RIN1`.
+2. **Mono ADC input**: each line's mic now lands on its own dedicated
+   ES8388 ADC channel instead of sharing one via the `LINSEL` mux — U4
+   (line 0) → `LIN1`, U3 (line 1) → `RIN1` (not `LIN1`/`LIN2` as originally
+   planned above; using the L/R pair instead of the mux is what actually
+   ended up implemented, and it's the correct fix either way). `LIN2`/`RIN2`
+   are unused for mic input now.
+
+## Pin map (ESP32-C6-DevKitC-1, U1)
+
+Confirmed from the actual schematic netlist (`kicad-cli sch export netlist`),
+not the silkscreen or a guess. **Same net-labeling gotcha SMD2 has**: the
+two SLICs are numbered three different ways depending on which net group
+you're looking at. The one true mapping:
+
+| Reference | Firmware line | RJ12 jack | Control-signal net prefix | Tip/Ring net prefix |
+|--|--|--|--|--|
+| U4 | **line 0** | J9 | `/Line0_*` | `/Line1*` |
+| U3 | **line 1** | J8 | `/Line1_*` | `/Line2*` |
+
+Yes, U4's *Tip/Ring* nets say "Line1" while its *control* nets say "Line0" —
+and U3's say "Line2"/"Line1" respectively. Three numbering conventions,
+two physical SLICs. Go by the table above, not by reading a net name in
+isolation.
+
+| ESP32-C6 GPIO | Signal | Notes |
+|--|--|--|
+| GPIO0 | I2S DIN | from codec `ASDOUT` |
+| GPIO1 | I2S LRCK | |
+| GPIO2 | I2S MCLK | |
+| GPIO3 | `/Xtra1` | spare, brought to header J2 pin 1 — unassigned |
+| GPIO4 (MTMS, strap) | Line 0 F/R | direct to U4 |
+| GPIO5 (MTDI, strap) | Line 0 RM | direct to U4 |
+| GPIO6 | Line 0 SHK | via R14/R15 divider, direct to U4 |
+| GPIO7 | Line 0 PD | via D3 (diode-only, no pull-up — correct per AG1171 datasheet §3.4, see below), direct to U4 |
+| GPIO8 (BOOT, strap) | — | unconnected, free |
+| GPIO9 (BOOT, strap) | — | unconnected, free — **this is the download-mode strap**; SMD2 uses it at runtime for the factory-reset-hold button (`board_factory_reset_start()`), SMD3 has nothing wired here yet, see [Open questions](#open-questions) |
+| GPIO10 | I2S DOUT | to codec `DSDIN` |
+| GPIO11 | I2S BCLK | to codec `SCLK` |
+| GPIO12 (USB D-) | — | unconnected, free (native USB-JTAG unused) |
+| GPIO13 (USB D+) | — | unconnected, free |
+| GPIO14 | — | not brought out on the DevKit's header at all (same module-packaging limit as the WROOM-1) |
+| GPIO15 (JTAG, strap) | — | unconnected, free |
+| GPIO16 (U0TXD) | header J3 pin 1 | kept as UART/spare per owner's choice — not repurposed |
+| GPIO17 (U0RXD) | header J4 pin 1 | same |
+| GPIO18 | SD `MISO` **or** Line 1 F/R | shared via jumper header J5, see below |
+| GPIO19 | SD `CLK` **or** Line 1 SHK | shared via J5 |
+| GPIO20 | SD `MOSI` **or** Line 1 RM | shared via J5 |
+| GPIO21 | SD `CS` **or** Line 1 PD | shared via J5 |
+| GPIO22 | I2C SDA | codec control |
+| GPIO23 | I2C SCL | codec control |
+| EN/RESET | — | not connected on the carrier board — the DevKitC-1 module already has its own pull-up + reset button onboard, nothing to add here |
+| GPIO24-30 | — | not applicable — internal flash, not part of this module's usable pin set |
+
+### J5: line 1 SLIC vs. microSD, jumper-selected
+
+Unlike SMD2 (which XORs the same *physical pads* between line 2's SLIC and
+a microSD via a build-time choice), SMD3 gives GPIO18-21 to the microSD
+socket directly and brings line 1's SLIC control signals (F/R, RM, PD,
+SHK) out to the *other* pin of each column-pair on header **J5** (2x4,
+0.1"). **Confirmed design intent**: J5 takes 2-pin jumper shunts across
+each pair to route those four GPIOs to line 1's SLIC instead of the SD
+card when you want two lines instead of storage — same "one set of copper,
+pick one peripheral" idea as SMD2, just resolved with a physical jumper
+instead of firmware Kconfig.
+
+| J5 pin | Signal | J5 pin | Signal |
+|--|--|--|--|
+| 1 | GPIO21 (SD CS) | 2 | Line 1 PD |
+| 3 | GPIO20 (SD MOSI) | 4 | Line 1 RM |
+| 5 | GPIO19 (SD CLK) | 6 | Line 1 SHK |
+| 7 | GPIO18 (SD MISO) | 8 | Line 1 F/R |
+
+Bridge 1-2, 3-4, 5-6, 7-8 for line 1; leave all four open (or don't stuff
+the jumper block) to use the microSD instead. **Without a jumper block
+populated, line 1 has no path to any GPIO at all** — worth deciding now
+whether J5 gets an actual jumper header/shunts or just solder-jumper pads,
+since "populate 4 loose jumper wires" isn't a great out-of-box experience.
+
+### ESP32-C6 GPIO constraints (reference, so this doesn't need re-deriving)
+
+From ESP-IDF's own C6 GPIO table (`docs/en/api-reference/peripherals/gpio/esp32c6.inc`),
+not guesswork:
+
+- **Strapping pins: GPIO4, 5, 8, 9, 15.** Fine to use as general I/O after
+  boot; what's wired to them just can't force the wrong level *during*
+  power-on/reset. GPIO9 is the one that actually matters (download-mode
+  select) — everything else is lower-stakes. SMD3 already proves strapping
+  pins are fine for peripheral-driven signals here: GPIO4/5 drive the SLIC
+  (ESP32 output → external chip), same direction I2S BCLK/LRCK ran on
+  SMD2's GPIO4/5 without issue.
+- **GPIO12/13**: USB-Serial-JTAG by default, but not a boot hazard — just
+  don't enable that peripheral and they're plain GPIOs.
+- **GPIO24-30**: internal flash, never available.
+- **GPIO14**: not led out on WROOM-1-based modules (module packaging, not
+  a chip limitation).
+
+## Review findings (2026-08-30)
+
+Ran `kicad-cli sch erc` and `kicad-cli pcb drc` against the schematic/PCB
+after the pin permutation + re-route. Full output not preserved here, just
+what mattered:
+
+**Schematic (ERC), 8 flags, all false positives or confirmed-fine:**
+- 4x "SLIC PD not driven by an output" — expected. AG1171 datasheet §3.4:
+  *"The PD input should not be taken to a logic (H)... Connecting to PD
+  via a diode will ensure it is never taken (H)."* D2/D3's diode-only (no
+  pull-up) wiring is exactly that recommendation; ERC just can't reason
+  through a diode.
+- `EN/RESET` "not driven" — fine, the DevKitC-1 module has its own onboard
+  pull-up + reset button.
+- microSD `CD` (pin 9, the mechanical card-detect switch — distinct from
+  pin 2's `DAT3/CS`) unconnected — **left unconnected on purpose**: this
+  project has never used hardware card-detect, `sdcard_init()` handles a
+  missing/removed card via mount-attempt failure already. If that ever
+  changes, pin 9 needs an external pull-up and a non-strapping GPIO
+  (GPIO12/13 are free) — a card seated in the slot at power-on would hold
+  a strapping pin low through boot otherwise.
+
+**PCB (DRC), 51 flags, one real:**
+- 29 silk-over-copper + 6 silk-overlap + 15 footprint-library warnings —
+  cosmetic/library housekeeping (custom `Scott:` and JLC-imported
+  footprints reading as "modified" against the library table), not
+  electrical.
+- **One dangling trace**: `Net-(D1-A)` (DC jack → protection diode D1,
+  the power-input diode-OR path) has an unconnected end, 4.5mm long, at
+  board position (94.0, 93.0mm). The schematic-level connection is
+  correct (verified: D1 anode ← J1 `PWR`, cathode → `+5V`) — the copper
+  on the PCB just doesn't actually close the loop at that spot yet.
+  **Needs fixing before this is orderable.**
+
+## Firmware changes needed once the board's back
+
+None of this is implemented yet — `board_pins_smd.h` is SMD2-only today
+(its own header says so). SMD3 needs its own pin map, not an edit to that
+file, since almost nothing lines up:
+
+- New `board_pins_smd3.h` (or rename the existing one to make room) with
+  the GPIO table above. `board_line_pins()`'s line-0/line-1 split still
+  works the same way — line 0 is still "the always-direct one," it's just
+  on GPIO4/5/6/7 instead of SMD2's GPIO1/2/3/10.
+- New `CONFIG_BOARD_TYPE_SMD3` Kconfig choice alongside the existing
+  `_THT`/`_SMD2` ones (`firmware/components/board/Kconfig`), wired through
+  wherever those two are currently switched (`board_config.h`, codec
+  driver selection — SMD3 still uses ES8388 like SMD2, so that part of the
+  dispatch shouldn't need new logic, just the new pin header).
+- PD logic itself needs no change — firmware already drives it as a
+  plain GPIO output (`BOARD_PD_LEVEL_RUN=0`/`POWERDOWN=1`), and that's
+  compatible with the diode: driving low pulls PD low (down through the
+  diode, power-down engaged); driving high lets the diode block and PD
+  floats open, which the datasheet treats as equivalent to "not low" (run).
+- If line 1's J5 jumpers are populated, firmware treats it exactly like
+  SMD2's line 2 — same `board_hw_config_get()`/`board_hw_config_set()`
+  runtime choice between "SD card" and "second line," just gated on a
+  physical jumper instead of GPIO18-21 being wired to one peripheral or
+  the other at fab time. Worth deciding whether `board_hw_detect_evidence()`'s
+  passive-read heuristic (used on SMD2 to guess which peripheral is
+  actually populated) still makes sense here, or whether SMD3 should just
+  always ask the human, since a jumper is easier to get wrong silently
+  than a populate-or-don't BOM choice.
 
 ## Open questions
 
 - **DevKit part choice**: specific ESP32-C6-DevKit model/vendor not yet
   pinned down — confirm its onboard regulator's minimum 5V input headroom
   once chosen (affects the DC jack voltage spec above).
+- **Dangling DC-jack trace** (`Net-(D1-A)`, see [Review findings](#review-findings-2026-08-30)) —
+  needs closing before this is orderable.
+- **J5 jumper hardware**: an actual 2x4 jumper header + 4 shunts, or just
+  bare pads meant for solder-bridges/wire jumpers? Affects BOM and how
+  approachable "switch to line 1" is for a future build.
+- **Factory-reset button on GPIO9**: SMD2/THT firmware reads GPIO9 at
+  runtime for the hold-to-factory-reset gesture; SMD3's GPIO9 is currently
+  unwired. Decide whether that feature carries over to SMD3 (needs a
+  button + pull-up on GPIO9, careful not to load it at power-on) or gets
+  dropped for this board.
 
 ## See also
 
