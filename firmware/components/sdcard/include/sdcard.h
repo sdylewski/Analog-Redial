@@ -19,10 +19,24 @@ extern "C" {
 #endif
 
 /* Bring up the SPI bus + card and mount FAT at /sd. Logs card info on success.
- * ESP_ERR_NOT_SUPPORTED if this board isn't configured for microSD. */
+ * ESP_ERR_NOT_SUPPORTED if this board isn't configured for microSD.
+ * ESP_ERR_NOT_FOUND if the board has a card-detect pin (BOARD_SD_CD) and it
+ * reads "no card" -- checked before touching SPI at all, so a genuinely
+ * empty slot fails fast with a clear reason instead of a mount timeout. */
 esp_err_t sdcard_init(void);
 
 bool sdcard_mounted(void);
+
+/* True if a card is physically in the slot, per the board's CD (card
+ * detect) pin -- independent of sdcard_init()/sdcard_mounted(), so callers
+ * (webui status, sdcard_init() itself) can tell "no card" apart from "card
+ * present but mount failed" before attempting anything on the SPI bus.
+ * Boards with no CD pin wired (BOARD_SD_CD undefined -- true today for every
+ * board except where noted in its board_pins header) always return true
+ * here: no hardware signal to distinguish "empty" from "not checked yet",
+ * so this degrades to the same "just try the mount" behavior those boards
+ * already had before CD support existed. */
+bool sdcard_card_present(void);
 
 /* Total/free bytes on the mounted card, straight from FATFS's own
  * bookkeeping (not a directory walk -- storage.c uses this for the SD

@@ -7,6 +7,7 @@
 #include "sdmmc_cmd.h"
 #include "driver/sdspi_host.h"
 #include "driver/spi_common.h"
+#include "driver/gpio.h"
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -16,6 +17,36 @@ static const char *TAG = "sdcard";
 
 static sdmmc_card_t *s_card;
 
+#ifdef BOARD_SD_CD
+static bool s_cd_configured;
+
+/* Standard push-push microSD socket convention: a normally-open mechanical
+ * switch that shorts CD to GND once a card is fully seated -- LOW = present,
+ * HIGH (via the internal weak pull-up, ~45k on this chip -- plenty for a
+ * slow mechanical contact, no external resistor needed) = empty. */
+static void ensure_cd_configured(void)
+{
+    if (s_cd_configured) return;
+    gpio_config_t cfg = {
+        .pin_bit_mask = 1ULL << BOARD_SD_CD,
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+    };
+    gpio_config(&cfg);
+    s_cd_configured = true;
+}
+#endif
+
+bool sdcard_card_present(void)
+{
+#ifdef BOARD_SD_CD
+    ensure_cd_configured();
+    return gpio_get_level(BOARD_SD_CD) == 0;
+#else
+    return true; /* no CD pin on this board -- can't tell, so don't block */
+#endif
+}
+
 esp_err_t sdcard_init(void)
 {
     if (s_card) return ESP_OK;
@@ -24,6 +55,11 @@ esp_err_t sdcard_init(void)
      * on this specific board, so bail out before touching any SPI/GPIO
      * hardware at all if that's not what's configured. */
     if (!board_hw_config_get().has_microsd) return ESP_ERR_NOT_SUPPORTED;
+
+    if (!sdcard_card_present()) {
+        ESP_LOGW(TAG, "no card detected (CD pin) -- not attempting a mount");
+        return ESP_ERR_NOT_FOUND;
+    }
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = SPI2_HOST;

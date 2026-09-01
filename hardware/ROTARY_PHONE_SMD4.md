@@ -92,10 +92,41 @@ Ran `kicad-cli sch erc` and `kicad-cli pcb drc` against
   the electrical connectivity itself was never actually broken on SMD3
   either — that finding was stray copper, not a missing connection.
 
+## microSD card-detect (CD) — planned for this board
+
+SMD3/SMD4's schematic currently leaves `Card1` pin 9 (`CD`, the mechanical
+card-detect switch — distinct from pin 2's SD-protocol `DAT3/CS`)
+unconnected (see [SMD3's review findings](ROTARY_PHONE_SMD3.md#review-findings-2026-08-30)).
+Decided 2026-08-31: wire it up on SMD4, using **GPIO3** — currently just
+routed to a spare header (net `/Xtra1`, one of two spare switch/LED
+headers on this board) with nothing else claiming it.
+
+- **No external resistor needed.** ESP32-C6's internal weak pull-up is
+  ~45kΩ (confirmed from `datasheets/ESP32-C6-WROOM-1_datasheet_extracted.txt`'s
+  DC characteristics table) — plenty for a slow mechanical switch. Wire
+  `Card1` pin 9 straight to GPIO3; firmware enables the internal pull-up.
+- Standard push-push socket convention: normally-open, shorts to GND when
+  a card is seated. **LOW = card present, HIGH = empty.**
+- **Firmware side is already done** (`firmware/components/sdcard/sdcard.c`,
+  this session): `sdcard_card_present()` reads a board's `BOARD_SD_CD` pin
+  if defined (internal pull-up configured on first use), and
+  `sdcard_init()` checks it before touching the SPI bus at all, returning
+  `ESP_ERR_NOT_FOUND` with a clear log line instead of attempting (and
+  failing) a full mount against an empty slot. Compiles to a no-op
+  (`sdcard_card_present()` always returns `true`) on any board that
+  doesn't define `BOARD_SD_CD` — SMD2/THT are unaffected.
+- **Still needed**: the schematic net itself (GPIO3 ↔ `Card1` pin 9 —
+  not yet drawn, this is a plan not a completed wire), and
+  `#define BOARD_SD_CD GPIO_NUM_3` in whichever `board_pins_smd4.h`
+  eventually gets written (see [SMD3's firmware TODO](ROTARY_PHONE_SMD3.md#firmware-changes-needed-once-the-boards-back),
+  which applies here too) — the moment that's added, this feature is live
+  with no other code changes.
+
 ## Open questions
 
 - **JLCImport library portability** (see above) — confirm it's registered
   via a portable path before this leaves this machine.
+- **CD schematic wire** — GPIO3 ↔ `Card1` pin 9 isn't drawn yet, see above.
 - Everything else carried over from [`ROTARY_PHONE_SMD3.md`'s open
   questions](ROTARY_PHONE_SMD3.md#open-questions) still applies unchanged
   (J5 jumper hardware choice, factory-reset button on GPIO9, DevKit part
