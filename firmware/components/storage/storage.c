@@ -461,13 +461,17 @@ static size_t list_dir(const char *mount, storage_entry_t *out, size_t max_entri
     }
     closedir(d);
 
-    /* insertion sort by mtime, keep names[]/stats[] in lockstep */
+    /* insertion sort by mtime, newest first (Storage/Recordings pages both
+     * read this -- newest-at-top is the more useful default for either:
+     * a fresh 211 message or a just-uploaded clip is what you're looking
+     * for right after it lands, not scrolled below everything older),
+     * keep names[]/stats[] in lockstep */
     for (size_t i = 1; i < n; i++) {
         struct stat key_st = stats[i];
         char key_name[STORAGE_MAX_NAME];
         strncpy(key_name, names[i], STORAGE_MAX_NAME);
         int j = (int)i - 1;
-        while (j >= 0 && cmp_mtime(&stats[j], &key_st) > 0) {
+        while (j >= 0 && cmp_mtime(&stats[j], &key_st) < 0) {
             stats[j + 1] = stats[j];
             strncpy(names[j + 1], names[j], STORAGE_MAX_NAME);
             j--;

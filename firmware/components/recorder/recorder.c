@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdint.h>
 
 static const char *TAG = "recorder";
 
@@ -31,6 +32,49 @@ typedef struct {
  * of 6 = 1536 samples). Kept modest so the RX ring buffer never overflows. */
 #define IN_CHUNK_SAMPLES 1536
 #define SILENCE_RMS      500  /* ~ -36 dBFS; below this counts as "quiet" */
+
+/* AGC for recorded output only -- confirmed live (2026-09-03) that 211
+ * messages were coming out around -46 dBFS RMS / 20% of full-scale peak
+ * even for normal speaking volume, quiet enough several people assumed
+ * playback itself was broken. That level is inherent to this hardware's
+ * mic gain budget (locked to 0dB PGA -- raising it hits the ES8388's
+ * gain-dependent input impedance bug documented in HARDWARE_SIGNAL_LEVELS.md
+ * -- combined with the divider added to keep DTMF from clipping), not
+ * something to fix by turning the mic up. Applied here to the decimated
+ * 8kHz samples right before they're written, so it only ever touches what
+ * lands in the WAV file -- zero effect on live call audio, DTMF detection,
+ * or anything else sharing the same RX stream upstream of this.
+ *
+ * Two-layer design, not just dtmf.c's plain one-block-lag AGC: a smoothed
+ * gain estimate (same shape as dtmf.c's, see that file's own tuning
+ * comment for the rationale) handles the steady-state level, PLUS a
+ * per-block hard ceiling computed from that block's own raw peak, applied
+ * on top before writing. The smoothed estimate alone isn't enough for
+ * recorded voice the way it is for DTMF: DTMF tones hold a stable level
+ * for the whole press, so a one-block lag never really overshoots.
+ * Real audio doesn't -- confirmed live: the gain smoothed to near max
+ * during a quiet stretch, then a single louder transient (the tail of the
+ * pre-record beep bleeding into the first ~0.6s of a recording, see
+ * REC_SETTLE_MS below) got hit with that stale high gain and clipped
+ * solid at full scale. The per-block ceiling means no single block can
+ * ever clip regardless of how far behind the smoothed estimate is. */
+#define AGC_TARGET_PEAK  20000 /* ~61% of int16 full scale -- clearly audible, real headroom below clipping */
+#define AGC_CEILING_PEAK 30000 /* ~92% -- hard per-block cap, independent of the smoothed estimate */
+#define AGC_GATE_PEAK     1000 /* below this, hold the smoothed estimate rather than chase noise floor */
+#define AGC_MIN_GAIN_Q8     64 /* 0.25x -- still allows taming an already-loud line */
+#define AGC_MAX_GAIN_Q8   2048 /* 8x -- the per-block ceiling is what actually bounds worst case, not this */
+#define AGC_SMOOTH_DIV       4
+
+/* Recording starts the instant the pre-record beep's timer expires
+ * (telephony.c), but the beep's own acoustic decay -- audible through the
+ * earpiece, picked up by the mic -- doesn't stop that fast. Confirmed
+ * live: the first ~0.6s of every recording captured that tail, loud
+ * enough to clip. Discarding (not writing) this short window fixes it at
+ * the source instead of just papering over it with the AGC ceiling above.
+ * Doesn't change the caller-facing "starts right after the beep" behavior
+ * -- recording still begins on the same event, this is well under a
+ * quarter second of silence they'd talk through anyway. */
+#define REC_SETTLE_MS 250
 
 static void wr_u16(uint8_t *p, uint16_t v) { p[0] = v; p[1] = v >> 8; }
 static void wr_u32(uint8_t *p, uint32_t v) { p[0] = v; p[1] = v >> 8; p[2] = v >> 16; p[3] = v >> 24; }
@@ -85,6 +129,7 @@ static void rec_task(void *arg)
     uint32_t acc_n = 0;
     int64_t  t0 = esp_timer_get_time();
     int64_t  quiet_since = 0; /* esp_timer_get_time() when quiet began; 0 = not quiet */
+    int32_t  agc_gain_q8 = 256; /* unity -- see AGC_* above */
 
     while (!s_rec[line].stop) {
         int64_t elapsed_ms = (esp_timer_get_time() - t0) / 1000;
@@ -103,6 +148,46 @@ static void rec_task(void *arg)
             }
         }
         if (on == 0) continue;
+
+        /* Settle gap: decimate (keeps the accumulator in sync) but discard
+         * -- don't write, don't count elapsed time against silence
+         * detection below -- see REC_SETTLE_MS above. */
+        if (elapsed_ms < REC_SETTLE_MS) continue;
+
+        /* This block's own raw peak, before any gain -- drives both the
+         * per-block ceiling and the smoothed estimate's next update (see
+         * AGC_* comment above). */
+        int32_t raw_peak = 0;
+        for (size_t i = 0; i < on; i++) {
+            int32_t a_ = out[i] < 0 ? -out[i] : out[i];
+            if (a_ > raw_peak) raw_peak = a_;
+        }
+
+        /* Gain actually applied to THIS block: the smoothed estimate,
+         * capped so this specific block's own peak can't clear
+         * AGC_CEILING_PEAK no matter how stale that estimate is. */
+        int32_t block_gain_q8 = agc_gain_q8;
+        if (raw_peak > 0) {
+            int32_t ceiling_gain = (int32_t)(((int64_t)AGC_CEILING_PEAK << 8) / raw_peak);
+            if (block_gain_q8 > ceiling_gain) block_gain_q8 = ceiling_gain;
+        }
+        for (size_t i = 0; i < on; i++) {
+            int32_t v = ((int32_t)out[i] * block_gain_q8) >> 8;
+            if (v > INT16_MAX) v = INT16_MAX;
+            else if (v < INT16_MIN) v = INT16_MIN;
+            out[i] = (int16_t)v;
+        }
+        /* Re-estimate the smoothed gain for the *next* block from this
+         * block's raw (pre-gain) peak -- one-block lag, same shape as
+         * dtmf.c's AGC, but no longer the only thing standing between a
+         * transient and clipping (the ceiling above handles that now). */
+        int32_t chunk_peak = raw_peak;
+        if (chunk_peak >= AGC_GATE_PEAK) {
+            int32_t target = (int32_t)(((int64_t)AGC_TARGET_PEAK << 8) / chunk_peak);
+            if (target < AGC_MIN_GAIN_Q8) target = AGC_MIN_GAIN_Q8;
+            if (target > AGC_MAX_GAIN_Q8) target = AGC_MAX_GAIN_Q8;
+            agc_gain_q8 += (target - agc_gain_q8) / AGC_SMOOTH_DIV;
+        }
 
         if (storage_write_chunk(&w, out, on * sizeof(int16_t)) != ESP_OK) goto out;
         data_bytes += on * sizeof(int16_t);

@@ -337,10 +337,7 @@ static const char *pill_class_for(tel_state_t s)
     case TEL_IDLE: return "off";
     case TEL_BUSY:
     case TEL_REORDER:
-    case TEL_RECORDING:
-    case TEL_RECORD_ENDING:
-    case TEL_RECORD_ENDING_2:
-    case TEL_RECORD_ENDING_3: return "busy";
+    case TEL_RECORDING: return "busy";
     default: return "on"; /* dialtone/dialing/ringback/ringing/incall/playing */
     }
 }

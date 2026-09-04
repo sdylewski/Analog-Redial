@@ -64,15 +64,19 @@ typedef enum {
      * deliberately loud and dissonant. Not regionalized (other countries use
      * quite different alerts; this is the one this project implements). */
     TONE_OFFHOOK_ALERT,
-    /* 211's "your time is up" cue: three short 900 Hz beeps played back to
-     * back at increasing loudness and decreasing gap (see telephony.c's
-     * start_record_ending()) instead of just cutting to dial tone. Not
-     * PSTN call-progress tones, so not regionalized -- same reasoning as
-     * REORDER/CONFIRM. Same frequency for all three; only amplitude
-     * differs (0.3/0.6/1.0 -- see tones.c). */
-    TONE_RECORD_END_1,
-    TONE_RECORD_END_2,
-    TONE_RECORD_END_3,
+    /* 211's "time's almost up" cues -- three quiet, brief 900 Hz beeps
+     * played individually *during* the recording (see telephony.c's
+     * rec_warn_at_us[]/start_recording()), at 10s/5s/1s before the
+     * recording's own max-duration cutoff, not stacked back-to-back
+     * afterward -- that read as an abrupt alarm, not a gentle reminder
+     * (confirmed live). Deliberately quiet throughout (0.10/0.13/0.16 --
+     * see tones.c) rather than escalating to full volume; the point is a
+     * light nudge repeated three times, not urgency. Not PSTN
+     * call-progress tones, so not regionalized -- same reasoning as
+     * REORDER/CONFIRM. */
+    TONE_RECORD_WARN_1,  /* ~10s left */
+    TONE_RECORD_WARN_2,  /* ~5s left */
+    TONE_RECORD_WARN_3,  /* ~1s left */
     /* 211's "leave your message after the beep" cue -- a single clean
      * 1000 Hz tone, ~600 ms, matching the classic answering-machine beep
      * (not TONE_CONFIRM's 350+440 Hz triple stutter, which reads as a
