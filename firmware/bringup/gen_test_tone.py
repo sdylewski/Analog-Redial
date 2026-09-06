@@ -49,7 +49,7 @@ SYNC_MS = 300
 TONE_MS = 400
 GAP_MS = 100
 AMPLITUDE = 0.7  # of int16 full scale -- comfortably under clipping (see
-                 # this project's HARDWARE_SIGNAL_LEVELS.md Sec.1B for why
+                 # this project's docs/signal-levels.md Sec.1B for why
                  # headroom below "full scale on paper" matters in practice)
 SAMPLE_RATE = 8000  # real telephone bandwidth / what actually crosses the
                      # network as G.711 -- see gen_prompt.py's own rationale

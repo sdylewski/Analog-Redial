@@ -28,14 +28,19 @@ testing ran on.
 
 This repo is public on GitHub. `README.md` and everything under `docs/` are
 written for someone building a board from scratch — SMD4 only, no
-dev-journal detail. Root-level docs like `ECHO_DEBUGGING.md`,
-`ESP32_PORT_PLAN.md`, `PROJECT_UPDATE_PLAN.md`, `MCU_VS_PI_ZERO_STACK.md`,
-and the SMD2/SMD3 hardware docs (`hardware/ROTARY_PHONE_SMD*.md` other than
-SMD4's) are **your working notes, not part of the public doc set** — useful
-for you when picking up this project again, not linked from the public
-README. When adding new engineering-journal-style content (debug sessions,
-open questions, measured bench data), it belongs in one of these internal
-docs, not in `docs/`.
+dev-journal detail. Everything else lives under **[`archive/`](archive/)** —
+dev-journal docs (`archive/ECHO_DEBUGGING.md`, `archive/ESP32_PORT_PLAN.md`,
+`archive/PROJECT_UPDATE_PLAN.md`, `archive/MCU_VS_PI_ZERO_STACK.md`,
+`archive/VOIP_SETUP.md`), and superseded/pre-SMD4 hardware docs
+(`archive/hardware/ROTARY_PHONE_SMD*.md`, `BOM*.md`, `WM8731.md`). These are
+**your working notes, not part of the public doc set** — useful for you when
+picking up this project again, not linked from the public README. When
+adding new engineering-journal-style content (debug sessions, open
+questions, measured bench data), it belongs under `archive/`, not in
+`docs/`. Cross-references between files already inside `archive/` keep
+working unchanged (the whole subtree moved together, same relative
+structure) — only links from live files (this one included) need the
+`archive/` prefix.
 
 ## Key docs (read before making changes)
 
@@ -45,7 +50,7 @@ docs, not in `docs/`.
 - [`docs/signal-levels.md`](docs/signal-levels.md) — SLIC/codec levels, SHK dividers
 - [`docs/voip-setup.md`](docs/voip-setup.md) — SIP server setup, dial-plan reference
 - [`firmware/README.md`](firmware/README.md) — ESP-IDF toolchain setup, build/flash
-- [`ESP32_PORT_PLAN.md`](ESP32_PORT_PLAN.md) *(internal)* — Pi v1.0 → ESP32 scope, phases, dual-board plan
+- [`archive/ESP32_PORT_PLAN.md`](archive/ESP32_PORT_PLAN.md) *(internal)* — Pi v1.0 → ESP32 scope, phases, dual-board plan
 - Dial plan source of truth: `pi_rotary_phone/docs/DIAL_CODES.md` (sibling repo)
 
 ## Firmware architecture (summary)

@@ -181,7 +181,7 @@ esp_err_t es8388_init(const es8388_config_t *cfg)
      *
      * Dropped from +3dB back to 0dB on 2026-08-21 for an unrelated reason:
      * once the SLIC->codec voltage divider was added (see
-     * HARDWARE_SIGNAL_LEVELS.md Sec.1B) to stop DTMF from clipping the ADC,
+     * docs/signal-levels.md Sec.1B) to stop DTMF from clipping the ADC,
      * normal speech on the divided line came through as near-silence
      * (capture RMS ~0-300) at +3dB/+9dB, while DTMF still classified fine.
      * Root cause: the ES8388's mic PGA is (empirically, not documented)

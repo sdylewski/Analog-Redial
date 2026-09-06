@@ -4,7 +4,7 @@ converted to the format the device's `player` component expects) and
 optionally upload it straight to the phone over HTTP.
 
 The ESP32 has no TTS of its own -- this is the host-side half of milestone 3
-(FEATURES.md): produce mono 16-bit PCM WAV. Defaults to 8000 Hz -- real
+(docs/features.md): produce mono 16-bit PCM WAV. Defaults to 8000 Hz -- real
 telephone bandwidth is ~300-3400Hz, so 8kHz (Nyquist to 4kHz) is genuine
 phone-quality audio, not a compromise -- it's also what G.711 (the VoIP
 milestone's eventual codec) uses. 8kHz vs. this device's native 48kHz I2S

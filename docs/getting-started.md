@@ -140,10 +140,12 @@ Once connected, the log prints the device's IP and its mDNS name (default
   hidden. (`/guide` still works as a link — it just redirects here.)
 - **Recordings** — messages left with dial code 211 (duration, timestamp,
   download, delete).
-- **Settings** — board name, phone mode (play / call-only), digit readback,
-  Wi-Fi, VoIP setup, and a Storage tab with the full file manager. Hardware
-  tab shows chip type, detected codec, serial (MAC), and flash/RAM/storage
-  usage.
+- **Settings** — five tabs: **General** (board name, Wi-Fi, language,
+  digit readback), **Dial Codes & Prompts** (the editable clip table, the
+  Operator greeting, and the Record-message prompt/length — all "what plays
+  for a code" in one place), **VOIP**, **Hardware** (chip/codec/serial info,
+  the SMD line-2/microSD config, and the full SD+internal file manager), and
+  **Diagnostics** (log level, the full log, test-mode controls).
 
 ---
 

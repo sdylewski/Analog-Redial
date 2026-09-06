@@ -185,7 +185,7 @@ bool storage_using_sd(void) { return sdcard_mounted(); }
  * clip filenames are no longer a fixed naming convention (see dialplan's
  * clip-entry table) -- only the recording prefix is known in advance.
  * (cb_*.wav, the temp file from the archived "record + callback" feature,
- * used to be protected here too -- see FEATURES.md "Archived features".) */
+ * used to be protected here too -- see docs/features.md "Archived features".) */
 static bool is_protected_asset(const char *name)
 {
     return strncmp(name, "rec_", 4) != 0;

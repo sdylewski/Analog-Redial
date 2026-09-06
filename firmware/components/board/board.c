@@ -433,7 +433,7 @@ board_hw_evidence_t board_hw_detect_evidence(void)
         gpio_config(&c);
         ev.raw_levels[i] = gpio_get_level(pins[i]);
     }
-    /* An idle/on-hook AG1171 SHK divider (see HARDWARE_SIGNAL_LEVELS.md)
+    /* An idle/on-hook AG1171 SHK divider (see docs/signal-levels.md)
      * pulls this low at rest; an unpopulated/floating microSD CLK pin has no
      * such reason to read consistently low. Weak evidence, not proof --
      * purely advisory, see board.h. */

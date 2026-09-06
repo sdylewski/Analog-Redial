@@ -42,7 +42,7 @@ static const entry_t TABLE[] = {
       "Operator help prompt", true },
 
     /* 2xx -- leave a message. 212-215 ("record + call back") lived here too
-     * until it was archived -- see FEATURES.md "Archived features" and the
+     * until it was archived -- see docs/features.md "Archived features" and the
      * archive/record-and-callback git tag to revive it. */
     { "211", ACT_RECORD_ARCHIVE, 0, 0,
       "Leave a message (record to storage, download on web UI)", true },

@@ -80,7 +80,7 @@ static char classify(const int64_t mags[8])
      * this board, distorting twist unpredictably block-to-block, up to
      * 245x on the noisy attack/decay edges around a press). Clipping is
      * now fixed at the analog level (voltage divider between the SLIC and
-     * codec, see HARDWARE_SIGNAL_LEVELS.md), and the AGC below keeps
+     * codec, see docs/signal-levels.md), and the AGC below keeps
      * captured levels in a consistent, predictable range on top of that
      * regardless of a given phone's natural loudness -- so nothing should
      * be arriving distorted anymore, and one limit close to real DTMF

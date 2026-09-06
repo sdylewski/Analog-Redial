@@ -143,4 +143,4 @@ board — the ES8388 driver doesn't implement an analog bypass path yet; use
 
 `echopulse <line> <on|off> [period_ms]` — periodic timestamped test tone
 for characterizing hybrid/line echo on real hardware (oscilloscope or ear,
-not a log-timestamp exercise). See [`../../ECHO_DEBUGGING.md`](../../ECHO_DEBUGGING.md).
+not a log-timestamp exercise). See [`../../archive/ECHO_DEBUGGING.md`](../../archive/ECHO_DEBUGGING.md).

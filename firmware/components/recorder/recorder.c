@@ -39,7 +39,7 @@ typedef struct {
  * even for normal speaking volume, quiet enough several people assumed
  * playback itself was broken. That level is inherent to this hardware's
  * mic gain budget (locked to 0dB PGA -- raising it hits the ES8388's
- * gain-dependent input impedance bug documented in HARDWARE_SIGNAL_LEVELS.md
+ * gain-dependent input impedance bug documented in docs/signal-levels.md
  * -- combined with the divider added to keep DTMF from clipping), not
  * something to fix by turning the mic up. Applied here to the decimated
  * 8kHz samples right before they're written, so it only ever touches what

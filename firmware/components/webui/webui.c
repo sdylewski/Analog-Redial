@@ -664,33 +664,38 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
 /* Tab set mirrors the Pi's settings.html (General / Operator / VOIP /
  * Inter-phone / Record message / Hardware) so the shape previews where each
  * section will land, even though most of them are still placeholders here --
- * radio and VoIP aren't wired up on the ESP32 yet (see ESP32_PORT_PLAN.md).
+ * radio and VoIP aren't wired up on the ESP32 yet (see archive/ESP32_PORT_PLAN.md).
  * "Record & callback" (212-215) was part of this set too until it was
- * archived -- see FEATURES.md "Archived features". Server-rendered via
+ * archived -- see docs/features.md "Archived features". Server-rendered via
  * ?tab=, not client JS: every other page in this component is a plain
  * server-rendered form, and a full reload per tab click keeps this page
  * consistent with that instead of adding another script tag. */
+/* Five tabs, not the nine this once grew to: Operator and Record message
+ * were each exactly one card (prompt text + audio upload) and Dial Codes is
+ * "what plays for a code" already, so all three now render together under
+ * "dialcodes" -- see the dispatch in settings_page_handler(). Likewise
+ * Hardware (stats), the SMD line2/microSD config card, and the Storage file
+ * manager all render together under "hardware" -- they're all "this board's
+ * physical resources," previously split across two tabs with Hardware's own
+ * text pointing you at the other one. Inter-phone was dropped outright: it
+ * only ever showed the 3xx dial codes read-only with a "not editable here"
+ * hint -- identical data the merged Status page's Dial Guide already shows,
+ * so the tab added a click with no unique content. */
 typedef struct { const char *id; const char *label; } settings_tab_t;
 static const settings_tab_t SETTINGS_TABS[] = {
     { "general",    "General" },
-    { "dialcodes",  "Dial Codes" },
-    { "operator",   "Operator" },
+    { "dialcodes",  "Dial Codes & Prompts" },
     { "voip",       "VOIP" },
-    { "interphone", "Inter-phone" }, /* skipped below unless num_lines > 1 -- no other line to call on a 1-line board */
-    { "record",     "Record message" },
     { "hardware",   "Hardware" },
     { "diag",       "Diagnostics" },
-    { "storage",    "Storage" },
 };
 #define SETTINGS_TABS_N (sizeof(SETTINGS_TABS) / sizeof(SETTINGS_TABS[0]))
 
 static int append_settings_tabs(char *buf, size_t cap, int off, const char *active)
 {
-    bool two_lines = board_hw_config_get().num_lines > 1;
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<nav class=\"settings-tabs\">");
     for (size_t i = 0; i < SETTINGS_TABS_N; i++) {
-        if (!two_lines && strcmp(SETTINGS_TABS[i].id, "interphone") == 0) continue;
         bool is_active = strcmp(SETTINGS_TABS[i].id, active) == 0;
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<a class=\"tab-btn%s\" href=\"/settings?tab=%s\">%s</a>",
@@ -1132,7 +1137,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "</ol>"
         "<details><summary>Prefer to add the line by hand instead?</summary><ol>"
         "<li>Pick a free extension -- \"Check a number\" below, or see "
-        "<code>VOIP_SETUP.md</code> for this project's shared numbering registry.</li>"
+        "<code>archive/VOIP_SETUP.md</code> for this project's shared numbering registry.</li>"
         "<li>SSH into the Asterisk server.</li>"
         "<li>Add an AOR + auth + endpoint trio to <code>/etc/asterisk/pjsip.conf</code> for this "
         "extension number: <code>disallow=all</code>, <code>allow=ulaw,alaw,opus</code>, "
@@ -1163,7 +1168,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
      * different settings. */
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card wide\"><h2>2. Check a number</h2>"
-        "<p class=\"hint\">See <code>VOIP_SETUP.md</code> for this project's shared numbering "
+        "<p class=\"hint\">See <code>archive/VOIP_SETUP.md</code> for this project's shared numbering "
         "registry, then confirm a candidate is actually free here before you commit to it.</p>"
         "<form method=\"POST\" action=\"/voip_check\" class=\"settings-form\">"
         "<label>Number to check <input name=\"number\" placeholder=\"e.g. 1101\" "
@@ -1212,29 +1217,6 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         setup_pw_set ? "Already set on this board -- leave blank to keep it, or type a new one to replace it."
                      : "Not set yet.");
 
-    return off;
-}
-
-static int append_interphone_tab(char *buf, size_t cap, int off,
-                                  dialplan_entry_info_t *entries, size_t n)
-{
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Inter-phone calls</h2>");
-    if (board_hw_config_get().num_lines <= 1) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<p class=\"hint\">This board is configured for 1 line -- no other "
-            "line to call. See Settings -> Hardware.</p></div>");
-        return off;
-    }
-    for (size_t i = 0; i < n; i++) {
-        if (entries[i].code[0] != '3') continue;
-        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
-                                entries[i].implemented);
-    }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Codes are fixed in firmware "
-        "(<code>components/dialplan/dialplan.c</code>) -- not yet editable from here, "
-        "unlike the Pi's per-line dial-code editor.</p></div>");
     return off;
 }
 
@@ -1806,6 +1788,15 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         }
         if (!created[0] || !createresult[0]) { created[0] = '\0'; createresult[0] = '\0'; }
     }
+    /* Old bookmarks/links to tabs folded into a bigger one during the
+     * Settings cleanup -- send them to the tab that now has that content,
+     * not back to General (the unknown-tab fallback below). */
+    if (strcmp(tab, "operator") == 0 || strcmp(tab, "record") == 0) {
+        strncpy(tab, "dialcodes", sizeof(tab) - 1);
+    } else if (strcmp(tab, "storage") == 0) {
+        strncpy(tab, "hardware", sizeof(tab) - 1);
+    }
+
     bool known_tab = false;
     for (size_t i = 0; i < SETTINGS_TABS_N; i++) {
         if (strcmp(SETTINGS_TABS[i].id, tab) == 0) { known_tab = true; break; }
@@ -1834,17 +1825,25 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "<div class=\"cards\">");
 
     if (strcmp(tab, "general") == 0) off = append_general_tab(buf, cap, off);
-    else if (strcmp(tab, "dialcodes") == 0) off = append_dialcodes_tab(buf, cap, off);
-    else if (strcmp(tab, "operator") == 0) off = append_operator_tab(buf, cap, off, entries, n);
+    /* Dial Codes & Prompts: the editable clip table, plus Operator help and
+     * Record-message -- each just one card (prompt text + audio upload),
+     * structurally the same thing as a Dial Codes row -- stacked below it.
+     * Used to be three separate tabs. */
+    else if (strcmp(tab, "dialcodes") == 0) {
+        off = append_dialcodes_tab(buf, cap, off);
+        off = append_operator_tab(buf, cap, off, entries, n);
+        off = append_record_tab(buf, cap, off, entries, n);
+    }
     else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off, checked, result, created, createresult);
-    else if (strcmp(tab, "interphone") == 0) off = append_interphone_tab(buf, cap, off, entries, n);
-    else if (strcmp(tab, "record") == 0) off = append_record_tab(buf, cap, off, entries, n);
     else if (strcmp(tab, "diag") == 0) off = append_diag_tab(buf, cap, off);
-    /* Storage (the full SD+internal file manager) used to render
-     * unconditionally under every single tab -- unwanted clutter on tabs
-     * that have nothing to do with file browsing. Now it's its own tab. */
-    else if (strcmp(tab, "storage") == 0) off = append_storage_section(buf, cap, off);
-    else { off = append_hw_config_tab(buf, cap, off); off = append_hardware_tab(buf, cap, off); }
+    /* Hardware: stats + the SMD line2/microSD config card + the full
+     * SD+internal file manager -- all "this board's physical resources,"
+     * previously split across a Hardware tab and a separate Storage tab. */
+    else {
+        off = append_hw_config_tab(buf, cap, off);
+        off = append_hardware_tab(buf, cap, off);
+        off = append_storage_section(buf, cap, off);
+    }
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>" /* .cards */);
 
@@ -2104,7 +2103,7 @@ static esp_err_t record_max_ms_handler(httpd_req_t *req)
     }
 
     httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=record");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -2447,7 +2446,7 @@ static esp_err_t speaker_volume_handler(httpd_req_t *req)
  * Webui counterpart to the bring-up `echoprobe` console command, for a
  * public build where users won't have serial access. Not board-type gated
  * -- audio_echo_probe() and the AEC delay it feeds are generic across
- * codecs (see HARDWARE_SIGNAL_LEVELS.md Sec.1C for why this, not a live
+ * codecs (see docs/signal-levels.md Sec.1C for why this, not a live
  * call, is what actually sizes a canceller, and why the per-board delay
  * can't be a shared firmware constant). */
 
@@ -3475,7 +3474,7 @@ static esp_err_t operator_upload_handler(httpd_req_t *req)
     }
     prompts_mark_generated("operator.wav");
     httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=operator");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -3661,11 +3660,12 @@ static esp_err_t prompt_text_set_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    /* Bounce back to whichever tab sent the form -- Referer is the only
+    /* Bounce back to whichever page sent the form -- Referer is the only
      * place that's recorded, since this one endpoint serves three different
-     * settings tabs (operator/record/dialcodes). Falls back to the general
-     * tab, which is harmless (not "settings.php-style redirect" territory --
-     * nothing else reads this header). */
+     * prompt fields (Operator, Record message, and each Dial Codes row),
+     * all on the Dial Codes & Prompts settings tab. Falls back to the
+     * general tab, which is harmless (not "settings.php-style redirect"
+     * territory -- nothing else reads this header). */
     char referer[128];
     if (httpd_req_get_hdr_value_str(req, "Referer", referer, sizeof(referer)) == ESP_OK) {
         httpd_resp_set_status(req, "303 See Other");

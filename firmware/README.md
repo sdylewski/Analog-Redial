@@ -5,11 +5,11 @@ Raspberry Pi software (`../../pi_rotary_phone`) with on-chip peripherals:
 WM8731 codec (I²S/I²C), two AG1170 SLICs (GPIO), and an embedded SIP/RTP path
 (VoIP, final milestone).
 
-See [`../FEATURES.md`](../FEATURES.md) for the feature port matrix and
+See [`../docs/features.md`](../docs/features.md) for the feature port matrix and
 architecture, and [`../hardware/WM8731.md`](../hardware/WM8731.md) for the GPIO
 map (the firmware mirrors it in `components/board/include/board_pins.h`).
 
-**SMD board (`board_pins_smd.h`):** GPIO **18–21** = Line 2 SLIC **or** microSD (XOR). Match `CONFIG_BOARD_*` to BOM — see [`ESP32_PORT_PLAN.md`](../ESP32_PORT_PLAN.md) and [`hardware/BOM-smd.md`](../hardware/BOM-smd.md).
+**SMD board (`board_pins_smd.h`):** GPIO **18–21** = Line 2 SLIC **or** microSD (XOR). Match `CONFIG_BOARD_*` to BOM — see [`archive/ESP32_PORT_PLAN.md`](../archive/ESP32_PORT_PLAN.md) and [`docs/bom.md`](../docs/bom.md).
 
 ## Requirements
 
