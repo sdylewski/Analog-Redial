@@ -89,8 +89,8 @@ esp_err_t board_name_set(const char *name);
 bool board_name_is_set(void);
 
 /* mDNS label derived from the board name: lowercased, apostrophes dropped,
- * other non [a-z0-9] folded to a single '-', so "Scott's Room" ->
- * "scotts-room" (reachable as scotts-room.local). wifi_apply_hostname()
+ * other non [a-z0-9] folded to a single '-', so "Living Room" ->
+ * "living-room" (reachable as living-room.local). wifi_apply_hostname()
  * feeds this to mDNS. */
 void board_hostname(char *out, size_t len);
 

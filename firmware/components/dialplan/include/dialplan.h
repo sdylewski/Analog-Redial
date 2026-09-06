@@ -130,7 +130,7 @@ size_t dialplan_list(dialplan_entry_info_t *out, size_t max);
  * confirm tone, same as any other missing clip. Operator help (dial 0) is
  * NOT part of this table -- it's a fixed TABLE[] entry with a hardcoded
  * "operator.wav" filename, replaced from its own Settings -> Operator tab. */
-#define DIALPLAN_MAX_CLIP_ENTRIES 24 /* 8 builtins + headroom for user-added */
+#define DIALPLAN_MAX_CLIP_ENTRIES 24 /* 2 builtins + headroom for user-added */
 
 typedef struct {
     char code[8];      /* 2-6 digits */

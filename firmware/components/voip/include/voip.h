@@ -39,7 +39,7 @@ typedef void (*voip_event_cb)(const voip_event_t *ev, void *ctx);
 typedef struct {
     const char *user;       /* SIP user/extension, e.g. "1000" */
     const char *password;
-    const char *domain;     /* registrar / PBX, e.g. "feynman.local" */
+    const char *domain;     /* registrar / PBX, e.g. "sip.example.com" */
     const char *outbound;   /* optional proxy */
     int         line;       /* which phone line this account maps to */
 } voip_account_t;
@@ -95,14 +95,16 @@ const char *voip_user(int line);
  * existing "LAN bring-up tool, no auth" security posture (see webui.c). */
 const char *voip_pass(int line);
 
-/* voip_provisioner companion service config (see firmware/../voip_provisioner/
- * at the repo root -- runs on the PBX host, not this device): host:port and
- * its shared setup password, for webui.c's HTTP client to call. "" means
- * not configured. Unlike voip_set_config(), takes effect immediately --
- * nothing caches these at boot, so no reboot is needed after saving. */
-const char *voip_provisioner_host(void);
-const char *voip_provisioner_password(void);
-esp_err_t   voip_set_provisioner(const char *host, const char *password);
+/* Shared "setup" secret, per board: gates off-LAN access to
+ * GET /api/prompt_requests and is the --secret gen_prompt.py --sync expects
+ * (see that script's --help and webui.c's append_prompt_field()). Formerly
+ * doubled as the auto-provisioning companion service's shared password too
+ * (see git history) -- that flow is gone, but the secret itself is still a
+ * real, independent feature, so it stays. "" means not configured. Unlike
+ * voip_set_config(), takes effect immediately -- nothing caches this at
+ * boot, so no reboot is needed after saving. */
+const char *voip_setup_password(void);
+esp_err_t   voip_set_setup_password(const char *password);
 
 typedef enum {
     VOIP_PROBE_FREE = 0,  /* server answered 404 -- no endpoint/AOR by that name */

@@ -2,7 +2,7 @@
  * dialplan_defaults.h — builder-editable defaults for the mutable clip
  * dial-code table (Settings -> Dial Codes, see dialplan_clip_entry_t in
  * dialplan.h). Edit this file to change what ships as the out-of-box
- * "burp"/"ring of fire"/etc. dial-code set for a fresh build — none of
+ * "burp"/"dial-up modem"/etc. dial-code set for a fresh build — none of
  * this is compiled-in behavior beyond the very first boot: dialplan.c
  * seeds these into NVS exactly once (see the "seeded" flag in
  * dialplan.c), and every code/filename is freely editable afterward from
@@ -22,10 +22,7 @@ typedef struct {
 } clip_default_t;
 
 static const clip_default_t CLIP_DEFAULTS[] = {
-    { "401", "ring_of_fire.wav",    "Ring of Fire / That's Amore" },
     { "402", "burp.wav",            "Burp" },
-    { "403", "crocodile_rock.wav",  "Crocodile Rock / Crocfa" },
-    { "404", "martians.wav",        "Martians" },
     { "412", "dialup.mp3",          "Dial up modem" },
     /* 412 used to be "Banana Boat" -- repurposed (Wikimedia Commons,
      * "Dial_up_connection.ogg", public domain) once its own source audio
@@ -38,6 +35,11 @@ static const clip_default_t CLIP_DEFAULTS[] = {
      * their pi_rotary_phone source audio was never part of this checkout
      * and isn't coming; see dialplan_clip_remove()'s "still_default" check
      * for how already-provisioned boards drop these from their persisted
-     * table too, not just fresh ones. */
+     * table too, not just fresh ones.
+     * 401/403/404 (Ring of Fire / That's Amore, Crocodile Rock / Crocfa,
+     * Martians) retired for the same reason -- same still_default handling
+     * drops them from already-provisioned boards' persisted tables, leaving
+     * burp (402) and the dial-up modem sound (412) as the only out-of-box
+     * novelty clips. */
 };
 #define CLIP_DEFAULTS_N (sizeof(CLIP_DEFAULTS) / sizeof(CLIP_DEFAULTS[0]))

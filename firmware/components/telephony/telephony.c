@@ -9,6 +9,7 @@
 #include "player.h"
 #include "recorder.h"
 #include "storage.h"
+#include "activity.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "board.h"
@@ -90,18 +91,6 @@ typedef struct {
     int64_t              offhook_alert_at_us;
     /* active recording (211 archive) */
     char                 rec_name[STORAGE_MAX_NAME];
-    /* Gentle "time's almost up" cues during TEL_RECORDING, at fixed offsets
-     * before the recording's own max-duration cutoff -- 0 in an entry means
-     * "already fired, or max_ms was too short to fit this one at all" (see
-     * start_recording()). Distinct from tone_return_us/state above: these
-     * don't change `state` (still TEL_RECORDING throughout) or stop the
-     * recording, they just briefly interrupt the silence on the TX path for
-     * a short beep, then resume silence -- rec_warn_beep_off_us tracks that
-     * "turn the beep back off" deadline the same way tone_return_us tracks
-     * a state-changing one. */
-    int64_t              rec_warn_at_us[3];   /* absolute deadlines, 10s/5s/1s before cutoff */
-    bool                 rec_warn_fired[3];
-    int64_t              rec_warn_beep_off_us; /* 0 = not currently beeping */
 } line_t;
 
 static line_t        s_line[NLINES];
@@ -321,23 +310,12 @@ static void play_persistent(int line, call_progress_t tone, tel_state_t state)
     s_line[line].tone_return_us = 0;
 }
 
-/* 30s compiled fallback -- board_record_max_ms_get() returns whatever was
- * set via Settings -> Record message once it's been saved there. */
-#define RECORD_MAX_MS_DEFAULT 30000
-
-/* Offsets before the recording's own max-duration cutoff to play a gentle
- * warning beep -- see rec_warn_at_us[]/TONE_RECORD_WARN_1..3 (tones.h). A
- * given warning is skipped entirely (left at 0) if max_ms is too short for
- * it to land after the recording even started. */
-static const uint32_t RECORD_WARN_BEFORE_MS[3] = { 10000, 5000, 1000 };
-static const call_progress_t RECORD_WARN_TONE[3] = {
-    TONE_RECORD_WARN_1, TONE_RECORD_WARN_2, TONE_RECORD_WARN_3
-};
-/* How long each beep stays on before the tick loop turns it back off (see
- * rec_warn_beep_off_us) -- short and the same length throughout, since
- * these are meant to read as one consistent gentle cue repeated three
- * times, not an escalating alarm (that was the old design; see git log). */
-static const uint32_t RECORD_WARN_BEEP_MS[3] = { 200, 200, 250 };
+/* 2min compiled fallback -- board_record_max_ms_get() returns whatever was
+ * set via Settings -> Record message once it's been saved there. No warning
+ * beeps before the cutoff (tried that, read as more alarming than helpful
+ * for a generous limit like this) -- the recording just ends; the prompt
+ * text tells the caller the limit up front instead. */
+#define RECORD_MAX_MS_DEFAULT 120000
 
 /* 211: actually start capturing to storage. Factored out of
  * ACT_RECORD_ARCHIVE so the tick loop's tone-return path (after the beep)
@@ -357,15 +335,6 @@ static void start_recording(int line)
     if (recorder_start(line, s_line[line].rec_name, max_ms, 8000,
                        rec_done_cb, NULL) == ESP_OK) {
         s_line[line].state = TEL_RECORDING;
-        int64_t now = esp_timer_get_time();
-        for (int i = 0; i < 3; i++) {
-            s_line[line].rec_warn_fired[i] = false;
-            s_line[line].rec_warn_at_us[i] =
-                (max_ms > RECORD_WARN_BEFORE_MS[i])
-                    ? now + (int64_t)(max_ms - RECORD_WARN_BEFORE_MS[i]) * 1000
-                    : 0;
-        }
-        s_line[line].rec_warn_beep_off_us = 0;
     } else {
         ESP_LOGW(TAG, "line %d: record-to-archive couldn't start", line);
         play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
@@ -403,6 +372,7 @@ static void start_local_call(int caller, int target, voice_effect_t fx)
     s_line[caller].call_fx = fx;
     audio_tx_tone(caller, TONE_RINGBACK);
     ESP_LOGI(TAG, "line %d calling line %d (fx=%d)", caller, target, fx);
+    activity_log("Line %d called line %d", caller, target);
 }
 
 static void connect_bridge(int a, int b)
@@ -420,6 +390,15 @@ static void connect_bridge(int a, int b)
 static void end_call(int line)
 {
     int peer = s_line[line].peer;
+
+    /* Capture before anything below tears down state/peer. */
+    if (peer >= 0 && peer < NLINES) {
+        activity_log("Line %d: call with line %d ended", line, peer);
+    } else if (peer == PEER_VOIP) {
+        activity_log("Line %d: VoIP call ended", line);
+    } else {
+        activity_log("Line %d: call ended", line);
+    }
 
     audio_tx_bridge(line, peer, false);
     audio_tx_silence(line);
@@ -469,6 +448,7 @@ static void handle_action(int line, const dialplan_action_t *a)
         case ACT_OPERATOR_HELP:
             if (player_play(line, "operator.wav", clip_done_cb, NULL) == ESP_OK) {
                 s_line[line].state = TEL_PLAYING;
+                activity_log("Line %d: played operator.wav", line);
             } else {
                 ESP_LOGI(TAG, "line %d: operator help (no operator.wav in storage yet)", line);
                 play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
@@ -478,6 +458,7 @@ static void handle_action(int line, const dialplan_action_t *a)
         case ACT_PLAY_CLIP: /* dial-code entry (Settings -> Dial Codes), a->filename set directly */
             if (player_play(line, a->filename, clip_done_cb, NULL) == ESP_OK) {
                 s_line[line].state = TEL_PLAYING;
+                activity_log("Line %d: played %s", line, a->filename);
             } else {
                 ESP_LOGI(TAG, "line %d: play '%s' (not in storage?)", line, a->filename);
                 play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
@@ -510,6 +491,7 @@ static void handle_action(int line, const dialplan_action_t *a)
                 audio_tx_tone(line, TONE_RINGBACK);
                 s_line[line].state = TEL_RINGBACK;
                 s_line[line].peer = PEER_VOIP;
+                activity_log("Line %d: dialing %s", line, a->number);
             } else {
                 ESP_LOGW(TAG, "line %d: VoIP dial %s -> %s (reorder)",
                          line, a->number, esp_err_to_name(r));
@@ -520,6 +502,7 @@ static void handle_action(int line, const dialplan_action_t *a)
 
         case ACT_WRONG_NUMBER:
             ESP_LOGI(TAG, "line %d: wrong number '%s'", line, s_line[line].coll.buf);
+            activity_log("Line %d: wrong number '%s'", line, s_line[line].coll.buf);
             play_transient(line, TONE_REORDER, 3000, TEL_REORDER, TEL_DIALTONE);
             break;
     }
@@ -606,6 +589,9 @@ static void on_voip_incoming(int line)
     ESP_LOGI(TAG, "line %d: ringing -- caller %s <%s>", line,
              s_line[line].caller_name[0] ? s_line[line].caller_name : "(no name)",
              s_line[line].caller_number);
+    activity_log("Line %d: ringing -- caller %s <%s>", line,
+                  s_line[line].caller_name[0] ? s_line[line].caller_name : "(no name)",
+                  s_line[line].caller_number);
     s_line[line].state = TEL_RINGING;
     s_line[line].peer = PEER_VOIP;
     ag1170_ring_start(line);
@@ -672,9 +658,6 @@ static void fsm_task(void *arg)
                 case IN_REC_DONE: {
                     int l = e.line;
                     if (s_line[l].state != TEL_RECORDING) break; /* already moved on */
-                    /* The "time's almost up" warnings already played during
-                     * the recording itself (rec_warn_at_us[], tick loop
-                     * below) -- nothing more to say here, just wrap up. */
                     if (line_offhook(l)) enter_dialtone(l);
                     else enter_idle(l);
                     break;
@@ -704,31 +687,6 @@ static void fsm_task(void *arg)
                     /* 211's beep just finished. */
                     if (line_offhook(line)) start_recording(line);
                     else enter_idle(line);
-                }
-            }
-            /* Gentle "time's almost up" warning beeps during an active
-             * recording -- see rec_warn_at_us[]/start_recording(). Fires at
-             * most one new warning per tick (they're seconds apart, so no
-             * risk of missing one); a separate deadline
-             * (rec_warn_beep_off_us) turns each beep back off after a
-             * fraction of a second without touching `state` or the
-             * recording itself, same pattern as the transient-tone
-             * auto-return above but scoped to "briefly interrupt the
-             * silence," not a state change. */
-            if (s_line[line].state == TEL_RECORDING) {
-                for (int i = 0; i < 3; i++) {
-                    if (s_line[line].rec_warn_at_us[i] && !s_line[line].rec_warn_fired[i] &&
-                        now >= s_line[line].rec_warn_at_us[i]) {
-                        s_line[line].rec_warn_fired[i] = true;
-                        audio_tx_tone(line, RECORD_WARN_TONE[i]);
-                        s_line[line].rec_warn_beep_off_us = now + RECORD_WARN_BEEP_MS[i] * 1000;
-                        break; /* one per tick is plenty */
-                    }
-                }
-                if (s_line[line].rec_warn_beep_off_us &&
-                    now >= s_line[line].rec_warn_beep_off_us) {
-                    audio_tx_silence(line);
-                    s_line[line].rec_warn_beep_off_us = 0;
                 }
             }
             /* Handset left off-hook on dial tone -> loud alert (board.h).

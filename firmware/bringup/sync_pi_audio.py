@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Batch-convert the pi_rotary_phone Pi's audio clips into the 8 kHz mono
-16-bit PCM WAVs this firmware's dialplan expects (ring_of_fire.wav etc. --
+16-bit PCM WAVs this firmware's dialplan expects (burp.wav etc. --
 see CLIP_MAP below, which mirrors dialplan_defaults.h), and optionally
 upload them all to a phone in one command.
 
@@ -19,8 +19,8 @@ Examples:
     # Convert AND upload straight to a booted phone:
     ./sync_pi_audio.py --src /Volumes/scott/Telephone/Audio --upload phone.local
 
-    # Italian clip variants where they exist (thats_amore/crocfa instead of
-    # ringfire/crocodile_rock), plus the Italian operator script:
+    # Italian operator script (no CLIP_MAP entries currently have an
+    # Italian dub, so --lang it only affects operator.wav):
     ./sync_pi_audio.py --src /Volumes/scott/Telephone/Audio --lang it --upload phone.local
 
 Storage note: clip audio and operator.wav are never auto-evicted by the
@@ -42,11 +42,10 @@ from gen_prompt import convert_to_wav, trim_wav, synthesize, upload, DEFAULT_SAY
 # not a fixed compile-time filename convention (the old clip_401.wav-style
 # names this used to target were retired when that table became editable).
 CLIP_MAP: dict[str, tuple[str, str | None]] = {
-    "ring_of_fire.wav":    ("ringfire.wav", "thats_amore.wav"),   # Ring of Fire / That's Amore
     "burp.wav":            ("burp.wav", None),                     # Burp
-    "crocodile_rock.wav":  ("crocodile_rock.wav", "crocfa.wav"),   # Crocodile Rock / Crocfa
-    "martians.wav":        ("martians.wav", None),                 # Martians
-    # banana_phone/boat/split.wav, lime_in_coconut.wav dropped -- their
+    # ring_of_fire.wav, crocodile_rock.wav, martians.wav dropped -- dial
+    # codes 401/403/404 retired (see dialplan_defaults.h). banana_phone/
+    # boat/split.wav, lime_in_coconut.wav dropped too -- their
     # pi_rotary_phone source audio was never part of this checkout and
     # isn't coming (dial codes 411/413/414 retired; 412 repurposed for a
     # different, non-Pi source -- see dialplan_defaults.h).

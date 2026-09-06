@@ -1,7 +1,6 @@
 #include "webui.h"
 #include "sdkconfig.h"
 #include "esp_http_server.h"
-#include "esp_http_client.h"
 #include "cJSON.h"
 #include "wifi.h"
 #include "board.h"
@@ -9,6 +8,7 @@
 #include "esp_idf_version.h"
 #include "storage.h"
 #include "logbuf.h"
+#include "activity.h"
 #include "telephony.h"
 #include "prompts.h"
 #include "dialplan.h"
@@ -65,11 +65,34 @@ static const char *fmt_bytes(uint64_t n, char *out, size_t outsz)
     return out;
 }
 
-/* Defined below (near guide_handler) -- forward-declared here so the
- * settings-tab renderers, which come first in this file, can reuse the same
- * dial-code-row markup instead of duplicating it. */
+/* Defined below (near where /guide's cards used to live) -- forward-declared
+ * here so the settings-tab renderers, which come first in this file, can
+ * reuse the same dial-code-row markup instead of duplicating it. */
 static int append_guide_row(char *buf, size_t cap, int off, const char *code,
                              const char *desc, bool implemented);
+
+/* Defined below, next to append_guide_row() -- the dial-guide card set
+ * (formerly its own /guide page) is now rendered inline on the Status page
+ * (index_handler, earlier in this file than its definition). */
+static int append_dialguide_cards(char *buf, size_t cap, int off,
+                                   dialplan_entry_info_t *entries, size_t n);
+
+/* Defined below, near append_log_panel() -- same visual structure, sourced
+ * from activity_get() instead of logbuf_snapshot(). */
+static int append_activity_panel(char *buf, size_t cap, int off);
+
+/* Defined below (near the Settings -> Storage section it was written for) --
+ * forward-declared here so recordings_page_handler(), earlier in the file,
+ * can reuse it instead of hand-rolling its own near-duplicate table. */
+static int append_storage_table(char *buf, size_t cap, int off,
+                                storage_entry_t *entries, size_t n,
+                                const char *name_prefix, bool show_recorded,
+                                const char *return_to);
+
+/* Defined below -- forward-declared here so append_activity_panel() (which
+ * needs it to escape possibly remote-supplied caller ID text, and is
+ * defined earlier in the file, right after append_log_panel()) can call it. */
+static void html_escape(const char *in, char *out, size_t outsz);
 
 /* firmware/assets/ ships README.md and .gitignore alongside actual clips
  * (see that directory's own README) -- filter those out of "pick a clip to
@@ -220,6 +243,39 @@ static int append_log_panel(char *out, size_t out_len, int off, char *log_snapsh
     return off;
 }
 
+/* Renders the activity ring buffer (activity.h's structured "what just
+ * happened" log -- calls, recordings, dial errors...) as a panel visually
+ * consistent with append_log_panel() above (same .logpanel/.logbody/.logline
+ * classes), but simpler: no ANSI-stripping or tag/kind parsing needed since
+ * activity_get() already returns clean, pre-formatted, relative-time-
+ * prefixed strings, newest first. HTML-escaped per line (unlike log lines,
+ * which are entirely our own ESP_LOG text): some entries embed remote-
+ * supplied text (inbound caller name/number, see telephony.c's
+ * on_voip_incoming()), so this can't skip escaping the way append_log_line()
+ * does. */
+static int append_activity_panel(char *buf, size_t cap, int off)
+{
+    char lines[20][96];
+    size_t n = activity_get(lines, 20);
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"logpanel\" style=\"margin-top:16px\"><h2>Recent activity</h2>"
+        "<div class=\"logbody\">");
+    if (n == 0) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"empty\">nothing yet</div>");
+    } else {
+        for (size_t i = 0; i < n && (size_t)off < cap; i++) {
+            char eline[96 * 6];
+            html_escape(lines[i], eline, sizeof(eline));
+            off += snprintf(buf + off, cap - off,
+                "<div class=\"logline\"><span class=\"m\">%s</span></div>", eline);
+        }
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div></div>");
+    return off;
+}
+
 static cJSON *build_status_json(void)
 {
     cJSON *root = cJSON_CreateObject();
@@ -342,15 +398,17 @@ static const char *pill_class_for(tel_state_t s)
     }
 }
 
-/* Nav tabs mirror the Pi UI's exactly (see pi_rotary_phone/web/templates/
- * index.html): Status / Recordings / Dial Guide / Settings. Shared across
- * every page handler so the tab set and .active highlighting can't drift
- * out of sync between pages. */
+/* Status / Recordings / Settings. The Dial Guide used to be its own 4th tab
+ * (see pi_rotary_phone/web/templates/index.html for the Pi UI this mirrored)
+ * -- its cards are now merged onto the Status page itself
+ * (append_dialguide_cards()), so there's no separate tab for it any more;
+ * /guide still resolves, just as a redirect to /. Shared across every page
+ * handler so the tab set and .active highlighting can't drift out of sync
+ * between pages. */
 typedef struct { const char *href; const char *label; } nav_tab_t;
 static const nav_tab_t NAV_TABS[] = {
     { "/",           "Status" },
     { "/recordings", "Recordings" },
-    { "/guide",      "Dial Guide" },
     { "/settings",   "Settings" },
 };
 #define NAV_TABS_N (sizeof(NAV_TABS) / sizeof(NAV_TABS[0]))
@@ -360,7 +418,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
 {
     /* Board name leads the <title> and the header so a browser tab / glance
      * tells several boards on one LAN apart (that's the whole point of the
-     * name). "Rotary Phone Gateway" drops to a subtitle. */
+     * name). "Analog Redial" drops to a subtitle. */
     char name[32];
     board_name_get(name, sizeof(name));
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
@@ -368,7 +426,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
         "%s"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
         "<link rel=\"stylesheet\" href=\"/static/style.css\"></head><body>"
-        "<header><h1>%s <span class=\"dot\">Rotary Phone Gateway</span></h1><nav>",
+        "<header><h1>%s <span class=\"dot\">Analog Redial</span></h1><nav>",
         name, page_title, auto_refresh ? "<meta http-equiv=\"refresh\" content=\"5\">" : "",
         name);
     for (size_t i = 0; i < NAV_TABS_N; i++) {
@@ -396,10 +454,10 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
 {
     static const char *page =
         "<!doctype html><html><head><meta charset=\"utf-8\">"
-        "<title>Rotary Phone \xc2\xb7 WiFi setup</title>"
+        "<title>Analog Redial \xc2\xb7 WiFi setup</title>"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
         "<link rel=\"stylesheet\" href=\"/static/style.css\"></head><body>"
-        "<header><h1>Rotary Phone <span class=\"dot\">WiFi setup</span></h1></header>"
+        "<header><h1>Analog Redial <span class=\"dot\">WiFi setup</span></h1></header>"
         "<main class=\"auth-page\"><div class=\"auth-card\">"
         "<h1>Connect to your WiFi</h1>"
         "<p class=\"hint\">Enter your home network so the phone can join it. "
@@ -442,24 +500,30 @@ static esp_err_t index_handler(httpd_req_t *req)
     int64_t uptime_s = esp_timer_get_time() / 1000000;
     char hb[16], su[16], sc[16];
 
-    /* Fetched up front so its size is known before sizing the page buffer --
-     * each raw log line can roughly triple in size once wrapped in
-     * .logline/.t/.k/.m markup. */
-    size_t log_cap = 8200;
-    char *log_snapshot = malloc(log_cap);
-    if (log_snapshot) logbuf_snapshot(log_snapshot, log_cap);
-
-    /* Heap, not stack -- this page + log panel can run tens of KB. */
-    size_t cap = 6144 + log_cap * 3;
+    /* This page now also carries the merged Dial Guide cards (formerly
+     * /guide) below the status/line cards and the activity panel -- sized
+     * the same way guide_handler used to size itself, plus modest room for
+     * everything above it (small: a handful of status rows + up to 20 short
+     * activity entries, see append_activity_panel()). */
+    dialplan_entry_info_t entries[40];
+    size_t n = dialplan_list(entries, 40);
+    size_t cap = 8192 + n * 220;
     char *buf = malloc(cap);
-    if (!buf) { free(log_snapshot); httpd_resp_send_500(req); return ESP_FAIL; }
+    if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
-    int off = append_page_head(buf, cap, 0, "Rotary Phone Gateway", "/", true);
+    int off = append_page_head(buf, cap, 0, "Status", "/", true);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<span class=\"dot\">%s%s%s</span></header>"
+        "</header>"
         "<main>"
+        "<p class=\"tagline\">Plain old telephone service exchange</p>"
         "<div class=\"cards\">"
         "<div class=\"card\"><h2>System</h2>"
+        /* Connection status: used to live as a 3rd <header> child (a
+         * "<span class=dot>" sibling of <h1>/<nav>), which broke the
+         * header's flex space-between layout (nav needs to be the LAST
+         * child to sit flush right) -- moved here since it's the same
+         * information the System card already shows underneath. */
+        "<div class=\"statusrow\"><span class=\"label\">Connection</span><span>%s%s%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">WiFi</span><span>%s, %d dBm</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">IP</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">Uptime</span><span>%lld s</span></div>"
@@ -501,9 +565,13 @@ static esp_err_t index_handler(httpd_req_t *req)
     if (off > 0 && (size_t)off < cap) {
         off += snprintf(buf + off, cap - off, "</div>" /* .cards */);
     }
-    if (off > 0 && (size_t)off < cap && log_snapshot) {
-        off = append_log_panel(buf, cap, off, log_snapshot);
+    if (off > 0 && (size_t)off < cap) {
+        off = append_activity_panel(buf, cap, off);
     }
+    if (off > 0 && (size_t)off < cap) {
+        off += snprintf(buf + off, cap - off, "<div class=\"cards\">");
+    }
+    off = append_dialguide_cards(buf, cap, off, entries, n);
     if (off > 0 && (size_t)off < cap) {
         off += snprintf(buf + off, cap - off,
             "<div class=\"toolbar sub\">"
@@ -513,7 +581,6 @@ static esp_err_t index_handler(httpd_req_t *req)
             "</div></main></body></html>");
     }
 
-    free(log_snapshot);
     httpd_resp_set_type(req, "text/html");
     httpd_resp_send(req, buf, (off > 0) ? off : 0);
     free(buf);
@@ -547,11 +614,11 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
     size_t shown = 0;
     for (size_t i = 0; i < n; i++) if (is_user_recording(entries[i].name)) shown++;
 
-    size_t cap = 2048 + n * 260; /* each row now also carries an <audio> element */
+    size_t cap = 2048 + n * 400; /* each row: <audio>, download link, delete form, Recorded column */
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
-    int off = append_page_head(buf, cap, 0, "Recordings - Rotary Phone Gateway", "/recordings", false);
+    int off = append_page_head(buf, cap, 0, "Recordings", "/recordings", false);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "</header><main>"
         "<div class=\"card\"><h2>Recordings (%u)</h2>"
@@ -563,18 +630,12 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<div class=\"empty\">none yet \xe2\x80\x94 dial 211, leave a message, hang up</div>");
     } else {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<table><tr><th>Name</th><th>Size</th><th>Play</th></tr>");
-        for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
-            if (!is_user_recording(entries[i].name)) continue;
-            char sz[16];
-            off += snprintf(buf + off, cap - off,
-                "<tr><td><a href=\"/media/%s\">%s</a></td><td>%s</td>"
-                "<td><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></td></tr>",
-                entries[i].name, entries[i].name, fmt_bytes(entries[i].size, sz, sizeof(sz)),
-                entries[i].name);
-        }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
+        /* Same table renderer Settings -> Storage uses, filtered to rec_*
+         * names and with the "Recorded" column turned on -- see
+         * append_storage_table()'s own doc comment. Gets duration, a
+         * readable timestamp, download, and delete for free instead of this
+         * page's old hand-rolled Name/Size/Play-only table. */
+        off = append_storage_table(buf, cap, off, entries, n, "rec_", true, "/recordings");
     }
     if (off > 0 && (size_t)off < cap) {
         char su[16], sc[16];
@@ -619,6 +680,7 @@ static const settings_tab_t SETTINGS_TABS[] = {
     { "record",     "Record message" },
     { "hardware",   "Hardware" },
     { "diag",       "Diagnostics" },
+    { "storage",    "Storage" },
 };
 #define SETTINGS_TABS_N (sizeof(SETTINGS_TABS) / sizeof(SETTINGS_TABS[0]))
 
@@ -753,14 +815,19 @@ static int append_general_tab(char *buf, size_t cap, int off)
 /* Builds a <select> of every playable name storage_read_open() can actually
  * find: writable storage (uploads, recordings) first, then bundled defaults
  * not already shadowed by a writable file of the same name. Shared by the
- * Dial Codes tab's "add new" and "replace audio" forms. `selected`, if
- * non-NULL, is pre-selected (used when re-rendering "replace audio" for a
- * specific existing entry). */
+ * Dial Codes tab's "add new" and "replace audio" forms -- its only two call
+ * sites, both assigning audio to a dial code, which always lives on internal
+ * flash regardless of whether a microSD card is mounted (see
+ * storage_write_begin_local()) -- so this lists storage_list_internal(), NOT
+ * storage_list() (which would list the microSD card when present, making SD
+ * content wrongly pickable as a dial-code clip). `selected`, if non-NULL, is
+ * pre-selected (used when re-rendering "replace audio" for a specific
+ * existing entry). */
 static int append_file_select(char *buf, size_t cap, int off, const char *field_name,
                                 const char *selected)
 {
     storage_entry_t files[32], bundled[16];
-    size_t nfiles = storage_list(files, 32);
+    size_t nfiles = storage_list_internal(files, 32);
     size_t nbundled = storage_list_bundled(bundled, 16);
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
@@ -806,9 +873,9 @@ static int append_file_select(char *buf, size_t cap, int off, const char *field_
  * pages so each spoken clip's desired text lives right next to the setting
  * it belongs to, rather than on a separate "Prompts" page. Saving text here
  * doesn't generate audio: firmware/bringup/gen_prompt.py --sync reads it
- * back off the board (gated by the same setup password as the VOIP
- * auto-provisioner, see voip_provisioner_password()), synthesizes it
- * locally, and uploads the WAV -- which is what actually clears "pending". */
+ * back off the board (gated by the shared setup password, see
+ * voip_setup_password()'s doc comment in voip.h), synthesizes it locally,
+ * and uploads the WAV -- which is what actually clears "pending". */
 /* `default_text` (NULL for none) is shown pre-filled when nothing's been
  * tracked for `clip_name` yet -- a starting point to edit, not itself
  * persisted anywhere until the user actually saves it. Used for the
@@ -855,7 +922,7 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
      * input box, not against page access) and reuse it to hit
      * /api/prompt_requests directly. Spelling it out here just saves a trip
      * to that tab and a manual copy. */
-    const char *pw = voip_provisioner_password();
+    const char *pw = voip_setup_password();
     if (pw[0]) {
         char ip[16];
         wifi_get_ip_str(ip, sizeof(ip));
@@ -872,9 +939,8 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<p class=\"hint\">Generate + upload with "
             "<code>firmware/bringup/gen_prompt.py --sync HOST --secret ...</code> "
-            "(local text-to-speech, no server dependency) -- set a VOIP "
-            "auto-provisioning password on the VOIP tab first to get an exact, "
-            "ready-to-paste command here.</p>");
+            "(local text-to-speech, no server dependency) -- set a setup password "
+            "on the VOIP tab first to get an exact, ready-to-paste command here.</p>");
     }
     return off;
 }
@@ -990,8 +1056,11 @@ static int append_operator_tab(char *buf, size_t cap, int off,
     return off;
 }
 
-/* Defined further down (near provisioner_call(), which it uses). */
-static int append_registered_lines(char *buf, size_t cap, int off, const char *prov_host);
+/* Shared VOIP setup-steps builder -- defined further down, near
+ * voip_server_script_handler() (also used by GET /voip_instructions.txt). */
+#define VOIP_INSTR_STEPS 4
+#define VOIP_INSTR_STEP_LEN 200
+static void build_voip_instructions(char steps[VOIP_INSTR_STEPS][VOIP_INSTR_STEP_LEN]);
 
 static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, const char *result,
                             const char *created, const char *createresult)
@@ -1017,145 +1086,15 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
-    /* Auto-provisioning: the optional companion service (voip_provisioner/,
-     * repo root) that creates/checks extensions on the Asterisk server
-     * directly from this page instead of hand-editing pjsip.conf over SSH.
-     * Takes effect immediately, no reboot -- these aren't read at boot by
-     * anything. Fields stack one-per-row (no grid2) -- this card holds
-     * server names and passwords, which just get uselessly narrow split
-     * 2-up. */
-    const char *prov_host = voip_provisioner_host();
-    bool prov_pw_set = voip_provisioner_password()[0] != '\0';
+    /* 1. Point this phone at your SIP server -- promoted to the top of the
+     * tab (was step 4, behind an auto-provisioning flow that made server
+     * calls on this page's behalf; that's gone, so this plain "server +
+     * credentials" form is the actual first thing to do now). Numbered
+     * setup steps + both downloads sit right here, prominent and always
+     * visible (not a collapsed <details>), since this is now the main
+     * content of the tab, not an afterthought under three other cards. */
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\"><h2>1. Auto-provisioning setup (do this once per board)</h2>"
-        "<p class=\"hint\">Point this at the <code>voip_provisioner</code> service running on "
-        "your Asterisk server (see <code>voip_provisioner/README.md</code> if you haven't set "
-        "one up) so this page can create and check extensions for you. This is <em>per board</em> "
-        "&mdash; every phone needs its own copy of these two values, they don't sync anywhere. "
-        "Leave both fields blank if you'd rather skip this and do everything by hand (see "
-        "\"Manual\" at the bottom of this page).</p>"
-        "<form method=\"POST\" action=\"/voip_set_provisioner\" class=\"settings-form\">"
-        "<label>Provisioner host:port"
-        "<input name=\"host\" value=\"%s\" placeholder=\"feynman.local:8088\">"
-        "<span class=\"fieldhint\">The Asterisk server's hostname/IP, plus the port "
-        "<code>voip_provisioner</code> listens on (8088 unless you changed it).</span>"
-        "</label>"
-        "<label>Setup password"
-        "<input type=\"password\" name=\"password\" placeholder=\"%s\">"
-        "<span class=\"fieldhint\">%s Found in <code>setup_password.txt</code> on the Asterisk "
-        "server (<code>voip_provisioner/</code> install directory) -- it's a shared secret for "
-        "this one tool, not your Asterisk/SIP account password.</span>"
-        "</label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\">Save</button></div>"
-        "</form></div>",
-        prov_host, prov_pw_set ? "\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2" : "not set",
-        prov_pw_set ? "Already set on this board -- leave blank to keep it, or type a new one to replace it."
-                    : "Not set yet.");
-
-    off = append_registered_lines(buf, cap, off, prov_host);
-
-    /* Check-before-you-commit: separate tiny form (its own number field, not
-     * tied to the save form below) so you can try a few candidates without
-     * touching your actual saved config. Server-rendered redirect-with-
-     * result, same no-JS pattern as the rest of this page. Uses the
-     * provisioner above when configured (authoritative DB lookup); falls
-     * back to a SIP OPTIONS probe against the currently-saved SIP server
-     * otherwise (voip_check_handler) -- no separate "server" field here:
-     * it used to duplicate the one in the Save form below with different
-     * wording, which just read as two different settings. */
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\"><h2>2. Pick a number</h2>"
-        "<p class=\"hint\">Check the \"Lines on this server\" table above (or your project's "
-        "shared registry doc) for numbers already spoken for, then confirm here before you "
-        "commit to one.</p>"
-        "<form method=\"POST\" action=\"/voip_check\" class=\"settings-form\">"
-        "<label>Number to check <input name=\"number\" placeholder=\"e.g. 1101\" "
-        "pattern=\"[0-9]{2,6}\" required></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\">Check availability</button></div>"
-        "</form>");
-    if (checked && checked[0]) {
-        const char *cls = strcmp(result, "free") == 0 ? "on" : "off";
-        const char *label;
-        if (prov_host[0]) {
-            label = strcmp(result, "free") == 0 ? "free (confirmed on the server)" :
-                    strcmp(result, "taken") == 0 ? "already in use" : "couldn't reach the provisioner";
-        } else {
-            label = strcmp(result, "free") == 0 ? "nothing answered -- looks free" :
-                    strcmp(result, "taken") == 0 ? "in use, or not confirmable" :
-                    "couldn't tell (server unreachable)";
-        }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"statusrow\"><span class=\"label\">%s</span>"
-            "<span class=\"pill %s\">%s</span></div>", checked, cls, label);
-    }
-    if (prov_host[0]) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<p class=\"hint\">Checks against %s via the provisioner above: a direct database "
-            "lookup on the PBX, authoritative either way (unlike the plain SIP probe used when "
-            "no provisioner is configured).</p>", voip_server()[0] ? voip_server() : "(no SIP server saved yet)");
-    } else {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<p class=\"hint\">No provisioner configured above, so this sends a SIP OPTIONS to "
-            "that number on %s instead, nothing more. Only a clean 404 Not Found counts "
-            "as \"free\"; that's the one answer this can trust. On stock Asterisk/PJSIP "
-            "(<code>identify_by=username</code>), an unrecognized number usually gets challenged "
-            "for auth (401) exactly like a real endpoint with the wrong password would -- so "
-            "\"in use, or not confirmable\" often just means Asterisk couldn't be bothered to say "
-            "no, not that the number is actually taken. Treat a non-free result as inconclusive, "
-            "and confirm on the server itself: "
-            "<code>asterisk -rx \"pjsip show endpoint &lt;number&gt;\"</code>.</p>",
-            voip_server()[0] ? voip_server() : "(no SIP server saved yet)");
-    }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
-
-    /* Auto-provision a line: deliberately its own form, not wired to the
-     * Save form below or to voip_user(0)/voip_pass(0) -- those only update
-     * in RAM at boot (see voip_set_config()'s own doc comment), so right
-     * after clicking Save further down they'd still read the *previous*
-     * config here until a reboot. Independent fields avoid that trap; the
-     * values below are just a convenient starting point, editable before
-     * you click Create. */
-    if (prov_host[0]) {
-        char board_name[32];
-        board_name_get(board_name, sizeof(board_name));
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"card wide\"><h2>3. Create the extension on the server</h2>"
-            "<form method=\"POST\" action=\"/voip_provision\" class=\"settings-form\">"
-            "<label>Extension to create <input name=\"extension\" value=\"%s\" "
-            "placeholder=\"e.g. 1101\" pattern=\"[0-9]{2,6}\" required></label>"
-            "<label>SIP password for it <input name=\"secret\" value=\"%s\" "
-            "placeholder=\"6+ characters\" required></label>"
-            "<label>Display name <input name=\"name\" value=\"%s\" required></label>"
-            "<div class=\"toolbar sub\"><button type=\"submit\">Create on server</button></div>"
-            "</form>",
-            voip_user(0), voip_pass(0), board_name);
-        if (created && created[0]) {
-            const char *cls = strcmp(createresult, "ok") == 0 ? "on" :
-                               strcmp(createresult, "needsreload") == 0 ? "amber" : "off";
-            const char *label = strcmp(createresult, "ok") == 0 ? "created and live" :
-                strcmp(createresult, "needsreload") == 0 ?
-                    "created, but the server's 'asterisk -rx pjsip/dialplan reload' failed -- "
-                    "check the Asterisk server" :
-                strcmp(createresult, "exists") == 0 ? "already exists on the server" :
-                "failed -- check the phone's log";
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-                "<div class=\"statusrow\"><span class=\"label\">%s</span>"
-                "<span class=\"pill %s\">%s</span></div>", created, cls, label);
-        }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<p class=\"hint\">Creates a plain SIP-only extension on the Asterisk server (no "
-            "voicemail box -- this is a hardware phone, not a person with a mailbox) by writing "
-            "an AOR/auth/endpoint trio straight into <code>pjsip.conf</code> and a matching entry "
-            "into <code>extensions.conf</code>, then reloading. Once created, enter this same "
-            "extension/password into a Line field below, Save, and reboot the phone to actually "
-            "register.</p></div>");
-    }
-
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\"><h2>4. Point this phone at it</h2>"
-        "<p class=\"hint\">This is the part that actually makes <em>this board</em> use the "
-        "extension(s) above -- everything before this step only touched the server. Same "
-        "extension/password you created in step 3.</p>"
+        "<div class=\"card wide\"><h2>1. Point this phone at your SIP server</h2>"
         "<form method=\"POST\" action=\"/voip_set\" class=\"settings-form\">"
         "<label>SIP server (host or IP) <input name=\"server\" value=\"%s\"></label>"
         "<label>Line 1 extension/user <input name=\"user0\" value=\"%s\"></label>"
@@ -1177,27 +1116,29 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "<div class=\"toolbar sub\">"
         "<button type=\"submit\" class=\"primary\">Save (takes effect on reboot)</button>"
         "<a class=\"button\" href=\"/voip_server_script\" download=\"rotary-voip-server-setup.sh\">"
-        "Download Asterisk server setup script</a>"
-        "</div></form>"
-        "<details><summary>VOIP setup instructions</summary><ol>"
-        "<li>Pick a free extension (Check availability, or Auto-provision above if you have a "
-        "provisioner set up) -- see <code>VOIP_SETUP.md</code> for this project's shared "
-        "numbering registry.</li>"
-        "<li>Fill in the SIP server and extension/password above, Save, then reboot the phone.</li>"
-        "<li>No provisioner? Download the setup script below and run it on your Asterisk box "
-        "(as root or with sudo) -- it adds this phone's line(s) as SIP peers without touching "
-        "any other peers already configured there.</li>"
-        "<li>Dial <code>555</code> + a 4-digit extension to place a call; check the pills above "
-        "after reboot to confirm registration.</li>"
-        "</ol></details>"
-        "<details><summary>Manual: add this line by hand (no provisioner)</summary><ol>"
+        "Download setup script</a>"
+        "<a class=\"button\" href=\"/voip_instructions.txt\" download=\"voip_setup_instructions.txt\">"
+        "Download setup instructions</a>"
+        "</div></form>");
+
+    char steps[VOIP_INSTR_STEPS][VOIP_INSTR_STEP_LEN];
+    build_voip_instructions(steps);
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">Setup steps (same wording as the downloadable copy above):</p><ol>");
+    for (int i = 0; i < VOIP_INSTR_STEPS && (size_t)off < cap; i++) {
+        off += snprintf(buf + off, cap - off, "<li>%s</li>", steps[i]);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "</ol>"
+        "<details><summary>Prefer to add the line by hand instead?</summary><ol>"
+        "<li>Pick a free extension -- \"Check a number\" below, or see "
+        "<code>VOIP_SETUP.md</code> for this project's shared numbering registry.</li>"
         "<li>SSH into the Asterisk server.</li>"
         "<li>Add an AOR + auth + endpoint trio to <code>/etc/asterisk/pjsip.conf</code> for this "
         "extension number: <code>disallow=all</code>, <code>allow=ulaw,alaw,opus</code>, "
         "<code>identify_by=username</code>, and whatever dialplan <code>context=</code> your "
-        "server uses -- see <code>voip_provisioner/provisioner.py</code>'s "
-        "<code>add_pjsip_endpoint()</code> for the exact block it generates, safe to copy by "
-        "hand.</li>"
+        "server uses -- or just download the setup script above and read it, it's a plain bash "
+        "script that writes exactly this.</li>"
         "<li>Add a matching <code>exten =&gt; &lt;number&gt;,1,Dial(PJSIP/&lt;number&gt;,20)</code> "
         "/ <code>same =&gt; n,Hangup()</code> entry to that context in "
         "<code>extensions.conf</code>.</li>"
@@ -1208,11 +1149,69 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "<li>Running FreePBX instead of plain Asterisk? Add the extension through its GUI "
         "(Applications &rarr; Extensions &rarr; + Add Extension &rarr; PJSIP) and click "
         "<b>Apply Config</b> -- same idea, different admin tool.</li>"
-        "</ol><p class=\"hint\">This is exactly what Auto-provision a line does for you above, "
-        "if you have a <code>voip_provisioner</code> set up -- these steps are the fallback for "
-        "when you don't, or just prefer doing it by hand.</p></details>"
+        "</ol></details>"
         "<p class=\"hint\">Embedded SIP/RTP (G.711 &micro;-law), custom UA -- no TLS/SRTP "
         "(LAN only).</p></div>");
+
+    /* 2. Check-before-you-commit: separate tiny form (its own number field,
+     * not tied to the Save form above) so you can try a few candidates
+     * without touching your actual saved config. Server-rendered redirect-
+     * with-result, same no-JS pattern as the rest of this page. Fires a SIP
+     * OPTIONS at the currently-saved SIP server (voip_check_handler) -- no
+     * separate "server" field here: it used to duplicate the one in the
+     * Save form above with different wording, which just read as two
+     * different settings. */
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card wide\"><h2>2. Check a number</h2>"
+        "<p class=\"hint\">See <code>VOIP_SETUP.md</code> for this project's shared numbering "
+        "registry, then confirm a candidate is actually free here before you commit to it.</p>"
+        "<form method=\"POST\" action=\"/voip_check\" class=\"settings-form\">"
+        "<label>Number to check <input name=\"number\" placeholder=\"e.g. 1101\" "
+        "pattern=\"[0-9]{2,6}\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\">Check availability</button></div>"
+        "</form>");
+    if (checked && checked[0]) {
+        const char *cls = strcmp(result, "free") == 0 ? "on" : "off";
+        const char *label = strcmp(result, "free") == 0 ? "nothing answered -- looks free" :
+                strcmp(result, "taken") == 0 ? "in use, or not confirmable" :
+                "couldn't tell (server unreachable)";
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+            "<span class=\"pill %s\">%s</span></div>", checked, cls, label);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">Sends a SIP OPTIONS to that number on %s, nothing more. Only a clean "
+        "404 Not Found counts as \"free\"; that's the one answer this can trust. On stock "
+        "Asterisk/PJSIP (<code>identify_by=username</code>), an unrecognized number usually gets "
+        "challenged for auth (401) exactly like a real endpoint with the wrong password would -- "
+        "so \"in use, or not confirmable\" often just means Asterisk couldn't be bothered to say "
+        "no, not that the number is actually taken. Treat a non-free result as inconclusive, and "
+        "confirm on the server itself: "
+        "<code>asterisk -rx \"pjsip show endpoint &lt;number&gt;\"</code>.</p></div>",
+        voip_server()[0] ? voip_server() : "(no SIP server saved yet)");
+
+    /* Unrelated to placing calls -- this secret only gates host-side tooling
+     * (gen_prompt.py --sync, GET /api/prompt_requests off-LAN; see
+     * append_prompt_field()'s own comment). Kept on this tab since it's the
+     * only place a "shared per-board secret" naturally lives, now that the
+     * auto-provisioning flow that originally introduced it is gone. */
+    bool setup_pw_set = voip_setup_password()[0] != '\0';
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card wide\"><h2>Setup password</h2>"
+        "<p class=\"hint\">Not needed to make calls -- this is a shared secret for host-side "
+        "tools that talk to this board directly, e.g. <code>gen_prompt.py --sync</code> "
+        "(see the Dial Codes/Operator tabs' prompt-text fields).</p>"
+        "<form method=\"POST\" action=\"/voip_setup_password\" class=\"settings-form\">"
+        "<label>Setup password"
+        "<input type=\"password\" name=\"password\" placeholder=\"%s\">"
+        "<span class=\"fieldhint\">%s</span>"
+        "</label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\">Save</button></div>"
+        "</form></div>",
+        setup_pw_set ? "\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2" : "not set",
+        setup_pw_set ? "Already set on this board -- leave blank to keep it, or type a new one to replace it."
+                     : "Not set yet.");
+
     return off;
 }
 
@@ -1249,12 +1248,13 @@ static int append_record_tab(char *buf, size_t cap, int off,
         off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
                                 entries[i].implemented);
     }
-    uint32_t max_ms = board_record_max_ms_get(30000);
+    uint32_t max_ms = board_record_max_ms_get(120000);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<p class=\"hint\">Dial 211: if the prompt below is generated, it plays first, then a "
-        "beep, then recording starts. Speak, then hang up (or pause ~2 s / hit the max length "
-        "below, after which three beeps play to warn the call is ending). The message is saved "
-        "as an 8 kHz mono WAV in <a href=\"/recordings\">Recordings</a> / Storage below.</p>"
+        "beep, then recording starts. Speak, then hang up (or pause ~8 s / hit the max length "
+        "below, at which point recording just stops silently -- no warning beeps). Mention the "
+        "time limit in the prompt text below if callers should know it up front. The message is "
+        "saved as an 8 kHz mono WAV in <a href=\"/recordings\">Recordings</a> / Storage below.</p>"
         "<form method=\"POST\" action=\"/record_max_ms\" class=\"settings-form\">"
         "<label>Max recording length (seconds) "
         "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%u\" max=\"%u\" required></label>"
@@ -1417,10 +1417,9 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         "</form>"
         "<p class=\"hint\">Applies immediately and persists across reboots (NVS). "
         "<code>debug</code> logs rotary pulse timing, hook-switch make/break with durations, "
-        "dialed-digit collection, and telephony state changes -- watch it live on the "
-        "<a href=\"/\">Status</a> page's log, or over the serial console "
-        "(<code>log_level debug</code>). WiFi/PHY noise stays at warn so it doesn't bury "
-        "the app's own debug output.</p></div>");
+        "dialed-digit collection, and telephony state changes -- watch it live in the log "
+        "below, or over the serial console (<code>log_level debug</code>). WiFi/PHY noise "
+        "stays at warn so it doesn't bury the app's own debug output.</p></div>");
 
     /* Test mode + audio loopback + SD self-test (DVT harness controls; also
      * usable by hand here). */
@@ -1551,6 +1550,20 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         ".catch(function(){btn.disabled=false;out.textContent='Measurement failed.';});"
         "}"
         "</script>");
+
+    /* Full debug log -- moved here from the Status page (which now only
+     * shows the much shorter activity panel, see append_activity_panel())
+     * since Diagnostics already has the log-level controls right above and
+     * is a much more natural home for the verbose raw log than the
+     * at-a-glance Status page. append_log_panel()/append_log_line() and the
+     * /api/log endpoint are unchanged, just called from here instead. */
+    size_t log_cap = 8200;
+    char *log_snapshot = malloc(log_cap);
+    if (log_snapshot) {
+        logbuf_snapshot(log_snapshot, log_cap);
+        off = append_log_panel(buf, cap, off, log_snapshot);
+        free(log_snapshot);
+    }
     return off;
 }
 
@@ -1593,20 +1606,72 @@ static void wav_duration_str(const char *name, char *out, size_t out_len)
     }
 }
 
-static int append_storage_table(char *buf, size_t cap, int off,
-                                storage_entry_t *entries, size_t n)
+/* Parses a recording filename in telephony.c's rec_name_timestamped() format
+ * -- "rec_l<N>_YYYYMMDD_HHMMSSZ.wav" once the system clock has synced via
+ * SNTP -- into a readable "YYYY-MM-DD HH:MM UTC" timestamp. Before sync,
+ * that function instead names the file "rec_l<N>_boot<ms>.wav" (no real date
+ * embedded, just a boot-relative tag to avoid collisions); for that shape
+ * this reports "recorded before clock sync" rather than trying to parse a
+ * date out of it. Blank output (not an error) for anything matching
+ * neither shape -- a display nicety for the Recordings page's "Recorded"
+ * column, not worth failing the row render over. */
+static void format_recording_timestamp(const char *name, char *out, size_t len)
 {
-    if (n == 0) {
+    if (len == 0) return;
+    out[0] = '\0';
+
+    const char *p = name;
+    if (strncmp(p, "rec_l", 5) != 0) return;
+    p += 5;
+    while (*p >= '0' && *p <= '9') p++; /* line number */
+    if (*p != '_') return;
+    p++;
+
+    if (strncmp(p, "boot", 4) == 0) {
+        snprintf(out, len, "recorded before clock sync");
+        return;
+    }
+
+    int y, mo, d, h, mi, s;
+    if (sscanf(p, "%4d%2d%2d_%2d%2d%2dZ", &y, &mo, &d, &h, &mi, &s) == 6) {
+        snprintf(out, len, "%04d-%02d-%02d %02d:%02d UTC", y, mo, d, h, mi);
+    }
+}
+
+/* Shared table renderer for both the Settings -> Storage file manager
+ * (unfiltered, no "Recorded" column -- it lists every kind of file, not just
+ * timestamped recordings) and the Recordings page (filtered to `name_prefix`
+ * -- "rec_", see is_user_recording() -- with `show_recorded` on). One code
+ * path, not two near-duplicate table builders. `name_prefix` NULL/"" means
+ * no filtering. `return_to` is embedded as each row's delete form's hidden
+ * "return_to" field so media_delete_handler() sends the browser back to
+ * whichever page it was deleted from (/recordings vs /settings?tab=storage)
+ * instead of always assuming Settings -- see that handler's own comment. */
+static int append_storage_table(char *buf, size_t cap, int off,
+                                storage_entry_t *entries, size_t n,
+                                const char *name_prefix, bool show_recorded,
+                                const char *return_to)
+{
+    size_t plen = name_prefix ? strlen(name_prefix) : 0;
+    size_t shown = 0;
+    for (size_t i = 0; i < n; i++) {
+        if (plen && strncmp(entries[i].name, name_prefix, plen) != 0) continue;
+        shown++;
+    }
+    if (shown == 0) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<div class=\"empty\">none yet</div>");
         return off;
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<table><tr><th>Name</th><th>Size</th><th>Length</th><th>Play</th><th></th><th></th></tr>");
+        "<table><tr><th>Name</th>%s<th>Size</th><th>Length</th><th>Play</th><th></th><th></th></tr>",
+        show_recorded ? "<th>Recorded</th>" : "");
     for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
+        if (plen && strncmp(entries[i].name, name_prefix, plen) != 0) continue;
         char sz[16];
         char dur[16];
         char play[160];
+        char recorded[32] = "";
         if (is_wav_name(entries[i].name) || is_mp3_name(entries[i].name)) {
             snprintf(play, sizeof(play),
                 "<audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio>",
@@ -1621,14 +1686,18 @@ static int append_storage_table(char *buf, size_t cap, int off,
             play[0] = '\0';
             dur[0] = '\0';
         }
+        if (show_recorded) format_recording_timestamp(entries[i].name, recorded, sizeof(recorded));
+        char recorded_td[48] = "";
+        if (show_recorded) snprintf(recorded_td, sizeof(recorded_td), "<td>%s</td>", recorded);
         off += snprintf(buf + off, cap - off,
-            "<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td>%s</td>"
+            "<tr><td><code>%s</code></td>%s<td>%s</td><td>%s</td><td>%s</td>"
             "<td><a href=\"/media/%s\">download</a></td>"
             "<td><form method=\"POST\" action=\"/media_delete/%s\" "
             "onsubmit=\"return confirm('Delete %s?')\" style=\"display:inline\">"
+            "<input type=\"hidden\" name=\"return_to\" value=\"%s\">"
             "<button type=\"submit\">delete</button></form></td></tr>",
-            entries[i].name, fmt_bytes(entries[i].size, sz, sizeof(sz)), dur, play,
-            entries[i].name, entries[i].name, entries[i].name);
+            entries[i].name, recorded_td, fmt_bytes(entries[i].size, sz, sizeof(sz)), dur, play,
+            entries[i].name, entries[i].name, entries[i].name, return_to);
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
     return off;
@@ -1654,7 +1723,7 @@ static int append_storage_section(char *buf, size_t cap, int off)
     bool sd = storage_sd_present();
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div id=\"storage\" class=\"card\" style=\"margin-top:16px\"><h2>Storage</h2>"
+        "<div id=\"storage\" class=\"card wide\" style=\"margin-top:16px\"><h2>Storage</h2>"
         "<p class=\"hint\">Recordings, uploaded prompt/clip WAVs, anything else. Upload with "
         "<code>curl -X POST --data-binary @file.wav http://%s/media/&lt;name&gt;</code> or "
         "<code>firmware/bringup/gen_prompt.py</code>. <code>operator.wav</code> and "
@@ -1672,12 +1741,12 @@ static int append_storage_section(char *buf, size_t cap, int off)
         size_t sd_n = storage_list_sd(sd_entries, 32);
         char su[16], sc[16];
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"card\" style=\"margin-top:16px\"><h2>microSD (%u file%s)</h2>"
+            "<div class=\"card wide\" style=\"margin-top:16px\"><h2>microSD (%u file%s)</h2>"
             "<p class=\"hint\">%s / %s used. New recordings and uploads go here.</p>",
             (unsigned)sd_n, sd_n == 1 ? "" : "s",
             fmt_bytes(storage_used_bytes_sd(), su, sizeof(su)),
             fmt_bytes(storage_cap_bytes_sd(), sc, sizeof(sc)));
-        off = append_storage_table(buf, cap, off, sd_entries, sd_n);
+        off = append_storage_table(buf, cap, off, sd_entries, sd_n, NULL, false, "/settings?tab=storage");
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
     }
 
@@ -1685,7 +1754,7 @@ static int append_storage_section(char *buf, size_t cap, int off)
     size_t in_n = storage_list_internal(in_entries, 32);
     char isu[16], isc[16];
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\" style=\"margin-top:16px\"><h2>%s (%u file%s)</h2>"
+        "<div class=\"card wide\" style=\"margin-top:16px\"><h2>%s (%u file%s)</h2>"
         "<p class=\"hint\">%s / %s used.%s</p>",
         sd ? "Internal flash" : "Storage files",
         (unsigned)in_n, in_n == 1 ? "" : "s",
@@ -1693,7 +1762,7 @@ static int append_storage_section(char *buf, size_t cap, int off)
         fmt_bytes(storage_cap_bytes_internal(), isc, sizeof(isc)),
         sd ? "" : " Capped at this size -- oldest recording evicted first once it's hit "
                   "(uploaded clips/operator.wav are never auto-evicted).");
-    off = append_storage_table(buf, cap, off, in_entries, in_n);
+    off = append_storage_table(buf, cap, off, in_entries, in_n, NULL, false, "/settings?tab=storage");
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
     return off;
@@ -1749,12 +1818,16 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     /* Sized for the busiest tab (all n entries as guide rows) plus the storage
      * section (up to 32 files, listed there). Don't storage_list() here just
      * to count -- that's a deep SPIFFS+flash walk, and doing it on top of this
-     * handler's stack arrays is what overflowed the httpd task's stack. */
-    size_t cap = 6144 + n * 220 + 32 * 340; /* storage rows now also carry an <audio> element */
+     * handler's stack arrays is what overflowed the httpd task's stack.
+     * Diagnostics also needs room for the full log panel (moved here from
+     * the Status page, see append_diag_tab()) -- each raw log line can
+     * roughly triple in size once wrapped in .logline/.t/.k/.m markup. */
+    size_t log_room = (strcmp(tab, "diag") == 0) ? 8200 * 3 : 0;
+    size_t cap = 6144 + n * 220 + 32 * 340 + log_room; /* storage rows now also carry an <audio> element */
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
-    int off = append_page_head(buf, cap, 0, "Settings - Rotary Phone Gateway", "/settings", false);
+    int off = append_page_head(buf, cap, 0, "Settings", "/settings", false);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "</header><main class=\"settings-main\">");
     off = append_settings_tabs(buf, cap, off, tab);
@@ -1767,10 +1840,13 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     else if (strcmp(tab, "interphone") == 0) off = append_interphone_tab(buf, cap, off, entries, n);
     else if (strcmp(tab, "record") == 0) off = append_record_tab(buf, cap, off, entries, n);
     else if (strcmp(tab, "diag") == 0) off = append_diag_tab(buf, cap, off);
+    /* Storage (the full SD+internal file manager) used to render
+     * unconditionally under every single tab -- unwanted clutter on tabs
+     * that have nothing to do with file browsing. Now it's its own tab. */
+    else if (strcmp(tab, "storage") == 0) off = append_storage_section(buf, cap, off);
     else { off = append_hw_config_tab(buf, cap, off); off = append_hardware_tab(buf, cap, off); }
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>" /* .cards */);
-    off = append_storage_section(buf, cap, off);
 
     if (off > 0 && (size_t)off < cap) {
         off += snprintf(buf + off, cap - off, "</main></body></html>");
@@ -2111,156 +2187,17 @@ static esp_err_t voip_set_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* ---------- voip_provisioner companion service client ----------
- * See voip_provisioner/README.md (repo root) for what this calls into and
- * why it has to be a separate service on the PBX host at all: writing
- * pjsip.conf/extensions.conf and reloading Asterisk needs to run as the
- * `asterisk` system user (owner of those files and the only account that
- * can reach the reload control socket), which this device obviously isn't
- * -- it has to ask something on that host to do it instead. */
-
-typedef struct {
-    char *buf;
-    size_t cap;
-    size_t len;
-} http_capture_t;
-
-static esp_err_t http_capture_event(esp_http_client_event_t *evt)
-{
-    if (evt->event_id == HTTP_EVENT_ON_DATA) {
-        http_capture_t *c = (http_capture_t *)evt->user_data;
-        if (c && c->buf && c->len + 1 < c->cap) {
-            size_t room = c->cap - 1 - c->len;
-            size_t n = ((size_t)evt->data_len < room) ? (size_t)evt->data_len : room;
-            memcpy(c->buf + c->len, evt->data, n);
-            c->len += n;
-            c->buf[c->len] = '\0';
-        }
-    }
-    return ESP_OK;
-}
-
-/* POST (if body != NULL) or GET to http://<host><path>, capturing the
- * response body (small JSON, always) into resp/resp_cap. Returns the HTTP
- * status code, or <0 on transport failure (couldn't even connect --
- * distinct from a real HTTP error status, which the caller should read the
- * response body for: the provisioner always answers in JSON, errors
- * included). Blocks up to ~5s. */
-static int provisioner_call(const char *host, const char *path, const char *body,
-                             char *resp, size_t resp_cap)
-{
-    char url[160];
-    snprintf(url, sizeof(url), "http://%s%s", host, path);
-    resp[0] = '\0';
-    http_capture_t cap = { .buf = resp, .cap = resp_cap, .len = 0 };
-    esp_http_client_config_t config = {
-        .url = url,
-        .method = body ? HTTP_METHOD_POST : HTTP_METHOD_GET,
-        .timeout_ms = 5000,
-        .event_handler = http_capture_event,
-        .user_data = &cap,
-    };
-    esp_http_client_handle_t client = esp_http_client_init(&config);
-    if (!client) return -1;
-    if (body) {
-        esp_http_client_set_header(client, "Content-Type", "application/json");
-        esp_http_client_set_post_field(client, body, strlen(body));
-    }
-    esp_err_t err = esp_http_client_perform(client);
-    int status = (err == ESP_OK) ? esp_http_client_get_status_code(client) : -1;
-    if (err != ESP_OK) {
-        ESP_LOGW(TAG, "provisioner_call %s: %s", url, esp_err_to_name(err));
-    }
-    esp_http_client_cleanup(client);
-    return status;
-}
-
-/* Percent-encode for a URL query value. The provisioner's own generated
- * passwords are always token_urlsafe() (alnum, '-', '_' only, never needs
- * this), but a hand-typed one could contain anything. */
-static void url_encode(const char *in, char *out, size_t outsz)
-{
-    static const char hex[] = "0123456789ABCDEF";
-    size_t o = 0;
-    for (size_t i = 0; in[i] && o + 4 < outsz; i++) {
-        unsigned char c = (unsigned char)in[i];
-        bool safe = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
-                    (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '~';
-        if (safe) {
-            out[o++] = (char)c;
-        } else {
-            out[o++] = '%'; out[o++] = hex[c >> 4]; out[o++] = hex[c & 0xF];
-        }
-    }
-    out[o] = '\0';
-}
-
-/* Fetches the provisioner's live extension roster (GET /registered) and
- * renders it as a table -- every extension defined on the server, a
- * friendly name where the provisioner knows one, and whether it's
- * registered *right now*. Silently renders nothing if no provisioner is
- * configured or the call fails; this is a nice-to-have status view on an
- * already-optional feature, not worth an error banner. */
-static int append_registered_lines(char *buf, size_t cap, int off, const char *prov_host)
-{
-    if (!prov_host[0]) return off;
-
-    char enc_pw[128];
-    url_encode(voip_provisioner_password(), enc_pw, sizeof(enc_pw));
-    char path[160];
-    snprintf(path, sizeof(path), "/registered?password=%s", enc_pw);
-    char resp[2048];
-    int status = provisioner_call(prov_host, path, NULL, resp, sizeof(resp));
-    if (status != 200) return off;
-
-    cJSON *rj = cJSON_Parse(resp);
-    if (!rj) return off;
-    cJSON *exts = cJSON_GetObjectItem(rj, "extensions");
-    if (!cJSON_IsArray(exts) || cJSON_GetArraySize(exts) == 0) {
-        cJSON_Delete(rj);
-        return off;
-    }
-
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\"><h2>Lines on this server</h2>"
-        "<p class=\"hint\">Every extension %s knows about right now, and whether it's "
-        "actually registered (a phone is powered on and reachable) at this moment -- "
-        "not just configured. Refreshes each time you load this page.</p>"
-        "<table><tr><th>Extension</th><th>Name</th><th>Status</th></tr>",
-        prov_host);
-    cJSON *item;
-    cJSON_ArrayForEach(item, exts) {
-        cJSON *je = cJSON_GetObjectItem(item, "extension");
-        cJSON *jn = cJSON_GetObjectItem(item, "name");
-        cJSON *jr = cJSON_GetObjectItem(item, "registered");
-        char ext[160] = "", name[160] = "";
-        html_escape(cJSON_IsString(je) ? je->valuestring : "", ext, sizeof(ext));
-        html_escape(cJSON_IsString(jn) ? jn->valuestring : "", name, sizeof(name));
-        bool reg = cJSON_IsTrue(jr);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<tr><td>%s</td><td>%s</td><td><span class=\"pill %s\">%s</span></td></tr>",
-            ext, name[0] ? name : "&mdash;", reg ? "on" : "off",
-            reg ? "registered" : "not registered");
-    }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table></div>");
-    cJSON_Delete(rj);
-    return off;
-}
-
 /* POST /voip_check -- form body number=.. . Always checks against the
  * currently-*saved* SIP server (voip_server()) -- there used to be a
  * second "server" field here, independent of the one in the Save form
  * below with different wording ("to check against" vs "(host or IP)"),
  * which just read as two unrelated server settings instead of the same
- * value entered twice. If a provisioner is configured
- * (voip_provisioner_host()[0]), asks it -- that's a direct database lookup
- * on the PBX, authoritative either way. Otherwise falls back to
- * voip_probe_number()'s best-effort SIP OPTIONS probe (blocks up to ~2s),
- * which can only ever confirm "free", never "taken" for sure -- see that
- * function's own doc comment. Either way, redirects back to the VOIP tab
- * with the result in the query string, same request/redirect/re-render
- * pattern as every other form on this page -- no separate JSON/AJAX
- * endpoint needed. */
+ * value entered twice. Uses voip_probe_number()'s best-effort SIP OPTIONS
+ * probe (blocks up to ~2s), which can only ever confirm "free", never
+ * "taken" for sure -- see that function's own doc comment. Redirects back
+ * to the VOIP tab with the result in the query string, same
+ * request/redirect/re-render pattern as every other form on this page -- no
+ * separate JSON/AJAX endpoint needed. */
 static esp_err_t voip_check_handler(httpd_req_t *req)
 {
     if (req->content_len == 0 || req->content_len >= VOIP_FORM_MAX_BODY) {
@@ -2277,35 +2214,15 @@ static esp_err_t voip_check_handler(httpd_req_t *req)
     const char *server = voip_server();
 
     /* Digits only, 2-6 chars (matches the HTML pattern= and dialplan's own
-     * valid_code() range) -- url_decode() above accepts arbitrary bytes, and
-     * `number` lands straight in a redirect Location header below, so this
-     * is a correctness AND a header-injection guard, not just cosmetic. */
+     * valid_code() range) -- `number` lands straight in a redirect Location
+     * header below, so this is a correctness AND a header-injection guard,
+     * not just cosmetic. */
     size_t nlen = strlen(number);
     bool ok = nlen >= 2 && nlen <= 6;
     for (size_t i = 0; ok && i < nlen; i++) ok = number[i] >= '0' && number[i] <= '9';
 
     char loc[80];
-    const char *prov_host = voip_provisioner_host();
-    if (ok && prov_host[0]) {
-        cJSON *req_json = cJSON_CreateObject();
-        cJSON_AddStringToObject(req_json, "password", voip_provisioner_password());
-        cJSON_AddStringToObject(req_json, "extension", number);
-        char *req_body = cJSON_PrintUnformatted(req_json);
-        cJSON_Delete(req_json);
-        char resp[256];
-        int status = req_body ? provisioner_call(prov_host, "/check", req_body, resp, sizeof(resp)) : -1;
-        free(req_body);
-        const char *result = "unknown";
-        if (status == 200) {
-            cJSON *rj = cJSON_Parse(resp);
-            if (rj) {
-                cJSON *in_use = cJSON_GetObjectItem(rj, "in_use");
-                if (cJSON_IsBool(in_use)) result = cJSON_IsTrue(in_use) ? "taken" : "free";
-                cJSON_Delete(rj);
-            }
-        }
-        snprintf(loc, sizeof(loc), "/settings?tab=voip&checked=%s&result=%s", number, result);
-    } else if (ok && server[0]) {
+    if (ok && server[0]) {
         voip_probe_result_t pr = VOIP_PROBE_UNKNOWN;
         voip_probe_number(server, number, &pr);
         const char *result = pr == VOIP_PROBE_FREE ? "free" : pr == VOIP_PROBE_TAKEN ? "taken" : "unknown";
@@ -2319,11 +2236,12 @@ static esp_err_t voip_check_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* POST /voip_set_provisioner -- form body host=..&password=.. . Unlike
- * /voip_set, takes effect immediately (voip_set_provisioner() updates the
- * in-RAM copy itself) -- nothing caches these at boot, so no reboot. Blank
- * password means "leave unchanged", same convention as the main form. */
-static esp_err_t voip_set_provisioner_handler(httpd_req_t *req)
+/* POST /voip_setup_password -- form body password=.. . Sets the shared
+ * "setup" secret (voip_set_setup_password()) used by gen_prompt.py --sync
+ * and GET /api/prompt_requests -- see voip_setup_password()'s doc comment
+ * in voip.h. Takes effect immediately, no reboot. Blank means "leave
+ * unchanged", same convention as the main VOIP form. */
+static esp_err_t voip_setup_password_handler(httpd_req_t *req)
 {
     if (req->content_len == 0 || req->content_len >= VOIP_FORM_MAX_BODY) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
@@ -2334,79 +2252,12 @@ static esp_err_t voip_set_provisioner_handler(httpd_req_t *req)
     if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
     body[r] = '\0';
 
-    char host[80] = {0}, password[80] = {0};
-    form_field(body, "host", host, sizeof(host));
+    char password[80] = {0};
     form_field(body, "password", password, sizeof(password));
-    voip_set_provisioner(host[0] ? host : NULL, password[0] ? password : NULL);
+    if (password[0]) voip_set_setup_password(password);
 
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/settings?tab=voip");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
-}
-
-/* POST /voip_provision -- form body extension=..&secret=..&name=.. .
- * Deliberately independent of the main Save form / voip_user(0)/pass0 --
- * see the "Auto-provision a line" card's own comment in append_voip_tab()
- * for why (those only update in RAM at boot, so right after a Save they'd
- * still read the *previous* line's config here). Asks the companion
- * service (voip_provisioner_host()) to create the extension on the PBX,
- * then redirects back with a short result code -- the provisioner's own
- * free-text message doesn't fit in a redirect URL, so only a bounded
- * enum makes the round trip; check the phone's own log (or the
- * provisioner's stdout on the server) for the full message for now if
- * something needs debugging further than "ok/exists/failed". */
-static esp_err_t voip_provision_handler(httpd_req_t *req)
-{
-    if (req->content_len == 0 || req->content_len >= VOIP_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
-    char body[VOIP_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
-
-    char extension[8] = {0}, secret[64] = {0}, name[64] = {0};
-    form_field(body, "extension", extension, sizeof(extension));
-    form_field(body, "secret", secret, sizeof(secret));
-    form_field(body, "name", name, sizeof(name));
-
-    size_t elen = strlen(extension);
-    bool ext_ok = elen >= 2 && elen <= 6;
-    for (size_t i = 0; ext_ok && i < elen; i++) ext_ok = extension[i] >= '0' && extension[i] <= '9';
-
-    const char *prov_host = voip_provisioner_host();
-    const char *outcome = "failed";
-    if (ext_ok && secret[0] && name[0] && prov_host[0]) {
-        cJSON *req_json = cJSON_CreateObject();
-        cJSON_AddStringToObject(req_json, "password", voip_provisioner_password());
-        cJSON_AddStringToObject(req_json, "extension", extension);
-        cJSON_AddStringToObject(req_json, "secret", secret);
-        cJSON_AddStringToObject(req_json, "name", name);
-        char *req_body = cJSON_PrintUnformatted(req_json);
-        cJSON_Delete(req_json);
-        char resp[512];
-        int status = req_body ? provisioner_call(prov_host, "/provision", req_body, resp, sizeof(resp)) : -1;
-        free(req_body);
-        ESP_LOGI(TAG, "voip_provision %s -> HTTP %d: %s", extension, status, resp);
-        if (status == 200 || status == 409) {
-            cJSON *rj = cJSON_Parse(resp);
-            if (rj) {
-                cJSON *ok = cJSON_GetObjectItem(rj, "ok");
-                cJSON *reload_ok = cJSON_GetObjectItem(rj, "reload_ok");
-                if (cJSON_IsTrue(ok) && (!reload_ok || cJSON_IsTrue(reload_ok))) outcome = "ok";
-                else if (cJSON_IsTrue(ok)) outcome = "needsreload";
-                else if (status == 409) outcome = "exists";
-                cJSON_Delete(rj);
-            }
-        }
-    }
-
-    char loc[96];
-    snprintf(loc, sizeof(loc), "/settings?tab=voip&created=%s&createresult=%s", extension, outcome);
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", loc);
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -2821,6 +2672,55 @@ static esp_err_t voip_server_script_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* Builds the numbered VOIP setup steps, filled in with THIS board's current
+ * config (its own address, and the currently-saved SIP server) rather than
+ * generic boilerplate -- one shared builder used both by the on-page steps
+ * in append_voip_tab() and the downloadable GET /voip_instructions.txt, so
+ * the two can never drift out of sync with each other. */
+static void build_voip_instructions(char steps[VOIP_INSTR_STEPS][VOIP_INSTR_STEP_LEN])
+{
+    char ip[16];
+    wifi_get_ip_str(ip, sizeof(ip));
+    const char *addr = wifi_is_connected() ? ip : "<this phone's IP>";
+    const char *server = voip_server()[0] ? voip_server() : "your-asterisk-server";
+
+    snprintf(steps[0], VOIP_INSTR_STEP_LEN,
+        "Download the setup script from http://%s/voip_server_script", addr);
+    snprintf(steps[1], VOIP_INSTR_STEP_LEN,
+        "Copy it to your Asterisk server: scp voip_setup.sh user@%s:", server);
+    snprintf(steps[2], VOIP_INSTR_STEP_LEN,
+        "Run it there: ssh user@%s bash voip_setup.sh", server);
+    if (voip_user(0)[0]) {
+        snprintf(steps[3], VOIP_INSTR_STEP_LEN,
+            "Come back to this page and check that line 1 (extension %s) shows "
+            "\"registered\".", voip_user(0));
+    } else {
+        snprintf(steps[3], VOIP_INSTR_STEP_LEN,
+            "Come back to this page and check the registration status below.");
+    }
+}
+
+/* GET /voip_instructions.txt -- plain-text numbered setup steps, for anyone
+ * who'd rather read/save/print them than follow the on-page copy in
+ * append_voip_tab() -- same wording either way, see build_voip_instructions(). */
+static esp_err_t voip_instructions_txt_handler(httpd_req_t *req)
+{
+    char steps[VOIP_INSTR_STEPS][VOIP_INSTR_STEP_LEN];
+    build_voip_instructions(steps);
+
+    char body[VOIP_INSTR_STEPS * VOIP_INSTR_STEP_LEN + 64];
+    int off = 0;
+    for (int i = 0; i < VOIP_INSTR_STEPS; i++) {
+        off += snprintf(body + off, (off < (int)sizeof(body)) ? sizeof(body) - off : 0,
+                         "%d. %s\n", i + 1, steps[i]);
+    }
+    httpd_resp_set_hdr(req, "Content-Disposition",
+        "attachment; filename=\"voip_setup_instructions.txt\"");
+    httpd_resp_set_type(req, "text/plain");
+    httpd_resp_send(req, body, off);
+    return ESP_OK;
+}
+
 /* POST /dialcode_add -- form body code=..&filename=..&desc=.. (see
  * dialplan.h's dialplan_clip_add() for the validation/conflict rules). */
 static esp_err_t dialcode_add_handler(httpd_req_t *req)
@@ -2971,8 +2871,11 @@ static esp_err_t dialcode_delete_handler(httpd_req_t *req)
 }
 
 /* POST /media_delete/<name> -- plain HTML-form-friendly delete (browsers
- * can't send DELETE from a <form>), redirects back to /settings so the page
- * just refreshes with the file gone. */
+ * can't send DELETE from a <form>), redirects back to whichever page the
+ * delete was clicked from so it just refreshes with the file gone -- this
+ * form is now shared by both the Recordings page and Settings -> Storage
+ * (see append_storage_table()), so it can no longer just always assume
+ * Settings the way it did when Storage was the form's only caller. */
 static esp_err_t media_delete_handler(httpd_req_t *req)
 {
     const char *prefix = "/media_delete/";
@@ -2989,8 +2892,25 @@ static esp_err_t media_delete_handler(httpd_req_t *req)
         ESP_LOGI(TAG, "deleted '%s' via web UI", name);
     }
 
+    /* return_to is attacker-influenceable POST body content (anyone on the
+     * LAN could POST here directly with any value), so it's allowlisted
+     * against known exact values rather than dropped straight into the
+     * Location header -- an unvalidated redirect target would be an open
+     * redirect. Falls back to Settings -> Storage if missing/unrecognized
+     * (e.g. a request with no body at all). */
+    char body[64] = {0};
+    if (req->content_len > 0 && req->content_len < sizeof(body)) {
+        int r = httpd_req_recv(req, body, req->content_len);
+        if (r > 0) body[r] = '\0';
+    }
+    char return_to[32] = "";
+    form_field(body, "return_to", return_to, sizeof(return_to));
+
+    const char *loc = "/settings?tab=storage";
+    if (strcmp(return_to, "/recordings") == 0) loc = "/recordings";
+
     httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings#storage");
+    httpd_resp_set_hdr(req, "Location", loc);
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -3032,19 +2952,21 @@ static int append_guide_row(char *buf, size_t cap, int off, const char *code,
         hy, desc, implemented ? "on" : "off", implemented ? "working" : "not yet");
 }
 
-static esp_err_t guide_handler(httpd_req_t *req)
+/* Card-rendering for the dial-code guide -- formerly its own /guide page
+ * (guide_handler), now rendered inline on the Status page (index_handler)
+ * below the status/line cards and the activity panel; /guide itself just
+ * redirects to / for old bookmarks (see redirect_to_index_handler()).
+ * Caller opens the "<div class=\"cards\">" wrapper (shared with the
+ * status/line cards above it on that page) and appends the closing
+ * "</main></body></html>" after this returns -- this only fills in the
+ * cards themselves plus the closing hint paragraph, same content
+ * guide_handler used to generate from this same live table
+ * (dialplan_list()/dialplan_list_clip_entries()) -- that invariant (the
+ * guide can't drift out of sync with what dialplan_feed() actually
+ * matches) is unchanged, only WHERE it's rendered moved. */
+static int append_dialguide_cards(char *buf, size_t cap, int off,
+                                   dialplan_entry_info_t *entries, size_t n)
 {
-    dialplan_entry_info_t entries[40];
-    size_t n = dialplan_list(entries, 40);
-
-    size_t cap = 4096 + n * 220;
-    char *buf = malloc(cap);
-    if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
-
-    int off = append_page_head(buf, cap, 0, "Dial Guide - Rotary Phone Gateway", "/guide", false);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "</header><main><div class=\"cards\">");
-
     for (size_t g = 0; g < GUIDE_CATS_N && off > 0 && (size_t)off < cap; g++) {
         /* Skip a category with no live codes (e.g. "Call other phone" on a
          * single-line build, where the 3xx entries are compiled out). */
@@ -3096,24 +3018,21 @@ static esp_err_t guide_handler(httpd_req_t *req)
             "<div class=\"code-row\"><span class=\"code\">5-5-5-x-x-x-x</span>"
             "<span class=\"desc\">7-digit extension</span>"
             "<span class=\"pill on\">working</span></div></div>"
-            "</div>"
+            "</div>" /* .cards, opened by the caller (index_handler) */
             "<p class=\"hint\">Source of truth: <code>components/dialplan/dialplan.c</code> -- "
             "this list is generated from the same table the phone actually matches against, "
-            "so it can't drift out of sync with real behavior.</p>"
-            "</main></body></html>");
+            "so it can't drift out of sync with real behavior.</p>");
     }
-
-    httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, buf, (off > 0) ? off : 0);
-    free(buf);
-    return ESP_OK;
+    return off;
 }
 
-/* Old route name -- keep working as a redirect in case it's bookmarked. */
-static esp_err_t dialplan_redirect_handler(httpd_req_t *req)
+/* /guide and the old /dialplan route name both redirect here now that the
+ * dial-code guide is merged into the Status page (append_dialguide_cards())
+ * instead of living on its own page -- keeps old bookmarks/links working. */
+static esp_err_t redirect_to_index_handler(httpd_req_t *req)
 {
     httpd_resp_set_status(req, "302 Found");
-    httpd_resp_set_hdr(req, "Location", "/guide");
+    httpd_resp_set_hdr(req, "Location", "/");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -3803,22 +3722,22 @@ static bool peer_on_lan(httpd_req_t *req)
 
 /* GET /api/prompt_requests?secret=... -- lets a host-side script (gen_prompt.py
  * --sync) fetch the list of tracked prompts without needing any other
- * credential on the board. Reuses the VOIP auto-provisioner's setup
- * password (voip_provisioner_password()) rather than a separate secret --
- * same "per board, shared with tools you trust" security model, at the
- * user's request. Skipped entirely for same-subnet callers (peer_on_lan())
- * -- everything else on this UI already trusts the LAN unconditionally, so
- * gating just this one endpoint bought nothing once the settings pages
- * themselves show this same prompt text with no auth at all. Off-LAN
- * callers (VPN/port-forward/etc.) still need it, and get refused outright
- * if it was never set, rather than falling back to "no auth". */
+ * credential on the board. Uses the shared setup password
+ * (voip_setup_password(), Settings -> VOIP) -- same "per board, shared with
+ * tools you trust" security model, at the user's request. Skipped entirely
+ * for same-subnet callers (peer_on_lan()) -- everything else on this UI
+ * already trusts the LAN unconditionally, so gating just this one endpoint
+ * bought nothing once the settings pages themselves show this same prompt
+ * text with no auth at all. Off-LAN callers (VPN/port-forward/etc.) still
+ * need it, and get refused outright if it was never set, rather than
+ * falling back to "no auth". */
 static esp_err_t prompt_requests_json_handler(httpd_req_t *req)
 {
     if (!peer_on_lan(req)) {
-        const char *want = voip_provisioner_password();
+        const char *want = voip_setup_password();
         if (!want[0]) {
             httpd_resp_send_err(req, HTTPD_403_FORBIDDEN,
-                                 "set a VOIP auto-provisioning password first (Settings -> VOIP) "
+                                 "set a setup password first (Settings -> VOIP) "
                                  "-- only needed for off-LAN access, e.g. over a VPN");
             return ESP_OK;
         }
@@ -3902,7 +3821,11 @@ esp_err_t webui_start(void)
      * likely culprit, though this wasn't confirmed via addr2line the way
      * the MP3 case above was (no crash log was available at the time).
      * 16 KB is a generous, cheap (one-time, single always-running task)
-     * bump rather than a tightly-measured minimum. */
+     * bump rather than a tightly-measured minimum. (append_file_select()
+     * itself no longer touches the SD card at all -- it now always lists
+     * storage_list_internal(), since a dial-code clip only ever lives on
+     * internal flash -- but the Settings -> Storage tab's own SD listing
+     * still walks FATFS/SDMMC on the same task, so this headroom stays.) */
     config.stack_size = 16384;
 #endif
 
@@ -3916,9 +3839,9 @@ esp_err_t webui_start(void)
     static const httpd_uri_t routes[] = {
         { .uri = "/",                .method = HTTP_GET, .handler = index_handler },
         { .uri = "/recordings",      .method = HTTP_GET, .handler = recordings_page_handler },
-        { .uri = "/guide",           .method = HTTP_GET, .handler = guide_handler },
+        { .uri = "/guide",           .method = HTTP_GET, .handler = redirect_to_index_handler },
         { .uri = "/settings",        .method = HTTP_GET, .handler = settings_page_handler },
-        { .uri = "/dialplan",        .method = HTTP_GET, .handler = dialplan_redirect_handler },
+        { .uri = "/dialplan",        .method = HTTP_GET, .handler = redirect_to_index_handler },
         { .uri = "/static/style.css",.method = HTTP_GET, .handler = static_css_handler },
         { .uri = "/api/status",      .method = HTTP_GET, .handler = status_json_handler },
         { .uri = "/api/log",         .method = HTTP_GET, .handler = log_handler },
@@ -3944,8 +3867,7 @@ esp_err_t webui_start(void)
         { .uri = "/api/prompt_requests",    .method = HTTP_GET,  .handler = prompt_requests_json_handler },
         { .uri = "/voip_set",               .method = HTTP_POST, .handler = voip_set_handler },
         { .uri = "/voip_check",             .method = HTTP_POST, .handler = voip_check_handler },
-        { .uri = "/voip_set_provisioner",   .method = HTTP_POST, .handler = voip_set_provisioner_handler },
-        { .uri = "/voip_provision",         .method = HTTP_POST, .handler = voip_provision_handler },
+        { .uri = "/voip_setup_password",    .method = HTTP_POST, .handler = voip_setup_password_handler },
         { .uri = "/log_level",              .method = HTTP_POST, .handler = log_level_handler },
         { .uri = "/test/mode",              .method = HTTP_POST, .handler = test_mode_handler },
         { .uri = "/test/loopback",          .method = HTTP_POST, .handler = test_loopback_handler },
@@ -3959,6 +3881,7 @@ esp_err_t webui_start(void)
         { .uri = "/aec_delay_apply",        .method = HTTP_POST, .handler = aec_delay_apply_handler },
         { .uri = "/aec_enable",             .method = HTTP_POST, .handler = aec_enable_handler },
         { .uri = "/voip_server_script",     .method = HTTP_GET,  .handler = voip_server_script_handler },
+        { .uri = "/voip_instructions.txt",  .method = HTTP_GET,  .handler = voip_instructions_txt_handler },
         /* Catch-all LAST: captive-portal redirect while provisioning, plain
          * 404 otherwise. The wildcard matcher tries handlers in registration
          * order, so every specific route above still wins. */

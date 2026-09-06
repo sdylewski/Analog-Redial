@@ -180,16 +180,6 @@ void progress_tone_start(progress_tone_t *p, uint32_t sample_rate, call_progress
             resolve_cadence(p, &TONE_ROH_CADENCE);
             tone_osc_init_multi(&p->osc, sample_rate, TONE_ROH_FREQS, 4, 1.0f);
             return;
-        case TONE_RECORD_WARN_1:
-        case TONE_RECORD_WARN_2:
-        case TONE_RECORD_WARN_3:
-            /* Continuous, like TONE_ANSWERING_BEEP below -- telephony.c
-             * itself times the brief on-duration (RECORD_WARN_BEEP_MS) and
-             * silences the line again afterward, so there's no cadence to
-             * bake in here; each of these three is just "some 900 Hz for
-             * as long as the caller asks for." */
-            f1 = 900; f2 = 0;
-            break;
         case TONE_ANSWERING_BEEP:
             /* Continuous for its whole duration (n_phases stays 0, i.e.
              * "always on") -- telephony.c's play_transient() times the
@@ -201,10 +191,7 @@ void progress_tone_start(progress_tone_t *p, uint32_t sample_rate, call_progress
             break;
     }
     float amp = 0.6f;
-    if (kind == TONE_RECORD_WARN_1) amp = 0.10f;
-    else if (kind == TONE_RECORD_WARN_2) amp = 0.13f;
-    else if (kind == TONE_RECORD_WARN_3) amp = 0.16f;
-    else if (kind == TONE_ANSWERING_BEEP) amp = 0.8f; /* clearly audible "go" cue */
+    if (kind == TONE_ANSWERING_BEEP) amp = 0.8f; /* clearly audible "go" cue */
     tone_osc_init(&p->osc, sample_rate, f1, f2, amp);
 }
 

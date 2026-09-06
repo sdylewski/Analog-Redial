@@ -76,28 +76,7 @@
           "width": 0.0
         }
       ],
-      "drc_exclusions": [
-        [
-          "courtyards_overlap|101705000|100495000|18f4d573-7b25-43b8-a468-1b2954354a4b|aef286be-1dbc-4088-99c7-d61a57f23292",
-          ""
-        ],
-        [
-          "courtyards_overlap|97595000|99695000|a985bd5f-37a9-446b-ae95-860e0d0a59ba|ca58843f-f6a1-48d8-8ec6-eda9b470fece",
-          ""
-        ],
-        [
-          "courtyards_overlap|99405000|100495000|18f4d573-7b25-43b8-a468-1b2954354a4b|ca58843f-f6a1-48d8-8ec6-eda9b470fece",
-          ""
-        ],
-        [
-          "courtyards_overlap|99895000|99695000|a985bd5f-37a9-446b-ae95-860e0d0a59ba|aef286be-1dbc-4088-99c7-d61a57f23292",
-          ""
-        ],
-        [
-          "silk_overlap|116882466|96524211|8386177e-3e78-4e24-ba43-a158675d2460|eeb6925d-484f-4908-b3c1-c8ed7286b14e",
-          ""
-        ]
-      ],
+      "drc_exclusions": [],
       "meta": {
         "version": 2
       },
@@ -557,20 +536,29 @@
         "bus_width": 12,
         "clearance": 0.8,
         "diff_pair_gap": 0.25,
-        "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.2,
         "line_style": 0,
         "microvia_diameter": 0.3,
         "microvia_drill": 0.1,
         "name": "PhoneLine",
         "pcb_color": "rgba(255, 128, 0, 0.302)",
-        "priority": 10,
+        "priority": 1,
         "schematic_color": "rgba(255, 128, 0, 0.302)",
         "track_width": 0.4,
         "tuning_profile": "",
         "via_diameter": 0.6,
         "via_drill": 0.3,
         "wire_width": 6
+      },
+      {
+        "bus_width": 48,
+        "line_style": 0,
+        "name": "Power",
+        "pcb_color": "rgba(0, 0, 0, 0.000)",
+        "priority": 0,
+        "schematic_color": "rgb(255, 15, 243)",
+        "tuning_profile": "",
+        "wire_width": 24
       }
     ],
     "meta": {
@@ -602,6 +590,34 @@
       {
         "netclass": "PhoneLine",
         "pattern": "Net-(D11-K)"
+      },
+      {
+        "netclass": "PhoneLine",
+        "pattern": "/Line2Tip"
+      },
+      {
+        "netclass": "PhoneLine",
+        "pattern": "/Line2Ring"
+      },
+      {
+        "netclass": "PhoneLine",
+        "pattern": "/P6K"
+      },
+      {
+        "netclass": "PhoneLine",
+        "pattern": "/Line1Tip"
+      },
+      {
+        "netclass": "PhoneLine",
+        "pattern": "/Line1Ring"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "+5V"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "GND"
       }
     ]
   },
@@ -866,7 +882,7 @@
         "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
       }
     ],
-    "used_designators": "R14-15,C14-15,J12-13,#PWR33,#PWR46",
+    "used_designators": "",
     "variants": []
   },
   "sheets": [

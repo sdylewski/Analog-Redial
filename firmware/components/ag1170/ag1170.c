@@ -198,15 +198,38 @@ static void service_hook(int line, int64_t now)
                          (long long)(held_us / 1000));
 
                 if (old_level == 0 /*on-hook*/ && raw == 1 /*off-hook*/) {
-                    /* loop just reclosed: was it a dial pulse? */
+                    /* loop just reclosed: was it a dial pulse? Needs both
+                     * bounds -- the max alone let through a real, live bug:
+                     * a real rotary dial's mechanism can produce a brief
+                     * (~3-5ms) contact bounce right as it starts moving off
+                     * rest, before the genuine ~46-59ms pulses that follow
+                     * (confirmed live, 2026-09-04, two separate dials of
+                     * "211": first came out "322" -- every digit had this
+                     * extra bounce-as-pulse; second came out "212" -- only
+                     * the third digit did. Real, intermittent mechanical
+                     * bounce, not a consistent off-by-one, so a per-digit
+                     * correction wouldn't have fixed it -- filtering the
+                     * bounce itself does regardless of which digit it hits.
+                     * The glitch filter above doesn't catch this -- glitch_ms=2
+                     * only rejects transitions shorter than 2ms, and this
+                     * bounce genuinely holds its level for several ms, long
+                     * enough to commit as a real level change. The gap
+                     * between the ~5ms bounce and the ~46ms+ real pulses is
+                     * wide enough that pulse_break_min_ms=15 rejects the
+                     * former with plenty of margin on both sides. */
                     if (ls->offhook_reported &&
+                        (held_us / 1000) >= s_cfg.pulse_break_min_ms &&
                         (held_us / 1000) <= s_cfg.pulse_break_max_ms) {
                         ls->pulse_count++;
                         ls->last_pulse_end_us = now;
                         ls->counting_digit = true;
-                        ESP_LOGD(TAG, "line %d pulse #%d (break was %lld ms, <= %u max)",
+                        ESP_LOGD(TAG, "line %d pulse #%d (break was %lld ms, %u..%u)",
                                  line, ls->pulse_count, (long long)(held_us / 1000),
-                                 s_cfg.pulse_break_max_ms);
+                                 s_cfg.pulse_break_min_ms, s_cfg.pulse_break_max_ms);
+                    } else if (ls->offhook_reported && (held_us / 1000) < s_cfg.pulse_break_min_ms) {
+                        ESP_LOGD(TAG, "line %d ignored sub-minimum break (%lld ms < %u -- "
+                                      "dial-start contact bounce, not a pulse)",
+                                 line, (long long)(held_us / 1000), s_cfg.pulse_break_min_ms);
                     }
                 }
             }

@@ -40,6 +40,7 @@ typedef struct {
     uint16_t glitch_ms;        /* SHK glitch filter (default 2) */
     uint16_t offhook_confirm_ms;/* sustained off-hook => OFFHOOK (default 80) */
     uint16_t onhook_confirm_ms; /* sustained on-hook  => ONHOOK  (default 500) */
+    uint16_t pulse_break_min_ms;/* loop-open >= this counts as a dial pulse (default 15) */
     uint16_t pulse_break_max_ms;/* loop-open <= this counts as a dial pulse (default 120) */
     uint16_t interdigit_ms;     /* quiet after pulses => digit done (default 300) */
     uint16_t ring_freq_hz;      /* F/R toggle frequency (default 20) */
@@ -49,7 +50,7 @@ typedef struct {
 
 #define AG1170_DEFAULT_CONFIG() (ag1170_config_t){ \
     .glitch_ms = 2, .offhook_confirm_ms = 80, .onhook_confirm_ms = 500, \
-    .pulse_break_max_ms = 120, .interdigit_ms = 300, \
+    .pulse_break_min_ms = 15, .pulse_break_max_ms = 120, .interdigit_ms = 300, \
     .ring_freq_hz = 20, .ring_on_ms = 2000, .ring_off_ms = 4000 }
 
 esp_err_t ag1170_init(const ag1170_config_t *cfg);

@@ -1356,7 +1356,7 @@ static int cmd_sip_set(int argc, char **argv)
 {
     if (argc < 4) {
         printf("usage: sip_set <server> <user0> <pass0> [user1] [pass1]\n"
-               "  e.g. sip_set feynman.local phone <pass> phone2 <pass2>\n"
+               "  e.g. sip_set sip.example.com phone <pass> phone2 <pass2>\n"
                "  server may be a hostname, <name>.local, or an IP.\n"
                "Saved to NVS; reboot to (re)register.\n");
         return 1;

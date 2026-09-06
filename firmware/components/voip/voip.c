@@ -100,14 +100,11 @@ static char           s_server_ip[16];
 static struct sockaddr_in s_server_addr;
 static char           s_myip[16];
 static TaskHandle_t   s_task;
-/* voip_provisioner package (see that component): host:port + shared setup
- * password for the optional companion service that can create a FreePBX
- * extension on the ESP32's behalf. Stored alongside the rest of the VoIP
- * config since it's the same "how do I get onto this server" concern, but
- * the HTTP client itself lives in webui.c -- voip.c has no other reason to
- * link esp_http_client. */
-static char           s_prov_host[80];
-static char           s_prov_pass[80];
+/* Shared "setup" secret, per board -- see voip_setup_password()'s doc
+ * comment in voip.h. Stored alongside the rest of the VoIP config since it
+ * started life there (as the auto-provisioner's password); kept there since
+ * there's no better home for a lone per-board secret. */
+static char           s_setup_pass[80];
 
 /* ---------- small helpers ---------- */
 
@@ -897,8 +894,9 @@ static void sip_task(void *arg)
 
 static void load_config(void)
 {
-    /* Defaults mirror the Pi (pi_rotary_phone phone_config.json). */
-    strncpy(s_server, "feynman.local", sizeof(s_server) - 1);
+    /* No default server -- ships unconfigured, like CONFIG_WIFI_SSID.
+     * Set via the web UI or `sip_set` (see bringup.c). */
+    strncpy(s_server, "", sizeof(s_server) - 1);
     strncpy(s_l[0].user, "phone", sizeof(s_l[0].user) - 1);
     strncpy(s_l[1].user, "phone2", sizeof(s_l[1].user) - 1);
     s_l[0].enabled = s_l[1].enabled = true;
@@ -911,8 +909,10 @@ static void load_config(void)
     sz = sizeof(s_l[0].pass); nvs_get_str(h, "pass0", s_l[0].pass, &sz);
     sz = sizeof(s_l[1].user); nvs_get_str(h, "user1", s_l[1].user, &sz);
     sz = sizeof(s_l[1].pass); nvs_get_str(h, "pass1", s_l[1].pass, &sz);
-    sz = sizeof(s_prov_host); nvs_get_str(h, "provhost", s_prov_host, &sz);
-    sz = sizeof(s_prov_pass); nvs_get_str(h, "provpass", s_prov_pass, &sz);
+    /* NVS key kept as "provpass" (its name from before the auto-provisioner
+     * flow was removed) so a board upgraded from an older build doesn't
+     * silently lose an already-saved secret. */
+    sz = sizeof(s_setup_pass); nvs_get_str(h, "provpass", s_setup_pass, &sz);
     nvs_close(h);
 }
 
@@ -1040,13 +1040,7 @@ const char *voip_pass(int line)
     return s_l[line].pass;
 }
 
-/* voip_provisioner companion service (see that directory) -- host:port and
- * its shared setup password. "" for either means auto-provisioning isn't
- * configured; callers (webui.c) fall back to the SIP OPTIONS probe / manual
- * instructions. Unlike server/user/pass, these take effect immediately
- * (load_config() already ran; nothing else caches them), no reboot needed. */
-const char *voip_provisioner_host(void) { return s_prov_host; }
-const char *voip_provisioner_password(void) { return s_prov_pass; }
+const char *voip_setup_password(void) { return s_setup_pass; }
 
 /* ---------- runtime config setter (console/web) ---------- */
 
@@ -1067,13 +1061,15 @@ esp_err_t voip_set_config(const char *server, const char *user0, const char *pas
     return err;
 }
 
-esp_err_t voip_set_provisioner(const char *host, const char *password)
+esp_err_t voip_set_setup_password(const char *password)
 {
+    if (!password) return ESP_ERR_INVALID_ARG;
     nvs_handle_t h;
     esp_err_t err = nvs_open(VOIP_NVS_NS, NVS_READWRITE, &h);
     if (err != ESP_OK) return err;
-    if (host)     { nvs_set_str(h, "provhost", host); strncpy(s_prov_host, host, sizeof(s_prov_host) - 1); s_prov_host[sizeof(s_prov_host) - 1] = '\0'; }
-    if (password) { nvs_set_str(h, "provpass", password); strncpy(s_prov_pass, password, sizeof(s_prov_pass) - 1); s_prov_pass[sizeof(s_prov_pass) - 1] = '\0'; }
+    nvs_set_str(h, "provpass", password); /* key name: see load_config()'s comment */
+    strncpy(s_setup_pass, password, sizeof(s_setup_pass) - 1);
+    s_setup_pass[sizeof(s_setup_pass) - 1] = '\0';
     err = nvs_commit(h);
     nvs_close(h);
     return err;

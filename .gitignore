@@ -12,6 +12,7 @@ venv/
 # KiCad local / generated
 hardware/kicad/**/.history/
 hardware/kicad/**/*-backups/
+hardware/kicad/**/_restore_backup_*/
 hardware/kicad/**/ERC.txt
 hardware/kicad/**/preview.svg
 hardware/kicad/**/*.kicad_prl
@@ -19,6 +20,14 @@ hardware/kicad/**/jlcpcb/
 hardware/kicad/**/production_files/
 hardware/kicad/**/fabrication-toolkit-files/
 hardware/kicad/**/*.lck
+hardware/kicad/**/tmp*.rpt
+# Machine-local plugin state -- absolute paths baked in, not portable across
+# machines (confirmed live: a leftover fp-lib-table from outside the repo
+# broke library resolution on a fresh checkout). Re-added locally by the
+# JLCPCB import plugin/KiCad itself as needed.
+hardware/kicad/**/fp-lib-table
+hardware/kicad/**/sym-lib-table
+hardware/kicad/**/JLCImport.*
 # Regenerable 3D exports -- large binaries, re-exported often; source is the
 # .kicad_pcb/.kicad_sch, not these. Re-export locally when you need one.
 hardware/kicad/**/*.step

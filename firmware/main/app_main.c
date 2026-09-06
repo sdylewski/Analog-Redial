@@ -26,6 +26,7 @@
 #include "sdcard.h"
 #include "logbuf.h"
 #include "logctl.h"
+#include "activity.h"
 #include "webui.h"
 #include "bringup.h"
 #include "esp_log.h"
@@ -52,6 +53,9 @@ void app_main(void)
     /* Before anything else logs, so the ring buffer catches the whole boot
      * sequence, not just whatever happens after this point. */
     logbuf_init();
+    /* Structured "what just happened" ring buffer for the web UI's Status
+     * page (calls, recordings, dial errors...); independent of log level. */
+    activity_init();
     /* Apply the saved runtime log level (default INFO) before subsystems
      * start logging -- lets a DEBUG level chosen from the web UI/console
      * persist across reboots (watch pulse/hook timing, etc.). */

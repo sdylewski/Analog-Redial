@@ -1,6 +1,7 @@
 #include "recorder.h"
 #include "audio.h"
 #include "storage.h"
+#include "activity.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -123,6 +124,7 @@ static void rec_task(void *arg)
 
     ESP_LOGI(TAG, "line %d: recording '%s' (<=%u ms, %u Hz mono)",
              line, a->name, (unsigned)a->max_ms, (unsigned)out_rate);
+    activity_log("Line %d: recording started", line);
 
     uint32_t data_bytes = 0;
     int32_t  acc = 0;      /* decimation accumulator, carried across reads */
@@ -220,6 +222,8 @@ static void rec_task(void *arg)
     ESP_LOGI(TAG, "line %d: recorded '%s' (%u bytes PCM, %.1f s)",
              line, a->name, (unsigned)data_bytes,
              (double)data_bytes / 2.0 / (double)out_rate);
+    activity_log("Line %d: recording saved (%.1fs)",
+                  line, (double)data_bytes / 2.0 / (double)out_rate);
 
 out:
     if (writer_open) storage_write_abort(&w);
