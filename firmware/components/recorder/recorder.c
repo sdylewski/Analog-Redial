@@ -6,6 +6,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/stream_buffer.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -25,6 +26,7 @@ typedef struct {
     char     name[STORAGE_MAX_NAME];
     uint32_t max_ms;
     uint32_t silence_ms;
+    bool     downlink;
     recorder_done_cb_t cb;
     void    *ctx;
 } rec_args_t;
@@ -33,6 +35,38 @@ typedef struct {
  * of 6 = 1536 samples). Kept modest so the RX ring buffer never overflows. */
 #define IN_CHUNK_SAMPLES 1536
 #define SILENCE_RMS      500  /* ~ -36 dBFS; below this counts as "quiet" */
+
+/* Downlink capture (see recorder_start_downlink()): audio_add_extwrite_tap()
+ * is a push callback, not the pull-style audio_rx_read() the uplink path
+ * uses (that seam is already owned by DTMF detection's permanent rx_tap
+ * registration -- see telephony.c -- so recording can't share it the way it
+ * shares the always-filled uplink stream buffer). Deliberately NOT
+ * audio_add_downlink_tap() -- that observes the line's muxed TX *output*,
+ * which goes silent the moment the answering machine silences its own TX
+ * during the actual recording phase (so the caller doesn't hear a repeating
+ * beep); audio_add_extwrite_tap() observes audio_ext_write()'s input
+ * directly, before muxing, so it keeps seeing the caller's decoded RTP
+ * audio regardless of what this line is currently transmitting. Bridged
+ * into the same pull shape rec_task() already expects via a small local
+ * stream buffer, same pattern as audio.c's own echo_probe_tap() -- just
+ * bounded to a few chunks of slack instead of the whole capture, since a
+ * voicemail can run up to 2 minutes. */
+#define DOWNLINK_SB_SAMPLES (IN_CHUNK_SAMPLES * 4)
+
+typedef struct {
+    StreamBufferHandle_t sb;
+} downlink_ctx_t;
+
+static void downlink_push(int line, const int16_t *mono, size_t n, void *ctx)
+{
+    (void)line;
+    downlink_ctx_t *dc = ctx;
+    /* Non-blocking, like echo_probe_tap() -- the audio task can never block.
+     * A full buffer (rec_task briefly stalled on a storage write) drops the
+     * overrun rather than corrupting timing; DOWNLINK_SB_SAMPLES gives real
+     * slack before that happens. */
+    xStreamBufferSend(dc->sb, mono, n * sizeof(int16_t), 0);
+}
 
 /* AGC for recorded output only -- confirmed live (2026-09-03) that 211
  * messages were coming out around -46 dBFS RMS / 20% of full-scale peak
@@ -108,6 +142,8 @@ static void rec_task(void *arg)
     int16_t *out = malloc((IN_CHUNK_SAMPLES / decim + 1) * sizeof(int16_t));
     storage_writer_t w = { 0 };
     bool writer_open = false;
+    downlink_ctx_t dlctx = { 0 };
+    bool downlink_tap_added = false;
     if (!in || !out) { ESP_LOGE(TAG, "line %d: alloc failed", line); goto out; }
 
     /* Reserve room for a full max_ms clip so mid-record eviction can't clip us. */
@@ -122,8 +158,16 @@ static void rec_task(void *arg)
     build_wav_header(hdr, out_rate, 0); /* sizes patched at the end */
     if (storage_write_chunk(&w, hdr, sizeof(hdr)) != ESP_OK) goto out;
 
-    ESP_LOGI(TAG, "line %d: recording '%s' (<=%u ms, %u Hz mono)",
-             line, a->name, (unsigned)a->max_ms, (unsigned)out_rate);
+    if (a->downlink) {
+        dlctx.sb = xStreamBufferCreate(DOWNLINK_SB_SAMPLES * sizeof(int16_t), 1);
+        if (!dlctx.sb) { ESP_LOGE(TAG, "line %d: downlink stream buffer alloc failed", line); goto out; }
+        audio_add_extwrite_tap(line, downlink_push, &dlctx);
+        downlink_tap_added = true;
+    }
+
+    ESP_LOGI(TAG, "line %d: recording '%s' (<=%u ms, %u Hz mono, %s)",
+             line, a->name, (unsigned)a->max_ms, (unsigned)out_rate,
+             a->downlink ? "downlink" : "uplink");
     activity_log("Line %d: recording started", line);
 
     uint32_t data_bytes = 0;
@@ -137,7 +181,10 @@ static void rec_task(void *arg)
         int64_t elapsed_ms = (esp_timer_get_time() - t0) / 1000;
         if (elapsed_ms >= (int64_t)a->max_ms) break;
 
-        size_t n = audio_rx_read(line, in, IN_CHUNK_SAMPLES, 500);
+        size_t n = a->downlink
+            ? xStreamBufferReceive(dlctx.sb, in, IN_CHUNK_SAMPLES * sizeof(int16_t),
+                                    pdMS_TO_TICKS(500)) / sizeof(int16_t)
+            : audio_rx_read(line, in, IN_CHUNK_SAMPLES, 500);
         if (n == 0) continue; /* RX starved momentarily; keep waiting up to max_ms */
 
         size_t on = 0;
@@ -226,6 +273,10 @@ static void rec_task(void *arg)
                   line, (double)data_bytes / 2.0 / (double)out_rate);
 
 out:
+    if (downlink_tap_added) {
+        audio_remove_extwrite_tap(line);
+        if (dlctx.sb) vStreamBufferDelete(dlctx.sb);
+    }
     if (writer_open) storage_write_abort(&w);
     free(in);
     free(out);
@@ -235,8 +286,9 @@ out:
     vTaskDelete(NULL);
 }
 
-esp_err_t recorder_start(int line, const char *storage_name, uint32_t max_ms,
-                         uint32_t silence_ms, recorder_done_cb_t done_cb, void *ctx)
+static esp_err_t recorder_start_ex(int line, const char *storage_name, uint32_t max_ms,
+                                    uint32_t silence_ms, bool downlink,
+                                    recorder_done_cb_t done_cb, void *ctx)
 {
     if (line < 0 || line >= AUDIO_NUM_LINES) return ESP_ERR_INVALID_ARG;
     if (s_rec[line].active) return ESP_ERR_INVALID_STATE;
@@ -248,6 +300,7 @@ esp_err_t recorder_start(int line, const char *storage_name, uint32_t max_ms,
     a->name[sizeof(a->name) - 1] = 0;
     a->max_ms = max_ms;
     a->silence_ms = silence_ms;
+    a->downlink = downlink;
     a->cb = done_cb;
     a->ctx = ctx;
 
@@ -260,6 +313,18 @@ esp_err_t recorder_start(int line, const char *storage_name, uint32_t max_ms,
         return ESP_FAIL;
     }
     return ESP_OK;
+}
+
+esp_err_t recorder_start(int line, const char *storage_name, uint32_t max_ms,
+                         uint32_t silence_ms, recorder_done_cb_t done_cb, void *ctx)
+{
+    return recorder_start_ex(line, storage_name, max_ms, silence_ms, false, done_cb, ctx);
+}
+
+esp_err_t recorder_start_downlink(int line, const char *storage_name, uint32_t max_ms,
+                                  uint32_t silence_ms, recorder_done_cb_t done_cb, void *ctx)
+{
+    return recorder_start_ex(line, storage_name, max_ms, silence_ms, true, done_cb, ctx);
 }
 
 void recorder_stop(int line)

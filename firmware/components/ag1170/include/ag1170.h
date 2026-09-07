@@ -65,6 +65,11 @@ void ag1170_ring_start(int line);
 void ag1170_ring_stop(int line);
 bool ag1170_is_ringing(int line);
 
+/* Configured cadence, for callers that need to reason about ring timing
+ * (telephony.c's answering-machine ring counter) without duplicating the
+ * constants from ag1170_config_t/AG1170_DEFAULT_CONFIG(). */
+void ag1170_ring_cadence_ms(uint16_t *on_ms, uint16_t *off_ms);
+
 /* Current debounced hook state. */
 bool ag1170_is_offhook(int line);
 

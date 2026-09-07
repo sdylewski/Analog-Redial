@@ -54,6 +54,20 @@ void audio_tx_burst(int line, float f1, float f2, float amp, uint32_t ms);
 void audio_tx_bridge(int line, int from_line, bool enable); /* hear `from_line` */
 void audio_tx_external(int line, bool enable);           /* play from audio_ext_write() */
 
+/* Substitutes this line's own current TX output (tone/player/external --
+ * whatever audio_tx_*() last selected) for its mic input on the uplink side
+ * (rx_tap/diag_tap, audio_rx_read(), and the AEC "near" signal) -- same
+ * TX-becomes-RX swap audio_set_test_loopback() already does for bring-up,
+ * scoped to one line instead of both, and meant for production use: the
+ * answering machine's auto-answer path (telephony.c) turns this on so a
+ * VoIP caller actually hears the greeting/beep (normally the RTP tx task
+ * reads real mic input, which is just room silence with no one physically
+ * holding the handset) and the greeting/beep tones reach them the same way
+ * a real answer would send mic audio. Off by default; turn back off when
+ * a real human takes the line over (see telephony.c's barge-in handling) --
+ * their real mic needs to reach the far end again, not this line's own TX. */
+void audio_set_uplink_inject(int line, bool on);
+
 /* ---- external PCM (VoIP / file) ---- */
 /* Push engine-rate mono PCM to a line's external buffer. Returns bytes queued. */
 size_t audio_ext_write(int line, const int16_t *mono, size_t n);
@@ -96,6 +110,22 @@ void audio_remove_diag_tap(int line);
  * task. See bring-up's `record_downlink` console command. */
 void audio_add_downlink_tap(int line, audio_rx_tap_fn fn, void *ctx);
 void audio_remove_downlink_tap(int line);
+
+/* Observes exactly what's written via audio_ext_write() for this line --
+ * decoded VoIP downlink audio (rtp.c) or a locally played clip (player.c),
+ * whichever is currently feeding it -- BEFORE it's muxed into this line's
+ * selected TX source (see tx_src_t). Unlike audio_add_downlink_tap() above
+ * (which observes the muxed TX *output*, so it only sees this content while
+ * SRC_EXTERNAL happens to be the currently selected source), this fires
+ * regardless of what audio_tx_*() has this line set to right now -- needed
+ * by the answering machine (telephony.c/recorder.c) to keep capturing a
+ * VoIP caller's voice through the actual recording phase, where the line's
+ * own TX is silenced (so the caller doesn't hear a repeating beep) but
+ * their audio must still be captured. Runs on whichever task calls
+ * audio_ext_write() (rtp.c's rx task, or player's task), not necessarily
+ * the audio task -- same fast/non-blocking constraints apply regardless. */
+void audio_add_extwrite_tap(int line, audio_rx_tap_fn fn, void *ctx);
+void audio_remove_extwrite_tap(int line);
 
 /* Simple RMS level (0..32767) of the most recent RX frame for a line. */
 uint16_t audio_rx_level(int line);

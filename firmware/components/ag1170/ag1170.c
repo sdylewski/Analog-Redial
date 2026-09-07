@@ -149,6 +149,12 @@ bool ag1170_is_ringing(int line)
     return s_ls[line].ringing;
 }
 
+void ag1170_ring_cadence_ms(uint16_t *on_ms, uint16_t *off_ms)
+{
+    if (on_ms) *on_ms = s_cfg.ring_on_ms;
+    if (off_ms) *off_ms = s_cfg.ring_off_ms;
+}
+
 bool ag1170_is_offhook(int line)
 {
     if (line < 0 || line >= s_active_lines) return false;

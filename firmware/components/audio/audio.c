@@ -35,6 +35,8 @@ typedef struct {
     void           *diag_ctx;
     audio_rx_tap_fn downlink_tap; /* see audio_add_downlink_tap() */
     void           *downlink_ctx;
+    audio_rx_tap_fn extwrite_tap; /* see audio_add_extwrite_tap() */
+    void           *extwrite_ctx;
     StreamBufferHandle_t rx;  /* uplink capture for voip/record */
     uint16_t        rx_level;
     /* AEC path: 8 kHz echo-cancelled uplink, fed only while the canceller is
@@ -45,6 +47,7 @@ typedef struct {
     StreamBufferHandle_t aec_out;
     int32_t         dec_ref_acc, dec_near_acc; /* 48k->8k decimation accumulators */
     uint32_t        dec_n;
+    volatile bool   inject_uplink; /* see audio_set_uplink_inject() */
 } line_t;
 
 static line_t s_line[AUDIO_NUM_LINES];
@@ -135,9 +138,18 @@ void audio_tx_external(int line, bool enable)
     portEXIT_CRITICAL(&s_mux);
 }
 
+void audio_set_uplink_inject(int line, bool on)
+{
+    if (line < 0 || line >= AUDIO_NUM_LINES) return;
+    s_line[line].inject_uplink = on; /* read in audio_task's RX-processing loop; no lock needed for a single bool */
+}
+
 size_t audio_ext_write(int line, const int16_t *mono, size_t n)
 {
     if (line < 0 || line >= AUDIO_NUM_LINES || !s_line[line].ext) return 0;
+    if (s_line[line].extwrite_tap) {
+        s_line[line].extwrite_tap(line, mono, n, s_line[line].extwrite_ctx);
+    }
     return xStreamBufferSend(s_line[line].ext, mono, n * sizeof(int16_t), 0)
            / sizeof(int16_t);
 }
@@ -184,6 +196,24 @@ void audio_remove_downlink_tap(int line)
     portENTER_CRITICAL(&s_mux);
     s_line[line].downlink_tap = NULL;
     s_line[line].downlink_ctx = NULL;
+    portEXIT_CRITICAL(&s_mux);
+}
+
+void audio_add_extwrite_tap(int line, audio_rx_tap_fn fn, void *ctx)
+{
+    if (line < 0 || line >= AUDIO_NUM_LINES) return;
+    portENTER_CRITICAL(&s_mux);
+    s_line[line].extwrite_tap = fn;
+    s_line[line].extwrite_ctx = ctx;
+    portEXIT_CRITICAL(&s_mux);
+}
+
+void audio_remove_extwrite_tap(int line)
+{
+    if (line < 0 || line >= AUDIO_NUM_LINES) return;
+    portENTER_CRITICAL(&s_mux);
+    s_line[line].extwrite_tap = NULL;
+    s_line[line].extwrite_ctx = NULL;
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -426,9 +456,14 @@ static void audio_task(void *arg)
         /* RX processing: real ADC input, or (test loopback) the TX we just
          * built, so a played tone/DTMF/clip is level-metered, DTMF-detected
          * and readable back without a handset. */
-        bool loop = s_test_loopback;
-        size_t rxn = loop ? n : got;
         for (int line = 0; line < AUDIO_NUM_LINES; line++) {
+            /* Per-line uplink injection (audio_set_uplink_inject(), for the
+             * answering machine's auto-answer path) does the exact same
+             * TX-becomes-RX swap as the global test_loopback below, just
+             * scoped to one line -- either one substitutes this line's own
+             * current TX output for its mic input on the uplink side. */
+            bool loop = s_test_loopback || s_line[line].inject_uplink;
+            size_t rxn = loop ? n : got;
             const int16_t *src = loop ? (line == 0 ? txL : txR) : s_rx_mono[line];
             s_line[line].rx_level = rms_of(src, rxn);
             if (rxn && s_line[line].rx_tap) {

@@ -127,6 +127,30 @@ board_offhook_alert_t board_offhook_alert_get(void);
  * dwell timer). */
 esp_err_t board_offhook_alert_set(board_offhook_alert_t cfg);
 
+/* ---- Answering machine (per line) ----
+ * After `rings` unanswered rings, auto-answers and plays this line's own
+ * greeting (recorded via dial code 212, see telephony.c) then records the
+ * caller after a beep. `other_line` gates whether an unanswered call FROM
+ * this board's other line (not VoIP) also gets auto-answered -- off by
+ * default, since routing a family member's unanswered intercom call to
+ * voicemail isn't obviously wanted. Meaningless/hidden in the UI on a
+ * 1-line board. See archive/ANSWERING_MACHINE.md. */
+#define BOARD_AM_RINGS_MIN    1
+#define BOARD_AM_RINGS_MAX   15
+#define BOARD_AM_MAX_MS_MIN 5000    /* 5 s */
+#define BOARD_AM_MAX_MS_MAX 120000  /* 2 min -- matches BOARD_RECORD_MAX_MS_MAX's ceiling */
+typedef struct {
+    bool     enabled;
+    uint8_t  rings;      /* rings before auto-answer */
+    uint32_t max_ms;     /* max caller message length */
+    bool     other_line;
+} board_am_cfg_t;
+
+/* Defaults to disabled / 4 rings / 30000 ms / other_line off. */
+board_am_cfg_t board_am_get(int line);
+/* ESP_ERR_INVALID_ARG if rings or max_ms are outside their MIN..MAX above. */
+esp_err_t board_am_set(int line, board_am_cfg_t cfg);
+
 /* ---- AEC bulk delay (per-line, per-device) ----
  * Each physical board's own I2S/codec/acoustic path has a slightly different
  * bulk delay (measured via the bringup `echoprobe` command, applied by hand

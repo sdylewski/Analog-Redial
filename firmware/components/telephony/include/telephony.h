@@ -13,6 +13,7 @@
 #include "esp_err.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,16 +29,19 @@ typedef enum {
     TEL_BUSY,       /* busy tone */
     TEL_REORDER,    /* reorder / wrong-number tone */
     TEL_PLAYING,    /* playing a prompt/clip (operator help, fun clips, ...) */
-    TEL_RECORDING,  /* capturing a message (211 archive) */
+    TEL_RECORDING,  /* capturing audio -- 211 archive, a 212 greeting
+                     * recording, or an answering machine's caller message;
+                     * see telephony.c's rec_purpose_t (private) for which */
     TEL_OFFHOOK_ALERT, /* left off-hook on dial tone too long -- loud ROH tone
                         * until the handset goes back on-hook (board.h's
                         * board_offhook_alert_get() configures the delay) */
-    TEL_PLAYING_RECORD_PROMPT, /* 211: playing RECORD_PROMPT_NAME before the
-                                * beep, if that clip's been generated -- a
+    TEL_PLAYING_RECORD_PROMPT, /* playing a "leave a message"-style clip
+                                * before the beep -- 211's RECORD_PROMPT_NAME,
+                                * or an answering machine's own greeting -- a
                                 * distinct state from TEL_PLAYING so
                                 * IN_CLIP_DONE knows to continue into the beep
                                 * rather than just returning to dial tone */
-    TEL_RECORD_BEEP,           /* 211: beep tone playing, recording starts
+    TEL_RECORD_BEEP,           /* beep tone playing, recording starts
                                 * when it finishes */
 } tel_state_t;
 
@@ -48,6 +52,13 @@ typedef enum {
  * No prompt configured is a normal, silent-but-working state: falls
  * straight through to the beep. */
 #define RECORD_PROMPT_NAME "record_prompt.wav"
+
+/* Answering machine's own greeting for `line`, recorded via dial code 212
+ * (fixed filename -- re-recording overwrites it directly, reviewed via the
+ * web UI's playback, not a phone-side confirm loop). Not present is a
+ * normal, working state: auto_answer() (telephony.c) falls straight through
+ * to the beep, same fallback as 211's own missing-prompt case. */
+void telephony_am_greeting_name(char *out, size_t len, int line);
 
 esp_err_t telephony_start(void);
 

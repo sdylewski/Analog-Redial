@@ -254,6 +254,63 @@ esp_err_t board_offhook_alert_set(board_offhook_alert_t cfg)
     return err;
 }
 
+#define AM_EN_NVS_KEY0     "am_en0"
+#define AM_EN_NVS_KEY1     "am_en1"
+#define AM_RINGS_NVS_KEY0  "am_rings0"
+#define AM_RINGS_NVS_KEY1  "am_rings1"
+#define AM_MAXMS_NVS_KEY0  "am_maxms0"
+#define AM_MAXMS_NVS_KEY1  "am_maxms1"
+#define AM_OTHER_NVS_KEY0  "am_other0"
+#define AM_OTHER_NVS_KEY1  "am_other1"
+
+board_am_cfg_t board_am_get(int line)
+{
+    board_am_cfg_t cfg = { .enabled = false, .rings = 4, .max_ms = 30000, .other_line = false };
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return cfg;
+    uint8_t en, rings, other;
+    if (nvs_get_u8(h, line == 1 ? AM_EN_NVS_KEY1 : AM_EN_NVS_KEY0, &en) == ESP_OK) {
+        cfg.enabled = (en != 0);
+    }
+    if (nvs_get_u8(h, line == 1 ? AM_RINGS_NVS_KEY1 : AM_RINGS_NVS_KEY0, &rings) == ESP_OK &&
+        rings >= BOARD_AM_RINGS_MIN && rings <= BOARD_AM_RINGS_MAX) {
+        cfg.rings = rings;
+    }
+    uint32_t ms;
+    if (nvs_get_u32(h, line == 1 ? AM_MAXMS_NVS_KEY1 : AM_MAXMS_NVS_KEY0, &ms) == ESP_OK &&
+        ms >= BOARD_AM_MAX_MS_MIN && ms <= BOARD_AM_MAX_MS_MAX) {
+        cfg.max_ms = ms;
+    }
+    if (nvs_get_u8(h, line == 1 ? AM_OTHER_NVS_KEY1 : AM_OTHER_NVS_KEY0, &other) == ESP_OK) {
+        cfg.other_line = (other != 0);
+    }
+    nvs_close(h);
+    return cfg;
+}
+
+esp_err_t board_am_set(int line, board_am_cfg_t cfg)
+{
+    if (cfg.rings < BOARD_AM_RINGS_MIN || cfg.rings > BOARD_AM_RINGS_MAX ||
+        cfg.max_ms < BOARD_AM_MAX_MS_MIN || cfg.max_ms > BOARD_AM_MAX_MS_MAX) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, line == 1 ? AM_EN_NVS_KEY1 : AM_EN_NVS_KEY0, cfg.enabled ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_u8(h, line == 1 ? AM_RINGS_NVS_KEY1 : AM_RINGS_NVS_KEY0, cfg.rings);
+    if (err == ESP_OK) err = nvs_set_u32(h, line == 1 ? AM_MAXMS_NVS_KEY1 : AM_MAXMS_NVS_KEY0, cfg.max_ms);
+    if (err == ESP_OK) err = nvs_set_u8(h, line == 1 ? AM_OTHER_NVS_KEY1 : AM_OTHER_NVS_KEY0, cfg.other_line ? 1 : 0);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "line %d: answering machine %s, %u rings, %u ms, other-line %s",
+                 line, cfg.enabled ? "enabled" : "disabled", (unsigned)cfg.rings,
+                 (unsigned)cfg.max_ms, cfg.other_line ? "on" : "off");
+    }
+    return err;
+}
+
 #define AEC_DELAY_NVS_KEY0 "aec_delay0"
 #define AEC_DELAY_NVS_KEY1 "aec_delay1"
 

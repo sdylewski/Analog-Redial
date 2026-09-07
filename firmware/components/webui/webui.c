@@ -809,27 +809,6 @@ static int append_general_tab(char *buf, size_t cap, int off)
         roh.enabled ? " checked" : "",
         (unsigned)roh.seconds, BOARD_OFFHOOK_ALERT_MIN_S, BOARD_OFFHOOK_ALERT_MAX_S);
 
-    idle_power_cfg_t ip = idle_power_get();
-    char ip_status[48];
-    if (ip.enabled) snprintf(ip_status, sizeof(ip_status), "on, after %u min", (unsigned)ip.minutes);
-    else            snprintf(ip_status, sizeof(ip_status), "off");
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Low-power idle mode</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">Current</span><span>%s</span></div>"
-        "<form method=\"POST\" action=\"/idle_power\" class=\"settings-form\">"
-        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> Enabled</label>"
-        "<label>Minutes idle before sleeping "
-        "<input type=\"number\" name=\"minutes\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
-        "</form>"
-        "<p class=\"hint\">Approximately %.2f&nbsp;W of power savings, but expect up to ~300ms "
-        "delay the first time you pick up the handset after %u idle minutes; fully responsive "
-        "for the rest of that call and for %u minutes after.</p></div>",
-        ip_status,
-        ip.enabled ? " checked" : "",
-        (unsigned)ip.minutes, IDLE_POWER_MINUTES_MIN, IDLE_POWER_MINUTES_MAX,
-        (double)idle_power_estimated_savings_w(), (unsigned)ip.minutes, (unsigned)ip.minutes);
-
     dialplan_modes_t *m = dialplan_modes();
     off = append_mode_card(buf, cap, off, "Digit readback",
         m->readback_digits ? "on" : "off", m->readback_digits ? "On" : "Off",
@@ -1310,7 +1289,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
     }
 
     char fl[16], ru[16], rf[16], su[16], sf[16];
-    return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>Hardware</h2>"
         "<div class=\"statusrow\"><span class=\"label\">Type</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">Codec (detected)</span><span>%s</span></div>"
@@ -1334,6 +1313,181 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         fmt_bytes(ram_used, ru, sizeof(ru)), fmt_bytes(ram_free, rf, sizeof(rf)), sd_row,
         fmt_bytes(st_used, su, sizeof(su)), fmt_bytes(st_free, sf, sizeof(sf)),
         storage_using_sd() ? " (SD)" : "");
+
+    /* Speaker volume, echo cancellation, and low-power idle mode: all
+     * "physical resource behavior" cards, grouped here with the rest of
+     * Hardware rather than split across General/Diagnostics. */
+    int num_lines = board_hw_config_get().num_lines;
+
+#if CONFIG_BOARD_TYPE_SMD2
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Speaker (earpiece) volume</h2>");
+    for (int l = 0; l < num_lines; l++) {
+        uint8_t vol = board_speaker_volume_get(l, 0x1E);
+        /* Displayed as a percentage (0-200%, 100% = the register's 0dB
+         * point) rather than the raw 0-63/dB-step register value -- dB
+         * isn't a meaningful unit for most people tuning this by ear. The
+         * underlying value submitted to the backend is still the raw 0-63
+         * register step; only the label is converted (see spkPct() below),
+         * so es8388_set_dac_volume()'s convention doesn't have to change. */
+        unsigned pct = (unsigned)((vol * 200u + 31) / 63u);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<form method=\"POST\" action=\"/speaker_volume\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<label>Line %d <input type=\"range\" name=\"vol\" min=\"0\" max=\"63\" "
+            "value=\"%u\" oninput=\"spkLive(%d,this.value)\"> "
+            "<span id=\"spkpct%d\">%u%%</span></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save line %d</button></div>"
+            "</form>",
+            l, l, (unsigned)vol, l, l, pct, l);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">Drag while on a call to hear the change live (applied "
+        "immediately, not saved yet) -- click Save once you land on a level you like. "
+        "100%% is the codec's 0dB reference point, 200%% is max. Same register the "
+        "bring-up <code>spkamp</code> console command tunes.</p></div>");
+#endif
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Echo cancellation</h2>");
+    for (int l = 0; l < num_lines; l++) {
+        uint32_t ms = board_aec_delay_get(l, AEC_DEFAULT_DELAY_MS);
+        bool aec_on = aec_is_enabled(l);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"statusrow\"><span class=\"label\">Line %d</span>"
+            "<span class=\"pill %s\">%s</span></div>"
+            "<div class=\"toolbar sub\">"
+            "<form method=\"POST\" action=\"/aec_enable\" style=\"display:inline\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<input type=\"hidden\" name=\"on\" value=\"1\">"
+            "<button type=\"submit\">Enable</button></form> "
+            "<form method=\"POST\" action=\"/aec_enable\" style=\"display:inline\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<input type=\"hidden\" name=\"on\" value=\"0\">"
+            "<button type=\"submit\">Disable</button></form>"
+            "</div>"
+            "<div class=\"statusrow\"><span class=\"label\">Line %d delay</span>"
+            "<span>%u ms</span></div>"
+            "<div class=\"toolbar sub\">"
+            "<button type=\"button\" id=\"aecbtn%d\" onclick=\"aecMeasure(%d)\">Measure line %d</button>"
+            "</div><div id=\"aecresult%d\" class=\"hint\"></div>",
+            l, aec_on ? "on" : "off", aec_on ? "ENABLED" : "off",
+            l, l, l, (unsigned)ms, l, l, l, l);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">Enable/Disable is for testing -- leave off for normal use "
+        "unless a real echo has actually been measured and calibrated below (an "
+        "uncalibrated or wrongly-delayed canceller can make echo worse, not better). "
+        "To calibrate: pick up the handset (off-hook) and make sure it's NOT in a "
+        "call, then click Measure -- plays a short burst out the earpiece and listens on "
+        "the same line's own mic to find its local echo delay, the number the canceller "
+        "needs to align against. Takes about 2 seconds (3 quick measurements averaged for "
+        "reliability). Applying saves it and takes effect immediately, no reboot.</p></div>"
+        "<script>"
+        "function spkLive(line,vol){"
+        "document.getElementById('spkpct'+line).textContent="
+        "Math.round(vol*200/63)+'%%';"
+        "fetch('/speaker_volume_live',{method:'POST',"
+        "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
+        "body:'line='+line+'&vol='+vol});}"
+        "function aecMeasure(line){"
+        "var btn=document.getElementById('aecbtn'+line);"
+        "var out=document.getElementById('aecresult'+line);"
+        "btn.disabled=true;out.textContent='Measuring...';"
+        "fetch('/aec_measure',{method:'POST',"
+        "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
+        "body:'line='+line})"
+        ".then(function(r){return r.json();})"
+        ".then(function(d){btn.disabled=false;"
+        "if(!d.ok){out.textContent='No echo detected in '+d.hits+'/'+d.attempts+"
+        "' tries -- off-hook and not in a call?';return;}"
+        "var ms=Math.round(d.delay_ms);"
+        "out.innerHTML='Delay '+d.delay_ms.toFixed(1)+'ms, tail '+d.tail_ms.toFixed(1)+"
+        "'ms, span ~'+d.span_ms.toFixed(0)+'ms ('+Math.round(d.taps)+' taps), '+"
+        "d.hits+'/'+d.attempts+' consistent. '+"
+        "'<form method=\"POST\" action=\"/aec_delay_apply\" style=\"display:inline\">'+"
+        "'<input type=\"hidden\" name=\"line\" value=\"'+line+'\">'+"
+        "'<input type=\"hidden\" name=\"ms\" value=\"'+ms+'\">'+"
+        "'<button type=\"submit\">Apply '+ms+'ms as default</button></form>';})"
+        ".catch(function(){btn.disabled=false;out.textContent='Measurement failed.';});"
+        "}"
+        "</script>");
+
+    idle_power_cfg_t ip = idle_power_get();
+    char ip_status[48];
+    if (ip.enabled) snprintf(ip_status, sizeof(ip_status), "on, after %u min", (unsigned)ip.minutes);
+    else            snprintf(ip_status, sizeof(ip_status), "off");
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Low-power idle mode</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">Current</span><span>%s</span></div>"
+        "<form method=\"POST\" action=\"/idle_power\" class=\"settings-form\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> Enabled</label>"
+        "<label>Minutes idle before sleeping "
+        "<input type=\"number\" name=\"minutes\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+        "</form>"
+        "<p class=\"hint\">Approximately %.2f&nbsp;W of power savings, but expect up to ~300ms "
+        "delay the first time you pick up the handset after %u idle minutes; fully responsive "
+        "for the rest of that call and for %u minutes after.</p></div>",
+        ip_status,
+        ip.enabled ? " checked" : "",
+        (unsigned)ip.minutes, IDLE_POWER_MINUTES_MIN, IDLE_POWER_MINUTES_MAX,
+        (double)idle_power_estimated_savings_w(), (unsigned)ip.minutes, (unsigned)ip.minutes);
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Answering machine</h2>");
+    for (int l = 0; l < num_lines; l++) {
+        board_am_cfg_t am = board_am_get(l);
+        char greeting[STORAGE_MAX_NAME];
+        telephony_am_greeting_name(greeting, sizeof(greeting), l);
+        uint8_t probe;
+        size_t got;
+        bool have_greeting = (storage_read(greeting, &probe, sizeof(probe), &got) == ESP_OK);
+
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<h3>Line %d</h3>"
+            "<form method=\"POST\" action=\"/answering_machine\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> Enabled</label>"
+            "<label>Rings before answering "
+            "<input type=\"number\" name=\"rings\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
+            "<label>Max message length (seconds) "
+            "<input type=\"number\" name=\"max_secs\" value=\"%u\" min=\"%u\" max=\"%u\" required></label>",
+            l, l,
+            am.enabled ? " checked" : "",
+            (unsigned)am.rings, BOARD_AM_RINGS_MIN, BOARD_AM_RINGS_MAX,
+            (unsigned)(am.max_ms / 1000), (unsigned)(BOARD_AM_MAX_MS_MIN / 1000),
+            (unsigned)(BOARD_AM_MAX_MS_MAX / 1000));
+        if (num_lines > 1) {
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<label><input type=\"checkbox\" name=\"other_line\" value=\"1\"%s> "
+                "Also answer unanswered calls from other line</label>",
+                am.other_line ? " checked" : "");
+        }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save line %d</button></div>"
+            "</form>",
+            l);
+        if (have_greeting) {
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<div class=\"statusrow\"><span class=\"label\">Greeting</span>"
+                "<span><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></span></div>",
+                greeting);
+        } else {
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<div class=\"statusrow\"><span class=\"label\">Greeting</span><span>not recorded yet</span></div>");
+        }
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">Record each line's greeting from that line's own phone: pick up, "
+        "dial 2-1-2, speak after the beep, hang up (or pause ~8s) to save -- overwrites the "
+        "previous greeting directly. Play it back above to check it; re-record any time the "
+        "same way. With no greeting recorded, callers just hear the beep. After the "
+        "configured rings, the line auto-answers, plays the greeting then a beep, then "
+        "records the caller -- capped at the length above or ~8s of silence, whichever "
+        "comes first. Picking up the handset at any point takes the call live instead.</p></div>");
+
+    return off;
 }
 
 /* SMD2-only: the "line 2 or microSD" GPIO18-21 config card. THT has no such
@@ -1458,102 +1612,6 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         "<code>firmware/test/</code>.</p></div>",
         tmode ? "on" : "off", tmode ? "ENABLED" : "off",
         loop  ? "on" : "off", loop  ? "ENABLED" : "off");
-
-    int num_lines = board_hw_config_get().num_lines;
-
-#if CONFIG_BOARD_TYPE_SMD2
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Speaker (earpiece) volume</h2>");
-    for (int l = 0; l < num_lines; l++) {
-        uint8_t vol = board_speaker_volume_get(l, 0x1E);
-        /* Displayed as a percentage (0-200%, 100% = the register's 0dB
-         * point) rather than the raw 0-63/dB-step register value -- dB
-         * isn't a meaningful unit for most people tuning this by ear. The
-         * underlying value submitted to the backend is still the raw 0-63
-         * register step; only the label is converted (see spkPct() below),
-         * so es8388_set_dac_volume()'s convention doesn't have to change. */
-        unsigned pct = (unsigned)((vol * 200u + 31) / 63u);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<form method=\"POST\" action=\"/speaker_volume\" class=\"settings-form\">"
-            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
-            "<label>Line %d <input type=\"range\" name=\"vol\" min=\"0\" max=\"63\" "
-            "value=\"%u\" oninput=\"spkLive(%d,this.value)\"> "
-            "<span id=\"spkpct%d\">%u%%</span></label>"
-            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save line %d</button></div>"
-            "</form>",
-            l, l, (unsigned)vol, l, l, pct, l);
-    }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Drag while on a call to hear the change live (applied "
-        "immediately, not saved yet) -- click Save once you land on a level you like. "
-        "100%% is the codec's 0dB reference point, 200%% is max. Same register the "
-        "bring-up <code>spkamp</code> console command tunes.</p></div>");
-#endif
-
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Echo cancellation</h2>");
-    for (int l = 0; l < num_lines; l++) {
-        uint32_t ms = board_aec_delay_get(l, AEC_DEFAULT_DELAY_MS);
-        bool aec_on = aec_is_enabled(l);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"statusrow\"><span class=\"label\">Line %d</span>"
-            "<span class=\"pill %s\">%s</span></div>"
-            "<div class=\"toolbar sub\">"
-            "<form method=\"POST\" action=\"/aec_enable\" style=\"display:inline\">"
-            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
-            "<input type=\"hidden\" name=\"on\" value=\"1\">"
-            "<button type=\"submit\">Enable</button></form> "
-            "<form method=\"POST\" action=\"/aec_enable\" style=\"display:inline\">"
-            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
-            "<input type=\"hidden\" name=\"on\" value=\"0\">"
-            "<button type=\"submit\">Disable</button></form>"
-            "</div>"
-            "<div class=\"statusrow\"><span class=\"label\">Line %d delay</span>"
-            "<span>%u ms</span></div>"
-            "<div class=\"toolbar sub\">"
-            "<button type=\"button\" id=\"aecbtn%d\" onclick=\"aecMeasure(%d)\">Measure line %d</button>"
-            "</div><div id=\"aecresult%d\" class=\"hint\"></div>",
-            l, aec_on ? "on" : "off", aec_on ? "ENABLED" : "off",
-            l, l, l, (unsigned)ms, l, l, l, l);
-    }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Enable/Disable is for testing -- leave off for normal use "
-        "unless a real echo has actually been measured and calibrated below (an "
-        "uncalibrated or wrongly-delayed canceller can make echo worse, not better). "
-        "To calibrate: pick up the handset (off-hook) and make sure it's NOT in a "
-        "call, then click Measure -- plays a short burst out the earpiece and listens on "
-        "the same line's own mic to find its local echo delay, the number the canceller "
-        "needs to align against. Takes about 2 seconds (3 quick measurements averaged for "
-        "reliability). Applying saves it and takes effect immediately, no reboot.</p></div>"
-        "<script>"
-        "function spkLive(line,vol){"
-        "document.getElementById('spkpct'+line).textContent="
-        "Math.round(vol*200/63)+'%%';"
-        "fetch('/speaker_volume_live',{method:'POST',"
-        "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
-        "body:'line='+line+'&vol='+vol});}"
-        "function aecMeasure(line){"
-        "var btn=document.getElementById('aecbtn'+line);"
-        "var out=document.getElementById('aecresult'+line);"
-        "btn.disabled=true;out.textContent='Measuring...';"
-        "fetch('/aec_measure',{method:'POST',"
-        "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
-        "body:'line='+line})"
-        ".then(function(r){return r.json();})"
-        ".then(function(d){btn.disabled=false;"
-        "if(!d.ok){out.textContent='No echo detected in '+d.hits+'/'+d.attempts+"
-        "' tries -- off-hook and not in a call?';return;}"
-        "var ms=Math.round(d.delay_ms);"
-        "out.innerHTML='Delay '+d.delay_ms.toFixed(1)+'ms, tail '+d.tail_ms.toFixed(1)+"
-        "'ms, span ~'+d.span_ms.toFixed(0)+'ms ('+Math.round(d.taps)+' taps), '+"
-        "d.hits+'/'+d.attempts+' consistent. '+"
-        "'<form method=\"POST\" action=\"/aec_delay_apply\" style=\"display:inline\">'+"
-        "'<input type=\"hidden\" name=\"line\" value=\"'+line+'\">'+"
-        "'<input type=\"hidden\" name=\"ms\" value=\"'+ms+'\">'+"
-        "'<button type=\"submit\">Apply '+ms+'ms as default</button></form>';})"
-        ".catch(function(){btn.disabled=false;out.textContent='Measurement failed.';});"
-        "}"
-        "</script>");
 
     /* Full debug log -- moved here from the Status page (which now only
      * shows the much shorter activity panel, see append_activity_panel())
@@ -2130,6 +2188,44 @@ static esp_err_t idle_power_settings_handler(httpd_req_t *req)
 
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /answering_machine -- form body line=N, enabled=1 (checkbox),
+ * rings=N, max_secs=N, other_line=1 (checkbox, 2-line boards only). */
+static esp_err_t answering_machine_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char lstr[4] = {0}, enabled[8] = {0}, rings[8] = {0}, max_secs[12] = {0}, other[8] = {0};
+    form_field(body, "line", lstr, sizeof(lstr));
+    form_field(body, "enabled", enabled, sizeof(enabled));
+    form_field(body, "rings", rings, sizeof(rings));
+    form_field(body, "max_secs", max_secs, sizeof(max_secs));
+    form_field(body, "other_line", other, sizeof(other));
+
+    int line = lstr[0] ? atoi(lstr) : -1;
+    board_am_cfg_t cfg = {
+        .enabled = (enabled[0] == '1'),
+        .rings = rings[0] ? (uint8_t)strtoul(rings, NULL, 10) : 0,
+        .max_ms = max_secs[0] ? (uint32_t)strtoul(max_secs, NULL, 10) * 1000 : 0,
+        .other_line = (other[0] == '1'),
+    };
+    if (line < 0 || line >= 2 || board_am_set(line, cfg) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad line or values out of range");
+        return ESP_OK;
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=hardware");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -3909,6 +4005,7 @@ esp_err_t webui_start(void)
         { .uri = "/board_hw_set",    .method = HTTP_POST, .handler = board_hw_set_handler },
         { .uri = "/offhook_alert",   .method = HTTP_POST, .handler = offhook_alert_handler },
         { .uri = "/idle_power",      .method = HTTP_POST, .handler = idle_power_settings_handler },
+        { .uri = "/answering_machine", .method = HTTP_POST, .handler = answering_machine_handler },
         { .uri = "/record_max_ms",   .method = HTTP_POST, .handler = record_max_ms_handler },
         { .uri = "/dialcode_add",           .method = HTTP_POST, .handler = dialcode_add_handler },
         { .uri = "/dialcode_set_code",      .method = HTTP_POST, .handler = dialcode_set_code_handler },

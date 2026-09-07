@@ -41,11 +41,16 @@ static const entry_t TABLE[] = {
     { "0",   ACT_OPERATOR_HELP, 0, 0,
       "Operator help prompt", true },
 
-    /* 2xx -- leave a message. 212-215 ("record + call back") lived here too
-     * until it was archived -- see docs/features.md "Archived features" and the
-     * archive/record-and-callback git tag to revive it. */
+    /* 2xx -- leave a message / answering machine. 213-215 ("record + call
+     * back") lived here too until it was archived -- see docs/features.md
+     * "Archived features" and the archive/record-and-callback git tag to
+     * revive it. 212 was part of that same archived range; repurposed here
+     * for the answering machine's own greeting, not revived from git
+     * history -- see archive/ANSWERING_MACHINE.md. */
     { "211", ACT_RECORD_ARCHIVE, 0, 0,
       "Leave a message (record to storage, download on web UI)", true },
+    { "212", ACT_RECORD_GREETING, 0, 0,
+      "Record this line's answering-machine greeting", true },
 
     /* 3xx -- call the other phone line (symmetric on both lines). Always
      * compiled in now (board line count is runtime, board.h), but

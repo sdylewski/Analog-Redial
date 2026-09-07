@@ -53,6 +53,19 @@ static void rec_name_timestamped(char *out, size_t out_len, int line)
 #define PEER_NONE     (-1)
 #define PEER_VOIP     (-2)
 
+/* What an in-progress TEL_PLAYING_RECORD_PROMPT/TEL_RECORD_BEEP/TEL_RECORDING
+ * sequence is actually for -- all three purposes share the exact same state
+ * shape (play something, beep, record), but differ in which file plays,
+ * which audio source is captured, what filename the result gets, and how
+ * finishing is handled. See start_recording_archive/_greeting/_voicemail()
+ * and the IN_CLIP_DONE/tone_return_us/IN_REC_DONE dispatches below. */
+typedef enum {
+    REC_NONE = 0,
+    REC_ARCHIVE,   /* 211: leave a message, self-recorded */
+    REC_GREETING,  /* 212: record this line's answering-machine greeting */
+    REC_VOICEMAIL, /* answering machine capturing a caller's message */
+} rec_purpose_t;
+
 /* internal event queue (decouples ISR/other-task callbacks from the FSM) */
 typedef enum {
     IN_OFFHOOK = 0, IN_ONHOOK, IN_DIGIT,
@@ -89,8 +102,28 @@ typedef struct {
     /* off-hook alert: when the current dial-tone dwell expires (0 = not
      * armed, i.e. not sitting on dial tone or the feature is disabled) */
     int64_t              offhook_alert_at_us;
-    /* active recording (211 archive) */
+    /* active recording (211 archive, 212 greeting, or answering-machine
+     * voicemail -- see rec_purpose_t) */
     char                 rec_name[STORAGE_MAX_NAME];
+    rec_purpose_t        rec_purpose;
+    /* Set right before recorder_stop()/player_stop() when a real off-hook
+     * on the OTHER (called) line interrupts an in-progress local-peer
+     * voicemail -- see on_offhook()'s barge-in handling. Tells IN_REC_DONE
+     * to connect the two live instead of the normal REC_VOICEMAIL cleanup. */
+    bool                 am_bargein;
+    /* esp_timer_get_time() when ag1170_ring_start() was last called on this
+     * line (0 = not currently ringing/not tracked) -- the answering
+     * machine's ring counter derives "how many rings so far" from this
+     * rather than a separate per-cycle counter; see the FSM tick loop. */
+    int64_t              ring_started_us;
+    /* board_am_get(line) snapshotted at the same moment as ring_started_us,
+     * NOT re-read every tick -- the ring-count check runs every 10ms while
+     * ringing, and board_am_get() hits NVS each call; re-reading it that
+     * often would be ~100 NVS opens/sec per ringing line for no benefit
+     * (also means settings changed mid-ring don't retroactively change an
+     * already-ringing call's behavior, which is the more sensible
+     * semantic anyway). */
+    board_am_cfg_t        ring_am_cfg;
 } line_t;
 
 static line_t        s_line[NLINES];
@@ -317,22 +350,54 @@ static void play_persistent(int line, call_progress_t tone, tel_state_t state)
  * text tells the caller the limit up front instead. */
 #define RECORD_MAX_MS_DEFAULT 120000
 
+/* Answering machine's own greeting (212) -- short by nature (it's a greeting,
+ * not a message), no per-board setting for it, unlike the caller's own
+ * message length (board_am_get().max_ms, user-configurable). */
+#define AM_GREETING_MAX_MS 60000
+
+/* Trailing-silence auto-stop shared by every recording purpose below: even
+ * 5000ms was still cutting real messages short on an ordinary pause mid-
+ * message (confirmed live -- a caller got cut off around 15s into a 30s-max
+ * recording, well before anything close to silent for that whole stretch).
+ * 8000ms gives real room to think without sitting through the full max_ms on
+ * every short message that just ends with a quiet hangup. */
+#define RECORD_SILENCE_MS 8000
+
+void telephony_am_greeting_name(char *out, size_t len, int line)
+{
+    snprintf(out, len, "am_greeting_l%d.wav", line);
+}
+
+/* Mirrors rec_name_timestamped() but tags the filename so voicemails are
+ * visually distinguishable from self-recorded 211 archives in the
+ * Recordings list -- still prefixed "rec_l<N>_" (not e.g. "vm_l<N>_") so
+ * storage.c's is_protected_asset() keeps treating it as an ordinary,
+ * evictable recording like any other, same reasoning as bringup.c's
+ * record_capture() name_tag splicing for "dl_"/"" taps. */
+static void rec_name_voicemail(char *out, size_t out_len, int line)
+{
+    time_t now = time(NULL);
+    if (now < 1700000000) {
+        snprintf(out, out_len, "rec_l%d_am_boot%lld.wav", line,
+                 (long long)(esp_timer_get_time() / 1000));
+        return;
+    }
+    struct tm t;
+    gmtime_r(&now, &t);
+    snprintf(out, out_len, "rec_l%d_am_%04d%02d%02d_%02d%02d%02dZ.wav", line,
+             t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
+             t.tm_hour, t.tm_min, t.tm_sec);
+}
+
 /* 211: actually start capturing to storage. Factored out of
  * ACT_RECORD_ARCHIVE so the tick loop's tone-return path (after the beep)
  * can call it too, without duplicating the recorder_start()/failure logic. */
-static void start_recording(int line)
+static void start_recording_archive(int line)
 {
     rec_name_timestamped(s_line[line].rec_name, sizeof(s_line[line].rec_name), line);
     audio_tx_silence(line);
     uint32_t max_ms = board_record_max_ms_get(RECORD_MAX_MS_DEFAULT);
-    /* Trailing-silence auto-stop: even 5000ms was still cutting real
-     * messages short on an ordinary pause mid-message (confirmed live --
-     * a caller got cut off around 15s into a 30s-max recording, well
-     * before anything close to silent for that whole stretch). 8000ms
-     * gives real room to think without sitting through the full max_ms on
-     * every short message that just ends with the caller hanging up
-     * quietly instead of a clean pause. */
-    if (recorder_start(line, s_line[line].rec_name, max_ms, 8000,
+    if (recorder_start(line, s_line[line].rec_name, max_ms, RECORD_SILENCE_MS,
                        rec_done_cb, NULL) == ESP_OK) {
         s_line[line].state = TEL_RECORDING;
     } else {
@@ -341,10 +406,29 @@ static void start_recording(int line)
     }
 }
 
-/* 211: beep cue before start_recording() -- a single clean tone
+/* 212: record this line's own answering-machine greeting. Fixed filename
+ * (overwrites the previous greeting directly, like a real answering machine
+ * -- reviewed/re-recorded via the web UI's playback, not a phone-side
+ * confirm loop) -- see archive/ANSWERING_MACHINE.md. */
+static void start_recording_greeting(int line)
+{
+    telephony_am_greeting_name(s_line[line].rec_name, sizeof(s_line[line].rec_name), line);
+    audio_tx_silence(line);
+    if (recorder_start(line, s_line[line].rec_name, AM_GREETING_MAX_MS, RECORD_SILENCE_MS,
+                       rec_done_cb, NULL) == ESP_OK) {
+        s_line[line].state = TEL_RECORDING;
+    } else {
+        ESP_LOGW(TAG, "line %d: greeting recording couldn't start", line);
+        play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+    }
+}
+
+/* Beep cue before recording starts -- a single clean tone
  * (TONE_ANSWERING_BEEP), not TONE_CONFIRM's triple stutter (that read as a
  * generic "confirmation chime," not an answering-machine beep -- confirmed
- * live). Runs whether or not RECORD_PROMPT_NAME played first. */
+ * live). Runs whether or not a prompt/greeting played first. Purpose-generic
+ * -- which start_recording_*() the tick loop calls once this beep's timer
+ * expires is driven by rec_purpose, set by the caller before this runs. */
 #define RECORD_BEEP_MS 600
 static void start_record_beep(int line)
 {
@@ -366,6 +450,8 @@ static void start_local_call(int caller, int target, voice_effect_t fx)
     s_line[target].state = TEL_RINGING;
     s_line[target].peer  = caller;
     ag1170_ring_start(target);
+    s_line[target].ring_started_us = esp_timer_get_time();
+    s_line[target].ring_am_cfg = board_am_get(target);
 
     s_line[caller].state = TEL_RINGBACK;
     s_line[caller].peer  = target;
@@ -402,10 +488,12 @@ static void end_call(int line)
 
     audio_tx_bridge(line, peer, false);
     audio_tx_silence(line);
+    audio_set_uplink_inject(line, false); /* no-op unless the answering machine had it on -- see auto_answer() */
     voip_hangup(line);
     if (s_line[line].state == TEL_PLAYING ||
         s_line[line].state == TEL_PLAYING_RECORD_PROMPT) player_stop(line);
     if (s_line[line].state == TEL_RECORDING) recorder_stop(line);
+    s_line[line].rec_purpose = REC_NONE;
 
     if (peer >= 0 && peer < NLINES) {
         switch (s_line[peer].state) {
@@ -431,6 +519,91 @@ static void end_call(int line)
         }
     }
     enter_idle(line);
+}
+
+/* Answering machine: capture a caller's message on `rec_line` -- their own
+ * line for a local-peer call (their mic really does carry their voice), or
+ * the auto-answered line itself for a VoIP call (their voice only exists as
+ * decoded downlink audio there -- see recorder_start_downlink() and
+ * audio_add_extwrite_tap()'s doc comment for why the recorder taps ahead of
+ * this line's own (silenced) TX rather than behind it). `for_line` names
+ * whose mailbox this is (the line being called), for the filename and the
+ * max-length setting -- differs from rec_line only in the local-peer case.
+ * On failure, end_call(rec_line) rather than a confirm tone: there's no
+ * local human on rec_line to play one to in the VoIP case, and in the local
+ * case it'd be a strange thing for the *caller* to hear after already
+ * being told to leave a message. */
+static void start_recording_voicemail(int rec_line, int for_line)
+{
+    rec_name_voicemail(s_line[rec_line].rec_name, sizeof(s_line[rec_line].rec_name), for_line);
+    audio_tx_silence(rec_line);
+    board_am_cfg_t cfg = board_am_get(for_line);
+    bool downlink = (s_line[rec_line].peer == PEER_VOIP);
+    esp_err_t err = downlink
+        ? recorder_start_downlink(rec_line, s_line[rec_line].rec_name, cfg.max_ms,
+                                  RECORD_SILENCE_MS, rec_done_cb, NULL)
+        : recorder_start(rec_line, s_line[rec_line].rec_name, cfg.max_ms,
+                         RECORD_SILENCE_MS, rec_done_cb, NULL);
+    if (err == ESP_OK) {
+        s_line[rec_line].state = TEL_RECORDING;
+    } else {
+        ESP_LOGW(TAG, "line %d: answering-machine recording couldn't start", rec_line);
+        end_call(rec_line);
+    }
+}
+
+/* Answering machine: no one answered within the configured ring count (see
+ * the ring-counter in the FSM tick loop below). Always called with the line
+ * that was actually ringing -- VoIP or local peer. */
+static void auto_answer(int line)
+{
+    ag1170_ring_stop(line);
+    int peer = s_line[line].peer;
+    int rec_line;
+
+    if (peer == PEER_VOIP) {
+        if (voip_answer(line) != ESP_OK) {
+            enter_idle(line);
+            return;
+        }
+        /* Loop this line's own TX (whatever player_play()/start_record_beep()
+         * below select -- SRC_EXTERNAL for the greeting, SRC_TONE for the
+         * beep) back into its uplink -- normally audio_rx_read()/the RTP tx
+         * task reads the real mic, which is just room silence with no one
+         * physically holding the handset. inject_uplink mirrors txL/txR
+         * regardless of which source is currently selected, so nothing
+         * else needs to pick a source here. See audio_set_uplink_inject()'s
+         * doc comment in audio.h. */
+        audio_set_uplink_inject(line, true);
+        rec_line = line;
+    } else if (peer >= 0 && peer < NLINES) {
+        /* The CALLER's own line does the playing/recording -- their mic
+         * really does carry their voice, same as any other local
+         * recording. `line` (the called line) deliberately stays in
+         * TEL_RINGING with peer still set, bell already silenced above --
+         * so a real pickup on it still hits on_offhook()'s normal
+         * RINGING/local-peer branch, which knows to treat that as a
+         * barge-in on `peer` (see am_active()) instead of a plain
+         * connect_bridge(). */
+        rec_line = peer;
+    } else {
+        enter_idle(line);
+        return;
+    }
+
+    activity_log("Line %d: answering machine picked up (%s)", line,
+                 peer == PEER_VOIP ? "VoIP" : "other line");
+    s_line[rec_line].rec_purpose = REC_VOICEMAIL;
+    s_line[rec_line].am_bargein = false;
+    char greeting[STORAGE_MAX_NAME];
+    telephony_am_greeting_name(greeting, sizeof(greeting), line);
+    if (player_play(rec_line, greeting, clip_done_cb, NULL) == ESP_OK) {
+        s_line[rec_line].state = TEL_PLAYING_RECORD_PROMPT;
+    } else {
+        /* No greeting recorded yet -- straight to beep, same fallback 211
+         * uses when RECORD_PROMPT_NAME doesn't exist. */
+        start_record_beep(rec_line);
+    }
 }
 
 /* ---- dial action dispatch ---- */
@@ -466,6 +639,7 @@ static void handle_action(int line, const dialplan_action_t *a)
             break;
 
         case ACT_RECORD_ARCHIVE: /* 211: prompt (if configured) -> beep -> record */
+            s_line[line].rec_purpose = REC_ARCHIVE;
             if (player_play(line, RECORD_PROMPT_NAME, clip_done_cb, NULL) == ESP_OK) {
                 s_line[line].state = TEL_PLAYING_RECORD_PROMPT;
             } else {
@@ -473,6 +647,13 @@ static void handle_action(int line, const dialplan_action_t *a)
                  * fallback straight to the beep, not an error. */
                 start_record_beep(line);
             }
+            break;
+
+        case ACT_RECORD_GREETING: /* 212: straight to beep -- no prompt clip,
+                                    * dialing 212 on purpose already says
+                                    * "record now," nothing to instruct. */
+            s_line[line].rec_purpose = REC_GREETING;
+            start_record_beep(line);
             break;
 
         case ACT_RADIO:
@@ -539,6 +720,17 @@ static void process_digit(int line, char ch)
     }
 }
 
+/* True while `line` is mid-answering-machine-activity (playing its
+ * greeting, mid-beep, or actually recording) -- shared by both barge-in
+ * branches in on_offhook() below. */
+static bool am_active(int line)
+{
+    return s_line[line].rec_purpose == REC_VOICEMAIL &&
+        (s_line[line].state == TEL_PLAYING_RECORD_PROMPT ||
+         s_line[line].state == TEL_RECORD_BEEP ||
+         s_line[line].state == TEL_RECORDING);
+}
+
 /* ---- main event handlers ---- */
 static void on_offhook(int line)
 {
@@ -554,10 +746,48 @@ static void on_offhook(int line)
                 play_persistent(line, TONE_REORDER, TEL_REORDER);
             }
         } else if (peer >= 0 && peer < NLINES) {
-            connect_bridge(line, peer);
+            /* Barge-in: peer might be running the answering machine on OUR
+             * behalf right now (an unanswered call to us that timed out and
+             * got auto-answered -- see auto_answer(), which deliberately
+             * leaves `line` sitting in TEL_RINGING with peer still set so a
+             * real pickup lands exactly here instead of nowhere). */
+            if (am_active(peer) && s_line[peer].state == TEL_RECORDING) {
+                /* Mid-recording: recorder's done callback reliably fires
+                 * even on an explicit stop (unlike player's, below), so
+                 * defer the bridge to IN_REC_DONE instead of racing
+                 * recorder.c's teardown. */
+                s_line[peer].am_bargein = true;
+                recorder_stop(peer);
+            } else if (am_active(peer)) {
+                /* Still playing the greeting, or mid-beep -- player_stop()
+                 * does NOT reliably fire IN_CLIP_DONE on an explicit stop
+                 * (finish()'s call_cb is tied to whether playback actually
+                 * ran to completion), so there's nothing to defer to;
+                 * bridge immediately instead of waiting for an event that
+                 * might never come. */
+                player_stop(peer);
+                s_line[peer].tone_return_us = 0; /* in case the beep's own timer is what's running */
+                s_line[peer].rec_purpose = REC_NONE;
+                connect_bridge(line, peer);
+            } else {
+                connect_bridge(line, peer);
+            }
         } else {
             enter_dialtone(line);
         }
+        return;
+    }
+    /* Barge-in: this line itself was auto-answered as the machine for an
+     * incoming VoIP call (state already moved off RINGING) -- a real pickup
+     * now means take the call live instead. voip_answer() already ran
+     * during auto-answer, so the SIP side stays as-is -- just switch what's
+     * happening locally from machine to live audio. */
+    if (am_active(line) && s_line[line].peer == PEER_VOIP) {
+        if (st == TEL_RECORDING) recorder_stop(line); else player_stop(line);
+        s_line[line].rec_purpose = REC_NONE;
+        audio_set_uplink_inject(line, false); /* real mic reaches the far end again, not this line's own TX */
+        s_line[line].state = TEL_INCALL;
+        activity_log("Line %d: picked up during answering machine -- live", line);
         return;
     }
     /* normal pickup */
@@ -595,6 +825,8 @@ static void on_voip_incoming(int line)
     s_line[line].state = TEL_RINGING;
     s_line[line].peer = PEER_VOIP;
     ag1170_ring_start(line);
+    s_line[line].ring_started_us = esp_timer_get_time();
+    s_line[line].ring_am_cfg = board_am_get(line);
 }
 
 static void fsm_task(void *arg)
@@ -635,10 +867,19 @@ static void fsm_task(void *arg)
                          * indefinitely even though the FSM below moves on. */
                         if (s_line[e.line].state == TEL_RINGING)
                             ag1170_ring_stop(e.line);
-                        if (line_offhook(e.line))
+                        if (am_active(e.line)) {
+                            /* Caller hung up mid-greeting/beep/recording on
+                             * an auto-answered call -- end_call() stops
+                             * whatever's in flight (recorder's done callback
+                             * still fires after recorder_stop(), but
+                             * IN_REC_DONE's own state-changed guard above
+                             * makes that a no-op once this has already run). */
+                            end_call(e.line);
+                        } else if (line_offhook(e.line)) {
                             enter_dialtone(e.line);
-                        else
+                        } else {
                             enter_idle(e.line);
+                        }
                     }
                     break;
                 case IN_CLIP_DONE:
@@ -648,18 +889,42 @@ static void fsm_task(void *arg)
                         if (line_offhook(e.line)) enter_dialtone(e.line);
                         else enter_idle(e.line);
                     } else if (s_line[e.line].state == TEL_PLAYING_RECORD_PROMPT) {
-                        /* 211's "leave a message after the beep" clip
-                         * finished -- continue into the beep, don't just
-                         * drop back to dial tone like a normal clip. */
-                        if (line_offhook(e.line)) start_record_beep(e.line);
-                        else enter_idle(e.line);
+                        /* The "leave a message after the beep"-style clip
+                         * (211's record_prompt.wav, or an answering
+                         * machine's own greeting) finished -- continue into
+                         * the beep, don't just drop back to dial tone like a
+                         * normal clip. REC_VOICEMAIL bypasses the hook check
+                         * for the same reason as the tone-return dispatch
+                         * above -- no local human's hook state applies. */
+                        if (s_line[e.line].rec_purpose == REC_VOICEMAIL || line_offhook(e.line)) {
+                            start_record_beep(e.line);
+                        } else {
+                            enter_idle(e.line);
+                        }
                     }
                     break;
                 case IN_REC_DONE: {
                     int l = e.line;
                     if (s_line[l].state != TEL_RECORDING) break; /* already moved on */
-                    if (line_offhook(l)) enter_dialtone(l);
-                    else enter_idle(l);
+                    if (s_line[l].rec_purpose == REC_VOICEMAIL) {
+                        int called = s_line[l].peer; /* local case only -- PEER_VOIP for the VoIP case */
+                        if (s_line[l].am_bargein && called >= 0 && called < NLINES &&
+                            line_offhook(called)) {
+                            /* Local-peer barge-in (on_offhook()) stopped this
+                             * recording mid-flight and is waiting for THIS
+                             * teardown to actually finish before it's safe
+                             * to bridge -- see am_active()'s doc comment. */
+                            s_line[l].rec_purpose = REC_NONE;
+                            s_line[l].am_bargein = false;
+                            connect_bridge(called, l);
+                        } else {
+                            end_call(l); /* voip_hangup() for a VoIP peer; TEL_RINGING-peer cleanup for local */
+                        }
+                    } else if (line_offhook(l)) {
+                        enter_dialtone(l);
+                    } else {
+                        enter_idle(l);
+                    }
                     break;
                 }
             }
@@ -684,9 +949,47 @@ static void fsm_task(void *arg)
                 if (ret == TEL_DIALTONE) enter_dialtone(line);
                 else if (ret == TEL_IDLE) enter_idle(line);
                 else if (ret == TEL_RECORDING) {
-                    /* 211's beep just finished. */
-                    if (line_offhook(line)) start_recording(line);
-                    else enter_idle(line);
+                    /* The beep just finished -- which start_recording_*()
+                     * runs depends on what this beep was actually for (see
+                     * rec_purpose_t). REC_VOICEMAIL has no local human on
+                     * this line to check hook state against (VoIP: nobody's
+                     * physically holding the handset; local peer: this is
+                     * the CALLED line, which never went off-hook at all --
+                     * see auto_answer()), so it bypasses line_offhook()
+                     * entirely, unlike REC_ARCHIVE/REC_GREETING which are
+                     * always a real person recording from their own phone. */
+                    rec_purpose_t purpose = s_line[line].rec_purpose;
+                    if (purpose == REC_VOICEMAIL) {
+                        int for_line = (s_line[line].peer == PEER_VOIP) ? line : s_line[line].peer;
+                        start_recording_voicemail(line, for_line);
+                    } else if (line_offhook(line)) {
+                        if (purpose == REC_GREETING) start_recording_greeting(line);
+                        else start_recording_archive(line);
+                    } else {
+                        enter_idle(line);
+                    }
+                }
+            }
+            /* Answering machine: after `cfg.rings` unanswered rings, auto-
+             * answer. Gated per-line: cfg.enabled must be on for `line`
+             * itself, and for a local-peer call cfg.other_line must also be
+             * on (routing a family member's unanswered intercom call to
+             * voicemail isn't obviously wanted, so it's opt-in separately
+             * from VoIP auto-answer -- see board.h). Trigger condition is
+             * "cfg.rings full cadence cycles have elapsed" -- simpler and
+             * less ambiguous than counting rings-in-progress. */
+            if (s_line[line].state == TEL_RINGING && s_line[line].ring_started_us) {
+                board_am_cfg_t cfg = s_line[line].ring_am_cfg;
+                bool eligible = cfg.enabled &&
+                    (s_line[line].peer == PEER_VOIP || cfg.other_line);
+                if (eligible) {
+                    uint16_t on_ms, off_ms;
+                    ag1170_ring_cadence_ms(&on_ms, &off_ms);
+                    int64_t cycle_us = (int64_t)(on_ms + off_ms) * 1000;
+                    if (cycle_us > 0 &&
+                        now - s_line[line].ring_started_us >= (int64_t)cfg.rings * cycle_us) {
+                        auto_answer(line);
+                    }
                 }
             }
             /* Handset left off-hook on dial tone -> loud alert (board.h).
