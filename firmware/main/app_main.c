@@ -24,6 +24,7 @@
 #include "wifi.h"
 #include "storage.h"
 #include "sdcard.h"
+#include "idle_power.h"
 #include "logbuf.h"
 #include "logctl.h"
 #include "activity.h"
@@ -148,6 +149,11 @@ void app_main(void)
         ESP_LOGW(TAG, "webui_start failed: %s", esp_err_to_name(err));
         board_led_set_state(BOARD_LED_ERROR);
     }
+
+    /* Optional low-power idle mode (disabled by default) -- after ag1170,
+     * telephony/voip and wifi so it has everything it needs to watch.
+     * See idle_power.h and archive/POWER_SAVING.md. */
+    idle_power_init();
 
     /* 7. BOOT-strap watcher: hold GPIO9 low ~3 s at runtime to factory-reset
      * WiFi. Started last so it can't interfere with subsystem bring-up. */

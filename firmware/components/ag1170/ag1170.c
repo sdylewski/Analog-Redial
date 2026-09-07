@@ -25,6 +25,14 @@ typedef struct {
     int64_t last_pulse_end_us;
     bool    counting_digit;
 
+    /* Whether ag1170_set_power() last commanded this line's PD run (true) or
+     * powered it down (false). SHK is meaningless while false -- the AG1171's
+     * DC/DC converter is what supplies loop current in the first place, so
+     * with it off there's no current to detect a lifted handset with
+     * (datasheet §3.4: "logic outputs not valid" for 50ms even just coming
+     * back up). service_hook() must not act on it either way. */
+    bool    powered;
+
     /* ring state */
     bool    ringing;
     int64_t ring_phase_start_us;
@@ -88,7 +96,19 @@ static void set_pd_run(gpio_num_t pd, bool run)
 esp_err_t ag1170_set_power(int line, bool run)
 {
     if (line < 0 || line >= s_active_lines) return ESP_ERR_INVALID_ARG;
-    set_pd_run(s_ls[line].pins.pd, run);
+    line_state_t *ls = &s_ls[line];
+    if (run && !ls->powered) {
+        /* Re-powering after an intentional power-down (idle_power's SLIC
+         * duty-cycle) -- start hook detection fresh rather than trusting
+         * whatever service_hook() last computed before power-down; mirrors
+         * config_line_gpio()'s own power-on-reset init below. */
+        ls->level = 0;
+        ls->raw_prev = 0;
+        ls->glitch_cnt = 0;
+        ls->level_since_us = esp_timer_get_time();
+    }
+    ls->powered = run;
+    set_pd_run(ls->pins.pd, run);
     return ESP_OK;
 }
 
@@ -179,6 +199,7 @@ static void service_ring(int line, int64_t now)
 static void service_hook(int line, int64_t now)
 {
     line_state_t *ls = &s_ls[line];
+    if (!ls->powered) return; /* SHK is meaningless right now -- see the `powered` field's doc comment */
 
     int raw = (gpio_get_level(ls->pins.shk) == BOARD_SHK_OFFHOOK_LEVEL) ? 1 : 0;
 
@@ -325,6 +346,7 @@ static void config_line_gpio(int line)
     gpio_set_level(p.rm, 0);
     gpio_set_level(p.fr, 0);
 
+    s_ls[line].powered = true;
     s_ls[line].level = 0;
     s_ls[line].raw_prev = 0;
     s_ls[line].level_since_us = esp_timer_get_time();

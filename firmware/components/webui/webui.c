@@ -20,6 +20,7 @@
 #include "aec.h"
 #include "es8388.h"
 #include "sdcard.h"
+#include "idle_power.h"
 #include "esp_timer.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -807,6 +808,27 @@ static int append_general_tab(char *buf, size_t cap, int off)
         roh_status,
         roh.enabled ? " checked" : "",
         (unsigned)roh.seconds, BOARD_OFFHOOK_ALERT_MIN_S, BOARD_OFFHOOK_ALERT_MAX_S);
+
+    idle_power_cfg_t ip = idle_power_get();
+    char ip_status[48];
+    if (ip.enabled) snprintf(ip_status, sizeof(ip_status), "on, after %u min", (unsigned)ip.minutes);
+    else            snprintf(ip_status, sizeof(ip_status), "off");
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Low-power idle mode</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">Current</span><span>%s</span></div>"
+        "<form method=\"POST\" action=\"/idle_power\" class=\"settings-form\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> Enabled</label>"
+        "<label>Minutes idle before sleeping "
+        "<input type=\"number\" name=\"minutes\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+        "</form>"
+        "<p class=\"hint\">Approximately %.2f&nbsp;W of power savings, but expect up to ~300ms "
+        "delay the first time you pick up the handset after %u idle minutes; fully responsive "
+        "for the rest of that call and for %u minutes after.</p></div>",
+        ip_status,
+        ip.enabled ? " checked" : "",
+        (unsigned)ip.minutes, IDLE_POWER_MINUTES_MIN, IDLE_POWER_MINUTES_MAX,
+        (double)idle_power_estimated_savings_w(), (unsigned)ip.minutes, (unsigned)ip.minutes);
 
     dialplan_modes_t *m = dialplan_modes();
     off = append_mode_card(buf, cap, off, "Digit readback",
@@ -2072,6 +2094,37 @@ static esp_err_t offhook_alert_handler(httpd_req_t *req)
     };
     if (board_offhook_alert_set(cfg) != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "seconds out of range");
+        return ESP_OK;
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /idle_power -- form body enabled=1 (checkbox present) + minutes=N. */
+static esp_err_t idle_power_settings_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char enabled[8] = {0}, minutes[12] = {0};
+    form_field(body, "enabled", enabled, sizeof(enabled));
+    form_field(body, "minutes", minutes, sizeof(minutes));
+
+    idle_power_cfg_t cfg = {
+        .enabled = (enabled[0] == '1'),
+        .minutes = minutes[0] ? (uint16_t)strtoul(minutes, NULL, 10) : 0,
+    };
+    if (idle_power_set(cfg) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "minutes out of range");
         return ESP_OK;
     }
 
@@ -3855,6 +3908,7 @@ esp_err_t webui_start(void)
         { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },
         { .uri = "/board_hw_set",    .method = HTTP_POST, .handler = board_hw_set_handler },
         { .uri = "/offhook_alert",   .method = HTTP_POST, .handler = offhook_alert_handler },
+        { .uri = "/idle_power",      .method = HTTP_POST, .handler = idle_power_settings_handler },
         { .uri = "/record_max_ms",   .method = HTTP_POST, .handler = record_max_ms_handler },
         { .uri = "/dialcode_add",           .method = HTTP_POST, .handler = dialcode_add_handler },
         { .uri = "/dialcode_set_code",      .method = HTTP_POST, .handler = dialcode_set_code_handler },

@@ -52,6 +52,13 @@ int8_t      wifi_rssi(void);                       /* dBm; 0 if not connected */
 void        wifi_get_ip_str(char *buf, size_t buf_len); /* "0.0.0.0" if not connected */
 const char *wifi_get_ssid(void);                   /* configured SSID, "" if none */
 
+/* Runtime WiFi power-save toggle for idle_power.c -- see that component and
+ * archive/POWER_SAVING.md. true = WIFI_PS_MIN_MODEM (radio sleeps between
+ * DTIM beacons), false = WIFI_PS_NONE (this device's normal default; see the
+ * comment in wifi_init() for why). Not for general use -- only safe to
+ * enable when nothing needs the radio to stay instantly reachable. */
+void wifi_set_power_save(bool eco);
+
 #ifdef __cplusplus
 }
 #endif

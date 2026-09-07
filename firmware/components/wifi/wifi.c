@@ -346,3 +346,17 @@ void wifi_get_ip_str(char *buf, size_t buf_len)
 }
 
 const char *wifi_get_ssid(void) { return s_ssid; }
+
+void wifi_set_power_save(bool eco)
+{
+    /* Only called by idle_power.c, and only once the system's been fully
+     * idle for a while with no VoIP server configured -- see
+     * archive/POWER_SAVING.md. WIFI_PS_MIN_MODEM is exactly the mode
+     * wifi_init()'s own comment above documents as bad for this device
+     * generally (RTP timing, HTTP latency); it's safe here specifically
+     * because idle_power.c never engages it while a call could be in
+     * progress or expected. No-op if WiFi isn't actually associated (nothing
+     * to sleep between DTIM beacons for). */
+    if (eco && !s_connected) return;
+    esp_wifi_set_ps(eco ? WIFI_PS_MIN_MODEM : WIFI_PS_NONE);
+}
