@@ -55,6 +55,18 @@ nav a {
 }
 nav a.active { color: var(--text); border-bottom: 2px solid var(--accent); padding-bottom: 4px; }
 
+/* Language picker: a <form> flowing inline after the nav tabs (not a 3rd
+ * <header> child -- see append_page_head()'s doc comment). */
+nav form.langpick { display: inline-block; margin-left: 18px; vertical-align: middle; }
+nav form.langpick select {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 13px;
+}
+
 main { padding: 22px; max-width: 1100px; margin: 0 auto; }
 
 .tagline { color: var(--muted); font-size: 14px; margin: -8px 0 18px; }

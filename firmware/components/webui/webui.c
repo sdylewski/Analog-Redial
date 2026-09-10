@@ -428,6 +428,24 @@ static void html_escape(const char *in, char *out, size_t outsz)
     out[o] = '\0';
 }
 
+/* Every page handler here builds its response into one malloc(cap) buffer
+ * via repeated `off += snprintf(buf + off, ((size_t)off < cap) ? cap - off
+ * : 0, ...)` calls, then calls httpd_resp_send(req, buf, <length>) once at
+ * the end. snprintf's return value is the length that WOULD have been
+ * written, which keeps growing past `cap` once truncation starts (each
+ * further guarded call passes size 0 and writes nothing, but still returns
+ * its own would-be length) -- so a too-small `cap` estimate means `off`
+ * ends up bigger than the buffer actually is. Passing that raw `off`
+ * straight to httpd_resp_send() tells it to read past the end of a
+ * malloc'd buffer -- adjacent heap memory ends up in the HTTP response.
+ * Route every such call through this instead of a raw `off`. */
+static size_t clamp_send_len(int off, size_t cap)
+{
+    if (off <= 0) return 0;
+    size_t len = (size_t)off;
+    return (len < cap) ? len : (cap ? cap - 1 : 0);
+}
+
 /* Same green/gray/amber "pill" classes the Pi UI uses for line state. */
 static const char *pill_class_for(tel_state_t s)
 {
@@ -455,6 +473,25 @@ static const nav_tab_t NAV_TABS[] = {
 };
 #define NAV_TABS_N (sizeof(NAV_TABS) / sizeof(NAV_TABS[0]))
 
+/* Languages with a real regional tone treatment today (tones/tone_regions.h
+ * -- kept as a small, separate list here rather than exposing that
+ * component's private table, since this is purely a display concern: name +
+ * flag emoji for the header picker below). Deliberately short -- see
+ * i18n_str()'s doc comment (i18n.h) for why this project isn't bundling a
+ * long language list into firmware. Adding a region to tone_regions.h and
+ * forgetting to add it here just means that language doesn't show in the
+ * picker yet (safe, obvious gap) -- board_language_set() itself still
+ * accepts any code via the console/API either way. */
+typedef struct { const char *code; const char *flag; const char *name; } ui_lang_t;
+static const ui_lang_t UI_LANGUAGES[] = {
+    { "en", "\xf0\x9f\x87\xba\xf0\x9f\x87\xb8", "English" },
+    { "it", "\xf0\x9f\x87\xae\xf0\x9f\x87\xb9", "Italiano" },
+    { "de", "\xf0\x9f\x87\xa9\xf0\x9f\x87\xaa", "Deutsch" },
+    { "fr", "\xf0\x9f\x87\xab\xf0\x9f\x87\xb7", "Fran\xc3\xa7""ais" },
+    { "es", "\xf0\x9f\x87\xaa\xf0\x9f\x87\xb8", "Espa\xc3\xb1ol" },
+};
+#define UI_LANGUAGES_N (sizeof(UI_LANGUAGES) / sizeof(UI_LANGUAGES[0]))
+
 static int append_page_head(char *buf, size_t cap, int off, const char *page_title,
                              const char *active_href, bool auto_refresh)
 {
@@ -478,7 +515,26 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
             "<a%s href=\"%s\">%s</a>", active ? " class=\"active\"" : "",
             NAV_TABS[i].href, NAV_TABS[i].label);
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</nav>");
+    /* Language picker: lives inside <nav> (not as a 3rd <header> child --
+     * see append_page_head()'s git history for why that broke the
+     * space-between flex layout once already) so it just flows after the
+     * last tab. Auto-submits on change; language_set_handler() bounces back
+     * to whichever page this was, via Referer. Only a UI-language/prompt-
+     * accent selector today -- see i18n.h for what "changes the UI
+     * language" actually means right now (nothing yet but the tone accent;
+     * this is the visible seam for when that's built out). */
+    char cur_lang[8];
+    board_language_get(cur_lang, sizeof(cur_lang));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<form method=\"POST\" action=\"/language_set\" class=\"langpick\">"
+        "<select name=\"lang\" onchange=\"this.form.submit()\" title=\"Language\">");
+    for (size_t i = 0; i < UI_LANGUAGES_N; i++) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<option value=\"%s\"%s>%s %s</option>",
+            UI_LANGUAGES[i].code, strcmp(UI_LANGUAGES[i].code, cur_lang) == 0 ? " selected" : "",
+            UI_LANGUAGES[i].flag, UI_LANGUAGES[i].name);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</select></form></nav>");
     return off;
 }
 
@@ -600,6 +656,18 @@ static esp_err_t catchall_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* Shared with index_handler(), which needs to know this BEFORE calling
+ * append_page_head() -- see that call site's comment on why the Status
+ * page's usual 5s auto-refresh has to be off while this banner has live
+ * form fields on it. */
+static bool first_boot_banner_needed(void)
+{
+    bool name_done = board_name_is_set();
+    bool hw_applicable = (board_current_type() == BOARD_TYPE_SMD);
+    bool hw_done = board_hw_config_is_set();
+    return !(name_done && (!hw_applicable || hw_done));
+}
+
 /* First-boot setup banner, shown on the Status page only while there's
  * still something a human hasn't reviewed: the board name (board_name_get()
  * returns the generic CONFIG_MDNS_HOSTNAME default until board_name_set()
@@ -611,10 +679,10 @@ static esp_err_t catchall_handler(httpd_req_t *req)
  * once both are confirmed -- no dismiss button, nothing to re-show. */
 static int append_first_boot_banner(char *buf, size_t cap, int off)
 {
+    if (!first_boot_banner_needed()) return off;
     bool name_done = board_name_is_set();
     bool hw_applicable = (board_current_type() == BOARD_TYPE_SMD);
     bool hw_done = board_hw_config_is_set();
-    if (name_done && (!hw_applicable || hw_done)) return off;
 
     char name[32];
     board_name_get(name, sizeof(name));
@@ -685,7 +753,13 @@ static esp_err_t index_handler(httpd_req_t *req)
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
-    int off = append_page_head(buf, cap, 0, "Status", "/", true);
+    /* The usual 5s auto-refresh (append_page_head()'s auto_refresh arg,
+     * <meta http-equiv="refresh">) is a full page reload -- fine for a
+     * read-only status display, but it wipes whatever's half-typed into the
+     * first-boot banner's form fields below every few seconds. Off while
+     * that banner has something to ask for; back on once both are
+     * confirmed and the banner stops rendering for good. */
+    int off = append_page_head(buf, cap, 0, "Status", "/", !first_boot_banner_needed());
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "</header>"
         "<main>"
@@ -760,7 +834,7 @@ static esp_err_t index_handler(httpd_req_t *req)
     }
 
     httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, buf, (off > 0) ? off : 0);
+    httpd_resp_send(req, buf, clamp_send_len(off, cap));
     free(buf);
     return ESP_OK;
 }
@@ -835,7 +909,7 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
     }
 
     httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, buf, (off > 0) ? off : 0);
+    httpd_resp_send(req, buf, clamp_send_len(off, cap));
     free(buf);
     free(entries);
     return ESP_OK;
@@ -2192,7 +2266,15 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * of that history). */
     size_t log_room = (strcmp(tab, "diag") == 0) ? 8200 * 3 : 0;
     size_t storage_room = (strcmp(tab, "storage") == 0) ? STORAGE_LIST_MAX * 2 * 340 : 0;
-    size_t cap = 6144 + n * 220 + storage_room + log_room + 4500; /* +4500: General's WIFI_SCAN_JS + Hardware's Reset card */
+    /* Hardware tab's per-line cards (speaker volume, echo, answering
+     * machine greeting) roughly double in size on a 2-line board -- plus
+     * the Reset card and the hw-config "Advisory evidence" card, both new
+     * additions on top of what the flat base below was originally sized
+     * for. General's room covers the WIFI_SCAN_JS + language-picker JS on
+     * its WiFi card. */
+    size_t hw_room = (strcmp(tab, "hardware") == 0) ? 9000 : 0;
+    size_t general_room = (strcmp(tab, "general") == 0) ? 2200 : 0;
+    size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room;
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
@@ -2235,7 +2317,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     }
 
     httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, buf, (off > 0) ? off : 0);
+    httpd_resp_send(req, buf, clamp_send_len(off, cap));
     free(buf);
     return ESP_OK;
 }
@@ -2538,8 +2620,19 @@ static esp_err_t language_set_handler(httpd_req_t *req)
     }
     board_language_set(lang);
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    /* Bounce back to whichever page changed it -- now reachable from the
+     * header picker on every page (append_page_head()), not just Settings ->
+     * General, so a fixed redirect target would yank the user back to
+     * Settings from wherever they actually were. Same Referer-bounce pattern
+     * as prompt_text_set_handler, same harmless fallback. */
+    char referer[128];
+    if (httpd_req_get_hdr_value_str(req, "Referer", referer, sizeof(referer)) == ESP_OK) {
+        httpd_resp_set_status(req, "303 See Other");
+        httpd_resp_set_hdr(req, "Location", referer);
+    } else {
+        httpd_resp_set_status(req, "303 See Other");
+        httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    }
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -3237,7 +3330,7 @@ static esp_err_t voip_server_script_handler(httpd_req_t *req)
     httpd_resp_set_hdr(req, "Content-Disposition",
         "attachment; filename=\"rotary-voip-server-setup.sh\"");
     httpd_resp_set_type(req, "text/x-shellscript");
-    httpd_resp_send(req, buf, off);
+    httpd_resp_send(req, buf, clamp_send_len(off, 4096));
     free(buf);
     return ESP_OK;
 }
