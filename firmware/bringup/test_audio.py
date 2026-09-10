@@ -5,11 +5,13 @@ This can only fully verify itself with a human listening/speaking at the
 handset -- the script drives the console commands and prints what to listen
 for, plus a basic sanity check that ADC RMS actually moves.
 
-Note (SMD/ES8388 boards only): the ES8388's ADC can capture only one line's
-receive audio at a time (see es8388.h) -- 'capture' shows both lines' RMS
-meters, but only the line selected by the codec's ADC input mux (line 0 by
-default) will show a real signal. This is a hardware limitation of the SMD2
-board's analog input wiring, not a bug.
+Note (SMD/ES8388 boards): both lines capture simultaneously -- each has its
+own dedicated ADC input (LIN1/RIN1, see es8388.h), native on SMD3/SMD4's
+wiring and bodge-fixed on SMD2's. 'capture' showing only one line's RMS
+meter moving is a real fault to chase (wiring, cable, handset), not an
+expected codec limitation -- an earlier revision of this note described a
+now-fixed SMD2 hardware bug (a shared ADC mux) as if it were permanent;
+that's no longer true on any current board.
 """
 
 from __future__ import annotations

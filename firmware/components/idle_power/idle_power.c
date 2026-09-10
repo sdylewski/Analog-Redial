@@ -14,38 +14,42 @@
 
 static const char *TAG = "idle_power";
 
-#define NVS_NS      "idlepwr"
-#define NVS_KEY_EN  "enabled"
-#define NVS_KEY_MIN "minutes"
+#define NVS_NS       "idlepwr"
+#define NVS_KEY_EN   "enabled"
+#define NVS_KEY_MIN  "minutes"
+#define NVS_KEY_MAXS "maxsave"
 
 /* SLIC duty cycle while past the idle threshold -- see
- * archive/POWER_SAVING.md for the full derivation. AG1171 wake-up time is
- * 50ms and SHK debounce 10ms (datasheet §8.3); 100ms on-time is that plus
- * real margin. 250ms period puts the worst case added latency to notice a
- * genuine pickup (waiting for the next window, plus that window's own
- * settle time) around 250ms, on top of the ~80ms offhook_confirm_ms the
- * system already takes today regardless -- lands close to the "~300ms"
- * figure quoted on the Settings page. */
-#define SLIC_POLL_INTERVAL_MS 250
-#define SLIC_POLL_ON_MS       100
-#define TICK_MS               50
+ * archive/POWER_SAVING.md for the full derivation and for where the two
+ * IDLE_POWER_INTERVAL_MS_* presets (idle_power.h) come from. AG1171
+ * wake-up time is 50ms and SHK debounce 10ms (datasheet §8.3); 100ms
+ * on-time is that plus real margin, independent of which preset's period
+ * is active. */
+#define SLIC_POLL_ON_MS 100
+#define TICK_MS         50
 
 /* AG1171 on-hook vs power-down current, 5V rail (datasheet §8.3): 60mA vs
- * 7mA typ. At 100/250 = 40% duty, average settles to 0.4*60 + 0.6*7 =
- * 28.2mA -- ~31.8mA saved per line, *5V ~= 0.16W/line. WiFi:
- * WIFI_PS_NONE (today) sits close to the RX-active figure, ~80mA @ 3.3V;
- * WIFI_PS_MIN_MODEM's typical range is ~14-38mA depending on CPU load, call
- * it ~25mA typical -> ~55mA saved, *3.3V ~= 0.18W. Both are datasheet-derived
- * estimates, not bench-measured on real hardware -- see
- * archive/POWER_SAVING.md. */
-#define SLIC_SAVINGS_W_PER_LINE 0.16f
-#define WIFI_SAVINGS_W          0.18f
+ * 7mA typ. WiFi: WIFI_PS_NONE (today) sits close to the RX-active figure,
+ * ~80mA @ 3.3V; WIFI_PS_MIN_MODEM's typical range is ~14-38mA depending on
+ * CPU load, call it ~25mA typical -> ~55mA saved, *3.3V ~= 0.18W. Both are
+ * datasheet-derived estimates, not bench-measured on real hardware -- see
+ * archive/POWER_SAVING.md. (SLIC savings depend on which duty-cycle preset
+ * is active -- computed live in idle_power_estimated_savings_w() below,
+ * not a fixed constant here, so both presets stay correct from one
+ * formula.) */
+#define WIFI_SAVINGS_W 0.18f
 
-static idle_power_cfg_t s_cfg = { .enabled = false, .minutes = 5 };
+static idle_power_cfg_t s_cfg = { .enabled = false, .minutes = 5, .max_savings = false };
 static bool             s_sleeping;
 static bool             s_wifi_eco;
 static bool             s_slic_on[BOARD_NUM_LINES];
 static int64_t          s_idle_since_us; /* 0 while any line is busy */
+/* Set from any task (idle_power_note_activity()), only ever cleared from
+ * idle_power_task() itself -- a plain bool read/write race here is
+ * harmless (worst case, one activity ping is noticed a tick late, <=
+ * TICK_MS), so this doesn't need a lock the way actually touching hardware
+ * (wake_fully()) would if it were called from more than one task. */
+static volatile bool    s_activity_ping;
 
 static void load_cfg(void)
 {
@@ -58,10 +62,17 @@ static void load_cfg(void)
         min >= IDLE_POWER_MINUTES_MIN && min <= IDLE_POWER_MINUTES_MAX) {
         s_cfg.minutes = (uint16_t)min;
     }
+    uint8_t maxs;
+    if (nvs_get_u8(h, NVS_KEY_MAXS, &maxs) == ESP_OK) s_cfg.max_savings = (maxs != 0);
     nvs_close(h);
 }
 
 idle_power_cfg_t idle_power_get(void) { return s_cfg; }
+
+static int current_interval_ms(void)
+{
+    return s_cfg.max_savings ? IDLE_POWER_INTERVAL_MS_MAX_SAVINGS : IDLE_POWER_INTERVAL_MS_BALANCED;
+}
 
 esp_err_t idle_power_set(idle_power_cfg_t cfg)
 {
@@ -73,24 +84,45 @@ esp_err_t idle_power_set(idle_power_cfg_t cfg)
     if (err != ESP_OK) return err;
     err = nvs_set_u8(h, NVS_KEY_EN, cfg.enabled ? 1 : 0);
     if (err == ESP_OK) err = nvs_set_u32(h, NVS_KEY_MIN, cfg.minutes);
+    if (err == ESP_OK) err = nvs_set_u8(h, NVS_KEY_MAXS, cfg.max_savings ? 1 : 0);
     if (err == ESP_OK) err = nvs_commit(h);
     nvs_close(h);
     if (err == ESP_OK) {
         s_cfg = cfg;
-        ESP_LOGI(TAG, "idle power %s, %u min", cfg.enabled ? "enabled" : "disabled",
-                 (unsigned)cfg.minutes);
+        ESP_LOGI(TAG, "idle power %s, %u min, %s", cfg.enabled ? "enabled" : "disabled",
+                 (unsigned)cfg.minutes, cfg.max_savings ? "max savings" : "balanced");
     }
     return err;
 }
 
 bool idle_power_is_sleeping(void) { return s_sleeping; }
 
+void idle_power_note_activity(void) { s_activity_ping = true; }
+
 float idle_power_estimated_savings_w(void)
 {
     int num_lines = board_hw_config_get().num_lines;
-    float w = SLIC_SAVINGS_W_PER_LINE * (float)num_lines;
+    /* Same derivation as archive/POWER_SAVING.md's "Design" section, just
+     * computed live against whichever preset's interval is active instead
+     * of a fixed constant, so both presets get a correct number from one
+     * formula. */
+    float duty = (float)SLIC_POLL_ON_MS / (float)current_interval_ms();
+    float avg_ma = duty * 60.0f + (1.0f - duty) * 7.0f;
+    float saved_ma = 60.0f - avg_ma;
+    float w_per_line = saved_ma * 5.0f / 1000.0f;
+    float w = w_per_line * (float)num_lines;
     if (voip_server()[0] == '\0') w += WIFI_SAVINGS_W;
     return w;
+}
+
+int idle_power_worst_case_latency_ms(void)
+{
+    /* (interval - on_ms) waiting for the next window + on_ms settling in
+     * it, simplifies to just interval + the system's existing
+     * offhook_confirm_ms baseline (80ms) that runs either way -- see
+     * archive/POWER_SAVING.md's "Timing derivation" for the full walk
+     * through why the on_ms terms cancel. */
+    return current_interval_ms() + 80;
 }
 
 static void set_line_power(int line, bool on)
@@ -132,6 +164,22 @@ static void idle_power_task(void *arg)
         int num_lines = board_hw_config_get().num_lines;
         int64_t now = esp_timer_get_time();
 
+        /* Web UI activity (or anything else that pings us) counts as "not
+         * idle" for the idle clock even though telephony itself still says
+         * TEL_IDLE on every line -- restart the clock from now, and if
+         * we'd already gone to sleep, undo that immediately rather than
+         * making a live page load wait out the rest of a stale sleep
+         * window. This is the fix for the gap this feature originally
+         * shipped with (see archive/POWER_SAVING.md): without it, simply
+         * using the web UI while the phone itself sits idle doesn't
+         * prevent -- or recover from -- WiFi power-save, reintroducing the
+         * exact HTTP latency/flakiness WIFI_PS_NONE was chosen to fix. */
+        if (s_activity_ping) {
+            s_activity_ping = false;
+            if (s_sleeping || s_wifi_eco) wake_fully(num_lines);
+            s_idle_since_us = all_lines_idle(num_lines) ? now : 0;
+        }
+
         if (!s_cfg.enabled || !all_lines_idle(num_lines)) {
             if (s_sleeping || s_wifi_eco) wake_fully(num_lines);
             s_idle_since_us = 0;
@@ -154,7 +202,7 @@ static void idle_power_task(void *arg)
             s_sleeping = true;
         }
 
-        int64_t phase = (now / 1000) % SLIC_POLL_INTERVAL_MS;
+        int64_t phase = (now / 1000) % current_interval_ms();
         bool want_on = phase < SLIC_POLL_ON_MS;
         for (int line = 0; line < num_lines; line++) set_line_power(line, want_on);
 

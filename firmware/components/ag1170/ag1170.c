@@ -71,7 +71,7 @@ void ag1170_set_event_cb(ag1170_event_cb cb, void *ctx)
 
 static void set_pd_run(gpio_num_t pd, bool run)
 {
-#if CONFIG_BOARD_TYPE_SMD2
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
     /* SMD board: PD is driven through a diode (1N4148W, cathode at the PD
      * pin), not a transistor -- see hardware/ROTARY_PHONE_SMD.md, "AG1171
      * SLIC & RJ12": GPIO low pulls PD low through the diode (power-down);

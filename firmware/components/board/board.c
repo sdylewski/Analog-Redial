@@ -76,7 +76,8 @@ void board_detect_codec(void)
         ESP_LOGI(TAG, "codec detect: ES8388 @ 0x10 (SMD board)");
         if (built_for != BOARD_TYPE_SMD) {
             ESP_LOGW(TAG, "firmware built for '%s' but an SMD/ES8388 codec is on "
-                          "the bus -- rebuild with CONFIG_BOARD_TYPE_SMD2=y",
+                          "the bus -- rebuild with CONFIG_BOARD_TYPE_SMD2=y or "
+                          "CONFIG_BOARD_TYPE_SMD4=y (whichever matches your board)",
                      board_type_name(built_for));
         }
     } else if (wm8731_present && !es8388_present) {

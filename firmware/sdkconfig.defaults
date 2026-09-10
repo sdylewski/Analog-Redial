@@ -37,6 +37,14 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
 
+# Default (10) is tight once the web UI's httpd server claims 8 of them
+# (webui.c raises max_open_sockets from 7 -> 8 alongside lru_purge_enable,
+# to fix "httpd_accept_conn: error in accept" once several keep-alive
+# connections from a content-heavy Settings page pile up) -- 10 total left
+# too little headroom for VoIP's SIP/RTP sockets, mDNS, and DHCP on top of
+# that. 16 matches the already-raised LWIP_MAX_ACTIVE_TCP/LISTENING_TCP.
+CONFIG_LWIP_MAX_SOCKETS=16
+
 # Default (512) is too small for a real browser POST: modern Chrome/Safari
 # add Origin, Sec-Fetch-*, Sec-Ch-Ua, and a long User-Agent, which alone can
 # exceed 512 bytes and trip HTTPD_431_REQ_HDR_FIELDS_TOO_LARGE ("Header

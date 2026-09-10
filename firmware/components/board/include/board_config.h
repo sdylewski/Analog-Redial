@@ -13,7 +13,7 @@ typedef enum {
 
 static inline board_type_t board_current_type(void)
 {
-#if CONFIG_BOARD_TYPE_SMD2
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
     return BOARD_TYPE_SMD;
 #else
     return BOARD_TYPE_THT;

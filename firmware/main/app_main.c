@@ -10,7 +10,7 @@
  */
 #include "board.h"
 #include "board_config.h"
-#if CONFIG_BOARD_TYPE_SMD2
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
 #include "es8388.h"
 #else
 #include "wm8731.h"
@@ -83,7 +83,7 @@ void app_main(void)
     }
 
     /* 3. Codec config over I2C. Non-fatal if the PCB/codec isn't present yet. */
-#if CONFIG_BOARD_TYPE_SMD2
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
     es8388_config_t ccfg = ES8388_DEFAULT_CONFIG();
     ccfg.sample_rate_hz = audio_sample_rate() ? audio_sample_rate() : 48000;
     err = es8388_init(&ccfg);

@@ -114,7 +114,7 @@ commands (`sd_test`, `sip_status`, `record`, `capture`, …).
 On first boot there are no Wi-Fi credentials, so the phone brings up **its own
 Wi-Fi network** for setup:
 
-1. On your phone/laptop, join the open network **`RotaryPhone-XXXX`** (XXXX =
+1. On your phone/laptop, join the open network **`AnalogRedial-XXXX`** (XXXX =
    last MAC digits, shown in the log).
 2. A **setup page** should pop up automatically (captive portal). If not,
    browse to **`http://192.168.4.1`**.
@@ -140,11 +140,15 @@ Once connected, the log prints the device's IP and its mDNS name (default
   hidden. (`/guide` still works as a link — it just redirects here.)
 - **Recordings** — messages left with dial code 211 (duration, timestamp,
   download, delete).
-- **Settings** — five tabs: **General** (board name, Wi-Fi, language,
+- **Settings** — six tabs: **General** (board name, Wi-Fi, language,
   digit readback), **Dial Codes & Prompts** (the editable clip table, the
   Operator greeting, and the Record-message prompt/length — all "what plays
-  for a code" in one place), **VOIP**, **Hardware** (chip/codec/serial info,
-  the SMD line-2/microSD config, and the full SD+internal file manager), and
+  for a code" in one place; recode or remove an existing entry, add a new
+  one by uploading its audio directly), **VOIP**, **Hardware** (chip/codec/
+  serial info, the SMD line-2/microSD config, and per-line features like the
+  answering machine), **Storage** (the full SD/internal file manager — kept
+  separate from Hardware since listing files is the slowest thing on this
+  page and shouldn't cost anything on tabs that don't need it), and
   **Diagnostics** (log level, the full log, test-mode controls).
 
 ---

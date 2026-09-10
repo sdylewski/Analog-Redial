@@ -55,10 +55,12 @@ Internally, two tiers, chosen automatically — no VoIP-related UI shown to
 the user, per their explicit request; this doc is the record of *why*:
 
 1. **Always, once idle past the threshold:** duty-cycle each on-hook line's
-   `ag1170_set_power()` — 100ms on / 250ms period (40% duty). Average
-   current: `0.4*60 + 0.6*7 = 28.2mA`, vs. 60mA continuous — about **44%
-   savings per line** (~0.16W/line at 5V). See "Timing derivation" below for
-   where 100ms/250ms come from.
+   `ag1170_set_power()` — 100ms on / 500ms period (20% duty; widened from
+   an original 250ms period after real-world feedback that a handset takes
+   ~500ms-1s to reach your ear after being lifted, so the original latency
+   budget had room to spend). Average current: `0.2*60 + 0.8*7 = 17.6mA`,
+   vs. 60mA continuous — about **71% savings per line** (~0.21W/line at
+   5V). See "Timing derivation" below for where 100ms/500ms come from.
 2. **Additionally, only when `voip_server()` is unset:** WiFi power-save
    (`wifi_set_power_save(true)` -> `WIFI_PS_MIN_MODEM`). Gated on
    *configured*, not *currently registered* — a board with VoIP set up but
@@ -100,7 +102,7 @@ that moment, there's no loop current for SHK to reflect regardless of what
 watches the wake GPIO. Deep-sleep is the wrong tool for a device that needs
 to check something every fraction of a second, VoIP configured or not.
 
-### Timing derivation (100ms on / 250ms period)
+### Timing derivation (100ms on / 500ms period)
 
 AG1171 wake-up time (50ms) + SHK debounce (10ms) + margin ≈ 100ms needed
 before a genuine off-hook reading during an "on" window can be trusted. Once
@@ -112,12 +114,14 @@ way and isn't "extra" latency from this feature.
 
 Eco-mode-*specific* added latency = (poll interval − on-time), waiting for
 the next window, + the ~100ms settle inside that window. With
-interval=250ms, on-time=100ms: worst case ≈ 150 + 100 = 250ms, plus the
-baseline 80ms confirm ≈ **~330ms total**, which is where the "~300ms" figure
+interval=500ms, on-time=100ms: worst case ≈ 400 + 100 = 500ms, plus the
+baseline 80ms confirm ≈ **~580ms total**, which is where the "~600ms" figure
 quoted on the Settings page comes from. This was **not bench-measured** —
 it's derived from the datasheet's own numbers plus this codebase's existing
-confirm-timer constant. Worth confirming with a stopwatch/power meter once
-real hardware can be tested.
+confirm-timer constant, and the choice to widen the period from 250ms to
+500ms was based on the user's own sense of real handset-to-ear travel time
+(~500ms-1s), not a bench measurement either. Worth confirming both with a
+stopwatch/power meter once real hardware can be tested.
 
 ## What's deliberately deferred (not implemented in this pass)
 
@@ -130,15 +134,19 @@ real hardware can be tested.
   one pass. `wifi_set_power_save()` (a single, purpose-built,
   self-contained API) gets most of the same WiFi-side savings without it.
   Worth a dedicated follow-up if the current numbers aren't enough.
-- **Resetting the idle timer on web UI activity.** Right now, WiFi
-  power-save can engage while someone is actively looking at the Settings
-  page in a browser, if all lines happen to be idle past the threshold —
-  every request just gets slower (matches the documented `WIFI_PS_MIN_MODEM`
-  behavior), not broken. Given the WiFi tier only ever runs on a board with
-  no VoIP configured (already a low-stakes deployment by definition), this
-  was judged an acceptable simplification rather than wiring activity
-  tracking through ~40 webui.c route handlers. Revisit if it's ever
-  annoying in practice.
+- ~~**Resetting the idle timer on web UI activity.**~~ **Implemented**
+  (2026-09-08) — this was in fact annoying in practice almost immediately:
+  WiFi power-save engaged mid-Settings-browsing on a real board (no VoIP
+  configured), reproducing the exact `WIFI_PS_MIN_MODEM` HTTP-latency
+  regression `wifi.c`'s own comment warns about, badly enough that pages
+  looked "stuck." Fix didn't need wiring activity tracking through ~40
+  route handlers as feared — `esp_http_server`'s `httpd_config_t.open_fn`
+  hook fires once per new connection regardless of which route it's for,
+  so `webui_start()` sets that to a one-line function calling the new
+  `idle_power_note_activity()`, which restarts the idle clock and
+  immediately restores full power (SLIC + WiFi) if already sleeping, on
+  `idle_power_task()`'s own next tick (≤ `TICK_MS`). One new function,
+  one config field, zero per-handler changes.
 - **Per-line independent idle timers.** One global timer covers all lines;
   a 2-line board with one line mid-call keeps *both* fully awake (the "all
   lines idle" check in `all_lines_idle()`), even though only the busy line
@@ -147,7 +155,7 @@ real hardware can be tested.
 
 ## Estimated savings shown in the UI
 
-`idle_power_estimated_savings_w()` computes `0.16W * num_lines`, plus
+`idle_power_estimated_savings_w()` computes `0.21W * num_lines`, plus
 `0.18W` if no VoIP server is configured — both constants straight from the
 "Design" section's math above. This is a datasheet-derived estimate, not a
 bench measurement on real hardware. If someone puts a USB power meter on a
@@ -157,10 +165,11 @@ reality rather than the datasheet estimate.
 
 ## Open questions for later
 
-- Real bench measurement of both the savings number and the ~300ms latency
+- Real bench measurement of both the savings number and the ~600ms latency
   claim, on actual hardware.
-- Whether 100ms/250ms is the right duty-cycle tuning, or whether a longer
-  period (less average power, more latency) is worth offering as a second
-  "aggressive" checkbox once the basic version has been lived with.
+- 100ms/500ms (widened once already, based on user feedback rather than a
+  bench measurement) may still not be the final answer — whether an even
+  longer period is worth offering as a second "aggressive" checkbox once
+  this version has been lived with a while.
 - Whether `esp_pm`/light-sleep is worth revisiting once there's a stronger
   case for the extra savings.

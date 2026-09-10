@@ -1,4 +1,4 @@
-if(CONFIG_BOARD_TYPE_SMD2)
+if(CONFIG_BOARD_TYPE_SMD2 OR CONFIG_BOARD_TYPE_SMD4)
     set(srcs "")
 else()
     set(srcs "wm8731.c")

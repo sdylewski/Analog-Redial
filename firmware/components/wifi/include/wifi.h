@@ -52,6 +52,20 @@ int8_t      wifi_rssi(void);                       /* dBm; 0 if not connected */
 void        wifi_get_ip_str(char *buf, size_t buf_len); /* "0.0.0.0" if not connected */
 const char *wifi_get_ssid(void);                   /* configured SSID, "" if none */
 
+typedef struct {
+    char    ssid[33];
+    int8_t  rssi;
+    bool    secured;
+} wifi_scan_result_t;
+
+/* Blocking active scan for nearby SSIDs (roughly 0.5-3 s). Works both while
+ * provisioning (the setup SoftAP runs AP+STA so the STA side can scan) and
+ * once connected as a normal station. Results are deduped by SSID (multiple
+ * APs/BSSIDs for the same network keep only the strongest RSSI) and sorted
+ * strongest-first. Returns the number of entries written to out (<= max), or
+ * -1 if the scan itself failed. */
+int wifi_scan(wifi_scan_result_t *out, int max);
+
 /* Runtime WiFi power-save toggle for idle_power.c -- see that component and
  * archive/POWER_SAVING.md. true = WIFI_PS_MIN_MODEM (radio sleeps between
  * DTIM beacons), false = WIFI_PS_NONE (this device's normal default; see the

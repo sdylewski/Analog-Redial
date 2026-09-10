@@ -27,6 +27,7 @@
 #include "esp_heap_caps.h"
 #include "esp_flash.h"
 #include "esp_netif.h"
+#include "nvs_flash.h"
 #include "lwip/sockets.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -49,6 +50,29 @@ static const char *TAG = "webui";
  * project hit building the multipart reader), and every caller here already
  * has other locals plus a caller frame on top of it. */
 #define UPLOAD_HEADER_SCAN_BYTES 8192
+
+/* Small first-try read size for wav_duration_str()'s duration scan
+ * specifically (a different, much smaller job than the conversion-time
+ * scan above) -- most files in this project's own storage have a plain
+ * ~44-byte canonical WAV header, so this is normally enough on the first
+ * try. Falls back to UPLOAD_HEADER_SCAN_BYTES's full read when it isn't
+ * (see wav_duration_str()'s doc comment for why that fallback has to
+ * exist, not just might). */
+#define WAV_DURATION_SCAN_BYTES 512
+
+/* Per-backend cap on how many files storage_list_sd()/storage_list_internal()
+ * return to any one listing (Storage tab, Recordings page, /api/recordings,
+ * media_handler's existence check). Past this many files on one backend,
+ * the extra ones don't paginate -- there's no "next page" UI -- they just
+ * silently don't appear (and, for media_handler specifically, silently
+ * 404 if you already have a direct link to one). 100 is comfortable
+ * headroom over any realistic personal-use file count; the arrays sized to
+ * it are heap-allocated everywhere (see each call site), never stack --
+ * this project has hit a real httpd-task stack overflow from smaller
+ * stack-allocated storage_entry_t arrays once already (see
+ * UPLOAD_HEADER_SCAN_BYTES's doc comment above and this file's own
+ * "append_file_select()" removal note). */
+#define STORAGE_LIST_MAX 100
 
 /* Human-readable size: "4.19 MB", "188.7 kB", "0 B" (decimal units, matching
  * how flash/card sizes are marketed). Writes into `out` and returns it so it
@@ -355,6 +379,23 @@ static esp_err_t static_css_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+extern const uint8_t favicon_svg_start[] asm("_binary_favicon_svg_start");
+extern const uint8_t favicon_svg_end[]   asm("_binary_favicon_svg_end");
+
+/* Serves the same embedded SVG at both URLs: /static/favicon.svg is what
+ * append_page_head()'s <link rel="icon"> points at; /favicon.ico is what
+ * browsers/OS probe for on their own regardless of that link (a long-
+ * standing convention predating <link rel="icon">). Browsers key off the
+ * Content-Type header, not the URL's extension, so serving SVG content at
+ * a ".ico" path works fine -- no separate raster/ICO asset needed. */
+static esp_err_t favicon_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "image/svg+xml");
+    httpd_resp_send(req, (const char *)favicon_svg_start,
+                     favicon_svg_end - favicon_svg_start);
+    return ESP_OK;
+}
+
 /* Escape text that came from off-device into HTML body text. Needed for
  * caller ID specifically: the display name and number are copied verbatim
  * out of a remote UA's SIP From header, so they're attacker-controlled
@@ -426,6 +467,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
         "<!doctype html><html><head><meta charset=\"utf-8\"><title>%s \xc2\xb7 %s</title>"
         "%s"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">"
         "<link rel=\"stylesheet\" href=\"/static/style.css\"></head><body>"
         "<header><h1>%s <span class=\"dot\">Analog Redial</span></h1><nav>",
         name, page_title, auto_refresh ? "<meta http-equiv=\"refresh\" content=\"5\">" : "",
@@ -448,15 +490,66 @@ static void reboot_task(void *arg)
     esp_restart();
 }
 
-/* Setup page served on the SoftAP: a plain SSID/password form. Kept minimal
- * and self-contained (its own <form>, the shared stylesheet) so it works
- * before any network config exists. */
+/* Shared by both SSID pickers (the captive setup page and Settings ->
+ * General): fetches /api/wifi_scan into a <select id="ssid_select">, with an
+ * "Other... (enter manually)" option that swaps in a plain text
+ * #ssid_manual input -- only one of the two ever carries name="ssid" at a
+ * time, so the form always POSTs a single unambiguous value. If the select
+ * has a data-current attribute (the currently-configured SSID, set by
+ * Settings' form -- empty/absent on the setup page, which has none yet) and
+ * a scan doesn't find that network, falls back to manual mode pre-filled
+ * with it rather than silently losing it from view. */
+static const char *WIFI_SCAN_JS =
+    "function wifiRenderOptions(sel,list,err){"
+    "sel.innerHTML='';"
+    "if(list.length){"
+    "var ph=document.createElement('option');ph.value='';ph.textContent='Select a network\\u2026';"
+    "ph.disabled=true;ph.selected=true;sel.appendChild(ph);"
+    "list.forEach(function(n){var o=document.createElement('option');o.value=n.ssid;"
+    "o.textContent=n.ssid+' ('+n.rssi+' dBm)'+(n.secured?' \\uD83D\\uDD12':'');sel.appendChild(o);});"
+    "}else{"
+    "var o2=document.createElement('option');o2.value='';"
+    "o2.textContent=err?'Scan failed \\u2013 enter manually below':'No networks found \\u2013 enter manually below';"
+    "sel.appendChild(o2);"
+    "}"
+    "var other=document.createElement('option');other.value='__manual__';"
+    "other.textContent='Other\\u2026 (enter manually)';sel.appendChild(other);"
+    "var cur=sel.dataset.current;"
+    "if(cur){"
+    "var match=false;"
+    "for(var i=0;i<sel.options.length;i++){if(sel.options[i].value===cur){sel.options[i].selected=true;match=true;break;}}"
+    "if(!match){sel.value='__manual__';wifiSelectChange();document.getElementById('ssid_manual').value=cur;}"
+    "}"
+    "}"
+    "function wifiRescan(){"
+    "var sel=document.getElementById('ssid_select');"
+    "sel.innerHTML='<option value=\"\">Scanning\\u2026</option>';"
+    "fetch('/api/wifi_scan').then(function(r){return r.json();})"
+    ".then(function(j){wifiRenderOptions(sel,j.networks||[],j.error);})"
+    ".catch(function(){wifiRenderOptions(sel,[],true);});"
+    "}"
+    "function wifiSelectChange(){"
+    "var sel=document.getElementById('ssid_select');"
+    "var row=document.getElementById('ssid_manual_row');"
+    "var man=document.getElementById('ssid_manual');"
+    "if(sel.value==='__manual__'){"
+    "row.style.display='';sel.removeAttribute('name');man.name='ssid';man.required=true;man.focus();"
+    "}else{"
+    "row.style.display='none';sel.name='ssid';man.removeAttribute('name');man.required=false;"
+    "}"
+    "}"
+    "wifiRescan();";
+
+/* Setup page served on the SoftAP: an SSID picker (scanned live) + password
+ * form. Kept minimal and self-contained (its own <form>, the shared
+ * stylesheet) so it works before any network config exists. */
 static esp_err_t wifi_setup_page(httpd_req_t *req)
 {
-    static const char *page =
+    static const char *tmpl =
         "<!doctype html><html><head><meta charset=\"utf-8\">"
         "<title>Analog Redial \xc2\xb7 WiFi setup</title>"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">"
         "<link rel=\"stylesheet\" href=\"/static/style.css\"></head><body>"
         "<header><h1>Analog Redial <span class=\"dot\">WiFi setup</span></h1></header>"
         "<main class=\"auth-page\"><div class=\"auth-card\">"
@@ -464,15 +557,30 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
         "<p class=\"hint\">Enter your home network so the phone can join it. "
         "It'll reboot and connect; this setup network then disappears.</p>"
         "<form method=\"POST\" action=\"/wifi_set\" class=\"settings-form\">"
-        "<label>Network name (SSID) <input name=\"ssid\" required autofocus></label>"
+        "<label>Network name (SSID)"
+        "<select id=\"ssid_select\" name=\"ssid\" required autofocus onchange=\"wifiSelectChange()\">"
+        "<option value=\"\">Scanning for nearby networks\xe2\x80\xa6</option>"
+        "</select></label>"
+        "<div id=\"ssid_manual_row\" style=\"display:none\"><label>Network name (SSID)"
+        "<input id=\"ssid_manual\" placeholder=\"Enter network name\" autocomplete=\"off\"></label></div>"
+        "<p class=\"hint\"><a href=\"#\" onclick=\"wifiRescan();return false;\">Rescan</a></p>"
+        "<noscript><label>Network name (SSID) <input name=\"ssid\" required></label></noscript>"
         "<label>Password <input type=\"password\" name=\"password\" "
         "placeholder=\"leave blank for an open network\"></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">"
         "Save &amp; connect</button></div>"
-        "</form></div></main></body></html>";
+        "</form></div></main>"
+        "<script>%s</script>"
+        "</body></html>";
+
+    size_t cap = strlen(tmpl) + strlen(WIFI_SCAN_JS) + 16;
+    char *buf = malloc(cap);
+    if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
+    snprintf(buf, cap, tmpl, WIFI_SCAN_JS);
 
     httpd_resp_set_type(req, "text/html");
-    httpd_resp_sendstr(req, page);
+    httpd_resp_sendstr(req, buf);
+    free(buf);
     return ESP_OK;
 }
 
@@ -609,15 +717,16 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
      * vanishing from view once the card takes over as primary. SD entries
      * first since they're the newer ones in every practical case (a card
      * added partway through this board's life, not before). */
-    storage_entry_t entries[64];
-    size_t n = storage_sd_present() ? storage_list_sd(entries, 32) : 0;
-    n += storage_list_internal(entries + n, 64 - n);
+    storage_entry_t *entries = malloc(2 * STORAGE_LIST_MAX * sizeof(storage_entry_t));
+    if (!entries) { httpd_resp_send_500(req); return ESP_FAIL; }
+    size_t n = storage_sd_present() ? storage_list_sd(entries, STORAGE_LIST_MAX) : 0;
+    n += storage_list_internal(entries + n, 2 * STORAGE_LIST_MAX - n);
     size_t shown = 0;
     for (size_t i = 0; i < n; i++) if (is_user_recording(entries[i].name)) shown++;
 
     size_t cap = 2048 + n * 400; /* each row: <audio>, download link, delete form, Recorded column */
     char *buf = malloc(cap);
-    if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
+    if (!buf) { free(entries); httpd_resp_send_500(req); return ESP_FAIL; }
 
     int off = append_page_head(buf, cap, 0, "Recordings", "/recordings", false);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
@@ -659,6 +768,7 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
     httpd_resp_set_type(req, "text/html");
     httpd_resp_send(req, buf, (off > 0) ? off : 0);
     free(buf);
+    free(entries);
     return ESP_OK;
 }
 
@@ -671,23 +781,33 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
  * ?tab=, not client JS: every other page in this component is a plain
  * server-rendered form, and a full reload per tab click keeps this page
  * consistent with that instead of adding another script tag. */
-/* Five tabs, not the nine this once grew to: Operator and Record message
+/* Six tabs, not the nine this once grew to: Operator and Record message
  * were each exactly one card (prompt text + audio upload) and Dial Codes is
  * "what plays for a code" already, so all three now render together under
- * "dialcodes" -- see the dispatch in settings_page_handler(). Likewise
- * Hardware (stats), the SMD line2/microSD config card, and the Storage file
- * manager all render together under "hardware" -- they're all "this board's
- * physical resources," previously split across two tabs with Hardware's own
- * text pointing you at the other one. Inter-phone was dropped outright: it
- * only ever showed the 3xx dial codes read-only with a "not editable here"
- * hint -- identical data the merged Status page's Dial Guide already shows,
- * so the tab added a click with no unique content. */
+ * "dialcodes" -- see the dispatch in settings_page_handler(). Inter-phone
+ * was dropped outright: it only ever showed the 3xx dial codes read-only
+ * with a "not editable here" hint -- identical data the merged Status
+ * page's Dial Guide already shows, so the tab added a click with no unique
+ * content.
+ *
+ * Storage was folded into Hardware for one round, then split back out: the
+ * per-file WAV-duration parsing in append_storage_table() (open+read+parse
+ * every recording/clip) is the single slowest thing in Settings, and the
+ * one httpd worker task blocks on it for the whole render -- bundling it
+ * with Hardware's cheap stat lookups (and, since then, Answering
+ * Machine/Speaker/Echo/idle-power cards piling on top) made an already
+ * heavy page render for multiple seconds, which is exactly the kind of
+ * window that lets keep-alive connections pile up and exhaust the httpd
+ * socket table (see webui_start()'s lru_purge_enable comment). Keeping it
+ * a separate tab means visiting Hardware doesn't pay Storage's I/O cost,
+ * and vice versa. */
 typedef struct { const char *id; const char *label; } settings_tab_t;
 static const settings_tab_t SETTINGS_TABS[] = {
     { "general",    "General" },
     { "dialcodes",  "Dial Codes & Prompts" },
     { "voip",       "VOIP" },
     { "hardware",   "Hardware" },
+    { "storage",    "Storage" },
     { "diag",       "Diagnostics" },
 };
 #define SETTINGS_TABS_N (sizeof(SETTINGS_TABS) / sizeof(SETTINGS_TABS[0]))
@@ -776,14 +896,23 @@ static int append_general_tab(char *buf, size_t cap, int off)
         "<div class=\"card\"><h2>WiFi</h2>"
         "<div class=\"statusrow\"><span class=\"label\">Current</span><span>%s</span></div>"
         "<form method=\"POST\" action=\"/wifi_set\" class=\"settings-form\">"
-        "<label>SSID <input name=\"ssid\" value=\"%s\" required></label>"
+        "<label>SSID"
+        "<select id=\"ssid_select\" name=\"ssid\" data-current=\"%s\" required "
+        "onchange=\"wifiSelectChange()\">"
+        "<option value=\"\">Scanning for nearby networks\xe2\x80\xa6</option>"
+        "</select></label>"
+        "<div id=\"ssid_manual_row\" style=\"display:none\"><label>SSID "
+        "<input id=\"ssid_manual\" placeholder=\"Enter network name\" autocomplete=\"off\"></label></div>"
+        "<p class=\"hint\"><a href=\"#\" onclick=\"wifiRescan();return false;\">Rescan</a></p>"
+        "<noscript><label>SSID <input name=\"ssid\" value=\"%s\" required></label></noscript>"
         "<label>Password <input type=\"password\" name=\"password\" "
         "placeholder=\"leave blank for an open network\"></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Connect</button></div>"
         "</form>"
         "<p class=\"hint\">Saved to flash (NVS); the device reconnects immediately, no reboot needed.</p>"
+        "<script>%s</script>"
         "</div>",
-        ssid[0] ? ssid : "(not configured)", ssid);
+        ssid[0] ? ssid : "(not configured)", ssid, ssid, WIFI_SCAN_JS);
 
     board_offhook_alert_t roh = board_offhook_alert_get();
     char roh_status[48];
@@ -818,55 +947,17 @@ static int append_general_tab(char *buf, size_t cap, int off)
     return off;
 }
 
-/* Builds a <select> of every playable name storage_read_open() can actually
- * find: writable storage (uploads, recordings) first, then bundled defaults
- * not already shadowed by a writable file of the same name. Shared by the
- * Dial Codes tab's "add new" and "replace audio" forms -- its only two call
- * sites, both assigning audio to a dial code, which always lives on internal
- * flash regardless of whether a microSD card is mounted (see
- * storage_write_begin_local()) -- so this lists storage_list_internal(), NOT
- * storage_list() (which would list the microSD card when present, making SD
- * content wrongly pickable as a dial-code clip). `selected`, if non-NULL, is
- * pre-selected (used when re-rendering "replace audio" for a specific
- * existing entry). */
-static int append_file_select(char *buf, size_t cap, int off, const char *field_name,
-                                const char *selected)
-{
-    storage_entry_t files[32], bundled[16];
-    size_t nfiles = storage_list_internal(files, 32);
-    size_t nbundled = storage_list_bundled(bundled, 16);
-
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<select name=\"%s\" required>", field_name);
-    if (nfiles == 0 && nbundled == 0) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<option value=\"\">(no files uploaded yet)</option>");
-    }
-    for (size_t i = 0; i < nfiles && (size_t)off < cap; i++) {
-        if (!is_wav_name(files[i].name) && !is_mp3_name(files[i].name)) continue;
-        bool sel = selected && strcmp(selected, files[i].name) == 0;
-        off += snprintf(buf + off, cap - off,
-            "<option value=\"%s\"%s>%s</option>", files[i].name,
-            sel ? " selected" : "", files[i].name);
-    }
-    for (size_t i = 0; i < nbundled && (size_t)off < cap; i++) {
-        /* firmware/assets/ also ships README.md and .gitignore alongside
-         * the actual clips (see that directory) -- not playable, so keep
-         * them out of this "pick a clip" list. */
-        if (!is_wav_name(bundled[i].name) && !is_mp3_name(bundled[i].name)) continue;
-        bool shadowed = false;
-        for (size_t j = 0; j < nfiles; j++) {
-            if (strcmp(files[j].name, bundled[i].name) == 0) { shadowed = true; break; }
-        }
-        if (shadowed) continue;
-        bool sel = selected && strcmp(selected, bundled[i].name) == 0;
-        off += snprintf(buf + off, cap - off,
-            "<option value=\"%s\"%s>%s (bundled)</option>", bundled[i].name,
-            sel ? " selected" : "", bundled[i].name);
-    }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</select>");
-    return off;
-}
+/* append_file_select() (a <select> of every already-uploaded playable file,
+ * for "point this code at an existing file") was removed along with the two
+ * forms that used it -- per-row "use existing file" and "add a code for an
+ * existing file", both on the Dial Codes tab. Reasoning: the only realistic
+ * use for reassigning a code's audio is replacing what it plays, and
+ * delete-then-add-with-new-upload already covers that in one obvious step,
+ * without a second, rarely-used path to keep in sync (and without the
+ * per-row storage_list_internal()+storage_list_bundled() rescan each
+ * dropdown used to cost -- see SETTINGS_TABS's comment on why page weight
+ * matters here). Recoding an existing entry's number (dialcode_set_code_handler,
+ * still below) is unaffected -- that was never file-picker-based. */
 
 /* Dial Codes tab: one mutable code<->filename table covers both the builtin
  * "silly audio" clips and anything a user adds -- see dialplan_clip_entry_t.
@@ -910,7 +1001,7 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
         "<form method=\"POST\" action=\"/prompt_text_set\" class=\"settings-form\">"
         "<input type=\"hidden\" name=\"name\" value=\"%s\">"
         "<label>Spoken prompt text"
-        "<textarea name=\"text\" maxlength=\"%d\" rows=\"2\" placeholder="
+        "<textarea name=\"text\" maxlength=\"%d\" rows=\"8\" placeholder="
         "\"Leave blank for no spoken prompt\">%s</textarea>"
         "<span class=\"fieldhint\">%s</span>"
         "</label>"
@@ -958,76 +1049,68 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>Dial codes (%u)</h2>"
-        "<p class=\"hint\">Change which number plays which clip, or point a code at a "
-        "different file, without a rebuild. \"Built-in\" entries can be recoded and given "
-        "new audio but not removed. Upload new audio under Storage files below first if it "
-        "isn't in the list yet.</p>",
+        "<p class=\"hint\">Recode which number plays a clip, edit its description, or remove "
+        "it. \"Built-in\" entries can be recoded but not removed. To change what a code "
+        "plays: remove it below, then add it again with the new audio.</p>",
         (unsigned)nclips);
 
     if (nclips == 0) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<div class=\"empty\">none yet</div>");
     } else {
+        /* Three stacked lines per entry, not a <table> row -- this card
+         * lives in a .cards grid alongside Operator/Record (narrow, as
+         * little as 240px), and a 5-column table has no good way to fit
+         * code/filename/play/description/remove side by side at that
+         * width without either truncating everything or forcing the table
+         * wider than the card (see style.css's .dialcode-item comment for
+         * the fixed-layout attempt this replaced). Stacking reads fine at
+         * any width instead: recode+builtin-or-remove, then description,
+         * then filename+play. */
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<table><tr><th>Code</th><th>Plays</th><th>Play</th><th>Description</th><th></th><th></th></tr>");
+            "<div class=\"dialcode-list\">");
         for (size_t i = 0; i < nclips && (size_t)off < cap; i++) {
             char edesc[64 * 6];
             html_escape(clips[i].desc, edesc, sizeof(edesc));
             off += snprintf(buf + off, cap - off,
-                "<tr><td>"
-                "<form method=\"POST\" action=\"/dialcode_set_code\" style=\"display:inline\">"
+                "<div class=\"dialcode-item\">"
+                "<div class=\"dc-line dc-line-code\">"
+                "<form method=\"POST\" action=\"/dialcode_set_code\" class=\"dc-inline\">"
                 "<input type=\"hidden\" name=\"old_code\" value=\"%s\">"
                 "<input name=\"new_code\" value=\"%s\" pattern=\"[0-9]{2,6}\" maxlength=\"6\" "
                 "size=\"6\" required>"
-                "<button type=\"submit\">save</button></form></td>"
-                "<td><code>%s</code></td>"
-                "<td><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></td>"
-                "<td><form method=\"POST\" action=\"/dialcode_set_desc\" style=\"display:inline\">"
-                "<input type=\"hidden\" name=\"code\" value=\"%s\">"
-                "<input name=\"desc\" value=\"%s\" maxlength=\"63\" size=\"20\">"
-                "<button type=\"submit\">save</button></form>%s</td>"
-                "<td><form method=\"POST\" action=\"/dialcode_set_filename\" style=\"display:inline\">"
-                "<input type=\"hidden\" name=\"code\" value=\"%s\">",
-                clips[i].code, clips[i].code, clips[i].filename, clips[i].filename,
-                clips[i].code, edesc,
-                clips[i].builtin ? " <span class=\"pill off\">built-in</span>" : "",
-                clips[i].code);
-            off = append_file_select(buf, cap, off, "filename", clips[i].filename);
-            off += snprintf(buf + off, cap - off,
-                "<button type=\"submit\">use existing file</button></form> "
-                "<form method=\"POST\" action=\"/dialcode_upload\" enctype=\"multipart/form-data\" "
-                "style=\"display:inline\">"
-                "<input type=\"hidden\" name=\"code\" value=\"%s\">"
-                "<input type=\"file\" name=\"file\" accept=\"audio/wav\" required>"
-                "<button type=\"submit\">upload new audio</button></form></td><td>",
-                clips[i].code);
-            if (!clips[i].builtin) {
+                "<button type=\"submit\">save</button></form>",
+                clips[i].code, clips[i].code);
+            if (clips[i].builtin) {
+                off += snprintf(buf + off, cap - off,
+                    "<span class=\"pill off\">built-in</span>");
+            } else {
                 off += snprintf(buf + off, cap - off,
                     "<form method=\"POST\" action=\"/dialcode_delete/%s\" "
                     "onsubmit=\"return confirm('Remove dial code %s?')\">"
                     "<button type=\"submit\">remove</button></form>",
                     clips[i].code, clips[i].code);
             }
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</td></tr>");
+            off += snprintf(buf + off, cap - off,
+                "</div>"
+                "<div class=\"dc-line\">"
+                "<form method=\"POST\" action=\"/dialcode_set_desc\" class=\"dc-inline dc-grow\">"
+                "<input type=\"hidden\" name=\"code\" value=\"%s\">"
+                "<input name=\"desc\" value=\"%s\" maxlength=\"63\" class=\"dc-desc-input\">"
+                "<button type=\"submit\">save</button></form>"
+                "</div>"
+                "<div class=\"dc-line\">"
+                "<code class=\"dc-filename\">%s</code>"
+                "<audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio>"
+                "</div></div>",
+                clips[i].code, edesc, clips[i].filename, clips[i].filename);
         }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>" /* .dialcode-list */);
     }
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<form method=\"POST\" action=\"/dialcode_add\" class=\"settings-form\">"
-        "<h3>Add a code for an existing file</h3>"
-        "<div class=\"grid2\">"
-        "<label>New code (2-6 digits) <input name=\"code\" pattern=\"[0-9]{2,6}\" "
-        "maxlength=\"6\" required></label>"
-        "<label>File to play ");
-    off = append_file_select(buf, cap, off, "filename", NULL);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "</label>"
-        "<label>Description (optional) <input name=\"desc\" maxlength=\"63\"></label></div>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Add dial code</button></div>"
-        "</form>"
         "<form method=\"POST\" action=\"/dialcode_upload\" enctype=\"multipart/form-data\" class=\"settings-form\">"
-        "<h3>...or upload new audio for a new code</h3>"
+        "<h3>Add a code</h3>"
         "<div class=\"grid2\">"
         "<label>New code (2-6 digits) <input name=\"new_code\" pattern=\"[0-9]{2,6}\" "
         "maxlength=\"6\" required></label>"
@@ -1237,7 +1320,8 @@ static int append_record_tab(char *buf, size_t cap, int off,
         "beep, then recording starts. Speak, then hang up (or pause ~8 s / hit the max length "
         "below, at which point recording just stops silently -- no warning beeps). Mention the "
         "time limit in the prompt text below if callers should know it up front. The message is "
-        "saved as an 8 kHz mono WAV in <a href=\"/recordings\">Recordings</a> / Storage below.</p>"
+        "saved as an 8 kHz mono WAV in <a href=\"/recordings\">Recordings</a> / "
+        "<a href=\"/settings?tab=storage\">Settings &rarr; Storage</a>.</p>"
         "<form method=\"POST\" action=\"/record_max_ms\" class=\"settings-form\">"
         "<label>Max recording length (seconds) "
         "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%u\" max=\"%u\" required></label>"
@@ -1305,7 +1389,8 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "GPIO routing is per-PCB; the detected codec is probed live on the I2C bus and warns in "
         "the log if it disagrees. Serial is the factory MAC -- unique per chip, survives reflash. "
         "Flash is the whole chip; Storage is whichever backend is primary (the microSD card "
-        "above, if present, otherwise internal flash) -- see Storage below for both listed "
+        "above, if present, otherwise internal flash) -- see "
+        "<a href=\"/settings?tab=storage\">Settings &rarr; Storage</a> for both listed "
         "separately. RAM is live internal heap. Uptime/WiFi are on the <a href=\"/\">Status</a> "
         "page.</p></div>",
         hw, board_codec_name(detected), serial, esp_get_idf_version(),
@@ -1319,7 +1404,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
      * Hardware rather than split across General/Diagnostics. */
     int num_lines = board_hw_config_get().num_lines;
 
-#if CONFIG_BOARD_TYPE_SMD2
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>Speaker (earpiece) volume</h2>");
     for (int l = 0; l < num_lines; l++) {
@@ -1414,9 +1499,13 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "</script>");
 
     idle_power_cfg_t ip = idle_power_get();
-    char ip_status[48];
-    if (ip.enabled) snprintf(ip_status, sizeof(ip_status), "on, after %u min", (unsigned)ip.minutes);
-    else            snprintf(ip_status, sizeof(ip_status), "off");
+    char ip_status[64];
+    if (ip.enabled) {
+        snprintf(ip_status, sizeof(ip_status), "on, after %u min (%s)", (unsigned)ip.minutes,
+                 ip.max_savings ? "max savings" : "balanced");
+    } else {
+        snprintf(ip_status, sizeof(ip_status), "off");
+    }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>Low-power idle mode</h2>"
         "<div class=\"statusrow\"><span class=\"label\">Current</span><span>%s</span></div>"
@@ -1424,15 +1513,27 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> Enabled</label>"
         "<label>Minutes idle before sleeping "
         "<input type=\"number\" name=\"minutes\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
+        "<label>Duty-cycle preset"
+        "<select name=\"max_savings\">"
+        "<option value=\"0\"%s>Balanced (~%dms delay)</option>"
+        "<option value=\"1\"%s>Max savings (~%dms delay)</option>"
+        "</select></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
-        "</form>"
-        "<p class=\"hint\">Approximately %.2f&nbsp;W of power savings, but expect up to ~300ms "
-        "delay the first time you pick up the handset after %u idle minutes; fully responsive "
-        "for the rest of that call and for %u minutes after.</p></div>",
+        "</form>",
         ip_status,
         ip.enabled ? " checked" : "",
         (unsigned)ip.minutes, IDLE_POWER_MINUTES_MIN, IDLE_POWER_MINUTES_MAX,
-        (double)idle_power_estimated_savings_w(), (unsigned)ip.minutes, (unsigned)ip.minutes);
+        !ip.max_savings ? " selected" : "", IDLE_POWER_INTERVAL_MS_BALANCED + 80,
+        ip.max_savings ? " selected" : "", IDLE_POWER_INTERVAL_MS_MAX_SAVINGS + 80);
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">Approximately %.2f&nbsp;W of power savings in the selected preset, "
+        "but expect up to ~%dms delay the first time you pick up the handset after %u idle "
+        "minutes; fully responsive for the rest of that call and for %u minutes after. Both "
+        "presets use the same idle-time trigger above -- only the delay/savings tradeoff while "
+        "asleep changes, so it's safe to switch and compare without waiting out the idle timer "
+        "again.</p></div>",
+        (double)idle_power_estimated_savings_w(), idle_power_worst_case_latency_ms(),
+        (unsigned)ip.minutes, (unsigned)ip.minutes);
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>Answering machine</h2>");
@@ -1486,6 +1587,31 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "configured rings, the line auto-answers, plays the greeting then a beep, then "
         "records the caller -- capped at the length above or ~8s of silence, whichever "
         "comes first. Picking up the handset at any point takes the call live instead.</p></div>");
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Reset</h2>"
+        "<form method=\"POST\" action=\"/wifi_reprovision\" class=\"settings-form\" "
+        "onsubmit=\"return confirm('Clear the saved WiFi network and reboot into setup mode? "
+        "Every other setting stays as-is.')\">"
+        "<div class=\"toolbar sub\"><button type=\"submit\">Re-provision WiFi\xe2\x80\xa6</button></div>"
+        "</form>"
+        "<p class=\"hint\">Clears the saved WiFi network only and reboots into setup mode "
+        "(the <code>AnalogRedial-XXXX</code> network) -- everything else (board name, dial "
+        "codes, VoIP, recordings) is untouched. Use this when moving the board to a "
+        "different WiFi network.</p>"
+        "<form method=\"POST\" action=\"/factory_reset\" class=\"settings-form\" "
+        "onsubmit=\"return confirm('Reset ALL settings to factory defaults and reboot? "
+        "This clears WiFi, board name, dial codes, VoIP, and every other saved setting. "
+        "Uploaded audio/recordings are NOT deleted. This cannot be undone.')\">"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"danger\">"
+        "Reset to factory settings\xe2\x80\xa6</button></div>"
+        "</form>"
+        "<p class=\"hint\">Erases every saved setting (WiFi, board name, dial codes, VoIP, "
+        "idle-power, log level) and reboots to a genuinely out-of-box state -- for handing "
+        "the board to someone else. Uploaded audio and recordings are files, not settings, "
+        "and are <strong>not</strong> deleted -- clear those individually from Settings "
+        "\xe2\x86\x92 Storage first if you want a truly clean board.</p>"
+        "</div>");
 
     return off;
 }
@@ -1633,32 +1759,115 @@ static int append_diag_tab(char *buf, size_t cap, int off)
  * shared by the microSD and internal-flash cards below, since the row
  * markup (name/size/play/download/delete) doesn't depend on which backend
  * the entries came from. */
-/* Reads just enough of a stored WAV's header to compute its duration --
- * short reads are fine, audio_wav_parse() is a tolerant chunk walker (see
- * its own doc comment). UPLOAD_HEADER_SCAN_BYTES (not a smaller guess): a
- * canonical WAV header is 44 bytes, but real-world files can carry several
- * KB of filler/metadata before `data` (macOS afconvert's FLLR chunk,
- * observed on this project's own clips pushing it out ~4KB) -- confirmed
- * live that 512 bytes silently produced a blank duration for such a file.
- * Heap-allocated per UPLOAD_HEADER_SCAN_BYTES's own doc comment (never an
- * 8KB stack array here -- this runs inside append_storage_table()'s
- * per-row loop, itself nested inside the settings page handler, both of
- * which already have their own locals on the same stack). Blank output
- * (not an error) for anything that doesn't parse as PCM WAV -- this is a
- * display nicety, not something worth failing the whole page render over. */
-static void wav_duration_str(const char *name, char *out, size_t out_len)
+
+/* Tiny in-RAM cache of computed durations, keyed on name+size (size doubles
+ * as a cheap invalidation check -- a file getting replaced under the same
+ * name almost always changes size; the rare same-size replacement shows a
+ * stale duration until reboot, an acceptable display nicety tradeoff, not
+ * something worth a real mtime/hash check for). Round-robins over a fixed
+ * array rather than anything fancier -- a personal phone's file count fits
+ * easily, and even a full linear scan of it is nothing next to one SD file
+ * open. Cleared on reboot only (no persistence): recomputing after a
+ * restart is cheap relative to the flash wear or NVS-slot churn of
+ * persisting it. */
+#define WAV_DURATION_CACHE_N 48
+typedef struct {
+    bool   used;
+    char   name[STORAGE_MAX_NAME];
+    size_t size;
+    char   dur[16];
+} wav_duration_cache_entry_t;
+static wav_duration_cache_entry_t s_dur_cache[WAV_DURATION_CACHE_N];
+static size_t s_dur_cache_next; /* round-robin eviction cursor */
+
+static bool dur_cache_get(const char *name, size_t size, char *out, size_t out_len)
+{
+    for (size_t i = 0; i < WAV_DURATION_CACHE_N; i++) {
+        if (s_dur_cache[i].used && s_dur_cache[i].size == size &&
+            strcmp(s_dur_cache[i].name, name) == 0) {
+            strncpy(out, s_dur_cache[i].dur, out_len - 1);
+            out[out_len - 1] = '\0';
+            return true;
+        }
+    }
+    return false;
+}
+
+static void dur_cache_put(const char *name, size_t size, const char *dur)
+{
+    /* Overwrite an existing entry for this name (a stale size means the
+     * file changed) if there is one, else claim the next round-robin slot
+     * -- keeps at most one entry per name rather than accumulating dead
+     * ones for files that get re-recorded under the same name. */
+    for (size_t i = 0; i < WAV_DURATION_CACHE_N; i++) {
+        if (s_dur_cache[i].used && strcmp(s_dur_cache[i].name, name) == 0) {
+            s_dur_cache[i].size = size;
+            strncpy(s_dur_cache[i].dur, dur, sizeof(s_dur_cache[i].dur) - 1);
+            s_dur_cache[i].dur[sizeof(s_dur_cache[i].dur) - 1] = '\0';
+            return;
+        }
+    }
+    wav_duration_cache_entry_t *e = &s_dur_cache[s_dur_cache_next];
+    s_dur_cache_next = (s_dur_cache_next + 1) % WAV_DURATION_CACHE_N;
+    e->used = true;
+    strncpy(e->name, name, sizeof(e->name) - 1);
+    e->name[sizeof(e->name) - 1] = '\0';
+    e->size = size;
+    strncpy(e->dur, dur, sizeof(e->dur) - 1);
+    e->dur[sizeof(e->dur) - 1] = '\0';
+}
+
+/* Reads a stored WAV's header to compute its duration, formats it, and
+ * caches the result (see dur_cache_get/put above) so a page revisited
+ * without that file changing skips the read+parse entirely. On a cache
+ * miss: tries WAV_DURATION_SCAN_BYTES (512) first -- this project's own
+ * files (recorder.c output, converted uploads) have a plain ~44-byte
+ * canonical header, so that's normally enough on the first try, which
+ * matters a lot on this board's SPI-mode microSD (real per-file-open
+ * overhead, not just transfer time) -- and only reaches for the full
+ * UPLOAD_HEADER_SCAN_BYTES (8192) if that comes up short. That fallback is
+ * load-bearing, not defensive: this project's own operator.wav is
+ * generated with a "FLLR" filler chunk pushing the data chunk out to
+ * ~4096 bytes (confirmed live, 512 alone silently produced a blank
+ * duration for it), so some real files here genuinely need the bigger
+ * scan. audio_wav_parse() is a tolerant chunk walker (see its own doc
+ * comment) that returns false either way if the buffer runs out before
+ * finding `data` -- can't distinguish "just needs more bytes" from
+ * "not a WAV at all" from that alone, so the fallback re-reads for both,
+ * but only the genuinely-large-header case pays for it twice; a
+ * corrupt/non-WAV file just fails fast both times. Both scan sizes are
+ * heap-allocated, never a stack array (see UPLOAD_HEADER_SCAN_BYTES's own
+ * doc comment on why that matters on this task specifically). Blank
+ * output (not an error) for anything that never parses as PCM WAV -- this
+ * is a display nicety, not something worth failing the whole page render
+ * over. */
+static void wav_duration_str(const char *name, size_t size, char *out, size_t out_len)
 {
     out[0] = '\0';
-    uint8_t *header = malloc(UPLOAD_HEADER_SCAN_BYTES);
-    if (!header) return;
-    size_t got = 0;
-    esp_err_t err = storage_read(name, header, UPLOAD_HEADER_SCAN_BYTES, &got);
-    if (err != ESP_OK || got == 0) { free(header); return; }
+    if (dur_cache_get(name, size, out, out_len)) return;
+
     audio_wav_info_t wav;
-    bool ok = audio_wav_parse(header, got, &wav) && wav.sample_rate != 0 &&
-              wav.channels != 0 && wav.bits_per_sample != 0;
-    free(header);
+    bool ok = false;
+    size_t scan_sizes[2] = { WAV_DURATION_SCAN_BYTES, UPLOAD_HEADER_SCAN_BYTES };
+    for (size_t pass = 0; pass < 2 && !ok; pass++) {
+        uint8_t *header = malloc(scan_sizes[pass]);
+        if (!header) break;
+        size_t got = 0;
+        esp_err_t err = storage_read(name, header, scan_sizes[pass], &got);
+        bool short_read = (got < scan_sizes[pass]); /* true EOF -- see below */
+        if (err == ESP_OK && got > 0) {
+            ok = audio_wav_parse(header, got, &wav) && wav.sample_rate != 0 &&
+                 wav.channels != 0 && wav.bits_per_sample != 0;
+        }
+        free(header);
+        /* A short read means true EOF -- a bigger buffer can't find bytes
+         * that aren't in the file, so don't bother with the fallback pass
+         * in that case (also covers the storage_read() failure/empty case,
+         * where got stays 0 < scan_sizes[pass]). */
+        if (!ok && short_read) break;
+    }
     if (!ok) return;
+
     double secs = (double)wav.data_bytes /
         ((double)wav.sample_rate * wav.channels * (wav.bits_per_sample / 8));
     if (secs >= 60.0) {
@@ -1666,6 +1875,7 @@ static void wav_duration_str(const char *name, char *out, size_t out_len)
     } else {
         snprintf(out, out_len, "%.1fs", secs);
     }
+    dur_cache_put(name, size, out);
 }
 
 /* Parses a recording filename in telephony.c's rec_name_timestamped() format
@@ -1742,7 +1952,7 @@ static int append_storage_table(char *buf, size_t cap, int off,
              * MP3's frame-based format, and the browser's own <audio>
              * element shows its duration once loaded anyway, so this just
              * stays blank rather than computing/guessing one. */
-            if (is_wav_name(entries[i].name)) wav_duration_str(entries[i].name, dur, sizeof(dur));
+            if (is_wav_name(entries[i].name)) wav_duration_str(entries[i].name, entries[i].size, dur, sizeof(dur));
             else dur[0] = '\0';
         } else {
             play[0] = '\0';
@@ -1799,8 +2009,8 @@ static int append_storage_section(char *buf, size_t cap, int off)
                  "inserted is still reachable." : "");
 
     if (sd) {
-        storage_entry_t sd_entries[32];
-        size_t sd_n = storage_list_sd(sd_entries, 32);
+        storage_entry_t *sd_entries = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
+        size_t sd_n = sd_entries ? storage_list_sd(sd_entries, STORAGE_LIST_MAX) : 0;
         char su[16], sc[16];
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<div class=\"card wide\" style=\"margin-top:16px\"><h2>microSD (%u file%s)</h2>"
@@ -1809,11 +2019,12 @@ static int append_storage_section(char *buf, size_t cap, int off)
             fmt_bytes(storage_used_bytes_sd(), su, sizeof(su)),
             fmt_bytes(storage_cap_bytes_sd(), sc, sizeof(sc)));
         off = append_storage_table(buf, cap, off, sd_entries, sd_n, NULL, false, "/settings?tab=storage");
+        free(sd_entries);
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
     }
 
-    storage_entry_t in_entries[32];
-    size_t in_n = storage_list_internal(in_entries, 32);
+    storage_entry_t *in_entries = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
+    size_t in_n = in_entries ? storage_list_internal(in_entries, STORAGE_LIST_MAX) : 0;
     char isu[16], isc[16];
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card wide\" style=\"margin-top:16px\"><h2>%s (%u file%s)</h2>"
@@ -1825,6 +2036,7 @@ static int append_storage_section(char *buf, size_t cap, int off)
         sd ? "" : " Capped at this size -- oldest recording evicted first once it's hit "
                   "(uploaded clips/operator.wav are never auto-evicted).");
     off = append_storage_table(buf, cap, off, in_entries, in_n, NULL, false, "/settings?tab=storage");
+    free(in_entries);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
     return off;
@@ -1870,11 +2082,11 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     }
     /* Old bookmarks/links to tabs folded into a bigger one during the
      * Settings cleanup -- send them to the tab that now has that content,
-     * not back to General (the unknown-tab fallback below). */
+     * not back to General (the unknown-tab fallback below). ("storage" is
+     * its own tab again -- see SETTINGS_TABS's comment -- so it needs no
+     * alias here anymore.) */
     if (strcmp(tab, "operator") == 0 || strcmp(tab, "record") == 0) {
         strncpy(tab, "dialcodes", sizeof(tab) - 1);
-    } else if (strcmp(tab, "storage") == 0) {
-        strncpy(tab, "hardware", sizeof(tab) - 1);
     }
 
     bool known_tab = false;
@@ -1886,15 +2098,25 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     dialplan_entry_info_t entries[40];
     size_t n = dialplan_list(entries, 40);
 
-    /* Sized for the busiest tab (all n entries as guide rows) plus the storage
-     * section (up to 32 files, listed there). Don't storage_list() here just
-     * to count -- that's a deep SPIFFS+flash walk, and doing it on top of this
-     * handler's stack arrays is what overflowed the httpd task's stack.
-     * Diagnostics also needs room for the full log panel (moved here from
-     * the Status page, see append_diag_tab()) -- each raw log line can
-     * roughly triple in size once wrapped in .logline/.t/.k/.m markup. */
+    /* Sized for the busiest tab. Diagnostics needs room for the full log
+     * panel (moved here from the Status page, see append_diag_tab()) --
+     * each raw log line can roughly triple in size once wrapped in
+     * .logline/.t/.k/.m markup. Storage needs room for up to
+     * STORAGE_LIST_MAX files on each of the SD and internal backends --
+     * both conditional on the actual tab, not added unconditionally to
+     * every tab's allocation: at STORAGE_LIST_MAX=100 that term alone is
+     * ~68KB, a meaningful chunk of this chip's ~320KB heap, wasteful (and
+     * needlessly failure-prone under real memory pressure from
+     * WiFi/audio) to request for tabs that render neither. Don't
+     * storage_list() here just to get an exact count instead of this
+     * upper bound -- that's a deep SPIFFS+flash walk, and doing it on top
+     * of this handler's own locals is what overflowed the httpd task's
+     * stack once before (see STORAGE_LIST_MAX's own doc comment -- the
+     * actual listing arrays are heap-allocated now specifically because
+     * of that history). */
     size_t log_room = (strcmp(tab, "diag") == 0) ? 8200 * 3 : 0;
-    size_t cap = 6144 + n * 220 + 32 * 340 + log_room; /* storage rows now also carry an <audio> element */
+    size_t storage_room = (strcmp(tab, "storage") == 0) ? STORAGE_LIST_MAX * 2 * 340 : 0;
+    size_t cap = 6144 + n * 220 + storage_room + log_room + 4500; /* +4500: General's WIFI_SCAN_JS + Hardware's Reset card */
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
@@ -1916,13 +2138,18 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     }
     else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off, checked, result, created, createresult);
     else if (strcmp(tab, "diag") == 0) off = append_diag_tab(buf, cap, off);
-    /* Hardware: stats + the SMD line2/microSD config card + the full
-     * SD+internal file manager -- all "this board's physical resources,"
-     * previously split across a Hardware tab and a separate Storage tab. */
+    /* Storage: the full SD+internal file manager, kept separate from
+     * Hardware -- see SETTINGS_TABS's comment for why (its per-file
+     * WAV-duration parsing is the slowest single thing in Settings, and
+     * bundling it with anything else means paying that cost on every visit
+     * to the other tab too). */
+    else if (strcmp(tab, "storage") == 0) off = append_storage_section(buf, cap, off);
+    /* Hardware: stats + the SMD line2/microSD config card -- everything
+     * else that landed here (Answering Machine, Speaker, Echo, idle-power)
+     * is cheap NVS-backed config, not file I/O. */
     else {
         off = append_hw_config_tab(buf, cap, off);
         off = append_hardware_tab(buf, cap, off);
-        off = append_storage_section(buf, cap, off);
     }
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>" /* .cards */);
@@ -2010,6 +2237,38 @@ static bool form_field(const char *body, const char *key, char *out, size_t out_
     return false;
 }
 
+/* GET /api/wifi_scan -- nearby SSIDs for the setup/settings forms' dropdown,
+ * as {"networks":[{"ssid":"...","rssi":-42,"secured":true}, ...]}. Works
+ * during provisioning too (the setup AP runs AP+STA so scanning still
+ * works -- see wifi_scan()'s doc comment). A failed scan reports an empty
+ * list plus "error":true rather than an HTTP error, so the page's JS can
+ * just fall back to manual entry. */
+#define WIFI_SCAN_MAX 24
+
+static esp_err_t wifi_scan_json_handler(httpd_req_t *req)
+{
+    wifi_scan_result_t results[WIFI_SCAN_MAX];
+    int n = wifi_scan(results, WIFI_SCAN_MAX);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON *arr = cJSON_AddArrayToObject(root, "networks");
+    for (int i = 0; i < n; i++) {
+        cJSON *item = cJSON_CreateObject();
+        cJSON_AddStringToObject(item, "ssid", results[i].ssid);
+        cJSON_AddNumberToObject(item, "rssi", results[i].rssi);
+        cJSON_AddBoolToObject(item, "secured", results[i].secured);
+        cJSON_AddItemToArray(arr, item);
+    }
+    if (n < 0) cJSON_AddBoolToObject(root, "error", true);
+
+    char *text = cJSON_PrintUnformatted(root);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, text ? text : "{\"networks\":[]}");
+    cJSON_Delete(root);
+    free(text);
+    return ESP_OK;
+}
+
 /* POST /wifi_set -- form body ssid=...&password=.... Blank password means
  * an open network (matches do_connect()'s own authmode choice in wifi.c),
  * not "keep the old one". */
@@ -2045,16 +2304,42 @@ static esp_err_t wifi_set_handler(httpd_req_t *req)
             httpd_resp_send_500(req);
             return ESP_FAIL;
         }
-        httpd_resp_set_type(req, "text/html");
-        httpd_resp_sendstr(req,
+        /* Name the actual address it'll try, rather than a vague "its .local
+         * name" -- the no-instructions gap this used to leave was confusing
+         * on first setup, before a board name is even chosen. Still hedge:
+         * wifi_apply_hostname() bumps this to <host>1.local etc. if another
+         * board already answers for it, and .local resolution itself isn't
+         * fully reliable on every OS/router/network even when nothing's
+         * wrong -- give the router's client list as a same-weight fallback,
+         * not a last resort, and say what to actually look for there
+         * (wifi_init() now sets this same name as the DHCP hostname, so it's
+         * not just a MAC address in that list). */
+        char host[64];
+        board_hostname(host, sizeof(host));
+        char page[1500];
+        snprintf(page, sizeof(page),
             "<!doctype html><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+            "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">"
             "<link rel=\"stylesheet\" href=\"/static/style.css\">"
             "<main class=\"auth-page\"><div class=\"auth-card\">"
             "<h1>Saved \xe2\x80\x94 connecting\xe2\x80\xa6</h1>"
             "<p class=\"hint\">The phone is rebooting to join your network. This setup "
-            "network will disappear. Find it back at its <code>.local</code> name or on "
-            "your router's device list.</p></div></main>");
+            "network will disappear -- reconnect your phone/laptop to your normal WiFi, "
+            "then browse to:</p>"
+            "<p class=\"hint\"><code>http://%s.local</code></p>"
+            "<p class=\"hint\">.local addresses don't work reliably on every network -- if "
+            "that doesn't load within a minute or two, don't wait it out: open your WiFi "
+            "router's admin page and look at its list of connected devices instead. This "
+            "board will show up there as <code>%s</code> (or <code>%s1</code>, <code>%s2</code> "
+            "etc. if another board already answered to that name) -- open its IP address "
+            "directly. This works every time, .local or not, so it's worth trying first if "
+            "you have more than one of these boards. Rename this board once you're in, under "
+            "Settings \xe2\x86\x92 General, so both its .local address and its router listing "
+            "stay easy to tell apart from any others.</p></div></main>",
+            host, host, host, host);
+        httpd_resp_set_type(req, "text/html");
+        httpd_resp_sendstr(req, page);
         xTaskCreate(reboot_task, "reboot", 2048, NULL, tskIDLE_PRIORITY + 1, NULL);
         return ESP_OK;
     }
@@ -2068,6 +2353,62 @@ static esp_err_t wifi_set_handler(httpd_req_t *req)
     httpd_resp_set_hdr(req, "Location", "/settings");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
+}
+
+/* Shared by /wifi_reprovision and /factory_reset: a short confirmation page,
+ * then reboot once the response has flushed (reboot_task, above). */
+static esp_err_t send_reboot_page(httpd_req_t *req, const char *title, const char *body_html)
+{
+    char page[900];
+    snprintf(page, sizeof(page),
+        "<!doctype html><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">"
+        "<link rel=\"stylesheet\" href=\"/static/style.css\">"
+        "<main class=\"auth-page\"><div class=\"auth-card\">"
+        "<h1>%s</h1>%s</div></main>",
+        title, body_html);
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_sendstr(req, page);
+    xTaskCreate(reboot_task, "reboot", 2048, NULL, tskIDLE_PRIORITY + 1, NULL);
+    return ESP_OK;
+}
+
+/* POST /wifi_reprovision -- clears only the saved WiFi credentials and
+ * reboots into setup-AP mode. Every other setting (board name, dial codes,
+ * VoIP, idle-power, uploaded audio/recordings) is untouched. For moving the
+ * board to a different WiFi network, or re-testing the setup flow, without
+ * starting over on everything else. */
+static esp_err_t wifi_reprovision_handler(httpd_req_t *req)
+{
+    ESP_LOGW(TAG, "web UI: re-provision WiFi requested");
+    esp_err_t err = wifi_clear_credentials();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "wifi_clear_credentials failed: %s", esp_err_to_name(err));
+    }
+    return send_reboot_page(req, "WiFi cleared \xe2\x80\x94 rebooting\xe2\x80\xa6",
+        "<p class=\"hint\">Every other setting is untouched. In a few seconds, look for "
+        "the <code>AnalogRedial-XXXX</code> setup network to reconnect it.</p>");
+}
+
+/* POST /factory_reset -- erases the ENTIRE NVS partition (WiFi, board
+ * name/hw config, dial codes, prompts, VoIP, idle-power, log level -- every
+ * setting this firmware persists) and reboots to a genuinely out-of-box
+ * state. Deliberately does NOT touch uploaded audio or recordings -- those
+ * live as files on internal flash/SPIFFS or microSD, not NVS settings; clear
+ * those individually from Settings -> Storage first if handing the board to
+ * someone else. */
+static esp_err_t factory_reset_handler(httpd_req_t *req)
+{
+    ESP_LOGW(TAG, "web UI: factory reset requested -- erasing all settings");
+    esp_err_t err = nvs_flash_erase();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "nvs_flash_erase failed: %s", esp_err_to_name(err));
+    }
+    return send_reboot_page(req, "Factory reset \xe2\x80\x94 rebooting\xe2\x80\xa6",
+        "<p class=\"hint\">All settings are erased -- WiFi, board name, dial codes, VoIP, "
+        "everything. Uploaded audio and recordings are untouched. In a few seconds, look "
+        "for the <code>AnalogRedial-XXXX</code> setup network.</p>");
 }
 
 /* POST /board_name -- form body name=.... Persists the name (board_name_set)
@@ -2173,13 +2514,15 @@ static esp_err_t idle_power_settings_handler(httpd_req_t *req)
     if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
     body[r] = '\0';
 
-    char enabled[8] = {0}, minutes[12] = {0};
+    char enabled[8] = {0}, minutes[12] = {0}, max_savings[8] = {0};
     form_field(body, "enabled", enabled, sizeof(enabled));
     form_field(body, "minutes", minutes, sizeof(minutes));
+    form_field(body, "max_savings", max_savings, sizeof(max_savings));
 
     idle_power_cfg_t cfg = {
         .enabled = (enabled[0] == '1'),
         .minutes = minutes[0] ? (uint16_t)strtoul(minutes, NULL, 10) : 0,
+        .max_savings = (max_savings[0] == '1'),
     };
     if (idle_power_set(cfg) != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "minutes out of range");
@@ -2187,7 +2530,10 @@ static esp_err_t idle_power_settings_handler(httpd_req_t *req)
     }
 
     httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    /* This card actually lives on the Hardware tab (see
+     * append_hardware_tab()) -- fixing a stale redirect left over from
+     * before it moved there from General. */
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=hardware");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -2530,7 +2876,7 @@ static esp_err_t test_sd_handler(httpd_req_t *req)
  * ES8388 LOUT1VOL/ROUT1VOL convention (0=mute, 33=0dB, 1dB/step), same
  * per-line NVS persistence (board_speaker_volume_get/set). ES8388/SMD2
  * only: LOUT1VOL/ROUT1VOL doesn't exist on the THT board's WM8731. */
-#if CONFIG_BOARD_TYPE_SMD2
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
 /* Sets one line's channel while preserving the other's current value --
  * es8388_set_dac_volume() always writes both at once, and this endpoint is
  * only ever asked to change one. */
@@ -2589,7 +2935,7 @@ static esp_err_t speaker_volume_handler(httpd_req_t *req)
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
-#endif /* CONFIG_BOARD_TYPE_SMD2 */
+#endif /* CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 */
 
 /* ---- AEC calibration wizard ----
  * Webui counterpart to the bring-up `echoprobe` console command, for a
@@ -2869,41 +3215,6 @@ static esp_err_t voip_instructions_txt_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* POST /dialcode_add -- form body code=..&filename=..&desc=.. (see
- * dialplan.h's dialplan_clip_add() for the validation/conflict rules). */
-static esp_err_t dialcode_add_handler(httpd_req_t *req)
-{
-    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
-    char body[WIFI_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
-
-    char code[8] = {0}, filename[32] = {0}, desc[64] = {0};
-    form_field(body, "code", code, sizeof(code));
-    form_field(body, "filename", filename, sizeof(filename));
-    form_field(body, "desc", desc, sizeof(desc));
-
-    esp_err_t err = dialplan_clip_add(code, filename, desc[0] ? desc : filename);
-    if (err != ESP_OK) {
-        const char *why =
-            (err == ESP_ERR_INVALID_ARG)   ? "code must be 2-6 digits and a file must be picked" :
-            (err == ESP_ERR_INVALID_STATE) ? "that code conflicts with an existing one" :
-            (err == ESP_ERR_NO_MEM)        ? "dial code limit reached" : esp_err_to_name(err);
-        ESP_LOGW(TAG, "dialcode_add '%s' -> '%s' failed: %s", code, filename, why);
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, why);
-        return ESP_OK;
-    }
-
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
-}
-
 /* POST /dialcode_set_code -- form body old_code=..&new_code=.. */
 static esp_err_t dialcode_set_code_handler(httpd_req_t *req)
 {
@@ -2928,37 +3239,6 @@ static esp_err_t dialcode_set_code_handler(httpd_req_t *req)
             (err == ESP_ERR_NOT_FOUND)     ? "code not found" : esp_err_to_name(err);
         ESP_LOGW(TAG, "dialcode_set_code '%s' -> '%s' failed: %s", old_code, new_code, why);
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, why);
-        return ESP_OK;
-    }
-
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
-}
-
-/* POST /dialcode_set_filename -- form body code=..&filename=.. (points an
- * existing code at a different already-stored file). */
-static esp_err_t dialcode_set_filename_handler(httpd_req_t *req)
-{
-    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
-    char body[WIFI_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
-
-    char code[8] = {0}, filename[32] = {0};
-    form_field(body, "code", code, sizeof(code));
-    form_field(body, "filename", filename, sizeof(filename));
-
-    esp_err_t err = dialplan_clip_set_filename(code, filename);
-    if (err != ESP_OK) {
-        ESP_LOGW(TAG, "dialcode_set_filename '%s' -> '%s' failed: %s",
-                 code, filename, esp_err_to_name(err));
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, esp_err_to_name(err));
         return ESP_OK;
     }
 
@@ -3199,8 +3479,8 @@ static esp_err_t log_handler(httpd_req_t *req)
 
 static esp_err_t recordings_json_handler(httpd_req_t *req)
 {
-    storage_entry_t entries[32];
-    size_t n = storage_list(entries, 32);
+    storage_entry_t *entries = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
+    size_t n = entries ? storage_list(entries, STORAGE_LIST_MAX) : 0;
     cJSON *arr = cJSON_CreateArray();
     for (size_t i = 0; i < n; i++) {
         cJSON *e = cJSON_CreateObject();
@@ -3208,6 +3488,7 @@ static esp_err_t recordings_json_handler(httpd_req_t *req)
         cJSON_AddNumberToObject(e, "size", (double)entries[i].size);
         cJSON_AddItemToArray(arr, e);
     }
+    free(entries);
     char *text = cJSON_PrintUnformatted(arr);
     httpd_resp_set_type(req, "application/json");
     httpd_resp_sendstr(req, text ? text : "[]");
@@ -3232,13 +3513,14 @@ static esp_err_t media_handler(httpd_req_t *req)
     char *qmark = strchr(name, '?');
     if (qmark) *qmark = '\0';
 
-    storage_entry_t entries[32];
-    size_t n_entries = storage_list(entries, 32);
+    storage_entry_t *entries = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
+    size_t n_entries = entries ? storage_list(entries, STORAGE_LIST_MAX) : 0;
     bool found = false;
     size_t total = 0;
     for (size_t i = 0; i < n_entries; i++) {
         if (strcmp(entries[i].name, name) == 0) { found = true; total = entries[i].size; break; }
     }
+    free(entries);
     if (!found) {
         /* Not an upload/recording -- check the bundled (build-time) assets
          * too, same fallback order as storage_read_open()/player_play(). */
@@ -3929,16 +4211,57 @@ static esp_err_t prompt_requests_json_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* httpd's connection-open hook -- see idle_power_note_activity()'s doc
+ * comment and this call site's own comment in webui_start() for why. Must
+ * return ESP_OK (any other value tells httpd to close the socket
+ * immediately); nothing here can fail. */
+static esp_err_t webui_conn_open(httpd_handle_t hd, int sockfd)
+{
+    (void)hd; (void)sockfd;
+    idle_power_note_activity();
+    return ESP_OK;
+}
+
 esp_err_t webui_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
-    /* Default is 8 -- we register 42 routes below (two share the media
+    /* HTTPD_DEFAULT_CONFIG() leaves max_open_sockets at 7 (3 of which are
+     * reserved for the server's own internal use, per that field's doc
+     * comment in esp_http_server.h -- 4 actually available to clients) and
+     * lru_purge_enable at false. Without LRU purging, once those 4 sockets
+     * are all holding open (idle keep-alive) connections, every subsequent
+     * accept() just fails outright -- "httpd_accept_conn: error in accept"
+     * in the log -- rather than the server reclaiming the oldest idle one,
+     * and the whole web UI stays unreachable until a client-side timeout
+     * eventually closes something. A page pulling in several sub-resources
+     * (the Settings page's per-recording <audio> elements, style.css, the
+     * page itself) can open more parallel/keep-alive connections than that
+     * per browser tab already; this is the officially documented fix
+     * (esp_http_server.h's own httpd_sess_iterate() comment: "allow the
+     * http server to close our socket if needed (lru_purge_enable)"), not
+     * a workaround. Bumping max_open_sockets too, both within
+     * CONFIG_LWIP_MAX_SOCKETS' current headroom (10) -- see sdkconfig. */
+    config.lru_purge_enable = true;
+    config.max_open_sockets = 8;
+    /* Any new connection to this server counts as "someone's using the web
+     * UI right now" -- see idle_power_note_activity()'s doc comment for
+     * why this matters (it postpones/undoes WiFi power-save so browsing
+     * Settings doesn't itself get slow). A new httpd connection is a close
+     * enough proxy for real activity: a page's own GET plus its
+     * style.css/audio sub-requests all open one each in practice, and even
+     * a fully idle browser tab's keep-alive connections get recycled often
+     * enough (5s recv/send_wait_timeout above) that this fires well within
+     * one idle_power TICK_MS of any actual click. */
+    config.open_fn = webui_conn_open;
+    /* Default is 8 -- we register 46 routes below (two share the media
      * path, one GET, one POST, counted separately) and it keeps growing.
      * Past the cap, httpd_register_uri_handler() just fails per-route, which
      * used to go unchecked below, silently dropping the last couple of
-     * routes -- the loop below now at least logs it, but leave headroom. */
-    config.max_uri_handlers = 48;
+     * routes -- the loop below now at least logs it, but leave real
+     * headroom (was 48, i.e. 2 routes of slack -- too easy to quietly blow
+     * through next time a feature adds a couple more). */
+    config.max_uri_handlers = 64;
     /* Default httpd task stack is 4 KB. Our page handlers stack a few
      * storage_entry_t[32]/dialplan_entry_info_t[40] arrays and then descend
      * into SPIFFS readdir -> esp_flash_read, which is itself stack-hungry;
@@ -3958,23 +4281,27 @@ esp_err_t webui_start(void)
     config.stack_size = 32768;
 #else
     /* 8 KB was sized for SPIFFS-only traversal (see the comment above this
-     * block). Confirmed live: the Dial Codes tab -- append_dialcodes_tab()
-     * calls append_file_select() once per row plus once more for the "add"
-     * form, and each call puts storage_entry_t files[32]+bundled[16]
-     * (~2KB) on the stack on top of settings_page_handler()'s and
-     * append_dialcodes_tab()'s own locals -- reliably crashed/rebooted a
-     * board with a microSD card mounted (storage_list() there hits
-     * FATFS/SDMMC, not SPIFFS) while the identical request against a board
-     * with no card worked fine. FATFS/SDMMC is a known heavier stack
-     * consumer than SPIFFS in ESP-IDF; 8 KB not accounting for that is the
-     * likely culprit, though this wasn't confirmed via addr2line the way
-     * the MP3 case above was (no crash log was available at the time).
+     * block). Confirmed live (2026-08ish): the Dial Codes tab, back when it
+     * had a per-row "use existing file" <select> (append_file_select(),
+     * removed since -- see this file's own "append_file_select() ...
+     * removed" comment), reliably crashed/rebooted a board with a microSD
+     * card mounted while the identical request against a board with no
+     * card worked fine. Root cause was stack-allocated storage_entry_t
+     * arrays stacking up under FATFS/SDMMC (a known heavier stack consumer
+     * than SPIFFS in ESP-IDF) on top of settings_page_handler()'s and its
+     * callees' own locals -- not confirmed via addr2line the way the MP3
+     * case above was (no crash log was available at the time), but stack
+     * exhaustion was the only thing that explained "card mounted" being
+     * the deciding factor.
+     *
+     * That specific code path is gone now, and every storage_entry_t
+     * listing array in this file is heap-allocated (STORAGE_LIST_MAX's own
+     * doc comment), which was motivated by this exact history -- but this
+     * task still walks FATFS/SDMMC for every Storage/Recordings/media
+     * request, so the underlying "FATFS eats more stack than SPIFFS"
+     * exposure hasn't gone away, just the one array-heavy trigger for it.
      * 16 KB is a generous, cheap (one-time, single always-running task)
-     * bump rather than a tightly-measured minimum. (append_file_select()
-     * itself no longer touches the SD card at all -- it now always lists
-     * storage_list_internal(), since a dial-code clip only ever lives on
-     * internal flash -- but the Settings -> Storage tab's own SD listing
-     * still walks FATFS/SDMMC on the same task, so this headroom stays.) */
+     * margin against that -- no reason to walk it back now. */
     config.stack_size = 16384;
 #endif
 
@@ -3992,6 +4319,8 @@ esp_err_t webui_start(void)
         { .uri = "/settings",        .method = HTTP_GET, .handler = settings_page_handler },
         { .uri = "/dialplan",        .method = HTTP_GET, .handler = redirect_to_index_handler },
         { .uri = "/static/style.css",.method = HTTP_GET, .handler = static_css_handler },
+        { .uri = "/static/favicon.svg", .method = HTTP_GET, .handler = favicon_handler },
+        { .uri = "/favicon.ico",     .method = HTTP_GET, .handler = favicon_handler },
         { .uri = "/api/status",      .method = HTTP_GET, .handler = status_json_handler },
         { .uri = "/api/log",         .method = HTTP_GET, .handler = log_handler },
         { .uri = "/api/recordings",  .method = HTTP_GET, .handler = recordings_json_handler },
@@ -4000,6 +4329,9 @@ esp_err_t webui_start(void)
         { .uri = "/media_delete/*",  .method = HTTP_POST, .handler = media_delete_handler },
         { .uri = "/mode_set/*",      .method = HTTP_POST, .handler = mode_set_handler },
         { .uri = "/wifi_set",        .method = HTTP_POST, .handler = wifi_set_handler },
+        { .uri = "/api/wifi_scan",   .method = HTTP_GET,  .handler = wifi_scan_json_handler },
+        { .uri = "/wifi_reprovision", .method = HTTP_POST, .handler = wifi_reprovision_handler },
+        { .uri = "/factory_reset",   .method = HTTP_POST, .handler = factory_reset_handler },
         { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
         { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },
         { .uri = "/board_hw_set",    .method = HTTP_POST, .handler = board_hw_set_handler },
@@ -4007,9 +4339,7 @@ esp_err_t webui_start(void)
         { .uri = "/idle_power",      .method = HTTP_POST, .handler = idle_power_settings_handler },
         { .uri = "/answering_machine", .method = HTTP_POST, .handler = answering_machine_handler },
         { .uri = "/record_max_ms",   .method = HTTP_POST, .handler = record_max_ms_handler },
-        { .uri = "/dialcode_add",           .method = HTTP_POST, .handler = dialcode_add_handler },
         { .uri = "/dialcode_set_code",      .method = HTTP_POST, .handler = dialcode_set_code_handler },
-        { .uri = "/dialcode_set_filename",  .method = HTTP_POST, .handler = dialcode_set_filename_handler },
         { .uri = "/dialcode_set_desc",      .method = HTTP_POST, .handler = dialcode_set_desc_handler },
         { .uri = "/dialcode_delete/*",      .method = HTTP_POST, .handler = dialcode_delete_handler },
         { .uri = "/dialcode_upload",        .method = HTTP_POST, .handler = dialcode_upload_handler },
@@ -4024,7 +4354,7 @@ esp_err_t webui_start(void)
         { .uri = "/test/loopback",          .method = HTTP_POST, .handler = test_loopback_handler },
         { .uri = "/test/inject",            .method = HTTP_POST, .handler = test_inject_handler },
         { .uri = "/test/sd",                .method = HTTP_POST, .handler = test_sd_handler },
-#if CONFIG_BOARD_TYPE_SMD2
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
         { .uri = "/speaker_volume_live",    .method = HTTP_POST, .handler = speaker_volume_live_handler },
         { .uri = "/speaker_volume",         .method = HTTP_POST, .handler = speaker_volume_handler },
 #endif

@@ -10,7 +10,19 @@ config BOARD_TYPE_THT
     bool "Through-hole gateway (WM8731)"
 
 config BOARD_TYPE_SMD2
-    bool "SMD2 / SMD3 gateway (ES8388-compatible pin map)"
+    bool "SMD2 gateway (ES8388, ESP32-C6-WROOM-1 pin map)"
+
+config BOARD_TYPE_SMD4
+    bool "SMD3/SMD4 gateway (ES8388, ESP32-C6-DevKitC-1 pin map)"
+    help
+        SMD3 and SMD4 share this pin map (SMD4 is a 2-layer re-route of
+        SMD3's unchanged schematic -- see docs/hardware.md and
+        archive/hardware/ROTARY_PHONE_SMD4.md). Genuinely different GPIO
+        assignments from SMD2, not the same map under a different name --
+        SMD3/4 moved the MCU carrier from a soldered WROOM-1 module to an
+        ESP32-C6-DevKitC-1 dev board and remapped I2S and the line-0 SLIC
+        control pins accordingly (confirmed against the schematic netlist,
+        not assumed).
 
 endchoice
 

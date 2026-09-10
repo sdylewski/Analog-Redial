@@ -14,6 +14,7 @@
 #include "lwip/sockets.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /* Not "wifi" -- that tag belongs to the (very chatty) internal WiFi driver
  * logs, which we deliberately quiet below. A distinct tag lets our own
@@ -27,6 +28,7 @@ static esp_ip4_addr_t  s_ip;
 static bool           s_mdns_ready;  /* mdns_init() succeeded */
 static bool           s_mdns_named;  /* hostname resolved+set since boot */
 static bool           s_provisioning; /* running the setup SoftAP (no creds) */
+static esp_netif_t    *s_sta_netif;   /* for esp_netif_set_hostname() -- DHCP hostname */
 
 static esp_err_t load_creds_from_nvs(char *ssid, size_t ssid_len, char *pass, size_t pass_len)
 {
@@ -147,13 +149,16 @@ static esp_err_t start_provisioning(void)
 
     wifi_config_t ap = { 0 };
     int n = snprintf((char *)ap.ap.ssid, sizeof(ap.ap.ssid),
-                     "RotaryPhone-%02X%02X", mac[4], mac[5]);
+                     "AnalogRedial-%02X%02X", mac[4], mac[5]);
     ap.ap.ssid_len = (uint8_t)n;
     ap.ap.channel = 1;
     ap.ap.max_connection = 4;
     ap.ap.authmode = WIFI_AUTH_OPEN; /* open network: easiest to join for setup */
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    /* AP+STA, not AP-only: the STA side never connects to anything here, but
+     * its presence is what lets wifi_scan() list nearby networks for the
+     * setup page's dropdown while the SoftAP is up. */
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap));
     ESP_ERROR_CHECK(esp_wifi_start());
 
@@ -201,7 +206,22 @@ esp_err_t wifi_init(void)
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_create_default_wifi_sta();
+    s_sta_netif = esp_netif_create_default_wifi_sta();
+
+    /* DHCP hostname: without this, the router's client list shows every
+     * board as CONFIG_LWIP_LOCAL_HOSTNAME's generic default ("espressif"),
+     * useless for picking one out among several -- and, unlike the mDNS
+     * name, the router's page has no idea what ".local" even means, so it's
+     * the one identifier that's always visible there regardless of whether
+     * mDNS itself is working. Best-effort: uses whatever board name is
+     * configured right now (falls back to the same default as the .local
+     * name, "phone", until the user sets one). Re-applied from
+     * wifi_apply_hostname() too so a later rename takes effect on the next
+     * DHCP renewal/reboot, though it won't retroactively relabel an
+     * already-leased entry -- same caveat as any DHCP hostname. */
+    char dhcp_host[64];
+    board_hostname(dhcp_host, sizeof(dhcp_host));
+    esp_netif_set_hostname(s_sta_netif, dhcp_host);
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -252,11 +272,16 @@ esp_err_t wifi_init(void)
 
 void wifi_apply_hostname(void)
 {
-    if (!s_mdns_ready) return;
-
     char base[64], name[32];
     board_hostname(base, sizeof(base));
     board_name_get(name, sizeof(name));
+
+    /* Refresh the DHCP hostname too (see wifi_init()'s comment) so a rename
+     * takes effect on the router's client list on the next lease renewal --
+     * independent of mDNS, so this runs even if mdns_init() never came up. */
+    esp_netif_set_hostname(s_sta_netif, base);
+
+    if (!s_mdns_ready) return;
 
     char host[80];
     strncpy(host, base, sizeof(host) - 1);
@@ -359,4 +384,63 @@ void wifi_set_power_save(bool eco)
      * to sleep between DTIM beacons for). */
     if (eco && !s_connected) return;
     esp_wifi_set_ps(eco ? WIFI_PS_MIN_MODEM : WIFI_PS_NONE);
+}
+
+static int scan_rssi_cmp(const void *a, const void *b)
+{
+    const wifi_scan_result_t *ra = a, *rb = b;
+    return (int)rb->rssi - (int)ra->rssi;
+}
+
+int wifi_scan(wifi_scan_result_t *out, int max)
+{
+    wifi_scan_config_t scan_cfg = { .show_hidden = false };
+    esp_err_t err = esp_wifi_scan_start(&scan_cfg, true /* block until done */);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "wifi_scan: scan_start failed: %s", esp_err_to_name(err));
+        return -1;
+    }
+
+    uint16_t count = 0;
+    esp_wifi_scan_get_ap_num(&count);
+    if (count == 0) return 0;
+
+    wifi_ap_record_t *recs = calloc(count, sizeof(*recs));
+    if (!recs) return -1;
+    err = esp_wifi_scan_get_ap_records(&count, recs);
+    if (err != ESP_OK) {
+        free(recs);
+        return -1;
+    }
+
+    int n = 0;
+    for (int i = 0; i < (int)count && n < max; i++) {
+        const char *ssid = (const char *)recs[i].ssid;
+        if (!ssid[0]) continue; /* hidden network -- nothing to show in a picker */
+
+        /* Repeaters/mesh nodes can advertise the same SSID from several
+         * BSSIDs -- keep only the strongest one already collected. */
+        bool dup = false;
+        for (int j = 0; j < n; j++) {
+            if (strcmp(out[j].ssid, ssid) == 0) {
+                dup = true;
+                if (recs[i].rssi > out[j].rssi) {
+                    out[j].rssi = recs[i].rssi;
+                    out[j].secured = recs[i].authmode != WIFI_AUTH_OPEN;
+                }
+                break;
+            }
+        }
+        if (dup) continue;
+
+        strncpy(out[n].ssid, ssid, sizeof(out[n].ssid) - 1);
+        out[n].ssid[sizeof(out[n].ssid) - 1] = '\0';
+        out[n].rssi = recs[i].rssi;
+        out[n].secured = recs[i].authmode != WIFI_AUTH_OPEN;
+        n++;
+    }
+    free(recs);
+
+    qsort(out, n, sizeof(*out), scan_rssi_cmp);
+    return n;
 }

@@ -5772,7 +5772,7 @@
 		)
 		(uuid "e5cf3b43-7c25-4a24-8574-670a30483b67")
 	)
-	(text "Fixes:\n470 uF capacitors are 8mm/3.5 pitch\nadd reset jumper\nFix cross-wired usb D+/D-\nConnect redundant usb-c wires so cables work in both directions\nIn/out audio lines were swapped!\nChange Line0/1 in/out to mic for better readability\nMove Ch2 mic from Lin2 to Rin1 to fix error\n\nTodo: \ncleaner routing for USB D+/D- ?\nTest use of single P6KE82"
+	(text "Fixes needed for SMD4:\ncapacitor silkscreen needs to show capacitance value\nlarger holes for esp32\nsilkscreen note to add jumpbers for 2nd AG1171\n"
 		(exclude_from_sim no)
 		(at 243.84 41.402 0)
 		(effects

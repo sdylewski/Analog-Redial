@@ -17,8 +17,20 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
+  color-scheme: dark;
   font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
+
+/* This page is always dark (no light-mode variant), but nothing before this
+ * declared that -- so a plain <a> with no more specific rule matching it
+ * (nav a/.button/etc. all set their own color; a bare link inside a <p
+ * class="hint">, like the Hardware card's "Status" link, didn't) fell back
+ * to the browser's default link color, which assumes a light page and skews
+ * purple/dark-blue -- exactly the low-contrast text on this dark background.
+ * color-scheme above fixes native form controls (checkboxes, dropdowns,
+ * scrollbars); this fixes links specifically. */
+a { color: var(--accent); }
+a:visited { color: var(--accent); }
 
 header {
   display: flex;
@@ -105,7 +117,31 @@ table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); }
 th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
 tr:hover td { background: var(--panel2); }
-audio { height: 34px; vertical-align: middle; }
+audio { height: 34px; vertical-align: middle; max-width: 100%; }
+
+/* Dial Codes entries: three stacked lines per code (recode+remove,
+ * description, filename+play), not a table row -- this card sits in a
+ * .cards grid alongside Operator/Record, as narrow as 240px, where a
+ * 5-column table (code/filename/play/description/remove) has no width to
+ * spare; an <audio controls> alone wants ~300px. Stacking sidesteps that
+ * entirely instead of fighting table column-sizing for it. */
+.dialcode-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.dialcode-item:last-child { border-bottom: none; padding-bottom: 0; }
+.dc-line {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px; min-width: 0; /* let flex children shrink/ellipsize below content size */
+}
+.dc-line:last-child { margin-bottom: 0; }
+.dc-line-code { justify-content: space-between; } /* recode form left, pill/remove pinned right */
+.dc-inline { display: flex; align-items: center; gap: 8px; margin: 0; }
+.dc-inline input[name="new_code"] { width: 4.5em; flex: none; }
+.dc-grow { flex: 1; min-width: 0; }
+.dc-desc-input { flex: 1; min-width: 0; }
+.dc-filename {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dc-line audio { flex: none; }
 
 button {
   background: var(--panel2);

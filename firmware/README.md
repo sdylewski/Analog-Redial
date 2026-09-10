@@ -249,7 +249,7 @@ firmware/
 - Serial console: `wifi_set <ssid> <password>`
 - Web UI: **Settings → General → WiFi**
 - First boot with nothing saved: the device starts its own **SoftAP**
-  (`RotaryPhone-XXXX`, open) — join it and a setup page opens (captive portal),
+  (`AnalogRedial-XXXX`, open) — join it and a setup page opens (captive portal),
   or browse to `http://192.168.4.1`.
 
 **Factory-resetting WiFi (GPIO9 / BOOT strap)**

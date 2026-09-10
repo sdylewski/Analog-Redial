@@ -10,6 +10,8 @@
 
 #if CONFIG_BOARD_TYPE_SMD2
 #include "board_pins_smd.h"
+#elif CONFIG_BOARD_TYPE_SMD4
+#include "board_pins_smd4.h"
 #else
 #include "board_pins_tht.h"
 #endif

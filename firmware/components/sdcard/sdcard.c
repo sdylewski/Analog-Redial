@@ -63,6 +63,14 @@ esp_err_t sdcard_init(void)
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = SPI2_HOST;
+    /* SDSPI_HOST_DEFAULT() leaves this at SDMMC_FREQ_DEFAULT (20MHz).
+     * SDMMC_FREQ_HIGHSPEED (40MHz) is a standard ESP-IDF value, not an
+     * aggressive/unsupported overclock -- most cards handle it fine even
+     * over SPI. This helps raw transfer time, not the bigger cost on this
+     * board (SPI-mode's per-file-open protocol overhead, unrelated to
+     * clock rate -- see webui.c's STORAGE_LIST_MAX/wav_duration_str() doc
+     * comments for the fixes that actually target that), but it's free. */
+    host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
 
     spi_bus_config_t bus = {
         .mosi_io_num = BOARD_SD_MOSI,
