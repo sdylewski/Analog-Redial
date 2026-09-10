@@ -98,6 +98,14 @@ main { padding: 22px; max-width: 1100px; margin: 0 auto; }
 
 .statusrow { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; }
 .statusrow .label { color: var(--muted); }
+/* Memory map card: partition rows nested a bit under the RAM/Flash-total
+ * rows above them, so the "these are inside that" relationship reads
+ * visually, not just from the text. */
+.statusrow.indent { padding-left: 14px; }
+
+/* Simple proportional usage bar under a statusrow (Memory map card). */
+.membar { height: 6px; border-radius: 3px; background: var(--border); margin: 2px 0 8px 14px; overflow: hidden; }
+.membarfill { height: 100%; background: var(--accent); border-radius: 3px; }
 
 .pill {
   display: inline-block;

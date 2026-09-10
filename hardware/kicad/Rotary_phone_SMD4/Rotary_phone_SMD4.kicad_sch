@@ -5772,7 +5772,7 @@
 		)
 		(uuid "e5cf3b43-7c25-4a24-8574-670a30483b67")
 	)
-	(text "Fixes needed for SMD4:\ncapacitor silkscreen needs to show capacitance value\nlarger holes for esp32\nsilkscreen note to add jumpbers for 2nd AG1171\n"
+	(text "Fixes needed for SMD4:\ncapacitor silkscreen needs to show capacitance value\nlarger holes for esp32\nsilkscreen note to add jumpbers for 2nd AG1171\nsilkscreen note to only use uSD OR SLIC #2\nincrease capacitor clearance and update footprint clearance to AG1171 board\n\n"
 		(exclude_from_sim no)
 		(at 243.84 41.402 0)
 		(effects

@@ -137,7 +137,7 @@ void board_hardware_str(char *out, size_t len)
         (board_current_type() == BOARD_TYPE_SMD) ? "ES8388?" : "WM8731?";
     snprintf(out, len, "%s rev%d.%d \xc2\xb7 %s (%s)",
              chip, info.revision / 100, info.revision % 100, codec,
-             board_current_type() == BOARD_TYPE_SMD ? "SMD2" : "through-hole");
+             board_pcb_variant_name());
 }
 
 void board_name_get(char *out, size_t len)

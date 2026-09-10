@@ -26,6 +26,8 @@
 #include "esp_system.h"
 #include "esp_heap_caps.h"
 #include "esp_flash.h"
+#include "esp_partition.h"
+#include "nvs.h"
 #include "esp_netif.h"
 #include "nvs_flash.h"
 #include "lwip/sockets.h"
@@ -73,6 +75,7 @@ static const char *TAG = "webui";
  * UPLOAD_HEADER_SCAN_BYTES's doc comment above and this file's own
  * "append_file_select()" removal note). */
 #define STORAGE_LIST_MAX 100
+#define MEMORY_MAP_MAX_PARTS 16
 
 /* Human-readable size: "4.19 MB", "188.7 kB", "0 B" (decimal units, matching
  * how flash/card sizes are marketed). Writes into `out` and returns it so it
@@ -708,8 +711,8 @@ static int append_first_boot_banner(char *buf, size_t cap, int off)
         board_hw_config_t cfg = board_hw_config_get();
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<form method=\"POST\" action=\"/board_hw_set\" class=\"settings-form\">"
-            "<label>Hardware type -- this board's GPIO18-21 pads are wired to <em>either</em> "
-            "a second phone line <em>or</em> a microSD socket, never both"
+            "<label>Hardware type -- this board carries <em>either</em> a second phone line "
+            "<em>or</em> a microSD card, never both"
             "<select name=\"variant\">"
             "<option value=\"2line\"%s>2-line board (second AG1171 SLIC populated)</option>"
             "<option value=\"1line_sd\"%s>1-line board, microSD populated</option>"
@@ -720,8 +723,8 @@ static int append_first_boot_banner(char *buf, size_t cap, int off)
             "</form>"
             "<p class=\"hint\">Pre-selected from onboard signals (microSD card-detect switch, "
             "SLIC idle level) so it should already be right and working -- just double-check "
-            "it matches what you actually built before confirming. Wrong here drives real GPIO "
-            "pins as the wrong peripheral, so don't guess if you're not sure -- check "
+            "it matches what you actually built before confirming. Wrong here drives real "
+            "hardware as the wrong thing, so don't guess if you're not sure -- check "
             "<a href=\"/settings?tab=hardware\">Settings &rarr; Hardware</a> for the raw "
             "evidence this was based on.</p>",
             cfg.num_lines > 1 ? " selected" : "",
@@ -1759,6 +1762,148 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
     return off;
 }
 
+/* Friendly label + one-line description for a partition, by its
+ * partitions.csv label -- everything else (a partition added later without
+ * updating this list) just shows its raw label instead, not an error. */
+static const char *partition_friendly_name(const char *label)
+{
+    if (strcmp(label, "nvs") == 0)       return "Settings (NVS)";
+    if (strcmp(label, "phy_init") == 0)  return "WiFi radio calibration data";
+    if (strcmp(label, "factory") == 0)   return "App code";
+    if (strcmp(label, "storage") == 0)   return "Storage (recordings/uploads)";
+    if (strcmp(label, "bundled") == 0)   return "Bundled assets (built-in clips)";
+    return label;
+}
+
+/* Live flash/RAM breakdown -- every number here is read from the running
+ * device (esp_partition_find() walks the actual flashed partition table,
+ * not a copy of partitions.csv baked in here), so it stays correct even if
+ * that file changes later without anyone updating this card. Answers "how
+ * full is each partition" and "would an Nmb flash chip fit this layout"
+ * with real numbers instead of a guess. */
+static int append_memory_map_card(char *buf, size_t cap, int off)
+{
+    size_t ram_total = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
+    size_t ram_free  = esp_get_free_heap_size();
+    size_t ram_used  = (ram_total > ram_free) ? ram_total - ram_free : 0;
+    uint32_t flash_bytes = 0;
+    esp_flash_get_size(NULL, &flash_bytes);
+
+    /* Separate buffers, not one reused across calls -- fmt_bytes() calls as
+     * sibling arguments to the same snprintf() run in an unspecified order,
+     * so a shared buffer can end up holding the LAST call's text by the
+     * time snprintf reads an EARLIER %s from it (a real, if cosmetic, bug
+     * this card shipped with initially: RAM total showed the flash size). */
+    char ru[16], rt[16], ft[16];
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card wide\"><h2>Memory map</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">RAM</span>"
+        "<span>%s / %s used (%u%%)</span></div>"
+        "<div class=\"membar\"><div class=\"membarfill\" style=\"width:%u%%\"></div></div>"
+        "<div class=\"statusrow\" style=\"margin-top:10px\">"
+        "<span class=\"label\">Flash (total)</span><span>%s</span></div>",
+        fmt_bytes(ram_used, ru, sizeof(ru)), fmt_bytes(ram_total, rt, sizeof(rt)),
+        ram_total ? (unsigned)(100ULL * ram_used / ram_total) : 0,
+        ram_total ? (unsigned)(100ULL * ram_used / ram_total) : 0,
+        fmt_bytes(flash_bytes, ft, sizeof(ft)));
+
+    /* Walk every partition actually in the flashed table ONCE, copying what
+     * we need out -- partition.c's esp_partition_next() invalidates every
+     * existing copy of the iterator it's called on AND already releases it
+     * internally the moment it reaches the end of the list (see
+     * esp_partition_next()'s "it->next_item == NULL" branch in partition.c),
+     * returning NULL only after that free. So this loop's own `it` is
+     * already gone by the time it terminates normally -- an extra
+     * esp_partition_iterator_release(it) after the loop double-frees it
+     * (this crashed with a TLSF double-free assert the first two times
+     * around: once from re-walking `it` a second time in a separate loop,
+     * then again from this). Don't call release() at all here; the loop
+     * already owns that. Collecting into this small fixed array up front
+     * also means nothing needs `it` again afterward anyway -- there are
+     * only ever a handful of partitions. */
+    esp_partition_t parts[MEMORY_MAP_MAX_PARTS];
+    size_t n_parts = 0;
+    uint32_t allocated = 0;
+    uint32_t lowest_addr = flash_bytes;
+    esp_partition_iterator_t it = esp_partition_find(ESP_PARTITION_TYPE_ANY, ESP_PARTITION_SUBTYPE_ANY, NULL);
+    for (esp_partition_iterator_t cur = it; cur; cur = esp_partition_next(cur)) {
+        const esp_partition_t *p = esp_partition_get(cur);
+        allocated += p->size;
+        if (p->address < lowest_addr) lowest_addr = p->address;
+        if (n_parts < MEMORY_MAP_MAX_PARTS) parts[n_parts++] = *p;
+    }
+    if (lowest_addr > 0 && lowest_addr < flash_bytes) allocated += lowest_addr;
+
+    if (lowest_addr > 0) {
+        char ls[16];
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"statusrow indent\"><span class=\"label\">Bootloader + partition table</span>"
+            "<span>%s (fixed)</span></div>",
+            fmt_bytes(lowest_addr, ls, sizeof(ls)));
+    }
+
+    for (size_t i = 0; i < n_parts; i++) {
+        const esp_partition_t *p = &parts[i];
+        bool have_used = false;
+        uint64_t used = 0;
+
+        if (strcmp(p->label, "storage") == 0) {
+            used = storage_used_bytes_internal();
+            have_used = true;
+        } else if (strcmp(p->label, "bundled") == 0) {
+            storage_entry_t *entries = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
+            if (entries) {
+                size_t n = storage_list_bundled(entries, STORAGE_LIST_MAX);
+                for (size_t j = 0; j < n; j++) used += entries[j].size;
+                free(entries);
+                have_used = true;
+            }
+        } else if (strcmp(p->label, "nvs") == 0) {
+            nvs_stats_t st;
+            if (nvs_get_stats(NULL, &st) == ESP_OK && st.total_entries) {
+                /* NVS entries are fixed 32-byte pages -- an approximation
+                 * (a value can span several), but close enough to size this
+                 * partition against, and the % used is exact either way. */
+                used = (uint64_t)st.used_entries * 32;
+                have_used = true;
+            }
+        }
+
+        char cs[16], us[16];
+        unsigned pct = (p->size && have_used) ? (unsigned)(100ULL * used / p->size) : 0;
+        if (have_used) {
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<div class=\"statusrow indent\"><span class=\"label\">%s</span>"
+                "<span>%s / %s (%u%%)</span></div>"
+                "<div class=\"membar\"><div class=\"membarfill\" style=\"width:%u%%\"></div></div>",
+                partition_friendly_name(p->label), fmt_bytes((size_t)used, us, sizeof(us)),
+                fmt_bytes(p->size, cs, sizeof(cs)), pct, pct);
+        } else {
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<div class=\"statusrow indent\"><span class=\"label\">%s</span>"
+                "<span>%s capacity</span></div>",
+                partition_friendly_name(p->label), fmt_bytes(p->size, cs, sizeof(cs)));
+        }
+    }
+
+    uint32_t unallocated = (flash_bytes > allocated) ? flash_bytes - allocated : 0;
+    char us[16], fs[16];
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"statusrow indent\"><span class=\"label\">Unallocated</span>"
+        "<span>%s free for future use (a 2nd OTA slot, more partitions, ...)</span></div>"
+        "<p class=\"hint\">This board ships with a 16 MB flash chip; %s of it is actually "
+        "spoken for by the partition table above. An 8 MB chip has room for this exact layout "
+        "%s -- %s.</p></div>",
+        fmt_bytes(unallocated, us, sizeof(us)), fmt_bytes(allocated, fs, sizeof(fs)),
+        (allocated <= 8u * 1024 * 1024) ? "with room to spare" : "only if something shrinks",
+        (allocated <= 8u * 1024 * 1024)
+            ? "yes, comfortably, as flashed today"
+            : "not as flashed today -- the Storage and/or Bundled assets partitions would need "
+              "to shrink first (see their rows above for how full they actually are right now)");
+
+    return off;
+}
+
 /* SMD2-only: the "line 2 or microSD" GPIO18-21 config card. THT has no such
  * tradeoff (dedicated pins for both lines, no SD at all), so this whole card
  * is skipped there -- board_hw_config_get() already hardcodes (2, false) for
@@ -1772,16 +1917,8 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>Line 2 / microSD configuration</h2>"
-        "<p class=\"hint\">This board's GPIO 18-21 are wired to <em>either</em> a second "
-        "SLIC (line 2) <em>or</em> a microSD socket, never both -- whichever set of 0R "
-        "jumpers got populated when the board was assembled (see "
-        "<code>ROTARY_PHONE_SMD.md</code>, \"Build options\"). Firmware can't see the "
-        "jumpers themselves, so it has to be told which one is actually stuffed. Getting "
-        "this wrong doesn't just misbehave in software -- it drives real GPIO pins as the "
-        "wrong peripheral. Until confirmed, this board defaults to the safe option: 1 line, "
-        "no microSD.</p>"
         "<div class=\"statusrow\"><span class=\"label\">Current setting</span><span>%s%s</span></div>",
-        cfg.num_lines > 1 ? "2-line board (0R jumpers on line 2 populated)"
+        cfg.num_lines > 1 ? "2-line board (jumpers + 2nd AG1171 populated)"
                            : (cfg.has_microsd ? "1-line board, microSD populated"
                                                : "1-line board, no microSD"),
         confirmed ? "" : " -- <strong>unconfirmed default, please check below</strong>");
@@ -1795,33 +1932,34 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
         if (ev.valid) {
             off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
                 "<div class=\"statusrow\"><span class=\"label\">Advisory evidence</span>"
-                "<span>GPIO18-21 raw levels: %d %d %d %d -- %s</span></div>",
-                ev.raw_levels[0], ev.raw_levels[1], ev.raw_levels[2], ev.raw_levels[3],
-                ev.looks_like_line2 ? "looks more like a populated line 2 (SHK divider idle-low)"
-                                     : "looks more like an unpopulated/floating line 2 (no SD "
-                                       "hardware would explain this either)");
+                "<span>%s</span></div>",
+                ev.looks_like_line2 ? "looks more like a populated line 2"
+                                     : "looks more like an unpopulated line 2 (no SD hardware "
+                                       "would explain this either)");
         }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<p class=\"hint\">The setting above was pre-filled from this evidence "
-            "(board_hw_config_autodetect(), card detect taking priority over the weaker "
-            "GPIO18-21 read) so line 2/microSD should already work -- but a floating/"
-            "undriven pin can read as noise, so please still confirm it matches what you "
-            "actually built.</p>");
     }
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<form method=\"POST\" action=\"/board_hw_set\" class=\"settings-form\">"
         "<label>Board variant"
         "<select name=\"variant\">"
-        "<option value=\"2line\"%s>2-line board (0R jumpers present, line 2 populated)</option>"
-        "<option value=\"1line_sd\"%s>1-line board (jumpers removed), microSD populated</option>"
-        "<option value=\"1line_nosd\"%s>1-line board (jumpers removed), no microSD</option>"
+        "<option value=\"2line\"%s>2-line board (jumpers + 2nd AG1171 populated)</option>"
+        "<option value=\"1line_sd\"%s>1-line board (no jumpers), microSD populated</option>"
+        "<option value=\"1line_nosd\"%s>1-line board (no jumpers), no microSD</option>"
         "</select></label>"
         "<button type=\"submit\">Save (takes effect on reboot)</button>"
-        "</form></div>",
+        "</form>"
+        "<p class=\"hint\">This board can carry a second phone line <em>or</em> a microSD "
+        "card, never both -- pick jumpers and a second AG1171 chip for line 2, or leave the "
+        "jumpers off to use the microSD slot instead. Firmware can't see which one is "
+        "actually populated, so a wrong answer here drives real hardware as the wrong thing "
+        "%s.</p></div>",
         cfg.num_lines > 1 ? " selected" : "",
         (cfg.num_lines == 1 && cfg.has_microsd) ? " selected" : "",
-        (cfg.num_lines == 1 && !cfg.has_microsd) ? " selected" : "");
+        (cfg.num_lines == 1 && !cfg.has_microsd) ? " selected" : "",
+        confirmed ? "-- please double-check before changing it"
+                  : "-- the setting above was pre-filled from onboard evidence and should "
+                    "already work, but please confirm it matches what you actually built");
 
     return off;
 }
@@ -2272,7 +2410,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * additions on top of what the flat base below was originally sized
      * for. General's room covers the WIFI_SCAN_JS + language-picker JS on
      * its WiFi card. */
-    size_t hw_room = (strcmp(tab, "hardware") == 0) ? 9000 : 0;
+    size_t hw_room = (strcmp(tab, "hardware") == 0) ? 12000 : 0; /* +memory map card, several partition rows */
     size_t general_room = (strcmp(tab, "general") == 0) ? 2200 : 0;
     size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room;
     char *buf = malloc(cap);
@@ -2308,6 +2446,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     else {
         off = append_hw_config_tab(buf, cap, off);
         off = append_hardware_tab(buf, cap, off);
+        off = append_memory_map_card(buf, cap, off);
     }
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>" /* .cards */);
