@@ -4378,7 +4378,17 @@ static esp_err_t media_upload_handler(httpd_req_t *req)
     free(chunk);
     storage_write_end(&w);
 
-    prompts_mark_generated(name);
+    /* This is the generic "write any named file to storage" endpoint --
+     * gen_prompt.py --upload uses it for prompt/clip WAVs, and
+     * upload_i18n.py (firmware/bringup/) reuses it as-is for i18n string
+     * table JSON files (firmware/assets/i18n/), rather than needing a
+     * second upload endpoint. prompts_mark_generated() only means anything
+     * for an actual audio file (see prompts.c) -- skip it for anything
+     * else so a JSON upload doesn't leave a bogus prompts-tracking entry
+     * behind. */
+    if (is_wav_name(name) || is_mp3_name(name)) {
+        prompts_mark_generated(name);
+    }
     ESP_LOGI(TAG, "uploaded '%s' (%u bytes)", name, (unsigned)received);
     httpd_resp_sendstr(req, "ok\n");
     return ESP_OK;
