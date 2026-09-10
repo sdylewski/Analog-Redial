@@ -79,6 +79,11 @@ main { padding: 22px; max-width: 1100px; margin: 0 auto; }
 }
 .card h2 { margin: 0 0 12px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 
+/* First-boot setup banner (index_handler): same card, just visually called
+ * out with the accent color so it reads as "please look at this once,"
+ * distinct from the plain status cards around it. */
+.card.firstboot { border-color: var(--accent); background: rgba(76,194,255,.06); }
+
 .statusrow { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; }
 .statusrow .label { color: var(--muted); }
 

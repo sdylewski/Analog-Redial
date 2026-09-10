@@ -600,6 +600,71 @@ static esp_err_t catchall_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* First-boot setup banner, shown on the Status page only while there's
+ * still something a human hasn't reviewed: the board name (board_name_get()
+ * returns the generic CONFIG_MDNS_HOSTNAME default until board_name_set()
+ * is called at least once) and/or, on SMD boards, the line2/microSD
+ * hardware config (board_hw_config_is_set() -- see board.h). Hardware
+ * already WORKS out of the box via board_hw_config_autodetect()'s guess
+ * (board.c, run once at boot before ag1170_init()); this is just asking for
+ * a one-time human look, not gating function on it. Disappears for good
+ * once both are confirmed -- no dismiss button, nothing to re-show. */
+static int append_first_boot_banner(char *buf, size_t cap, int off)
+{
+    bool name_done = board_name_is_set();
+    bool hw_applicable = (board_current_type() == BOARD_TYPE_SMD);
+    bool hw_done = board_hw_config_is_set();
+    if (name_done && (!hw_applicable || hw_done)) return off;
+
+    char name[32];
+    board_name_get(name, sizeof(name));
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card wide firstboot\"><h2>First-time setup</h2>"
+        "<p class=\"hint\">Quick one-time check -- confirm these and this won't show "
+        "again.</p>");
+
+    if (!name_done) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<form method=\"POST\" action=\"/board_name\" class=\"settings-form\">"
+            "<label>Board name (shows up in the UI/logs, and as the "
+            "<code>&lt;name&gt;.local</code> address) "
+            "<input name=\"name\" value=\"%s\" maxlength=\"31\" required></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">"
+            "Confirm name</button></div>"
+            "</form>",
+            name);
+    }
+
+    if (hw_applicable && !hw_done) {
+        board_hw_config_t cfg = board_hw_config_get();
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<form method=\"POST\" action=\"/board_hw_set\" class=\"settings-form\">"
+            "<label>Hardware type -- this board's GPIO18-21 pads are wired to <em>either</em> "
+            "a second phone line <em>or</em> a microSD socket, never both"
+            "<select name=\"variant\">"
+            "<option value=\"2line\"%s>2-line board (second AG1171 SLIC populated)</option>"
+            "<option value=\"1line_sd\"%s>1-line board, microSD populated</option>"
+            "<option value=\"1line_nosd\"%s>1-line board, no microSD</option>"
+            "</select></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">"
+            "Confirm hardware type</button></div>"
+            "</form>"
+            "<p class=\"hint\">Pre-selected from onboard signals (microSD card-detect switch, "
+            "SLIC idle level) so it should already be right and working -- just double-check "
+            "it matches what you actually built before confirming. Wrong here drives real GPIO "
+            "pins as the wrong peripheral, so don't guess if you're not sure -- check "
+            "<a href=\"/settings?tab=hardware\">Settings &rarr; Hardware</a> for the raw "
+            "evidence this was based on.</p>",
+            cfg.num_lines > 1 ? " selected" : "",
+            (cfg.num_lines == 1 && cfg.has_microsd) ? " selected" : "",
+            (cfg.num_lines == 1 && !cfg.has_microsd) ? " selected" : "");
+    }
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    return off;
+}
+
 static esp_err_t index_handler(httpd_req_t *req)
 {
     if (wifi_is_provisioning()) return wifi_setup_page(req);
@@ -616,7 +681,7 @@ static esp_err_t index_handler(httpd_req_t *req)
      * activity entries, see append_activity_panel()). */
     dialplan_entry_info_t entries[40];
     size_t n = dialplan_list(entries, 40);
-    size_t cap = 8192 + n * 220;
+    size_t cap = 8192 + n * 220 + 1800; /* +1800: append_first_boot_banner(), while unconfirmed */
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
@@ -625,7 +690,11 @@ static esp_err_t index_handler(httpd_req_t *req)
         "</header>"
         "<main>"
         "<p class=\"tagline\">Plain old telephone service exchange</p>"
-        "<div class=\"cards\">"
+        "<div class=\"cards\">");
+    if (off > 0 && (size_t)off < cap) {
+        off = append_first_boot_banner(buf, cap, off);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>System</h2>"
         /* Connection status: used to live as a 3rd <header> child (a
          * "<span class=dot>" sibling of <h1>/<nav>), which broke the
@@ -853,7 +922,9 @@ static int append_mode_card(char *buf, size_t cap, int off, const char *title,
         "<button type=\"submit\">%s</button></form>"
         "<form method=\"POST\" action=\"%s\" style=\"display:inline\">"
         "<button type=\"submit\">%s</button></form>"
-        "</div></div>",
+        "</div>"
+        "<p class=\"hint\">Persists to flash (NVS) and survives a reboot.</p>"
+        "</div>",
         title, pill_class, state_label, url_a, opt_a_label, url_b, opt_b_label);
 }
 
@@ -942,8 +1013,6 @@ static int append_general_tab(char *buf, size_t cap, int off)
     off = append_mode_card(buf, cap, off, "Digit readback",
         m->readback_digits ? "on" : "off", m->readback_digits ? "On" : "Off",
         "Turn off", "921", "Turn on", "922", -1);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Persists to flash (NVS) and survives a reboot.</p>");
     return off;
 }
 
@@ -1645,18 +1714,25 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
 
     if (!confirmed) {
         board_hw_evidence_t ev = board_hw_detect_evidence();
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"statusrow\"><span class=\"label\">microSD card detect</span>"
+            "<span>%s</span></div>",
+            ev.card_present ? "card physically present" : "no card detected");
         if (ev.valid) {
             off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
                 "<div class=\"statusrow\"><span class=\"label\">Advisory evidence</span>"
-                "<span>GPIO18-21 raw levels: %d %d %d %d -- %s</span></div>"
-                "<p class=\"hint\">Passive read of the shared pins before anything has "
-                "claimed them, offered as a hint only -- not proof, and never applied "
-                "automatically. Please confirm which board you actually have below.</p>",
+                "<span>GPIO18-21 raw levels: %d %d %d %d -- %s</span></div>",
                 ev.raw_levels[0], ev.raw_levels[1], ev.raw_levels[2], ev.raw_levels[3],
                 ev.looks_like_line2 ? "looks more like a populated line 2 (SHK divider idle-low)"
                                      : "looks more like an unpopulated/floating line 2 (no SD "
                                        "hardware would explain this either)");
         }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<p class=\"hint\">The setting above was pre-filled from this evidence "
+            "(board_hw_config_autodetect(), card detect taking priority over the weaker "
+            "GPIO18-21 read) so line 2/microSD should already work -- but a floating/"
+            "undriven pin can read as noise, so please still confirm it matches what you "
+            "actually built.</p>");
     }
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,

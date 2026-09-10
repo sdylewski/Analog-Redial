@@ -201,38 +201,62 @@ typedef struct {
     bool has_microsd;  /* only meaningful combined with num_lines == 1 */
 } board_hw_config_t;
 
-/* Current config. (1, false) -- the safe default -- until
- * board_hw_config_set() has been called at least once; see
- * board_hw_config_is_set() to tell "explicitly configured to 1-line" apart
- * from "never configured, still on the default". */
+/* Current config: whatever was last written, by a human
+ * (board_hw_config_set()) OR by board_hw_config_autodetect()'s best-effort
+ * guess -- see board_hw_config_is_set() to tell those apart from each other
+ * and from "nothing written yet, on the hardcoded (1, false) fallback". */
 board_hw_config_t board_hw_config_get(void);
 
-/* True once a human has explicitly confirmed a configuration. The web UI
- * (and, on the SMD2 THT-style first-boot flow, WiFi setup) should prompt
- * for this if false, rather than silently trusting the untouched default
- * forever. */
+/* True once a human has explicitly confirmed a configuration via
+ * board_hw_config_set() -- NOT true just because board_hw_config_autodetect()
+ * has written a guess (that's the whole point: the guess should work
+ * out-of-the-box, but still needs a one-time human look, see the first-boot
+ * banner in webui.c). The web UI should prompt for this if false, rather
+ * than silently trusting an unconfirmed value forever. */
 bool board_hw_config_is_set(void);
 
 /* Rejects num_lines outside 1-2, and num_lines==2 combined with
  * has_microsd==true (the GPIO conflict this whole API exists to prevent),
  * with ESP_ERR_INVALID_ARG. Takes effect on reboot -- like every other
  * hardware config in this project, peripheral GPIO/driver init only runs
- * once at boot. */
+ * once at boot. Marks the config human-confirmed (board_hw_config_is_set()
+ * becomes true) -- this is the one function that does. */
 esp_err_t board_hw_config_set(board_hw_config_t cfg);
 
-/* Best-effort, purely advisory evidence for the config UI to show a human
- * before they confirm -- NOT authoritative, and deliberately not used to
- * drive behavior automatically (see the risk this whole file's comment
- * above describes). Just a raw, passive GPIO18-21 level read before any
- * peripheral has claimed them -- safe (input-only, drives nothing) but not
- * proof: a floating/undriven pin reads as whatever noise it picks up. Only
- * meaningful if called before ag1170's line-2 init or sdcard_init(), i.e.
- * very early in app_main() -- after boot, whichever driver is active owns
- * those pins and this will just reflect that instead. */
+/* Best-effort auto-guess, run once early in app_main() (before ag1170_init()
+ * and any sdcard_init()) so line 2 or microSD actually works out of the box
+ * on a fresh board instead of sitting on the conservative (1, false)
+ * fallback until someone visits Settings. No-op if a value already exists
+ * (a prior guess, or a human's explicit confirm) -- only ever fires once,
+ * on the very first boot after flashing/factory-reset. Deliberately does
+ * NOT mark the config confirmed (board_hw_config_is_set() stays false) --
+ * it's a guess, not a human's word, so the first-boot banner still asks for
+ * a one-time review. Evidence used, strongest first: the SD_CD card-detect
+ * pin (SMD4 only -- a real physical switch, decisive when a board has one:
+ * a card can only be seated on a board actually wired for microSD), then
+ * board_hw_detect_evidence()'s weaker SHK-divider heuristic for 2-line vs
+ * 1-line. Falls back to (1, false) if neither gives a positive read. */
+void board_hw_config_autodetect(void);
+
+/* Best-effort, purely advisory evidence for a human to sanity-check
+ * board_hw_config_autodetect()'s guess against -- e.g. Settings ->
+ * Hardware's "Advisory evidence" row, or the first-boot banner. NOT
+ * authoritative on its own (see that function's doc comment for why a wrong
+ * guess matters). The raw_levels/looks_like_line2 GPIO18-21 read is only
+ * physically possible before any peripheral has claimed those pins -- input-
+ * only, drives nothing, but a floating/undriven pin reads as whatever noise
+ * it picks up, so it's cached from whenever that first real read happened
+ * (autodetect(), very early in app_main(), before ag1170_init()/
+ * sdcard_init() can claim them) and just replayed on every later call in
+ * the same boot -- this function does NOT re-read those 4 pins once
+ * something owns them, it would glitch a live peripheral. card_present
+ * (BOARD_SD_CD, SMD4 only) has no such restriction -- it's a dedicated,
+ * always-safe-to-read pin -- so that field is live every call, not cached. */
 typedef struct {
-    bool valid;               /* false if board type isn't SMD2 -- no GPIO18-21 pair to read */
-    int  raw_levels[4];        /* GPIO 18,19,20,21 as read, 0/1 each */
-    bool looks_like_line2;     /* SHK-equivalent (GPIO19) reads low at rest, as a bare/idle AG1171 SHK divider would */
+    bool valid;               /* false if board type isn't SMD -- no GPIO18-21 pair to read, or no cached reading exists (already had a confirmed/guessed value before the first read this boot) */
+    int  raw_levels[4];        /* GPIO 18,19,20,21 as read at cache time, 0/1 each */
+    bool looks_like_line2;     /* SHK-equivalent (GPIO19) read low at rest, as a bare/idle AG1171 SHK divider would */
+    bool card_present;         /* BOARD_SD_CD read low (card physically seated) -- always false on boards without a CD pin (SMD2) */
 } board_hw_evidence_t;
 board_hw_evidence_t board_hw_detect_evidence(void);
 

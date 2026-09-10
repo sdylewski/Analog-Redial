@@ -104,6 +104,13 @@ void app_main(void)
     aec_init();
     prompts_init();
 
+    /* 3c. Best-effort hardware auto-detect -- only ever does anything on a
+     * truly fresh board/factory-reset (no-op once any value, guessed or
+     * confirmed, already exists). Must run before ag1170_init() below,
+     * which is the first thing that actually claims GPIO 18-21 based on
+     * whatever board_hw_config_get() says. */
+    board_hw_config_autodetect();
+
     /* 4. SLIC line interface. Line 2 vs. microSD on the shared GPIO 18-21
      * pads is a runtime choice now (board_hw_config_get(), board.h) rather
      * than a separate firmware build -- ag1170_init() itself reads that

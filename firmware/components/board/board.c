@@ -408,6 +408,7 @@ esp_err_t board_record_max_ms_set(uint32_t ms)
 #define HW_CONFIG_NVS_NS       "board"
 #define HW_CONFIG_NVS_KEY_LINES "hw_lines"  /* u8: 1 or 2 */
 #define HW_CONFIG_NVS_KEY_SD    "hw_sd"     /* u8: 0 or 1 */
+#define HW_CONFIG_NVS_KEY_CONFIRMED "hw_confirmed" /* u8: 1 once a human has actually reviewed this */
 
 board_hw_config_t board_hw_config_get(void)
 {
@@ -416,7 +417,7 @@ board_hw_config_t board_hw_config_get(void)
     if (board_current_type() != BOARD_TYPE_SMD) {
         return (board_hw_config_t){ .num_lines = 2, .has_microsd = false };
     }
-    board_hw_config_t cfg = { .num_lines = 1, .has_microsd = false }; /* safe default */
+    board_hw_config_t cfg = { .num_lines = 1, .has_microsd = false }; /* safe fallback if nothing saved yet */
     nvs_handle_t h;
     if (nvs_open(HW_CONFIG_NVS_NS, NVS_READONLY, &h) == ESP_OK) {
         uint8_t lines = 0, sd = 0;
@@ -431,15 +432,32 @@ board_hw_config_t board_hw_config_get(void)
     return cfg;
 }
 
-bool board_hw_config_is_set(void)
+/* Internal: has *any* value ever been written (by a human OR
+ * board_hw_config_autodetect()), regardless of whether it's been reviewed?
+ * This is the real "has something already claimed GPIO18-21 based on a
+ * written config" signal -- board_hw_detect_evidence()'s safety guard needs
+ * this, not board_hw_config_is_set() (which now means "human-confirmed" and
+ * can be false for a while after autodetect() has already written and
+ * applied a guess -- see that function's doc comment). */
+static bool hw_config_value_written(void)
 {
-    if (board_current_type() != BOARD_TYPE_SMD) return true; /* nothing to configure */
     nvs_handle_t h;
     if (nvs_open(HW_CONFIG_NVS_NS, NVS_READONLY, &h) != ESP_OK) return false;
     uint8_t lines = 0;
     esp_err_t err = nvs_get_u8(h, HW_CONFIG_NVS_KEY_LINES, &lines);
     nvs_close(h);
     return err == ESP_OK;
+}
+
+bool board_hw_config_is_set(void)
+{
+    if (board_current_type() != BOARD_TYPE_SMD) return true; /* nothing to configure */
+    nvs_handle_t h;
+    if (nvs_open(HW_CONFIG_NVS_NS, NVS_READONLY, &h) != ESP_OK) return false;
+    uint8_t confirmed = 0;
+    esp_err_t err = nvs_get_u8(h, HW_CONFIG_NVS_KEY_CONFIRMED, &confirmed);
+    nvs_close(h);
+    return err == ESP_OK && confirmed != 0;
 }
 
 esp_err_t board_hw_config_set(board_hw_config_t cfg)
@@ -452,6 +470,11 @@ esp_err_t board_hw_config_set(board_hw_config_t cfg)
     if (err != ESP_OK) return err;
     err = nvs_set_u8(h, HW_CONFIG_NVS_KEY_LINES, (uint8_t)cfg.num_lines);
     if (err == ESP_OK) err = nvs_set_u8(h, HW_CONFIG_NVS_KEY_SD, cfg.has_microsd ? 1 : 0);
+    /* A human went through the Settings/first-boot form and hit Save --
+     * that's what makes this "confirmed", not just a value existing (see
+     * board_hw_config_autodetect(), which writes lines/sd but deliberately
+     * never this flag). */
+    if (err == ESP_OK) err = nvs_set_u8(h, HW_CONFIG_NVS_KEY_CONFIRMED, 1);
     if (err == ESP_OK) err = nvs_commit(h);
     nvs_close(h);
     if (err == ESP_OK) {
@@ -462,42 +485,109 @@ esp_err_t board_hw_config_set(board_hw_config_t cfg)
     return err;
 }
 
+/* Reads BOARD_SD_CD (a dedicated, always-safe-to-read mechanical
+ * card-detect switch, SMD4 only) -- separate from the cached-once GPIO18-21
+ * read below since this pin has no "might glitch a live peripheral" risk
+ * and is worth reflecting live on every call. */
+static bool read_card_present(void)
+{
+#ifdef BOARD_SD_CD
+    gpio_config_t cd_cfg = {
+        .pin_bit_mask = 1ULL << BOARD_SD_CD,
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+    };
+    gpio_config(&cd_cfg);
+    return gpio_get_level(BOARD_SD_CD) == 0;
+#else
+    return false;
+#endif
+}
+
+static board_hw_evidence_t s_cached_gpio_evidence;
+static bool                s_have_cached_gpio_evidence;
+
 board_hw_evidence_t board_hw_detect_evidence(void)
 {
     board_hw_evidence_t ev = { .valid = false };
     if (board_current_type() != BOARD_TYPE_SMD) return ev;
-    /* GPIO18-21 are only safe to reconfigure as plain inputs here if NO
-     * driver has claimed them yet. Once the config is explicitly confirmed
-     * (board_hw_config_is_set()), ag1170_init() may already own them as a
-     * SLIC (line 2) or sdcard_init() may own them as SPI (microSD) -- in
-     * either case, yanking them to GPIO_MODE_INPUT mid-run would glitch a
-     * live peripheral (e.g. an in-flight SD SPI transaction). Evidence is
-     * only meaningful/safe before that point anyway: it exists to help the
-     * user make the FIRST confirmation, not to second-guess one already
-     * made. */
-    if (board_hw_config_is_set()) return ev;
 
-    const gpio_num_t pins[4] = {
-        BOARD_LINE2_PIN_PD_CS, BOARD_LINE2_PIN_SHK_SCLK,
-        BOARD_LINE2_PIN_RM_MOSI, BOARD_LINE2_PIN_FR_MISO,
-    };
-    for (int i = 0; i < 4; i++) {
-        gpio_config_t c = {
-            .pin_bit_mask = 1ULL << pins[i],
-            .mode = GPIO_MODE_INPUT,
-            .pull_up_en = GPIO_PULLUP_DISABLE,
-            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+    /* GPIO18-21 are only safe to read as plain inputs if NO driver has
+     * claimed them yet -- once a config value has been written
+     * (hw_config_value_written() -- by a human OR by
+     * board_hw_config_autodetect()'s guess), ag1170_init() may already own
+     * them as a SLIC (line 2) or sdcard_init() may own them as SPI
+     * (microSD), and re-reading would glitch a live peripheral (e.g. an
+     * in-flight SD SPI transaction). Once a real read has happened, though,
+     * it's cached and replayed here on every later call in the same boot --
+     * autodetect() runs before anything claims these pins, but callers
+     * after that (e.g. the Settings -> Hardware page, possibly loaded many
+     * times) still need something to show a human sanity-checking the
+     * guess against, not just "no evidence available" forever. */
+    if (s_have_cached_gpio_evidence) {
+        ev = s_cached_gpio_evidence;
+    } else if (!hw_config_value_written()) {
+        const gpio_num_t pins[4] = {
+            BOARD_LINE2_PIN_PD_CS, BOARD_LINE2_PIN_SHK_SCLK,
+            BOARD_LINE2_PIN_RM_MOSI, BOARD_LINE2_PIN_FR_MISO,
         };
-        gpio_config(&c);
-        ev.raw_levels[i] = gpio_get_level(pins[i]);
+        for (int i = 0; i < 4; i++) {
+            gpio_config_t c = {
+                .pin_bit_mask = 1ULL << pins[i],
+                .mode = GPIO_MODE_INPUT,
+                .pull_up_en = GPIO_PULLUP_DISABLE,
+                .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            };
+            gpio_config(&c);
+            ev.raw_levels[i] = gpio_get_level(pins[i]);
+        }
+        /* An idle/on-hook AG1171 SHK divider (see docs/signal-levels.md)
+         * pulls this low at rest; an unpopulated/floating microSD CLK pin
+         * has no such reason to read consistently low. Weak evidence, not
+         * proof -- purely advisory, see board.h. */
+        ev.looks_like_line2 = (ev.raw_levels[1] == 0);
+        ev.valid = true;
+        s_cached_gpio_evidence = ev;
+        s_have_cached_gpio_evidence = true;
     }
-    /* An idle/on-hook AG1171 SHK divider (see docs/signal-levels.md)
-     * pulls this low at rest; an unpopulated/floating microSD CLK pin has no
-     * such reason to read consistently low. Weak evidence, not proof --
-     * purely advisory, see board.h. */
-    ev.looks_like_line2 = (ev.raw_levels[1] == 0);
-    ev.valid = true;
+
+    ev.card_present = read_card_present();
     return ev;
+}
+
+void board_hw_config_autodetect(void)
+{
+    if (board_current_type() != BOARD_TYPE_SMD) return;
+    if (hw_config_value_written()) return; /* already guessed once, or human-confirmed */
+
+    board_hw_config_t cfg = { .num_lines = 1, .has_microsd = false }; /* fallback if evidence is ambiguous */
+
+    /* card_present first, and decisive if it fires: a card can only be
+     * physically seated on a board actually wired for microSD, never a
+     * line-2 SLIC -- this is a real mechanical switch reading, not a
+     * heuristic. Only SMD4 has this pin (see read_card_present()'s own
+     * #ifdef); SMD2 falls through to the SHK-divider evidence below. */
+    board_hw_evidence_t ev = board_hw_detect_evidence();
+    if (ev.card_present) {
+        cfg.has_microsd = true;
+    } else if (ev.valid && ev.looks_like_line2) {
+        cfg.num_lines = 2;
+        cfg.has_microsd = false;
+    }
+
+    nvs_handle_t h;
+    if (nvs_open(HW_CONFIG_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    nvs_set_u8(h, HW_CONFIG_NVS_KEY_LINES, (uint8_t)cfg.num_lines);
+    nvs_set_u8(h, HW_CONFIG_NVS_KEY_SD, cfg.has_microsd ? 1 : 0);
+    /* Deliberately not HW_CONFIG_NVS_KEY_CONFIRMED -- this is a guess, not a
+     * human's word; board_hw_config_is_set() must stay false so the
+     * first-boot banner still asks for a one-time confirm-or-correct. */
+    nvs_commit(h);
+    nvs_close(h);
+
+    ESP_LOGI(TAG, "hardware auto-detected: %d line%s, microSD %s (unconfirmed -- "
+                  "check Settings -> Hardware when convenient)",
+             cfg.num_lines, cfg.num_lines == 1 ? "" : "s", cfg.has_microsd ? "yes" : "no");
 }
 
 void board_hostname(char *out, size_t len)
