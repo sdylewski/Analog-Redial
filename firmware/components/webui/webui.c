@@ -2,6 +2,7 @@
 #include "sdkconfig.h"
 #include "esp_http_server.h"
 #include "cJSON.h"
+#include "i18n.h"
 #include "wifi.h"
 #include "board.h"
 #include "board_config.h"
@@ -468,11 +469,11 @@ static const char *pill_class_for(tel_state_t s)
  * /guide still resolves, just as a redirect to /. Shared across every page
  * handler so the tab set and .active highlighting can't drift out of sync
  * between pages. */
-typedef struct { const char *href; const char *label; } nav_tab_t;
+typedef struct { const char *href; const char *label; const char *i18n_key; } nav_tab_t;
 static const nav_tab_t NAV_TABS[] = {
-    { "/",           "Status" },
-    { "/recordings", "Recordings" },
-    { "/settings",   "Settings" },
+    { "/",           "Status",     "nav.status" },
+    { "/recordings", "Recordings", "nav.recordings" },
+    { "/settings",   "Settings",   "nav.settings" },
 };
 #define NAV_TABS_N (sizeof(NAV_TABS) / sizeof(NAV_TABS[0]))
 
@@ -509,14 +510,14 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
         "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">"
         "<link rel=\"stylesheet\" href=\"/static/style.css\"></head><body>"
-        "<header><h1>%s <span class=\"dot\">Analog Redial</span></h1><nav>",
+        "<header><h1>%s <span class=\"dot\">%s</span></h1><nav>",
         name, page_title, auto_refresh ? "<meta http-equiv=\"refresh\" content=\"5\">" : "",
-        name);
+        name, i18n_str("header.subtitle", "Analog Redial"));
     for (size_t i = 0; i < NAV_TABS_N; i++) {
         bool active = strcmp(NAV_TABS[i].href, active_href) == 0;
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<a%s href=\"%s\">%s</a>", active ? " class=\"active\"" : "",
-            NAV_TABS[i].href, NAV_TABS[i].label);
+            NAV_TABS[i].href, i18n_str(NAV_TABS[i].i18n_key, NAV_TABS[i].label));
     }
     /* Language picker: lives inside <nav> (not as a 3rd <header> child --
      * see append_page_head()'s git history for why that broke the
@@ -691,45 +692,47 @@ static int append_first_boot_banner(char *buf, size_t cap, int off)
     board_name_get(name, sizeof(name));
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide firstboot\"><h2>First-time setup</h2>"
-        "<p class=\"hint\">Quick one-time check -- confirm these and this won't show "
-        "again.</p>");
+        "<div class=\"card wide firstboot\"><h2>%s</h2>"
+        "<p class=\"hint\">%s</p>",
+        i18n_str("firstboot.title", "First-time setup"),
+        i18n_str("firstboot.intro", "Quick one-time check -- confirm these and this won't show again."));
 
     if (!name_done) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<form method=\"POST\" action=\"/board_name\" class=\"settings-form\">"
-            "<label>Board name (shows up in the UI/logs, and as the "
-            "<code>&lt;name&gt;.local</code> address) "
+            "<label>%s "
             "<input name=\"name\" value=\"%s\" maxlength=\"31\" required></label>"
             "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">"
-            "Confirm name</button></div>"
+            "%s</button></div>"
             "</form>",
-            name);
+            i18n_str("firstboot.name.label",
+                     "Board name (shows up in the UI/logs, and as the <name>.local address)"),
+            name, i18n_str("firstboot.name.button", "Confirm name"));
     }
 
     if (hw_applicable && !hw_done) {
         board_hw_config_t cfg = board_hw_config_get();
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<form method=\"POST\" action=\"/board_hw_set\" class=\"settings-form\">"
-            "<label>Hardware type -- this board carries <em>either</em> a second phone line "
-            "<em>or</em> a microSD card, never both"
+            "<label>%s"
             "<select name=\"variant\">"
             "<option value=\"2line\"%s>2-line board (second AG1171 SLIC populated)</option>"
             "<option value=\"1line_sd\"%s>1-line board, microSD populated</option>"
             "<option value=\"1line_nosd\"%s>1-line board, no microSD</option>"
             "</select></label>"
             "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">"
-            "Confirm hardware type</button></div>"
+            "%s</button></div>"
             "</form>"
-            "<p class=\"hint\">Pre-selected from onboard signals (microSD card-detect switch, "
-            "SLIC idle level) so it should already be right and working -- just double-check "
-            "it matches what you actually built before confirming. Wrong here drives real "
-            "hardware as the wrong thing, so don't guess if you're not sure -- check "
-            "<a href=\"/settings?tab=hardware\">Settings &rarr; Hardware</a> for the raw "
-            "evidence this was based on.</p>",
+            "<p class=\"hint\">%s</p>",
+            i18n_str("firstboot.hw.label", "Hardware type -- this board carries either a second "
+                     "phone line or a microSD card, never both"),
             cfg.num_lines > 1 ? " selected" : "",
             (cfg.num_lines == 1 && cfg.has_microsd) ? " selected" : "",
-            (cfg.num_lines == 1 && !cfg.has_microsd) ? " selected" : "");
+            (cfg.num_lines == 1 && !cfg.has_microsd) ? " selected" : "",
+            i18n_str("firstboot.hw.button", "Confirm hardware type"),
+            i18n_str("firstboot.hw.hint", "Pre-selected from onboard signals so it should already "
+                     "be right and working -- just double-check it matches what you actually "
+                     "built before confirming."));
     }
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
@@ -762,34 +765,43 @@ static esp_err_t index_handler(httpd_req_t *req)
      * first-boot banner's form fields below every few seconds. Off while
      * that banner has something to ask for; back on once both are
      * confirmed and the banner stops rendering for good. */
-    int off = append_page_head(buf, cap, 0, "Status", "/", !first_boot_banner_needed());
+    int off = append_page_head(buf, cap, 0, i18n_str("nav.status", "Status"), "/", !first_boot_banner_needed());
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "</header>"
         "<main>"
-        "<p class=\"tagline\">Plain old telephone service exchange</p>"
-        "<div class=\"cards\">");
+        "<p class=\"tagline\">%s</p>"
+        "<div class=\"cards\">",
+        i18n_str("status.tagline", "Plain old telephone service exchange"));
     if (off > 0 && (size_t)off < cap) {
         off = append_first_boot_banner(buf, cap, off);
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>System</h2>"
+        "<div class=\"card\"><h2>%s</h2>"
         /* Connection status: used to live as a 3rd <header> child (a
          * "<span class=dot>" sibling of <h1>/<nav>), which broke the
          * header's flex space-between layout (nav needs to be the LAST
          * child to sit flush right) -- moved here since it's the same
          * information the System card already shows underneath. */
-        "<div class=\"statusrow\"><span class=\"label\">Connection</span><span>%s%s%s</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">WiFi</span><span>%s, %d dBm</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">IP</span><span>%s</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">Uptime</span><span>%lld s</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">Free heap</span><span>%s</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">Storage used</span><span>%s / %s%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s%s%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s, %d dBm</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%lld s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s / %s%s</span></div>"
         "</div>",
-        wifi_is_connected() ? "connected" : "disconnected",
+        i18n_str("status.system.title", "System"),
+        i18n_str("status.system.connection", "Connection"),
+        wifi_is_connected() ? i18n_str("status.system.connected", "connected")
+                             : i18n_str("status.system.disconnected", "disconnected"),
         wifi_is_connected() ? " \xc2\xb7 " : "", wifi_is_connected() ? ip : "",
-        wifi_get_ssid()[0] ? wifi_get_ssid() : "(not configured)", wifi_rssi(),
-        ip, (long long)uptime_s,
+        i18n_str("status.system.wifi", "WiFi"),
+        wifi_get_ssid()[0] ? wifi_get_ssid() : i18n_str("status.system.not_configured", "(not configured)"),
+        wifi_rssi(),
+        i18n_str("status.system.ip", "IP"), ip,
+        i18n_str("status.system.uptime", "Uptime"), (long long)uptime_s,
+        i18n_str("status.system.free_heap", "Free heap"),
         fmt_bytes(esp_get_free_heap_size(), hb, sizeof(hb)),
+        i18n_str("status.system.storage_used", "Storage used"),
         /* True uint64_t SD getters, not the saturating primary-backend ones
          * -- see the matching comment in recordings_page_handler(). */
         fmt_bytes(storage_sd_present() ? storage_used_bytes_sd() : storage_used_bytes_internal(), su, sizeof(su)),
@@ -807,15 +819,20 @@ static esp_err_t index_handler(httpd_req_t *req)
         else if (cnum[0])             snprintf(caller, sizeof(caller), "%s", cnum);
         else                          snprintf(caller, sizeof(caller), "%s", "&mdash;");
 
+        char line_title[32];
+        snprintf(line_title, sizeof(line_title), i18n_str("status.line.title", "Line %d"), l);
         off += snprintf(buf + off, cap - off,
-            "<div class=\"card\"><h2>Line %d</h2>"
-            "<div class=\"statusrow\"><span class=\"label\">State</span>"
+            "<div class=\"card\"><h2>%s</h2>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span>"
             "<span class=\"pill %s\">%s</span></div>"
-            "<div class=\"statusrow\"><span class=\"label\">Last number</span><span>%s</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
             "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
             "</div>",
-            l, pill_class_for(st), telephony_state_name(st), telephony_last_number(l),
-            st == TEL_RINGING ? "Incoming call" : "Last caller", caller);
+            line_title, i18n_str("status.line.state", "State"), pill_class_for(st), telephony_state_name(st),
+            i18n_str("status.line.last_number", "Last number"), telephony_last_number(l),
+            st == TEL_RINGING ? i18n_str("status.line.incoming_call", "Incoming call")
+                              : i18n_str("status.line.last_caller", "Last caller"),
+            caller);
     }
     if (off > 0 && (size_t)off < cap) {
         off += snprintf(buf + off, cap - off, "</div>" /* .cards */);
@@ -874,7 +891,7 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
     char *buf = malloc(cap);
     if (!buf) { free(entries); httpd_resp_send_500(req); return ESP_FAIL; }
 
-    int off = append_page_head(buf, cap, 0, "Recordings", "/recordings", false);
+    int off = append_page_head(buf, cap, 0, i18n_str("nav.recordings", "Recordings"), "/recordings", false);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "</header><main>"
         "<div class=\"card\"><h2>Recordings (%u)</h2>"
@@ -992,7 +1009,7 @@ static int append_mode_card(char *buf, size_t cap, int off, const char *title,
     mode_set_url(url_b, sizeof(url_b), opt_b_code, line);
     return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">Current</span>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span class=\"pill %s\">%s</span></div>"
         "<div class=\"toolbar sub\">"
         "<form method=\"POST\" action=\"%s\" style=\"display:inline\">"
@@ -1000,9 +1017,11 @@ static int append_mode_card(char *buf, size_t cap, int off, const char *title,
         "<form method=\"POST\" action=\"%s\" style=\"display:inline\">"
         "<button type=\"submit\">%s</button></form>"
         "</div>"
-        "<p class=\"hint\">Persists to flash (NVS) and survives a reboot.</p>"
+        "<p class=\"hint\">%s</p>"
         "</div>",
-        title, pill_class, state_label, url_a, opt_a_label, url_b, opt_b_label);
+        title, i18n_str("general.current", "Current"), pill_class, state_label,
+        url_a, opt_a_label, url_b, opt_b_label,
+        i18n_str("general.persists_hint", "Persists to flash (NVS) and survives a reboot."));
 }
 
 static int append_general_tab(char *buf, size_t cap, int off)
@@ -1010,86 +1029,130 @@ static int append_general_tab(char *buf, size_t cap, int off)
     char name[32], host[64];
     board_name_get(name, sizeof(name));
     board_hostname(host, sizeof(host));
+    /* This hint's translated text still carries a %s (for the hostname) --
+     * render it into its own buffer first, since it can't be both "the
+     * format string" and "one argument of the outer format string" in the
+     * same snprintf call. Same two-step pattern used for every other hint
+     * below that has a placeholder of its own. */
+    char boardname_hint[400];
+    snprintf(boardname_hint, sizeof(boardname_hint),
+        i18n_str("general.boardname.hint",
+                 "Labels this board in the UI and logs when you run several on one network. "
+                 "Also sets the mDNS address: reachable as <code>%s.local</code>. Hardware type "
+                 "and serial are on the <a href=\"/settings?tab=hardware\">Hardware</a> tab."),
+        host);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Board name</h2>"
+        "<div class=\"card\"><h2>%s</h2>"
         "<form method=\"POST\" action=\"/board_name\" class=\"settings-form\">"
-        "<label>Name <input name=\"name\" value=\"%s\" maxlength=\"31\" required></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save name</button></div>"
+        "<label>%s <input name=\"name\" value=\"%s\" maxlength=\"31\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>"
-        "<p class=\"hint\">Labels this board in the UI and logs when you run several on one "
-        "network. Also sets the mDNS address: reachable as <code>%s.local</code>. "
-        "Hardware type and serial are on the <a href=\"/settings?tab=hardware\">Hardware</a> tab.</p>"
+        "<p class=\"hint\">%s</p>"
         "</div>",
-        name, host);
+        i18n_str("general.boardname.title", "Board name"),
+        i18n_str("general.boardname.label", "Name"), name,
+        i18n_str("general.boardname.button", "Save name"),
+        boardname_hint);
 
     char lang[8];
     board_language_get(lang, sizeof(lang));
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Language</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">Current</span><span>%s</span></div>"
+        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<form method=\"POST\" action=\"/language_set\" class=\"settings-form\">"
-        "<label>Code (e.g. en, it, es) <input name=\"lang\" value=\"%s\" maxlength=\"7\" required></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save language</button></div>"
+        "<label>%s <input name=\"lang\" value=\"%s\" maxlength=\"7\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>"
-        "<p class=\"hint\">One language for the whole phone, set here rather than switched in "
-        "use (no 901/902 dial codes) -- generate that language's prompt/number audio during "
-        "setup with <code>gen_prompt.py</code>, then leave it. No prompt audio exists yet to "
-        "actually be affected by this.</p></div>",
-        lang, lang);
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("general.language.title", "Language"),
+        i18n_str("general.language.current", "Current"), lang,
+        i18n_str("general.language.label", "Code (e.g. en, it, es)"), lang,
+        i18n_str("general.language.button", "Save language"),
+        i18n_str("general.language.hint",
+                 "One language for the whole phone, set here rather than switched in use (no "
+                 "901/902 dial codes) -- generate that language's prompt/number audio during "
+                 "setup with <code>gen_prompt.py</code>, then leave it. No prompt audio exists "
+                 "yet to actually be affected by this."));
 
     char ssid[33];
     strncpy(ssid, wifi_get_ssid(), sizeof(ssid) - 1);
     ssid[sizeof(ssid) - 1] = '\0';
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>WiFi</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">Current</span><span>%s</span></div>"
+        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<form method=\"POST\" action=\"/wifi_set\" class=\"settings-form\">"
-        "<label>SSID"
+        "<label>%s"
         "<select id=\"ssid_select\" name=\"ssid\" data-current=\"%s\" required "
         "onchange=\"wifiSelectChange()\">"
-        "<option value=\"\">Scanning for nearby networks\xe2\x80\xa6</option>"
+        "<option value=\"\">%s\xe2\x80\xa6</option>"
         "</select></label>"
-        "<div id=\"ssid_manual_row\" style=\"display:none\"><label>SSID "
-        "<input id=\"ssid_manual\" placeholder=\"Enter network name\" autocomplete=\"off\"></label></div>"
-        "<p class=\"hint\"><a href=\"#\" onclick=\"wifiRescan();return false;\">Rescan</a></p>"
-        "<noscript><label>SSID <input name=\"ssid\" value=\"%s\" required></label></noscript>"
-        "<label>Password <input type=\"password\" name=\"password\" "
-        "placeholder=\"leave blank for an open network\"></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Connect</button></div>"
+        "<div id=\"ssid_manual_row\" style=\"display:none\"><label>%s "
+        "<input id=\"ssid_manual\" placeholder=\"%s\" autocomplete=\"off\"></label></div>"
+        "<p class=\"hint\"><a href=\"#\" onclick=\"wifiRescan();return false;\">%s</a></p>"
+        "<noscript><label>%s <input name=\"ssid\" value=\"%s\" required></label></noscript>"
+        "<label>%s <input type=\"password\" name=\"password\" "
+        "placeholder=\"%s\"></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>"
-        "<p class=\"hint\">Saved to flash (NVS); the device reconnects immediately, no reboot needed.</p>"
+        "<p class=\"hint\">%s</p>"
         "<script>%s</script>"
         "</div>",
-        ssid[0] ? ssid : "(not configured)", ssid, ssid, WIFI_SCAN_JS);
+        i18n_str("general.wifi.title", "WiFi"),
+        i18n_str("general.wifi.current", "Current"),
+        ssid[0] ? ssid : i18n_str("status.system.not_configured", "(not configured)"),
+        i18n_str("general.wifi.ssid_label", "SSID"), ssid,
+        i18n_str("general.wifi.scanning", "Scanning for nearby networks"),
+        i18n_str("general.wifi.ssid_label", "SSID"),
+        i18n_str("general.wifi.enter_network", "Enter network name"),
+        i18n_str("general.wifi.rescan", "Rescan"),
+        i18n_str("general.wifi.ssid_label", "SSID"), ssid,
+        i18n_str("general.wifi.password_label", "Password"),
+        i18n_str("general.wifi.password_placeholder", "leave blank for an open network"),
+        i18n_str("general.wifi.button", "Connect"),
+        i18n_str("general.wifi.hint",
+                 "Saved to flash (NVS); the device reconnects immediately, no reboot needed."),
+        WIFI_SCAN_JS);
 
     board_offhook_alert_t roh = board_offhook_alert_get();
     char roh_status[48];
-    if (roh.enabled) snprintf(roh_status, sizeof(roh_status), "on, after %u s", (unsigned)roh.seconds);
-    else             snprintf(roh_status, sizeof(roh_status), "off");
+    if (roh.enabled) {
+        snprintf(roh_status, sizeof(roh_status),
+                 i18n_str("general.offhook.status_on", "on, after %u s"), (unsigned)roh.seconds);
+    } else {
+        snprintf(roh_status, sizeof(roh_status), "%s", i18n_str("general.offhook.status_off", "off"));
+    }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Off-hook alert</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">Current</span><span>%s</span></div>"
+        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<form method=\"POST\" action=\"/offhook_alert\" class=\"settings-form\">"
-        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> Enabled</label>"
-        "<label>Seconds on dial tone before the alert "
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
+        "<label>%s "
         "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>"
-        "<p class=\"hint\">A handset left off the hook sits on dial tone forever, and the line "
-        "is unreachable the whole time (callers get busy) with nothing to draw attention to it. "
-        "This plays the loud, warbling \"receiver off-hook\" alert real phone switches use "
-        "(1400+2060+2450+2600&nbsp;Hz, 100&nbsp;ms on/off, per Telcordia GR-506-CORE) once dial "
-        "tone has gone untouched this long. Hanging up stops it. The clock restarts on every "
-        "return to dial tone, so only a genuinely forgotten handset ever reaches it. "
-        "Takes effect on the next dial tone -- no reboot.</p></div>",
-        roh_status,
-        roh.enabled ? " checked" : "",
-        (unsigned)roh.seconds, BOARD_OFFHOOK_ALERT_MIN_S, BOARD_OFFHOOK_ALERT_MAX_S);
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("general.offhook.title", "Off-hook alert"),
+        i18n_str("general.current", "Current"), roh_status,
+        roh.enabled ? " checked" : "", i18n_str("general.offhook.enabled", "Enabled"),
+        i18n_str("general.offhook.seconds_label", "Seconds on dial tone before the alert"),
+        (unsigned)roh.seconds, BOARD_OFFHOOK_ALERT_MIN_S, BOARD_OFFHOOK_ALERT_MAX_S,
+        i18n_str("general.button.save", "Save"),
+        i18n_str("general.offhook.hint",
+                 "A handset left off the hook sits on dial tone forever, and the line is "
+                 "unreachable the whole time (callers get busy) with nothing to draw attention "
+                 "to it. This plays the loud, warbling \"receiver off-hook\" alert real phone "
+                 "switches use (1400+2060+2450+2600&nbsp;Hz, 100&nbsp;ms on/off, per Telcordia "
+                 "GR-506-CORE) once dial tone has gone untouched this long. Hanging up stops "
+                 "it. The clock restarts on every return to dial tone, so only a genuinely "
+                 "forgotten handset ever reaches it. Takes effect on the next dial tone -- no "
+                 "reboot."));
 
     dialplan_modes_t *m = dialplan_modes();
-    off = append_mode_card(buf, cap, off, "Digit readback",
-        m->readback_digits ? "on" : "off", m->readback_digits ? "On" : "Off",
-        "Turn off", "921", "Turn on", "922", -1);
+    off = append_mode_card(buf, cap, off, i18n_str("general.readback.title", "Digit readback"),
+        m->readback_digits ? "on" : "off",
+        m->readback_digits ? i18n_str("general.readback.on", "On") : i18n_str("general.readback.off", "Off"),
+        i18n_str("general.button.turn_off", "Turn off"), "921",
+        i18n_str("general.button.turn_on", "Turn on"), "922", -1);
     return off;
 }
 
@@ -1508,42 +1571,54 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         if (storage_sd_present()) {
             char sdc[16];
             snprintf(sd_row, sizeof(sd_row),
-                "<div class=\"statusrow\"><span class=\"label\">microSD</span>"
-                "<span class=\"pill on\">present, %s</span></div>",
+                "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+                "<span class=\"pill on\">%s %s</span></div>",
+                i18n_str("hardware.microsd", "microSD"),
+                i18n_str("hardware.microsd.present", "present,"),
                 fmt_bytes(storage_cap_bytes_sd(), sdc, sizeof(sdc)));
         } else {
             snprintf(sd_row, sizeof(sd_row),
-                "<div class=\"statusrow\"><span class=\"label\">microSD</span>"
-                "<span class=\"pill off\">not detected -- inserted &amp; FAT-formatted?</span></div>");
+                "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+                "<span class=\"pill off\">%s</span></div>",
+                i18n_str("hardware.microsd", "microSD"),
+                i18n_str("hardware.microsd.absent", "not detected -- inserted &amp; FAT-formatted?"));
         }
     }
 
     char fl[16], ru[16], rf[16], su[16], sf[16];
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Hardware</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">Type</span><span>%s</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">Codec (detected)</span><span>%s</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">Serial (chip MAC)</span>"
+        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span><code>%s</code></span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">Firmware</span><span>ESP-IDF %s</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">Flash (total)</span><span>%s</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">RAM used / free</span><span>%s / %s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>ESP-IDF %s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s / %s</span></div>"
         "%s"
-        "<div class=\"statusrow\"><span class=\"label\">Storage used / free</span>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span>%s / %s%s</span></div>"
-        "<p class=\"hint\">Type is fixed at build time (<code>CONFIG_BOARD_TYPE_*</code>) since "
-        "GPIO routing is per-PCB; the detected codec is probed live on the I2C bus and warns in "
-        "the log if it disagrees. Serial is the factory MAC -- unique per chip, survives reflash. "
-        "Flash is the whole chip; Storage is whichever backend is primary (the microSD card "
-        "above, if present, otherwise internal flash) -- see "
-        "<a href=\"/settings?tab=storage\">Settings &rarr; Storage</a> for both listed "
-        "separately. RAM is live internal heap. Uptime/WiFi are on the <a href=\"/\">Status</a> "
-        "page.</p></div>",
-        hw, board_codec_name(detected), serial, esp_get_idf_version(),
-        fmt_bytes(flash_bytes, fl, sizeof(fl)),
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("hardware.title", "Hardware"),
+        i18n_str("hardware.type", "Type"), hw,
+        i18n_str("hardware.codec_detected", "Codec (detected)"), board_codec_name(detected),
+        i18n_str("hardware.serial", "Serial (chip MAC)"), serial,
+        i18n_str("hardware.firmware", "Firmware"), esp_get_idf_version(),
+        i18n_str("hardware.flash_total", "Flash (total)"), fmt_bytes(flash_bytes, fl, sizeof(fl)),
+        i18n_str("hardware.ram", "RAM used / free"),
         fmt_bytes(ram_used, ru, sizeof(ru)), fmt_bytes(ram_free, rf, sizeof(rf)), sd_row,
+        i18n_str("hardware.storage", "Storage used / free"),
         fmt_bytes(st_used, su, sizeof(su)), fmt_bytes(st_free, sf, sizeof(sf)),
-        storage_using_sd() ? " (SD)" : "");
+        storage_using_sd() ? " (SD)" : "",
+        i18n_str("hardware.hint",
+                 "Type is fixed at build time (<code>CONFIG_BOARD_TYPE_*</code>) since GPIO "
+                 "routing is per-PCB; the detected codec is probed live on the I2C bus and warns "
+                 "in the log if it disagrees. Serial is the factory MAC -- unique per chip, "
+                 "survives reflash. Flash is the whole chip; Storage is whichever backend is "
+                 "primary (the microSD card above, if present, otherwise internal flash) -- see "
+                 "<a href=\"/settings?tab=storage\">Settings &rarr; Storage</a> for both listed "
+                 "separately. RAM is live internal heap. Uptime/WiFi are on the <a href=\"/\">"
+                 "Status</a> page."));
 
     /* Speaker volume, echo cancellation, and low-power idle mode: all
      * "physical resource behavior" cards, grouped here with the rest of
@@ -1735,29 +1810,40 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "comes first. Picking up the handset at any point takes the call live instead.</p></div>");
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Reset</h2>"
+        "<div class=\"card\"><h2>%s</h2>"
         "<form method=\"POST\" action=\"/wifi_reprovision\" class=\"settings-form\" "
-        "onsubmit=\"return confirm('Clear the saved WiFi network and reboot into setup mode? "
-        "Every other setting stays as-is.')\">"
-        "<div class=\"toolbar sub\"><button type=\"submit\">Re-provision WiFi\xe2\x80\xa6</button></div>"
+        "onsubmit=\"return confirm('%s')\">"
+        "<div class=\"toolbar sub\"><button type=\"submit\">%s\xe2\x80\xa6</button></div>"
         "</form>"
-        "<p class=\"hint\">Clears the saved WiFi network only and reboots into setup mode "
-        "(the <code>AnalogRedial-XXXX</code> network) -- everything else (board name, dial "
-        "codes, VoIP, recordings) is untouched. Use this when moving the board to a "
-        "different WiFi network.</p>"
+        "<p class=\"hint\">%s</p>"
         "<form method=\"POST\" action=\"/factory_reset\" class=\"settings-form\" "
-        "onsubmit=\"return confirm('Reset ALL settings to factory defaults and reboot? "
-        "This clears WiFi, board name, dial codes, VoIP, and every other saved setting. "
-        "Uploaded audio/recordings are NOT deleted. This cannot be undone.')\">"
+        "onsubmit=\"return confirm('%s')\">"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"danger\">"
-        "Reset to factory settings\xe2\x80\xa6</button></div>"
+        "%s\xe2\x80\xa6</button></div>"
         "</form>"
-        "<p class=\"hint\">Erases every saved setting (WiFi, board name, dial codes, VoIP, "
-        "idle-power, log level) and reboots to a genuinely out-of-box state -- for handing "
-        "the board to someone else. Uploaded audio and recordings are files, not settings, "
-        "and are <strong>not</strong> deleted -- clear those individually from Settings "
-        "\xe2\x86\x92 Storage first if you want a truly clean board.</p>"
-        "</div>");
+        "<p class=\"hint\">%s</p>"
+        "</div>",
+        i18n_str("reset.title", "Reset"),
+        i18n_str("reset.wifi.confirm",
+                 "Clear the saved WiFi network and reboot into setup mode? "
+                 "Every other setting stays as-is."),
+        i18n_str("reset.wifi.button", "Re-provision WiFi"),
+        i18n_str("reset.wifi.hint",
+                 "Clears the saved WiFi network only and reboots into setup mode (the "
+                 "<code>AnalogRedial-XXXX</code> network) -- everything else (board name, dial "
+                 "codes, VoIP, recordings) is untouched. Use this when moving the board to a "
+                 "different WiFi network."),
+        i18n_str("reset.factory.confirm",
+                 "Reset ALL settings to factory defaults and reboot? This clears WiFi, board "
+                 "name, dial codes, VoIP, and every other saved setting. Uploaded audio and "
+                 "recordings are NOT deleted. This cannot be undone."),
+        i18n_str("reset.factory.button", "Reset to factory settings"),
+        i18n_str("reset.factory.hint",
+                 "Erases every saved setting (WiFi, board name, dial codes, VoIP, idle-power, "
+                 "log level) and reboots to a genuinely out-of-box state -- for handing the "
+                 "board to someone else. Uploaded audio and recordings are files, not settings, "
+                 "and are <strong>not</strong> deleted -- clear those individually from Settings "
+                 "\xe2\x86\x92 Storage first if you want a truly clean board."));
 
     return off;
 }
@@ -1767,11 +1853,11 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
  * updating this list) just shows its raw label instead, not an error. */
 static const char *partition_friendly_name(const char *label)
 {
-    if (strcmp(label, "nvs") == 0)       return "Settings (NVS)";
-    if (strcmp(label, "phy_init") == 0)  return "WiFi radio calibration data";
-    if (strcmp(label, "factory") == 0)   return "App code";
-    if (strcmp(label, "storage") == 0)   return "Storage (recordings/uploads)";
-    if (strcmp(label, "bundled") == 0)   return "Bundled assets (built-in clips)";
+    if (strcmp(label, "nvs") == 0)       return i18n_str("memmap.nvs", "Settings (NVS)");
+    if (strcmp(label, "phy_init") == 0)  return i18n_str("memmap.phy_init", "WiFi radio calibration data");
+    if (strcmp(label, "factory") == 0)   return i18n_str("memmap.app", "App code");
+    if (strcmp(label, "storage") == 0)   return i18n_str("memmap.storage", "Storage (recordings/uploads)");
+    if (strcmp(label, "bundled") == 0)   return i18n_str("memmap.bundled", "Bundled assets (built-in clips)");
     return label;
 }
 
@@ -1796,16 +1882,19 @@ static int append_memory_map_card(char *buf, size_t cap, int off)
      * this card shipped with initially: RAM total showed the flash size). */
     char ru[16], rt[16], ft[16];
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\"><h2>Memory map</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">RAM</span>"
-        "<span>%s / %s used (%u%%)</span></div>"
+        "<div class=\"card wide\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+        "<span>%s / %s %s (%u%%)</span></div>"
         "<div class=\"membar\"><div class=\"membarfill\" style=\"width:%u%%\"></div></div>"
         "<div class=\"statusrow\" style=\"margin-top:10px\">"
-        "<span class=\"label\">Flash (total)</span><span>%s</span></div>",
+        "<span class=\"label\">%s</span><span>%s</span></div>",
+        i18n_str("memmap.title", "Memory map"),
+        i18n_str("memmap.ram", "RAM"),
         fmt_bytes(ram_used, ru, sizeof(ru)), fmt_bytes(ram_total, rt, sizeof(rt)),
+        i18n_str("memmap.used", "used"),
         ram_total ? (unsigned)(100ULL * ram_used / ram_total) : 0,
         ram_total ? (unsigned)(100ULL * ram_used / ram_total) : 0,
-        fmt_bytes(flash_bytes, ft, sizeof(ft)));
+        i18n_str("hardware.flash_total", "Flash (total)"), fmt_bytes(flash_bytes, ft, sizeof(ft)));
 
     /* Walk every partition actually in the flashed table ONCE, copying what
      * we need out -- partition.c's esp_partition_next() invalidates every
@@ -1837,9 +1926,10 @@ static int append_memory_map_card(char *buf, size_t cap, int off)
     if (lowest_addr > 0) {
         char ls[16];
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"statusrow indent\"><span class=\"label\">Bootloader + partition table</span>"
-            "<span>%s (fixed)</span></div>",
-            fmt_bytes(lowest_addr, ls, sizeof(ls)));
+            "<div class=\"statusrow indent\"><span class=\"label\">%s</span>"
+            "<span>%s (%s)</span></div>",
+            i18n_str("memmap.bootloader", "Bootloader + partition table"),
+            fmt_bytes(lowest_addr, ls, sizeof(ls)), i18n_str("memmap.fixed", "fixed"));
     }
 
     for (size_t i = 0; i < n_parts; i++) {
@@ -1881,25 +1971,38 @@ static int append_memory_map_card(char *buf, size_t cap, int off)
         } else {
             off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
                 "<div class=\"statusrow indent\"><span class=\"label\">%s</span>"
-                "<span>%s capacity</span></div>",
-                partition_friendly_name(p->label), fmt_bytes(p->size, cs, sizeof(cs)));
+                "<span>%s %s</span></div>",
+                partition_friendly_name(p->label), fmt_bytes(p->size, cs, sizeof(cs)),
+                i18n_str("memmap.capacity", "capacity"));
         }
     }
 
     uint32_t unallocated = (flash_bytes > allocated) ? flash_bytes - allocated : 0;
     char us[16], fs[16];
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"statusrow indent\"><span class=\"label\">Unallocated</span>"
-        "<span>%s free for future use (a 2nd OTA slot, more partitions, ...)</span></div>"
-        "<p class=\"hint\">This board ships with a 16 MB flash chip; %s of it is actually "
-        "spoken for by the partition table above. An 8 MB chip has room for this exact layout "
-        "%s -- %s.</p></div>",
-        fmt_bytes(unallocated, us, sizeof(us)), fmt_bytes(allocated, fs, sizeof(fs)),
-        (allocated <= 8u * 1024 * 1024) ? "with room to spare" : "only if something shrinks",
+    /* This hint's translated text still carries a %s (the allocated-bytes
+     * figure) -- render into a scratch buffer first, same two-step pattern
+     * used elsewhere in this file for the same reason. */
+    char fit8mb_hint[500];
+    snprintf(fit8mb_hint, sizeof(fit8mb_hint),
         (allocated <= 8u * 1024 * 1024)
-            ? "yes, comfortably, as flashed today"
-            : "not as flashed today -- the Storage and/or Bundled assets partitions would need "
-              "to shrink first (see their rows above for how full they actually are right now)");
+            ? i18n_str("memmap.fits_8mb",
+                       "This board ships with a 16 MB flash chip; only %s of it is actually "
+                       "spoken for by the partition table above -- an 8 MB chip would fit this "
+                       "exact layout comfortably.")
+            : i18n_str("memmap.no_fit_8mb",
+                       "This board ships with a 16 MB flash chip; %s of it is actually spoken "
+                       "for by the partition table above -- an 8 MB chip would NOT fit this "
+                       "exact layout as flashed today. The Storage and/or Bundled assets "
+                       "partitions would need to shrink first (see their rows above for how "
+                       "full they actually are right now)."),
+        fmt_bytes(allocated, fs, sizeof(fs)));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"statusrow indent\"><span class=\"label\">%s</span>"
+        "<span>%s %s</span></div>"
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("memmap.unallocated", "Unallocated"), fmt_bytes(unallocated, us, sizeof(us)),
+        i18n_str("memmap.unallocated_hint", "free for future use (a 2nd OTA slot, more partitions, ...)"),
+        fit8mb_hint);
 
     return off;
 }
@@ -1916,50 +2019,67 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
     bool confirmed = board_hw_config_is_set();
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Line 2 / microSD configuration</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">Current setting</span><span>%s%s</span></div>",
-        cfg.num_lines > 1 ? "2-line board (jumpers + 2nd AG1171 populated)"
-                           : (cfg.has_microsd ? "1-line board, microSD populated"
-                                               : "1-line board, no microSD"),
-        confirmed ? "" : " -- <strong>unconfirmed default, please check below</strong>");
+        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s%s</span></div>",
+        i18n_str("hwconfig.title", "Line 2 / microSD configuration"),
+        i18n_str("hwconfig.current", "Current setting"),
+        cfg.num_lines > 1 ? i18n_str("hwconfig.2line", "2-line board (jumpers + 2nd AG1171 populated)")
+                           : (cfg.has_microsd ? i18n_str("hwconfig.1line_sd", "1-line board, microSD populated")
+                                               : i18n_str("hwconfig.1line_nosd", "1-line board, no microSD")),
+        confirmed ? "" : i18n_str("hwconfig.unconfirmed",
+                                  " -- <strong>unconfirmed default, please check below</strong>"));
 
     if (!confirmed) {
         board_hw_evidence_t ev = board_hw_detect_evidence();
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"statusrow\"><span class=\"label\">microSD card detect</span>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span>"
             "<span>%s</span></div>",
-            ev.card_present ? "card physically present" : "no card detected");
+            i18n_str("hwconfig.card_detect", "microSD card detect"),
+            ev.card_present ? i18n_str("hwconfig.card_present", "card physically present")
+                            : i18n_str("hwconfig.card_absent", "no card detected"));
         if (ev.valid) {
             off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-                "<div class=\"statusrow\"><span class=\"label\">Advisory evidence</span>"
+                "<div class=\"statusrow\"><span class=\"label\">%s</span>"
                 "<span>%s</span></div>",
-                ev.looks_like_line2 ? "looks more like a populated line 2"
-                                     : "looks more like an unpopulated line 2 (no SD hardware "
-                                       "would explain this either)");
+                i18n_str("hwconfig.evidence", "Advisory evidence"),
+                ev.looks_like_line2
+                    ? i18n_str("hwconfig.evidence_line2", "looks more like a populated line 2")
+                    : i18n_str("hwconfig.evidence_no_line2",
+                               "looks more like an unpopulated line 2 (no SD hardware would "
+                               "explain this either)"));
         }
     }
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<form method=\"POST\" action=\"/board_hw_set\" class=\"settings-form\">"
-        "<label>Board variant"
+        "<label>%s"
         "<select name=\"variant\">"
-        "<option value=\"2line\"%s>2-line board (jumpers + 2nd AG1171 populated)</option>"
-        "<option value=\"1line_sd\"%s>1-line board (no jumpers), microSD populated</option>"
-        "<option value=\"1line_nosd\"%s>1-line board (no jumpers), no microSD</option>"
+        "<option value=\"2line\"%s>%s</option>"
+        "<option value=\"1line_sd\"%s>%s</option>"
+        "<option value=\"1line_nosd\"%s>%s</option>"
         "</select></label>"
-        "<button type=\"submit\">Save (takes effect on reboot)</button>"
+        "<button type=\"submit\">%s</button>"
         "</form>"
-        "<p class=\"hint\">This board can carry a second phone line <em>or</em> a microSD "
-        "card, never both -- pick jumpers and a second AG1171 chip for line 2, or leave the "
-        "jumpers off to use the microSD slot instead. Firmware can't see which one is "
-        "actually populated, so a wrong answer here drives real hardware as the wrong thing "
-        "%s.</p></div>",
+        "<p class=\"hint\">%s %s</p></div>",
+        i18n_str("hwconfig.variant_label", "Board variant"),
         cfg.num_lines > 1 ? " selected" : "",
+        i18n_str("hwconfig.2line", "2-line board (jumpers + 2nd AG1171 populated)"),
         (cfg.num_lines == 1 && cfg.has_microsd) ? " selected" : "",
+        i18n_str("hwconfig.opt_1line_sd", "1-line board (no jumpers), microSD populated"),
         (cfg.num_lines == 1 && !cfg.has_microsd) ? " selected" : "",
-        confirmed ? "-- please double-check before changing it"
-                  : "-- the setting above was pre-filled from onboard evidence and should "
-                    "already work, but please confirm it matches what you actually built");
+        i18n_str("hwconfig.opt_1line_nosd", "1-line board (no jumpers), no microSD"),
+        i18n_str("hwconfig.button", "Save (takes effect on reboot)"),
+        i18n_str("hwconfig.hint",
+                 "This board can carry a second phone line <em>or</em> a microSD card, never "
+                 "both -- pick jumpers and a second AG1171 chip for line 2, or leave the "
+                 "jumpers off to use the microSD slot instead. Firmware can't see which one is "
+                 "actually populated, so a wrong answer here drives real hardware as the wrong "
+                 "thing"),
+        confirmed
+            ? i18n_str("hwconfig.hint_confirmed", "-- please double-check before changing it")
+            : i18n_str("hwconfig.hint_unconfirmed",
+                       "-- the setting above was pre-filled from onboard evidence and should "
+                       "already work, but please confirm it matches what you actually built"));
 
     return off;
 }
@@ -2416,7 +2536,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
-    int off = append_page_head(buf, cap, 0, "Settings", "/settings", false);
+    int off = append_page_head(buf, cap, 0, i18n_str("nav.settings", "Settings"), "/settings", false);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "</header><main class=\"settings-main\">");
     off = append_settings_tabs(buf, cap, off, tab);
