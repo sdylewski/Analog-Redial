@@ -2513,6 +2513,27 @@ static esp_err_t wifi_set_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* 303-redirects back to whichever page submitted this form (the Referer
+ * header) if one was sent, else `fallback`. Several settings forms now
+ * appear on more than one page -- e.g. board name and hardware type appear
+ * both on their normal Settings tab AND on the Status page's first-boot
+ * banner (append_first_boot_banner()) -- so a fixed redirect target would
+ * always bounce back to Settings, forcing a trip back to Status to fill in
+ * whichever field wasn't done yet. `fallback` only matters for direct
+ * API-style POSTs with no Referer at all (e.g. a script), not real browser
+ * form submissions. */
+static void redirect_to_referer_or(httpd_req_t *req, const char *fallback)
+{
+    char referer[128];
+    httpd_resp_set_status(req, "303 See Other");
+    if (httpd_req_get_hdr_value_str(req, "Referer", referer, sizeof(referer)) == ESP_OK) {
+        httpd_resp_set_hdr(req, "Location", referer);
+    } else {
+        httpd_resp_set_hdr(req, "Location", fallback);
+    }
+    httpd_resp_send(req, NULL, 0);
+}
+
 /* Shared by /wifi_reprovision and /factory_reset: a short confirmation page,
  * then reboot once the response has flushed (reboot_task, above). */
 static esp_err_t send_reboot_page(httpd_req_t *req, const char *title, const char *body_html)
@@ -2593,9 +2614,12 @@ static esp_err_t board_name_handler(httpd_req_t *req)
         wifi_apply_hostname();
     }
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
-    httpd_resp_send(req, NULL, 0);
+    /* Also appears on the Status page's first-boot banner
+     * (append_first_boot_banner()), not just Settings -> General -- bounce
+     * back to wherever it was actually submitted from, so confirming this
+     * from the banner returns to Status (where the hardware-type field
+     * might still be waiting) instead of yanking to Settings. */
+    redirect_to_referer_or(req, "/settings?tab=general");
     return ESP_OK;
 }
 
@@ -2620,20 +2644,9 @@ static esp_err_t language_set_handler(httpd_req_t *req)
     }
     board_language_set(lang);
 
-    /* Bounce back to whichever page changed it -- now reachable from the
-     * header picker on every page (append_page_head()), not just Settings ->
-     * General, so a fixed redirect target would yank the user back to
-     * Settings from wherever they actually were. Same Referer-bounce pattern
-     * as prompt_text_set_handler, same harmless fallback. */
-    char referer[128];
-    if (httpd_req_get_hdr_value_str(req, "Referer", referer, sizeof(referer)) == ESP_OK) {
-        httpd_resp_set_status(req, "303 See Other");
-        httpd_resp_set_hdr(req, "Location", referer);
-    } else {
-        httpd_resp_set_status(req, "303 See Other");
-        httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
-    }
-    httpd_resp_send(req, NULL, 0);
+    /* Reachable from the header picker on every page, not just Settings ->
+     * General, so bounce back to wherever it was actually used. */
+    redirect_to_referer_or(req, "/settings?tab=general");
     return ESP_OK;
 }
 
@@ -2804,9 +2817,9 @@ static esp_err_t board_hw_set_handler(httpd_req_t *req)
     }
     board_hw_config_set(cfg);
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=hardware");
-    httpd_resp_send(req, NULL, 0);
+    /* Also appears on the Status page's first-boot banner -- see
+     * board_name_handler's matching comment just above. */
+    redirect_to_referer_or(req, "/settings?tab=hardware");
     return ESP_OK;
 }
 
@@ -4260,21 +4273,10 @@ static esp_err_t prompt_text_set_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    /* Bounce back to whichever page sent the form -- Referer is the only
-     * place that's recorded, since this one endpoint serves three different
-     * prompt fields (Operator, Record message, and each Dial Codes row),
-     * all on the Dial Codes & Prompts settings tab. Falls back to the
-     * general tab, which is harmless (not "settings.php-style redirect"
-     * territory -- nothing else reads this header). */
-    char referer[128];
-    if (httpd_req_get_hdr_value_str(req, "Referer", referer, sizeof(referer)) == ESP_OK) {
-        httpd_resp_set_status(req, "303 See Other");
-        httpd_resp_set_hdr(req, "Location", referer);
-    } else {
-        httpd_resp_set_status(req, "303 See Other");
-        httpd_resp_set_hdr(req, "Location", "/settings");
-    }
-    httpd_resp_send(req, NULL, 0);
+    /* Bounce back to whichever page sent the form -- this one endpoint
+     * serves three different prompt fields (Operator, Record message, and
+     * each Dial Codes row), all on the Dial Codes & Prompts settings tab. */
+    redirect_to_referer_or(req, "/settings");
     return ESP_OK;
 }
 
