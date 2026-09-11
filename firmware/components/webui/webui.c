@@ -600,6 +600,26 @@ static const char *WIFI_SCAN_JS =
     "}"
     "wifiRescan();";
 
+/* Recording a message or greeting only ever finishes at hang-up, well after
+ * the page that started it was rendered -- there's no request/response to
+ * hook a refresh onto. Poll instead: watch /api/status for any line
+ * dropping OUT of RECORDING (a state telephony.c already reports, see
+ * telephony_state_name()) and reload once that happens. Shared by the
+ * Recordings page (211 messages) and the Hardware tab's Answering Machine
+ * card (212 greetings) -- same signal either way, just different rows
+ * waiting to update once it fires. */
+static const char *RECORDING_RELOAD_JS =
+    "(function(){"
+    "var wasRecording=false;"
+    "setInterval(function(){"
+    "fetch('/api/status').then(function(r){return r.json();}).then(function(d){"
+    "var recording=(d.lines||[]).some(function(l){return l.state==='RECORDING';});"
+    "if(wasRecording&&!recording){location.reload();}"
+    "wasRecording=recording;"
+    "}).catch(function(){});"
+    "},2000);"
+    "})();";
+
 /* Setup page served on the SoftAP: an SSID picker (scanned live) + password
  * form. Kept minimal and self-contained (its own <form>, the shared
  * stylesheet) so it works before any network config exists. */
@@ -950,13 +970,15 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
             "</div>"
             "<p class=\"hint\">%s: %s / %s%s. %s "
             "<a href=\"/api/recordings\">%s</a>.</p>"
+            "<script>%s</script>"
             "</main></body></html>",
             i18n_str("recordings.storage_label", "Storage"),
             fmt_bytes(sd ? storage_used_bytes_sd() : storage_used_bytes_internal(), su, sizeof(su)),
             fmt_bytes(sd ? storage_cap_bytes_sd() : storage_cap_bytes_internal(), sc, sizeof(sc)),
             sd ? " (SD)" : " (internal flash)",
             i18n_str("recordings.raw_list", "Raw list:"),
-            i18n_str("recordings.json_link", "recordings JSON"));
+            i18n_str("recordings.json_link", "recordings JSON"),
+            RECORDING_RELOAD_JS);
     }
 
     httpd_resp_set_type(req, "text/html");
@@ -1909,7 +1931,8 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         }
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">%s</p></div>",
+        "<p class=\"hint\">%s</p></div>"
+        "<script>%s</script>",
         i18n_str("am.hint",
                  "Record each line's greeting from that line's own phone: pick up, dial 2-1-2, "
                  "speak after the beep, hang up (or pause ~8s) to save -- overwrites the previous "
@@ -1917,7 +1940,8 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                  "way. With no greeting recorded, callers just hear the beep. After the "
                  "configured rings, the line auto-answers, plays the greeting then a beep, then "
                  "records the caller -- capped at the length above or ~8s of silence, whichever "
-                 "comes first. Picking up the handset at any point takes the call live instead."));
+                 "comes first. Picking up the handset at any point takes the call live instead."),
+        RECORDING_RELOAD_JS);
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>"
@@ -3114,8 +3138,18 @@ static esp_err_t idle_power_settings_handler(httpd_req_t *req)
         .minutes = minutes[0] ? (uint16_t)strtoul(minutes, NULL, 10) : 0,
         .max_savings = (max_savings[0] == '1'),
     };
-    if (idle_power_set(cfg) != ESP_OK) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "minutes out of range");
+    esp_err_t err = idle_power_set(cfg);
+    if (err != ESP_OK) {
+        /* idle_power_set() only ever returns ESP_ERR_INVALID_ARG for a
+         * genuinely out-of-range value -- anything else (an NVS write
+         * failure, say) got mislabeled "minutes out of range" here before,
+         * which sent someone chasing an off-by-one in a form field that was
+         * never the actual problem. Log what really happened; only claim
+         * it's the range specifically when it is. */
+        ESP_LOGW(TAG, "idle_power_set failed: %s (minutes='%s' -> %u)",
+                 esp_err_to_name(err), minutes, (unsigned)cfg.minutes);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+            err == ESP_ERR_INVALID_ARG ? "minutes out of range" : "failed to save (see device log)");
         return ESP_OK;
     }
 
