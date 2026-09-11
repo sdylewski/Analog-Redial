@@ -1057,6 +1057,22 @@ esp_err_t voip_set_config(const char *server, const char *user0, const char *pas
     if (pass1)  nvs_set_str(h, "pass1", pass1);
     err = nvs_commit(h);
     nvs_close(h);
+
+    /* Update the in-RAM cache immediately too -- voip_server()/voip_user()
+     * otherwise keep returning whatever load_config() read at boot until the
+     * next reboot, which made the just-saved values vanish from the web UI's
+     * form and its copy-paste config examples even though the save itself
+     * succeeded. Actual SIP re-registration against the new values still only
+     * happens on reboot, matching the "(takes effect on reboot)" button label
+     * -- only the display-facing cache needs to be fresh here. */
+    if (err == ESP_OK) {
+        if (server) { strncpy(s_server, server, sizeof(s_server) - 1); s_server[sizeof(s_server) - 1] = '\0'; }
+        if (user0)  { strncpy(s_l[0].user, user0, sizeof(s_l[0].user) - 1); s_l[0].user[sizeof(s_l[0].user) - 1] = '\0'; }
+        if (pass0)  { strncpy(s_l[0].pass, pass0, sizeof(s_l[0].pass) - 1); s_l[0].pass[sizeof(s_l[0].pass) - 1] = '\0'; }
+        if (user1)  { strncpy(s_l[1].user, user1, sizeof(s_l[1].user) - 1); s_l[1].user[sizeof(s_l[1].user) - 1] = '\0'; }
+        if (pass1)  { strncpy(s_l[1].pass, pass1, sizeof(s_l[1].pass) - 1); s_l[1].pass[sizeof(s_l[1].pass) - 1] = '\0'; }
+    }
+
     ESP_LOGI(TAG, "VoIP config saved; reboot to apply");
     return err;
 }
