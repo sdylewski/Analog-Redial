@@ -607,36 +607,58 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
 {
     static const char *tmpl =
         "<!doctype html><html><head><meta charset=\"utf-8\">"
-        "<title>Analog Redial \xc2\xb7 WiFi setup</title>"
+        "<title>Analog Redial \xc2\xb7 %s</title>"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
         "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">"
         "<link rel=\"stylesheet\" href=\"/static/style.css\"></head><body>"
-        "<header><h1>Analog Redial <span class=\"dot\">WiFi setup</span></h1></header>"
+        "<header><h1>Analog Redial <span class=\"dot\">%s</span></h1></header>"
         "<main class=\"auth-page\"><div class=\"auth-card\">"
-        "<h1>Connect to your WiFi</h1>"
-        "<p class=\"hint\">Enter your home network so the phone can join it. "
-        "It'll reboot and connect; this setup network then disappears.</p>"
+        "<h1>%s</h1>"
+        "<p class=\"hint\">%s</p>"
         "<form method=\"POST\" action=\"/wifi_set\" class=\"settings-form\">"
-        "<label>Network name (SSID)"
+        "<label>%s"
         "<select id=\"ssid_select\" name=\"ssid\" required autofocus onchange=\"wifiSelectChange()\">"
-        "<option value=\"\">Scanning for nearby networks\xe2\x80\xa6</option>"
+        "<option value=\"\">%s\xe2\x80\xa6</option>"
         "</select></label>"
-        "<div id=\"ssid_manual_row\" style=\"display:none\"><label>Network name (SSID)"
-        "<input id=\"ssid_manual\" placeholder=\"Enter network name\" autocomplete=\"off\"></label></div>"
-        "<p class=\"hint\"><a href=\"#\" onclick=\"wifiRescan();return false;\">Rescan</a></p>"
-        "<noscript><label>Network name (SSID) <input name=\"ssid\" required></label></noscript>"
-        "<label>Password <input type=\"password\" name=\"password\" "
-        "placeholder=\"leave blank for an open network\"></label>"
+        "<div id=\"ssid_manual_row\" style=\"display:none\"><label>%s"
+        "<input id=\"ssid_manual\" placeholder=\"%s\" autocomplete=\"off\"></label></div>"
+        "<p class=\"hint\"><a href=\"#\" onclick=\"wifiRescan();return false;\">%s</a></p>"
+        "<noscript><label>%s <input name=\"ssid\" required></label></noscript>"
+        "<label>%s <input type=\"password\" name=\"password\" "
+        "placeholder=\"%s\"></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">"
-        "Save &amp; connect</button></div>"
+        "%s</button></div>"
         "</form></div></main>"
         "<script>%s</script>"
         "</body></html>";
 
-    size_t cap = strlen(tmpl) + strlen(WIFI_SCAN_JS) + 16;
+    const char *setup_title = i18n_str("wifisetup.title", "WiFi setup");
+    const char *connect_h1 = i18n_str("wifisetup.h1", "Connect to your WiFi");
+    const char *intro = i18n_str("wifisetup.intro",
+        "Enter your home network so the phone can join it. It'll reboot and connect; this "
+        "setup network then disappears.");
+    const char *ssid_label = i18n_str("general.wifi.ssid_label", "SSID");
+    const char *network_name_label = i18n_str("wifisetup.network_name", "Network name (SSID)");
+    const char *scanning = i18n_str("general.wifi.scanning", "Scanning for nearby networks");
+    const char *enter_network = i18n_str("general.wifi.enter_network", "Enter network name");
+    const char *rescan = i18n_str("general.wifi.rescan", "Rescan");
+    const char *password_label = i18n_str("general.wifi.password_label", "Password");
+    const char *password_placeholder = i18n_str("general.wifi.password_placeholder",
+        "leave blank for an open network");
+    const char *save_connect = i18n_str("wifisetup.save_connect", "Save & connect");
+
+    size_t cap = strlen(tmpl) + strlen(WIFI_SCAN_JS)
+               + strlen(setup_title) * 2 + strlen(connect_h1) + strlen(intro)
+               + strlen(network_name_label) * 2 + strlen(scanning) + strlen(enter_network)
+               + strlen(rescan) + strlen(ssid_label) + strlen(password_label) * 2
+               + strlen(password_placeholder) + strlen(save_connect) + 32;
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
-    snprintf(buf, cap, tmpl, WIFI_SCAN_JS);
+    snprintf(buf, cap, tmpl,
+        setup_title, setup_title, connect_h1, intro,
+        network_name_label, scanning, network_name_label, enter_network, rescan,
+        ssid_label, password_label, password_placeholder, save_connect,
+        WIFI_SCAN_JS);
 
     httpd_resp_set_type(req, "text/html");
     httpd_resp_sendstr(req, buf);
@@ -892,16 +914,22 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
     if (!buf) { free(entries); httpd_resp_send_500(req); return ESP_FAIL; }
 
     int off = append_page_head(buf, cap, 0, i18n_str("nav.recordings", "Recordings"), "/recordings", false);
+    char recordings_h2[48];
+    snprintf(recordings_h2, sizeof(recordings_h2), i18n_str("recordings.title", "Recordings (%u)"),
+             (unsigned)shown);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "</header><main>"
-        "<div class=\"card\"><h2>Recordings (%u)</h2>"
-        "<p class=\"hint\">Messages left with dial code 211. Built-in audio "
-        "(operator, clips) is under <a href=\"/settings\">Settings</a>.</p>",
-        (unsigned)shown);
+        "<div class=\"card\"><h2>%s</h2>"
+        "<p class=\"hint\">%s</p>",
+        recordings_h2,
+        i18n_str("recordings.hint",
+                 "Messages left with dial code 211. Built-in audio (operator, clips) is under "
+                 "<a href=\"/settings\">Settings</a>."));
 
     if (shown == 0) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"empty\">none yet \xe2\x80\x94 dial 211, leave a message, hang up</div>");
+            "<div class=\"empty\">%s</div>",
+            i18n_str("recordings.none_yet", "none yet \xe2\x80\x94 dial 211, leave a message, hang up"));
     } else {
         /* Same table renderer Settings -> Storage uses, filtered to rec_*
          * names and with the "Recorded" column turned on -- see
@@ -920,12 +948,15 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
          * tab's correct figure for the same card. */
         off += snprintf(buf + off, cap - off,
             "</div>"
-            "<p class=\"hint\">Storage: %s / %s%s. Raw list: "
-            "<a href=\"/api/recordings\">recordings JSON</a>.</p>"
+            "<p class=\"hint\">%s: %s / %s%s. %s "
+            "<a href=\"/api/recordings\">%s</a>.</p>"
             "</main></body></html>",
+            i18n_str("recordings.storage_label", "Storage"),
             fmt_bytes(sd ? storage_used_bytes_sd() : storage_used_bytes_internal(), su, sizeof(su)),
             fmt_bytes(sd ? storage_cap_bytes_sd() : storage_cap_bytes_internal(), sc, sizeof(sc)),
-            sd ? " (SD)" : " (internal flash)");
+            sd ? " (SD)" : " (internal flash)",
+            i18n_str("recordings.raw_list", "Raw list:"),
+            i18n_str("recordings.json_link", "recordings JSON"));
     }
 
     httpd_resp_set_type(req, "text/html");
@@ -964,14 +995,14 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
  * socket table (see webui_start()'s lru_purge_enable comment). Keeping it
  * a separate tab means visiting Hardware doesn't pay Storage's I/O cost,
  * and vice versa. */
-typedef struct { const char *id; const char *label; } settings_tab_t;
+typedef struct { const char *id; const char *label; const char *i18n_key; } settings_tab_t;
 static const settings_tab_t SETTINGS_TABS[] = {
-    { "general",    "General" },
-    { "dialcodes",  "Dial Codes & Prompts" },
-    { "voip",       "VOIP" },
-    { "hardware",   "Hardware" },
-    { "storage",    "Storage" },
-    { "diag",       "Diagnostics" },
+    { "general",    "General",              "settings.tab.general" },
+    { "dialcodes",  "Dial Codes & Prompts", "settings.tab.dialcodes" },
+    { "voip",       "VOIP",                 "settings.tab.voip" },
+    { "hardware",   "Hardware",             "settings.tab.hardware" },
+    { "storage",    "Storage",              "settings.tab.storage" },
+    { "diag",       "Diagnostics",          "settings.tab.diag" },
 };
 #define SETTINGS_TABS_N (sizeof(SETTINGS_TABS) / sizeof(SETTINGS_TABS[0]))
 
@@ -983,7 +1014,8 @@ static int append_settings_tabs(char *buf, size_t cap, int off, const char *acti
         bool is_active = strcmp(SETTINGS_TABS[i].id, active) == 0;
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<a class=\"tab-btn%s\" href=\"/settings?tab=%s\">%s</a>",
-            is_active ? " active" : "", SETTINGS_TABS[i].id, SETTINGS_TABS[i].label);
+            is_active ? " active" : "", SETTINGS_TABS[i].id,
+            i18n_str(SETTINGS_TABS[i].i18n_key, SETTINGS_TABS[i].label));
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</nav>");
     return off;
@@ -1256,16 +1288,21 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
     dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
     size_t nclips = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
 
+    char dialcodes_h2[48];
+    snprintf(dialcodes_h2, sizeof(dialcodes_h2), i18n_str("dialcodes.title", "Dial codes (%u)"),
+             (unsigned)nclips);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Dial codes (%u)</h2>"
-        "<p class=\"hint\">Recode which number plays a clip, edit its description, or remove "
-        "it. \"Built-in\" entries can be recoded but not removed. To change what a code "
-        "plays: remove it below, then add it again with the new audio.</p>",
-        (unsigned)nclips);
+        "<div class=\"card\"><h2>%s</h2>"
+        "<p class=\"hint\">%s</p>",
+        dialcodes_h2,
+        i18n_str("dialcodes.hint",
+                 "Recode which number plays a clip, edit its description, or remove it. "
+                 "\"Built-in\" entries can be recoded but not removed. To change what a code "
+                 "plays: remove it below, then add it again with the new audio."));
 
     if (nclips == 0) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"empty\">none yet</div>");
+            "<div class=\"empty\">%s</div>", i18n_str("dialcodes.none_yet", "none yet"));
     } else {
         /* Three stacked lines per entry, not a <table> row -- this card
          * lives in a .cards grid alongside Operator/Record (narrow, as
@@ -1288,17 +1325,20 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 "<input type=\"hidden\" name=\"old_code\" value=\"%s\">"
                 "<input name=\"new_code\" value=\"%s\" pattern=\"[0-9]{2,6}\" maxlength=\"6\" "
                 "size=\"6\" required>"
-                "<button type=\"submit\">save</button></form>",
-                clips[i].code, clips[i].code);
+                "<button type=\"submit\">%s</button></form>",
+                clips[i].code, clips[i].code, i18n_str("dialcodes.save", "save"));
             if (clips[i].builtin) {
                 off += snprintf(buf + off, cap - off,
-                    "<span class=\"pill off\">built-in</span>");
+                    "<span class=\"pill off\">%s</span>", i18n_str("dialcodes.builtin", "built-in"));
             } else {
+                char remove_confirm[64];
+                snprintf(remove_confirm, sizeof(remove_confirm),
+                         i18n_str("dialcodes.remove_confirm", "Remove dial code %s?"), clips[i].code);
                 off += snprintf(buf + off, cap - off,
                     "<form method=\"POST\" action=\"/dialcode_delete/%s\" "
-                    "onsubmit=\"return confirm('Remove dial code %s?')\">"
-                    "<button type=\"submit\">remove</button></form>",
-                    clips[i].code, clips[i].code);
+                    "onsubmit=\"return confirm('%s')\">"
+                    "<button type=\"submit\">%s</button></form>",
+                    clips[i].code, remove_confirm, i18n_str("dialcodes.remove", "remove"));
             }
             off += snprintf(buf + off, cap - off,
                 "</div>"
@@ -1306,27 +1346,33 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 "<form method=\"POST\" action=\"/dialcode_set_desc\" class=\"dc-inline dc-grow\">"
                 "<input type=\"hidden\" name=\"code\" value=\"%s\">"
                 "<input name=\"desc\" value=\"%s\" maxlength=\"63\" class=\"dc-desc-input\">"
-                "<button type=\"submit\">save</button></form>"
+                "<button type=\"submit\">%s</button></form>"
                 "</div>"
                 "<div class=\"dc-line\">"
                 "<code class=\"dc-filename\">%s</code>"
                 "<audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio>"
                 "</div></div>",
-                clips[i].code, edesc, clips[i].filename, clips[i].filename);
+                clips[i].code, edesc, i18n_str("dialcodes.save", "save"),
+                clips[i].filename, clips[i].filename);
         }
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>" /* .dialcode-list */);
     }
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<form method=\"POST\" action=\"/dialcode_upload\" enctype=\"multipart/form-data\" class=\"settings-form\">"
-        "<h3>Add a code</h3>"
+        "<h3>%s</h3>"
         "<div class=\"grid2\">"
-        "<label>New code (2-6 digits) <input name=\"new_code\" pattern=\"[0-9]{2,6}\" "
+        "<label>%s <input name=\"new_code\" pattern=\"[0-9]{2,6}\" "
         "maxlength=\"6\" required></label>"
-        "<label>Description (optional) <input name=\"desc\" maxlength=\"63\"></label></div>"
-        "<label>Audio file (WAV) <input type=\"file\" name=\"file\" accept=\"audio/wav\" required></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Upload + add dial code</button></div>"
-        "</form></div>");
+        "<label>%s <input name=\"desc\" maxlength=\"63\"></label></div>"
+        "<label>%s <input type=\"file\" name=\"file\" accept=\"audio/wav\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form></div>",
+        i18n_str("dialcodes.add_title", "Add a code"),
+        i18n_str("dialcodes.new_code_label", "New code (2-6 digits)"),
+        i18n_str("dialcodes.desc_label", "Description (optional)"),
+        i18n_str("dialcodes.audio_label", "Audio file (WAV)"),
+        i18n_str("dialcodes.upload_button", "Upload + add dial code"));
     return off;
 }
 
@@ -1334,23 +1380,28 @@ static int append_operator_tab(char *buf, size_t cap, int off,
                                 dialplan_entry_info_t *entries, size_t n)
 {
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Operator help</h2>");
+        "<div class=\"card\"><h2>%s</h2>", i18n_str("operator.title", "Operator help"));
     for (size_t i = 0; i < n; i++) {
         if (strcmp(entries[i].code, "0") != 0) continue;
         off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
                                 entries[i].implemented);
     }
     off = append_prompt_field(buf, cap, off, "operator.wav",
-        "You've reached the operator line. To leave a message, dial 2-1-1. "
-        "For other features, please refer to your phone's guide.");
+        i18n_str("operator.default_prompt",
+                 "You've reached the operator line. To leave a message, dial 2-1-1. "
+                 "For other features, please refer to your phone's guide."));
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Or upload audio directly below (converted automatically to 8kHz "
-        "mono) -- either way replaces what plays.</p>"
+        "<p class=\"hint\">%s</p>"
         "<form method=\"POST\" action=\"/operator_upload\" enctype=\"multipart/form-data\" "
         "class=\"settings-form\">"
-        "<label>Replacement audio (WAV) <input type=\"file\" name=\"file\" accept=\"audio/wav\" required></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Upload</button></div>"
-        "</form></div>");
+        "<label>%s <input type=\"file\" name=\"file\" accept=\"audio/wav\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form></div>",
+        i18n_str("operator.upload_hint",
+                 "Or upload audio directly below (converted automatically to 8kHz mono) -- "
+                 "either way replaces what plays."),
+        i18n_str("operator.audio_label", "Replacement audio (WAV)"),
+        i18n_str("operator.upload_button", "Upload"));
     return off;
 }
 
@@ -1365,12 +1416,15 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
 {
     bool r0 = voip_is_registered(0);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\"><h2>VOIP</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">SIP server</span><span>%s</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">Line 1</span>"
+        "<div class=\"card wide\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span class=\"pill %s\">%s</span></div>",
-        voip_server()[0] ? voip_server() : "(not set)",
-        r0 ? "on" : "off", r0 ? "registered" : "not registered");
+        i18n_str("settings.tab.voip", "VOIP"),
+        i18n_str("voip.sip_server", "SIP server"),
+        voip_server()[0] ? voip_server() : i18n_str("voip.not_set", "(not set)"),
+        i18n_str("voip.line1", "Line 1"),
+        r0 ? "on" : "off", r0 ? i18n_str("voip.registered", "registered") : i18n_str("voip.not_registered", "not registered"));
     /* Shown for a genuine 2-line board, but also whenever a line-2 account
      * is still configured on a 1-line board -- e.g. a board reconfigured
      * down from 2 lines to 1, or a stale account from before -- so there's
@@ -1378,9 +1432,10 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     if (board_hw_config_get().num_lines > 1 || voip_user(1)[0]) {
         bool r1 = voip_is_registered(1);
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"statusrow\"><span class=\"label\">Line 2</span>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span>"
             "<span class=\"pill %s\">%s</span></div>",
-            r1 ? "on" : "off", r1 ? "registered" : "not registered");
+            i18n_str("voip.line2", "Line 2"),
+            r1 ? "on" : "off", r1 ? i18n_str("voip.registered", "registered") : i18n_str("voip.not_registered", "not registered"));
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
@@ -1517,7 +1572,7 @@ static int append_record_tab(char *buf, size_t cap, int off,
                               dialplan_entry_info_t *entries, size_t n)
 {
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Record message</h2>");
+        "<div class=\"card\"><h2>%s</h2>", i18n_str("record.title", "Record message"));
     for (size_t i = 0; i < n; i++) {
         if (strcmp(entries[i].code, "211") != 0) continue;
         off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
@@ -1525,19 +1580,24 @@ static int append_record_tab(char *buf, size_t cap, int off,
     }
     uint32_t max_ms = board_record_max_ms_get(120000);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Dial 211: if the prompt below is generated, it plays first, then a "
-        "beep, then recording starts. Speak, then hang up (or pause ~8 s / hit the max length "
-        "below, at which point recording just stops silently -- no warning beeps). Mention the "
-        "time limit in the prompt text below if callers should know it up front. The message is "
-        "saved as an 8 kHz mono WAV in <a href=\"/recordings\">Recordings</a> / "
-        "<a href=\"/settings?tab=storage\">Settings &rarr; Storage</a>.</p>"
+        "<p class=\"hint\">%s</p>"
         "<form method=\"POST\" action=\"/record_max_ms\" class=\"settings-form\">"
-        "<label>Max recording length (seconds) "
+        "<label>%s "
         "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%u\" max=\"%u\" required></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>",
+        i18n_str("record.hint",
+                 "Dial 211: if the prompt below is generated, it plays first, then a beep, then "
+                 "recording starts. Speak, then hang up (or pause ~8 s / hit the max length "
+                 "below, at which point recording just stops silently -- no warning beeps). "
+                 "Mention the time limit in the prompt text below if callers should know it up "
+                 "front. The message is saved as an 8 kHz mono WAV in "
+                 "<a href=\"/recordings\">Recordings</a> / <a href=\"/settings?tab=storage\">"
+                 "Settings &rarr; Storage</a>."),
+        i18n_str("record.max_length_label", "Max recording length (seconds)"),
         (unsigned)(max_ms / 1000),
-        (unsigned)(BOARD_RECORD_MAX_MS_MIN / 1000), (unsigned)(BOARD_RECORD_MAX_MS_MAX / 1000));
+        (unsigned)(BOARD_RECORD_MAX_MS_MIN / 1000), (unsigned)(BOARD_RECORD_MAX_MS_MAX / 1000),
+        i18n_str("general.button.save", "Save"));
     off = append_prompt_field(buf, cap, off, RECORD_PROMPT_NAME, NULL);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
     return off;
@@ -1627,7 +1687,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
 
 #if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Speaker (earpiece) volume</h2>");
+        "<div class=\"card\"><h2>%s</h2>", i18n_str("speaker.title", "Speaker (earpiece) volume"));
     for (int l = 0; l < num_lines; l++) {
         uint8_t vol = board_speaker_volume_get(l, 0x1E);
         /* Displayed as a percentage (0-200%, 100% = the register's 0dB
@@ -1637,59 +1697,67 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
          * register step; only the label is converted (see spkPct() below),
          * so es8388_set_dac_volume()'s convention doesn't have to change. */
         unsigned pct = (unsigned)((vol * 200u + 31) / 63u);
+        char line_label[32];
+        snprintf(line_label, sizeof(line_label), i18n_str("status.line.title", "Line %d"), l);
+        char save_line[48];
+        snprintf(save_line, sizeof(save_line), i18n_str("speaker.save_line", "Save line %d"), l);
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<form method=\"POST\" action=\"/speaker_volume\" class=\"settings-form\">"
             "<input type=\"hidden\" name=\"line\" value=\"%d\">"
-            "<label>Line %d <input type=\"range\" name=\"vol\" min=\"0\" max=\"63\" "
+            "<label>%s <input type=\"range\" name=\"vol\" min=\"0\" max=\"63\" "
             "value=\"%u\" oninput=\"spkLive(%d,this.value)\"> "
             "<span id=\"spkpct%d\">%u%%</span></label>"
-            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save line %d</button></div>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
             "</form>",
-            l, l, (unsigned)vol, l, l, pct, l);
+            l, line_label, (unsigned)vol, l, l, pct, save_line);
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Drag while on a call to hear the change live (applied "
-        "immediately, not saved yet) -- click Save once you land on a level you like. "
-        "100%% is the codec's 0dB reference point, 200%% is max. Same register the "
-        "bring-up <code>spkamp</code> console command tunes.</p></div>");
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("speaker.hint",
+                 "Drag while on a call to hear the change live (applied immediately, not saved "
+                 "yet) -- click Save once you land on a level you like. 100% is the codec's 0dB "
+                 "reference point, 200% is max. Same register the bring-up <code>spkamp</code> "
+                 "console command tunes."));
 #endif
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Echo cancellation</h2>");
+        "<div class=\"card\"><h2>%s</h2>", i18n_str("aec.title", "Echo cancellation"));
     for (int l = 0; l < num_lines; l++) {
         uint32_t ms = board_aec_delay_get(l, AEC_DEFAULT_DELAY_MS);
         bool aec_on = aec_is_enabled(l);
+        char line_label[32], delay_label[32];
+        snprintf(line_label, sizeof(line_label), i18n_str("status.line.title", "Line %d"), l);
+        snprintf(delay_label, sizeof(delay_label), i18n_str("aec.line_delay", "Line %d delay"), l);
+        char measure_line[48];
+        snprintf(measure_line, sizeof(measure_line), i18n_str("aec.measure_line", "Measure line %d"), l);
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"statusrow\"><span class=\"label\">Line %d</span>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span>"
             "<span class=\"pill %s\">%s</span></div>"
             "<div class=\"toolbar sub\">"
             "<form method=\"POST\" action=\"/aec_enable\" style=\"display:inline\">"
             "<input type=\"hidden\" name=\"line\" value=\"%d\">"
             "<input type=\"hidden\" name=\"on\" value=\"1\">"
-            "<button type=\"submit\">Enable</button></form> "
+            "<button type=\"submit\">%s</button></form> "
             "<form method=\"POST\" action=\"/aec_enable\" style=\"display:inline\">"
             "<input type=\"hidden\" name=\"line\" value=\"%d\">"
             "<input type=\"hidden\" name=\"on\" value=\"0\">"
-            "<button type=\"submit\">Disable</button></form>"
+            "<button type=\"submit\">%s</button></form>"
             "</div>"
-            "<div class=\"statusrow\"><span class=\"label\">Line %d delay</span>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span>"
             "<span>%u ms</span></div>"
             "<div class=\"toolbar sub\">"
-            "<button type=\"button\" id=\"aecbtn%d\" onclick=\"aecMeasure(%d)\">Measure line %d</button>"
+            "<button type=\"button\" id=\"aecbtn%d\" onclick=\"aecMeasure(%d)\">%s</button>"
             "</div><div id=\"aecresult%d\" class=\"hint\"></div>",
-            l, aec_on ? "on" : "off", aec_on ? "ENABLED" : "off",
-            l, l, l, (unsigned)ms, l, l, l, l);
+            line_label, aec_on ? "on" : "off", aec_on ? "ENABLED" : "off",
+            l, i18n_str("aec.enable", "Enable"),
+            l, i18n_str("aec.disable", "Disable"),
+            delay_label, (unsigned)ms, l, l, measure_line, l);
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Enable/Disable is for testing -- leave off for normal use "
-        "unless a real echo has actually been measured and calibrated below (an "
-        "uncalibrated or wrongly-delayed canceller can make echo worse, not better). "
-        "To calibrate: pick up the handset (off-hook) and make sure it's NOT in a "
-        "call, then click Measure -- plays a short burst out the earpiece and listens on "
-        "the same line's own mic to find its local echo delay, the number the canceller "
-        "needs to align against. Takes about 2 seconds (3 quick measurements averaged for "
-        "reliability). Applying saves it and takes effect immediately, no reboot.</p></div>"
+        "<p class=\"hint\">%s</p></div>"
         "<script>"
+        "var AEC_I18N={measuring:'%s',noEcho:'%s',tries:'%s',delayFmt:'%s',consistent:'%s',"
+        "apply:'%s',failed:'%s'};"
         "function spkLive(line,vol){"
         "document.getElementById('spkpct'+line).textContent="
         "Math.round(vol*200/63)+'%%';"
@@ -1699,65 +1767,98 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "function aecMeasure(line){"
         "var btn=document.getElementById('aecbtn'+line);"
         "var out=document.getElementById('aecresult'+line);"
-        "btn.disabled=true;out.textContent='Measuring...';"
+        "btn.disabled=true;out.textContent=AEC_I18N.measuring;"
         "fetch('/aec_measure',{method:'POST',"
         "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
         "body:'line='+line})"
         ".then(function(r){return r.json();})"
         ".then(function(d){btn.disabled=false;"
-        "if(!d.ok){out.textContent='No echo detected in '+d.hits+'/'+d.attempts+"
-        "' tries -- off-hook and not in a call?';return;}"
+        "if(!d.ok){out.textContent=AEC_I18N.noEcho+' '+d.hits+'/'+d.attempts+"
+        "' '+AEC_I18N.tries;return;}"
         "var ms=Math.round(d.delay_ms);"
-        "out.innerHTML='Delay '+d.delay_ms.toFixed(1)+'ms, tail '+d.tail_ms.toFixed(1)+"
-        "'ms, span ~'+d.span_ms.toFixed(0)+'ms ('+Math.round(d.taps)+' taps), '+"
-        "d.hits+'/'+d.attempts+' consistent. '+"
+        "out.innerHTML=AEC_I18N.delayFmt.replace('%%1',d.delay_ms.toFixed(1))"
+        ".replace('%%2',d.tail_ms.toFixed(1)).replace('%%3',d.span_ms.toFixed(0))"
+        ".replace('%%4',Math.round(d.taps))+' '+d.hits+'/'+d.attempts+' '+AEC_I18N.consistent+' '+"
         "'<form method=\"POST\" action=\"/aec_delay_apply\" style=\"display:inline\">'+"
         "'<input type=\"hidden\" name=\"line\" value=\"'+line+'\">'+"
         "'<input type=\"hidden\" name=\"ms\" value=\"'+ms+'\">'+"
-        "'<button type=\"submit\">Apply '+ms+'ms as default</button></form>';})"
-        ".catch(function(){btn.disabled=false;out.textContent='Measurement failed.';});"
+        "'<button type=\"submit\">'+AEC_I18N.apply.replace('%%1',ms)+'</button></form>';})"
+        ".catch(function(){btn.disabled=false;out.textContent=AEC_I18N.failed;});"
         "}"
-        "</script>");
+        "</script>",
+        i18n_str("aec.hint",
+                 "Enable/Disable is for testing -- leave off for normal use unless a real echo "
+                 "has actually been measured and calibrated below (an uncalibrated or "
+                 "wrongly-delayed canceller can make echo worse, not better). To calibrate: pick "
+                 "up the handset (off-hook) and make sure it's NOT in a call, then click Measure "
+                 "-- plays a short burst out the earpiece and listens on the same line's own mic "
+                 "to find its local echo delay, the number the canceller needs to align against. "
+                 "Takes about 2 seconds (3 quick measurements averaged for reliability). "
+                 "Applying saves it and takes effect immediately, no reboot."),
+        i18n_str("aec.js.measuring", "Measuring..."),
+        i18n_str("aec.js.no_echo", "No echo detected in"),
+        i18n_str("aec.js.tries", "tries -- off-hook and not in a call?"),
+        i18n_str("aec.js.delay_fmt", "Delay %1ms, tail %2ms, span ~%3ms (%4 taps),"),
+        i18n_str("aec.js.consistent", "consistent."),
+        i18n_str("aec.js.apply", "Apply %1ms as default"),
+        i18n_str("aec.js.failed", "Measurement failed."));
 
     idle_power_cfg_t ip = idle_power_get();
     char ip_status[64];
     if (ip.enabled) {
-        snprintf(ip_status, sizeof(ip_status), "on, after %u min (%s)", (unsigned)ip.minutes,
-                 ip.max_savings ? "max savings" : "balanced");
+        snprintf(ip_status, sizeof(ip_status), i18n_str("idlepower.status_on", "on, after %u min (%s)"),
+                 (unsigned)ip.minutes,
+                 ip.max_savings ? i18n_str("idlepower.max_savings", "max savings")
+                                : i18n_str("idlepower.balanced", "balanced"));
     } else {
-        snprintf(ip_status, sizeof(ip_status), "off");
+        snprintf(ip_status, sizeof(ip_status), "%s", i18n_str("general.offhook.status_off", "off"));
     }
+    char opt_balanced[48], opt_max_savings[48];
+    snprintf(opt_balanced, sizeof(opt_balanced), i18n_str("idlepower.opt_balanced", "Balanced (~%dms delay)"),
+             IDLE_POWER_INTERVAL_MS_BALANCED + 80);
+    snprintf(opt_max_savings, sizeof(opt_max_savings),
+             i18n_str("idlepower.opt_max_savings", "Max savings (~%dms delay)"),
+             IDLE_POWER_INTERVAL_MS_MAX_SAVINGS + 80);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Low-power idle mode</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">Current</span><span>%s</span></div>"
+        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<form method=\"POST\" action=\"/idle_power\" class=\"settings-form\">"
-        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> Enabled</label>"
-        "<label>Minutes idle before sleeping "
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
+        "<label>%s "
         "<input type=\"number\" name=\"minutes\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
-        "<label>Duty-cycle preset"
+        "<label>%s"
         "<select name=\"max_savings\">"
-        "<option value=\"0\"%s>Balanced (~%dms delay)</option>"
-        "<option value=\"1\"%s>Max savings (~%dms delay)</option>"
+        "<option value=\"0\"%s>%s</option>"
+        "<option value=\"1\"%s>%s</option>"
         "</select></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>",
-        ip_status,
-        ip.enabled ? " checked" : "",
+        i18n_str("idlepower.title", "Low-power idle mode"),
+        i18n_str("general.current", "Current"), ip_status,
+        ip.enabled ? " checked" : "", i18n_str("general.offhook.enabled", "Enabled"),
+        i18n_str("idlepower.minutes_label", "Minutes idle before sleeping"),
         (unsigned)ip.minutes, IDLE_POWER_MINUTES_MIN, IDLE_POWER_MINUTES_MAX,
-        !ip.max_savings ? " selected" : "", IDLE_POWER_INTERVAL_MS_BALANCED + 80,
-        ip.max_savings ? " selected" : "", IDLE_POWER_INTERVAL_MS_MAX_SAVINGS + 80);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Approximately %.2f&nbsp;W of power savings in the selected preset, "
-        "but expect up to ~%dms delay the first time you pick up the handset after %u idle "
-        "minutes; fully responsive for the rest of that call and for %u minutes after. Both "
-        "presets use the same idle-time trigger above -- only the delay/savings tradeoff while "
-        "asleep changes, so it's safe to switch and compare without waiting out the idle timer "
-        "again.</p></div>",
+        i18n_str("idlepower.preset_label", "Duty-cycle preset"),
+        !ip.max_savings ? " selected" : "", opt_balanced,
+        ip.max_savings ? " selected" : "", opt_max_savings,
+        i18n_str("general.button.save", "Save"));
+
+    char idlepower_hint[420];
+    snprintf(idlepower_hint, sizeof(idlepower_hint),
+        i18n_str("idlepower.hint",
+                 "Approximately %.2f&nbsp;W of power savings in the selected preset, but expect "
+                 "up to ~%dms delay the first time you pick up the handset after %u idle "
+                 "minutes; fully responsive for the rest of that call and for %u minutes after. "
+                 "Both presets use the same idle-time trigger above -- only the delay/savings "
+                 "tradeoff while asleep changes, so it's safe to switch and compare without "
+                 "waiting out the idle timer again."),
         (double)idle_power_estimated_savings_w(), idle_power_worst_case_latency_ms(),
         (unsigned)ip.minutes, (unsigned)ip.minutes);
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">%s</p></div>", idlepower_hint);
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Answering machine</h2>");
+        "<div class=\"card\"><h2>%s</h2>", i18n_str("am.title", "Answering machine"));
     for (int l = 0; l < num_lines; l++) {
         board_am_cfg_t am = board_am_get(l);
         char greeting[STORAGE_MAX_NAME];
@@ -1766,48 +1867,57 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         size_t got;
         bool have_greeting = (storage_read(greeting, &probe, sizeof(probe), &got) == ESP_OK);
 
+        char line_h3[32], save_line[48];
+        snprintf(line_h3, sizeof(line_h3), i18n_str("status.line.title", "Line %d"), l);
+        snprintf(save_line, sizeof(save_line), i18n_str("speaker.save_line", "Save line %d"), l);
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<h3>Line %d</h3>"
+            "<h3>%s</h3>"
             "<form method=\"POST\" action=\"/answering_machine\" class=\"settings-form\">"
             "<input type=\"hidden\" name=\"line\" value=\"%d\">"
-            "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> Enabled</label>"
-            "<label>Rings before answering "
+            "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
+            "<label>%s "
             "<input type=\"number\" name=\"rings\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
-            "<label>Max message length (seconds) "
+            "<label>%s "
             "<input type=\"number\" name=\"max_secs\" value=\"%u\" min=\"%u\" max=\"%u\" required></label>",
-            l, l,
-            am.enabled ? " checked" : "",
+            line_h3, l,
+            am.enabled ? " checked" : "", i18n_str("general.offhook.enabled", "Enabled"),
+            i18n_str("am.rings_label", "Rings before answering"),
             (unsigned)am.rings, BOARD_AM_RINGS_MIN, BOARD_AM_RINGS_MAX,
+            i18n_str("am.max_secs_label", "Max message length (seconds)"),
             (unsigned)(am.max_ms / 1000), (unsigned)(BOARD_AM_MAX_MS_MIN / 1000),
             (unsigned)(BOARD_AM_MAX_MS_MAX / 1000));
         if (num_lines > 1) {
             off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
                 "<label><input type=\"checkbox\" name=\"other_line\" value=\"1\"%s> "
-                "Also answer unanswered calls from other line</label>",
-                am.other_line ? " checked" : "");
+                "%s</label>",
+                am.other_line ? " checked" : "",
+                i18n_str("am.other_line_label", "Also answer unanswered calls from other line"));
         }
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save line %d</button></div>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
             "</form>",
-            l);
+            save_line);
         if (have_greeting) {
             off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-                "<div class=\"statusrow\"><span class=\"label\">Greeting</span>"
+                "<div class=\"statusrow\"><span class=\"label\">%s</span>"
                 "<span><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></span></div>",
-                greeting);
+                i18n_str("am.greeting", "Greeting"), greeting);
         } else {
             off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-                "<div class=\"statusrow\"><span class=\"label\">Greeting</span><span>not recorded yet</span></div>");
+                "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>",
+                i18n_str("am.greeting", "Greeting"), i18n_str("am.not_recorded", "not recorded yet"));
         }
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Record each line's greeting from that line's own phone: pick up, "
-        "dial 2-1-2, speak after the beep, hang up (or pause ~8s) to save -- overwrites the "
-        "previous greeting directly. Play it back above to check it; re-record any time the "
-        "same way. With no greeting recorded, callers just hear the beep. After the "
-        "configured rings, the line auto-answers, plays the greeting then a beep, then "
-        "records the caller -- capped at the length above or ~8s of silence, whichever "
-        "comes first. Picking up the handset at any point takes the call live instead.</p></div>");
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("am.hint",
+                 "Record each line's greeting from that line's own phone: pick up, dial 2-1-2, "
+                 "speak after the beep, hang up (or pause ~8s) to save -- overwrites the previous "
+                 "greeting directly. Play it back above to check it; re-record any time the same "
+                 "way. With no greeting recorded, callers just hear the beep. After the "
+                 "configured rings, the line auto-answers, plays the greeting then a beep, then "
+                 "records the caller -- capped at the length above or ~8s of silence, whichever "
+                 "comes first. Picking up the handset at any point takes the call live instead."));
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>"
@@ -2092,12 +2202,14 @@ static int append_diag_tab(char *buf, size_t cap, int off)
     esp_log_level_t cur = logctl_get_level();
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Logging</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">Current level</span>"
+        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span class=\"pill on\">%s</span></div>"
         "<form method=\"POST\" action=\"/log_level\" class=\"settings-form\">"
-        "<label>Level <select name=\"level\">",
-        logctl_level_name(cur));
+        "<label>%s <select name=\"level\">",
+        i18n_str("diag.logging.title", "Logging"),
+        i18n_str("diag.logging.current", "Current level"), logctl_level_name(cur),
+        i18n_str("diag.logging.level_label", "Level"));
     for (size_t i = 0; i < sizeof(LEVELS) / sizeof(LEVELS[0]); i++) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<option value=\"%s\"%s>%s</option>",
@@ -2105,47 +2217,58 @@ static int append_diag_tab(char *buf, size_t cap, int off)
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "</select></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Set level</button></div>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>"
-        "<p class=\"hint\">Applies immediately and persists across reboots (NVS). "
-        "<code>debug</code> logs rotary pulse timing, hook-switch make/break with durations, "
-        "dialed-digit collection, and telephony state changes -- watch it live in the log "
-        "below, or over the serial console (<code>log_level debug</code>). WiFi/PHY noise "
-        "stays at warn so it doesn't bury the app's own debug output.</p></div>");
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("diag.logging.set_level", "Set level"),
+        i18n_str("diag.logging.hint",
+                 "Applies immediately and persists across reboots (NVS). <code>debug</code> "
+                 "logs rotary pulse timing, hook-switch make/break with durations, dialed-digit "
+                 "collection, and telephony state changes -- watch it live in the log below, or "
+                 "over the serial console (<code>log_level debug</code>). WiFi/PHY noise stays "
+                 "at warn so it doesn't bury the app's own debug output."));
 
     /* Test mode + audio loopback + SD self-test (DVT harness controls; also
      * usable by hand here). */
     bool tmode = telephony_test_enabled();
     bool loop  = audio_test_loopback();
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>Test mode</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">Injection</span>"
+        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span class=\"pill %s\">%s</span></div>"
         "<div class=\"toolbar sub\">"
         "<form method=\"POST\" action=\"/test/mode\" style=\"display:inline\">"
-        "<input type=\"hidden\" name=\"on\" value=\"1\"><button type=\"submit\">Enable</button></form>"
+        "<input type=\"hidden\" name=\"on\" value=\"1\"><button type=\"submit\">%s</button></form>"
         "<form method=\"POST\" action=\"/test/mode\" style=\"display:inline\">"
-        "<input type=\"hidden\" name=\"on\" value=\"0\"><button type=\"submit\">Disable</button></form>"
+        "<input type=\"hidden\" name=\"on\" value=\"0\"><button type=\"submit\">%s</button></form>"
         "</div>"
-        "<div class=\"statusrow\"><span class=\"label\">Audio TX&rarr;RX loopback</span>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span class=\"pill %s\">%s</span></div>"
         "<div class=\"toolbar sub\">"
         "<form method=\"POST\" action=\"/test/loopback\" style=\"display:inline\">"
-        "<input type=\"hidden\" name=\"on\" value=\"1\"><button type=\"submit\">Enable</button></form>"
+        "<input type=\"hidden\" name=\"on\" value=\"1\"><button type=\"submit\">%s</button></form>"
         "<form method=\"POST\" action=\"/test/loopback\" style=\"display:inline\">"
-        "<input type=\"hidden\" name=\"on\" value=\"0\"><button type=\"submit\">Disable</button></form>"
+        "<input type=\"hidden\" name=\"on\" value=\"0\"><button type=\"submit\">%s</button></form>"
         "</div>"
         "<div class=\"toolbar sub\">"
         "<form method=\"POST\" action=\"/test/sd\" style=\"display:inline\">"
-        "<button type=\"submit\">Run microSD self-test</button></form>"
+        "<button type=\"submit\">%s</button></form>"
         "</div>"
-        "<p class=\"hint\">Test mode lets the design-verification harness simulate a handset "
-        "(off-hook, hang-up, dialed digits) without physical dialing. Loopback feeds "
-        "synthesized TX audio back into the RX detector so a played tone/DTMF is confirmable "
-        "without a handset. Leave both <b>off</b> for normal use. Full protocol + host runner: "
-        "<code>firmware/test/</code>.</p></div>",
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("diag.test.title", "Test mode"),
+        i18n_str("diag.test.injection", "Injection"),
         tmode ? "on" : "off", tmode ? "ENABLED" : "off",
-        loop  ? "on" : "off", loop  ? "ENABLED" : "off");
+        i18n_str("aec.enable", "Enable"), i18n_str("aec.disable", "Disable"),
+        i18n_str("diag.test.loopback", "Audio TX&rarr;RX loopback"),
+        loop  ? "on" : "off", loop  ? "ENABLED" : "off",
+        i18n_str("aec.enable", "Enable"), i18n_str("aec.disable", "Disable"),
+        i18n_str("diag.test.sd_selftest", "Run microSD self-test"),
+        i18n_str("diag.test.hint",
+                 "Test mode lets the design-verification harness simulate a handset (off-hook, "
+                 "hang-up, dialed digits) without physical dialing. Loopback feeds synthesized "
+                 "TX audio back into the RX detector so a played tone/DTMF is confirmable "
+                 "without a handset. Leave both <b>off</b> for normal use. Full protocol + host "
+                 "runner: <code>firmware/test/</code>."));
 
     /* Full debug log -- moved here from the Status page (which now only
      * shows the much shorter activity panel, see append_activity_panel())
@@ -2340,12 +2463,19 @@ static int append_storage_table(char *buf, size_t cap, int off,
     }
     if (shown == 0) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"empty\">none yet</div>");
+            "<div class=\"empty\">%s</div>", i18n_str("dialcodes.none_yet", "none yet"));
         return off;
     }
+    char recorded_th[48] = "";
+    if (show_recorded) {
+        snprintf(recorded_th, sizeof(recorded_th), "<th>%s</th>",
+                 i18n_str("storage.col_recorded", "Recorded"));
+    }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<table><tr><th>Name</th>%s<th>Size</th><th>Length</th><th>Play</th><th></th><th></th></tr>",
-        show_recorded ? "<th>Recorded</th>" : "");
+        "<table><tr><th>%s</th>%s<th>%s</th><th>%s</th><th>%s</th><th></th><th></th></tr>",
+        i18n_str("storage.col_name", "Name"), recorded_th,
+        i18n_str("storage.col_size", "Size"), i18n_str("storage.col_length", "Length"),
+        i18n_str("storage.col_play", "Play"));
     for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
         if (plen && strncmp(entries[i].name, name_prefix, plen) != 0) continue;
         char sz[16];
@@ -2369,15 +2499,19 @@ static int append_storage_table(char *buf, size_t cap, int off,
         if (show_recorded) format_recording_timestamp(entries[i].name, recorded, sizeof(recorded));
         char recorded_td[48] = "";
         if (show_recorded) snprintf(recorded_td, sizeof(recorded_td), "<td>%s</td>", recorded);
+        char delete_confirm[STORAGE_MAX_NAME + 16];
+        snprintf(delete_confirm, sizeof(delete_confirm), i18n_str("storage.delete_confirm", "Delete %s?"),
+                 entries[i].name);
         off += snprintf(buf + off, cap - off,
             "<tr><td><code>%s</code></td>%s<td>%s</td><td>%s</td><td>%s</td>"
-            "<td><a href=\"/media/%s\">download</a></td>"
+            "<td><a href=\"/media/%s\">%s</a></td>"
             "<td><form method=\"POST\" action=\"/media_delete/%s\" "
-            "onsubmit=\"return confirm('Delete %s?')\" style=\"display:inline\">"
+            "onsubmit=\"return confirm('%s')\" style=\"display:inline\">"
             "<input type=\"hidden\" name=\"return_to\" value=\"%s\">"
-            "<button type=\"submit\">delete</button></form></td></tr>",
+            "<button type=\"submit\">%s</button></form></td></tr>",
             entries[i].name, recorded_td, fmt_bytes(entries[i].size, sz, sizeof(sz)), dur, play,
-            entries[i].name, entries[i].name, entries[i].name, return_to);
+            entries[i].name, i18n_str("storage.download", "download"),
+            entries[i].name, delete_confirm, return_to, i18n_str("storage.delete", "delete"));
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
     return off;
@@ -2402,30 +2536,43 @@ static int append_storage_section(char *buf, size_t cap, int off)
     wifi_get_ip_str(ip, sizeof(ip));
     bool sd = storage_sd_present();
 
+    /* storage.hint carries its own %s (the board's IP, for the curl
+     * example) -- render into its own buffer first, same two-step pattern
+     * used elsewhere in this file for a translated string with a
+     * placeholder of its own. */
+    char storage_hint[500];
+    snprintf(storage_hint, sizeof(storage_hint),
+        i18n_str("storage.hint",
+                 "Recordings, uploaded prompt/clip WAVs, anything else. Upload with "
+                 "<code>curl -X POST --data-binary @file.wav http://%s/media/&lt;name&gt;</code> "
+                 "or <code>firmware/bringup/gen_prompt.py</code>. <code>operator.wav</code> and "
+                 "<code>clip_*.wav</code> are never auto-deleted to make room for recordings -- "
+                 "only explicit deletes (below) remove them. Prompt/clip uploads always go to "
+                 "internal flash (so pulling the card mid-use can't take dial tone or the "
+                 "operator message with it) -- only 211 recordings prefer the card."),
+        ip);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div id=\"storage\" class=\"card wide\" style=\"margin-top:16px\"><h2>Storage</h2>"
-        "<p class=\"hint\">Recordings, uploaded prompt/clip WAVs, anything else. Upload with "
-        "<code>curl -X POST --data-binary @file.wav http://%s/media/&lt;name&gt;</code> or "
-        "<code>firmware/bringup/gen_prompt.py</code>. <code>operator.wav</code> and "
-        "<code>clip_*.wav</code> are never auto-deleted to make room for recordings -- only "
-        "explicit deletes (below) remove them. Prompt/clip uploads always go to internal "
-        "flash (so pulling the card mid-use can't take dial tone or the operator message "
-        "with it) -- only 211 recordings prefer the card.%s</p></div>",
-        ip, sd ? " A microSD card is present and takes priority for new recordings "
-                 "-- internal flash is never evicted to make room on the card, and stays "
-                 "listed below in its own section so anything saved before the card was "
-                 "inserted is still reachable." : "");
+        "<div id=\"storage\" class=\"card wide\" style=\"margin-top:16px\"><h2>%s</h2>"
+        "<p class=\"hint\">%s%s</p></div>",
+        i18n_str("storage.title", "Storage"), storage_hint,
+        sd ? i18n_str("storage.sd_present_hint",
+                 " A microSD card is present and takes priority for new recordings -- internal "
+                 "flash is never evicted to make room on the card, and stays listed below in "
+                 "its own section so anything saved before the card was inserted is still "
+                 "reachable.") : "");
 
     if (sd) {
         storage_entry_t *sd_entries = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
         size_t sd_n = sd_entries ? storage_list_sd(sd_entries, STORAGE_LIST_MAX) : 0;
         char su[16], sc[16];
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"card wide\" style=\"margin-top:16px\"><h2>microSD (%u file%s)</h2>"
-            "<p class=\"hint\">%s / %s used. New recordings and uploads go here.</p>",
-            (unsigned)sd_n, sd_n == 1 ? "" : "s",
+            "<div class=\"card wide\" style=\"margin-top:16px\"><h2>microSD (%u %s)</h2>"
+            "<p class=\"hint\">%s / %s %s. %s</p>",
+            (unsigned)sd_n, sd_n == 1 ? i18n_str("storage.file", "file") : i18n_str("storage.files", "files"),
             fmt_bytes(storage_used_bytes_sd(), su, sizeof(su)),
-            fmt_bytes(storage_cap_bytes_sd(), sc, sizeof(sc)));
+            fmt_bytes(storage_cap_bytes_sd(), sc, sizeof(sc)),
+            i18n_str("storage.used", "used"),
+            i18n_str("storage.sd_new_here", "New recordings and uploads go here."));
         off = append_storage_table(buf, cap, off, sd_entries, sd_n, NULL, false, "/settings?tab=storage");
         free(sd_entries);
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
@@ -2435,14 +2582,16 @@ static int append_storage_section(char *buf, size_t cap, int off)
     size_t in_n = in_entries ? storage_list_internal(in_entries, STORAGE_LIST_MAX) : 0;
     char isu[16], isc[16];
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\" style=\"margin-top:16px\"><h2>%s (%u file%s)</h2>"
-        "<p class=\"hint\">%s / %s used.%s</p>",
-        sd ? "Internal flash" : "Storage files",
-        (unsigned)in_n, in_n == 1 ? "" : "s",
+        "<div class=\"card wide\" style=\"margin-top:16px\"><h2>%s (%u %s)</h2>"
+        "<p class=\"hint\">%s / %s %s.%s</p>",
+        sd ? i18n_str("storage.internal_flash", "Internal flash") : i18n_str("storage.title", "Storage files"),
+        (unsigned)in_n, in_n == 1 ? i18n_str("storage.file", "file") : i18n_str("storage.files", "files"),
         fmt_bytes(storage_used_bytes_internal(), isu, sizeof(isu)),
         fmt_bytes(storage_cap_bytes_internal(), isc, sizeof(isc)),
-        sd ? "" : " Capped at this size -- oldest recording evicted first once it's hit "
-                  "(uploaded clips/operator.wav are never auto-evicted).");
+        i18n_str("storage.used", "used"),
+        sd ? "" : i18n_str("storage.capped_hint",
+                 " Capped at this size -- oldest recording evicted first once it's hit "
+                 "(uploaded clips/operator.wav are never auto-evicted)."));
     off = append_storage_table(buf, cap, off, in_entries, in_n, NULL, false, "/settings?tab=storage");
     free(in_entries);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
