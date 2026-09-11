@@ -1520,7 +1520,10 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     bool using_placeholders = !voip_user(0)[0];
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "</ol>"
-        "<details><summary>Prefer to add the line by hand instead?</summary><ol>"
+        "<p class=\"hint\">Prefer to add the line by hand instead of the downloadable script? "
+        "Pick whichever matches your server -- both end up at the same config, just a different "
+        "path to it.</p>"
+        "<details><summary>Asterisk (plain -- edit config files directly)</summary><ol>"
         "<li>Pick a free extension -- \"Check a number\" below, or see "
         "<code>archive/VOIP_SETUP.md</code> for this project's shared numbering registry.</li>"
         "<li>SSH into the Asterisk server.</li>"
@@ -1528,8 +1531,10 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "extension number -- or just download the setup script above and read it, it's a plain "
         "bash script that writes exactly this. %s Includes a <code>callerid</code> line so "
         "<code>pjsip show endpoints</code>/<code>show contacts</code> shows which board this is, "
-        "rather than a bare interchangeable number -- the extension itself stays plain digits "
-        "either way, since that's the part a rotary/DTMF phone actually has to dial:</li>"
+        "rather than a bare interchangeable number (the extension itself stays plain digits "
+        "either way -- that's the part a rotary/DTMF phone actually has to dial), and "
+        "<code>rewrite_contact</code>/<code>rtp_symmetric</code> so this still works if the board "
+        "ends up at a different site than the server (see \"Setting this up remotely?\" below):</li>"
         "</ol>",
         using_placeholders
             ? "No extension saved yet on this board, so this is a placeholder example (extension "
@@ -1577,6 +1582,8 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
             "aors=%s\n"
             "transport=transport-udp\n"
             "identify_by=username\n"
+            "rewrite_contact=yes\n"
+            "rtp_symmetric=yes\n"
             "callerid=\"%s Line 0\" &lt;%s&gt;\n",
             euser0, euser0, euser0, epass0, euser0, euser0, euser0, ename, euser0);
         if (have_line1) {
@@ -1606,6 +1613,8 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
                 "aors=%s\n"
                 "transport=transport-udp\n"
                 "identify_by=username\n"
+                "rewrite_contact=yes\n"
+                "rtp_symmetric=yes\n"
                 "callerid=\"%s Line 1\" &lt;%s&gt;\n",
                 euser1, euser1, euser1, epass1, euser1, euser1, euser1, ename, euser1);
         }
@@ -1646,12 +1655,64 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "<code>asterisk -rx \"dialplan reload\"</code>.</li>"
         "<li>Back here: same server/extension/password into the Line fields above, Save, reboot "
         "the phone, confirm \"registered\" above.</li>"
-        "<li>Running FreePBX instead of plain Asterisk? Add the extension through its GUI "
-        "(Applications &rarr; Extensions &rarr; + Add Extension &rarr; PJSIP) and click "
-        "<b>Apply Config</b> -- same idea, different admin tool.</li>"
         "</ol></details>"
-        "<p class=\"hint\">Embedded SIP/RTP (G.711 &micro;-law), custom UA -- no TLS/SRTP "
-        "(LAN only).</p></div>");
+
+        "<details><summary>FreePBX (GUI)</summary>"
+        "<p class=\"hint\">FreePBX manages its own copy of <code>pjsip.conf</code>/"
+        "<code>extensions.conf</code> from its database and can overwrite hand edits on "
+        "\"Apply Config\" -- use its GUI for this instead of the Asterisk steps above, don't mix "
+        "the two for the same extension. Menu names/tabs shift a little between versions; look "
+        "for these fields if something's not exactly where described.</p><ol>"
+        "<li><b>Applications &rarr; Extensions &rarr; + Add Extension &rarr; Add New PJSIP "
+        "Extension</b>.</li>"
+        "<li><b>User Extension</b>: the plain-digit extension number (same one you'd put in the "
+        "Line fields above -- \"Check a number\" below first).</li>"
+        "<li><b>Display Name</b>: something that identifies this board, e.g. \"%s Line 0\" -- "
+        "same purpose as the <code>callerid</code> line in the Asterisk path: so this extension "
+        "doesn't look like an anonymous number if you're running more than one of these boards.</li>"
+        "<li><b>Secret</b> (General tab): the line's password.</li>"
+        "<li>If this board is at a different site than the FreePBX server: on the extension's "
+        "<b>Advanced</b> tab, look for a NAT-related setting (varies by version -- \"NAT Mode\", "
+        "sometimes just implied by <code>rewrite_contact</code>/<code>rtp_symmetric</code> "
+        "already being on by default) and confirm it's enabled. Same reasoning as the Asterisk "
+        "path's note on this -- see \"Setting this up remotely?\" below.</li>"
+        "<li>Repeat for line 2 if this is a 2-line board.</li>"
+        "<li>Click <b>Submit</b>, then the orange <b>Apply Config</b> bar at the top.</li>"
+        "<li>Back here: same server/extension/password into the Line fields above, Save, reboot "
+        "the phone, confirm \"registered\" above.</li>"
+        "</ol></details>"
+
+        "<details><summary>Setting this up remotely (board and server on different networks)?"
+        "</summary>"
+        "<p class=\"hint\">Both sides need their firewall/router configured, or registration "
+        "and/or audio will fail even though everything above is correct:</p>"
+        "<ul>"
+        "<li><b>This board's side:</b> forward UDP <code>5060</code> (SIP) and UDP "
+        "<code>4000-4002</code> (RTP -- line 1 uses 4000, line 2 uses 4002) from your router's "
+        "WAN interface to this board's LAN IP.</li>"
+        "<li><b>The server's side</b> (only if the Asterisk/FreePBX box is <em>also</em> behind a "
+        "home-style router, not a cloud/VPS box with its own public IP): forward UDP "
+        "<code>5060</code> plus its configured RTP range -- Asterisk's default is UDP "
+        "<code>10000-20000</code> (<code>rtp.conf</code>; FreePBX: Settings &rarr; Asterisk SIP "
+        "Settings &rarr; RTP tab), though many installs narrow that range down.</li>"
+        "</ul>"
+        "<p class=\"hint\">Port forwarding alone isn't quite enough, though: this board has no "
+        "STUN/ICE, so it advertises its own <em>private</em> LAN IP in its SIP/SDP messages -- "
+        "useless to a server on another network for sending audio back. "
+        "<code>rewrite_contact=yes</code>/<code>rtp_symmetric=yes</code> (Asterisk) or the "
+        "equivalent NAT setting (FreePBX) tells the server to ignore that and learn this board's "
+        "real address from where its packets actually arrive from instead -- already included in "
+        "the setup script and the copy-paste blocks above, just something to also set if "
+        "configuring by GUI. This is the standard way any NAT'd device without STUN registers "
+        "with a remote PBX, and works fine through an ordinary home router; a particularly strict "
+        "\"symmetric NAT\" or carrier-grade NAT on either end can still defeat it, in which case a "
+        "VPN (e.g. WireGuard/Tailscale) between the two sites is the more reliable fix.</p>"
+        "<p class=\"hint\">Also worth knowing: this project's SIP/RTP has no TLS/SRTP, so a call "
+        "placed over the open internet this way isn't encrypted end to end -- fine on a trusted "
+        "network, worth keeping in mind on one you don't fully trust.</p>"
+        "</details>"
+        "</div>",
+        name);
 
     /* 2. Check-before-you-commit: own number field, not tied to the Save
      * form's fields for user0/pass0/etc -- so you can try a few candidates
@@ -2850,7 +2911,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * its WiFi card. */
     size_t hw_room = (strcmp(tab, "hardware") == 0) ? 12000 : 0; /* +memory map card, several partition rows */
     size_t general_room = (strcmp(tab, "general") == 0) ? 2200 : 0;
-    size_t voip_room = (strcmp(tab, "voip") == 0) ? 3000 : 0; /* +copy-paste pjsip.conf/extensions.conf examples */
+    size_t voip_room = (strcmp(tab, "voip") == 0) ? 5500 : 0; /* +copy-paste config examples, FreePBX + remote-deployment sections */
     size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room + voip_room;
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
@@ -3895,6 +3956,19 @@ static esp_err_t voip_server_script_handler(httpd_req_t *req)
             "aors=%s\n"
             "transport=transport-udp\n"
             "identify_by=username\n"
+            /* This board advertises its own LAN IP in SDP/Contact (no
+             * STUN/ICE -- see voip.c's own "no TLS/SRTP" doc comment) --
+             * fine on the same LAN as the server, but if this board is at a
+             * remote site, that private address is useless to the server
+             * for return traffic. These two tell Asterisk to ignore what
+             * the board *claims* its address is and instead learn the real
+             * one from where REGISTER/RTP packets actually arrive from
+             * (standard practice for any client behind NAT that can't
+             * self-report a public address -- most consumer routers don't
+             * allow that without STUN). Harmless on a LAN-only setup too,
+             * so always on rather than conditional. */
+            "rewrite_contact=yes\n"
+            "rtp_symmetric=yes\n"
             /* Purely a display label for the server admin's own benefit --
              * shows up in "pjsip show endpoints"/"show contacts" so several
              * boards' extensions don't all look like bare interchangeable
