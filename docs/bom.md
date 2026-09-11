@@ -43,65 +43,21 @@ passives — carries over unchanged from the SMD2 parts list.
 
 ## Hand-solder BOM
 
-### Carrier & modules
-
 | | Qty | Component | DigiKey | AliExpress / JLC | Notes |
 |---|-----|-----------|---------|-------------------|-------|
 | | 1 | MCU carrier: **U1** ESP32-C6-DevKitC-1 (or equivalent ESP32-C6 dev board) | `[TODO: confirm part number/price]` | `[TODO: confirm part number/price]` | Complete dev board — own USB-C, reset button, onboard 3.3 V reg; header/socket-mounted, not soldered flat |
-| | 1 | Audio codec: ES8388 (QFN-28) | [C365736 / LCSC (~$1–3)](https://www.lcsc.com/product-detail/C365736.html) | | Usually JLC-placed; hand-solder if DNP |
 | | 1 | SLIC: **U4** AG1171 @ **J9** (line 0) | [5061-AG1171-ND ($8.50)](https://www.digikey.com/en/products/detail/silvertel/AG1171/21187236) | | Always populated |
 | | 1 | SLIC: **U3** AG1171 @ **J8** (line 1) | same as **U4** | | Build **A** only |
-| | 1 | microSD socket: **Card1** TF-01A | [C91145 / LCSC (~$0.20)](https://www.lcsc.com/product-detail/C91145.html) | | Build **B** only; usually JLC-placed |
-
-### Power & DC input
-
-| | Qty | Component | DigiKey | AliExpress / JLC | Notes |
 |---|-----|-----------|---------|-------------------|-------|
 | | 1 | **J1** DC barrel jack | `[TODO: confirm part number/price]` | `[TODO: confirm part number/price]` | Alternate 5 V input, diode-ORed with USB-C; confirm DevKit's onboard regulator's minimum input headroom before specifying jack voltage (5.5–6 V DC brick recommended if the diode drop matters) |
-| | 1 | **D1** SS14 Schottky (diode-OR) | [SS14-FDICT-ND (~$0.10)](https://www.digikey.com/en/products/detail/onsemi/SS14/) | [C2480 / LCSC (~$0.05)](https://www.lcsc.com/product-detail/C2480.html) | Cathode toward +5 V; blocks backfeed between DC jack and USB-C |
 | | 1 | Line TVS (line 0, @ **U4**/**J9**) | [BZT03C82-TAP-ND (~$1)](https://www.digikey.com/en/products/detail/vishay-general-semiconductor-diodes-division/BZT03C82-TAP/7464977) | | DO-41 axial; alt **P6KE82** per Silvertel |
-| | 1 | Line TVS (line 1, @ **U3**/**J8**) | same as above | | Build **A** only |
-
-No dedicated 3.3 V LDO and no USB ESD IC on this board — both functions live
-on the DevKit module itself.
-
-### Connectors & headers
-
-| | Qty | Component | DigiKey | AliExpress / JLC | Notes |
-|---|-----|-----------|---------|-------------------|-------|
+| | 1 | Line TVS (line 1, @ **U3**/**J8**) | same as above | |  |
 | | 1 | **J9** RJ12 horizontal | [609-1055-ND ($0.83)](https://www.digikey.com/en/products/detail/amphenol-icc/87180-062LF/1159085) **87180-062LF** | | Alt **54601-006** [609-54601-006R-ND](https://www.digikey.com/en/products/detail/amphenol-icc/54601-006/1158894) |
 | | 1 | **J8** RJ12 horizontal | same as **J9** | | Build **A** only |
 | | 1 | **J5** 2×4 (8-pin) 2.54 mm jumper header + 4× shunts | `[TODO: confirm part number/price]` | `[TODO: confirm part number/price]` | Bridge all 4 pairs for line 1; leave open for microSD — see `hardware.md` §3 |
-| | 1 | **J3** 1×2 header, UART TX (optional) | [S1011EC-40-ND (~$0.50)](https://www.digikey.com/en/products/detail/adafruit-industries-llc/PH1-02-UA/5828900) | | GPIO16 |
-| | 1 | **J4** 1×2 header, UART RX (optional) | [S1011EC-40-ND (~$0.50)](https://www.digikey.com/en/products/detail/adafruit-industries-llc/PH1-02-UA/5828900) | | GPIO17 |
 
-### Diodes
-
-| | Qty | Component | DigiKey | AliExpress / JLC | Notes |
-|---|-----|-----------|---------|-------------------|-------|
-| | 1 | PD diode, line 0 (1N4148W, SOD-123) | [78-1N4148W-T-ND (~$0.10)](https://www.digikey.com/en/products/detail/stmicroelectronics/1N4148W/1014052) | | Diode-only PD wiring — no pull-up, see `hardware.md` §5 |
-| | 1 | PD diode, line 1 | same as above | | Build **A** only |
-| | 4 | Tip/ring bridge, line 0 (M7 / 1N4007, SMA) | | [C18199088 / LCSC (~$0.02 ea)](https://www.lcsc.com/product-detail/C18199088.html) | Full-wave bridge @ **J9** |
-| | 4 | Tip/ring bridge, line 1 | same as above | | Build **A** only, @ **J8** |
-
-### Capacitors
-
-| | Qty | Component | DigiKey | AliExpress / JLC | Notes |
-|---|-----|-----------|---------|-------------------|-------|
 | | 1 | 470 µF 16 V radial, line 0 SLIC bulk | [1189-1146-ND ($0.24)](https://www.digikey.com/en/products/detail/rubycon/16YXJ470M8X11-5/3134104) **16YXJ470M8X11.5** | | **U4** +VPWR bulk |
 | | 1 | 470 µF 16 V radial, line 1 SLIC bulk | same as above | | Build **A** only, **U3** +VPWR |
-| | 1 | 100 nF 0402, SLIC +5 V bypass (line 0) | | [C1525 (~$0.01)](https://www.lcsc.com/product-detail/C1525.html) | Local to **U4** |
-| | 1 | 100 nF 0402, SLIC +5 V bypass (line 1) | | same as above | Build **A** only, local to **U3** |
-| | 2 | 10 nF 0402, SLIC VIN coupling (per line) | | [C15195 (~$0.01)](https://www.lcsc.com/product-detail/C15195.html) | 1 per line, build **B** = qty 1 |
-| | 2 | 100 nF 0402, SLIC VOUT coupling (per line) | | [C1525 (~$0.01)](https://www.lcsc.com/product-detail/C1525.html) | 1 per line, build **B** = qty 1 |
-
-### Resistors
-
-| | Qty | Component | DigiKey | AliExpress / JLC | Notes |
-|---|-----|-----------|---------|-------------------|-------|
-| | 2 | 10 kΩ + 15 kΩ 0402, SHK divider (line 0) | | [C25744 (10k)](https://www.lcsc.com/product-detail/C25744.html) / [C25756 (15k)](https://www.lcsc.com/product-detail/C25756.html) | **R14/R15** per `hardware.md` §3 |
-| | 2 | 10 kΩ + 15 kΩ 0402, SHK divider (line 1) | | same as above | Build **A** only |
-| | 1 | 10 Ω 0402, ES8388 AVDD → HPVDD (optional) | | [C25077](https://www.lcsc.com/product-detail/C25077.html) | Optional ripple isolation |
 
 **Upload note:** the DigiKey links above are individual parts, not a
 pre-built cart CSV — this board's carrier/DC-jack/jumper-header parts aren't
@@ -121,9 +77,6 @@ per unique non-Basic LCSC part (ES8388; build B adds **Card1**).
 |-----|-----------|------------|-------|
 | 1 | ES8388 | [C365736 (~$1)](https://www.lcsc.com/product-detail/C365736.html) | Extended |
 | 1 | **Card1** TF-01A | [C91145 (~$0.20)](https://www.lcsc.com/product-detail/C91145.html) | Build B; Extended |
-
-No JLC-placed USB-C receptacle, LDO, or USB ESD chip on this board — those
-parts are gone (carrier handles USB/3.3 V/ESD on the DevKit module itself).
 
 ### Diodes
 
