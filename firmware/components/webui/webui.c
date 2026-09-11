@@ -1471,7 +1471,8 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card wide\"><h2>1. Point this phone at your SIP server</h2>"
         "<form method=\"POST\" action=\"/voip_set\" class=\"settings-form\">"
-        "<label>SIP server (host or IP) <input name=\"server\" value=\"%s\"></label>"
+        "<label>SIP server (host or IP) <input name=\"server\" id=\"voip_server_input\" "
+        "oninput=\"voipSyncCheckServer()\" value=\"%s\"></label>"
         "<label>Line 1 extension/user <input name=\"user0\" value=\"%s\"></label>"
         "<label>Line 1 password <input type=\"password\" name=\"pass0\" "
         "placeholder=\"leave blank to keep\"></label>",
@@ -1514,6 +1515,14 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "<code>identify_by=username</code>, and whatever dialplan <code>context=</code> your "
         "server uses -- or just download the setup script above and read it, it's a plain bash "
         "script that writes exactly this.</li>"
+        "<li>Running more than one of these boards? Add "
+        "<code>callerid=\"&lt;board name&gt; Line &lt;N&gt;\" &lt;extension&gt;</code> to that "
+        "endpoint -- purely a display label for <code>pjsip show endpoints</code>/"
+        "<code>show contacts</code>, so several boards' extensions don't all look like "
+        "interchangeable bare numbers. Keep the extension itself plain digits either way -- a "
+        "rotary or DTMF phone can only dial 0-9, so a board name baked into the extension/username "
+        "itself (e.g. <code>dualphone2-1234</code>) could never actually be dialed by another line "
+        "to reach this one. The setup script above already sets this for you.</li>"
         "<li>Add a matching <code>exten =&gt; &lt;number&gt;,1,Dial(PJSIP/&lt;number&gt;,20)</code> "
         "/ <code>same =&gt; n,Hangup()</code> entry to that context in "
         "<code>extensions.conf</code>.</li>"
@@ -1528,23 +1537,33 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "<p class=\"hint\">Embedded SIP/RTP (G.711 &micro;-law), custom UA -- no TLS/SRTP "
         "(LAN only).</p></div>");
 
-    /* 2. Check-before-you-commit: separate tiny form (its own number field,
-     * not tied to the Save form above) so you can try a few candidates
-     * without touching your actual saved config. Server-rendered redirect-
-     * with-result, same no-JS pattern as the rest of this page. Fires a SIP
-     * OPTIONS at the currently-saved SIP server (voip_check_handler) -- no
-     * separate "server" field here: it used to duplicate the one in the
-     * Save form above with different wording, which just read as two
-     * different settings. */
+    /* 2. Check-before-you-commit: own number field, not tied to the Save
+     * form's fields for user0/pass0/etc -- so you can try a few candidates
+     * without touching your actual saved line config. Server-rendered
+     * redirect-with-result, same no-JS pattern as the rest of this page.
+     *
+     * The server IS shared with the Save form above, deliberately -- but as
+     * a hidden field kept in sync via voipSyncCheckServer() (called on
+     * every keystroke in the Save form's server input, and once on load),
+     * not the saved voip_server() value. Used to be the latter, which meant
+     * typing a new server here to try before committing to it required
+     * saving first just to check it -- exactly backwards for a "try before
+     * you commit" tool. A visible second text field was tried before that
+     * and reverted (read as two unrelated server settings with different
+     * wording); mirroring the one you're already typing into avoids both
+     * problems. voip_check_handler() still falls back to the saved
+     * voip_server() if this arrives empty (no-JS). */
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card wide\"><h2>2. Check a number</h2>"
         "<p class=\"hint\">See <code>archive/VOIP_SETUP.md</code> for this project's shared numbering "
         "registry, then confirm a candidate is actually free here before you commit to it.</p>"
         "<form method=\"POST\" action=\"/voip_check\" class=\"settings-form\">"
+        "<input type=\"hidden\" name=\"server\" id=\"voip_check_server\" value=\"%s\">"
         "<label>Number to check <input name=\"number\" placeholder=\"e.g. 1101\" "
         "pattern=\"[0-9]{2,6}\" required></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\">Check availability</button></div>"
-        "</form>");
+        "</form>",
+        voip_server());
     if (checked && checked[0]) {
         const char *cls = strcmp(result, "free") == 0 ? "on" : "off";
         const char *label = strcmp(result, "free") == 0 ? "nothing answered -- looks free" :
@@ -1555,14 +1574,24 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
             "<span class=\"pill %s\">%s</span></div>", checked, cls, label);
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">Sends a SIP OPTIONS to that number on %s, nothing more. Only a clean "
+        "<p class=\"hint\">Sends a SIP OPTIONS to that number on "
+        "<span id=\"voip_check_server_label\">%s</span> (whatever's in the SIP server field "
+        "above right now -- no need to Save first). Only a clean "
         "404 Not Found counts as \"free\"; that's the one answer this can trust. On stock "
         "Asterisk/PJSIP (<code>identify_by=username</code>), an unrecognized number usually gets "
         "challenged for auth (401) exactly like a real endpoint with the wrong password would -- "
         "so \"in use, or not confirmable\" often just means Asterisk couldn't be bothered to say "
         "no, not that the number is actually taken. Treat a non-free result as inconclusive, and "
         "confirm on the server itself: "
-        "<code>asterisk -rx \"pjsip show endpoint &lt;number&gt;\"</code>.</p></div>",
+        "<code>asterisk -rx \"pjsip show endpoint &lt;number&gt;\"</code>.</p>"
+        "<script>"
+        "function voipSyncCheckServer(){"
+        "var v=document.getElementById('voip_server_input').value;"
+        "document.getElementById('voip_check_server').value=v;"
+        "document.getElementById('voip_check_server_label').textContent=v||'(no SIP server saved yet)';"
+        "}"
+        "voipSyncCheckServer();"
+        "</script></div>",
         voip_server()[0] ? voip_server() : "(no SIP server saved yet)");
 
     /* Unrelated to placing calls -- this secret only gates host-side tooling
@@ -3305,16 +3334,17 @@ static esp_err_t voip_set_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* POST /voip_check -- form body number=.. . Always checks against the
- * currently-*saved* SIP server (voip_server()) -- there used to be a
- * second "server" field here, independent of the one in the Save form
- * below with different wording ("to check against" vs "(host or IP)"),
- * which just read as two unrelated server settings instead of the same
- * value entered twice. Uses voip_probe_number()'s best-effort SIP OPTIONS
- * probe (blocks up to ~2s), which can only ever confirm "free", never
- * "taken" for sure -- see that function's own doc comment. Redirects back
- * to the VOIP tab with the result in the query string, same
- * request/redirect/re-render pattern as every other form on this page -- no
+/* POST /voip_check -- form body number=..&server=.. . `server` comes from
+ * the Check form's hidden field, kept in sync with whatever's currently
+ * typed in the Save form's server field (voipSyncCheckServer() in
+ * append_voip_tab()) -- so typing a new server and checking a number
+ * against it doesn't require saving that server first. Falls back to the
+ * currently-saved voip_server() if `server` arrives empty (no JS). Uses
+ * voip_probe_number()'s best-effort SIP OPTIONS probe (blocks up to ~2s),
+ * which can only ever confirm "free", never "taken" for sure -- see that
+ * function's own doc comment. Redirects back to the VOIP tab with the
+ * result in the query string, same request/redirect/re-render pattern as
+ * every other form on this page -- no
  * separate JSON/AJAX endpoint needed. */
 static esp_err_t voip_check_handler(httpd_req_t *req)
 {
@@ -3327,9 +3357,10 @@ static esp_err_t voip_check_handler(httpd_req_t *req)
     if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
     body[r] = '\0';
 
-    char number[8] = {0};
+    char number[8] = {0}, server_buf[64] = {0};
     form_field(body, "number", number, sizeof(number));
-    const char *server = voip_server();
+    form_field(body, "server", server_buf, sizeof(server_buf));
+    const char *server = server_buf[0] ? server_buf : voip_server();
 
     /* Digits only, 2-6 chars (matches the HTML pattern= and dialplan's own
      * valid_code() range) -- `number` lands straight in a redirect Location
@@ -3747,6 +3778,16 @@ static esp_err_t voip_server_script_handler(httpd_req_t *req)
             "aors=%s\n"
             "transport=transport-udp\n"
             "identify_by=username\n"
+            /* Purely a display label for the server admin's own benefit --
+             * shows up in "pjsip show endpoints"/"show contacts" so several
+             * boards' extensions don't all look like bare interchangeable
+             * numbers. Doesn't touch the extension itself: that stays plain
+             * digits (dialable from a rotary/DTMF phone), unlike a scheme
+             * that puts the board name IN the extension/username (e.g.
+             * "dualphone2-1234") -- letters and hyphens aren't dialable at
+             * all from a physical phone, so that string could never be
+             * something another line actually dials to reach this one. */
+            "callerid=\"%s Line %d\" <%s>\n"
             "; END %s-line%d\n"
             "PEER\n"
             /* Same marker-delete-then-reinsert approach as the pjsip.conf
@@ -3769,6 +3810,7 @@ static esp_err_t voip_server_script_handler(httpd_req_t *req)
             user, pass,                 /* username=/password= */
             user,                       /* [user] endpoint */
             user, user,                 /* auth=/aors= */
+            name, line, user,           /* callerid="name Line N" <user> */
             name, line,                 /* END marker */
             name, line, name, line,     /* extensions.conf sed delete marker range */
             user,                       /* awk -v u= */
