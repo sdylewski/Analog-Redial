@@ -1436,6 +1436,8 @@ static void build_voip_instructions(char steps[VOIP_INSTR_STEPS][VOIP_INSTR_STEP
 static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, const char *result,
                             const char *created, const char *createresult)
 {
+    char name[32];
+    board_name_get(name, sizeof(name));
     bool r0 = voip_is_registered(0);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card wide\"><h2>%s</h2>"
@@ -1473,7 +1475,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "<form method=\"POST\" action=\"/voip_set\" class=\"settings-form\">"
         "<label>SIP server (host or IP) <input name=\"server\" id=\"voip_server_input\" "
         "oninput=\"voipSyncCheckServer()\" value=\"%s\"></label>"
-        "<label>Line 1 extension/user <input name=\"user0\" value=\"%s\"></label>"
+        "<label>Line 1 extension <input name=\"user0\" value=\"%s\"></label>"
         "<label>Line 1 password <input type=\"password\" name=\"pass0\" "
         "placeholder=\"leave blank to keep\"></label>",
         voip_server(), voip_user(0));
@@ -1483,7 +1485,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
      * fields to submit blank would themselves be hidden. */
     if (board_hw_config_get().num_lines > 1 || voip_user(1)[0]) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<label>Line 2 extension/user <input name=\"user1\" value=\"%s\"></label>"
+            "<label>Line 2 extension <input name=\"user1\" value=\"%s\"></label>"
             "<label>Line 2 password <input type=\"password\" name=\"pass1\" "
             "placeholder=\"leave blank to keep\"></label>",
             voip_user(1));
@@ -1504,6 +1506,18 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     for (int i = 0; i < VOIP_INSTR_STEPS && (size_t)off < cap; i++) {
         off += snprintf(buf + off, cap - off, "<li>%s</li>", steps[i]);
     }
+    /* Same condition as the Line 2 form field above: a genuine 2-line board,
+     * or a stale line-2 account still configured on a 1-line board. Doesn't
+     * itself require voip_user(1) to be non-empty -- when it's empty, the
+     * block below fills in placeholder digits rather than being skipped, so
+     * the example still shows what a 2-line board's second block looks
+     * like. */
+    bool have_line1 = board_hw_config_get().num_lines > 1 || voip_user(1)[0];
+    /* Falls back to placeholder digits if nothing's saved yet, rather than
+     * rendering a broken example with an empty [] section name -- but the
+     * whole point of this block is to need zero substitution once a real
+     * extension IS saved, so say so either way. */
+    bool using_placeholders = !voip_user(0)[0];
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "</ol>"
         "<details><summary>Prefer to add the line by hand instead?</summary><ol>"
@@ -1511,21 +1525,123 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "<code>archive/VOIP_SETUP.md</code> for this project's shared numbering registry.</li>"
         "<li>SSH into the Asterisk server.</li>"
         "<li>Add an AOR + auth + endpoint trio to <code>/etc/asterisk/pjsip.conf</code> for this "
-        "extension number: <code>disallow=all</code>, <code>allow=ulaw,alaw,opus</code>, "
-        "<code>identify_by=username</code>, and whatever dialplan <code>context=</code> your "
-        "server uses -- or just download the setup script above and read it, it's a plain bash "
-        "script that writes exactly this.</li>"
-        "<li>Running more than one of these boards? Add "
-        "<code>callerid=\"&lt;board name&gt; Line &lt;N&gt;\" &lt;extension&gt;</code> to that "
-        "endpoint -- purely a display label for <code>pjsip show endpoints</code>/"
-        "<code>show contacts</code>, so several boards' extensions don't all look like "
-        "interchangeable bare numbers. Keep the extension itself plain digits either way -- a "
-        "rotary or DTMF phone can only dial 0-9, so a board name baked into the extension/username "
-        "itself (e.g. <code>dualphone2-1234</code>) could never actually be dialed by another line "
-        "to reach this one. The setup script above already sets this for you.</li>"
+        "extension number -- or just download the setup script above and read it, it's a plain "
+        "bash script that writes exactly this. %s Includes a <code>callerid</code> line so "
+        "<code>pjsip show endpoints</code>/<code>show contacts</code> shows which board this is, "
+        "rather than a bare interchangeable number -- the extension itself stays plain digits "
+        "either way, since that's the part a rotary/DTMF phone actually has to dial:</li>"
+        "</ol>",
+        using_placeholders
+            ? "No extension saved yet on this board, so this is a placeholder example (extension "
+              "1234/1235) -- set and Save a real one in the fields above first, then reload this "
+              "page for a paste-ready block using it, no substitution needed."
+            : "Using this board's own currently-saved settings, so there's nothing left to "
+              "substitute -- if you just changed the fields above, Save first and reload this "
+              "page so this block picks up the new values.");
+
+    /* Copy-paste example for the manual path, built from this board's
+     * actual saved settings when there are any (else the placeholder
+     * digits above) -- either way nothing generic to mentally substitute,
+     * matching what "just copy and paste into the file" actually needs.
+     * Escaped: this text lands inside <pre><code>, a text-node context
+     * where an unescaped '<'/'&' in a board name or password isn't just
+     * cosmetically wrong the way it is in a form field's value=""
+     * attribute elsewhere on this page -- unlike those, this could break
+     * the block's own markup or, with '<', inject something that isn't
+     * inert here. */
+    {
+        const char *ext0 = voip_user(0)[0] ? voip_user(0) : "1234";
+        const char *rawpass0 = voip_user(0)[0] ? voip_pass(0) : "your-line1-password";
+        char ename[192], euser0[192], epass0[288];
+        html_escape(name, ename, sizeof(ename));
+        html_escape(ext0, euser0, sizeof(euser0));
+        html_escape(rawpass0, epass0, sizeof(epass0));
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<pre><code>[%s]\n"
+            "type=aor\n"
+            "max_contacts=1\n"
+            "remove_existing=yes\n"
+            "\n"
+            "[%s]\n"
+            "type=auth\n"
+            "auth_type=userpass\n"
+            "username=%s\n"
+            "password=%s\n"
+            "\n"
+            "[%s]\n"
+            "type=endpoint\n"
+            "context=rotary\n"
+            "disallow=all\n"
+            "allow=ulaw,alaw,opus\n"
+            "auth=%s\n"
+            "aors=%s\n"
+            "transport=transport-udp\n"
+            "identify_by=username\n"
+            "callerid=\"%s Line 0\" &lt;%s&gt;\n",
+            euser0, euser0, euser0, epass0, euser0, euser0, euser0, ename, euser0);
+        if (have_line1) {
+            const char *ext1 = voip_user(1)[0] ? voip_user(1) : "1235";
+            const char *rawpass1 = voip_user(1)[0] ? voip_pass(1) : "your-line2-password";
+            char euser1[192], epass1[288];
+            html_escape(ext1, euser1, sizeof(euser1));
+            html_escape(rawpass1, epass1, sizeof(epass1));
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "\n[%s]\n"
+                "type=aor\n"
+                "max_contacts=1\n"
+                "remove_existing=yes\n"
+                "\n"
+                "[%s]\n"
+                "type=auth\n"
+                "auth_type=userpass\n"
+                "username=%s\n"
+                "password=%s\n"
+                "\n"
+                "[%s]\n"
+                "type=endpoint\n"
+                "context=rotary\n"
+                "disallow=all\n"
+                "allow=ulaw,alaw,opus\n"
+                "auth=%s\n"
+                "aors=%s\n"
+                "transport=transport-udp\n"
+                "identify_by=username\n"
+                "callerid=\"%s Line 1\" &lt;%s&gt;\n",
+                euser1, euser1, euser1, epass1, euser1, euser1, euser1, ename, euser1);
+        }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</code></pre>");
+    }
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<ol start=\"4\">"
         "<li>Add a matching <code>exten =&gt; &lt;number&gt;,1,Dial(PJSIP/&lt;number&gt;,20)</code> "
-        "/ <code>same =&gt; n,Hangup()</code> entry to that context in "
-        "<code>extensions.conf</code>.</li>"
+        "/ <code>same =&gt; n,Hangup()</code> entry to a <code>[rotary]</code> context in "
+        "<code>extensions.conf</code> (create the context if it doesn't exist yet) -- again, "
+        "using this board's actual extension(s):</li>"
+        "</ol>");
+    {
+        const char *ext0 = voip_user(0)[0] ? voip_user(0) : "1234";
+        char euser0[192];
+        html_escape(ext0, euser0, sizeof(euser0));
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<pre><code>[rotary]\n"
+            "exten =&gt; %s,1,Dial(PJSIP/%s,30)\n"
+            " same =&gt; n,Hangup()\n",
+            euser0, euser0);
+        if (have_line1) {
+            const char *ext1 = voip_user(1)[0] ? voip_user(1) : "1235";
+            char euser1[192];
+            html_escape(ext1, euser1, sizeof(euser1));
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "exten =&gt; %s,1,Dial(PJSIP/%s,30)\n"
+                " same =&gt; n,Hangup()\n",
+                euser1, euser1);
+        }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</code></pre>");
+    }
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<ol start=\"5\">"
         "<li><code>asterisk -rx \"pjsip reload\"</code> and "
         "<code>asterisk -rx \"dialplan reload\"</code>.</li>"
         "<li>Back here: same server/extension/password into the Line fields above, Save, reboot "
@@ -2734,7 +2850,8 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * its WiFi card. */
     size_t hw_room = (strcmp(tab, "hardware") == 0) ? 12000 : 0; /* +memory map card, several partition rows */
     size_t general_room = (strcmp(tab, "general") == 0) ? 2200 : 0;
-    size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room;
+    size_t voip_room = (strcmp(tab, "voip") == 0) ? 3000 : 0; /* +copy-paste pjsip.conf/extensions.conf examples */
+    size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room + voip_room;
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
