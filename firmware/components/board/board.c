@@ -13,9 +13,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <time.h>
 
 static const char *TAG = "board";
 static i2c_master_bus_handle_t s_bus;
@@ -310,6 +312,122 @@ esp_err_t board_am_set(int line, board_am_cfg_t cfg)
                  (unsigned)cfg.max_ms, cfg.other_line ? "on" : "off");
     }
     return err;
+}
+
+#define BOARD_TZ_NVS_KEY "tz"
+
+/* setenv("TZ", ...) + tzset() only changes what localtime_r() does --
+ * everything else that already cares about wall-clock time uses gmtime_r()
+ * explicitly (recording timestamps, telephony.c), so this can't affect
+ * them. Safe to call as often as the setting changes; not on any hot path. */
+static void board_timezone_apply(const char *tz)
+{
+    if (tz && tz[0]) setenv("TZ", tz, 1);
+    else unsetenv("TZ");
+    tzset();
+}
+
+void board_timezone_get(char *out, size_t len)
+{
+    if (len == 0) return;
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) == ESP_OK) {
+        size_t n = len;
+        esp_err_t err = nvs_get_str(h, BOARD_TZ_NVS_KEY, out, &n);
+        nvs_close(h);
+        if (err == ESP_OK) return;
+    }
+    out[0] = '\0'; /* "" = UTC */
+}
+
+esp_err_t board_timezone_set(const char *tz)
+{
+    if (!tz) return ESP_ERR_INVALID_ARG;
+    char trimmed[BOARD_TZ_MAX];
+    strncpy(trimmed, tz, sizeof(trimmed) - 1);
+    trimmed[sizeof(trimmed) - 1] = '\0';
+
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_str(h, BOARD_TZ_NVS_KEY, trimmed);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) {
+        board_timezone_apply(trimmed);
+        ESP_LOGI(TAG, "timezone set to '%s'", trimmed[0] ? trimmed : "(UTC)");
+    }
+    return err;
+}
+
+void board_timezone_init(void)
+{
+    char tz[BOARD_TZ_MAX];
+    board_timezone_get(tz, sizeof(tz));
+    board_timezone_apply(tz);
+}
+
+#define QH_EN_NVS_KEY      "qh_en"
+#define QH_START_H_NVS_KEY "qh_start_h"
+#define QH_START_M_NVS_KEY "qh_start_m"
+#define QH_END_H_NVS_KEY   "qh_end_h"
+#define QH_END_M_NVS_KEY   "qh_end_m"
+
+board_quiet_hours_t board_quiet_hours_get(void)
+{
+    /* 21:00-07:00 (9 pm-7 am) once enabled -- see board.h. */
+    board_quiet_hours_t cfg = {
+        .enabled = false, .start_hour = 21, .start_min = 0, .end_hour = 7, .end_min = 0
+    };
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return cfg;
+    uint8_t en, sh, sm, eh, em;
+    if (nvs_get_u8(h, QH_EN_NVS_KEY, &en) == ESP_OK) cfg.enabled = (en != 0);
+    if (nvs_get_u8(h, QH_START_H_NVS_KEY, &sh) == ESP_OK && sh <= 23) cfg.start_hour = sh;
+    if (nvs_get_u8(h, QH_START_M_NVS_KEY, &sm) == ESP_OK && sm <= 59) cfg.start_min = sm;
+    if (nvs_get_u8(h, QH_END_H_NVS_KEY, &eh) == ESP_OK && eh <= 23) cfg.end_hour = eh;
+    if (nvs_get_u8(h, QH_END_M_NVS_KEY, &em) == ESP_OK && em <= 59) cfg.end_min = em;
+    nvs_close(h);
+    return cfg;
+}
+
+esp_err_t board_quiet_hours_set(board_quiet_hours_t cfg)
+{
+    if (cfg.start_hour > 23 || cfg.start_min > 59 || cfg.end_hour > 23 || cfg.end_min > 59) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, QH_EN_NVS_KEY, cfg.enabled ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_u8(h, QH_START_H_NVS_KEY, cfg.start_hour);
+    if (err == ESP_OK) err = nvs_set_u8(h, QH_START_M_NVS_KEY, cfg.start_min);
+    if (err == ESP_OK) err = nvs_set_u8(h, QH_END_H_NVS_KEY, cfg.end_hour);
+    if (err == ESP_OK) err = nvs_set_u8(h, QH_END_M_NVS_KEY, cfg.end_min);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "quiet hours %s, %02u:%02u-%02u:%02u", cfg.enabled ? "enabled" : "disabled",
+                 cfg.start_hour, cfg.start_min, cfg.end_hour, cfg.end_min);
+    }
+    return err;
+}
+
+bool board_quiet_hours_active(void)
+{
+    board_quiet_hours_t cfg = board_quiet_hours_get();
+    if (!cfg.enabled) return false;
+
+    time_t now = time(NULL);
+    struct tm t;
+    localtime_r(&now, &t);
+    int cur = t.tm_hour * 60 + t.tm_min;
+    int start = cfg.start_hour * 60 + cfg.start_min;
+    int end = cfg.end_hour * 60 + cfg.end_min;
+
+    if (start == end) return true; /* degenerate "all day" window -- fail open, not silent */
+    if (start < end) return cur >= start && cur < end;
+    return cur >= start || cur < end; /* wraps past midnight, e.g. 21:00-07:00 */
 }
 
 #define AEC_DELAY_NVS_KEY0 "aec_delay0"

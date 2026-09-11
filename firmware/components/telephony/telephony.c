@@ -435,6 +435,31 @@ static void start_record_beep(int line)
     play_transient(line, TONE_ANSWERING_BEEP, RECORD_BEEP_MS, TEL_RECORD_BEEP, TEL_RECORDING);
 }
 
+/* Starts ringing `line` for an incoming call (local peer or VoIP) -- or, if
+ * board_quiet_hours_active() (board.h) says it's currently quiet time,
+ * skips the physical ring entirely and sets ring_am_cfg so the very next
+ * FSM tick treats this exactly like a call that's already used up its ring
+ * count (see the eligibility check in fsm_task() below), routing it
+ * straight to the answering machine (auto_answer()) instead. Applies
+ * regardless of whether Answering Machine is itself enabled/configured for
+ * this line -- during quiet hours there's nowhere else to send an incoming
+ * call, and auto_answer() already degrades gracefully with no greeting
+ * recorded (straight to a beep, then record). Shared by start_local_call()
+ * and on_voip_incoming() so this only lives in one place. */
+static void start_ring(int line)
+{
+    s_line[line].ring_started_us = esp_timer_get_time();
+    if (board_quiet_hours_active()) {
+        s_line[line].ring_am_cfg = (board_am_cfg_t){
+            .enabled = true, .rings = 0, .other_line = true,
+            .max_ms = board_am_get(line).max_ms,
+        };
+        return; /* no ag1170_ring_start() -- stay silent */
+    }
+    ag1170_ring_start(line);
+    s_line[line].ring_am_cfg = board_am_get(line);
+}
+
 /* ---- inter-line local call ---- */
 static void start_local_call(int caller, int target, voice_effect_t fx)
 {
@@ -449,9 +474,7 @@ static void start_local_call(int caller, int target, voice_effect_t fx)
     /* ring the target, give caller ringback */
     s_line[target].state = TEL_RINGING;
     s_line[target].peer  = caller;
-    ag1170_ring_start(target);
-    s_line[target].ring_started_us = esp_timer_get_time();
-    s_line[target].ring_am_cfg = board_am_get(target);
+    start_ring(target);
 
     s_line[caller].state = TEL_RINGBACK;
     s_line[caller].peer  = target;
@@ -824,9 +847,7 @@ static void on_voip_incoming(int line)
                   s_line[line].caller_number);
     s_line[line].state = TEL_RINGING;
     s_line[line].peer = PEER_VOIP;
-    ag1170_ring_start(line);
-    s_line[line].ring_started_us = esp_timer_get_time();
-    s_line[line].ring_am_cfg = board_am_get(line);
+    start_ring(line);
 }
 
 static void fsm_task(void *arg)
@@ -977,7 +998,11 @@ static void fsm_task(void *arg)
              * voicemail isn't obviously wanted, so it's opt-in separately
              * from VoIP auto-answer -- see board.h). Trigger condition is
              * "cfg.rings full cadence cycles have elapsed" -- simpler and
-             * less ambiguous than counting rings-in-progress. */
+             * less ambiguous than counting rings-in-progress. During quiet
+             * hours, start_ring() already substituted a synthetic
+             * always-eligible/zero-rings cfg here, so this fires on the very
+             * first tick after ringing "starts" -- see start_ring()'s doc
+             * comment. */
             if (s_line[line].state == TEL_RINGING && s_line[line].ring_started_us) {
                 board_am_cfg_t cfg = s_line[line].ring_am_cfg;
                 bool eligible = cfg.enabled &&

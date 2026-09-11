@@ -151,6 +151,52 @@ board_am_cfg_t board_am_get(int line);
 /* ESP_ERR_INVALID_ARG if rings or max_ms are outside their MIN..MAX above. */
 esp_err_t board_am_set(int line, board_am_cfg_t cfg);
 
+/* ---- Timezone (for Quiet hours below) ----
+ * Nothing else in this firmware cares about local time -- recording
+ * timestamps and everything else deliberately use UTC (gmtime_r()), and
+ * stay that way regardless of this setting. A POSIX TZ string (e.g.
+ * "PST8PDT,M3.2.0,M11.1.0" for US Pacific with DST, "EST5" for fixed-offset
+ * US Eastern with no DST rule) -- newlib's localtime_r() parses this
+ * directly, so no timezone database needs to ship in firmware. See
+ * https://github.com/nayarsystems/posix_tz_db for a lookup table of common
+ * strings. "" (default) means UTC. */
+#define BOARD_TZ_MAX 64
+void      board_timezone_get(char *out, size_t len); /* "" = UTC (default) */
+/* Applies immediately (setenv("TZ", ...) + tzset()) -- no reboot needed. */
+esp_err_t board_timezone_set(const char *tz);
+/* Applies whatever's saved in NVS to the process's C library timezone.
+ * Call once at boot, before anything might call board_quiet_hours_active(). */
+void      board_timezone_init(void);
+
+/* ---- Quiet hours ----
+ * While enabled and the current local time (board_timezone_get(), UTC if
+ * unset) falls in [start, end), incoming calls on either line go straight
+ * to the answering machine instead of ringing -- old mechanical ringers are
+ * loud, and not everyone wants one going off at 2 a.m. One setting for both
+ * lines (not per-line -- if you're asleep, you're asleep regardless of
+ * which line rings), and it works independently of the per-line Answering
+ * Machine config above: a call still gets routed to voicemail during quiet
+ * hours even on a line whose own AM is disabled/unconfigured, since
+ * "silently drop the call" isn't a real option and there's nowhere else to
+ * send it -- auto_answer() (telephony.c) already degrades gracefully with
+ * no greeting recorded (straight to a beep, then record). */
+typedef struct {
+    bool    enabled;
+    uint8_t start_hour, start_min; /* 0-23, 0-59 */
+    uint8_t end_hour, end_min;
+} board_quiet_hours_t;
+
+/* Defaults to disabled, 21:00-07:00 (9 pm-7 am) once enabled. `start` later
+ * than `end` (the common case) means a window that wraps past midnight --
+ * see board_quiet_hours_active(). */
+board_quiet_hours_t board_quiet_hours_get(void);
+/* ESP_ERR_INVALID_ARG if any hour/minute is out of range. Takes effect on
+ * the next incoming call -- no reboot needed. */
+esp_err_t board_quiet_hours_set(board_quiet_hours_t cfg);
+/* True if quiet hours are enabled and right now (local time) falls inside
+ * the configured window. */
+bool board_quiet_hours_active(void);
+
 /* ---- AEC bulk delay (per-line, per-device) ----
  * Each physical board's own I2S/codec/acoustic path has a slightly different
  * bulk delay (measured via the bringup `echoprobe` command, applied by hand

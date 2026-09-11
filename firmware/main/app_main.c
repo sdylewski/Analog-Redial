@@ -62,6 +62,13 @@ void app_main(void)
      * persist across reboots (watch pulse/hook timing, etc.). */
     logctl_init();
 
+    /* Applies the saved TZ string (Settings -> General) to the C library's
+     * timezone, if any -- board_quiet_hours_active() is the only thing that
+     * calls localtime_r() rather than gmtime_r(), but it needs this done
+     * before the first incoming call, not lazily. logctl_init() above
+     * already brought NVS up. */
+    board_timezone_init();
+
     ESP_LOGI(TAG, "Rotary Phone Gateway (ESP32-C6) starting");
 
     /* 0. Status LED first -- fast blink means "booting", visible even if
