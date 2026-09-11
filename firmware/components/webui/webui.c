@@ -385,18 +385,34 @@ static esp_err_t static_css_handler(httpd_req_t *req)
 
 extern const uint8_t favicon_svg_start[] asm("_binary_favicon_svg_start");
 extern const uint8_t favicon_svg_end[]   asm("_binary_favicon_svg_end");
+extern const uint8_t favicon_ico_start[] asm("_binary_favicon_ico_start");
+extern const uint8_t favicon_ico_end[]   asm("_binary_favicon_ico_end");
 
-/* Serves the same embedded SVG at both URLs: /static/favicon.svg is what
- * append_page_head()'s <link rel="icon"> points at; /favicon.ico is what
- * browsers/OS probe for on their own regardless of that link (a long-
- * standing convention predating <link rel="icon">). Browsers key off the
- * Content-Type header, not the URL's extension, so serving SVG content at
- * a ".ico" path works fine -- no separate raster/ICO asset needed. */
-static esp_err_t favicon_handler(httpd_req_t *req)
+/* GET /static/favicon.svg -- what append_page_head()'s <link rel="icon"
+ * type="image/svg+xml"> points at. Scalable, and what Chrome/Firefox
+ * actually use. */
+static esp_err_t favicon_svg_handler(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "image/svg+xml");
     httpd_resp_send(req, (const char *)favicon_svg_start,
                      favicon_svg_end - favicon_svg_start);
+    return ESP_OK;
+}
+
+/* GET /favicon.ico -- a real PNG-in-ICO raster fallback (see
+ * firmware/bringup/gen_favicon.py), not the SVG re-served under an .ico
+ * name. An earlier version did serve the SVG here on the theory that
+ * browsers key off Content-Type, not the URL extension -- true for
+ * Chrome/Firefox, but Safari's own-initiative /favicon.ico probe (which
+ * runs regardless of the page's <link rel="icon"> tags) has never reliably
+ * rendered SVG there, which is why the tab icon wasn't showing up in
+ * Safari. This path and the <link rel="icon" href="/favicon.ico"> tag in
+ * append_page_head() now both point at real raster data instead. */
+static esp_err_t favicon_ico_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "image/x-icon");
+    httpd_resp_send(req, (const char *)favicon_ico_start,
+                     favicon_ico_end - favicon_ico_start);
     return ESP_OK;
 }
 
@@ -508,6 +524,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
         "<!doctype html><html><head><meta charset=\"utf-8\"><title>%s \xc2\xb7 %s</title>"
         "%s"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        "<link rel=\"icon\" href=\"/favicon.ico\" sizes=\"any\">"
         "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">"
         "<link rel=\"stylesheet\" href=\"/static/style.css\"></head><body>"
         "<header><h1>%s <span class=\"dot\">%s</span></h1><nav>",
@@ -629,6 +646,7 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
         "<!doctype html><html><head><meta charset=\"utf-8\">"
         "<title>Analog Redial \xc2\xb7 %s</title>"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        "<link rel=\"icon\" href=\"/favicon.ico\" sizes=\"any\">"
         "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">"
         "<link rel=\"stylesheet\" href=\"/static/style.css\"></head><body>"
         "<header><h1>Analog Redial <span class=\"dot\">%s</span></h1></header>"
@@ -1200,6 +1218,64 @@ static int append_general_tab(char *buf, size_t cap, int off)
                  "it. The clock restarts on every return to dial tone, so only a genuinely "
                  "forgotten handset ever reaches it. Takes effect on the next dial tone -- no "
                  "reboot."));
+
+    char tz[BOARD_TZ_MAX];
+    board_timezone_get(tz, sizeof(tz));
+    char etz[BOARD_TZ_MAX * 6];
+    html_escape(tz, etz, sizeof(etz));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<form method=\"POST\" action=\"/timezone_set\" class=\"settings-form\">"
+        "<label>%s <input name=\"tz\" value=\"%s\" maxlength=\"%d\" "
+        "placeholder=\"e.g. EST5EDT,M3.2.0,M11.1.0 -- blank = UTC\"></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form>"
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("general.timezone.title", "Timezone"),
+        i18n_str("general.current", "Current"), tz[0] ? etz : "UTC",
+        i18n_str("general.timezone.label", "POSIX TZ string"), etz, BOARD_TZ_MAX - 1,
+        i18n_str("general.button.save", "Save"),
+        i18n_str("general.timezone.hint",
+                 "Only used by Quiet hours below -- recordings and everything else stay in UTC "
+                 "regardless. Look your zone's string up at "
+                 "<a href=\"https://github.com/nayarsystems/posix_tz_db\">"
+                 "github.com/nayarsystems/posix_tz_db</a> (e.g. America/New_York is "
+                 "EST5EDT,M3.2.0,M11.1.0 -- includes the daylight-saving rule). Blank means UTC. "
+                 "Applies immediately, no reboot."));
+
+    board_quiet_hours_t qh = board_quiet_hours_get();
+    char qh_status[48];
+    if (qh.enabled) {
+        snprintf(qh_status, sizeof(qh_status), i18n_str("general.quiethours.status_on", "on, %02u:%02u\xe2\x80\x93%02u:%02u"),
+                 qh.start_hour, qh.start_min, qh.end_hour, qh.end_min);
+    } else {
+        snprintf(qh_status, sizeof(qh_status), "%s", i18n_str("general.quiethours.status_off", "off"));
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<form method=\"POST\" action=\"/quiet_hours\" class=\"settings-form\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
+        "<label>%s <input type=\"time\" name=\"start\" value=\"%02u:%02u\" required></label>"
+        "<label>%s <input type=\"time\" name=\"end\" value=\"%02u:%02u\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form>"
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("general.quiethours.title", "Quiet hours"),
+        i18n_str("general.current", "Current"), qh_status,
+        qh.enabled ? " checked" : "", i18n_str("general.quiethours.enabled", "Enabled"),
+        i18n_str("general.quiethours.start_label", "Start"), qh.start_hour, qh.start_min,
+        i18n_str("general.quiethours.end_label", "End"), qh.end_hour, qh.end_min,
+        i18n_str("general.button.save", "Save"),
+        i18n_str("general.quiethours.hint",
+                 "While enabled, incoming calls on either line during this window go straight "
+                 "to the answering machine instead of ringing -- old mechanical ringers are "
+                 "loud, and not everyone wants one going off at 2 a.m. Applies even if a line's "
+                 "own Answering Machine (Hardware tab) is off, since there's nowhere else to "
+                 "send the call. Uses the timezone above (UTC if left blank). Start later than "
+                 "end (e.g. 21:00-07:00) means the window wraps past midnight. Takes effect on "
+                 "the next incoming call -- no reboot."));
 
     dialplan_modes_t *m = dialplan_modes();
     off = append_mode_card(buf, cap, off, i18n_str("general.readback.title", "Digit readback"),
@@ -2923,7 +2999,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * for. General's room covers the WIFI_SCAN_JS + language-picker JS on
      * its WiFi card. */
     size_t hw_room = (strcmp(tab, "hardware") == 0) ? 12000 : 0; /* +memory map card, several partition rows */
-    size_t general_room = (strcmp(tab, "general") == 0) ? 2200 : 0;
+    size_t general_room = (strcmp(tab, "general") == 0) ? 3200 : 0; /* +timezone, quiet hours cards */
     size_t voip_room = (strcmp(tab, "voip") == 0) ? 5500 : 0; /* +copy-paste config examples, FreePBX + remote-deployment sections */
     size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room + voip_room;
     char *buf = malloc(cap);
@@ -3130,6 +3206,7 @@ static esp_err_t wifi_set_handler(httpd_req_t *req)
         snprintf(page, sizeof(page),
             "<!doctype html><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+            "<link rel=\"icon\" href=\"/favicon.ico\" sizes=\"any\">"
             "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">"
             "<link rel=\"stylesheet\" href=\"/static/style.css\">"
             "<main class=\"auth-page\"><div class=\"auth-card\">"
@@ -3194,6 +3271,7 @@ static esp_err_t send_reboot_page(httpd_req_t *req, const char *title, const cha
     snprintf(page, sizeof(page),
         "<!doctype html><meta charset=\"utf-8\">"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        "<link rel=\"icon\" href=\"/favicon.ico\" sizes=\"any\">"
         "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">"
         "<link rel=\"stylesheet\" href=\"/static/style.css\">"
         "<main class=\"auth-page\"><div class=\"auth-card\">"
@@ -3327,6 +3405,73 @@ static esp_err_t offhook_alert_handler(httpd_req_t *req)
     };
     if (board_offhook_alert_set(cfg) != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "seconds out of range");
+        return ESP_OK;
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /timezone_set -- form body tz=... (a POSIX TZ string; blank = UTC). */
+static esp_err_t timezone_set_handler(httpd_req_t *req)
+{
+    if (req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY] = {0};
+    if (req->content_len > 0) {
+        int r = httpd_req_recv(req, body, req->content_len);
+        if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+        body[r] = '\0';
+    }
+
+    char tz[BOARD_TZ_MAX] = {0};
+    form_field(body, "tz", tz, sizeof(tz));
+    board_timezone_set(tz); /* only fails on an NVS write error, nothing form-validatable */
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /quiet_hours -- form body [enabled=1&]start=HH:MM&end=HH:MM (the
+ * values an <input type="time"> submits). An unchecked checkbox submits
+ * nothing at all, same as offhook_alert_handler above -- missing `enabled`
+ * means "off". */
+static bool parse_hhmm(const char *s, uint8_t *h, uint8_t *m)
+{
+    unsigned hh, mm;
+    if (sscanf(s, "%u:%u", &hh, &mm) != 2 || hh > 23 || mm > 59) return false;
+    *h = (uint8_t)hh;
+    *m = (uint8_t)mm;
+    return true;
+}
+
+static esp_err_t quiet_hours_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+
+    char enabled[8] = {0}, start[8] = {0}, end[8] = {0};
+    form_field(body, "enabled", enabled, sizeof(enabled));
+    form_field(body, "start", start, sizeof(start));
+    form_field(body, "end", end, sizeof(end));
+
+    board_quiet_hours_t cfg = { .enabled = (enabled[0] == '1') };
+    if (!parse_hhmm(start, &cfg.start_hour, &cfg.start_min) ||
+        !parse_hhmm(end, &cfg.end_hour, &cfg.end_min) ||
+        board_quiet_hours_set(cfg) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad start/end time");
         return ESP_OK;
     }
 
@@ -5188,8 +5333,8 @@ esp_err_t webui_start(void)
         { .uri = "/settings",        .method = HTTP_GET, .handler = settings_page_handler },
         { .uri = "/dialplan",        .method = HTTP_GET, .handler = redirect_to_index_handler },
         { .uri = "/static/style.css",.method = HTTP_GET, .handler = static_css_handler },
-        { .uri = "/static/favicon.svg", .method = HTTP_GET, .handler = favicon_handler },
-        { .uri = "/favicon.ico",     .method = HTTP_GET, .handler = favicon_handler },
+        { .uri = "/static/favicon.svg", .method = HTTP_GET, .handler = favicon_svg_handler },
+        { .uri = "/favicon.ico",     .method = HTTP_GET, .handler = favicon_ico_handler },
         { .uri = "/api/status",      .method = HTTP_GET, .handler = status_json_handler },
         { .uri = "/api/log",         .method = HTTP_GET, .handler = log_handler },
         { .uri = "/api/recordings",  .method = HTTP_GET, .handler = recordings_json_handler },
@@ -5205,6 +5350,8 @@ esp_err_t webui_start(void)
         { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },
         { .uri = "/board_hw_set",    .method = HTTP_POST, .handler = board_hw_set_handler },
         { .uri = "/offhook_alert",   .method = HTTP_POST, .handler = offhook_alert_handler },
+        { .uri = "/timezone_set",    .method = HTTP_POST, .handler = timezone_set_handler },
+        { .uri = "/quiet_hours",     .method = HTTP_POST, .handler = quiet_hours_handler },
         { .uri = "/idle_power",      .method = HTTP_POST, .handler = idle_power_settings_handler },
         { .uri = "/answering_machine", .method = HTTP_POST, .handler = answering_machine_handler },
         { .uri = "/record_max_ms",   .method = HTTP_POST, .handler = record_max_ms_handler },
