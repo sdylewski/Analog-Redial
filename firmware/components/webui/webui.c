@@ -1274,14 +1274,14 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
 
     /* A ready-to-paste --sync command for just this one clip (--only), with
      * the real secret filled in -- at the user's request, plaintext rather
-     * than the usual masked-bullets treatment (compare the VOIP tab's own
-     * password field). That's a deliberate exception, not an oversight: this
-     * secret already has no confidentiality left to protect once you can
-     * load this settings page at all, since the VOIP tab lets that same
-     * visitor read/replace it (masked only against shoulder-surfing the
-     * input box, not against page access) and reuse it to hit
-     * /api/prompt_requests directly. Spelling it out here just saves a trip
-     * to that tab and a manual copy. */
+     * than the usual masked-bullets treatment (compare the Setup password
+     * card's own password field above). That's a deliberate exception, not
+     * an oversight: this secret already has no confidentiality left to
+     * protect once you can load this settings page at all, since that same
+     * card lets that same visitor read/replace it (masked only against
+     * shoulder-surfing the input box, not against page access) and reuse it
+     * to hit /api/prompt_requests directly. Spelling it out here just saves
+     * a trip up the page and a manual copy. */
     const char *pw = voip_setup_password();
     if (pw[0]) {
         char ip[16];
@@ -1300,13 +1300,48 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
             "<p class=\"hint\">Generate + upload with "
             "<code>firmware/bringup/gen_prompt.py --sync HOST --secret ...</code> "
             "(local text-to-speech, no server dependency) -- set a setup password "
-            "on the VOIP tab first to get an exact, ready-to-paste command here.</p>");
+            "above first to get an exact, ready-to-paste command here.</p>");
     }
+    return off;
+}
+
+/* Moved here (from the VOIP tab) since this secret has nothing to do with
+ * placing calls -- it only gates the prompt-generation tooling every card on
+ * this tab uses (append_prompt_field()'s ready-to-paste gen_prompt.py
+ * command, and GET /api/prompt_requests for off-LAN callers). Living next to
+ * the fields it actually affects beats living next to SIP settings it has
+ * nothing to do with. */
+static int append_setup_password_card(char *buf, size_t cap, int off)
+{
+    bool setup_pw_set = voip_setup_password()[0] != '\0';
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card wide\"><h2>Setup password</h2>"
+        "<p class=\"hint\">Not needed to make or receive calls. This is a shared secret that "
+        "lets a host-side script fetch this board's tracked prompt text and push back the "
+        "generated audio -- set it once here, then run "
+        "<code>firmware/bringup/gen_prompt.py --sync HOST --secret ...</code> from the repo "
+        "root (each prompt-text field below shows a ready-to-paste copy of that command once "
+        "this is set). It also doubles as the credential for "
+        "<code>GET /api/prompt_requests?secret=...</code>, the endpoint that script calls -- "
+        "only enforced for callers off this board's own LAN (e.g. over a VPN); same-subnet "
+        "callers aren't gated, since anyone on the LAN can already read this page.</p>"
+        "<form method=\"POST\" action=\"/voip_setup_password\" class=\"settings-form\">"
+        "<label>Setup password"
+        "<input type=\"password\" name=\"password\" placeholder=\"%s\">"
+        "<span class=\"fieldhint\">%s</span>"
+        "</label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\">Save</button></div>"
+        "</form></div>",
+        setup_pw_set ? "\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2" : "not set",
+        setup_pw_set ? "Already set on this board -- leave blank to keep it, or type a new one to replace it."
+                     : "Not set yet.");
     return off;
 }
 
 static int append_dialcodes_tab(char *buf, size_t cap, int off)
 {
+    off = append_setup_password_card(buf, cap, off);
+
     dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
     size_t nclips = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
 
@@ -1770,28 +1805,6 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "voipSyncCheckServer();"
         "</script></div>",
         voip_server()[0] ? voip_server() : "(no SIP server saved yet)");
-
-    /* Unrelated to placing calls -- this secret only gates host-side tooling
-     * (gen_prompt.py --sync, GET /api/prompt_requests off-LAN; see
-     * append_prompt_field()'s own comment). Kept on this tab since it's the
-     * only place a "shared per-board secret" naturally lives, now that the
-     * auto-provisioning flow that originally introduced it is gone. */
-    bool setup_pw_set = voip_setup_password()[0] != '\0';
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\"><h2>Setup password</h2>"
-        "<p class=\"hint\">Not needed to make calls -- this is a shared secret for host-side "
-        "tools that talk to this board directly, e.g. <code>gen_prompt.py --sync</code> "
-        "(see the Dial Codes/Operator tabs' prompt-text fields).</p>"
-        "<form method=\"POST\" action=\"/voip_setup_password\" class=\"settings-form\">"
-        "<label>Setup password"
-        "<input type=\"password\" name=\"password\" placeholder=\"%s\">"
-        "<span class=\"fieldhint\">%s</span>"
-        "</label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\">Save</button></div>"
-        "</form></div>",
-        setup_pw_set ? "\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2" : "not set",
-        setup_pw_set ? "Already set on this board -- leave blank to keep it, or type a new one to replace it."
-                     : "Not set yet.");
 
     return off;
 }
@@ -5010,7 +5023,7 @@ static bool peer_on_lan(httpd_req_t *req)
 /* GET /api/prompt_requests?secret=... -- lets a host-side script (gen_prompt.py
  * --sync) fetch the list of tracked prompts without needing any other
  * credential on the board. Uses the shared setup password
- * (voip_setup_password(), Settings -> VOIP) -- same "per board, shared with
+ * (voip_setup_password(), Settings -> Dial Codes & Prompts) -- same "per board, shared with
  * tools you trust" security model, at the user's request. Skipped entirely
  * for same-subnet callers (peer_on_lan()) -- everything else on this UI
  * already trusts the LAN unconditionally, so gating just this one endpoint
@@ -5024,7 +5037,7 @@ static esp_err_t prompt_requests_json_handler(httpd_req_t *req)
         const char *want = voip_setup_password();
         if (!want[0]) {
             httpd_resp_send_err(req, HTTPD_403_FORBIDDEN,
-                                 "set a setup password first (Settings -> VOIP) "
+                                 "set a setup password first (Settings -> Dial Codes & Prompts) "
                                  "-- only needed for off-LAN access, e.g. over a VPN");
             return ESP_OK;
         }
