@@ -135,7 +135,16 @@ static bool cadence_on(const progress_tone_t *p, uint32_t pos)
 static const tone_spec_t TONE_SPEC_REORDER = { 480, 620, { {250, 250}, 2 } };
 
 /* Off-hook (ROH) alert -- 4 frequencies, so it doesn't fit tone_spec_t's
- * f1/f2 pair; the cadence still does. See TONE_OFFHOOK_ALERT in tones.h. */
+ * f1/f2 pair; the cadence still does. See TONE_OFFHOOK_ALERT in tones.h.
+ *
+ * NOT region-aware, unlike dial/ringback/busy (tone_regions.h) -- this is
+ * always the US Telcordia GR-506-CORE spec regardless of board_language.
+ * Deliberately left as-is for now (per-language dial tones already fixed
+ * the actually-confusing symptom; this is an internal reminder tone, not a
+ * caller-facing signal, so a mismatched spec is far lower priority).
+ * Possible future upgrade: research and add real per-country ROH specs to
+ * a regional table the way tone_regions.h already does for dial/ringback/
+ * busy, if this ever actually bothers someone using a non-US language. */
 static const float TONE_ROH_FREQS[4] = { 1400.0f, 2060.0f, 2450.0f, 2600.0f };
 static const tone_cadence_t TONE_ROH_CADENCE = { {100, 100}, 2 };
 
