@@ -64,6 +64,41 @@ $5-on-a-marketplace hobbyist buy than the XS3868.
 Verify current availability/pricing/exact pinout before buying either —
 not independently confirmed against a live listing here.
 
+## Update (2026-09-12): BM64 looks like the frontrunner, pending real pin count
+
+XS3868 turned out to be ~$50 on AliExpress and not stocked on Amazon at
+all -- not the cheap hobbyist buy its reputation suggested. **BM64 modules
+are on Digikey for ~$14**, which flips the earlier cost comparison: BM64 is
+now the more accessible of the two, not the pricier one.
+
+Two things learned about actually integrating it:
+
+- **Physical**: BM64 comes as its own small module, not something that
+  drops onto existing board space -- it needs either dedicated board area or
+  a vertical/edge connector to mount it, i.e. a proper daughter-board
+  arrangement rather than a few extra parts on the current PCB.
+- **BM64 has an I2S interface**, so it can likely **tee into the existing
+  I2S bus** (shared BCLK/WS with the main codec, per the "tap the existing
+  bus" option above) rather than needing a fully separate digital audio
+  path -- confirms that approach is viable for this specific chip, not just
+  a theoretical option.
+- **Revised pin count**: at least 3 control pins for the module itself, plus
+  possibly the UART's 2 pins on top of that (exact requirement TBD -- some
+  of BM64's control lines may be optional depending on which features are
+  used). That's more than the "2-3 spare pins" this whole option was
+  originally scoped around, once the I2S tap lines are added in -- **the
+  real spare-GPIO count on the current board needs re-checking before
+  this is a real plan**, not just a hopeful one.
+
+Also worth recording: the original ESP32's pinout/footprint isn't
+compatible with the ESP32-C6 dev kit this board is currently built around
+either way -- so whether the eventual companion is a BM64 or (per option 1
+above) a second ESP32, it's a **separate physical board wired in over a
+pin header**, not something that mounts in place of anything already
+there. If there's enough spare I/O to route out to a header, the plan is a
+small daughter board carrying just the BM64 module, connected back to the
+main board that way.
+
 ## Known tradeoffs, independent of which module
 
 - **Audio quality ceiling is the Bluetooth profile spec, not chip speed**:
