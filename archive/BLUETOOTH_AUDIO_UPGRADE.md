@@ -99,6 +99,86 @@ there. If there's enough spare I/O to route out to a header, the plan is a
 small daughter board carrying just the BM64 module, connected back to the
 main board that way.
 
+## Update (2026-09-12, continued): real pin count from the datasheet, and a correction
+
+Pulled the actual BM64 datasheet (now in `datasheets/`) and the ESP32-C6's
+own datasheet to check the pin math for real, instead of estimating.
+
+**BM64 pin tables (Table 1-3) confirm:** I2S is 4 signals (`SCLK0`, `RFS0`,
+`DR0`, `DT0`); UART is 2 (`HCI_TXD`, `HCI_RXD`). Everything else --
+`RST_N`, `MFB`, `EAN`, `P2_0`, `LED1`/`LED2` -- can be hardwired instead of
+consuming a GPIO: `RST_N` via a simple RC power-on-reset, `MFB` via a
+physical pushbutton wired directly (bypassing the main board entirely) if a
+manual pairing button is wanted, `EAN`/`P2_0` as fixed boot-mode straps for
+Application mode (`EAN` already has an internal pulldown on flash-type
+modules per the datasheet; `P2_0`'s required strap level needs checking
+against the datasheet's Table 5-1), and `LED1`/`LED2` wired straight to
+LEDs if a physical connection-status light is wanted, with no GPIO
+round-trip through the main board.
+
+**GPIO16/17 confirmed genuinely free**: defined in `board_pins_smd4.h`
+(and `_smd.h`/`_tht.h`) as `BOARD_UART_TX`/`BOARD_UART_RX`, but never
+referenced anywhere else in the firmware -- reserved for a debug UART that
+was never actually wired up in software.
+
+**Correction to the "just tee the existing I2S bus" idea above:** the
+ESP32-C6's own datasheet (section 5.2.1.4) confirms it has only **one** I2S
+controller, already fully occupied by the existing ES8388 codec's own
+TX+RX. Sharing `BCLK`/`WS` across multiple slave listeners is fine (that
+part was right), but the actual *data* lines can't simply be tee'd the way
+described above -- a single I2S peripheral can't run two independent
+full-duplex streams to two different chips at once without either TDM
+slot-sharing (uncertain both chips support it) or the C6's CPU actively
+bridging samples between two separate interfaces in firmware. Not a
+passive hardware tap the way clock-sharing is.
+
+**Better fix: use BM64's *analog* audio pins instead** (`AOHPL`/`AOHPR`/
+`AOHPM` out, `MIC1_P`/`MIC1_N` in), wired directly into the existing
+handset mic/earpiece analog paths. BM64's built-in DAC is spec'd at -98dB
+SNR, so this isn't a quality compromise, and it sidesteps the I2S-sharing
+problem entirely -- **zero C6 GPIO needed for audio.**
+
+**Revised total**: with the analog-audio approach, the only new C6 GPIO
+needed is the UART pair (`HCI_TXD`/`HCI_RXD`) -- which fits entirely on the
+already-free GPIO16/17. The Line2/microSD 4-pin header isn't needed for
+this feature at all this way -- it stays free, or there's slack to also
+wire `RST_N`/`MFB` there for active control instead of hardwiring them.
+
+## ESP32-original-as-companion, worked out for comparison
+
+Prototyping plan (confirmed sound): validate on a DevKitC board already on
+hand first, then move the *same* firmware (`idf.py set-target esp32`, no
+code changes) to a bare ESP32-WROOM-32 module soldered onto a real
+daughter board once the wiring/behavior checks out -- devkit and bare
+module are the same chip.
+
+Pin count comes out the same as the BM64 plan when also using an analog
+handoff: 2 GPIO for UART coordination between the two chips (again,
+GPIO16/17), 0 for audio. The real tradeoff is audio quality, not pin count:
+the original ESP32's built-in DAC (GPIO25/26) is only 8-bit -- real audible
+quantization noise, versus BM64's proper high-resolution DAC. ESP32-
+companion wins on cost (~$5-8 vs. BM64's ~$14) and reuses a toolchain
+already in use for this whole project; BM64 wins on audio quality.
+
+### WROOM-32 module variants, for whenever this is actually bought
+
+- **ESP32-WROOM-32** (no suffix) -- the original module, oldest silicon
+  revision. Espressif has been phasing this one out; still floating around
+  in older stock, increasingly hard to find as new.
+- **ESP32-WROOM-32D** -- a respin (ESP32-D0WD-V3 die) with manufacturing/
+  errata improvements, and the generation that introduced clear flash-size
+  SKUs (-N4/-N8/-N16 for 4/8/16MB).
+- **ESP32-WROOM-32E** -- the current/recommended module as of this
+  writing, same D0WD-V3 die as -32D plus an updated antenna/RF matching
+  design. What most new stock actually is today.
+
+None of this matters functionally for this project (all three have the
+same real Classic BT + BLE dual-mode radio) -- buy whichever's actually in
+stock, preferring -32E if given the choice since it's current production.
+Flash size doesn't need to be large for a Bluetooth-bridge-only companion
+(unlike this project's own 16MB main board) -- the base 4MB (-N4) SKU is
+plenty.
+
 ## Known tradeoffs, independent of which module
 
 - **Audio quality ceiling is the Bluetooth profile spec, not chip speed**:
