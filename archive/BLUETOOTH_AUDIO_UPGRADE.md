@@ -1,8 +1,29 @@
 # Future upgrade path: Bluetooth mic/speaker for a laptop or phone
 
-Not implemented, not scheduled — a dev-journal note so this idea and the
-reasoning behind it survive between sessions, per CLAUDE.md's convention for
-open questions.
+**Update (2026-09-12): now in progress, not just a note.** An ESP32-original
+devkit is on its way to actually prototype the companion side. The C6 side
+of the link now has real scaffolding: `firmware/components/bt_companion/`
+(UART on GPIO16/17, a small line-based status/pairing protocol, an "enable
+this daughter board" master switch) and a Settings -> Bluetooth tab, both
+currently honest about there being no hardware to talk to yet. The rest of
+this doc's reasoning stands unchanged -- it's the design record this
+implementation is following. See bt_companion.h's own doc comment for the
+protocol, and the pin table in the update below for the actual wiring.
+
+Also worth noting for whenever a call-routing feature gets built on top of
+this: FaceTime Audio/Video calls integrate into iOS's system telephony
+(CallKit) the same as a normal cellular call, so a companion paired as a
+standard Bluetooth HFP device gets the incoming-call `RING` indication and
+answer/hangup control (`ATA`) for free, from the HFP spec itself -- no
+custom iPhone app needed, the same way AirPods already alert you to and
+answer FaceTime calls today. The only new firmware work is translating
+that `RING` event into physically triggering this board's SLIC bell, and
+the handset's hook-switch into sending `ATA` back -- both squarely within
+the UART control link already being built for pairing/status.
+
+Not implemented, not scheduled beyond that — the rest of this note is a
+dev-journal record so this idea and the reasoning behind it survive between
+sessions, per CLAUDE.md's convention for open questions.
 
 ## The idea
 
@@ -159,6 +180,23 @@ the original ESP32's built-in DAC (GPIO25/26) is only 8-bit -- real audible
 quantization noise, versus BM64's proper high-resolution DAC. ESP32-
 companion wins on cost (~$5-8 vs. BM64's ~$14) and reuses a toolchain
 already in use for this whole project; BM64 wins on audio quality.
+
+**Pin table for the ESP32-original companion** (this is the one actually
+being prototyped first):
+
+| Signal | C6 (main board) | Companion (ESP32-original) | Notes |
+|---|---|---|---|
+| UART TX | GPIO16 | GPIO16 (RX2) | crossed -- C6's TX goes to companion's RX |
+| UART RX | GPIO17 | GPIO17 (TX2) | crossed the other way |
+| GND | GND | GND | common reference, required |
+| 3.3V | 3V3 rail | 3V3 in | verify regulator headroom -- ~500mA BT TX peaks |
+| Downlink audio (BT -> earpiece) | *(wired into the existing ES8388 analog path, not a C6 GPIO)* | GPIO25 (DAC1) | decoded call/music audio out |
+| Uplink audio (handset mic -> BT) | *(tapped from the existing analog mic path, not a C6 GPIO)* | GPIO34 (ADC1_CH6) | feeds outgoing BT audio |
+
+Companion-side UART pins chosen to match its own default UART2 pins
+(GPIO16=RX2, GPIO17=TX2) purely as a mnemonic -- no electrical requirement
+to use those specific numbers, the GPIO matrix can route UART to any pins
+on either chip.
 
 ### WROOM-32 module variants, for whenever this is actually bought
 
