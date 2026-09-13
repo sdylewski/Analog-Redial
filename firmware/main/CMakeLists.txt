@@ -1,7 +1,7 @@
 idf_component_register(
     SRCS "app_main.c"
     INCLUDE_DIRS "."
-    REQUIRES board wm8731 es8388 audio aec prompts ag1170 dialplan telephony bringup wifi storage sdcard logbuf logctl activity webui idle_power
+    REQUIRES board wm8731 es8388 audio aec prompts ag1170 dialplan telephony bringup wifi storage sdcard logbuf logctl activity webui idle_power bt_companion
 )
 
 # Bakes firmware/assets/ into the "bundled" partition (partitions.csv) as a

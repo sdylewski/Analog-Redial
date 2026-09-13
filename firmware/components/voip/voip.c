@@ -105,6 +105,16 @@ static TaskHandle_t   s_task;
  * started life there (as the auto-provisioner's password); kept there since
  * there's no better home for a lone per-board secret. */
 static char           s_setup_pass[80];
+/* Master "enable VOIP" switch (Settings -> VOIP), distinct from the
+ * per-line line_t.enabled above (which tracks whether that line's own SIP
+ * account is active -- currently always true, never exposed in the UI).
+ * This one gates the whole feature: sip_task() checks it once at boot the
+ * same way it already checks "is a server even configured", so flipping
+ * this takes effect on reboot, matching every other VoIP setting.
+ * Defaults to true so an existing working setup isn't silently disabled
+ * by a firmware update that adds this flag -- the checkbox is how you turn
+ * it off going forward, not an opt-in to turn it on. */
+static bool           s_voip_enabled = true;
 
 /* ---------- small helpers ---------- */
 
@@ -833,6 +843,12 @@ static void sip_task(void *arg)
     while (!wifi_is_connected()) vTaskDelay(pdMS_TO_TICKS(500));
     wifi_get_ip_str(s_myip, sizeof(s_myip));
 
+    if (!s_voip_enabled) {
+        ESP_LOGI(TAG, "VoIP disabled (Settings -> VOIP) -- not starting");
+        s_task = NULL;
+        vTaskDelete(NULL);
+        return;
+    }
     if (!s_server[0]) {
         ESP_LOGW(TAG, "no SIP server configured -- run 'sip_set' from the console");
         s_task = NULL;
@@ -913,6 +929,8 @@ static void load_config(void)
      * flow was removed) so a board upgraded from an older build doesn't
      * silently lose an already-saved secret. */
     sz = sizeof(s_setup_pass); nvs_get_str(h, "provpass", s_setup_pass, &sz);
+    uint8_t en;
+    if (nvs_get_u8(h, "voip_en", &en) == ESP_OK) s_voip_enabled = (en != 0);
     nvs_close(h);
 }
 
@@ -1041,6 +1059,23 @@ const char *voip_pass(int line)
 }
 
 const char *voip_setup_password(void) { return s_setup_pass; }
+
+bool voip_enabled(void) { return s_voip_enabled; }
+
+esp_err_t voip_set_enabled(bool enabled)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(VOIP_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, "voip_en", enabled ? 1 : 0);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) {
+        s_voip_enabled = enabled;
+        ESP_LOGI(TAG, "VoIP %s; reboot to apply", enabled ? "enabled" : "disabled");
+    }
+    return err;
+}
 
 /* ---------- runtime config setter (console/web) ---------- */
 

@@ -106,6 +106,15 @@ const char *voip_pass(int line);
 const char *voip_setup_password(void);
 esp_err_t   voip_set_setup_password(const char *password);
 
+/* Master "enable VOIP" switch (Settings -> VOIP) -- distinct from having a
+ * server configured. Defaults to true (an existing configured setup keeps
+ * working after a firmware update that adds this flag); the checkbox is
+ * how you turn it off. Checked once at boot by the same code path that
+ * already checks "is a server configured" -- takes effect on reboot, like
+ * every other VoIP setting. */
+bool        voip_enabled(void);
+esp_err_t   voip_set_enabled(bool enabled);
+
 typedef enum {
     VOIP_PROBE_FREE = 0,  /* server answered 404 -- no endpoint/AOR by that name */
     VOIP_PROBE_TAKEN,     /* server answered something else (2xx/401/403/3xx/...) */
