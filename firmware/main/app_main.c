@@ -26,6 +26,7 @@
 #include "sdcard.h"
 #include "idle_power.h"
 #include "bt_companion.h"
+#include "esp_ota_ops.h"
 #include "logbuf.h"
 #include "logctl.h"
 #include "activity.h"
@@ -178,6 +179,19 @@ void app_main(void)
     /* 7. BOOT-strap watcher: hold GPIO9 low ~3 s at runtime to factory-reset
      * WiFi. Started last so it can't interfere with subsystem bring-up. */
     board_factory_reset_start(on_factory_reset);
+
+    /* Confirms this image is good, canceling CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE's
+     * pending auto-revert -- everything that could plausibly fail to come up
+     * (audio/codec, SLIC, telephony, WiFi/webui) has already run by this
+     * point, so reaching here is a real enough health signal. A firmware
+     * pushed via Settings -> Hardware -> Firmware that crashes or hangs
+     * before this line stays un-confirmed, and the bootloader reverts to
+     * the previous slot on the next boot instead of leaving a board that
+     * isn't physically reachable stuck on bad firmware. No-op (returns
+     * ESP_ERR_INVALID_STATE, harmlessly ignored) when rollback isn't
+     * pending -- i.e. every normal boot after the first one following an
+     * update. */
+    esp_ota_mark_app_valid_cancel_rollback();
 
     ESP_LOGI(TAG, "All subsystems up. Lift a handset to get dial tone.");
 
