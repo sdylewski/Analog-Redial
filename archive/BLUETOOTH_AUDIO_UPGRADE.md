@@ -1,7 +1,8 @@
 # Bluetooth mic/speaker for a laptop or phone
 
-In progress: an ESP32-original devkit is on its way to prototype the
-companion side. The C6 side already has real scaffolding --
+In progress: an ESP32-original **DevKitC-style board** (not a bare module)
+is on its way to be the companion, permanently -- decided 2026-09-13, see
+"Decision" below for why. The C6 side already has real scaffolding --
 `firmware/components/bt_companion/` (UART on GPIO16/17, a small line-based
 status/pairing protocol, an "enable this daughter board" master switch) and
 a Settings -> Bluetooth tab, both currently honest about there being no
@@ -75,23 +76,39 @@ no C6 GPIO round-trip. **Net new C6 GPIO: just the UART pair**, which fits
 entirely on GPIO16/17 (confirmed genuinely free -- defined in every board's
 pin map as a debug UART, never actually used in firmware).
 
-## Option B: ESP32-original as a companion board
+## Option B: ESP32-original DevKitC board as a companion (the current plan)
 
 The chip itself has real Classic BT + BLE dual-mode, with working A2DP-sink
 and HFP examples in ESP-IDF's own Bluedroid stack -- same toolchain already
-used for this whole project. ~$5-8 for a bare WROOM-32 module, cheaper than
-BM64, at the cost of audio quality: the original ESP32's built-in DAC
-(GPIO25/26) is only 8-bit, real audible quantization noise versus BM64's
-proper high-resolution DAC.
+used for this whole project. Cheaper than BM64, at the cost of audio
+quality: the original ESP32's built-in DAC (GPIO25/26) is only 8-bit, real
+audible quantization noise versus BM64's proper high-resolution DAC.
+
+**Using the full DevKitC board, not a bare WROOM-32 module -- decided
+2026-09-13, permanently, not just for prototyping.** A bare module is
+cheaper and smaller, but needs its own 3.3V regulator, USB-to-serial
+adapter for programming, and status LEDs added on the daughter board; the
+devkit already has all three built in, and the extra board space is a
+non-issue here. Traded a little board area for a lot of fungibility --
+any DevKitC-style board works, easy to swap/debug/reprogram over USB like
+every other board in this project, no separate programmer needed.
+
+**Regulator note** (came up while sourcing this): the ESP32 module itself
+needs regulated 3.3V, as its own datasheet says -- but the *devkit board*
+has its own onboard LDO regulator between its 5V/VIN pin and the module's
+actual 3.3V supply, which is exactly why devkits expose both a 5V/VIN pin
+(regulator input) and a separate 3.3V pin (regulator output). Powering the
+devkit from a 5V rail into VIN (or straight off USB, same thing) is the
+normal, intended way to run it -- not a workaround.
 
 Pin plan:
 
-| Signal | C6 | Companion (ESP32-original) | Notes |
+| Signal | C6 | Companion (ESP32-original DevKitC) | Notes |
 |---|---|---|---|
 | UART TX | GPIO16 | GPIO16 (RX2) | crossed |
 | UART RX | GPIO17 | GPIO17 (TX2) | crossed |
 | GND | GND | GND | |
-| 3.3V | 3V3 rail | 3V3 in | verify regulator headroom -- ~500mA BT TX peaks |
+| 5V | 5V rail (or USB) | 5V/VIN pin | devkit's onboard regulator drops this to the module's 3.3V |
 | Downlink audio | *(existing ES8388 analog path)* | GPIO25 (DAC1) | |
 | Uplink audio | *(existing handset mic path)* | GPIO34 (ADC1_CH6) | |
 
@@ -99,28 +116,17 @@ Companion-side UART pins match its own default UART2 pins purely as a
 mnemonic -- no electrical requirement, the GPIO matrix can route UART to any
 pins on either chip.
 
-**Prototyping plan**: validate on a DevKitC board first, then move the same
-firmware (`idf.py set-target esp32`, no code changes) to a bare
-ESP32-WROOM-32 soldered onto a real daughter board once wiring/behavior
-checks out -- devkit and bare module are the same chip. Flash size doesn't
-need to be large for a Bluetooth-bridge-only companion -- the base 4MB
-(-N4) SKU is plenty, no need for this project's own 16MB requirement here.
+## Decision: ESP32 DevKitC first, BM64 as the fallback
 
-Module variants, whenever this is actually bought: **ESP32-WROOM-32**
-(original, being phased out, increasingly hard to find new),
-**ESP32-WROOM-32D** (respin with manufacturing fixes, introduced the
--N4/-N8/-N16 flash-size SKUs), **ESP32-WROOM-32E** (current/recommended --
-same die as -32D plus an updated antenna design, what most new stock
-actually is). No functional difference between them -- buy whichever's in
-stock, preferring -32E if given the choice.
-
-## A vs. B
-
-BM64 wins on audio quality (real DAC vs. 8-bit) and is more
-production-grade; ESP32-original wins on cost and reuses a toolchain
-already in daily use for this project. Pin count is identical either way
-(2 new C6 GPIO for UART, 0 for audio). ESP32-original is what's actually
-being prototyped first, since a devkit is already in hand.
+Going with Option B (ESP32-original DevKitC) as the actual build -- cheaper,
+reuses this project's own toolchain, and a devkit is already in hand to
+start with. **If its audio quality (8-bit DAC) turns out not good enough
+in practice**, BM64 (Option A) is the documented fallback -- pin plan
+above is ready to go, just needs sourcing a module (Digikey, ~$14, Class 2
+per an actual commercial part number seen: `BM64SPKS1MC2-0003AA` or
+similar -- confirm the exact SKU/firmware variant against Microchip's
+ordering guide before buying, the datasheet alone doesn't spell out what
+the trailing suffix variants mean).
 
 ## Known tradeoffs, independent of which option
 
