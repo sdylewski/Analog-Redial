@@ -28,6 +28,8 @@
 #include "esp_heap_caps.h"
 #include "esp_flash.h"
 #include "esp_partition.h"
+#include "esp_ota_ops.h"
+#include "esp_app_desc.h"
 #include "nvs.h"
 #include "esp_netif.h"
 #include "nvs_flash.h"
@@ -1920,6 +1922,55 @@ static int append_record_tab(char *buf, size_t cap, int off,
     return off;
 }
 
+/* Firmware version + OTA upload -- pushes a .bin (the exact same file
+ * `idf.py build` already produces, that you'd otherwise flash over USB)
+ * into the inactive OTA slot and reboots into it. See ota_upload_handler()
+ * for the actual streaming write, partitions.csv for the two-slot layout,
+ * and CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE (sdkconfig.defaults) for the
+ * auto-revert safety net if the new image never confirms itself healthy.
+ * USB flashing (`idf.py flash`) still works exactly as before, unchanged
+ * -- this is an additional way to update, not a replacement, and is still
+ * the only option for a board that's never been flashed at all. */
+static int append_firmware_card(char *buf, size_t cap, int off)
+{
+    const esp_app_desc_t *app = esp_app_get_description();
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    char built[48];
+    snprintf(built, sizeof(built), "%s %s", app->date, app->time);
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<form method=\"POST\" action=\"/ota_upload\" enctype=\"multipart/form-data\" "
+        "class=\"settings-form\" onsubmit=\"return confirm('%s')\">"
+        "<label>%s <input type=\"file\" name=\"file\" accept=\".bin\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form>"
+        "<p class=\"hint\">%s</p>"
+        "</div>",
+        i18n_str("firmware.title", "Firmware"),
+        i18n_str("firmware.version_label", "Version"), app->version,
+        i18n_str("firmware.built_label", "Built"), built,
+        i18n_str("firmware.slot_label", "Running from"), running ? running->label : "?",
+        i18n_str("firmware.confirm",
+                 "Upload this firmware image and reboot into it? Make sure it's a build of "
+                 "this same board type -- there's no way to check that before writing it."),
+        i18n_str("firmware.file_label", "Firmware file (.bin, from idf.py build)"),
+        i18n_str("firmware.button", "Upload and reboot"),
+        i18n_str("firmware.hint",
+                 "Pushes the exact file <code>idf.py build</code> already produces "
+                 "(<code>build/rotary_phone_gateway.bin</code>) -- the same one you'd otherwise "
+                 "flash over USB. Writes to the inactive slot while this one keeps running, then "
+                 "reboots into it. If the new image crashes or hangs before finishing boot, it "
+                 "automatically reverts to this version on the next boot -- no USB cable needed "
+                 "to recover. USB flashing (<code>idf.py flash</code>) still works exactly as "
+                 "before; this is an additional option, not a replacement, and is still how you "
+                 "flash a board for the very first time."));
+    return off;
+}
+
 static int append_hardware_tab(char *buf, size_t cap, int off)
 {
     char hw[64], serial[16];
@@ -2237,6 +2288,8 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                  "records the caller -- capped at the length above or ~8s of silence, whichever "
                  "comes first. Picking up the handset at any point takes the call live instead."),
         RECORDING_RELOAD_JS);
+
+    off = append_firmware_card(buf, cap, off);
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>"
@@ -4925,6 +4978,91 @@ static esp_err_t operator_upload_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* POST /ota_upload -- multipart, field "file" (a .bin from `idf.py build`).
+ * Streams straight into the inactive OTA slot via esp_ota_write() --
+ * 2KB chunks, never buffers the whole ~1.4MB image in RAM, same reasoning
+ * as every other upload in this file (see multipart.h's doc comment).
+ * esp_ota_end() validates the image is a genuine, uncorrupted app image
+ * before this commits to booting it. Reboots on success; if the new image
+ * never reaches esp_ota_mark_app_valid_cancel_rollback() (app_main.c) --
+ * crashes, hangs, whatever -- CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE
+ * reverts to this slot automatically on the next boot. */
+static esp_err_t ota_upload_handler(httpd_req_t *req)
+{
+    multipart_reader_t mp;
+    if (multipart_reader_init(&mp, req) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "expected multipart/form-data");
+        return ESP_FAIL;
+    }
+
+    char part_name[32], filename[64];
+    bool wrote = false;
+    const char *err_msg = "no file uploaded";
+    const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
+
+    while (multipart_next_part(&mp, part_name, sizeof(part_name), filename, sizeof(filename)) == ESP_OK) {
+        if (strcmp(part_name, "file") == 0 && filename[0]) {
+            if (!target) {
+                err_msg = "no inactive OTA partition available (see partitions.csv)";
+                break;
+            }
+            esp_ota_handle_t ota_handle = 0;
+            esp_err_t err = esp_ota_begin(target, OTA_SIZE_UNKNOWN, &ota_handle);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "esp_ota_begin failed: %s", esp_err_to_name(err));
+                err_msg = "failed to start writing to flash (see device log)";
+                break;
+            }
+            uint8_t chunk[2048];
+            size_t n;
+            bool write_failed = false;
+            while ((n = multipart_read_body(&mp, chunk, sizeof(chunk))) > 0) {
+                if (esp_ota_write(ota_handle, chunk, n) != ESP_OK) { write_failed = true; break; }
+            }
+            if (write_failed) {
+                esp_ota_abort(ota_handle);
+                err_msg = "write to flash failed partway through (see device log)";
+                break;
+            }
+            err = esp_ota_end(ota_handle);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "esp_ota_end failed: %s", esp_err_to_name(err));
+                err_msg = (err == ESP_ERR_OTA_VALIDATE_FAILED)
+                    ? "that file isn't a valid firmware image"
+                    : "failed to finalize the write (see device log)";
+                break;
+            }
+            err = esp_ota_set_boot_partition(target);
+            if (err != ESP_OK) {
+                err_msg = "image written but couldn't be set as next boot -- try again";
+                break;
+            }
+            wrote = true;
+        } else {
+            uint8_t scratch[128];
+            while (multipart_read_body(&mp, scratch, sizeof(scratch)) > 0) { } /* discard */
+        }
+    }
+    multipart_reader_close(&mp);
+
+    if (!wrote) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, err_msg);
+        return ESP_FAIL;
+    }
+
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_sendstr(req,
+        "<!doctype html><meta charset=\"utf-8\"><title>Updating\xe2\x80\xa6</title>"
+        "<meta http-equiv=\"refresh\" content=\"20;url=/settings?tab=hardware\">"
+        "<p>Firmware written -- rebooting into it now. This page retries in 20s; if the board "
+        "doesn't come back, the new image failed to start and it auto-reverted to the version "
+        "you were already running.</p>");
+    fflush(stdout);
+    vTaskDelay(pdMS_TO_TICKS(300)); /* let the response above actually reach the browser first */
+    esp_restart();
+    return ESP_OK;
+}
+
 /* POST /dialcode_upload -- multipart, fields (in this order in the HTML
  * forms, so they're parsed before the "file" part streams): "code" (an
  * EXISTING code -- replaces its audio in place, same filename) OR
@@ -5344,6 +5482,7 @@ esp_err_t webui_start(void)
         { .uri = "/mode_set/*",      .method = HTTP_POST, .handler = mode_set_handler },
         { .uri = "/wifi_set",        .method = HTTP_POST, .handler = wifi_set_handler },
         { .uri = "/api/wifi_scan",   .method = HTTP_GET,  .handler = wifi_scan_json_handler },
+        { .uri = "/ota_upload",      .method = HTTP_POST, .handler = ota_upload_handler },
         { .uri = "/wifi_reprovision", .method = HTTP_POST, .handler = wifi_reprovision_handler },
         { .uri = "/factory_reset",   .method = HTTP_POST, .handler = factory_reset_handler },
         { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },

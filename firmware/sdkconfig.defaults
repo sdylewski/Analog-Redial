@@ -33,6 +33,14 @@ CONFIG_LOG_TIMESTAMP_SOURCE_SYSTEM=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 
+# OTA safety net: a firmware image pushed via the web UI (Settings ->
+# Hardware -> Firmware) that crashes or hangs before confirming itself
+# healthy (app_main.c calls esp_ota_mark_app_valid_cancel_rollback() once
+# the web server + telephony are up) gets automatically reverted to the
+# last-known-good OTA slot on the next boot, instead of leaving a board
+# that isn't physically reachable stuck on bad firmware.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
 # 4 MB flash to fit factory app + asset storage partition
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
