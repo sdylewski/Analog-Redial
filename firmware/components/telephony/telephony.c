@@ -25,18 +25,26 @@ static const char *TAG = "telephony";
 /* SNTP (see wifi.c) sets the system clock without a TZ, so this is UTC.
  * Before it syncs, time() reads from the 1970 epoch -- anything before
  * ~2024 is obviously unsynced, so fall back to a boot-relative tag rather
- * than naming every early recording "19700101_000003.wav" and colliding. */
-static void rec_name_timestamped(char *out, size_t out_len, int line)
+ * than naming every early recording "19700101_000003.wav" and colliding.
+ *
+ * No line number in the name (dropped 2026-09-14 -- the old "rec_l<N>_..."
+ * form reads as the digits "10" at a glance, not "line 0", and confused
+ * more than it disambiguated). Two lines finishing a 211 in the exact same
+ * second would collide and one recording would overwrite the other, but
+ * that's a same-second coincidence across two separate handsets, not a
+ * real-world scenario worth the readability cost of keeping the line
+ * number in every filename. */
+static void rec_name_timestamped(char *out, size_t out_len)
 {
     time_t now = time(NULL);
     if (now < 1700000000) {
-        snprintf(out, out_len, "rec_l%d_boot%lld.wav", line,
+        snprintf(out, out_len, "rec_boot%lld.wav",
                  (long long)(esp_timer_get_time() / 1000));
         return;
     }
     struct tm t;
     gmtime_r(&now, &t);
-    snprintf(out, out_len, "rec_l%d_%04d%02d%02d_%02d%02d%02dZ.wav", line,
+    snprintf(out, out_len, "rec_%04d%02d%02d_%02d%02d%02dZ.wav",
              t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
              t.tm_hour, t.tm_min, t.tm_sec);
 }
@@ -368,23 +376,24 @@ void telephony_am_greeting_name(char *out, size_t len, int line)
     snprintf(out, len, "am_greeting_l%d.wav", line);
 }
 
-/* Mirrors rec_name_timestamped() but tags the filename so voicemails are
- * visually distinguishable from self-recorded 211 archives in the
- * Recordings list -- still prefixed "rec_l<N>_" (not e.g. "vm_l<N>_") so
- * storage.c's is_protected_asset() keeps treating it as an ordinary,
- * evictable recording like any other, same reasoning as bringup.c's
- * record_capture() name_tag splicing for "dl_"/"" taps. */
-static void rec_name_voicemail(char *out, size_t out_len, int line)
+/* Mirrors rec_name_timestamped() but with its own "voicemail_" prefix
+ * (changed 2026-09-14 from a "rec_l<N>_am_" tag -- see storage.c's
+ * is_protected_asset() and webui.c's is_user_recording(), both updated to
+ * match "voicemail_" as an ordinary, evictable recording alongside "rec_",
+ * same treatment as before, just its own readable prefix instead of a tag
+ * buried after a line number). No line number, same reasoning as
+ * rec_name_timestamped(). */
+static void rec_name_voicemail(char *out, size_t out_len)
 {
     time_t now = time(NULL);
     if (now < 1700000000) {
-        snprintf(out, out_len, "rec_l%d_am_boot%lld.wav", line,
+        snprintf(out, out_len, "voicemail_boot%lld.wav",
                  (long long)(esp_timer_get_time() / 1000));
         return;
     }
     struct tm t;
     gmtime_r(&now, &t);
-    snprintf(out, out_len, "rec_l%d_am_%04d%02d%02d_%02d%02d%02dZ.wav", line,
+    snprintf(out, out_len, "voicemail_%04d%02d%02d_%02d%02d%02dZ.wav",
              t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
              t.tm_hour, t.tm_min, t.tm_sec);
 }
@@ -394,7 +403,7 @@ static void rec_name_voicemail(char *out, size_t out_len, int line)
  * can call it too, without duplicating the recorder_start()/failure logic. */
 static void start_recording_archive(int line)
 {
-    rec_name_timestamped(s_line[line].rec_name, sizeof(s_line[line].rec_name), line);
+    rec_name_timestamped(s_line[line].rec_name, sizeof(s_line[line].rec_name));
     audio_tx_silence(line);
     uint32_t max_ms = board_record_max_ms_get(RECORD_MAX_MS_DEFAULT);
     if (recorder_start(line, s_line[line].rec_name, max_ms, RECORD_SILENCE_MS,
@@ -558,7 +567,7 @@ static void end_call(int line)
  * being told to leave a message. */
 static void start_recording_voicemail(int rec_line, int for_line)
 {
-    rec_name_voicemail(s_line[rec_line].rec_name, sizeof(s_line[rec_line].rec_name), for_line);
+    rec_name_voicemail(s_line[rec_line].rec_name, sizeof(s_line[rec_line].rec_name));
     audio_tx_silence(rec_line);
     board_am_cfg_t cfg = board_am_get(for_line);
     bool downlink = (s_line[rec_line].peer == PEER_VOIP);

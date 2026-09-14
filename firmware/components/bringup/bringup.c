@@ -474,18 +474,26 @@ static void record_tap(int line, const int16_t *mono, size_t n, void *ctx)
  * under a bare uptime-ms name and are actually meaningful to sort/find later;
  * falls back to a boot-relative tag before sync (guards against every early
  * recording naming itself "19700101_000003.wav" and colliding with the
- * next one). */
-static void record_name_timestamped(char *out, size_t out_len, int line)
+ * next one).
+ *
+ * No line number in the name (dropped 2026-09-14, matching telephony.c's
+ * rec_name_timestamped() -- "rec_l<N>_..." reads as the digits "10" at a
+ * glance, not "line 0"). record_capture()'s name_tag splicing below still
+ * finds a second "_" to insert into for the wall-clock form (between date
+ * and time), just not for the boot-relative fallback, which now has only
+ * one "_" total -- a tagged capture taken in the first few seconds after a
+ * fresh boot, before SNTP syncs, loses its "dl_"/etc tag until then. */
+static void record_name_timestamped(char *out, size_t out_len)
 {
     time_t now = time(NULL);
     if (now < 1700000000) {
-        snprintf(out, out_len, "rec_l%d_boot%lld.wav", line,
+        snprintf(out, out_len, "rec_boot%lld.wav",
                  (long long)(esp_timer_get_time() / 1000));
         return;
     }
     struct tm t;
     gmtime_r(&now, &t);
-    snprintf(out, out_len, "rec_l%d_%04d%02d%02d_%02d%02d%02dZ.wav", line,
+    snprintf(out, out_len, "rec_%04d%02d%02d_%02d%02d%02dZ.wav",
              t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
              t.tm_hour, t.tm_min, t.tm_sec);
 }
@@ -801,12 +809,12 @@ typedef void (*tap_remove_fn)(int line);
 
 /* Shared by `record` (mic/uplink) and `record_downlink` (network/downlink)
  * below -- identical in every way except which tap API captures the
- * samples, so that's the only thing parameterized. `name_tag` is inserted
- * right after "rec_l<N>_" in the generated filename (empty string for
- * plain `record`) so the two are easy to tell apart in the storage list
- * without inventing a whole second naming/eviction category -- these still
- * start with "rec_" so is_protected_asset() treats them as ordinary,
- * evictable recordings like any other, not permanent assets. */
+ * samples, so that's the only thing parameterized. `name_tag` is spliced
+ * into the generated filename, between the date and time segments (empty
+ * string for plain `record`) so the two are easy to tell apart in the
+ * storage list without inventing a whole second naming/eviction category --
+ * these still start with "rec_" so is_protected_asset() treats them as
+ * ordinary, evictable recordings like any other, not permanent assets. */
 static int record_capture(int ms, int line, const char *name_tag,
                            tap_add_fn add_tap, tap_remove_fn remove_tap)
 {
@@ -817,11 +825,14 @@ static int record_capture(int ms, int line, const char *name_tag,
     size_t expected_bytes = 44 + n_samples * sizeof(int16_t);
 
     char name[STORAGE_MAX_NAME];
-    record_name_timestamped(name, sizeof(name), line);
+    record_name_timestamped(name, sizeof(name));
     if (name_tag && name_tag[0]) {
-        /* Splice the tag in right after "rec_l<N>_" -- record_name_timestamped()
-         * always produces that fixed prefix, so find it once rather than
-         * re-deriving the line number's digit width. */
+        /* Splice the tag in between the date and time segments --
+         * record_name_timestamped()'s wall-clock form ("rec_YYYYMMDD_HHMMSSZ.wav")
+         * has exactly one "_" before that point once "rec" itself is
+         * skipped; the boot-relative fallback ("rec_bootNNN.wav") has none,
+         * so a tag silently doesn't get spliced in during the first few
+         * seconds after a fresh boot, before SNTP syncs. */
         char *insert_at = strchr(name, '_');
         insert_at = insert_at ? strchr(insert_at + 1, '_') : NULL;
         if (insert_at) {

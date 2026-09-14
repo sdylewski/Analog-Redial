@@ -25,11 +25,15 @@ alone.
   since the file's already sitting there to listen to once it's recorded.
 - Caller's message: same shape (prompt/greeting -> beep -> record), capped
   at the per-line max length or ~8s of silence, saved as
-  `rec_l<N>_am_<timestamp>.wav` -- "rec_" prefix kept (not "vm_" or
-  similar) so storage.c's `is_protected_asset()` keeps treating it as an
-  ordinary, evictable recording, same as any 211 archive; "am_" tags it so
-  it's visually distinguishable in the Recordings list, which also already
-  sorts newest-first.
+  `voicemail_<timestamp>.wav` (own prefix since 2026-09-14, was
+  `rec_l<N>_am_<timestamp>.wav` -- the line number read as the digits "10"
+  at a glance, not "line 0") -- storage.c's `is_protected_asset()` and
+  webui.c's `is_user_recording()` both match "voicemail_" the same way they
+  match "rec_", so it's still an ordinary, evictable recording, same as any
+  211 archive, just its own readable prefix instead of a tag buried after a
+  line number. Visually distinguishable from a 211 archive in the
+  Recordings list (which also already sorts newest-first) by that prefix
+  alone.
 - Barge-in: picking up the real handset at any point (during the greeting,
   the beep, or the recording itself) takes the call live instead, and the
   partial capture is just left in place -- explicitly OK'd by the user

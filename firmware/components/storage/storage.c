@@ -179,16 +179,17 @@ bool storage_using_sd(void) { return sdcard_mounted(); }
  * to a dial code) share this partition with user recordings but aren't
  * recordings themselves -- they're meant to outlive the recording cap, not
  * get silently deleted the first time someone fills it up leaving messages.
- * Only actual recordings (rec_*.wav from 211) are fair game for automatic
- * eviction; anything else has to be deleted on purpose (web UI /
- * storage_delete()). Denylist rather than an allowlist of asset names, since
- * clip filenames are no longer a fixed naming convention (see dialplan's
- * clip-entry table) -- only the recording prefix is known in advance.
+ * Only actual recordings (rec_*.wav from 211, voicemail_*.wav from the
+ * answering machine) are fair game for automatic eviction; anything else
+ * has to be deleted on purpose (web UI / storage_delete()). Denylist rather
+ * than an allowlist of asset names, since clip filenames are no longer a
+ * fixed naming convention (see dialplan's clip-entry table) -- only the
+ * recording prefixes are known in advance.
  * (cb_*.wav, the temp file from the archived "record + callback" feature,
  * used to be protected here too -- see docs/features.md "Archived features".) */
 static bool is_protected_asset(const char *name)
 {
-    return strncmp(name, "rec_", 4) != 0;
+    return strncmp(name, "rec_", 4) != 0 && strncmp(name, "voicemail_", 10) != 0;
 }
 
 /* Deletes the single oldest *evictable* file (by mtime), skipping protected
