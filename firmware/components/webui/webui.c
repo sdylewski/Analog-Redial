@@ -11,6 +11,7 @@
 #include "logbuf.h"
 #include "activity.h"
 #include "telephony.h"
+#include "recorder.h"
 #include "prompts.h"
 #include "dialplan.h"
 #include "voip.h"
@@ -927,7 +928,7 @@ static esp_err_t index_handler(httpd_req_t *req)
  * asset, managed under Settings, not shown here. */
 static bool is_user_recording(const char *name)
 {
-    return strncmp(name, "rec_", 4) == 0;
+    return strncmp(name, "rec_", 4) == 0 || strncmp(name, "voicemail_", 10) == 0;
 }
 
 /* Dedicated Recordings page (Pi's /recordings): only user-recorded messages,
@@ -2781,26 +2782,26 @@ static void wav_duration_str(const char *name, size_t size, char *out, size_t ou
     dur_cache_put(name, size, out);
 }
 
-/* Parses a recording filename in telephony.c's rec_name_timestamped() format
- * -- "rec_l<N>_YYYYMMDD_HHMMSSZ.wav" once the system clock has synced via
+/* Parses a recording filename in telephony.c's rec_name_timestamped()/
+ * rec_name_voicemail() format -- "rec_YYYYMMDD_HHMMSSZ.wav" or
+ * "voicemail_YYYYMMDD_HHMMSSZ.wav" once the system clock has synced via
  * SNTP -- into a readable "YYYY-MM-DD HH:MM UTC" timestamp. Before sync,
- * that function instead names the file "rec_l<N>_boot<ms>.wav" (no real date
- * embedded, just a boot-relative tag to avoid collisions); for that shape
- * this reports "recorded before clock sync" rather than trying to parse a
- * date out of it. Blank output (not an error) for anything matching
- * neither shape -- a display nicety for the Recordings page's "Recorded"
- * column, not worth failing the row render over. */
+ * those functions instead name the file "rec_boot<ms>.wav"/
+ * "voicemail_boot<ms>.wav" (no real date embedded, just a boot-relative tag
+ * to avoid collisions); for that shape this reports "recorded before clock
+ * sync" rather than trying to parse a date out of it. Blank output (not an
+ * error) for anything matching neither shape -- a display nicety for the
+ * Recordings page's "Recorded" column, not worth failing the row render
+ * over. */
 static void format_recording_timestamp(const char *name, char *out, size_t len)
 {
     if (len == 0) return;
     out[0] = '\0';
 
-    const char *p = name;
-    if (strncmp(p, "rec_l", 5) != 0) return;
-    p += 5;
-    while (*p >= '0' && *p <= '9') p++; /* line number */
-    if (*p != '_') return;
-    p++;
+    const char *p;
+    if (strncmp(name, "rec_", 4) == 0) p = name + 4;
+    else if (strncmp(name, "voicemail_", 10) == 0) p = name + 10;
+    else return;
 
     if (strncmp(p, "boot", 4) == 0) {
         snprintf(out, len, "recorded before clock sync");
@@ -2822,15 +2823,26 @@ static void format_recording_timestamp(const char *name, char *out, size_t len)
  * "return_to" field so media_delete_handler() sends the browser back to
  * whichever page it was deleted from (/recordings vs /settings?tab=storage)
  * instead of always assuming Settings -- see that handler's own comment. */
+/* "rec_" as `name_prefix` is a sentinel for "any user recording" -- both
+ * is_user_recording() prefixes ("rec_" and "voicemail_"), not a literal
+ * strncmp -- so the Recordings page (the only caller that passes it, see
+ * append_storage_table()'s own doc comment) shows voicemails alongside 211
+ * archives without every other name_prefix caller needing to know that. */
+static bool storage_table_matches(const char *name, const char *name_prefix)
+{
+    if (!name_prefix || !name_prefix[0]) return true;
+    if (strcmp(name_prefix, "rec_") == 0) return is_user_recording(name);
+    return strncmp(name, name_prefix, strlen(name_prefix)) == 0;
+}
+
 static int append_storage_table(char *buf, size_t cap, int off,
                                 storage_entry_t *entries, size_t n,
                                 const char *name_prefix, bool show_recorded,
                                 const char *return_to)
 {
-    size_t plen = name_prefix ? strlen(name_prefix) : 0;
     size_t shown = 0;
     for (size_t i = 0; i < n; i++) {
-        if (plen && strncmp(entries[i].name, name_prefix, plen) != 0) continue;
+        if (!storage_table_matches(entries[i].name, name_prefix)) continue;
         shown++;
     }
     if (shown == 0) {
@@ -2849,7 +2861,7 @@ static int append_storage_table(char *buf, size_t cap, int off,
         i18n_str("storage.col_size", "Size"), i18n_str("storage.col_length", "Length"),
         i18n_str("storage.col_play", "Play"));
     for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
-        if (plen && strncmp(entries[i].name, name_prefix, plen) != 0) continue;
+        if (!storage_table_matches(entries[i].name, name_prefix)) continue;
         char sz[16];
         char dur[16];
         char play[160];
@@ -3901,6 +3913,52 @@ static esp_err_t test_inject_handler(httpd_req_t *req)
     } else {
         httpd_resp_sendstr(req, "ok\n");
     }
+    return ESP_OK;
+}
+
+/* POST /test/record  body ms=N & line=N -- starts an ordinary rec_* mic
+ * (uplink) capture, the same recorder_start() the answering machine uses,
+ * visible on the Recordings tab when done. Added for testing the Bluetooth
+ * companion's analog bridge (see archive/BLUETOOTH_AUDIO_UPGRADE.md):
+ * whatever a paired phone sends over HFP downlink and the ESP32 drives onto
+ * the line via its DAC lands at the same SLIC tap this line's own mic input
+ * reads from, so this is a way to capture that without a physical handset
+ * or fighting the bringup console's serial flakiness (see
+ * firmware/README.md's bring-up notes) over USB. Requires test mode on,
+ * same as /test/inject. */
+static esp_err_t test_record_handler(httpd_req_t *req)
+{
+    char body[64], ms_s[8] = {0}, line_s[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    if (!telephony_test_enabled()) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "test mode is off (POST /test/mode on=1 first)");
+        return ESP_OK;
+    }
+    form_field(body, "ms", ms_s, sizeof(ms_s));
+    form_field(body, "line", line_s, sizeof(line_s));
+    int ms = ms_s[0] ? atoi(ms_s) : 5000;
+    int line = line_s[0] ? atoi(line_s) : 0;
+    if (ms <= 0 || ms > 60000 || line < 0 || line > 1) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad ms (1-60000) or line (0-1)"); return ESP_OK;
+    }
+    char name[STORAGE_MAX_NAME];
+    /* Spelled "line%d", not "l%d" -- the old "rec_l0_..." shape elsewhere
+     * in the codebase reads as the digits "10" at a glance, not "line 0"
+     * (see telephony.c's rec_name_timestamped()); this diagnostic-only
+     * endpoint keeps a line disambiguator (unlike the user-facing 211/
+     * voicemail names, it's genuinely useful here since either line can be
+     * captured on demand), just spelled unambiguously. */
+    snprintf(name, sizeof(name), "rec_test_line%d_%lu.wav", line,
+             (unsigned long)(esp_timer_get_time() / 1000000));
+    esp_err_t err = recorder_start(line, name, (uint32_t)ms, 0, NULL, NULL);
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, esp_err_to_name(err)); return ESP_OK;
+    }
+    char resp[STORAGE_MAX_NAME + 16];
+    snprintf(resp, sizeof(resp), "started %s\n", name);
+    httpd_resp_sendstr(req, resp);
     return ESP_OK;
 }
 
@@ -5508,6 +5566,7 @@ esp_err_t webui_start(void)
         { .uri = "/test/mode",              .method = HTTP_POST, .handler = test_mode_handler },
         { .uri = "/test/loopback",          .method = HTTP_POST, .handler = test_loopback_handler },
         { .uri = "/test/inject",            .method = HTTP_POST, .handler = test_inject_handler },
+        { .uri = "/test/record",            .method = HTTP_POST, .handler = test_record_handler },
         { .uri = "/test/sd",                .method = HTTP_POST, .handler = test_sd_handler },
 #if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
         { .uri = "/speaker_volume_live",    .method = HTTP_POST, .handler = speaker_volume_live_handler },
