@@ -85,6 +85,20 @@ bt_companion_status_t bt_companion_get_status(void)
     return out;
 }
 
+/* Sends this board's own name so the ESP32 companion can broadcast it as
+ * its Bluetooth device name -- see bt_uart_link.c's "NAME " handling on the
+ * other end. Keeps the companion firmware identical across every C6 board
+ * (SMD2/SMD4/THT, whatever name each one's been given) instead of needing a
+ * per-board compile just to change the string a phone sees when pairing. */
+static void send_name(void)
+{
+    char name[32];
+    board_name_get(name, sizeof(name));
+    char cmd[40];
+    int n = snprintf(cmd, sizeof(cmd), "NAME %s\n", name);
+    if (n > 0) uart_write_bytes(BT_COMPANION_UART, cmd, (size_t)n);
+}
+
 esp_err_t bt_companion_start_pairing(void)
 {
     if (!s_enabled || !s_uart_installed) return ESP_ERR_INVALID_STATE;
@@ -92,6 +106,7 @@ esp_err_t bt_companion_start_pairing(void)
     bool up = s_status.link_up;
     portEXIT_CRITICAL(&s_lock);
     if (!up) return ESP_ERR_INVALID_STATE;
+    send_name(); /* re-sync in case the board name changed since boot */
     const char cmd[] = "PAIR\n";
     uart_write_bytes(BT_COMPANION_UART, cmd, sizeof(cmd) - 1);
     return ESP_OK;
@@ -128,6 +143,8 @@ static void poll_task(void *arg)
     size_t line_len = 0;
     const TickType_t period = pdMS_TO_TICKS(POLL_INTERVAL_MS);
     TickType_t last_wake = xTaskGetTickCount();
+
+    send_name(); /* sync once as soon as the link starts, before the first poll */
 
     while (1) {
         const char cmd[] = "STATUS?\n";

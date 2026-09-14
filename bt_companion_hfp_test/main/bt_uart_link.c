@@ -2,6 +2,7 @@
 #include "bt_led.h"
 #include "driver/uart.h"
 #include "driver/gpio.h"
+#include "esp_bt_device.h"
 #include "esp_gap_bt_api.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -84,6 +85,16 @@ static void handle_line(const char *line)
         esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
         bt_led_start_pairing();
         ESP_LOGI(TAG, "PAIR requested -- connectable+discoverable (re)confirmed");
+    } else if (strncmp(line, "NAME ", 5) == 0) {
+        /* Broadcast the C6 board's own name instead of a fixed string baked
+         * into this firmware -- lets one compiled companion image work
+         * unmodified across every C6 board (SMD2/SMD4/THT), each with its
+         * own name, rather than needing a per-board build just to change
+         * what a phone sees while pairing. esp_bt_dev_set_device_name() can
+         * be called any time after the stack is up; it takes effect for
+         * scans/inquiries from this point on, no reboot needed. */
+        esp_bt_dev_set_device_name(line + 5);
+        ESP_LOGI(TAG, "device name set from C6: '%s'", line + 5);
     } else {
         ESP_LOGD(TAG, "unrecognized line from C6: '%s'", line);
     }

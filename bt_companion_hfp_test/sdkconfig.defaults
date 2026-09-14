@@ -18,3 +18,14 @@ CONFIG_BT_HFP_CLIENT_ENABLE=y
 # digital bitstream, not raw analog voltage, so it wouldn't work with J7
 # directly.
 CONFIG_BT_HFP_AUDIO_DATA_PATH_HCI=y
+
+# Wideband Speech (mSBC, 16kHz) defaults to on -- but bt_audio_io.c's whole
+# pipeline (DAC/ADC, ring buffers) is hardcoded to CVSD's 8kHz and never
+# resamples (esp_hf_client_pcm_resample_init() is never called). A phone
+# that negotiates mSBC anyway -- iPhones do, when both sides support it --
+# then sends 16kHz PCM into an 8kHz-configured DAC, which plays back at
+# roughly half speed/pitch: this was confirmed 2026-09-14 recording WWV
+# through the bridge (~40Hz dominant frequency -- far too low for real
+# speech, consistent with 2x pitch-down). Forcing CVSD-only keeps the
+# negotiated codec's rate matching this pipeline's fixed assumption.
+CONFIG_BT_HFP_WBS_ENABLE=n
