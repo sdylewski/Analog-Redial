@@ -58,8 +58,8 @@ Pin plan (from the datasheet's Table 1-3, now in `datasheets/`):
 
 | Signal | C6 | BM64 | Notes |
 |---|---|---|---|
-| UART TX | GPIO16 | `HCI_RXD` | crossed |
-| UART RX | GPIO17 | `HCI_TXD` | crossed |
+| UART TX | GPIO16 | `HCI_RXD` | crossed by *role*, not by wiring two different pin numbers together -- see Option B's note on this below, same mistake risk applies here |
+| UART RX | GPIO17 | `HCI_TXD` | crossed by *role* |
 | GND | GND | `GND` | |
 | 3.3V | 3V3 rail | `BAT_IN` | accepts 3.2-4.2V directly |
 | Downlink audio | *(existing ES8388 analog path)* | `AOHPL`/`AOHPR`/`AOHPM` | BM64's own DAC, -98dB SNR -- no quality compromise |
@@ -103,18 +103,65 @@ normal, intended way to run it -- not a workaround.
 
 Pin plan:
 
-| Signal | C6 | Companion (ESP32-original DevKitC) | Notes |
+| Signal | C6 side | Companion (ESP32-original DevKitC) | Notes |
 |---|---|---|---|
-| UART TX | GPIO16 | GPIO16 (RX2) | crossed |
-| UART RX | GPIO17 | GPIO17 (TX2) | crossed |
-| GND | GND | GND | |
+| UART TX | GPIO16 | GPIO16 (RX2) | same pin *number* both ends -- see note below, this isn't a typo |
+| UART RX | GPIO17 | GPIO17 (TX2) | same pin *number* both ends |
+| GND | GND | GND | shared ground, required for the UART link to work at all -- confirmed 2026-09-14 this is easy to skip by accident on a breadboard |
 | 5V | 5V rail (or USB) | 5V/VIN pin | devkit's onboard regulator drops this to the module's 3.3V |
-| Downlink audio | *(existing ES8388 analog path)* | GPIO25 (DAC1) | |
-| Uplink audio | *(existing handset mic path)* | GPIO34 (ADC1_CH6) | |
+| Downlink audio | AG1171 **Vin** pin, past its own 10nF coupling cap | GPIO25 (DAC1), **through its own new 100nF series cap** | see "Audio tap components" below |
+| Uplink audio | AG1171 **Vout** pin, past its own 100nF coupling cap | GPIO34 (ADC1_CH6), **plus a new bias divider** | see "Audio tap components" below |
+| Pairing-status LED | *(none -- companion-only)* | GPIO2 (onboard LED on most genuine DevKitC boards) | blinks while pairing, solid once connected, off otherwise -- see `bt_led.c` on the companion firmware |
+
+**On "same pin number, crossed role"**: C6's GPIO16 is *its* UART TX; the
+companion's GPIO16 is labeled RX2 on *its* side. Wire pin 16 to pin 16 and
+pin 17 to pin 17 straight across (not diagonally to the other number) --
+confirmed 2026-09-14 this is exactly the mistake that caused three failed
+pairing/flashing sessions: wiring by "TX goes to RX" instinct sent one leg
+to the companion's GPIO1/GPIO3 (its real USB-serial bootloader pins)
+instead, which also explained why flashing the companion over USB kept
+failing whenever that leg was connected.
 
 Companion-side UART pins match its own default UART2 pins purely as a
 mnemonic -- no electrical requirement, the GPIO matrix can route UART to any
 pins on either chip.
+
+### Audio tap components (new 2026-09-14, bench-bring-up wiring)
+
+**Never tap a raw AG1171 pin directly** -- Vin/Vout sit in the SLIC's own
+5V-referenced domain. Both taps below go *after* the SLIC's own existing
+coupling cap, at the same already-AC-only node the ES8388 codec itself
+uses (see `docs/signal-levels.md` §3: Vin has a 10nF series cap toward the
+codec's DAC output, Vout has a 100nF series cap toward the codec's ADC
+input) -- these are the exact same physical pins/traces the codec already
+uses, not new dedicated pins.
+
+- **GPIO25 -> Vin (downlink): needs its own new 100nF series coupling
+  cap**, in-line between the GPIO25 pin and the Vin tap point -- not
+  optional. The ESP32's DAC output is DC-biased (an 8-bit unsigned DAC
+  centered around ~1.65V, not 0V), and Vin past the SLIC's own cap is
+  meant to be a clean AC-only node; wiring GPIO25 there with no cap of its
+  own would dump that DC bias straight onto a node the hybrid's own
+  balance depends on. A DAC *output* actively drives the node, unlike an
+  ADC *input* below, which only listens -- that asymmetry is why only this
+  side needs a cap of its own.
+- **GPIO34 -> Vout (uplink): no new series cap needed** (it's already
+  downstream of the SLIC's own 100nF cap, a clean AC node an ADC can share
+  directly) **but needs a new bias divider** -- two resistors, ~100kΩ from
+  GPIO34 to the 3.3V rail and ~100kΩ from GPIO34 to GND, meeting at the
+  GPIO34/Vout junction. This centers the AC signal at ~1.65V, the DC
+  reference the ESP32's own ADC needs to read a signal that otherwise has
+  no DC reference at all (an ADC *input* doesn't drive current back onto
+  the node the way a DAC output does, so it doesn't need its own blocking
+  cap -- it just needs *something* to establish a bias point). High
+  resistance on both legs keeps this from loading the existing AC signal
+  or the codec's own 20kΩ ADC input impedance.
+
+Component values above are reasonable starting points, not yet bench-
+verified against a scope -- confirm with an oscilloscope on GPIO25/GPIO34
+before treating them as final (measuring actual DC bias and AC swing at
+each pin, per the existing DTMF-headroom divider worked out the same way
+in `docs/signal-levels.md` §3).
 
 ## Decision: ESP32 DevKitC first, BM64 as the fallback
 
