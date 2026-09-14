@@ -13,6 +13,8 @@
 
 #include "bt_app_core.h"
 #include "bt_app_hf.h"
+#include "bt_audio_io.h"
+#include "bt_uart_link.h"
 #include "esp_bt_main.h"
 #include "esp_bt_device.h"
 #include "esp_gap_bt_api.h"
@@ -174,54 +176,35 @@ extern esp_bd_addr_t peer_addr;
 
 #if CONFIG_BT_HFP_AUDIO_DATA_PATH_HCI
 
-#define ESP_HFP_RINGBUF_SIZE 3600
-static RingbufHandle_t m_rb = NULL;
-
+/* Was: allocate a ring buffer and loop incoming audio straight back out
+ * ("so you can hear your own voice", per this example's own README) --
+ * replaced with real GPIO25 (DAC, downlink)/GPIO34 (ADC, uplink) bridging,
+ * see bt_audio_io.h. bt_audio_io.c owns its own ring buffer for the
+ * uplink direction. */
 static void bt_app_hf_client_audio_open(void)
 {
-    m_rb = xRingbufferCreate(ESP_HFP_RINGBUF_SIZE, RINGBUF_TYPE_BYTEBUF);
+    esp_err_t err = bt_audio_io_init();
+    if (err != ESP_OK) {
+        ESP_LOGE(BT_HF_TAG, "bt_audio_io_init failed: %s -- no DAC/ADC bridging this call",
+                 esp_err_to_name(err));
+    }
 }
 
 static void bt_app_hf_client_audio_close(void)
 {
-    if (!m_rb) {
-        return ;
-    }
-
-    vRingbufferDelete(m_rb);
+    /* bt_audio_io_init() is idempotent-enough to just leave running
+     * between calls (matches this project's other bring-up test code) --
+     * nothing to tear down here for a first bring-up pass. */
 }
 
 static uint32_t bt_app_hf_client_outgoing_cb(uint8_t *p_buf, uint32_t sz)
 {
-    if (!m_rb) {
-        return 0;
-    }
-
-    size_t item_size = 0;
-    uint8_t *data = xRingbufferReceiveUpTo(m_rb, &item_size, 0, sz);
-    if (item_size == sz) {
-        memcpy(p_buf, data, item_size);
-        vRingbufferReturnItem(m_rb, data);
-        return sz;
-    } else if (0 < item_size) {
-        vRingbufferReturnItem(m_rb, data);
-        return 0;
-    } else {
-        // data not enough, do not read
-        return 0;
-    }
+    return bt_audio_io_read_uplink(p_buf, sz);
 }
 
 static void bt_app_hf_client_incoming_cb(const uint8_t *buf, uint32_t sz)
 {
-    if (! m_rb) {
-        return;
-    }
-    BaseType_t done = xRingbufferSend(m_rb, (uint8_t *)buf, sz, 0);
-    if (! done) {
-        ESP_LOGE(BT_HF_TAG, "rb send fail");
-    }
-
+    bt_audio_io_write_downlink(buf, sz);
     esp_hf_client_outgoing_data_ready();
 }
 #endif /* #if CONFIG_BT_HFP_AUDIO_DATA_PATH_HCI */
@@ -243,6 +226,13 @@ void bt_app_hf_client_cb(esp_hf_client_cb_event_t event, esp_hf_client_cb_param_
                     param->conn_stat.peer_feat,
                     param->conn_stat.chld_feat);
             memcpy(peer_addr,param->conn_stat.remote_bda,ESP_BD_ADDR_LEN);
+            /* Feeds the C6's STATUS? poll (bt_uart_link.c) -- SLC_CONNECTED
+             * is the meaningful "actually usable" state, not just
+             * CONNECTED (that's still mid-handshake, per this file's own
+             * c_connection_state_str ordering). */
+            bt_uart_link_set_connected(
+                param->conn_stat.state == ESP_HF_CLIENT_CONNECTION_STATE_SLC_CONNECTED,
+                param->conn_stat.remote_bda);
             break;
         }
 

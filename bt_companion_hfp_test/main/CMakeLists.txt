@@ -1,6 +1,9 @@
 idf_component_register(SRCS "app_hf_msg_set.c"
                             "bt_app_core.c"
                             "bt_app_hf.c"
+                            "bt_audio_io.c"
+                            "bt_uart_link.c"
                             "gpio_pcm_config.c"
                             "main.c"
-                    INCLUDE_DIRS ".")
+                    INCLUDE_DIRS "."
+                    REQUIRES bt nvs_flash console esp_adc driver)

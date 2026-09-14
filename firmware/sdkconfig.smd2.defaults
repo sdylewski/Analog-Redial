@@ -1,0 +1,16 @@
+# Layered on top of sdkconfig.defaults for the build.smd2/ build directory
+# only (see firmware/README.md's multi-board-type note) -- selects the
+# SMD2 hand-soldered board's pin map (board_pins_smd.h) instead of SMD4's.
+# Use: idf.py -B build.smd2 -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.smd2.defaults" set-target esp32c6
+# then plain `idf.py -B build.smd2 build`/`flash` from then on -- the
+# generated build.smd2/sdkconfig remembers this choice without needing
+# SDKCONFIG_DEFAULTS re-passed every time.
+CONFIG_BOARD_TYPE_SMD2=y
+
+# sdkconfig.defaults' own CONFIG_ESPTOOLPY_FLASHSIZE_4MB is stale (this
+# project's boards are all 16MB flash) -- the main sdkconfig has long
+# carried a manual override for this that sdkconfig.defaults itself never
+# picked up. A fresh sdkconfig generated from defaults alone (as any new
+# build.<type>/ directory is) needs it repeated here explicitly.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
