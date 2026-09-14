@@ -14,6 +14,7 @@
 #include "bt_app_core.h"
 #include "bt_app_hf.h"
 #include "bt_audio_io.h"
+#include "bt_led.h"
 #include "bt_uart_link.h"
 #include "esp_bt_main.h"
 #include "esp_bt_device.h"
@@ -233,6 +234,8 @@ void bt_app_hf_client_cb(esp_hf_client_cb_event_t event, esp_hf_client_cb_param_
             bt_uart_link_set_connected(
                 param->conn_stat.state == ESP_HF_CLIENT_CONNECTION_STATE_SLC_CONNECTED,
                 param->conn_stat.remote_bda);
+            bt_led_set_connected(
+                param->conn_stat.state == ESP_HF_CLIENT_CONNECTION_STATE_SLC_CONNECTED);
             break;
         }
 

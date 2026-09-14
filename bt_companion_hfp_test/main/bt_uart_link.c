@@ -1,4 +1,5 @@
 #include "bt_uart_link.h"
+#include "bt_led.h"
 #include "driver/uart.h"
 #include "driver/gpio.h"
 #include "esp_gap_bt_api.h"
@@ -62,9 +63,26 @@ static void handle_line(const char *line)
             send_line("STATUS DISCONNECTED");
         }
     } else if (strcmp(line, "PAIR") == 0) {
+        /* Clear any stale bonds first. A phone's own "forget this device"
+         * only clears its side -- if this board still has an old link key
+         * for that phone's address, the next pairing attempt silently fails
+         * (or the phone stops offering the device at all) because the two
+         * sides no longer agree on the key. A fresh "Start pairing" click
+         * should mean a genuinely fresh attempt. */
+        int n = esp_bt_gap_get_bond_device_num();
+        if (n > 0) {
+            esp_bd_addr_t bonded[n];
+            if (esp_bt_gap_get_bond_device_list(&n, bonded) == ESP_OK) {
+                for (int i = 0; i < n; i++) {
+                    esp_bt_gap_remove_bond_device(bonded[i]);
+                }
+                ESP_LOGI(TAG, "cleared %d stale bond(s) before pairing", n);
+            }
+        }
         /* Already connectable/discoverable from boot (main.c) -- this just
          * re-asserts it on request, harmless if already on. */
         esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
+        bt_led_start_pairing();
         ESP_LOGI(TAG, "PAIR requested -- connectable+discoverable (re)confirmed");
     } else {
         ESP_LOGD(TAG, "unrecognized line from C6: '%s'", line);
