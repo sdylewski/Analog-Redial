@@ -125,6 +125,7 @@ static int append_storage_table(char *buf, size_t cap, int off,
  * needs it to escape possibly remote-supplied caller ID text, and is
  * defined earlier in the file, right after append_log_panel()) can call it. */
 static void html_escape(const char *in, char *out, size_t outsz);
+static void js_escape(const char *in, char *out, size_t outsz);
 
 /* firmware/assets/ ships README.md and .gitignore alongside actual clips
  * (see that directory's own README) -- filter those out of "pick a clip to
@@ -348,6 +349,12 @@ static cJSON *build_status_json(void)
         cJSON_AddStringToObject(root, "voip_user1", voip_user(1));
     }
 
+    bt_companion_status_t bt_st = bt_companion_get_status();
+    cJSON_AddBoolToObject(root, "bt_enabled", bt_st.enabled);
+    cJSON_AddBoolToObject(root, "bt_link_up", bt_st.link_up);
+    cJSON_AddBoolToObject(root, "bt_connected", bt_st.bt_connected);
+    cJSON_AddStringToObject(root, "bt_paired_name", bt_st.paired_name);
+
     cJSON *lines = cJSON_AddArrayToObject(root, "lines");
     for (int l = 0; l < num_lines; l++) {
         cJSON *jl = cJSON_CreateObject();
@@ -444,6 +451,28 @@ static void html_escape(const char *in, char *out, size_t outsz)
             if (o + rl >= outsz) break; /* no room for the whole entity */
             memcpy(out + o, rep, rl);
             o += rl;
+        } else {
+            out[o++] = in[i];
+        }
+    }
+    out[o] = '\0';
+}
+
+/* Escapes for a single-quoted JS string literal embedded directly in an
+ * inline <script> block (see append_bluetooth_tab()'s live-status JS) --
+ * i18n_str() strings are translator-supplied at runtime, not just the
+ * hardcoded English defaults, so a translated string containing an
+ * apostrophe or backslash has to be escaped here rather than assumed safe. */
+static void js_escape(const char *in, char *out, size_t outsz)
+{
+    size_t o = 0;
+    if (outsz == 0) return;
+    for (size_t i = 0; in[i] && o < outsz - 1; i++) {
+        if ((in[i] == '\'' || in[i] == '\\') && o + 2 < outsz) {
+            out[o++] = '\\';
+            out[o++] = in[i];
+        } else if (in[i] == '\n' || in[i] == '\r') {
+            continue; /* strip -- these are short single-line UI strings */
         } else {
             out[o++] = in[i];
         }
@@ -1963,31 +1992,97 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
     const char *link_text = st.link_up
         ? i18n_str("bt.link_up", "responding")
         : i18n_str("bt.link_down", "not responding");
+    const char *bt_pill = st.bt_connected ? "on" : "off";
+    const char *bt_conn_text = st.bt_connected ? i18n_str("bt.connected", "connected")
+                                                : i18n_str("bt.not_connected", "not connected");
+    char paired[BT_COMPANION_NAME_MAX * 6];
+    html_escape(st.bt_connected ? st.paired_name : i18n_str("bt.none_paired", "(none)"),
+                paired, sizeof(paired));
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card wide\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
-        "<span class=\"pill %s\">%s</span></div>",
+        "<span id=\"bt-link-pill\" class=\"pill %s\">%s</span></div>"
+        "<div class=\"statusrow\"%s id=\"bt-paired-row\"><span class=\"label\">%s</span>"
+        "<span id=\"bt-paired-pill\" class=\"pill %s\">%s</span></div>"
+        "<div class=\"statusrow\"%s id=\"bt-paired-name-row\"><span class=\"label\">%s</span>"
+        "<span id=\"bt-paired-name\">%s</span></div>",
         i18n_str("bt.status_title", "Status"),
-        i18n_str("bt.link_label", "Companion board"), link_pill, link_text);
-    if (st.link_up) {
-        const char *bt_pill = st.bt_connected ? "on" : "off";
-        char paired[BT_COMPANION_NAME_MAX * 6];
-        html_escape(st.bt_connected ? st.paired_name : i18n_str("bt.none_paired", "(none)"),
-                    paired, sizeof(paired));
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"statusrow\"><span class=\"label\">%s</span>"
-            "<span class=\"pill %s\">%s</span></div>"
-            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>",
-            i18n_str("bt.paired_phone_label", "Paired phone/laptop"),
-            bt_pill, st.bt_connected ? i18n_str("bt.connected", "connected") : i18n_str("bt.not_connected", "not connected"),
-            i18n_str("bt.paired_name_label", "Name"), paired);
-    }
+        i18n_str("bt.link_label", "Companion board"), link_pill, link_text,
+        st.link_up ? "" : " hidden",
+        i18n_str("bt.paired_phone_label", "Paired phone/laptop"), bt_pill, bt_conn_text,
+        st.link_up ? "" : " hidden",
+        i18n_str("bt.paired_name_label", "Name"), paired);
+
+    /* Live status: polls the shared /api/status JSON (already carries
+     * bt_link_up/bt_connected/bt_paired_name, see build_status_json())
+     * instead of a dedicated endpoint. The pairing button gets its own
+     * transient "Pairing..." / "Paired!" states so clicking it actually
+     * shows something happened -- previously it just re-rendered the same
+     * static page on submit, with no feedback while the phone/laptop side
+     * hadn't paired yet. */
+    char js_link_up[48], js_link_down[48], js_connected[48], js_not_connected[48],
+         js_none_paired[48], js_pair_btn[64], js_pairing[64], js_paired[48];
+    js_escape(i18n_str("bt.link_up", "responding"), js_link_up, sizeof(js_link_up));
+    js_escape(i18n_str("bt.link_down", "not responding"), js_link_down, sizeof(js_link_down));
+    js_escape(i18n_str("bt.connected", "connected"), js_connected, sizeof(js_connected));
+    js_escape(i18n_str("bt.not_connected", "not connected"), js_not_connected, sizeof(js_not_connected));
+    js_escape(i18n_str("bt.none_paired", "(none)"), js_none_paired, sizeof(js_none_paired));
+    js_escape(i18n_str("bt.pair_button", "Start pairing"), js_pair_btn, sizeof(js_pair_btn));
+    js_escape(i18n_str("bt.pair_button_pairing", "Pairing... check your phone/laptop"),
+              js_pairing, sizeof(js_pairing));
+    js_escape(i18n_str("bt.pair_button_paired", "Paired!"), js_paired, sizeof(js_paired));
+
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<form method=\"POST\" action=\"/bt_pair\" class=\"settings-form\">"
-        "<div class=\"toolbar sub\"><button type=\"submit\"%s>%s</button></div>"
+        "<form method=\"POST\" action=\"/bt_pair\" class=\"settings-form\" id=\"bt-pair-form\">"
+        "<div class=\"toolbar sub\"><button type=\"submit\" id=\"bt-pair-btn\"%s>%s</button></div>"
         "</form>"
-        "<p class=\"hint\">%s</p>"
-        "</div>",
+        "<p class=\"hint\" id=\"bt-pair-hint\">%s</p>"
+        "</div>"
+        "<script>(function(){"
+        "var I={"
+        "linkUp:'%s',linkDown:'%s',connected:'%s',notConnected:'%s',nonePaired:'%s',"
+        "pairBtn:'%s',pairing:'%s',paired:'%s'"
+        "};"
+        "var linkPill=document.getElementById('bt-link-pill');"
+        "var pairedRow=document.getElementById('bt-paired-row');"
+        "var pairedPill=document.getElementById('bt-paired-pill');"
+        "var nameRow=document.getElementById('bt-paired-name-row');"
+        "var nameEl=document.getElementById('bt-paired-name');"
+        "var btn=document.getElementById('bt-pair-btn');"
+        "var form=document.getElementById('bt-pair-form');"
+        "var pairing=false, pairingTimeout=null;"
+        "function setBtnState(state){"
+        "btn.classList.remove('is-busy','is-active');"
+        "if(state==='pairing'){btn.disabled=true;btn.classList.add('is-busy');btn.textContent=I.pairing;}"
+        "else if(state==='paired'){btn.disabled=false;btn.classList.add('is-active');btn.textContent=I.paired;}"
+        "else{btn.disabled=(linkPill.className.indexOf('on')<0);btn.textContent=I.pairBtn;}"
+        "}"
+        "function poll(){"
+        "fetch('/api/status').then(function(r){return r.json();}).then(function(d){"
+        "var up=!!d.bt_link_up, conn=!!d.bt_connected;"
+        "linkPill.className='pill '+(up?'on':'off');linkPill.textContent=up?I.linkUp:I.linkDown;"
+        "pairedRow.hidden=!up; nameRow.hidden=!up;"
+        "pairedPill.className='pill '+(conn?'on':'off');pairedPill.textContent=conn?I.connected:I.notConnected;"
+        "nameEl.textContent=conn?(d.bt_paired_name||''):I.nonePaired;"
+        "if(!up){btn.disabled=true;}"
+        "if(pairing&&conn){"
+        "pairing=false; if(pairingTimeout)clearTimeout(pairingTimeout);"
+        "setBtnState('paired');"
+        "setTimeout(function(){if(!pairing)setBtnState('idle');},4000);"
+        "} else if(!pairing){"
+        "setBtnState('idle');"
+        "}"
+        "}).catch(function(){});"
+        "}"
+        "form.addEventListener('submit',function(ev){"
+        "ev.preventDefault();"
+        "pairing=true; setBtnState('pairing');"
+        "fetch('/bt_pair',{method:'POST'}).catch(function(){});"
+        "if(pairingTimeout)clearTimeout(pairingTimeout);"
+        "pairingTimeout=setTimeout(function(){pairing=false;setBtnState('idle');},45000);"
+        "});"
+        "setInterval(poll,3000);"
+        "})();</script>",
         st.link_up ? "" : " disabled",
         i18n_str("bt.pair_button", "Start pairing"),
         st.link_up
@@ -1996,7 +2091,9 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
                                         "the same way you'd pair any headset.")
             : i18n_str("bt.pair_hint_down",
                        "Greyed out because the companion board isn't responding yet -- check the "
-                       "UART wiring (GPIO16/17, crossed TX/RX) once it's connected."));
+                       "UART wiring (GPIO16/17, crossed TX/RX) once it's connected."),
+        js_link_up, js_link_down, js_connected, js_not_connected, js_none_paired,
+        js_pair_btn, js_pairing, js_paired);
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>"); /* closes #bt-extra */
     return off;

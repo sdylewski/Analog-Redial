@@ -241,6 +241,19 @@ static void bt_hf_client_hdl_stack_evt(uint16_t event, void *p_param)
         esp_hf_client_init();
         bt_uart_link_init(); /* C6 control link -- see bt_uart_link.h */
 
+        /* Class of Device: Audio/Video major, Hands-free minor, Audio+
+         * Telephony service bits. Bluedroid's default CoD is uncategorized,
+         * which phones' Bluetooth pairing UIs (iOS especially) filter out of
+         * the visible device list -- macOS/Windows list nearly anything
+         * discoverable regardless of CoD, which is why this device only
+         * showed up on a laptop, not a phone. */
+        esp_bt_cod_t cod = {
+            .major = ESP_BT_COD_MAJOR_DEV_AV,
+            .minor = 0x02, /* Hands-free Device, per Bluetooth assigned numbers */
+            .service = 0x300, /* Audio (bit8) + Telephony (bit9) */
+        };
+        esp_bt_gap_set_cod(cod, ESP_BT_INIT_COD);
+
 #if (CONFIG_EXAMPLE_SSP_ENABLED == true)
     /* Set default parameters for Secure Simple Pairing */
     esp_bt_sp_param_t param_type = ESP_BT_SP_IOCAP_MODE;
