@@ -23,6 +23,7 @@
 #include "esp_hf_client_api.h"
 #include "bt_app_hf.h"
 #include "bt_audio_io.h"
+#include "bt_gpio_test.h"
 #include "bt_led.h"
 #include "bt_uart_link.h"
 #include "gpio_pcm_config.h"
@@ -217,6 +218,7 @@ void app_main(void)
 
     /* Register commands */
     register_hfp_hf();
+    bt_gpio_test_register_commands();
     printf("\n ==================================================\n");
     printf(" |       Steps to test hfp_hf                     |\n");
     printf(" |                                                |\n");
