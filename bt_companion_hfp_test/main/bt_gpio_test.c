@@ -1,4 +1,5 @@
 #include "bt_gpio_test.h"
+#include "bt_audio_io.h"
 #include "driver/gpio.h"
 #include "esp_console.h"
 #include "freertos/FreeRTOS.h"
@@ -99,8 +100,29 @@ static int cmd_gpio_cycle(int argc, char **argv)
     return 0;
 }
 
+static int cmd_tone(int argc, char **argv)
+{
+    if (argc < 3) { printf("usage: tone <hz> <ms>\n"); return 1; }
+    int hz = atoi(argv[1]);
+    int ms = atoi(argv[2]);
+    if (hz <= 0 || ms <= 0) { printf("hz and ms must both be positive\n"); return 1; }
+    bt_audio_io_test_tone(hz, ms);
+    printf("playing %dHz for %dms on GPIO25 (bypasses Bluetooth/the C6 link entirely) "
+           "-- if 25 or 26 were just used with gpio_set/gpio_cycle, reset the board "
+           "first or this won't come out right, that reclaims them from GPIO mode\n",
+           hz, ms);
+    return 0;
+}
+
 void bt_gpio_test_register_commands(void)
 {
+    const esp_console_cmd_t tone_cmd = {
+        .command = "tone",
+        .help = "Play a test tone straight out GPIO25, no Bluetooth needed: tone <hz> <ms>",
+        .func = cmd_tone,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&tone_cmd));
+
     const esp_console_cmd_t set_cmd = {
         .command = "gpio_set",
         .help = "Drive a GPIO high/low and read it back: gpio_set <pin> <0|1>",
