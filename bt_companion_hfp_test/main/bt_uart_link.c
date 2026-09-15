@@ -94,8 +94,12 @@ static void handle_line(const char *line)
          * what a phone sees while pairing. esp_bt_dev_set_device_name() can
          * be called any time after the stack is up; it takes effect for
          * scans/inquiries from this point on, no reboot needed. */
-        esp_bt_dev_set_device_name(line + 5);
-        ESP_LOGI(TAG, "device name set from C6: '%s'", line + 5);
+        {
+            char full_name[48];
+            snprintf(full_name, sizeof(full_name), "%s-HFP-Test", line + 5);
+            esp_bt_dev_set_device_name(full_name);
+            ESP_LOGI(TAG, "device name set from C6: '%s'", full_name);
+        }
     } else if (strncmp(line, "TONE ", 5) == 0) {
         /* Diagnostic only -- see bt_audio_io_test_tone()'s own doc comment.
          * Bypasses Bluetooth entirely, so this works with no phone call in

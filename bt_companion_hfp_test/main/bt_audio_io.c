@@ -111,6 +111,14 @@ static void adc_sample_task(void *arg)
 
 /* ---- diagnostic: synthetic tone straight into the downlink path ---- */
 
+/* Guards both this and test_level below against running concurrently with
+ * themselves or each other -- confirmed 2026-09-15 that overlapping DAC
+ * writers (e.g. starting a new `tone` before an earlier one finished) floods
+ * the console with "Get available descriptor timeout" from dac_continuous,
+ * since two writers both racing to fill the same small (8-descriptor) ring
+ * starves each other out. One diagnostic writer at a time, full stop. */
+static volatile bool s_test_task_running = false;
+
 typedef struct { int hz; int ms; } test_tone_args_t;
 
 static void test_tone_task(void *arg)
@@ -134,6 +142,7 @@ static void test_tone_task(void *arg)
         bt_audio_io_write_downlink((const uint8_t *)chunk, (size_t)n * sizeof(int16_t));
         vTaskDelay(pdMS_TO_TICKS(20));
     }
+    s_test_task_running = false;
     vTaskDelete(NULL);
 }
 
@@ -141,10 +150,12 @@ bool bt_audio_io_test_tone(int hz, int ms)
 {
     if (!s_dac) { ESP_LOGE(TAG, "test_tone: DAC not initialized"); return false; }
     if (hz <= 0 || ms <= 0) { ESP_LOGE(TAG, "test_tone: bad hz/ms"); return false; }
+    if (s_test_task_running) { ESP_LOGE(TAG, "test_tone: another test writer is already running"); return false; }
     test_tone_args_t *a = malloc(sizeof(*a));
     if (!a) { ESP_LOGE(TAG, "test_tone: malloc failed"); return false; }
     a->hz = hz;
     a->ms = ms;
+    s_test_task_running = true;
     /* High priority, matching adc_sample_task -- diagnostic to check
      * whether the ~40Hz artifact seen 2026-09-14 (identical whether the
      * source is live Bluetooth audio or this synthetic tone) is caused by
@@ -152,6 +163,7 @@ bool bt_audio_io_test_tone(int hz, int ms)
      * housekeeping while running at a low priority. */
     if (xTaskCreate(test_tone_task, "bt_test_tone", 3072, a, configMAX_PRIORITIES - 4, NULL) != pdPASS) {
         ESP_LOGE(TAG, "test_tone: xTaskCreate failed");
+        s_test_task_running = false;
         free(a);
         return false;
     }
@@ -182,17 +194,21 @@ static void test_level_task(void *arg)
         bt_audio_io_write_downlink((const uint8_t *)chunk, sizeof(chunk));
         vTaskDelay(pdMS_TO_TICKS(20));
     }
+    s_test_task_running = false;
     vTaskDelete(NULL);
 }
 
 void bt_audio_io_test_level(bool high, int ms)
 {
     if (!s_dac || ms <= 0) return;
+    if (s_test_task_running) { ESP_LOGE(TAG, "test_level: another test writer is already running"); return; }
     test_level_args_t *a = malloc(sizeof(*a));
     if (!a) return;
     a->high = high;
     a->ms = ms;
+    s_test_task_running = true;
     if (xTaskCreate(test_level_task, "bt_test_level", 3072, a, configMAX_PRIORITIES - 4, NULL) != pdPASS) {
+        s_test_task_running = false;
         free(a);
     }
 }

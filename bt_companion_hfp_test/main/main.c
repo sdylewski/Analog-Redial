@@ -163,6 +163,16 @@ void app_main(void)
     }
     ESP_ERROR_CHECK( ret );
 
+    /* dac_continuous logs its own ESP_LOGE on every single dropped write
+     * (e.g. "Get available descriptor timeout" under a real overrun) -- at
+     * error-rate-many-per-second that floods the console hard enough to
+     * bury everything else (confirmed 2026-09-15, a real overrun from two
+     * concurrent DAC writers -- see bt_audio_io.c's s_test_task_running
+     * guard -- made the console nearly unreadable). The drop-and-continue
+     * behavior itself is correct for live audio; only the logging is
+     * excessive. */
+    esp_log_level_set("dac_continuous", ESP_LOG_NONE);
+
     bt_led_init();
     bt_audio_io_init(); /* unconditional at boot -- see its own doc comment */
 
