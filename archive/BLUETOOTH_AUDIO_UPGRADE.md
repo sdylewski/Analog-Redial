@@ -1,13 +1,59 @@
 # Bluetooth mic/speaker for a laptop or phone
 
-In progress: an ESP32-original **DevKitC-style board** (not a bare module)
-is on its way to be the companion, permanently -- decided 2026-09-13, see
-"Decision" below for why. The C6 side already has real scaffolding --
-`firmware/components/bt_companion/` (UART on GPIO16/17, a small line-based
-status/pairing protocol, an "enable this daughter board" master switch) and
-a Settings -> Bluetooth tab, both currently honest about there being no
-hardware to talk to yet. See `bt_companion.h`'s own doc comment for the
-protocol.
+**Switched to BM64 (Option A) -- decided 2026-09-15, see "Confirmed: ESP32
+software HFP audio is a dead end" below.** The ESP32-original DevKitC
+companion (Option B) was the initial build and is kept below as a real,
+working record of that bring-up -- its UART/pairing/analog-bridge design is
+still directly reused for BM64, just swapping which chip sits on the other
+end of the same UART link and analog taps. The C6 side already has real
+scaffolding -- `firmware/components/bt_companion/` (UART on GPIO16/17, a
+small line-based status/pairing protocol, an "enable this daughter board"
+master switch) and a Settings -> Bluetooth tab. See `bt_companion.h`'s own
+doc comment for the protocol.
+
+## Confirmed 2026-09-15: ESP32 software HFP audio is a dead end
+
+Bench-tested end to end on real hardware (WWV call over a live HFP
+connection): DAC output confirmed correct (clock-source bug fixed, scope-
+verified waveform), the callback-blocking bug fixed (decoupled downlink
+writes from Bluedroid's own thread), a downlink AGC tried and reverted (made
+it worse, not better) -- and voice audio still came out "garbled, like
+underwater" while simple tones stayed clean.
+
+Built a diagnostic (`bt_companion_hfp_test`'s `capture_downlink` console
+command + `tools/capture_downlink.py`) that captures the raw PCM samples
+Bluedroid hands the app -- before ANY of our own code touches them -- and
+analyzed the spectrum. Result: **79% of all energy sat below 300Hz, ~0%
+above 2000Hz**, on a live voice call. That is not what decoded speech looks
+like at any quality level; normal voice carries most of its intelligibility
+in roughly 300-3400Hz (formants). The raw capture and a simulation of our
+own 16-to-8-bit DAC conversion were nearly identical, which rules out
+everything downstream of Bluedroid: the DAC, the conversion, the AGC, the
+analog bridge, all confirmed clean.
+
+Traced into ESP-IDF's own Bluedroid source
+(`components/bt/host/bluedroid/btc/profile/std/hf_client/bta_hf_client_co.c`):
+for CVSD (this project's negotiated codec -- WBS/mSBC explicitly disabled),
+the host-side C code does a **byte-for-byte passthrough, zero decode**.
+Compare mSBC, which explicitly runs a real software decoder in the same
+file. CVSD decode is expected to happen entirely inside the ESP32 Bluetooth
+controller's own closed-source firmware -- confirmed by ESP-IDF's own
+`hfp_hf` example README: *"hardware is responsible for the codec job and
+CVSD is in use."* Nothing in the open-source host stack can be inspected or
+patched to fix this.
+
+This matches a well-documented, years-old, unresolved community pattern on
+this exact code path (`CONFIG_BT_HFP_AUDIO_DATA_PATH_HCI`/vHCI + CVSD),
+not something specific to this project:
+- [espressif/esp-idf#6996](https://github.com/espressif/esp-idf/issues/6996) -- "Audio samples droped in HFP (CVSD codec, VHCI)", recorded waveform loses 60 samples every few seconds. Marked "Done" internally by Espressif; no public fix or explanation ever posted.
+- [espressif/esp-idf#4824](https://github.com/espressif/esp-idf/issues/4824) -- a user fixed a real config-macro typo in this same `hfp_hf` example and still got "low quality voice", `SCO xmit Q overflow, pkt dropped`, and device resets after a few seconds. Still open, no official fix.
+- [espressif/esp-idf#7222](https://github.com/espressif/esp-idf/issues/7222) -- "regular audible distortion... popping and glitching", reported across multiple ESP-IDF versions (4.3.2, 4.4.1).
+
+**Conclusion**: this is a genuine limitation of the ESP32's classic
+Bluetooth controller firmware for software (vHCI) HFP audio, not a bug in
+our code, and not something fixable from the application side. BM64 avoids
+it entirely by doing HFP audio decode in its own dedicated, mature firmware
+-- independent of ESP-IDF's Bluedroid stack altogether.
 
 ## The idea
 
@@ -46,37 +92,52 @@ Analog sidesteps that entirely and costs zero extra C6 GPIO for audio --
 the companion's own audio pins wire directly into the existing handset
 mic/earpiece paths.
 
-## Option A: BM64 module (Microchip, formerly BlueCreation)
+## Option A: BM64 module (Microchip, formerly BlueCreation) -- current plan
 
 ~$14 on Digikey. The chip used inside a lot of real commercial Bluetooth
 speakers/headsets -- well-documented from a single vendor, more robust than
 a hobbyist breakout, but comes as its own small SMD module needing a
 vertical/edge connector or dedicated daughter-board space, not something
-that drops onto existing board area.
+that drops onto existing board area. Datasheet:
+`datasheets/BM62-64-Bluetooth-Stereo-Audio-Module-DS60001403.pdf` (covers
+BM62 and BM64 together -- BM64 is the 43-pin variant, BM62 is a cheaper
+37-pin subset without I2S/USB; the pin table below is BM64's, per its own
+Table 1-3/Figure 1-5).
 
-Pin plan (from the datasheet's Table 1-3, now in `datasheets/`):
+Pin plan, real pin names/numbers confirmed against the datasheet
+2026-09-15:
 
-| Signal | C6 | BM64 | Notes |
+| Signal | C6 side | BM64 pin (name / no.) | Notes |
 |---|---|---|---|
-| UART TX | GPIO16 | `HCI_RXD` | crossed by *role*, not by wiring two different pin numbers together -- see Option B's note on this below, same mistake risk applies here |
-| UART RX | GPIO17 | `HCI_TXD` | crossed by *role* |
-| GND | GND | `GND` | |
-| 3.3V | 3V3 rail | `BAT_IN` | accepts 3.2-4.2V directly |
-| Downlink audio | *(existing ES8388 analog path)* | `AOHPL`/`AOHPR`/`AOHPM` | BM64's own DAC, -98dB SNR -- no quality compromise |
-| Uplink audio | *(existing handset mic path)* | `MIC1_P`/`MIC1_N` | |
+| UART TX | GPIO16 | `HCI_RXD` (pin 19) | crossed by *role* (BM64's own RXD, not a pin-number swap) |
+| UART RX | GPIO17 | `HCI_TXD` (pin 20) | crossed by *role* |
+| GND | GND | `GND` (pins 14, 43) | |
+| 3.3V-4.2V | 3V3 rail (or a dedicated regulated rail) | `BAT_IN` (pin 22) | Not actually a battery-only pin despite the name -- datasheet: "Source can either be a Li-Ion battery or any other power rail on the host board." Under 2.9V, the module won't boot at all (built-in UVP) -- confirm the C6's own 3.3V rail sags nowhere near that under load. |
+| Downlink audio | AG1171 **Vin**, past its own 10nF cap | `AOHPL` (pin 7), through a new DC-blocking cap | Single-ended mode per the datasheet's own Figure 2-8 ("driving an external audio amplifier" -- our SLIC's Vin *is* that external amplifier's input as far as BM64 is concerned) -- mono, so only one of AOHPL/AOHPR is needed, `AOHPM` (pin 6, "capless mode" common-mode pin) stays unconnected in single-ended mode. |
+| Uplink audio | AG1171 **Vout**, past its own 100nF cap | `MIC_P1` (pin 9) | `MIC_N1` (pin 8) -- differential mic input; our source is single-ended (the SLIC's own AC-only Vout tap), so tie `MIC_N1` to a bias reference (ground, or per a real electret-mic reference circuit) rather than driving it -- **confirm the exact tie-off against the datasheet's own microphone application circuit before building**, not yet found in the pages read so far. `MIC_BIAS` (pin 10) only matters if a real electret capsule is attached directly; not needed for a line-level signal from the SLIC. |
+| Reset | *(none -- companion-only)* | `RST_N` (pin 13) | Active-low; a simple RC power-on-reset (tie high through a resistor, cap to GND) is enough if no C6 control is needed. |
+| Mode select | *(none -- fixed strap)* | `EAN` (pin 32) + `P2_0` (pin 41) | Sets Application/Test/Write-Flash mode -- flash-type modules already have `EAN`'s internal 4.7kOhm pulldown, so Application mode is likely the natural power-up default; confirm against the datasheet's Table 5-1 before finalizing the strap. |
+| Pairing button (optional) | *(none)* | `MFB` (pin 26) | Multi-Function Button / power-on key -- wire to a pushbutton if a manual pairing trigger is wanted, same role `bt_led.c`'s pairing state serves on the ESP32 companion today. |
+| Status LEDs (optional) | *(none)* | `LED1` (pin 28), `LED2` (pin 27) | Direct LED drivers, no GPIO round-trip through the C6 needed. |
 
-Everything else on the module (`RST_N`, `MFB`, `EAN`, `P2_0`, `LED1`/`LED2`)
-can be hardwired instead of consuming a GPIO: `RST_N` via a simple RC
-power-on-reset, `MFB` via a physical pushbutton if a manual pairing button
-is wanted, `EAN`/`P2_0` as fixed boot-mode straps for Application mode
-(`EAN` already has an internal pulldown on flash-type modules per the
-datasheet; confirm `P2_0`'s required level against the datasheet's Table
-5-1), `LED1`/`LED2` wired straight to LEDs for a physical status light with
-no C6 GPIO round-trip. **Net new C6 GPIO: just the UART pair**, which fits
-entirely on GPIO16/17 (confirmed genuinely free -- defined in every board's
-pin map as a debug UART, never actually used in firmware).
+**Net new C6 GPIO: just the UART pair**, same as the ESP32 companion below
+-- GPIO16/17 (confirmed genuinely free -- defined in every board's pin map
+as a debug UART, never actually used in firmware).
 
-## Option B: ESP32-original DevKitC board as a companion (the current plan)
+Everything else on the module not listed above (`P0_x`/`P1_x`/`P2_x`/`P3_x`
+GPIO, `AIL`/`AIR` line-in, `DP`/`DM` USB, `AMB_DET` thermal sense,
+`ADAP_IN`/`SYS_PWR` battery-charging pins) isn't needed for this design --
+BM64's built-in Li-ion charger/thermal-protection features are irrelevant
+since it's powered from the C6's own regulated rail, not a battery.
+
+## Option B: ESP32-original DevKitC board as a companion (superseded 2026-09-15)
+
+**No longer the plan** -- see "Confirmed: ESP32 software HFP audio is a dead
+end" above. Kept below as a real, working bring-up record: the UART link,
+pairing protocol, GPIO/LED patterns, and analog-bridge wiring approach all
+carry over directly to BM64, just on the other end of the same link/taps.
+The specific audio path (this chip's built-in 8-bit DAC/ADC via ESP-IDF's
+Bluedroid vHCI stack) is what's dead, not the overall architecture.
 
 The chip itself has real Classic BT + BLE dual-mode, with working A2DP-sink
 and HFP examples in ESP-IDF's own Bluedroid stack -- same toolchain already
@@ -163,17 +224,18 @@ before treating them as final (measuring actual DC bias and AC swing at
 each pin, per the existing DTMF-headroom divider worked out the same way
 in `docs/signal-levels.md` §3).
 
-## Decision: ESP32 DevKitC first, BM64 as the fallback
+## Decision: BM64 (updated 2026-09-15, was ESP32 DevKitC first)
 
-Going with Option B (ESP32-original DevKitC) as the actual build -- cheaper,
-reuses this project's own toolchain, and a devkit is already in hand to
-start with. **If its audio quality (8-bit DAC) turns out not good enough
-in practice**, BM64 (Option A) is the documented fallback -- pin plan
-above is ready to go, just needs sourcing a module (Digikey, ~$14, Class 2
-per an actual commercial part number seen: `BM64SPKS1MC2-0003AA` or
-similar -- confirm the exact SKU/firmware variant against Microchip's
-ordering guide before buying, the datasheet alone doesn't spell out what
-the trailing suffix variants mean).
+Tried Option B (ESP32-original DevKitC) first -- cheaper, reused this
+project's own toolchain, a devkit was already in hand. Confirmed on real
+bench hardware that its audio path is a dead end (see "Confirmed" section
+above) -- not a tuning problem, a genuine closed-source controller-firmware
+limitation. Switching to BM64 (Option A): pin plan above is ready to go,
+just needs sourcing a module (Digikey, ~$14, Class 2 per an actual
+commercial part number seen: `BM64SPKS1MC2-0003AA` or similar -- confirm
+the exact SKU/firmware variant against Microchip's ordering guide before
+buying, the datasheet alone doesn't spell out what the trailing suffix
+variants mean).
 
 ## Known tradeoffs, independent of which option
 
@@ -182,10 +244,11 @@ the trailing suffix variants mean).
   HFP call audio is narrowband CVSD (8kHz) unless both ends negotiate
   wideband mSBC (16kHz). Every commercial Bluetooth headset lives with the
   same ceiling -- no amount of extra MHz on either side changes it.
-- HFP is the less mature of the two profiles in ESP-IDF's own Bluedroid
-  stack specifically -- one more reason BM64 (which implements HFP in its
-  own firmware, independent of ESP-IDF) may end up the safer long-term bet
-  even though ESP32-original is what's being tried first.
+- HFP being the less mature of the two profiles in ESP-IDF's own Bluedroid
+  stack turned out not to be a theoretical concern -- see "Confirmed:
+  ESP32 software HFP audio is a dead end" above for what actually broke
+  and why BM64 (implementing HFP in its own firmware, independent of
+  ESP-IDF) avoids that specific failure mode entirely.
 
 ## FaceTime / incoming-call ringing, for whenever call routing gets built
 
