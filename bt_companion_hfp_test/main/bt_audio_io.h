@@ -33,6 +33,14 @@ void bt_audio_io_write_downlink(const uint8_t *pcm16, size_t len);
  * matching the "not enough data" contract the outgoing callback expects). */
 uint32_t bt_audio_io_read_uplink(uint8_t *out, uint32_t max_len);
 
+/* Diagnostic: synthesizes a sine wave and feeds it through the exact same
+ * bt_audio_io_write_downlink() path real HFP audio uses, entirely bypassing
+ * Bluetooth/the phone -- lets a recording taken on the analog line (the C6's
+ * `record`/`/test/record`) isolate whether the DAC -> analog bridge -> C6
+ * ADC chain itself is clean, independent of whatever the live call audio
+ * looks like. Runs in its own background task; returns immediately. */
+void bt_audio_io_test_tone(int hz, int ms);
+
 #ifdef __cplusplus
 }
 #endif

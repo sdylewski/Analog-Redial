@@ -22,6 +22,7 @@
 #include "esp_gap_bt_api.h"
 #include "esp_hf_client_api.h"
 #include "bt_app_hf.h"
+#include "bt_audio_io.h"
 #include "bt_led.h"
 #include "bt_uart_link.h"
 #include "gpio_pcm_config.h"
@@ -162,6 +163,7 @@ void app_main(void)
     ESP_ERROR_CHECK( ret );
 
     bt_led_init();
+    bt_audio_io_init(); /* unconditional at boot -- see its own doc comment */
 
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_BLE));
 

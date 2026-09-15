@@ -5,6 +5,8 @@
 #include "freertos/task.h"
 #include "freertos/ringbuf.h"
 #include "esp_log.h"
+#include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const char *TAG = "bt_audio_io";
@@ -21,6 +23,23 @@ static TaskHandle_t             s_adc_task;
 
 /* ---- downlink: HFP samples -> DAC (GPIO25) ---- */
 
+/* Diagnostic finding, 2026-09-14: a synthetic tone written through this
+ * function -- bypassing Bluetooth entirely -- came out with the same
+ * distortion as live call audio, and consistently only the first ~2-2.5s
+ * of any capture was ever clean/present before the signal collapsed to
+ * near-silence. This function used to malloc()/free() a fresh conversion
+ * buffer on every single call -- for real HFP audio, Bluedroid's own
+ * incoming-data callback can fire well over 100x/sec, so that's a lot of
+ * small, repeated heap churn on a chip with a much smaller heap than the
+ * C6. A static scratch buffer removes that as a variable while the actual
+ * ~2.5s-cliff behavior is investigated further -- not confirmed as the
+ * fix, but a real improvement either way (this callback runs in Bluedroid's
+ * own task context, where blocking on a slow/fragmented allocator is
+ * exactly the kind of thing that can start failing intermittently once the
+ * heap's been running a while). */
+#define DOWNLINK_SCRATCH_SAMPLES 512
+static uint8_t s_downlink_scratch[DOWNLINK_SCRATCH_SAMPLES];
+
 void bt_audio_io_write_downlink(const uint8_t *pcm16, size_t len)
 {
     if (!s_dac || len < 2) return;
@@ -28,16 +47,18 @@ void bt_audio_io_write_downlink(const uint8_t *pcm16, size_t len)
      * used by every 16-to-8-bit PCM downsample), offset by 0x80 since the
      * DAC's 8-bit range is unsigned (0-255, 128 = "silence"/mid-rail) while
      * PCM16 is signed (0 = silence). */
-    size_t n = len / 2;
-    uint8_t *out = malloc(n);
-    if (!out) return;
+    size_t total = len / 2;
     const int16_t *in = (const int16_t *)pcm16;
-    for (size_t i = 0; i < n; i++) {
-        out[i] = (uint8_t)(((int32_t)in[i] >> 8) + 128);
+    for (size_t done = 0; done < total; ) {
+        size_t n = total - done;
+        if (n > DOWNLINK_SCRATCH_SAMPLES) n = DOWNLINK_SCRATCH_SAMPLES;
+        for (size_t i = 0; i < n; i++) {
+            s_downlink_scratch[i] = (uint8_t)(((int32_t)in[done + i] >> 8) + 128);
+        }
+        size_t written = 0;
+        dac_continuous_write(s_dac, s_downlink_scratch, n, &written, pdMS_TO_TICKS(50));
+        done += n;
     }
-    size_t written = 0;
-    dac_continuous_write(s_dac, out, n, &written, pdMS_TO_TICKS(50));
-    free(out);
 }
 
 /* ---- uplink: ADC (GPIO34) -> HFP samples ---- */
@@ -87,8 +108,59 @@ static void adc_sample_task(void *arg)
     }
 }
 
+/* ---- diagnostic: synthetic tone straight into the downlink path ---- */
+
+typedef struct { int hz; int ms; } test_tone_args_t;
+
+static void test_tone_task(void *arg)
+{
+    test_tone_args_t a = *(test_tone_args_t *)arg;
+    free(arg);
+
+    enum { CHUNK_SAMPLES = 160 }; /* ~20ms/chunk, matches adc_sample_task's own cadence */
+    int16_t chunk[CHUNK_SAMPLES];
+    int total_samples = SAMPLE_RATE_HZ * a.ms / 1000;
+    int phase_i = 0;
+
+    for (int done = 0; done < total_samples; done += CHUNK_SAMPLES) {
+        int n = total_samples - done;
+        if (n > CHUNK_SAMPLES) n = CHUNK_SAMPLES;
+        for (int i = 0; i < n; i++) {
+            float t = (float)(phase_i + i) / SAMPLE_RATE_HZ;
+            chunk[i] = (int16_t)(28000.0f * sinf(2.0f * (float)M_PI * a.hz * t));
+        }
+        phase_i += n;
+        bt_audio_io_write_downlink((const uint8_t *)chunk, (size_t)n * sizeof(int16_t));
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+    vTaskDelete(NULL);
+}
+
+void bt_audio_io_test_tone(int hz, int ms)
+{
+    if (!s_dac || hz <= 0 || ms <= 0) return;
+    test_tone_args_t *a = malloc(sizeof(*a));
+    if (!a) return;
+    a->hz = hz;
+    a->ms = ms;
+    /* High priority, matching adc_sample_task -- diagnostic to check
+     * whether the ~40Hz artifact seen 2026-09-14 (identical whether the
+     * source is live Bluetooth audio or this synthetic tone) is caused by
+     * this task getting starved/preempted by the BT stack's own background
+     * housekeeping while running at a low priority. */
+    if (xTaskCreate(test_tone_task, "bt_test_tone", 3072, a, configMAX_PRIORITIES - 4, NULL) != pdPASS) {
+        free(a);
+    }
+}
+
 esp_err_t bt_audio_io_init(void)
 {
+    /* Idempotent -- called unconditionally at boot now (main.c) so
+     * bt_audio_io_test_tone() works without ever needing a real HFP audio
+     * connection first, AND still called from bt_app_hf_client_audio_open()
+     * on every real connection (harmless no-op the second+ time). */
+    if (s_dac) return ESP_OK;
+
     /* DAC: GPIO25 only (DAC_CHAN_0), mono -- HFP audio is mono, no reason
      * to also drive GPIO26 with a duplicate channel. */
     dac_continuous_config_t dac_cfg = {
