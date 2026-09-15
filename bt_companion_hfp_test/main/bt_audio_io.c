@@ -137,11 +137,12 @@ static void test_tone_task(void *arg)
     vTaskDelete(NULL);
 }
 
-void bt_audio_io_test_tone(int hz, int ms)
+bool bt_audio_io_test_tone(int hz, int ms)
 {
-    if (!s_dac || hz <= 0 || ms <= 0) return;
+    if (!s_dac) { ESP_LOGE(TAG, "test_tone: DAC not initialized"); return false; }
+    if (hz <= 0 || ms <= 0) { ESP_LOGE(TAG, "test_tone: bad hz/ms"); return false; }
     test_tone_args_t *a = malloc(sizeof(*a));
-    if (!a) return;
+    if (!a) { ESP_LOGE(TAG, "test_tone: malloc failed"); return false; }
     a->hz = hz;
     a->ms = ms;
     /* High priority, matching adc_sample_task -- diagnostic to check
@@ -150,8 +151,11 @@ void bt_audio_io_test_tone(int hz, int ms)
      * this task getting starved/preempted by the BT stack's own background
      * housekeeping while running at a low priority. */
     if (xTaskCreate(test_tone_task, "bt_test_tone", 3072, a, configMAX_PRIORITIES - 4, NULL) != pdPASS) {
+        ESP_LOGE(TAG, "test_tone: xTaskCreate failed");
         free(a);
+        return false;
     }
+    return true;
 }
 
 /* ---- diagnostic: static DC level, for a multimeter/scope sanity check ---- */

@@ -106,11 +106,15 @@ static int cmd_tone(int argc, char **argv)
     int hz = atoi(argv[1]);
     int ms = atoi(argv[2]);
     if (hz <= 0 || ms <= 0) { printf("hz and ms must both be positive\n"); return 1; }
-    bt_audio_io_test_tone(hz, ms);
-    printf("playing %dHz for %dms on GPIO25 (bypasses Bluetooth/the C6 link entirely) "
-           "-- if 25 or 26 were just used with gpio_set/gpio_cycle, reset the board "
-           "first or this won't come out right, that reclaims them from GPIO mode\n",
-           hz, ms);
+    if (bt_audio_io_test_tone(hz, ms)) {
+        printf("playing %dHz for %dms on GPIO25 (bypasses Bluetooth/the C6 link entirely) "
+               "-- if 25 or 26 were just used with gpio_set/gpio_cycle, reset the board "
+               "first or this won't come out right, that reclaims them from GPIO mode\n",
+               hz, ms);
+    } else {
+        printf("FAILED to start -- see the log line just above this for why "
+               "(most likely: DAC never initialized)\n");
+    }
     return 0;
 }
 

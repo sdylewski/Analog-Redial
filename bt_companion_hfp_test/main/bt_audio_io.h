@@ -40,7 +40,7 @@ uint32_t bt_audio_io_read_uplink(uint8_t *out, uint32_t max_len);
  * `record`/`/test/record`) isolate whether the DAC -> analog bridge -> C6
  * ADC chain itself is clean, independent of whatever the live call audio
  * looks like. Runs in its own background task; returns immediately. */
-void bt_audio_io_test_tone(int hz, int ms);
+bool bt_audio_io_test_tone(int hz, int ms);
 
 /* Diagnostic: drives a constant DC level out the DAC instead of a tone --
  * much easier to confirm with a multimeter/scope than a moving waveform.
