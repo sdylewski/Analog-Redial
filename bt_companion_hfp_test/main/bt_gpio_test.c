@@ -102,10 +102,11 @@ static int cmd_gpio_cycle(int argc, char **argv)
 
 static int cmd_tone(int argc, char **argv)
 {
-    if (argc < 3) { printf("usage: tone <hz> <ms>\n"); return 1; }
+    if (argc < 3) { printf("usage: tone <hz> <ms> (ms capped at 30000)\n"); return 1; }
     int hz = atoi(argv[1]);
     int ms = atoi(argv[2]);
     if (hz <= 0 || ms <= 0) { printf("hz and ms must both be positive\n"); return 1; }
+    if (ms > 30000) { printf("capping ms at 30000 (asked for %d)\n", ms); ms = 30000; }
     if (bt_audio_io_test_tone(hz, ms)) {
         printf("playing %dHz for %dms on GPIO25 (bypasses Bluetooth/the C6 link entirely) "
                "-- if 25 or 26 were just used with gpio_set/gpio_cycle, reset the board "
