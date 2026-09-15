@@ -6,6 +6,7 @@
 #include "freertos/ringbuf.h"
 #include "esp_log.h"
 #include <math.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -149,6 +150,45 @@ void bt_audio_io_test_tone(int hz, int ms)
      * this task getting starved/preempted by the BT stack's own background
      * housekeeping while running at a low priority. */
     if (xTaskCreate(test_tone_task, "bt_test_tone", 3072, a, configMAX_PRIORITIES - 4, NULL) != pdPASS) {
+        free(a);
+    }
+}
+
+/* ---- diagnostic: static DC level, for a multimeter/scope sanity check ---- */
+
+typedef struct { bool high; int ms; } test_level_args_t;
+
+static void test_level_task(void *arg)
+{
+    test_level_args_t a = *(test_level_args_t *)arg;
+    free(arg);
+
+    /* +/-32000 rather than full-scale +/-32768 -- same conversion
+     * bt_audio_io_write_downlink() already does, just a constant instead of
+     * a sine, so this exercises the exact same code path as the real tone
+     * test. Maps to ~0.05V (low) / ~3.25V (high) at GPIO25, not quite rail-
+     * to-rail. */
+    int16_t level = a.high ? 32000 : -32000;
+    enum { CHUNK_SAMPLES = 160 };
+    int16_t chunk[CHUNK_SAMPLES];
+    for (int i = 0; i < CHUNK_SAMPLES; i++) chunk[i] = level;
+
+    int total_samples = SAMPLE_RATE_HZ * a.ms / 1000;
+    for (int done = 0; done < total_samples; done += CHUNK_SAMPLES) {
+        bt_audio_io_write_downlink((const uint8_t *)chunk, sizeof(chunk));
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+    vTaskDelete(NULL);
+}
+
+void bt_audio_io_test_level(bool high, int ms)
+{
+    if (!s_dac || ms <= 0) return;
+    test_level_args_t *a = malloc(sizeof(*a));
+    if (!a) return;
+    a->high = high;
+    a->ms = ms;
+    if (xTaskCreate(test_level_task, "bt_test_level", 3072, a, configMAX_PRIORITIES - 4, NULL) != pdPASS) {
         free(a);
     }
 }

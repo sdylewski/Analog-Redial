@@ -56,6 +56,19 @@ bt_companion_status_t bt_companion_get_status(void);
  * not enabled or the UART link isn't up (nothing to send it to). */
 esp_err_t bt_companion_start_pairing(void);
 
+/* Diagnostic: asks the companion to synthesize a tone and drive it straight
+ * out its own DAC (downlink), bypassing Bluetooth/the phone call entirely
+ * -- see bt_audio_io_test_tone() on that side. Useful for isolating whether
+ * the analog bridge itself is clean, independent of live call audio.
+ * ESP_ERR_INVALID_STATE if not enabled or the UART link isn't up. */
+esp_err_t bt_companion_test_tone(int hz, int ms);
+
+/* Diagnostic: asks the companion to drive a constant DC level out its DAC
+ * (bypassing Bluetooth), instead of a tone -- see bt_audio_io_test_level()
+ * on that side. Easier to confirm with a multimeter/scope than a moving
+ * waveform. ESP_ERR_INVALID_STATE if not enabled or the UART link isn't up. */
+esp_err_t bt_companion_test_level(bool high, int ms);
+
 #ifdef __cplusplus
 }
 #endif

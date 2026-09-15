@@ -1,4 +1,5 @@
 #include "bt_uart_link.h"
+#include "bt_audio_io.h"
 #include "bt_led.h"
 #include "driver/uart.h"
 #include "driver/gpio.h"
@@ -95,6 +96,29 @@ static void handle_line(const char *line)
          * scans/inquiries from this point on, no reboot needed. */
         esp_bt_dev_set_device_name(line + 5);
         ESP_LOGI(TAG, "device name set from C6: '%s'", line + 5);
+    } else if (strncmp(line, "TONE ", 5) == 0) {
+        /* Diagnostic only -- see bt_audio_io_test_tone()'s own doc comment.
+         * Bypasses Bluetooth entirely, so this works with no phone call in
+         * progress at all, unlike testing with live HFP audio. */
+        int hz = 0, ms = 0;
+        if (sscanf(line + 5, "%d %d", &hz, &ms) == 2) {
+            bt_audio_io_test_tone(hz, ms);
+            ESP_LOGI(TAG, "test tone requested: %d Hz for %d ms", hz, ms);
+        } else {
+            ESP_LOGW(TAG, "bad TONE line from C6: '%s'", line);
+        }
+    } else if (strncmp(line, "LEVEL ", 6) == 0) {
+        /* Diagnostic only -- see bt_audio_io_test_level()'s own doc
+         * comment. A constant DC level is much easier to confirm with a
+         * multimeter/scope than a moving waveform, useful as a first sanity
+         * check before chasing a tone. */
+        int high = 0, ms = 0;
+        if (sscanf(line + 6, "%d %d", &high, &ms) == 2) {
+            bt_audio_io_test_level(high != 0, ms);
+            ESP_LOGI(TAG, "test level requested: %s for %d ms", high ? "high" : "low", ms);
+        } else {
+            ESP_LOGW(TAG, "bad LEVEL line from C6: '%s'", line);
+        }
     } else {
         ESP_LOGD(TAG, "unrecognized line from C6: '%s'", line);
     }

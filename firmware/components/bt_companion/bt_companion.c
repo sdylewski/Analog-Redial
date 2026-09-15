@@ -112,6 +112,32 @@ esp_err_t bt_companion_start_pairing(void)
     return ESP_OK;
 }
 
+esp_err_t bt_companion_test_tone(int hz, int ms)
+{
+    if (!s_enabled || !s_uart_installed) return ESP_ERR_INVALID_STATE;
+    portENTER_CRITICAL(&s_lock);
+    bool up = s_status.link_up;
+    portEXIT_CRITICAL(&s_lock);
+    if (!up) return ESP_ERR_INVALID_STATE;
+    char cmd[32];
+    int n = snprintf(cmd, sizeof(cmd), "TONE %d %d\n", hz, ms);
+    if (n > 0) uart_write_bytes(BT_COMPANION_UART, cmd, (size_t)n);
+    return ESP_OK;
+}
+
+esp_err_t bt_companion_test_level(bool high, int ms)
+{
+    if (!s_enabled || !s_uart_installed) return ESP_ERR_INVALID_STATE;
+    portENTER_CRITICAL(&s_lock);
+    bool up = s_status.link_up;
+    portEXIT_CRITICAL(&s_lock);
+    if (!up) return ESP_ERR_INVALID_STATE;
+    char cmd[32];
+    int n = snprintf(cmd, sizeof(cmd), "LEVEL %d %d\n", high ? 1 : 0, ms);
+    if (n > 0) uart_write_bytes(BT_COMPANION_UART, cmd, (size_t)n);
+    return ESP_OK;
+}
+
 /* Parses one already-NUL-terminated, newline-stripped line from the
  * companion. Anything not matching a known "STATUS ..." form is logged and
  * dropped -- see this file's top-of-file protocol comment. */

@@ -4208,6 +4208,67 @@ static esp_err_t test_inject_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* POST /test/bt_tone  body hz=N & ms=N -- asks the Bluetooth companion to
+ * synthesize a tone straight out its own DAC, bypassing Bluetooth/the phone
+ * call entirely (see bt_companion_test_tone()/bt_audio_io_test_tone()).
+ * Pairs with /test/record: trigger this, then record on the line, to check
+ * whether the analog bridge itself is clean independent of live call
+ * audio. Requires test mode on, same as the other test endpoints. */
+static esp_err_t test_bt_tone_handler(httpd_req_t *req)
+{
+    char body[64], hz_s[8] = {0}, ms_s[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    if (!telephony_test_enabled()) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "test mode is off (POST /test/mode on=1 first)");
+        return ESP_OK;
+    }
+    form_field(body, "hz", hz_s, sizeof(hz_s));
+    form_field(body, "ms", ms_s, sizeof(ms_s));
+    int hz = hz_s[0] ? atoi(hz_s) : 1000;
+    int ms = ms_s[0] ? atoi(ms_s) : 3000;
+    if (hz <= 0 || hz > 4000 || ms <= 0 || ms > 30000) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad hz (1-4000) or ms (1-30000)"); return ESP_OK;
+    }
+    esp_err_t err = bt_companion_test_tone(hz, ms);
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "companion board not connected"); return ESP_OK;
+    }
+    httpd_resp_sendstr(req, "ok\n");
+    return ESP_OK;
+}
+
+/* POST /test/bt_level  body high=0|1 & ms=N -- asks the Bluetooth companion
+ * to drive a constant DC level out its DAC instead of a tone (see
+ * bt_companion_test_level()/bt_audio_io_test_level()). A static level is
+ * much easier to confirm with a multimeter/scope than a moving waveform --
+ * a quick sanity check before chasing a tone signal. Requires test mode on,
+ * same as the other test endpoints. */
+static esp_err_t test_bt_level_handler(httpd_req_t *req)
+{
+    char body[64], high_s[8] = {0}, ms_s[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    if (!telephony_test_enabled()) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "test mode is off (POST /test/mode on=1 first)");
+        return ESP_OK;
+    }
+    form_field(body, "high", high_s, sizeof(high_s));
+    form_field(body, "ms", ms_s, sizeof(ms_s));
+    int ms = ms_s[0] ? atoi(ms_s) : 10000;
+    if (ms <= 0 || ms > 30000) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad ms (1-30000)"); return ESP_OK;
+    }
+    esp_err_t err = bt_companion_test_level(high_s[0] == '1', ms);
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "companion board not connected"); return ESP_OK;
+    }
+    httpd_resp_sendstr(req, "ok\n");
+    return ESP_OK;
+}
+
 /* POST /test/record  body ms=N & line=N -- starts an ordinary rec_* mic
  * (uplink) capture, the same recorder_start() the answering machine uses,
  * visible on the Recordings tab when done. Added for testing the Bluetooth
@@ -5862,6 +5923,8 @@ esp_err_t webui_start(void)
         { .uri = "/test/loopback",          .method = HTTP_POST, .handler = test_loopback_handler },
         { .uri = "/test/inject",            .method = HTTP_POST, .handler = test_inject_handler },
         { .uri = "/test/record",            .method = HTTP_POST, .handler = test_record_handler },
+        { .uri = "/test/bt_tone",           .method = HTTP_POST, .handler = test_bt_tone_handler },
+        { .uri = "/test/bt_level",          .method = HTTP_POST, .handler = test_bt_level_handler },
         { .uri = "/test/sd",                .method = HTTP_POST, .handler = test_sd_handler },
 #if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
         { .uri = "/speaker_volume_live",    .method = HTTP_POST, .handler = speaker_volume_live_handler },
