@@ -119,8 +119,22 @@ static int cmd_tone(int argc, char **argv)
     return 0;
 }
 
+static int cmd_capture_downlink(int argc, char **argv)
+{
+    int ms = (argc >= 2) ? atoi(argv[1]) : 5000;
+    bt_audio_io_capture_downlink(ms);
+    return 0;
+}
+
 void bt_gpio_test_register_commands(void)
 {
+    const esp_console_cmd_t capture_cmd = {
+        .command = "capture_downlink",
+        .help = "Dump raw incoming HFP PCM as base64 (needs a live call): capture_downlink [ms]",
+        .func = cmd_capture_downlink,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&capture_cmd));
+
     const esp_console_cmd_t tone_cmd = {
         .command = "tone",
         .help = "Play a test tone straight out GPIO25, no Bluetooth needed: tone <hz> <ms>",

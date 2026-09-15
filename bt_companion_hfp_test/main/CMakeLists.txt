@@ -8,4 +8,4 @@ idf_component_register(SRCS "app_hf_msg_set.c"
                             "gpio_pcm_config.c"
                             "main.c"
                     INCLUDE_DIRS "."
-                    REQUIRES bt nvs_flash console esp_adc driver)
+                    REQUIRES bt nvs_flash console esp_adc driver mbedtls esp_timer)

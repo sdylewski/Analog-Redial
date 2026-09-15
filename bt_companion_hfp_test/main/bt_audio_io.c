@@ -5,6 +5,8 @@
 #include "freertos/task.h"
 #include "freertos/ringbuf.h"
 #include "esp_log.h"
+#include "esp_timer.h"
+#include "mbedtls/base64.h"
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -51,15 +53,32 @@ static TaskHandle_t             s_dac_task;
 #define DOWNLINK_SCRATCH_SAMPLES 512
 static uint8_t s_downlink_scratch[DOWNLINK_SCRATCH_SAMPLES];
 
+/* ---- diagnostic: raw pre-conversion capture, see bt_audio_io_capture_downlink() ---- */
+static int16_t        *s_capture_buf;
+static volatile size_t  s_capture_len;
+static size_t           s_capture_max;
+static volatile bool    s_capturing;
+
+static void capture_tap(const int16_t *in, size_t n)
+{
+    if (!s_capturing || !s_capture_buf) return;
+    size_t room = s_capture_max - s_capture_len;
+    size_t take = n < room ? n : room;
+    memcpy(s_capture_buf + s_capture_len, in, take * sizeof(int16_t));
+    s_capture_len += take;
+    if (s_capture_len >= s_capture_max) s_capturing = false;
+}
+
 void bt_audio_io_write_downlink(const uint8_t *pcm16, size_t len)
 {
     if (!s_downlink_rb || len < 2) return;
+    size_t total = len / 2;
+    const int16_t *in = (const int16_t *)pcm16;
+    capture_tap(in, total); /* untouched, exactly what Bluedroid handed us */
     /* 16-bit signed -> 8-bit unsigned: keep the high byte (same conversion
      * used by every 16-to-8-bit PCM downsample), offset by 0x80 since the
      * DAC's 8-bit range is unsigned (0-255, 128 = "silence"/mid-rail) while
      * PCM16 is signed (0 = silence). */
-    size_t total = len / 2;
-    const int16_t *in = (const int16_t *)pcm16;
     for (size_t done = 0; done < total; ) {
         size_t n = total - done;
         if (n > DOWNLINK_SCRATCH_SAMPLES) n = DOWNLINK_SCRATCH_SAMPLES;
@@ -338,4 +357,72 @@ esp_err_t bt_audio_io_init(void)
     xTaskCreate(adc_sample_task, "adc_sample", 3072, NULL, configMAX_PRIORITIES - 4, &s_adc_task);
     ESP_LOGI(TAG, "audio I/O up: DAC GPIO25 + ADC GPIO34, %d Hz mono", SAMPLE_RATE_HZ);
     return ESP_OK;
+}
+
+/* ---- diagnostic: dump raw incoming HFP PCM for offline analysis ---- */
+
+#define CAPTURE_MAX_MS 8000
+
+/* base64 in ~57-byte input chunks -> 76-char output lines (standard MIME
+ * wrapping). Chunked rather than one giant encode so this never needs a
+ * second buffer the size of the capture itself -- RAM here is already tight
+ * with the BT stack running. */
+static void dump_base64(const uint8_t *data, size_t len)
+{
+    enum { CHUNK_IN = 57, CHUNK_OUT = 128 };
+    unsigned char line[CHUNK_OUT];
+    for (size_t off = 0; off < len; off += CHUNK_IN) {
+        size_t n = len - off;
+        if (n > CHUNK_IN) n = CHUNK_IN;
+        size_t olen = 0;
+        if (mbedtls_base64_encode(line, sizeof(line), &olen, data + off, n) != 0) {
+            printf("\n(base64 encode failed at offset %u)\n", (unsigned)off);
+            return;
+        }
+        line[olen] = '\0';
+        printf("%s\n", (char *)line);
+    }
+}
+
+void bt_audio_io_capture_downlink(int ms)
+{
+    if (ms <= 0) ms = 5000;
+    if (ms > CAPTURE_MAX_MS) ms = CAPTURE_MAX_MS;
+    size_t max_samples = (size_t)SAMPLE_RATE_HZ * (size_t)ms / 1000;
+
+    int16_t *buf = malloc(max_samples * sizeof(int16_t));
+    if (!buf) {
+        printf("capture: malloc of %u bytes failed -- try a shorter duration\n",
+               (unsigned)(max_samples * sizeof(int16_t)));
+        return;
+    }
+
+    s_capture_buf = buf;
+    s_capture_len = 0;
+    s_capture_max = max_samples;
+    s_capturing   = true;
+    printf("capturing raw pre-conversion downlink PCM for %dms (%u samples max)...\n",
+           ms, (unsigned)max_samples);
+
+    /* Grace period past the nominal duration: if no HFP audio is flowing at
+     * all, nothing ever fills the buffer and this would otherwise hang. */
+    int64_t deadline = esp_timer_get_time() + (int64_t)ms * 1000 + 1000000;
+    while (s_capturing && esp_timer_get_time() < deadline) {
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+    s_capturing = false;
+
+    size_t got = s_capture_len;
+    printf("capture done: %u samples (%u ms of audio)\n",
+           (unsigned)got, (unsigned)(got * 1000 / SAMPLE_RATE_HZ));
+    if (got == 0) {
+        printf("nothing captured -- is an HFP call actually active and sending audio?\n");
+    } else {
+        printf("---BEGIN PCM16 MONO 8000HZ BASE64---\n");
+        dump_base64((const uint8_t *)buf, got * sizeof(int16_t));
+        printf("---END PCM16---\n");
+    }
+
+    s_capture_buf = NULL;
+    free(buf);
 }

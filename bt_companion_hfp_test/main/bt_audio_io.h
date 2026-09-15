@@ -47,6 +47,19 @@ bool bt_audio_io_test_tone(int hz, int ms);
  * `high` picks ~3.25V (true) or ~0.05V (false); runs for `ms` then stops. */
 void bt_audio_io_test_level(bool high, int ms);
 
+/* Diagnostic: captures the raw PCM samples arriving from Bluetooth's own
+ * incoming-audio callback -- BEFORE any conversion/gain/DAC touches them --
+ * for up to `ms` (capped at 8000 internally), then prints them as base64
+ * directly to this console. This board has no local storage, so the point
+ * is to reconstruct a WAV file on the other end (16-bit signed mono PCM @
+ * 8000Hz) and analyze it there -- isolates whether audio quality problems
+ * originate in what the phone/Bluedroid actually deliver, versus in this
+ * board's own downstream DAC/analog chain. Blocks for the capture duration
+ * (plus print time); requires an active HFP audio connection actually
+ * sending something during that window, or the capture will just be
+ * silence. */
+void bt_audio_io_capture_downlink(int ms);
+
 #ifdef __cplusplus
 }
 #endif
