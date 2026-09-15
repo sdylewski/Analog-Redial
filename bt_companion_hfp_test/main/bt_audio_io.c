@@ -51,56 +51,20 @@ static TaskHandle_t             s_dac_task;
 #define DOWNLINK_SCRATCH_SAMPLES 512
 static uint8_t s_downlink_scratch[DOWNLINK_SCRATCH_SAMPLES];
 
-/* AGC: downlink audio arrives at whatever level the phone's own HFP stack
- * happens to produce, with no guarantee it's anywhere near full-scale.
- * Confirmed 2026-09-15 on a live WWV call: the tick tones (presumably near
- * full-scale, like this file's own test tone) came through cleanly, but
- * the announcer's voice sounded "garbled, underwater" -- textbook coarse
- * quantization on a quiet signal, not distortion. This DAC only has 256
- * voltage steps total; an un-boosted quiet signal wastes most of them,
- * effectively leaving a handful of usable bits for real speech even
- * though the hardware itself has plenty of headroom. recorder.c hit the
- * identical problem on the recording side (see its own AGC comment: real
- * voice measured ~20% of full-scale peak) -- same two-stage shape here
- * (smoothed estimate + hard per-block ceiling), simplified since this
- * doesn't need recorder.c's clipped-beep-tail special case. */
-#define AGC_TARGET_PEAK   24000  /* ~73% full scale -- real headroom below clipping */
-#define AGC_MIN_GAIN_Q8   64     /* 0.25x -- tame an already-loud source */
-#define AGC_MAX_GAIN_Q8   6144   /* 24x -- downlink audio can be very quiet */
-#define AGC_GATE_PEAK     80     /* below this, hold rather than chase noise floor */
-static int32_t s_downlink_gain_q8 = 256; /* starts at unity, adapts from there */
-
 void bt_audio_io_write_downlink(const uint8_t *pcm16, size_t len)
 {
     if (!s_downlink_rb || len < 2) return;
+    /* 16-bit signed -> 8-bit unsigned: keep the high byte (same conversion
+     * used by every 16-to-8-bit PCM downsample), offset by 0x80 since the
+     * DAC's 8-bit range is unsigned (0-255, 128 = "silence"/mid-rail) while
+     * PCM16 is signed (0 = silence). */
     size_t total = len / 2;
     const int16_t *in = (const int16_t *)pcm16;
-
-    /* This block's own peak (pre-gain) updates the smoothed AGC estimate. */
-    int32_t peak = 0;
-    for (size_t i = 0; i < total; i++) {
-        int32_t a = in[i] < 0 ? -(int32_t)in[i] : in[i];
-        if (a > peak) peak = a;
-    }
-    if (peak > AGC_GATE_PEAK) {
-        int32_t desired_q8 = (AGC_TARGET_PEAK * 256) / peak;
-        if (desired_q8 < AGC_MIN_GAIN_Q8) desired_q8 = AGC_MIN_GAIN_Q8;
-        if (desired_q8 > AGC_MAX_GAIN_Q8) desired_q8 = AGC_MAX_GAIN_Q8;
-        s_downlink_gain_q8 += (desired_q8 - s_downlink_gain_q8) / 4;
-    }
-
     for (size_t done = 0; done < total; ) {
         size_t n = total - done;
         if (n > DOWNLINK_SCRATCH_SAMPLES) n = DOWNLINK_SCRATCH_SAMPLES;
         for (size_t i = 0; i < n; i++) {
-            /* Apply gain, clip to int16 range, THEN do the 16-to-8-bit
-             * conversion (keep the high byte, offset by 0x80 since the
-             * DAC's 8-bit range is unsigned/0-255 with 128 = "silence"/
-             * mid-rail, while PCM16 is signed with 0 = silence). */
-            int32_t v = ((int32_t)in[done + i] * s_downlink_gain_q8) >> 8;
-            if (v > 32767) v = 32767;
-            else if (v < -32768) v = -32768;
-            s_downlink_scratch[i] = (uint8_t)((v >> 8) + 128);
+            s_downlink_scratch[i] = (uint8_t)(((int32_t)in[done + i] >> 8) + 128);
         }
         /* Non-blocking, like recorder.c's downlink_push() -- this can be
          * called from Bluedroid's own task and must never stall it. A full
