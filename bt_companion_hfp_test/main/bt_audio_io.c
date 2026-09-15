@@ -206,14 +206,27 @@ esp_err_t bt_audio_io_init(void)
     if (s_dac) return ESP_OK;
 
     /* DAC: GPIO25 only (DAC_CHAN_0), mono -- HFP audio is mono, no reason
-     * to also drive GPIO26 with a duplicate channel. */
+     * to also drive GPIO26 with a duplicate channel.
+     *
+     * clk_src MUST be APLL, not DEFAULT (PLL_D2) -- confirmed 2026-09-15 via
+     * a clean boot-log capture that this was failing silently at every boot
+     * this entire session: "Frequency is too small, the mclk division
+     * exceed the maximum value 255". PLL_D2 is too fast a base clock to
+     * divide down to an 8kHz DAC rate within the driver's 8-bit divider
+     * limit; ESP-IDF's own dac_continuous/dac_audio example uses APLL for
+     * exactly this reason ("to get a wider frequency range"). Since
+     * dac_continuous_new_channels() was returning ESP_ERR_INVALID_ARG,
+     * s_dac was never set, and every downlink test this session (tone,
+     * static level, real HFP audio) was writing to a DAC handle that
+     * silently didn't exist -- none of the "distortion" findings before
+     * this fix should be trusted as characterizing the real DAC output. */
     dac_continuous_config_t dac_cfg = {
         .chan_mask = DAC_CHANNEL_MASK_CH0,
         .desc_num = 8,
         .buf_size = 512,
         .freq_hz = SAMPLE_RATE_HZ,
         .offset = 0,
-        .clk_src = DAC_DIGI_CLK_SRC_DEFAULT,
+        .clk_src = DAC_DIGI_CLK_SRC_APLL,
         .chan_mode = DAC_CHANNEL_MODE_SIMUL,
     };
     esp_err_t err = dac_continuous_new_channels(&dac_cfg, &s_dac);
