@@ -16,34 +16,44 @@ static const char *TAG = "bt_audio_io";
 #define ADC_CHANNEL      ADC_CHANNEL_6   /* GPIO34 on the original ESP32 */
 #define UPLINK_RB_SIZE   4096   /* ~256ms of 16-bit mono @ 8kHz -- plenty of slack
                                   * against HFP's own small per-callback chunk size */
+#define DOWNLINK_RB_SIZE 4096   /* ~512ms of 8-bit mono @ 8kHz -- see dac_write_task's
+                                  * doc comment for why this exists at all */
 
 static dac_continuous_handle_t s_dac;
 static adc_continuous_handle_t s_adc;
 static RingbufHandle_t         s_uplink_rb;
+static RingbufHandle_t         s_downlink_rb;
 static TaskHandle_t             s_adc_task;
+static TaskHandle_t             s_dac_task;
 
 /* ---- downlink: HFP samples -> DAC (GPIO25) ---- */
 
-/* Diagnostic finding, 2026-09-14: a synthetic tone written through this
- * function -- bypassing Bluetooth entirely -- came out with the same
- * distortion as live call audio, and consistently only the first ~2-2.5s
- * of any capture was ever clean/present before the signal collapsed to
- * near-silence. This function used to malloc()/free() a fresh conversion
- * buffer on every single call -- for real HFP audio, Bluedroid's own
- * incoming-data callback can fire well over 100x/sec, so that's a lot of
- * small, repeated heap churn on a chip with a much smaller heap than the
- * C6. A static scratch buffer removes that as a variable while the actual
- * ~2.5s-cliff behavior is investigated further -- not confirmed as the
- * fix, but a real improvement either way (this callback runs in Bluedroid's
- * own task context, where blocking on a slow/fragmented allocator is
- * exactly the kind of thing that can start failing intermittently once the
- * heap's been running a while). */
+/* Diagnostic history, 2026-09-14/15: a synthetic tone written through this
+ * function -- bypassing Bluetooth entirely -- initially showed the same
+ * distortion as live call audio. That turned out to be a red herring from
+ * an unrelated bug (DAC clock source, since fixed -- see bt_audio_io_init()).
+ * Once fixed, a sustained multi-tone test via this exact function/DAC/
+ * pacing ran completely clean for 30+ seconds, no errors at all -- but real
+ * HFP calls still flooded the console with dac_continuous "Get available
+ * descriptor timeout" after ~1s. Conclusion: the DAC/descriptor pool itself
+ * is fine: the problem was this function calling dac_continuous_write()
+ * SYNCHRONOUSLY from Bluedroid's own incoming-data callback. Real HFP
+ * delivers audio at its own cadence/chunk size (SCO packets, not our own
+ * neat 160-sample/20ms pacing) -- if that callback thread ever blocks
+ * waiting on a DMA descriptor, Bluedroid's own audio pipeline backs up
+ * behind it, which can cascade into exactly this kind of sustained
+ * overrun. Fixed the same way the uplink side (adc_sample_task/
+ * s_uplink_rb below) already decouples ADC sampling from HFP's outgoing
+ * callback: this function now only ever does a fast, non-blocking push
+ * into s_downlink_rb; dac_write_task is the only thing that ever touches
+ * the DAC, on its own schedule, so nothing here can ever stall Bluedroid's
+ * own thread. */
 #define DOWNLINK_SCRATCH_SAMPLES 512
 static uint8_t s_downlink_scratch[DOWNLINK_SCRATCH_SAMPLES];
 
 void bt_audio_io_write_downlink(const uint8_t *pcm16, size_t len)
 {
-    if (!s_dac || len < 2) return;
+    if (!s_downlink_rb || len < 2) return;
     /* 16-bit signed -> 8-bit unsigned: keep the high byte (same conversion
      * used by every 16-to-8-bit PCM downsample), offset by 0x80 since the
      * DAC's 8-bit range is unsigned (0-255, 128 = "silence"/mid-rail) while
@@ -56,9 +66,32 @@ void bt_audio_io_write_downlink(const uint8_t *pcm16, size_t len)
         for (size_t i = 0; i < n; i++) {
             s_downlink_scratch[i] = (uint8_t)(((int32_t)in[done + i] >> 8) + 128);
         }
-        size_t written = 0;
-        dac_continuous_write(s_dac, s_downlink_scratch, n, &written, pdMS_TO_TICKS(50));
+        /* Non-blocking, like recorder.c's downlink_push() -- this can be
+         * called from Bluedroid's own task and must never stall it. A full
+         * buffer (dac_write_task briefly behind) drops the overrun rather
+         * than corrupting timing; DOWNLINK_RB_SIZE gives real slack before
+         * that happens. */
+        xRingbufferSend(s_downlink_rb, s_downlink_scratch, n, 0);
         done += n;
+    }
+}
+
+/* The only thing that ever calls dac_continuous_write() -- see
+ * bt_audio_io_write_downlink()'s doc comment for why this needs to be a
+ * separate task rather than writing directly from whatever thread produced
+ * the audio. Pulls whatever's ready (real HFP audio or a test tone/level,
+ * both funnel through the same ring buffer now) and blocks on the DAC's own
+ * real-time drain -- that blocking is fine here, this task has no other job. */
+static void dac_write_task(void *arg)
+{
+    while (1) {
+        size_t item_size = 0;
+        uint8_t *data = xRingbufferReceiveUpTo(s_downlink_rb, &item_size,
+                                                pdMS_TO_TICKS(100), DOWNLINK_SCRATCH_SAMPLES);
+        if (!data) continue;
+        size_t written = 0;
+        dac_continuous_write(s_dac, data, item_size, &written, pdMS_TO_TICKS(50));
+        vRingbufferReturnItem(s_downlink_rb, data);
     }
 }
 
@@ -112,11 +145,10 @@ static void adc_sample_task(void *arg)
 /* ---- diagnostic: synthetic tone straight into the downlink path ---- */
 
 /* Guards both this and test_level below against running concurrently with
- * themselves or each other -- confirmed 2026-09-15 that overlapping DAC
- * writers (e.g. starting a new `tone` before an earlier one finished) floods
- * the console with "Get available descriptor timeout" from dac_continuous,
- * since two writers both racing to fill the same small (8-descriptor) ring
- * starves each other out. One diagnostic writer at a time, full stop. */
+ * themselves or each other -- both push into the shared s_downlink_rb (see
+ * bt_audio_io_write_downlink()), so two of these running at once would just
+ * interleave two different tones' bytes into one garbled stream rather than
+ * playing either cleanly. One diagnostic writer at a time. */
 static volatile bool s_test_task_running = false;
 
 typedef struct { int hz; int ms; } test_tone_args_t;
@@ -255,6 +287,13 @@ esp_err_t bt_audio_io_init(void)
         ESP_LOGE(TAG, "dac_continuous_enable failed: %s", esp_err_to_name(err));
         return err;
     }
+
+    s_downlink_rb = xRingbufferCreate(DOWNLINK_RB_SIZE, RINGBUF_TYPE_BYTEBUF);
+    if (!s_downlink_rb) {
+        ESP_LOGE(TAG, "xRingbufferCreate (downlink) failed");
+        return ESP_ERR_NO_MEM;
+    }
+    xTaskCreate(dac_write_task, "dac_write", 3072, NULL, configMAX_PRIORITIES - 4, &s_dac_task);
 
     /* ADC: GPIO34 (ADC1_CHANNEL_6). */
     adc_continuous_handle_cfg_t adc_handle_cfg = {
