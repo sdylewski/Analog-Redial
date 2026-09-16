@@ -53,7 +53,7 @@ typedef enum {
  * straight through to the beep. */
 #define RECORD_PROMPT_NAME "record_prompt.wav"
 
-/* Answering machine's own greeting for `line`, recorded via dial code 212
+/* Answering machine's own greeting for `line`, recorded via dial code 999
  * (fixed filename -- re-recording overwrites it directly, reviewed via the
  * web UI's playback, not a phone-side confirm loop). Not present is a
  * normal, working state: auto_answer() (telephony.c) falls straight through

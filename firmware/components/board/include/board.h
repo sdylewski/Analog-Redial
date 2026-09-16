@@ -129,7 +129,7 @@ esp_err_t board_offhook_alert_set(board_offhook_alert_t cfg);
 
 /* ---- Answering machine (per line) ----
  * After `rings` unanswered rings, auto-answers and plays this line's own
- * greeting (recorded via dial code 212, see telephony.c) then records the
+ * greeting (recorded via dial code 999, see telephony.c) then records the
  * caller after a beep. `other_line` gates whether an unanswered call FROM
  * this board's other line (not VoIP) also gets auto-answered -- off by
  * default, since routing a family member's unanswered intercom call to

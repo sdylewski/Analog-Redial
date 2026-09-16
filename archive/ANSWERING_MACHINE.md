@@ -15,7 +15,8 @@ alone.
   cycle, so 4 rings ≈ 24s), max caller-message length (default 30s), and
   (2-line boards only) a separate "also answer unanswered calls from other
   line" checkbox, default off.
-- Greeting: recorded over the phone (dial 212, speak after the beep, hang
+- Greeting: recorded over the phone (dial 999 -- moved from 212 so it can't
+  be dialed by accident in place of 211 -- speak after the beep, hang
   up or pause ~8s to save) — reuses the exact same record-prompt/beep/
   record machinery as 211, just with a fixed per-line filename
   (`am_greeting_l<N>.wav`, overwrites directly like a real answering
