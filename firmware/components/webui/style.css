@@ -150,8 +150,15 @@ audio { height: 34px; vertical-align: middle; max-width: 100%; }
  * 5-column table (code/filename/play/description/remove) has no width to
  * spare; an <audio controls> alone wants ~300px. Stacking sidesteps that
  * entirely instead of fighting table column-sizing for it. */
-.dialcode-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
-.dialcode-item:last-child { border-bottom: none; padding-bottom: 0; }
+/* Each dial code is its own visually distinct sub-card (background + border
+   + radius), not just a hairline border-bottom -- easier to tell one entry
+   from the next once each holds 4 stacked rows (code/desc/filename/player)
+   rather than 3, and just plain clearer at a glance either way. */
+.dialcode-item {
+  padding: 12px; margin-bottom: 10px;
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 8px;
+}
+.dialcode-item:last-child { margin-bottom: 0; }
 .dc-line {
   display: flex; align-items: center; gap: 8px;
   margin-bottom: 8px; min-width: 0; /* let flex children shrink/ellipsize below content size */
@@ -162,11 +169,15 @@ audio { height: 34px; vertical-align: middle; max-width: 100%; }
 .dc-inline input[name="new_code"] { width: 4.5em; flex: none; }
 .dc-grow { flex: 1; min-width: 0; }
 .dc-desc-input { flex: 1; min-width: 0; }
+/* Filename gets its own full-width line now (not shared with <audio>,
+   which alone wants ~300px and left almost nothing for this in a narrow
+   card -- see append_dialcodes_tab()'s comment) -- ellipsis stays as a
+   safety net for a name that's still too long for the card at any width. */
 .dc-filename {
-  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
-  white-space: nowrap;
+  display: block; width: 100%; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
 }
-.dc-line audio { flex: none; }
+.dc-line audio { width: 100%; }
 
 button {
   background: var(--panel2);
@@ -208,6 +219,31 @@ button.danger:hover { border-color: var(--red); }
 }
 .settings-form textarea { resize: vertical; min-height: 60px; }
 .fieldhint { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; font-weight: normal; }
+
+/* Show/hide toggle overlaid on a password field -- wraps just the
+   <input>, not the whole <label>, so the fieldhint below it isn't
+   affected. The button holds both icons at once and CSS swaps which is
+   visible via .is-visible, rather than the onclick swapping DOM/text. */
+.pw-field { position: relative; }
+.pw-field input[type="password"], .pw-field input[type="text"] { padding-right: 38px; }
+.pw-toggle {
+  position: absolute; right: 4px; top: 4px;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; padding: 0;
+  color: var(--muted); cursor: pointer;
+}
+.pw-toggle:hover { color: var(--accent); }
+/* Starts disabled -- the field is always empty on load (see append_setup_
+   password_card()'s doc comment: the real stored secret is never sent
+   back, only a placeholder that LOOKS like a masked value), so there's
+   nothing to reveal until the input's own oninput enables this. Dimmed
+   rather than hidden so it's clear the control exists but isn't live yet. */
+.pw-toggle:disabled { opacity: .35; cursor: default; }
+.pw-toggle:disabled:hover { color: var(--muted); }
+.pw-toggle .icon-eye-off { display: none; }
+.pw-toggle.is-visible .icon-eye { display: none; }
+.pw-toggle.is-visible .icon-eye-off { display: block; }
 .settings-form fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 0; }
 .settings-form legend { padding: 0 6px; color: var(--muted); font-size: 12px; text-transform: uppercase; }
 .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }

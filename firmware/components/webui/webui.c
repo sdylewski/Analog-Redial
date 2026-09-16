@@ -30,6 +30,7 @@
 #include "esp_flash.h"
 #include "esp_partition.h"
 #include "esp_ota_ops.h"
+#include "esp_image_format.h"
 #include "esp_app_desc.h"
 #include "nvs.h"
 #include "esp_netif.h"
@@ -515,6 +516,33 @@ static const ui_lang_t UI_LANGUAGES[] = {
 };
 #define UI_LANGUAGES_N (sizeof(UI_LANGUAGES) / sizeof(UI_LANGUAGES[0]))
 
+/* Curated POSIX TZ strings for the Quiet Hours card's timezone dropdown --
+ * same "short, deliberately incomplete" philosophy as UI_LANGUAGES above:
+ * board_timezone_set() (and the still-live /timezone_set endpoint) accept
+ * any POSIX TZ string via the console/API either way, so a zone missing
+ * here is a UI gap, not a functional one. "" means UTC (board_timezone_get()'s
+ * own convention -- see its callers). Look a zone's string up at
+ * github.com/nayarsystems/posix_tz_db if adding one. */
+typedef struct { const char *tz; const char *label; } ui_tz_t;
+static const ui_tz_t UI_TIMEZONES[] = {
+    { "", "UTC" },
+    { "HST10", "Hawaii (no DST)" },
+    { "AKST9AKDT,M3.2.0,M11.1.0", "US Alaska" },
+    { "PST8PDT,M3.2.0,M11.1.0", "US Pacific" },
+    { "MST7", "US Arizona (no DST)" },
+    { "MST7MDT,M3.2.0,M11.1.0", "US Mountain" },
+    { "CST6CDT,M3.2.0,M11.1.0", "US Central" },
+    { "EST5EDT,M3.2.0,M11.1.0", "US Eastern" },
+    { "GMT0BST,M3.5.0/1,M10.5.0", "UK / Ireland" },
+    { "CET-1CEST,M3.5.0,M10.5.0/3", "Central Europe" },
+    { "EET-2EEST,M3.5.0/3,M10.5.0/4", "Eastern Europe" },
+    { "IST-5:30", "India (no DST)" },
+    { "CST-8", "China (no DST)" },
+    { "JST-9", "Japan (no DST)" },
+    { "AEST-10AEDT,M10.1.0,M4.1.0/3", "Australia Eastern" },
+};
+#define UI_TIMEZONES_N (sizeof(UI_TIMEZONES) / sizeof(UI_TIMEZONES[0]))
+
 static int append_page_head(char *buf, size_t cap, int off, const char *page_title,
                              const char *active_href, bool auto_refresh)
 {
@@ -950,7 +978,19 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
     size_t shown = 0;
     for (size_t i = 0; i < n; i++) if (is_user_recording(entries[i].name)) shown++;
 
-    size_t cap = 2048 + n * 400; /* each row: <audio>, download link, delete form, Recorded column */
+    /* 2048 base + 1024 for append_storage_table()'s one-time bulk-delete
+     * <form> wrapper (measured ~746 bytes: outer form + hidden return_to +
+     * header select-all checkbox + "Delete selected" row/JS -- 1024 leaves
+     * real margin, not just enough). 600/row: measured a real row (32-char
+     * STORAGE_MAX_NAME filename, worst case) at ~525 bytes -- the name is
+     * repeated up to 6x (checkbox value, <code>, <audio> src, download
+     * href, delete formaction, delete confirm text), which a flat
+     * per-field guess undercounts fast. Confirmed truncating real device
+     * output twice already (7247 and then 8147 of a page that needed
+     * ~9600) before landing on these numbers from actual measurement
+     * instead of another guess -- if this ever needs to change again,
+     * measure a rendered row rather than estimating. */
+    size_t cap = 2048 + 1024 + n * 600;
     char *buf = malloc(cap);
     if (!buf) { free(entries); httpd_resp_send_500(req); return ESP_FAIL; }
 
@@ -1041,6 +1081,7 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
 typedef struct { const char *id; const char *label; const char *i18n_key; } settings_tab_t;
 static const settings_tab_t SETTINGS_TABS[] = {
     { "general",    "General",              "settings.tab.general" },
+    { "phone",      "Phone Settings",       "settings.tab.phone" },
     { "dialcodes",  "Dial Codes & Prompts", "settings.tab.dialcodes" },
     { "voip",       "VOIP",                 "settings.tab.voip" },
     { "hardware",   "Hardware",             "settings.tab.hardware" },
@@ -1129,26 +1170,6 @@ static int append_general_tab(char *buf, size_t cap, int off)
         i18n_str("general.boardname.button", "Save name"),
         boardname_hint);
 
-    char lang[8];
-    board_language_get(lang, sizeof(lang));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>%s</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
-        "<form method=\"POST\" action=\"/language_set\" class=\"settings-form\">"
-        "<label>%s <input name=\"lang\" value=\"%s\" maxlength=\"7\" required></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-        "</form>"
-        "<p class=\"hint\">%s</p></div>",
-        i18n_str("general.language.title", "Language"),
-        i18n_str("general.language.current", "Current"), lang,
-        i18n_str("general.language.label", "Code (e.g. en, it, es)"), lang,
-        i18n_str("general.language.button", "Save language"),
-        i18n_str("general.language.hint",
-                 "One language for the whole phone, set here rather than switched in use (no "
-                 "901/902 dial codes) -- generate that language's prompt/number audio during "
-                 "setup with <code>gen_prompt.py</code>, then leave it. No prompt audio exists "
-                 "yet to actually be affected by this."));
-
     char ssid[33];
     strncpy(ssid, wifi_get_ssid(), sizeof(ssid) - 1);
     ssid[sizeof(ssid) - 1] = '\0';
@@ -1188,6 +1209,135 @@ static int append_general_tab(char *buf, size_t cap, int off)
                  "Saved to flash (NVS); the device reconnects immediately, no reboot needed."),
         WIFI_SCAN_JS);
 
+    /* Timezone folded into this card as a curated dropdown (UI_TIMEZONES)
+     * instead of its own separate card with a freeform POSIX TZ string --
+     * it exists only to feed this window's start/end interpretation, so
+     * it doesn't need to live apart from it. A zone not in the list is
+     * still reachable via POST /timezone_set (tz=<any POSIX TZ string>,
+     * still a live endpoint) -- same "curated UI, freeform API" split as
+     * the language picker. */
+    char tz[BOARD_TZ_MAX];
+    board_timezone_get(tz, sizeof(tz));
+    board_quiet_hours_t qh = board_quiet_hours_get();
+    char qh_status[48];
+    if (qh.enabled) {
+        snprintf(qh_status, sizeof(qh_status), i18n_str("general.quiethours.status_on", "on, %02u:%02u\xe2\x80\x93%02u:%02u"),
+                 qh.start_hour, qh.start_min, qh.end_hour, qh.end_min);
+    } else {
+        snprintf(qh_status, sizeof(qh_status), "%s", i18n_str("general.quiethours.status_off", "off"));
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<form method=\"POST\" action=\"/quiet_hours\" class=\"settings-form\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
+        "<label>%s<select name=\"tz\">",
+        i18n_str("general.quiethours.title", "Quiet hours"),
+        i18n_str("general.current", "Current"), qh_status,
+        qh.enabled ? " checked" : "", i18n_str("general.quiethours.enabled", "Enabled"),
+        i18n_str("general.quiethours.tz_label", "Timezone"));
+    for (size_t i = 0; i < UI_TIMEZONES_N; i++) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<option value=\"%s\"%s>%s</option>",
+            UI_TIMEZONES[i].tz, strcmp(UI_TIMEZONES[i].tz, tz) == 0 ? " selected" : "",
+            UI_TIMEZONES[i].label);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "</select></label>"
+        "<label>%s <input type=\"time\" name=\"start\" value=\"%02u:%02u\" required></label>"
+        "<label>%s <input type=\"time\" name=\"end\" value=\"%02u:%02u\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form>"
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("general.quiethours.start_label", "Start"), qh.start_hour, qh.start_min,
+        i18n_str("general.quiethours.end_label", "End"), qh.end_hour, qh.end_min,
+        i18n_str("general.button.save", "Save"),
+        i18n_str("general.quiethours.hint",
+                 "While enabled, incoming calls on either line during this window go straight "
+                 "to the answering machine instead of ringing -- old mechanical ringers are "
+                 "loud, and not everyone wants one going off at 2 a.m. Applies even if a line's "
+                 "own Answering Machine (Phone Settings tab) is off, since there's nowhere else "
+                 "to send the call. Timezone only affects this window -- recordings and "
+                 "everything else stay in UTC regardless. Start later than end (e.g. "
+                 "21:00-07:00) means the window wraps past midnight. Takes effect on the next "
+                 "incoming call -- no reboot."));
+    return off;
+}
+
+/* Everything about how a call sounds/behaves on the phone itself, one tab:
+ * answering machine, off-hook alert, echo cancellation, digit readback
+ * (the last one moved from General), speaker volume -- in that order, the
+ * three not from General (answering machine, echo cancellation, speaker
+ * volume) moved from Hardware, which now covers only physical board
+ * identity/stats and firmware/reset -- not line behavior. */
+static int append_phone_settings_tab(char *buf, size_t cap, int off)
+{
+    int num_lines = board_hw_config_get().num_lines;
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>%s</h2>", i18n_str("am.title", "Answering machine"));
+    for (int l = 0; l < num_lines; l++) {
+        board_am_cfg_t am = board_am_get(l);
+        char greeting[STORAGE_MAX_NAME];
+        telephony_am_greeting_name(greeting, sizeof(greeting), l);
+        uint8_t probe;
+        size_t got;
+        bool have_greeting = (storage_read(greeting, &probe, sizeof(probe), &got) == ESP_OK);
+
+        char line_h3[32], save_line[48];
+        snprintf(line_h3, sizeof(line_h3), i18n_str("status.line.title", "Line %d"), l);
+        snprintf(save_line, sizeof(save_line), i18n_str("speaker.save_line", "Save line %d"), l);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<h3>%s</h3>"
+            "<form method=\"POST\" action=\"/answering_machine\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
+            "<label>%s "
+            "<input type=\"number\" name=\"rings\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
+            "<label>%s "
+            "<input type=\"number\" name=\"max_secs\" value=\"%u\" min=\"%u\" max=\"%u\" required></label>",
+            line_h3, l,
+            am.enabled ? " checked" : "", i18n_str("general.offhook.enabled", "Enabled"),
+            i18n_str("am.rings_label", "Rings before answering"),
+            (unsigned)am.rings, BOARD_AM_RINGS_MIN, BOARD_AM_RINGS_MAX,
+            i18n_str("am.max_secs_label", "Max message length (seconds)"),
+            (unsigned)(am.max_ms / 1000), (unsigned)(BOARD_AM_MAX_MS_MIN / 1000),
+            (unsigned)(BOARD_AM_MAX_MS_MAX / 1000));
+        if (num_lines > 1) {
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<label><input type=\"checkbox\" name=\"other_line\" value=\"1\"%s> "
+                "%s</label>",
+                am.other_line ? " checked" : "",
+                i18n_str("am.other_line_label", "Also answer unanswered calls from other line"));
+        }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+            "</form>",
+            save_line);
+        if (have_greeting) {
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+                "<span><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></span></div>",
+                i18n_str("am.greeting", "Greeting"), greeting);
+        } else {
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>",
+                i18n_str("am.greeting", "Greeting"), i18n_str("am.not_recorded", "not recorded yet"));
+        }
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">%s</p></div>"
+        "<script>%s</script>",
+        i18n_str("am.hint",
+                 "Record each line's greeting from that line's own phone: pick up, dial 9-9-9, "
+                 "speak after the beep, hang up (or pause ~8s) to save -- overwrites the previous "
+                 "greeting directly. Play it back above to check it; re-record any time the same "
+                 "way. With no greeting recorded, callers just hear the beep. After the "
+                 "configured rings, the line auto-answers, plays the greeting then a beep, then "
+                 "records the caller -- capped at the length above or ~8s of silence, whichever "
+                 "comes first. Picking up the handset at any point takes the call live instead."),
+        RECORDING_RELOAD_JS);
+
     board_offhook_alert_t roh = board_offhook_alert_get();
     char roh_status[48];
     if (roh.enabled) {
@@ -1222,63 +1372,88 @@ static int append_general_tab(char *buf, size_t cap, int off)
                  "forgotten handset ever reaches it. Takes effect on the next dial tone -- no "
                  "reboot."));
 
-    char tz[BOARD_TZ_MAX];
-    board_timezone_get(tz, sizeof(tz));
-    char etz[BOARD_TZ_MAX * 6];
-    html_escape(tz, etz, sizeof(etz));
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>%s</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
-        "<form method=\"POST\" action=\"/timezone_set\" class=\"settings-form\">"
-        "<label>%s <input name=\"tz\" value=\"%s\" maxlength=\"%d\" "
-        "placeholder=\"e.g. EST5EDT,M3.2.0,M11.1.0 -- blank = UTC\"></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-        "</form>"
-        "<p class=\"hint\">%s</p></div>",
-        i18n_str("general.timezone.title", "Timezone"),
-        i18n_str("general.current", "Current"), tz[0] ? etz : "UTC",
-        i18n_str("general.timezone.label", "POSIX TZ string"), etz, BOARD_TZ_MAX - 1,
-        i18n_str("general.button.save", "Save"),
-        i18n_str("general.timezone.hint",
-                 "Only used by Quiet hours below -- recordings and everything else stay in UTC "
-                 "regardless. Look your zone's string up at "
-                 "<a href=\"https://github.com/nayarsystems/posix_tz_db\">"
-                 "github.com/nayarsystems/posix_tz_db</a> (e.g. America/New_York is "
-                 "EST5EDT,M3.2.0,M11.1.0 -- includes the daylight-saving rule). Blank means UTC. "
-                 "Applies immediately, no reboot."));
-
-    board_quiet_hours_t qh = board_quiet_hours_get();
-    char qh_status[48];
-    if (qh.enabled) {
-        snprintf(qh_status, sizeof(qh_status), i18n_str("general.quiethours.status_on", "on, %02u:%02u\xe2\x80\x93%02u:%02u"),
-                 qh.start_hour, qh.start_min, qh.end_hour, qh.end_min);
-    } else {
-        snprintf(qh_status, sizeof(qh_status), "%s", i18n_str("general.quiethours.status_off", "off"));
+        "<div class=\"card\"><h2>%s</h2>", i18n_str("aec.title", "Echo cancellation"));
+    for (int l = 0; l < num_lines; l++) {
+        uint32_t ms = board_aec_delay_get(l, AEC_DEFAULT_DELAY_MS);
+        bool aec_on = aec_is_enabled(l);
+        char line_label[32], delay_label[32];
+        snprintf(line_label, sizeof(line_label), i18n_str("status.line.title", "Line %d"), l);
+        snprintf(delay_label, sizeof(delay_label), i18n_str("aec.line_delay", "Line %d delay"), l);
+        char measure_line[48];
+        snprintf(measure_line, sizeof(measure_line), i18n_str("aec.measure_line", "Measure line %d"), l);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+            "<span class=\"pill %s\">%s</span></div>"
+            "<div class=\"toolbar sub\">"
+            "<form method=\"POST\" action=\"/aec_enable\" style=\"display:inline\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<input type=\"hidden\" name=\"on\" value=\"1\">"
+            "<button type=\"submit\">%s</button></form> "
+            "<form method=\"POST\" action=\"/aec_enable\" style=\"display:inline\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<input type=\"hidden\" name=\"on\" value=\"0\">"
+            "<button type=\"submit\">%s</button></form>"
+            "</div>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+            "<span>%u ms</span></div>"
+            "<div class=\"toolbar sub\">"
+            "<button type=\"button\" id=\"aecbtn%d\" onclick=\"aecMeasure(%d)\">%s</button>"
+            "</div><div id=\"aecresult%d\" class=\"hint\"></div>",
+            line_label, aec_on ? "on" : "off", aec_on ? "ENABLED" : "off",
+            l, i18n_str("aec.enable", "Enable"),
+            l, i18n_str("aec.disable", "Disable"),
+            delay_label, (unsigned)ms, l, l, measure_line, l);
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>%s</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
-        "<form method=\"POST\" action=\"/quiet_hours\" class=\"settings-form\">"
-        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
-        "<label>%s <input type=\"time\" name=\"start\" value=\"%02u:%02u\" required></label>"
-        "<label>%s <input type=\"time\" name=\"end\" value=\"%02u:%02u\" required></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-        "</form>"
-        "<p class=\"hint\">%s</p></div>",
-        i18n_str("general.quiethours.title", "Quiet hours"),
-        i18n_str("general.current", "Current"), qh_status,
-        qh.enabled ? " checked" : "", i18n_str("general.quiethours.enabled", "Enabled"),
-        i18n_str("general.quiethours.start_label", "Start"), qh.start_hour, qh.start_min,
-        i18n_str("general.quiethours.end_label", "End"), qh.end_hour, qh.end_min,
-        i18n_str("general.button.save", "Save"),
-        i18n_str("general.quiethours.hint",
-                 "While enabled, incoming calls on either line during this window go straight "
-                 "to the answering machine instead of ringing -- old mechanical ringers are "
-                 "loud, and not everyone wants one going off at 2 a.m. Applies even if a line's "
-                 "own Answering Machine (Hardware tab) is off, since there's nowhere else to "
-                 "send the call. Uses the timezone above (UTC if left blank). Start later than "
-                 "end (e.g. 21:00-07:00) means the window wraps past midnight. Takes effect on "
-                 "the next incoming call -- no reboot."));
+        "<p class=\"hint\">%s</p></div>"
+        "<script>"
+        "var AEC_I18N={measuring:'%s',noEcho:'%s',tries:'%s',delayFmt:'%s',consistent:'%s',"
+        "apply:'%s',failed:'%s'};"
+        "function spkLive(line,vol){"
+        "document.getElementById('spkpct'+line).textContent="
+        "Math.round(vol*200/63)+'%%';"
+        "fetch('/speaker_volume_live',{method:'POST',"
+        "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
+        "body:'line='+line+'&vol='+vol});}"
+        "function aecMeasure(line){"
+        "var btn=document.getElementById('aecbtn'+line);"
+        "var out=document.getElementById('aecresult'+line);"
+        "btn.disabled=true;out.textContent=AEC_I18N.measuring;"
+        "fetch('/aec_measure',{method:'POST',"
+        "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
+        "body:'line='+line})"
+        ".then(function(r){return r.json();})"
+        ".then(function(d){btn.disabled=false;"
+        "if(!d.ok){out.textContent=AEC_I18N.noEcho+' '+d.hits+'/'+d.attempts+"
+        "' '+AEC_I18N.tries;return;}"
+        "var ms=Math.round(d.delay_ms);"
+        "out.innerHTML=AEC_I18N.delayFmt.replace('%%1',d.delay_ms.toFixed(1))"
+        ".replace('%%2',d.tail_ms.toFixed(1)).replace('%%3',d.span_ms.toFixed(0))"
+        ".replace('%%4',Math.round(d.taps))+' '+d.hits+'/'+d.attempts+' '+AEC_I18N.consistent+' '+"
+        "'<form method=\"POST\" action=\"/aec_delay_apply\" style=\"display:inline\">'+"
+        "'<input type=\"hidden\" name=\"line\" value=\"'+line+'\">'+"
+        "'<input type=\"hidden\" name=\"ms\" value=\"'+ms+'\">'+"
+        "'<button type=\"submit\">'+AEC_I18N.apply.replace('%%1',ms)+'</button></form>';})"
+        ".catch(function(){btn.disabled=false;out.textContent=AEC_I18N.failed;});"
+        "}"
+        "</script>",
+        i18n_str("aec.hint",
+                 "Enable/Disable is for testing -- leave off for normal use unless a real echo "
+                 "has actually been measured and calibrated below (an uncalibrated or "
+                 "wrongly-delayed canceller can make echo worse, not better). To calibrate: pick "
+                 "up the handset (off-hook) and make sure it's NOT in a call, then click Measure "
+                 "-- plays a short burst out the earpiece and listens on the same line's own mic "
+                 "to find its local echo delay, the number the canceller needs to align against. "
+                 "Takes about 2 seconds (3 quick measurements averaged for reliability). "
+                 "Applying saves it and takes effect immediately, no reboot."),
+        i18n_str("aec.js.measuring", "Measuring..."),
+        i18n_str("aec.js.no_echo", "No echo detected in"),
+        i18n_str("aec.js.tries", "tries -- off-hook and not in a call?"),
+        i18n_str("aec.js.delay_fmt", "Delay %1ms, tail %2ms, span ~%3ms (%4 taps),"),
+        i18n_str("aec.js.consistent", "consistent."),
+        i18n_str("aec.js.apply", "Apply %1ms as default"),
+        i18n_str("aec.js.failed", "Measurement failed."));
 
     dialplan_modes_t *m = dialplan_modes();
     off = append_mode_card(buf, cap, off, i18n_str("general.readback.title", "Digit readback"),
@@ -1286,6 +1461,41 @@ static int append_general_tab(char *buf, size_t cap, int off)
         m->readback_digits ? i18n_str("general.readback.on", "On") : i18n_str("general.readback.off", "Off"),
         i18n_str("general.button.turn_off", "Turn off"), "921",
         i18n_str("general.button.turn_on", "Turn on"), "922", -1);
+
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>%s</h2>", i18n_str("speaker.title", "Speaker (earpiece) volume"));
+    for (int l = 0; l < num_lines; l++) {
+        uint8_t vol = board_speaker_volume_get(l, 0x1E);
+        /* Displayed as a percentage (0-200%, 100% = the register's 0dB
+         * point) rather than the raw 0-63/dB-step register value -- dB
+         * isn't a meaningful unit for most people tuning this by ear. The
+         * underlying value submitted to the backend is still the raw 0-63
+         * register step; only the label is converted (see spkPct() below),
+         * so es8388_set_dac_volume()'s convention doesn't have to change. */
+        unsigned pct = (unsigned)((vol * 200u + 31) / 63u);
+        char line_label[32];
+        snprintf(line_label, sizeof(line_label), i18n_str("status.line.title", "Line %d"), l);
+        char save_line[48];
+        snprintf(save_line, sizeof(save_line), i18n_str("speaker.save_line", "Save line %d"), l);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<form method=\"POST\" action=\"/speaker_volume\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<label>%s <input type=\"range\" name=\"vol\" min=\"0\" max=\"63\" "
+            "value=\"%u\" oninput=\"spkLive(%d,this.value)\"> "
+            "<span id=\"spkpct%d\">%u%%</span></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+            "</form>",
+            l, line_label, (unsigned)vol, l, l, pct, save_line);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("speaker.hint",
+                 "Drag while on a call to hear the change live (applied immediately, not saved "
+                 "yet) -- click Save once you land on a level you like. 100% is the codec's 0dB "
+                 "reference point, 200% is max. Same register the bring-up <code>spkamp</code> "
+                 "console command tunes."));
+#endif
     return off;
 }
 
@@ -1406,7 +1616,23 @@ static int append_setup_password_card(char *buf, size_t cap, int off)
         "callers aren't gated, since anyone on the LAN can already read this page.</p>"
         "<form method=\"POST\" action=\"/voip_setup_password\" class=\"settings-form\">"
         "<label>Setup password"
-        "<input type=\"password\" name=\"password\" placeholder=\"%s\">"
+        "<div class=\"pw-field\">"
+        "<input type=\"password\" id=\"setup_pw_input\" name=\"password\" placeholder=\"%s\" "
+        "oninput=\"this.nextElementSibling.disabled=!this.value\">"
+        "<button type=\"button\" class=\"pw-toggle\" disabled aria-label=\"Show password\" "
+        "onclick=\"var i=document.getElementById('setup_pw_input');var show=i.type==='password';"
+        "i.type=show?'text':'password';this.classList.toggle('is-visible',show);"
+        "this.setAttribute('aria-label',show?'Hide password':'Show password');\">"
+        "<svg class=\"icon-eye\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" "
+        "stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+        "<path d=\"M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>"
+        "<svg class=\"icon-eye-off\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" "
+        "stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+        "<path d=\"M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.12 "
+        "9.12 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24\"/>"
+        "<line x1=\"1\" y1=\"1\" x2=\"23\" y2=\"23\"/></svg>"
+        "</button>"
+        "</div>"
         "<span class=\"fieldhint\">%s</span>"
         "</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\">Save</button></div>"
@@ -1484,8 +1710,8 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 "<input name=\"desc\" value=\"%s\" maxlength=\"63\" class=\"dc-desc-input\">"
                 "<button type=\"submit\">%s</button></form>"
                 "</div>"
+                "<div class=\"dc-line\"><code class=\"dc-filename\">%s</code></div>"
                 "<div class=\"dc-line\">"
-                "<code class=\"dc-filename\">%s</code>"
                 "<audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio>"
                 "</div></div>",
                 clips[i].code, edesc, i18n_str("dialcodes.save", "save"),
@@ -1552,6 +1778,33 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
 {
     char name[32];
     board_name_get(name, sizeof(name));
+
+    /* Master on/off, independent of whether a server's even configured --
+     * see voip_is_enabled()'s doc comment (voip.h) for exactly what
+     * disabling does (nothing new to build for the "someone still dials
+     * 555-xxxx" case: voip_dial() already fails safely, telephony.c
+     * already turns that into a reorder tone). Sits above the status
+     * card since it gates whether that card's pills can ever say
+     * "registered" at all. */
+    bool voip_en = voip_is_enabled();
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card wide\"><h2>%s</h2>"
+        "<form method=\"POST\" action=\"/voip_enable\" class=\"settings-form\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form>"
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("voip.enable.title", "VOIP"),
+        voip_en ? " checked" : "", i18n_str("voip.enable.label", "Enable VOIP on this phone"),
+        i18n_str("general.button.save", "Save (takes effect on reboot)"),
+        i18n_str("voip.enable.hint",
+                 "Off entirely disables VOIP for this board: it never registers with the SIP "
+                 "server, so no incoming call can reach it, and dialing 555-xxxx on the "
+                 "handset just gets a fast-busy/reorder tone instead of connecting -- same as "
+                 "if the server were unreachable. Server/extension/password below stay saved "
+                 "either way, so turning this back on doesn't need re-entering them. Takes "
+                 "effect on next reboot, same as changes to the server/credentials below."));
+
     bool r0 = voip_is_registered(0);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card wide\"><h2>%s</h2>"
@@ -1939,6 +2192,35 @@ static int append_firmware_card(char *buf, size_t cap, int off)
     char built[48];
     snprintf(built, sizeof(built), "%s %s", app->date, app->time);
 
+    /* "Revert to previous version" only makes sense -- and is only offered
+     * -- when the *other* OTA slot actually holds a confirmed-good image
+     * (ESP_OTA_IMG_VALID). A board that's only ever been flashed once, or
+     * whose other slot is still ESP_OTA_IMG_NEW/PENDING_VERIFY/INVALID,
+     * has nothing safe to fall back to -- esp_ota_mark_app_invalid_
+     * rollback_and_reboot() would just fail, so there's no point offering
+     * a button that can't work. This is a deliberate manual escape hatch
+     * distinct from the automatic crash/hang rollback in app_main.c: that
+     * one only catches a new image that never finishes booting; this one
+     * is for "it booted fine but I don't want it" -- a field board that's
+     * behaving worse after an update, someone unsure a change is safe. */
+    const esp_partition_t *other = esp_ota_get_next_update_partition(NULL);
+    esp_ota_img_states_t other_state = ESP_OTA_IMG_UNDEFINED;
+    bool can_revert = other && running && other != running &&
+        esp_ota_get_state_partition(other, &other_state) == ESP_OK &&
+        other_state == ESP_OTA_IMG_VALID;
+
+    char revert_form[768] = "";
+    if (can_revert) {
+        snprintf(revert_form, sizeof(revert_form),
+            "<form method=\"POST\" action=\"/ota_revert\" class=\"settings-form\" "
+            "onsubmit=\"return confirm('%s')\">"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"danger\">%s</button></div>"
+            "</form>",
+            i18n_str("firmware.revert_confirm",
+                     "Revert to the previous firmware version and reboot right now?"),
+            i18n_str("firmware.revert_button", "Revert to previous version"));
+    }
+
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
@@ -1949,6 +2231,7 @@ static int append_firmware_card(char *buf, size_t cap, int off)
         "<label>%s <input type=\"file\" name=\"file\" accept=\".bin\" required></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>"
+        "%s"
         "<p class=\"hint\">%s</p>"
         "</div>",
         i18n_str("firmware.title", "Firmware"),
@@ -1960,6 +2243,7 @@ static int append_firmware_card(char *buf, size_t cap, int off)
                  "this same board type -- there's no way to check that before writing it."),
         i18n_str("firmware.file_label", "Firmware file (.bin, from idf.py build)"),
         i18n_str("firmware.button", "Upload and reboot"),
+        revert_form,
         i18n_str("firmware.hint",
                  "Pushes the exact file <code>idf.py build</code> already produces "
                  "(<code>build/rotary_phone_gateway.bin</code>) -- the same one you'd otherwise "
@@ -2049,129 +2333,6 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                  "separately. RAM is live internal heap. Uptime/WiFi are on the <a href=\"/\">"
                  "Status</a> page."));
 
-    /* Speaker volume, echo cancellation, and low-power idle mode: all
-     * "physical resource behavior" cards, grouped here with the rest of
-     * Hardware rather than split across General/Diagnostics. */
-    int num_lines = board_hw_config_get().num_lines;
-
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>%s</h2>", i18n_str("speaker.title", "Speaker (earpiece) volume"));
-    for (int l = 0; l < num_lines; l++) {
-        uint8_t vol = board_speaker_volume_get(l, 0x1E);
-        /* Displayed as a percentage (0-200%, 100% = the register's 0dB
-         * point) rather than the raw 0-63/dB-step register value -- dB
-         * isn't a meaningful unit for most people tuning this by ear. The
-         * underlying value submitted to the backend is still the raw 0-63
-         * register step; only the label is converted (see spkPct() below),
-         * so es8388_set_dac_volume()'s convention doesn't have to change. */
-        unsigned pct = (unsigned)((vol * 200u + 31) / 63u);
-        char line_label[32];
-        snprintf(line_label, sizeof(line_label), i18n_str("status.line.title", "Line %d"), l);
-        char save_line[48];
-        snprintf(save_line, sizeof(save_line), i18n_str("speaker.save_line", "Save line %d"), l);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<form method=\"POST\" action=\"/speaker_volume\" class=\"settings-form\">"
-            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
-            "<label>%s <input type=\"range\" name=\"vol\" min=\"0\" max=\"63\" "
-            "value=\"%u\" oninput=\"spkLive(%d,this.value)\"> "
-            "<span id=\"spkpct%d\">%u%%</span></label>"
-            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-            "</form>",
-            l, line_label, (unsigned)vol, l, l, pct, save_line);
-    }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">%s</p></div>",
-        i18n_str("speaker.hint",
-                 "Drag while on a call to hear the change live (applied immediately, not saved "
-                 "yet) -- click Save once you land on a level you like. 100% is the codec's 0dB "
-                 "reference point, 200% is max. Same register the bring-up <code>spkamp</code> "
-                 "console command tunes."));
-#endif
-
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>%s</h2>", i18n_str("aec.title", "Echo cancellation"));
-    for (int l = 0; l < num_lines; l++) {
-        uint32_t ms = board_aec_delay_get(l, AEC_DEFAULT_DELAY_MS);
-        bool aec_on = aec_is_enabled(l);
-        char line_label[32], delay_label[32];
-        snprintf(line_label, sizeof(line_label), i18n_str("status.line.title", "Line %d"), l);
-        snprintf(delay_label, sizeof(delay_label), i18n_str("aec.line_delay", "Line %d delay"), l);
-        char measure_line[48];
-        snprintf(measure_line, sizeof(measure_line), i18n_str("aec.measure_line", "Measure line %d"), l);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"statusrow\"><span class=\"label\">%s</span>"
-            "<span class=\"pill %s\">%s</span></div>"
-            "<div class=\"toolbar sub\">"
-            "<form method=\"POST\" action=\"/aec_enable\" style=\"display:inline\">"
-            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
-            "<input type=\"hidden\" name=\"on\" value=\"1\">"
-            "<button type=\"submit\">%s</button></form> "
-            "<form method=\"POST\" action=\"/aec_enable\" style=\"display:inline\">"
-            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
-            "<input type=\"hidden\" name=\"on\" value=\"0\">"
-            "<button type=\"submit\">%s</button></form>"
-            "</div>"
-            "<div class=\"statusrow\"><span class=\"label\">%s</span>"
-            "<span>%u ms</span></div>"
-            "<div class=\"toolbar sub\">"
-            "<button type=\"button\" id=\"aecbtn%d\" onclick=\"aecMeasure(%d)\">%s</button>"
-            "</div><div id=\"aecresult%d\" class=\"hint\"></div>",
-            line_label, aec_on ? "on" : "off", aec_on ? "ENABLED" : "off",
-            l, i18n_str("aec.enable", "Enable"),
-            l, i18n_str("aec.disable", "Disable"),
-            delay_label, (unsigned)ms, l, l, measure_line, l);
-    }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">%s</p></div>"
-        "<script>"
-        "var AEC_I18N={measuring:'%s',noEcho:'%s',tries:'%s',delayFmt:'%s',consistent:'%s',"
-        "apply:'%s',failed:'%s'};"
-        "function spkLive(line,vol){"
-        "document.getElementById('spkpct'+line).textContent="
-        "Math.round(vol*200/63)+'%%';"
-        "fetch('/speaker_volume_live',{method:'POST',"
-        "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
-        "body:'line='+line+'&vol='+vol});}"
-        "function aecMeasure(line){"
-        "var btn=document.getElementById('aecbtn'+line);"
-        "var out=document.getElementById('aecresult'+line);"
-        "btn.disabled=true;out.textContent=AEC_I18N.measuring;"
-        "fetch('/aec_measure',{method:'POST',"
-        "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
-        "body:'line='+line})"
-        ".then(function(r){return r.json();})"
-        ".then(function(d){btn.disabled=false;"
-        "if(!d.ok){out.textContent=AEC_I18N.noEcho+' '+d.hits+'/'+d.attempts+"
-        "' '+AEC_I18N.tries;return;}"
-        "var ms=Math.round(d.delay_ms);"
-        "out.innerHTML=AEC_I18N.delayFmt.replace('%%1',d.delay_ms.toFixed(1))"
-        ".replace('%%2',d.tail_ms.toFixed(1)).replace('%%3',d.span_ms.toFixed(0))"
-        ".replace('%%4',Math.round(d.taps))+' '+d.hits+'/'+d.attempts+' '+AEC_I18N.consistent+' '+"
-        "'<form method=\"POST\" action=\"/aec_delay_apply\" style=\"display:inline\">'+"
-        "'<input type=\"hidden\" name=\"line\" value=\"'+line+'\">'+"
-        "'<input type=\"hidden\" name=\"ms\" value=\"'+ms+'\">'+"
-        "'<button type=\"submit\">'+AEC_I18N.apply.replace('%%1',ms)+'</button></form>';})"
-        ".catch(function(){btn.disabled=false;out.textContent=AEC_I18N.failed;});"
-        "}"
-        "</script>",
-        i18n_str("aec.hint",
-                 "Enable/Disable is for testing -- leave off for normal use unless a real echo "
-                 "has actually been measured and calibrated below (an uncalibrated or "
-                 "wrongly-delayed canceller can make echo worse, not better). To calibrate: pick "
-                 "up the handset (off-hook) and make sure it's NOT in a call, then click Measure "
-                 "-- plays a short burst out the earpiece and listens on the same line's own mic "
-                 "to find its local echo delay, the number the canceller needs to align against. "
-                 "Takes about 2 seconds (3 quick measurements averaged for reliability). "
-                 "Applying saves it and takes effect immediately, no reboot."),
-        i18n_str("aec.js.measuring", "Measuring..."),
-        i18n_str("aec.js.no_echo", "No echo detected in"),
-        i18n_str("aec.js.tries", "tries -- off-hook and not in a call?"),
-        i18n_str("aec.js.delay_fmt", "Delay %1ms, tail %2ms, span ~%3ms (%4 taps),"),
-        i18n_str("aec.js.consistent", "consistent."),
-        i18n_str("aec.js.apply", "Apply %1ms as default"),
-        i18n_str("aec.js.failed", "Measurement failed."));
-
     idle_power_cfg_t ip = idle_power_get();
     char ip_status[64];
     if (ip.enabled) {
@@ -2225,70 +2386,6 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         (unsigned)ip.minutes, (unsigned)ip.minutes);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<p class=\"hint\">%s</p></div>", idlepower_hint);
-
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>%s</h2>", i18n_str("am.title", "Answering machine"));
-    for (int l = 0; l < num_lines; l++) {
-        board_am_cfg_t am = board_am_get(l);
-        char greeting[STORAGE_MAX_NAME];
-        telephony_am_greeting_name(greeting, sizeof(greeting), l);
-        uint8_t probe;
-        size_t got;
-        bool have_greeting = (storage_read(greeting, &probe, sizeof(probe), &got) == ESP_OK);
-
-        char line_h3[32], save_line[48];
-        snprintf(line_h3, sizeof(line_h3), i18n_str("status.line.title", "Line %d"), l);
-        snprintf(save_line, sizeof(save_line), i18n_str("speaker.save_line", "Save line %d"), l);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<h3>%s</h3>"
-            "<form method=\"POST\" action=\"/answering_machine\" class=\"settings-form\">"
-            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
-            "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
-            "<label>%s "
-            "<input type=\"number\" name=\"rings\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
-            "<label>%s "
-            "<input type=\"number\" name=\"max_secs\" value=\"%u\" min=\"%u\" max=\"%u\" required></label>",
-            line_h3, l,
-            am.enabled ? " checked" : "", i18n_str("general.offhook.enabled", "Enabled"),
-            i18n_str("am.rings_label", "Rings before answering"),
-            (unsigned)am.rings, BOARD_AM_RINGS_MIN, BOARD_AM_RINGS_MAX,
-            i18n_str("am.max_secs_label", "Max message length (seconds)"),
-            (unsigned)(am.max_ms / 1000), (unsigned)(BOARD_AM_MAX_MS_MIN / 1000),
-            (unsigned)(BOARD_AM_MAX_MS_MAX / 1000));
-        if (num_lines > 1) {
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-                "<label><input type=\"checkbox\" name=\"other_line\" value=\"1\"%s> "
-                "%s</label>",
-                am.other_line ? " checked" : "",
-                i18n_str("am.other_line_label", "Also answer unanswered calls from other line"));
-        }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-            "</form>",
-            save_line);
-        if (have_greeting) {
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-                "<div class=\"statusrow\"><span class=\"label\">%s</span>"
-                "<span><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></span></div>",
-                i18n_str("am.greeting", "Greeting"), greeting);
-        } else {
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-                "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>",
-                i18n_str("am.greeting", "Greeting"), i18n_str("am.not_recorded", "not recorded yet"));
-        }
-    }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">%s</p></div>"
-        "<script>%s</script>",
-        i18n_str("am.hint",
-                 "Record each line's greeting from that line's own phone: pick up, dial 2-1-2, "
-                 "speak after the beep, hang up (or pause ~8s) to save -- overwrites the previous "
-                 "greeting directly. Play it back above to check it; re-record any time the same "
-                 "way. With no greeting recorded, callers just hear the beep. After the "
-                 "configured rings, the line auto-answers, plays the greeting then a beep, then "
-                 "records the caller -- capped at the length above or ~8s of silence, whichever "
-                 "comes first. Picking up the handset at any point takes the call live instead."),
-        RECORDING_RELOAD_JS);
 
     off = append_firmware_card(buf, cap, off);
 
@@ -2440,6 +2537,25 @@ static int append_memory_map_card(char *buf, size_t cap, int off)
                 used = (uint64_t)st.used_entries * 32;
                 have_used = true;
             }
+        } else if (p->type == ESP_PARTITION_TYPE_APP) {
+            /* ota_0/ota_1: real on-flash image size (header + segments +
+             * appended hash), not just "it's an app slot, who knows how
+             * much of it is spoken for." esp_image_get_metadata() only
+             * parses headers to add up segment lengths (do_verify=false,
+             * skip_check_checksum=true internally) -- it does NOT hash or
+             * verify the whole ~1.4MB image, so this is cheap enough to
+             * call synchronously on every page load, unlike a full
+             * esp_ota_*-style validation pass would be. A never-written
+             * slot (blank/erased flash, e.g. ota_1 before its first OTA
+             * push) fails header parsing here -- left as have_used=false,
+             * which correctly falls through to the plain "capacity" row
+             * below instead of claiming a false 0% used. */
+            esp_partition_pos_t pos = { .offset = p->address, .size = p->size };
+            esp_image_metadata_t meta;
+            if (esp_image_get_metadata(&pos, &meta) == ESP_OK) {
+                used = meta.image_len;
+                have_used = true;
+            }
         }
 
         char cs[16], us[16];
@@ -2484,7 +2600,7 @@ static int append_memory_map_card(char *buf, size_t cap, int off)
         "<span>%s %s</span></div>"
         "<p class=\"hint\">%s</p></div>",
         i18n_str("memmap.unallocated", "Unallocated"), fmt_bytes(unallocated, us, sizeof(us)),
-        i18n_str("memmap.unallocated_hint", "free for future use (a 2nd OTA slot, more partitions, ...)"),
+        i18n_str("memmap.unallocated_hint", "free for future use (more/bigger partitions, ...)"),
         fit8mb_hint);
 
     return off;
@@ -2642,6 +2758,94 @@ static int append_diag_tab(char *buf, size_t cap, int off)
                  "TX audio back into the RX detector so a played tone/DTMF is confirmable "
                  "without a handset. Leave both <b>off</b> for normal use. Full protocol + host "
                  "runner: <code>firmware/test/</code>."));
+
+    int diag_num_lines = board_hw_config_get().num_lines;
+    char diag_line_opts[128] = "";
+    {
+        int o = 0;
+        for (int l = 0; l < diag_num_lines; l++) {
+            o += snprintf(diag_line_opts + o, sizeof(diag_line_opts) - o,
+                           "<option value=\"%d\">Line %d</option>", l, l);
+        }
+    }
+
+    /* Tone generator: same audio_tx_burst() the off-hook alert and AEC
+     * echo-probe/sweep bring-up commands already use (see bringup.c's
+     * `tone` console command, the same feature, console-only until now) --
+     * a real, distinct tone out the earpiece confirms the DAC/amp path end
+     * to end, which loopback above deliberately doesn't (that stays inside
+     * the chip, digital TX->RX, never touches the codec at all). */
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<form method=\"POST\" action=\"/test/tone\" class=\"settings-form\">"
+        "<label>%s <select name=\"line\">%s</select></label>"
+        "<label>%s <input type=\"number\" name=\"hz\" value=\"1000\" min=\"20\" max=\"20000\" required></label>"
+        "<label>%s <input type=\"number\" name=\"ms\" value=\"1000\" min=\"50\" max=\"5000\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form>"
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("diag.tone.title", "Tone generator"),
+        i18n_str("status.line.title_bare", "Line"), diag_line_opts,
+        i18n_str("diag.tone.hz_label", "Frequency (Hz)"),
+        i18n_str("diag.tone.ms_label", "Duration (ms, max 5000)"),
+        i18n_str("diag.tone.button", "Play"),
+        i18n_str("diag.tone.hint",
+                 "Plays a single-frequency tone out the selected line's earpiece, straight "
+                 "through the real DAC/amp path (not the digital loopback above) -- pick up "
+                 "that line's handset first to hear it. Same underlying call as the bring-up "
+                 "console's <code>tone</code> command."));
+
+    /* Mic record test: captures raw uplink PCM (audio_rx_read(), the exact
+     * path AEC/VoIP uplink also reads from) straight to a WAV via the same
+     * write-header-now-patch-sizes-later pattern used elsewhere in this
+     * file (convert_and_write()/build_wav_header() above) -- an actual
+     * listen-back test of the mic path end to end, not just a live level
+     * number, which wouldn't tell you if what's picked up actually sounds
+     * right (muffled, clipping, wrong gain). Fixed filename per line
+     * (overwrites on each run, like the AM greeting) so this doesn't pile
+     * up recordings under a real user-facing name. */
+    for (int l = 0; l < diag_num_lines; l++) {
+        char fname[32];
+        snprintf(fname, sizeof(fname), "diag_mic_test_l%d.wav", l);
+        uint8_t probe; size_t got;
+        bool have = (storage_read(fname, &probe, sizeof(probe), &got) == ESP_OK);
+        char player_row[220] = "";
+        if (have) {
+            snprintf(player_row, sizeof(player_row),
+                "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+                "<span><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></span></div>",
+                i18n_str("diag.mic.last", "Last recording"), fname);
+        }
+        char line_h3[24];
+        snprintf(line_h3, sizeof(line_h3), i18n_str("status.line.title", "Line %d"), l);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "%s<h3>%s</h3>"
+            "<form method=\"POST\" action=\"/test/mic_record\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<label>%s <input type=\"number\" name=\"secs\" value=\"3\" min=\"1\" max=\"8\" required></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+            "</form>%s",
+            (l == 0) ? "<div class=\"card\"><h2>Mic record test</h2>" : "",
+            line_h3, l,
+            i18n_str("diag.mic.secs_label", "Seconds to record"),
+            i18n_str("diag.mic.button", "Record"),
+            player_row);
+    }
+    if (diag_num_lines > 0) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<p class=\"hint\">%s</p></div>",
+            i18n_str("diag.mic.hint",
+                     "Pick up that line's handset (off-hook) BEFORE submitting -- the mic path "
+                     "isn't routed on-hook, same requirement as the Echo Cancellation Measure "
+                     "button above, so this just silently records digital silence otherwise (a "
+                     "flat, all-zero file, not a crash or error -- easy to mistake for the test "
+                     "not working when it's really just an on-hook capture). Records straight "
+                     "from that line's mic (through the AEC/uplink audio path, same source VoIP "
+                     "would encode) to a WAV, blocking the page for the duration -- speak into "
+                     "the handset while it's running. Play it back above to check it sounds "
+                     "right (level, clarity, no clipping). Each run overwrites "
+                     "that line's previous test recording."));
+    }
 
     /* Full debug log -- moved here from the Status page (which now only
      * shows the much shorter activity panel, see append_activity_panel())
@@ -2855,8 +3059,23 @@ static int append_storage_table(char *buf, size_t cap, int off,
         snprintf(recorded_th, sizeof(recorded_th), "<th>%s</th>",
                  i18n_str("storage.col_recorded", "Recorded"));
     }
+    /* One <form> wraps the whole table so a header "select all" checkbox
+     * and a "Delete selected" button can bulk-POST to /media_delete_bulk,
+     * while each row's own delete button keeps working unchanged by
+     * overriding the target via formaction/formmethod (HTML5 lets a
+     * specific submit button redirect its own submission elsewhere without
+     * needing a nested <form>, which isn't legal HTML). No id needed on
+     * the form/table -- the header checkbox and the bulk button both find
+     * their own table via closest(), so this is safe to render more than
+     * once on the same page (Settings -> Storage's SD + internal tables). */
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<table><tr><th>%s</th>%s<th>%s</th><th>%s</th><th>%s</th><th></th><th></th></tr>",
+        "<form method=\"POST\" action=\"/media_delete_bulk\">"
+        "<input type=\"hidden\" name=\"return_to\" value=\"%s\">"
+        "<table><tr><th><input type=\"checkbox\" title=\"%s\" "
+        "onclick=\"this.closest('table').querySelectorAll('input[name=names]')."
+        "forEach(function(c){c.checked=this.checked}, this)\"></th>"
+        "<th>%s</th>%s<th>%s</th><th>%s</th><th>%s</th><th></th><th></th></tr>",
+        return_to, i18n_str("storage.select_all", "Select all"),
         i18n_str("storage.col_name", "Name"), recorded_th,
         i18n_str("storage.col_size", "Size"), i18n_str("storage.col_length", "Length"),
         i18n_str("storage.col_play", "Play"));
@@ -2887,17 +3106,144 @@ static int append_storage_table(char *buf, size_t cap, int off,
         snprintf(delete_confirm, sizeof(delete_confirm), i18n_str("storage.delete_confirm", "Delete %s?"),
                  entries[i].name);
         off += snprintf(buf + off, cap - off,
-            "<tr><td><code>%s</code></td>%s<td>%s</td><td>%s</td><td>%s</td>"
+            "<tr><td><input type=\"checkbox\" name=\"names\" value=\"%s\"></td>"
+            "<td><code>%s</code></td>%s<td>%s</td><td>%s</td><td>%s</td>"
             "<td><a href=\"/media/%s\">%s</a></td>"
-            "<td><form method=\"POST\" action=\"/media_delete/%s\" "
-            "onsubmit=\"return confirm('%s')\" style=\"display:inline\">"
-            "<input type=\"hidden\" name=\"return_to\" value=\"%s\">"
-            "<button type=\"submit\">%s</button></form></td></tr>",
-            entries[i].name, recorded_td, fmt_bytes(entries[i].size, sz, sizeof(sz)), dur, play,
+            "<td><button type=\"submit\" formaction=\"/media_delete/%s\" formmethod=\"POST\" "
+            "onclick=\"return confirm('%s')\">%s</button></td></tr>",
+            entries[i].name, entries[i].name, recorded_td,
+            fmt_bytes(entries[i].size, sz, sizeof(sz)), dur, play,
             entries[i].name, i18n_str("storage.download", "download"),
-            entries[i].name, delete_confirm, return_to, i18n_str("storage.delete", "delete"));
+            entries[i].name, delete_confirm, i18n_str("storage.delete", "delete"));
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table>");
+    /* "Delete selected" -- also doubles as "delete all" (check the header
+     * box, then click this) rather than needing a second, separate button
+     * and endpoint for that. Confirms with the actual count so there's no
+     * doubt how many are about to go; refuses to submit with zero checked
+     * rather than silently no-op'ing on the server. */
+    char bulk_confirm_js[256];
+    snprintf(bulk_confirm_js, sizeof(bulk_confirm_js),
+        "var n=this.closest('table').querySelectorAll('input[name=names]:checked').length;"
+        "if(!n){alert('%s');return false;}"
+        "return confirm(n+' %s');",
+        i18n_str("storage.bulk_none_selected", "No files selected."),
+        i18n_str("storage.bulk_confirm_suffix", "file(s) will be deleted. Continue?"));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<tr><td colspan=\"8\"><button type=\"submit\" onclick=\"%s\">%s</button></td></tr>",
+        bulk_confirm_js, i18n_str("storage.delete_selected", "Delete selected"));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table></form>");
+    return off;
+}
+
+/* Last self-test result, shown on the Storage tab's card-info card (below)
+ * so it doesn't just vanish into a plain-text response the moment either
+ * self-test button is clicked. Lives here (not sdcard.c) since it's purely
+ * a display concern -- see sdcard_selftest()'s own doc comment for why
+ * this write/read/verify/speed round-trip is the practical stand-in for
+ * the SMART-style health check SD cards don't actually expose. Not
+ * persisted across reboot; harmless race if two requests land at once
+ * (worst case, one's display update briefly loses to the other's), not
+ * worth a lock for a status string only one admin is likely looking at at
+ * a time. Set from test_sd_handler()/sd_selftest_ui_handler() below, via
+ * their shared run_sd_selftest() helper. */
+static char s_sd_selftest_result[96] = "";
+
+/* JEDEC-assigned SD manufacturer IDs, the common ones -- see sdcard.h's
+ * sdcard_info_t doc comment. Short/curated on purpose, same reasoning as
+ * UI_LANGUAGES/UI_TIMEZONES above: an ID missing here just shows as its
+ * raw hex value instead of a name, a safe, obvious gap rather than a wrong
+ * guess. Not an official/complete JEDEC list -- assembled from what
+ * publicly circulates in SD card identification tools and driver source. */
+typedef struct { int id; const char *name; } sd_mfg_t;
+static const sd_mfg_t SD_MANUFACTURERS[] = {
+    { 0x01, "Panasonic" }, { 0x02, "Kioxia/Toshiba" }, { 0x03, "SanDisk" },
+    { 0x1b, "Samsung" }, { 0x1d, "AData" }, { 0x27, "Phison" },
+    { 0x28, "Lexar" }, { 0x31, "Silicon Power" }, { 0x41, "Kingston" },
+    { 0x74, "Transcend" }, { 0x82, "Sony" },
+};
+#define SD_MANUFACTURERS_N (sizeof(SD_MANUFACTURERS) / sizeof(SD_MANUFACTURERS[0]))
+
+static const char *sd_manufacturer_name(int mfg_id)
+{
+    for (size_t i = 0; i < SD_MANUFACTURERS_N; i++) {
+        if (SD_MANUFACTURERS[i].id == mfg_id) return SD_MANUFACTURERS[i].name;
+    }
+    return NULL;
+}
+
+/* SD Association's own capacity tiers (not derived from the CSD version
+ * field -- that only tells byte- vs. block-addressing, not which marketing
+ * tier a card's label says -- capacity is what "SDHC"/"SDXC" actually mean
+ * on a real card). Boundaries per the spec: SDSC <=2GB, SDHC <=32GB, SDXC
+ * up to 2TB. */
+static const char *sd_type_name(uint64_t bytes)
+{
+    if (bytes > 32ULL * 1024 * 1024 * 1024) return "SDXC";
+    if (bytes > 2ULL * 1024 * 1024 * 1024) return "SDHC";
+    return "SDSC";
+}
+
+/* microSD card identification + last self-test result + the Format button.
+ * Read-only identification (name/manufacturer/type/speed) is always safe to
+ * show; Format is real, irreversible data loss, gated by its own confirm()
+ * -- same pattern as Factory Reset (Settings -> Hardware). */
+static int append_sdcard_info_card(char *buf, size_t cap, int off)
+{
+    sdcard_info_t info;
+    if (!sdcard_get_info(&info)) return off;
+
+    const char *mfg = sd_manufacturer_name(info.mfg_id);
+    char mfg_str[24];
+    if (mfg) snprintf(mfg_str, sizeof(mfg_str), "%s", mfg);
+    else snprintf(mfg_str, sizeof(mfg_str), "unknown (0x%02x)", info.mfg_id);
+
+    char cap_str[16];
+    fmt_bytes(info.capacity_bytes, cap_str, sizeof(cap_str));
+
+    char selftest_row[200] = "";
+    if (s_sd_selftest_result[0]) {
+        snprintf(selftest_row, sizeof(selftest_row),
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>",
+            i18n_str("storage.sd_selftest_label", "Last self-test"), s_sd_selftest_result);
+    }
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card wide\" style=\"margin-top:16px\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s, %s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+        "<span>%d-bit @ %d MHz (rated up to %d MHz)</span></div>"
+        "%s"
+        "<div class=\"toolbar sub\">"
+        "<form method=\"POST\" action=\"/sd_selftest_ui\" style=\"display:inline\">"
+        "<button type=\"submit\">%s</button></form>"
+        "<form method=\"POST\" action=\"/sd_format\" style=\"display:inline\" "
+        "onsubmit=\"return confirm('%s')\">"
+        "<button type=\"submit\" class=\"danger\">%s</button></form>"
+        "</div>"
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("storage.sd_info_title", "microSD card"),
+        i18n_str("storage.sd_product", "Product name"), info.name[0] ? info.name : "(blank)",
+        i18n_str("storage.sd_manufacturer", "Manufacturer"), mfg_str,
+        i18n_str("storage.sd_type", "Type"), sd_type_name(info.capacity_bytes), cap_str,
+        i18n_str("storage.sd_bus", "Bus"),
+        info.bus_width, info.real_freq_khz / 1000, info.max_freq_khz / 1000,
+        selftest_row,
+        i18n_str("storage.sd_selftest_button", "Run self-test"),
+        i18n_str("storage.sd_format_confirm",
+                 "Format the microSD card? This permanently erases EVERYTHING on it -- "
+                 "recordings, uploads, all of it. This cannot be undone."),
+        i18n_str("storage.sd_format_button", "Format card"),
+        i18n_str("storage.sd_info_hint",
+                 "Product name and manufacturer come from the card's own CID register -- not a "
+                 "marketing name, just whatever the manufacturer programmed there. Type (SDSC/"
+                 "SDHC/SDXC) is capacity-based per the SD Association's own tiers. Bus is always "
+                 "1-bit here (SPI mode, not native SD 4-bit) -- expect a few MB/s even on a fast "
+                 "card. Self-test writes, reads back, and verifies a 128KB file, timing both "
+                 "directions -- SD cards have no portable SMART-style health check, so a card "
+                 "that's failing or unusually slow tends to show up here as a mismatch or a low "
+                 "throughput number instead."));
     return off;
 }
 
@@ -2946,6 +3292,7 @@ static int append_storage_section(char *buf, size_t cap, int off)
                  "reachable.") : "");
 
     if (sd) {
+        off = append_sdcard_info_card(buf, cap, off);
         storage_entry_t *sd_entries = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
         size_t sd_n = sd_entries ? storage_list_sd(sd_entries, STORAGE_LIST_MAX) : 0;
         char su[16], sc[16];
@@ -3042,31 +3389,69 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     /* Sized for the busiest tab. Diagnostics needs room for the full log
      * panel (moved here from the Status page, see append_diag_tab()) --
      * each raw log line can roughly triple in size once wrapped in
-     * .logline/.t/.k/.m markup. Storage needs room for up to
-     * STORAGE_LIST_MAX files on each of the SD and internal backends --
-     * both conditional on the actual tab, not added unconditionally to
-     * every tab's allocation: at STORAGE_LIST_MAX=100 that term alone is
-     * ~68KB, a meaningful chunk of this chip's ~320KB heap, wasteful (and
-     * needlessly failure-prone under real memory pressure from
-     * WiFi/audio) to request for tabs that render neither. Don't
-     * storage_list() here just to get an exact count instead of this
-     * upper bound -- that's a deep SPIFFS+flash walk, and doing it on top
-     * of this handler's own locals is what overflowed the httpd task's
-     * stack once before (see STORAGE_LIST_MAX's own doc comment -- the
-     * actual listing arrays are heap-allocated now specifically because
-     * of that history). */
-    size_t log_room = (strcmp(tab, "diag") == 0) ? 8200 * 3 : 0;
-    size_t storage_room = (strcmp(tab, "storage") == 0) ? STORAGE_LIST_MAX * 2 * 340 : 0;
-    /* Hardware tab's per-line cards (speaker volume, echo, answering
-     * machine greeting) roughly double in size on a 2-line board -- plus
-     * the Reset card and the hw-config "Advisory evidence" card, both new
-     * additions on top of what the flat base below was originally sized
-     * for. General's room covers the WIFI_SCAN_JS + language-picker JS on
-     * its WiFi card. */
-    size_t hw_room = (strcmp(tab, "hardware") == 0) ? 12000 : 0; /* +memory map card, several partition rows */
-    size_t general_room = (strcmp(tab, "general") == 0) ? 3200 : 0; /* +timezone, quiet hours cards */
-    size_t voip_room = (strcmp(tab, "voip") == 0) ? 5500 : 0; /* +copy-paste config examples, FreePBX + remote-deployment sections */
-    size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room + voip_room;
+     * .logline/.t/.k/.m markup. +3000 for the Tone generator + Mic record
+     * test cards added on top of the original Logging/Test mode cards the
+     * flat 6144 base below was sized for -- 2 lines' worth of mic-record
+     * cards (each with its own form + conditional <audio> player row). */
+    size_t log_room = (strcmp(tab, "diag") == 0) ? 8200 * 3 + 3000 : 0;
+    /* Storage sizes off the REAL file count, not STORAGE_LIST_MAX's
+     * worst case -- this used to just assume up to STORAGE_LIST_MAX files
+     * on each backend (a flat ~68KB), which sounded conservative but
+     * wasn't: once append_storage_table() grew a bulk-delete <form> (with
+     * a real per-row cost of ~525 bytes -- see recordings_page_handler's
+     * matching comment -- not the ~340 originally guessed), the same
+     * worst-case math needed ~120KB, and a single malloc() that size
+     * reliably 500'd this handler even with a small, ordinary real file
+     * count. One heap-allocated STORAGE_LIST_MAX-sized scratch array,
+     * reused sequentially for both backends purely to count, costs a
+     * second SPIFFS/FATFS walk (append_storage_section() does its own
+     * listing right after this) but keeps the allocation honest instead
+     * of pessimistic -- and it's heap, not stack, so it doesn't reopen the
+     * stack-overflow history STORAGE_LIST_MAX's own doc comment
+     * describes. */
+    size_t storage_room = 0;
+    if (strcmp(tab, "storage") == 0) {
+        storage_entry_t *count_tmp = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
+        size_t sd_n = (count_tmp && storage_sd_present()) ? storage_list_sd(count_tmp, STORAGE_LIST_MAX) : 0;
+        size_t in_n = count_tmp ? storage_list_internal(count_tmp, STORAGE_LIST_MAX) : 0;
+        free(count_tmp);
+        /* 600/row (measured worst case) + 2048 fixed per backend actually
+         * present (each renders its own full bulk-delete <form>, ~746
+         * bytes measured) -- not per possible backend, so a card-less
+         * board (the common case) doesn't pay for the SD form it never
+         * renders. SD's own fixed share is bumped to 4096 (was 2048) to
+         * also cover append_sdcard_info_card() -- product/manufacturer/
+         * type/bus rows, self-test result, and the self-test + format
+         * buttons, on top of the bulk-delete form already accounted for. */
+        storage_room = (sd_n + in_n) * 600 + (storage_sd_present() ? 4096 : 0) + 2048;
+    }
+    /* Hardware tab lost its heaviest content (speaker volume/echo/answering
+     * machine, all per-line cards -- see append_phone_settings_tab()) to
+     * the Phone Settings tab, but keeps the memory map card and several
+     * partition rows, so this stays generous rather than being re-tuned
+     * down to the byte. General's room covers the WIFI_SCAN_JS on its WiFi
+     * card. Phone Settings inherits the per-line-card weight hw_room used
+     * to carry, doubled on a 2-line board, plus Echo Cancellation's and
+     * Answering Machine's own <script> blocks. */
+    size_t hw_room = (strcmp(tab, "hardware") == 0) ? 6000 : 0; /* +memory map card, several partition rows */
+    size_t general_room = (strcmp(tab, "general") == 0) ? 3200 : 0; /* +quiet hours card's timezone dropdown */
+    size_t phone_room = (strcmp(tab, "phone") == 0) ? 9000 : 0; /* +2x per-line speaker/echo/AM cards, 2 <script> blocks */
+    size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 : 0; /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
+    /* This tab's `n*220` share (n = ALL dialplan entries, not just clips)
+     * was never actually enough for it: each dial-code row is TWO forms
+     * (recode + description) plus an audio player -- measured at up to
+     * ~950 bytes/row with a full 63-char description and long filename,
+     * not 220 -- and on top of that this tab also renders the Setup
+     * Password card and the Operator/Record prompt-text cards (each with
+     * a gen_prompt.py --sync command string once a password is set),
+     * none of which the shared base accounted for at all. Confirmed
+     * truncating real device output mid-textarea, well before the Save
+     * button or the generate-command hint, on a board with only 5 codes
+     * -- not a rare worst case. DIALPLAN_MAX_CLIP_ENTRIES (24) is small
+     * and NVS-backed (not a filesystem walk), so sizing for that many
+     * outright is cheap and avoids a second listing call just to count. */
+    size_t dialcodes_room = (strcmp(tab, "dialcodes") == 0) ? DIALPLAN_MAX_CLIP_ENTRIES * 950 + 6000 : 0;
+    size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room + voip_room + dialcodes_room + phone_room;
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
@@ -3077,6 +3462,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "<div class=\"cards\">");
 
     if (strcmp(tab, "general") == 0) off = append_general_tab(buf, cap, off);
+    else if (strcmp(tab, "phone") == 0) off = append_phone_settings_tab(buf, cap, off);
     /* Dial Codes & Prompts: the editable clip table, plus Operator help and
      * Record-message -- each just one card (prompt text + audio upload),
      * structurally the same thing as a Dial Codes row -- stacked below it.
@@ -3527,10 +3913,15 @@ static esp_err_t quiet_hours_handler(httpd_req_t *req)
     if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
     body[r] = '\0';
 
-    char enabled[8] = {0}, start[8] = {0}, end[8] = {0};
+    char enabled[8] = {0}, start[8] = {0}, end[8] = {0}, tz[BOARD_TZ_MAX] = {0};
     form_field(body, "enabled", enabled, sizeof(enabled));
     form_field(body, "start", start, sizeof(start));
     form_field(body, "end", end, sizeof(end));
+    /* Timezone now lives in this same form (see append_general_tab's Quiet
+     * Hours card) -- applied here too rather than needing its own submit.
+     * Only fails on an NVS write error, nothing form-validatable, same as
+     * timezone_set_handler(). */
+    if (form_field(body, "tz", tz, sizeof(tz))) board_timezone_set(tz);
 
     board_quiet_hours_t cfg = { .enabled = (enabled[0] == '1') };
     if (!parse_hhmm(start, &cfg.start_hour, &cfg.start_min) ||
@@ -3542,6 +3933,28 @@ static esp_err_t quiet_hours_handler(httpd_req_t *req)
 
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /voip_enable -- form body enabled=1 (checkbox present) or nothing at
+ * all (unchecked, with no other field on this form -- unlike idle_power/
+ * quiet_hours/offhook_alert below, an all-off submit here is a genuinely
+ * empty body, not something to reject as malformed). */
+static esp_err_t voip_enable_handler(httpd_req_t *req)
+{
+    char body[64] = {0};
+    if (req->content_len > 0 && req->content_len < sizeof(body)) {
+        int r = httpd_req_recv(req, body, req->content_len);
+        if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+        body[r] = '\0';
+    }
+    char enabled[8] = {0};
+    form_field(body, "enabled", enabled, sizeof(enabled));
+    voip_set_enabled(enabled[0] == '1');
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=voip");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -3887,6 +4300,107 @@ static esp_err_t test_loopback_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* POST /test/tone  body line=N&hz=N&ms=N -- play a single-frequency burst
+ * out that line's earpiece (audio_tx_burst(), the same call bringup.c's
+ * console `tone` command and the off-hook alert/AEC bring-up sweeps use --
+ * see append_diag_tab()'s doc comment). Amplitude fixed at 0.6, matching
+ * cmd_tone()'s own default -- not exposed as a field, one less way to
+ * accidentally drive the amp too hard from a web form. Clamped server-side
+ * (not just via the <input min/max>, which a direct POST bypasses) since
+ * this actually drives real hardware for real time. */
+static esp_err_t test_tone_handler(httpd_req_t *req)
+{
+    char body[64], line_s[8] = {0}, hz_s[16] = {0}, ms_s[16] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "line", line_s, sizeof(line_s));
+    form_field(body, "hz", hz_s, sizeof(hz_s));
+    form_field(body, "ms", ms_s, sizeof(ms_s));
+
+    int line = line_s[0] ? (int)strtol(line_s, NULL, 10) : 0;
+    float hz = hz_s[0] ? strtof(hz_s, NULL) : 1000.0f;
+    long ms = ms_s[0] ? strtol(ms_s, NULL, 10) : 1000;
+    if (line < 0 || line >= board_hw_config_get().num_lines) line = 0;
+    if (hz < 20.0f) hz = 20.0f;
+    if (hz > 20000.0f) hz = 20000.0f;
+    if (ms < 50) ms = 50;
+    if (ms > 5000) ms = 5000;
+
+    audio_tx_burst(line, hz, 0.0f, 0.6f, (uint32_t)ms);
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* Defined further down (used there for upload conversion); forward-declared
+ * here so test_mic_record_handler() can reuse the exact same WAV-header
+ * logic instead of a third copy of it. */
+static void wr_u32le(uint8_t *p, uint32_t v);
+static void build_wav_header(uint8_t *h, uint32_t rate, uint32_t data_bytes);
+
+/* POST /test/mic_record  body line=N&secs=N -- captures `secs` seconds of
+ * raw uplink PCM (audio_rx_read(), engine rate) to "diag_mic_test_l<N>.wav"
+ * via the same write-header/patch-sizes-after pattern used for uploads
+ * above (build_wav_header()/wr_u32le()) -- blocks the request for the
+ * capture duration, same tradeoff AEC's Measure button already makes for a
+ * ~2s blocking read; this just has a longer, explicit, user-chosen cap
+ * (8s) instead of a fixed short one. 4KB read chunks so a slow/failed
+ * storage write can't build up an unbounded in-RAM buffer for a card-free
+ * board's larger internal-flash writes. */
+static esp_err_t test_mic_record_handler(httpd_req_t *req)
+{
+    char body[64], line_s[8] = {0}, secs_s[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "line", line_s, sizeof(line_s));
+    form_field(body, "secs", secs_s, sizeof(secs_s));
+
+    int line = line_s[0] ? (int)strtol(line_s, NULL, 10) : 0;
+    long secs = secs_s[0] ? strtol(secs_s, NULL, 10) : 3;
+    if (line < 0 || line >= board_hw_config_get().num_lines) line = 0;
+    if (secs < 1) secs = 1;
+    if (secs > 8) secs = 8;
+
+    uint32_t rate = audio_sample_rate();
+    uint32_t total_samples = (uint32_t)secs * rate;
+    char fname[32];
+    snprintf(fname, sizeof(fname), "diag_mic_test_l%d.wav", line);
+
+    storage_writer_t w;
+    if (storage_write_begin_local(fname, 44 + (size_t)total_samples * 2, &w) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "couldn't open storage for writing");
+        return ESP_OK;
+    }
+    uint8_t hdr[44];
+    build_wav_header(hdr, rate, total_samples * 2);
+    storage_write_chunk(&w, hdr, sizeof(hdr));
+
+    int16_t chunk[2048];
+    uint32_t remaining = total_samples;
+    while (remaining > 0) {
+        size_t want = remaining < (sizeof(chunk) / sizeof(chunk[0])) ? remaining : (sizeof(chunk) / sizeof(chunk[0]));
+        size_t got = audio_rx_read(line, chunk, want, 1000);
+        if (got == 0) break; /* timed out -- write whatever we already have rather than hang */
+        storage_write_chunk(&w, chunk, got * 2);
+        remaining -= (uint32_t)got;
+    }
+    storage_write_end(&w);
+
+    uint32_t actual_samples = total_samples - remaining;
+    uint8_t sz[4];
+    wr_u32le(sz, 36 + actual_samples * 2); storage_patch(fname, 4, sz, 4);
+    wr_u32le(sz, actual_samples * 2);      storage_patch(fname, 40, sz, 4);
+
+    activity_log("Line %d: mic test recording (%lds)", line, secs);
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 /* POST /test/inject  body type=offhook|onhook|digit & line=N [& digit=D]
  * -- simulate a handset event (requires test mode on). */
 static esp_err_t test_inject_handler(httpd_req_t *req)
@@ -3963,13 +4477,76 @@ static esp_err_t test_record_handler(httpd_req_t *req)
 }
 
 /* POST /test/sd -- run the microSD write/read/verify self-test, mounting
- * first if needed. Plain-text result the harness can grep. */
-static esp_err_t test_sd_handler(httpd_req_t *req)
+ * first if needed. Plain-text result the DVT harness greps for "ok"
+ * (verify.py's t_sd) -- keep that substring in both outcomes' text if
+ * editing this. */
+/* Shared by both /test/sd (plain-text, DVT harness) and /sd_selftest_ui
+ * (redirects back to Settings -> Storage) -- mounts if needed, runs the
+ * test, and updates s_sd_selftest_result either way so the Storage tab's
+ * card-info card reflects it on next render regardless of which caller
+ * asked for it. */
+static esp_err_t run_sd_selftest(void)
 {
     if (!sdcard_mounted()) sdcard_init();
-    if (!sdcard_mounted()) { httpd_resp_sendstr(req, "sd: not mounted\n"); return ESP_OK; }
-    esp_err_t err = sdcard_selftest();
-    httpd_resp_sendstr(req, err == ESP_OK ? "sd: ok\n" : "sd: FAIL\n");
+    if (!sdcard_mounted()) {
+        snprintf(s_sd_selftest_result, sizeof(s_sd_selftest_result), "not mounted");
+        return ESP_ERR_INVALID_STATE;
+    }
+    float wk = 0, rk = 0;
+    esp_err_t err = sdcard_selftest(&wk, &rk);
+    if (err == ESP_OK) {
+        snprintf(s_sd_selftest_result, sizeof(s_sd_selftest_result),
+                 "ok -- %.0f KB/s write, %.0f KB/s read", (double)wk, (double)rk);
+    } else {
+        snprintf(s_sd_selftest_result, sizeof(s_sd_selftest_result), "FAILED -- see device log");
+    }
+    return err;
+}
+
+/* POST /test/sd -- plain-text result the DVT harness greps for "ok"
+ * (verify.py's t_sd) -- keep that substring in every outcome's text if
+ * editing this. Diagnostics tab's own button still points here, unchanged. */
+static esp_err_t test_sd_handler(httpd_req_t *req)
+{
+    esp_err_t err = run_sd_selftest();
+    if (err == ESP_ERR_INVALID_STATE) { httpd_resp_sendstr(req, "sd: not mounted\n"); return ESP_OK; }
+    char resp[128];
+    snprintf(resp, sizeof(resp), "sd: %s\n", s_sd_selftest_result);
+    httpd_resp_sendstr(req, resp);
+    return ESP_OK;
+}
+
+/* POST /sd_selftest_ui -- same test as /test/sd, but for the Storage tab's
+ * "Run self-test" button: redirects back so the result shows inline in
+ * append_sdcard_info_card() instead of navigating to a bare text response.
+ * Kept separate from /test/sd rather than branching that handler on an
+ * Accept header or similar -- the DVT harness's contract there (plain text,
+ * "ok" substring) is worth not touching at all. */
+static esp_err_t sd_selftest_ui_handler(httpd_req_t *req)
+{
+    run_sd_selftest();
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=storage");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /sd_format -- wipes the mounted microSD card. Real, irreversible
+ * data loss -- the Storage tab's own confirm() dialog is the only guard,
+ * this handler itself just does it. */
+static esp_err_t sd_format_handler(httpd_req_t *req)
+{
+    esp_err_t err = sdcard_format();
+    if (err == ESP_OK) {
+        s_sd_selftest_result[0] = '\0'; /* stale after a wipe -- re-run to get a fresh number */
+        ESP_LOGI(TAG, "SD card formatted via web UI");
+        activity_log("microSD card formatted");
+    } else {
+        ESP_LOGW(TAG, "SD format failed: %s", esp_err_to_name(err));
+    }
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=storage");
+    httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
 
@@ -4459,6 +5036,82 @@ static esp_err_t media_delete_handler(httpd_req_t *req)
     }
     char return_to[32] = "";
     form_field(body, "return_to", return_to, sizeof(return_to));
+
+    const char *loc = "/settings?tab=storage";
+    if (strcmp(return_to, "/recordings") == 0) loc = "/recordings";
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", loc);
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /media_delete_bulk -- the "select multiple, delete selected" form
+ * from append_storage_table()'s checkboxes: body is a normal urlencoded
+ * POST with one repeated "names=<file>" field per checked box plus
+ * "return_to" (same allowlisted-redirect handling as media_delete_handler()
+ * just above). Heap-allocated receive buffer sized to the real body
+ * (capped) instead of a stack buffer -- with up to STORAGE_LIST_MAX (100)
+ * rows each contributing "names=<32 chars>&", a full "select all" on a
+ * large listing is a few KB, too much to put on the httpd worker's stack
+ * (see STORAGE_LIST_MAX's own doc comment on a prior real stack overflow
+ * here). Deletes whatever names parse out and don't care about ordering or
+ * duplicates; a name that fails to delete (already gone, bad name) is
+ * logged and skipped rather than aborting the rest of the batch. */
+#define MEDIA_DELETE_BULK_MAX_BODY 8192
+
+static esp_err_t media_delete_bulk_handler(httpd_req_t *req)
+{
+    if (req->content_len <= 0) {
+        httpd_resp_set_status(req, "303 See Other");
+        httpd_resp_set_hdr(req, "Location", "/settings?tab=storage");
+        httpd_resp_send(req, NULL, 0);
+        return ESP_OK;
+    }
+    size_t body_cap = (size_t)req->content_len;
+    if (body_cap > MEDIA_DELETE_BULK_MAX_BODY) body_cap = MEDIA_DELETE_BULK_MAX_BODY;
+    char *body = malloc(body_cap + 1);
+    if (!body) {
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+    size_t total = 0;
+    while (total < body_cap) {
+        int r = httpd_req_recv(req, body + total, body_cap - total);
+        if (r <= 0) break;
+        total += (size_t)r;
+    }
+    body[total] = '\0';
+
+    int deleted = 0, failed = 0;
+    const char *p = body;
+    while (p && *p) {
+        const char *amp = strchr(p, '&');
+        size_t plen = amp ? (size_t)(amp - p) : strlen(p);
+        if (plen > 6 && strncmp(p, "names=", 6) == 0) {
+            char name[STORAGE_MAX_NAME];
+            size_t vlen = plen - 6;
+            if (vlen >= sizeof(name)) vlen = sizeof(name) - 1;
+            memcpy(name, p + 6, vlen);
+            name[vlen] = '\0';
+            url_decode(name);
+            if (name[0]) {
+                if (storage_delete(name) == ESP_OK) {
+                    deleted++;
+                    ESP_LOGI(TAG, "deleted '%s' via web UI (bulk)", name);
+                } else {
+                    failed++;
+                    ESP_LOGW(TAG, "bulk delete '%s' failed", name);
+                }
+            }
+        }
+        p = amp ? amp + 1 : NULL;
+    }
+    ESP_LOGI(TAG, "bulk delete: %d removed, %d failed", deleted, failed);
+
+    char return_to[32] = "";
+    form_field(body, "return_to", return_to, sizeof(return_to));
+    free(body);
 
     const char *loc = "/settings?tab=storage";
     if (strcmp(return_to, "/recordings") == 0) loc = "/recordings";
@@ -5121,6 +5774,30 @@ static esp_err_t ota_upload_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* POST /ota_revert -- manual "go back to the previous firmware" button
+ * (Settings -> Hardware -> Firmware, only rendered by append_firmware_card()
+ * when the other slot is confirmed ESP_OTA_IMG_VALID). Distinct from the
+ * automatic rollback in app_main.c: that one only fires for a new image
+ * that never finishes booting; this is for an image that boots fine but
+ * still isn't wanted (worse behavior, a field report, second thoughts) --
+ * esp_ota_mark_app_invalid_rollback_and_reboot() marks the *currently
+ * running* slot invalid and reboots straight into the previous one. It
+ * only returns (rather than rebooting) on failure -- e.g. the other slot
+ * turned out not to be valid after all -- so this handler only ever sends
+ * a response in that error case. */
+static esp_err_t ota_revert_handler(httpd_req_t *req)
+{
+    esp_err_t err = esp_ota_mark_app_invalid_rollback_and_reboot();
+    ESP_LOGE(TAG, "ota revert failed: %s", esp_err_to_name(err));
+    httpd_resp_set_type(req, "text/plain");
+    char msg[160];
+    snprintf(msg, sizeof(msg),
+             "Revert failed: %s -- no confirmed-good previous firmware slot to fall back to.",
+             esp_err_to_name(err));
+    httpd_resp_send(req, msg, HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+}
+
 /* POST /dialcode_upload -- multipart, fields (in this order in the HTML
  * forms, so they're parsed before the "file" part streams): "code" (an
  * EXISTING code -- replaces its audio in place, same filename) OR
@@ -5537,10 +6214,12 @@ esp_err_t webui_start(void)
         { .uri = "/media/*",         .method = HTTP_GET, .handler = media_handler },
         { .uri = "/media/*",         .method = HTTP_POST, .handler = media_upload_handler },
         { .uri = "/media_delete/*",  .method = HTTP_POST, .handler = media_delete_handler },
+        { .uri = "/media_delete_bulk", .method = HTTP_POST, .handler = media_delete_bulk_handler },
         { .uri = "/mode_set/*",      .method = HTTP_POST, .handler = mode_set_handler },
         { .uri = "/wifi_set",        .method = HTTP_POST, .handler = wifi_set_handler },
         { .uri = "/api/wifi_scan",   .method = HTTP_GET,  .handler = wifi_scan_json_handler },
         { .uri = "/ota_upload",      .method = HTTP_POST, .handler = ota_upload_handler },
+        { .uri = "/ota_revert",      .method = HTTP_POST, .handler = ota_revert_handler },
         { .uri = "/wifi_reprovision", .method = HTTP_POST, .handler = wifi_reprovision_handler },
         { .uri = "/factory_reset",   .method = HTTP_POST, .handler = factory_reset_handler },
         { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
@@ -5549,6 +6228,7 @@ esp_err_t webui_start(void)
         { .uri = "/offhook_alert",   .method = HTTP_POST, .handler = offhook_alert_handler },
         { .uri = "/timezone_set",    .method = HTTP_POST, .handler = timezone_set_handler },
         { .uri = "/quiet_hours",     .method = HTTP_POST, .handler = quiet_hours_handler },
+        { .uri = "/voip_enable",     .method = HTTP_POST, .handler = voip_enable_handler },
         { .uri = "/idle_power",      .method = HTTP_POST, .handler = idle_power_settings_handler },
         { .uri = "/answering_machine", .method = HTTP_POST, .handler = answering_machine_handler },
         { .uri = "/record_max_ms",   .method = HTTP_POST, .handler = record_max_ms_handler },
@@ -5565,9 +6245,13 @@ esp_err_t webui_start(void)
         { .uri = "/log_level",              .method = HTTP_POST, .handler = log_level_handler },
         { .uri = "/test/mode",              .method = HTTP_POST, .handler = test_mode_handler },
         { .uri = "/test/loopback",          .method = HTTP_POST, .handler = test_loopback_handler },
+        { .uri = "/test/tone",              .method = HTTP_POST, .handler = test_tone_handler },
+        { .uri = "/test/mic_record",        .method = HTTP_POST, .handler = test_mic_record_handler },
         { .uri = "/test/inject",            .method = HTTP_POST, .handler = test_inject_handler },
         { .uri = "/test/record",            .method = HTTP_POST, .handler = test_record_handler },
         { .uri = "/test/sd",                .method = HTTP_POST, .handler = test_sd_handler },
+        { .uri = "/sd_selftest_ui",         .method = HTTP_POST, .handler = sd_selftest_ui_handler },
+        { .uri = "/sd_format",              .method = HTTP_POST, .handler = sd_format_handler },
 #if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
         { .uri = "/speaker_volume_live",    .method = HTTP_POST, .handler = speaker_volume_live_handler },
         { .uri = "/speaker_volume",         .method = HTTP_POST, .handler = speaker_volume_handler },
