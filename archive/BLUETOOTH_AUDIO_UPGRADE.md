@@ -113,32 +113,50 @@ Pin plan, real pin names/numbers confirmed against the datasheet
 | UART RX | GPIO17 | `HCI_TXD` (pin 20) | crossed by *role* |
 | GND | GND | `GND` (pins 14, 43) | |
 | 3.3V-4.2V | 3V3 rail (or a dedicated regulated rail) | `BAT_IN` (pin 22) | Not actually a battery-only pin despite the name -- datasheet: "Source can either be a Li-Ion battery or any other power rail on the host board." Under 2.9V, the module won't boot at all (built-in UVP) -- confirm the C6's own 3.3V rail sags nowhere near that under load. |
-| Downlink audio | AG1171 **Vin**, past its own 10nF cap | `AOHPL` (pin 7), through a new DC-blocking cap | Single-ended mode per the datasheet's own Figure 2-8 ("driving an external audio amplifier" -- our SLIC's Vin *is* that external amplifier's input as far as BM64 is concerned) -- mono, so only one of AOHPL/AOHPR is needed, `AOHPM` (pin 6, "capless mode" common-mode pin) stays unconnected in single-ended mode. |
-| Uplink audio | AG1171 **Vout**, past its own 100nF cap | `MIC_P1` (pin 9) | `MIC_N1` (pin 8) -- differential mic input; our source is single-ended (the SLIC's own AC-only Vout tap), so tie `MIC_N1` to a bias reference (ground, or per a real electret-mic reference circuit) rather than driving it -- **confirm the exact tie-off against the datasheet's own microphone application circuit before building**, not yet found in the pages read so far. `MIC_BIAS` (pin 10) only matters if a real electret capsule is attached directly; not needed for a line-level signal from the SLIC. |
+| Downlink audio | AG1171 **Vin**, past its own 10nF cap | `AOHPL` (pin 7), through a new **47 uF** DC-blocking cap | Single-ended mode per the datasheet's own Figure 2-8 ("driving an external audio amplifier" -- our SLIC's Vin *is* that external amplifier's input as far as BM64 is concerned) -- mono, so only one of AOHPL/AOHPR is needed, `AOHPM` (pin 6, "capless mode" common-mode pin) stays unconnected in single-ended mode. **47 uF confirmed 2026-09-16**: not a derived estimate, it's the exact value the datasheet itself used to characterize the DAC's single-ended-mode frequency response (Figure 2-6's own caption). |
+| Uplink audio | AG1171 **Vout**, past its own 100nF cap | `MIC_P1` (pin 9), through a new **1 uF** DC-blocking cap | `MIC_N1` (pin 8) -- differential mic input; our source is single-ended (the SLIC's own AC-only Vout tap), so tie `MIC_N1` to a bias reference (ground, or per a real electret-mic reference circuit) rather than driving it -- **confirm the exact tie-off against the datasheet's own microphone application circuit before building**, not yet found in the pages read so far. `MIC_BIAS` (pin 10) only matters if a real electret capsule is attached directly; not needed for a line-level signal from the SLIC. **1 uF confirmed 2026-09-16**: calculated, not datasheet-given -- MIC input impedance is 24 kOhm typical (Electrical Characteristics table), and 1 uF against 24 kOhm puts the high-pass corner around 6.6 Hz, comfortably below the 300-3400 Hz voice band. 0.22-0.47 uF would also work for voice; 1 uF is a standard, cheap value with margin to spare. |
 | Reset | *(none -- no C6 connection)* | `RST_N` (pin 13) | Active-low. Datasheet, verbatim: "The RST_N signal input is active-low and no connection is required in most applications." Confirmed 2026-09-16 -- no RC circuit, no C6 GPIO. |
-| Mode select | *(none -- fixed strap, see below)* | `EAN` (pin 32) + `P2_0` (pin 41) | **Confirmed 2026-09-16 against the datasheet's Table 5-1** (this row used to guess wrong -- see the correction just below the table). |
+| Mode select | *(none -- no external component needed, see below)* | `EAN` (pin 32) + `P2_0` (pin 41) | **Re-confirmed 2026-09-16** -- see the correction just below the table (this row's own history has two corrections layered on it; the *second* one is the one to trust). |
 | Pairing button (optional) | *(none)* | `MFB` (pin 26) | Multi-Function Button / power-on key -- wire to a pushbutton if a manual pairing trigger is wanted, same role `bt_led.c`'s pairing state serves on the ESP32 companion today. |
 | Status LEDs (optional) | *(none)* | `LED1` (pin 28), `LED2` (pin 27) | Direct LED drivers, no GPIO round-trip through the C6 needed. |
 
-**EAN/P2_0, corrected 2026-09-16** -- the row above used to guess "EAN's
-internal 4.7kOhm pulldown, so Application mode is likely the natural
-power-up default." That guess was backwards. Table 5-1 (System
-Configuration I/O Pin Settings), read directly from the datasheet:
+**EAN/P2_0 -- two corrections layered on this row, history kept so the
+reasoning isn't lost:**
+
+1. *Original plan:* guessed "EAN's internal 4.7kOhm pulldown, so
+   Application mode is likely the natural power-up default" -- flagged as
+   unconfirmed.
+2. *First correction (2026-09-16, wrong):* Table 5-1 (System
+   Configuration I/O Pin Settings, in the generic Application Information
+   section)'s own Note 1 says *"The P2_0, P2_4 and EAN pins have internal
+   pull **high**"* -- read as contradicting #1, concluded EAN needs an
+   external pull-down.
+3. *Second correction (2026-09-16, the one to trust):* Table 1-3 -- the
+   **module** pin description (not the generic chip-level table) --
+   describes pin 32 (EAN) directly: *"Flash type module already installed
+   internal pull down resistor 4.7 kOhm to GND."* Checked the Ordering
+   Information table (Section 10.0): every BM62/64 SKU Microchip actually
+   sells is described the same way -- there's no separate "ROM type"
+   purchasable option. So Table 5-1's "pull high" note is almost
+   certainly describing the bare IC's default before Microchip's own
+   module-level modification, while Table 1-3 describes what's actually
+   on the assembled module (what gets bought and soldered down) -- a real
+   4.7kOhm pull-down already built in. **#1 was right all along; #2 was
+   the wrong correction.**
+
+Table 5-1 (System Configuration I/O Pin Settings) for reference:
 
 | P2_0 | EAN | Mode |
 |---|---|---|
-| High | Low  | **Flash Application** (normal runtime -- the mode we want) |
+| High | Low  | **Flash Application** (normal runtime -- the mode we want, and the module's own built-in pull-down already lands here with EAN left floating) |
 | High | High | ROM Application |
 | Low  | Low  | Flash IBDK |
 | Low  | High | **ROM TEST** (this is the DFU/firmware-programming mode) |
 
-Table 5-1's own Note 1: *"The P2_0, P2_4 and EAN pins have internal pull
-**high**"* -- both pull HIGH by default, not low. Left floating, EAN reads
-High -> lands in ROM Application, not Flash Application. So:
-- **P2_0**: leave floating -- its own internal pull-up already gives the
-  High it needs.
-- **EAN**: needs an actual pull-down (resistor to GND, or a driven GPIO)
-  -- floating gets the wrong mode.
+So: **leave both EAN and P2_0 floating -- no external pull resistor on
+either pin.** The module's own built-in pull-down on EAN plus its
+internal pull-up on P2_0 already select Flash Application mode with zero
+external components.
 
 **Does the module need firmware loaded, and can it be done over UART?**
 Yes to both, but it's a real design fork, not just a wiring detail:
@@ -154,15 +172,17 @@ Yes to both, but it's a real design fork, not just a wiring detail:
   this doc -- so exercising this would need more reverse-engineering or
   an app note if it's ever wanted.
 
-**Decision: hardwire EAN low (pull-down resistor), leave P2_0 floating.**
-Simplest wiring, fixed permanently in Flash Application mode, matches
-"net new GPIO: just the UART pair" below. This forecloses in-circuit
-reflashing from the C6 -- if that turns out to matter later (a Microchip
-firmware update, custom EQ/codec config), EAN and P2_0 would need to move
-to spare C6 GPIOs instead, so firmware could toggle the module into ROM
-TEST mode on demand. Revisit only if that need actually comes up; the
-stock firmware is almost certainly sufficient for this board's HFP-only
-use case.
+**Decision: leave EAN and P2_0 unconnected (no pull resistors, no C6
+GPIO).** Zero external components, fixed permanently in Flash Application
+mode by the module's own built-in strapping, matches "net new GPIO: just
+the UART pair" below. This forecloses in-circuit reflashing from the C6
+-- if that turns out to matter later (a Microchip firmware update, custom
+EQ/codec config), EAN and P2_0 would need to move to spare C6 GPIOs
+instead, so firmware could actively drive them into ROM TEST mode on
+demand (overpowering the module's own weak internal pulls is well within
+a normal GPIO output's drive strength). Revisit only if that need
+actually comes up; the stock firmware is almost certainly sufficient for
+this board's HFP-only use case.
 
 **Net new C6 GPIO: just the UART pair**, same as the ESP32 companion below
 -- GPIO16/17 (confirmed genuinely free -- defined in every board's pin map
