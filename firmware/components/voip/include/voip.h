@@ -81,6 +81,19 @@ bool      voip_is_stub(void);
 esp_err_t voip_set_config(const char *server, const char *user0, const char *pass0,
                           const char *user1, const char *pass1);
 
+/* Master on/off for the whole VoIP subsystem, independent of whether a
+ * server/credentials are even configured -- unlike voip_set_config(),
+ * which just changes what to register with. Disabled means the SIP task
+ * never binds/registers at all: no incoming calls can reach this board
+ * (nothing is registered for the server to route to), and voip_dial()
+ * keeps returning ESP_ERR_INVALID_STATE exactly as it already does for an
+ * unreachable server -- so a 555-xxxx dial while disabled just plays the
+ * existing reorder/fast-busy tone (see telephony.c's ACT_VOIP_DIAL
+ * handler), nothing new to build there. Same "saved now, applied on next
+ * reboot" convention as voip_set_config(). Defaults true (see voip.c). */
+bool      voip_is_enabled(void);
+esp_err_t voip_set_enabled(bool enabled);
+
 /* Configured SIP server (host or IP), for status display. */
 const char *voip_server(void);
 

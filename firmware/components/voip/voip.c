@@ -100,6 +100,11 @@ static char           s_server_ip[16];
 static struct sockaddr_in s_server_addr;
 static char           s_myip[16];
 static TaskHandle_t   s_task;
+/* Master on/off for the whole VoIP subsystem, independent of whether a
+ * server/credentials are configured -- see voip_is_enabled()'s doc comment
+ * in voip.h. Defaults true so upgrading existing boards that already have
+ * working VoIP doesn't silently turn it off. */
+static bool           s_voip_enabled = true;
 /* Shared "setup" secret, per board -- see voip_setup_password()'s doc
  * comment in voip.h. Stored alongside the rest of the VoIP config since it
  * started life there (as the auto-provisioner's password); kept there since
@@ -833,6 +838,20 @@ static void sip_task(void *arg)
     while (!wifi_is_connected()) vTaskDelay(pdMS_TO_TICKS(500));
     wifi_get_ip_str(s_myip, sizeof(s_myip));
 
+    /* Disabled: never resolves/registers, so voip_dial() keeps failing its
+     * own existing "!s_server_ip[0]" check (ESP_ERR_INVALID_STATE) exactly
+     * as it would for an unreachable server -- telephony.c's ACT_VOIP_DIAL
+     * handler already treats that as "play a reorder tone," so a 555-xxxx
+     * dial while disabled just does that, no changes needed there. And
+     * since nothing is ever registered, no incoming call can reach this
+     * board either -- whatever the SIP server does with an AOR that never
+     * registers (voicemail, nothing) is between it and the caller. */
+    if (!s_voip_enabled) {
+        ESP_LOGI(TAG, "VoIP disabled (Settings -> VOIP) -- not registering");
+        s_task = NULL;
+        vTaskDelete(NULL);
+        return;
+    }
     if (!s_server[0]) {
         ESP_LOGW(TAG, "no SIP server configured -- run 'sip_set' from the console");
         s_task = NULL;
@@ -913,6 +932,8 @@ static void load_config(void)
      * flow was removed) so a board upgraded from an older build doesn't
      * silently lose an already-saved secret. */
     sz = sizeof(s_setup_pass); nvs_get_str(h, "provpass", s_setup_pass, &sz);
+    uint8_t en = 1;
+    if (nvs_get_u8(h, "enabled", &en) == ESP_OK) s_voip_enabled = (en != 0);
     nvs_close(h);
 }
 
@@ -1074,6 +1095,29 @@ esp_err_t voip_set_config(const char *server, const char *user0, const char *pas
     }
 
     ESP_LOGI(TAG, "VoIP config saved; reboot to apply");
+    return err;
+}
+
+bool voip_is_enabled(void)
+{
+    return s_voip_enabled;
+}
+
+esp_err_t voip_set_enabled(bool enabled)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(VOIP_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, "enabled", enabled ? 1 : 0);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    /* Same "display cache updates now, sip_task only reads it at boot"
+     * split as voip_set_config() -- s_voip_enabled here just makes
+     * voip_is_enabled() (the status pill/checkbox state) reflect the save
+     * immediately; actually starting or stopping registration still only
+     * happens on reboot. */
+    if (err == ESP_OK) s_voip_enabled = enabled;
+    ESP_LOGI(TAG, "VoIP %s; reboot to apply", enabled ? "enabled" : "disabled");
     return err;
 }
 
