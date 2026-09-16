@@ -2,5 +2,34 @@
 # Requires ESP-IDF v5.1+ (target esp32c6).
 cmake_minimum_required(VERSION 3.16)
 
+# Regenerate version.txt fresh every configure with a clean git describe,
+# restricted to real "vX.Y.Z" tags via --match -- this repo has none (see
+# `git tag -l`), so it always falls through to --always's plain short-hash
+# behavior instead. Deliberately NOT project.cmake's own default a few
+# lines down ("git describe --always --tags --dirty", no --match): this
+# repo has real annotated tags left over from an "archive/<branch> tag
+# before deleting the branch" workflow (archive/freepbx-voip-provisioner,
+# archive/record-and-callback) that are reachable from HEAD and much
+# closer than any actual release tag would ever be, so the stock command
+# picks one of THOSE as "the version" -- confirmed showing up, truncated
+# to esp_app_desc_t's 32-byte field, as the web UI's Firmware card Version
+# value. version.txt (checked by project.cmake below, before it falls
+# back to running git describe itself) is the intended override point for
+# exactly this -- see its own doc comment there. Gitignored: this file is
+# build output, not something to commit.
+find_package(Git QUIET)
+if(GIT_EXECUTABLE)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} describe --always --dirty --match "v*"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_VERSION_STRING
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(GIT_VERSION_STRING)
+        file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" "${GIT_VERSION_STRING}")
+    endif()
+endif()
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(rotary_phone_gateway)

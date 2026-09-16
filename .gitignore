@@ -37,6 +37,10 @@ firmware/build/
 firmware/build.*/
 firmware/sdkconfig.old
 firmware/dependencies.lock
+# Regenerated fresh every configure by firmware/CMakeLists.txt (a clean
+# git-describe, not ESP-IDF's own default which picks up this repo's
+# archive/* tags -- see that file's comment)
+firmware/version.txt
 # Fetched by idf.py from idf_component.yml manifests (like a lockfile
 # checkout) -- regenerate with `idf.py reconfigure`, don't commit.
 firmware/managed_components/
