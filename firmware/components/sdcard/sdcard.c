@@ -8,9 +8,11 @@
 #include "driver/sdspi_host.h"
 #include "driver/spi_common.h"
 #include "driver/gpio.h"
+#include "esp_timer.h"
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 static const char *TAG = "sdcard";
 #define SD_MOUNT "/sd"
@@ -139,28 +141,75 @@ void sdcard_print_info(void)
     }
 }
 
-esp_err_t sdcard_selftest(void)
+bool sdcard_get_info(sdcard_info_t *out)
 {
+    if (!s_card || !out) return false;
+    memset(out->name, 0, sizeof(out->name));
+    memcpy(out->name, s_card->cid.name, sizeof(s_card->cid.name));
+    out->mfg_id = s_card->cid.mfg_id;
+    out->capacity_bytes = (uint64_t)s_card->csd.capacity * (uint64_t)s_card->csd.sector_size;
+    out->max_freq_khz = s_card->max_freq_khz;
+    out->real_freq_khz = s_card->real_freq_khz;
+    out->bus_width = s_card->log_bus_width ? (1 << s_card->log_bus_width) : 1;
+    return true;
+}
+
+#define SELFTEST_BYTES (128 * 1024)
+
+esp_err_t sdcard_selftest(float *write_kbps, float *read_kbps)
+{
+    if (write_kbps) *write_kbps = 0;
+    if (read_kbps) *read_kbps = 0;
     if (!s_card) { printf("SD: not mounted\n"); return ESP_ERR_INVALID_STATE; }
-    const char *path = SD_MOUNT "/_sdtest.txt";
-    const char *want = "rotary-phone sd round-trip\n";
+    const char *path = SD_MOUNT "/_sdtest.bin";
 
-    FILE *f = fopen(path, "w");
-    if (!f) { printf("SD: open-for-write failed\n"); return ESP_FAIL; }
-    fputs(want, f);
+    uint8_t *buf = malloc(SELFTEST_BYTES);
+    if (!buf) { printf("SD: out of memory for self-test buffer\n"); return ESP_FAIL; }
+    /* A repeating-but-not-constant pattern -- catches a stuck-bit or
+     * torn-write failure a run of all-zero/all-0xFF bytes could hide. */
+    for (size_t i = 0; i < SELFTEST_BYTES; i++) buf[i] = (uint8_t)(i * 31 + 7);
+
+    int64_t t0 = esp_timer_get_time();
+    FILE *f = fopen(path, "wb");
+    if (!f) { printf("SD: open-for-write failed\n"); free(buf); return ESP_FAIL; }
+    size_t wrote = fwrite(buf, 1, SELFTEST_BYTES, f);
     fclose(f);
-
-    char buf[64] = {0};
-    f = fopen(path, "r");
-    if (!f) { printf("SD: open-for-read failed\n"); return ESP_FAIL; }
-    fgets(buf, sizeof(buf), f);
-    fclose(f);
-    unlink(path);
-
-    if (strcmp(buf, want) != 0) {
-        printf("SD: readback mismatch ('%s')\n", buf);
+    int64_t t1 = esp_timer_get_time();
+    if (wrote != SELFTEST_BYTES) {
+        printf("SD: short write (%u/%u bytes)\n", (unsigned)wrote, SELFTEST_BYTES);
+        unlink(path);
+        free(buf);
         return ESP_FAIL;
     }
-    printf("SD: write+read+verify OK\n");
+    if (write_kbps) *write_kbps = (float)SELFTEST_BYTES / 1024.0f / ((float)(t1 - t0) / 1000000.0f);
+
+    uint8_t *readback = malloc(SELFTEST_BYTES);
+    if (!readback) { printf("SD: out of memory for readback buffer\n"); unlink(path); free(buf); return ESP_FAIL; }
+    int64_t t2 = esp_timer_get_time();
+    f = fopen(path, "rb");
+    if (!f) { printf("SD: open-for-read failed\n"); unlink(path); free(buf); free(readback); return ESP_FAIL; }
+    size_t got = fread(readback, 1, SELFTEST_BYTES, f);
+    fclose(f);
+    int64_t t3 = esp_timer_get_time();
+    unlink(path);
+    if (read_kbps) *read_kbps = (float)got / 1024.0f / ((float)(t3 - t2) / 1000000.0f);
+
+    bool match = (got == SELFTEST_BYTES) && (memcmp(buf, readback, SELFTEST_BYTES) == 0);
+    free(buf);
+    free(readback);
+    if (!match) {
+        printf("SD: readback mismatch (%u/%u bytes, content %s)\n", (unsigned)got, SELFTEST_BYTES,
+               (got == SELFTEST_BYTES) ? "differs" : "short");
+        return ESP_FAIL;
+    }
+    printf("SD: write+read+verify OK (%.0f KB/s write, %.0f KB/s read)\n",
+           write_kbps ? *write_kbps : 0, read_kbps ? *read_kbps : 0);
     return ESP_OK;
+}
+
+esp_err_t sdcard_format(void)
+{
+    if (!s_card) return ESP_ERR_INVALID_STATE;
+    ESP_LOGW(TAG, "formatting SD card at %s -- all data on it is about to be erased", SD_MOUNT);
+    return esp_vfs_fat_sdcard_format(SD_MOUNT, s_card);
 }

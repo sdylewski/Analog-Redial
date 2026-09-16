@@ -1,5 +1,5 @@
 idf_component_register(
     SRCS "sdcard.c"
     INCLUDE_DIRS "include"
-    REQUIRES board fatfs sdmmc driver
+    REQUIRES board fatfs sdmmc driver esp_timer
 )

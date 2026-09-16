@@ -1422,7 +1422,7 @@ static int cmd_sd_test(int argc, char **argv)
         }
     }
     sdcard_print_info();
-    return sdcard_selftest() == ESP_OK ? 0 : 1;
+    return sdcard_selftest(NULL, NULL) == ESP_OK ? 0 : 1;
 }
 
 /* Compact help: one line per command ("cmd  description"), instead of the

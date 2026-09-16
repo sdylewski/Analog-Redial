@@ -49,9 +49,51 @@ esp_err_t sdcard_capacity(uint64_t *total_bytes, uint64_t *free_bytes);
 /* Print card details (type, capacity) + FAT total/free to stdout (console). */
 void sdcard_print_info(void);
 
-/* Write a temp file, read it back, verify, delete. ESP_OK if the card
- * round-trips. */
-esp_err_t sdcard_selftest(void);
+/* Raw identification fields for the web UI's card-info display -- the same
+ * CID/CSD data sdcard_print_info() already prints to console, just handed
+ * back structured instead of formatted. `name` is the card's own embedded
+ * product string (CID register, up to 8 chars -- not a marketing name like
+ * "Extreme", just whatever the manufacturer programmed there, often
+ * something like "SD32G"); `mfg_id`/`capacity_bytes` are what the web UI
+ * derives a manufacturer name and SDSC/SDHC/SDXC class from (see webui.c).
+ * `bus_width` is 1 on every board today -- SPI mode, not native SD 4-bit --
+ * so `max_freq_khz`/`real_freq_khz` (the card's rated max vs. what's
+ * actually negotiated) tell you more about real throughput here than bus
+ * width would. Returns false (leaving *out untouched) if not mounted. */
+typedef struct {
+    char     name[9];
+    int      mfg_id;
+    uint64_t capacity_bytes;
+    int      max_freq_khz;
+    int      real_freq_khz;
+    int      bus_width;
+} sdcard_info_t;
+bool sdcard_get_info(sdcard_info_t *out);
+
+/* Write, read back, verify, and time a 128KB round-trip (large enough for a
+ * meaningful throughput figure, small enough to run inline in an HTTP
+ * handler without a long page hang) -- deletes the temp file after. SD
+ * cards have no portable SMART-style health telemetry the way SATA/NVMe
+ * drives do (some support a proprietary, undocumented vendor health
+ * command; nothing standard or safe to rely on here), so this write/read/
+ * verify/speed round-trip is the practical substitute: a card that's
+ * failing or too slow tends to show up here as either a verify mismatch or
+ * a throughput number well below what a healthy card manages (order of a
+ * few MB/s even over this board's SPI-mode 1-bit bus). *write_kbps/
+ * *read_kbps are 0 on failure (mismatch or I/O error partway through) --
+ * still report whichever timing was actually measured before that point,
+ * rather than leaving them uninitialized. ESP_ERR_INVALID_STATE if not
+ * mounted, otherwise ESP_OK (round-tripped correctly) or ESP_FAIL
+ * (mismatch/IO error -- see the log for which). */
+esp_err_t sdcard_selftest(float *write_kbps, float *read_kbps);
+
+/* Formats the mounted card as FAT -- destroys everything on it. Real,
+ * irreversible data loss; the web UI gates this behind its own confirm()
+ * dialog (see webui.c's /sd_format handler), this function itself has no
+ * additional confirmation of its own. Remounts at the same path
+ * afterward on success, matching esp_vfs_fat_sdcard_format()'s own
+ * behavior. ESP_ERR_INVALID_STATE if not mounted. */
+esp_err_t sdcard_format(void);
 
 #ifdef __cplusplus
 }
