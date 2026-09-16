@@ -14,14 +14,17 @@ telephony audio (still 48kHz) is untouched. Pass --rate 48000 if you'd
 rather skip resampling for some reason.
 
 Text-to-speech uses Piper (preferred, neural, cross-platform -- the same
-engine + voice pi_rotary_phone's install-piper.sh sets up, since that's
-been the better-sounding option there). --engine auto (the default) sets
-Piper up for you the first time it's needed: `pip install piper-tts` if
-the `piper` command isn't on PATH, then downloads the same default voice
-the Pi uses (en_US-lessac-medium) into firmware/bringup/piper_voices/ if
-no .onnx is there yet. Both steps are skipped once already present, so
-this is a one-time cost. Pass --piper-model to use a different voice, or
-grab one yourself from https://huggingface.co/rhasspy/piper-voices.
+engine pi_rotary_phone's install-piper.sh sets up there, since that's been
+the better-sounding option). --engine auto (the default) sets Piper up for
+you the first time it's needed: `pip install piper-tts` if the `piper`
+command isn't on PATH, then downloads the default voice
+(en_GB-jenny_dioco-medium -- picked for sounding more natural than
+lessac, tried side-by-side; the Pi's install script still defaults to
+en_US-lessac-medium, the two aren't kept in sync) into
+firmware/bringup/piper_voices/ if no .onnx is there yet. Both steps are
+skipped once already present, so this is a one-time cost. Pass
+--piper-model to use a different voice, or grab one yourself from
+https://huggingface.co/rhasspy/piper-voices.
 
 If Piper can't be set up (offline, no pip, etc.) --engine auto falls back
 to espeak-ng (`apt install espeak-ng` / `brew install espeak-ng`), then
@@ -97,11 +100,13 @@ DEFAULT_SAY_VOICE = "Samantha"       # --engine say (macOS only)
 DEFAULT_ESPEAK_VOICE = "en-us"       # --engine espeak
 PIPER_VOICES_DIR = Path(__file__).resolve().parent / "piper_voices"
 
-# Same voice pi_rotary_phone's scripts/install-piper.sh sets up on the Pi --
-# picked there for sounding noticeably less robotic than espeak-ng, at a
-# "medium" quality/size tradeoff sane for both a Pi 4 and a one-time laptop
-# download. Only used when nothing else is dropped under PIPER_VOICES_DIR/.
-DEFAULT_PIPER_VOICE_REL = "en/en_US/lessac/medium/en_US-lessac-medium.onnx"
+# en_GB-jenny_dioco-medium -- one of Piper's more natural-sounding voices
+# (compared side-by-side against en_US-lessac-medium, which
+# pi_rotary_phone's scripts/install-piper.sh still uses on the Pi; the two
+# projects' defaults intentionally diverge here rather than picking one to
+# keep them in sync). Still "medium" quality/size, same tradeoff reasoning
+# as before. Only used when nothing else is dropped under PIPER_VOICES_DIR/.
+DEFAULT_PIPER_VOICE_REL = "en/en_GB/jenny_dioco/medium/en_GB-jenny_dioco-medium.onnx"
 PIPER_VOICES_BASE_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
 
 
@@ -110,8 +115,8 @@ def _which(cmd: str) -> str | None:
 
 
 def _download_default_piper_voice() -> Path | None:
-    """Fetches the same voice pi_rotary_phone uses (DEFAULT_PIPER_VOICE_REL)
-    into PIPER_VOICES_DIR. Returns the .onnx path on success, None on any
+    """Fetches the default voice (DEFAULT_PIPER_VOICE_REL) into
+    PIPER_VOICES_DIR. Returns the .onnx path on success, None on any
     failure (offline, HF unreachable, ...) -- callers treat that the same as
     "no model available" and fall back a tier, they don't need to know why."""
     onnx_path = PIPER_VOICES_DIR / Path(DEFAULT_PIPER_VOICE_REL).name
@@ -135,7 +140,7 @@ def _resolve_piper_model(explicit: str | None, auto_install: bool) -> Path | Non
     under piper_voices/ next to this script is picked automatically -- more
     than one is ambiguous (which voice?), so that's an error, not a guess.
     With none present, auto_install (default) fetches DEFAULT_PIPER_VOICE_REL
-    so a first run works with zero manual setup, matching the Pi's default."""
+    so a first run works with zero manual setup."""
     if explicit:
         p = Path(explicit)
         if not p.is_file():
