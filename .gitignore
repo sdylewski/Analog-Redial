@@ -77,6 +77,10 @@ firmware/bringup/piper_voices/
 # Local reports / scratch
 rotary_phone_gateway_statistics.rpt
 
+# Reference datasheets -- large, don't change, not worth tracking; kept
+# locally on dev machines only
+datasheets/
+
 # Secrets — never commit
 .env
 *.pem
