@@ -27,6 +27,24 @@ esp_err_t sdcard_init(void);
 
 bool sdcard_mounted(void);
 
+/* Unmounts and releases the card handle -- the counterpart sdcard_init()
+ * itself doesn't have, needed so a hot-removed card (sdcard_hotplug_start(),
+ * below) doesn't leave sdcard_mounted() reporting stale "yes" state against
+ * a card that's physically gone, or leave the SPI/FATFS handle open for
+ * whatever gets inserted next. No-op if not currently mounted. */
+void sdcard_deinit(void);
+
+/* Starts a small background task that watches the card-detect pin (on
+ * boards that have one -- BOARD_SD_CD, board_pins_smd4.h) and calls
+ * sdcard_init()/sdcard_deinit() on insertion/removal, so a card swapped in
+ * after boot gets picked up within a couple of seconds instead of needing a
+ * reboot. No-op if this board isn't configured for microSD, or has no CD
+ * pin to watch (sdcard_card_present() can't tell "present" from "absent"
+ * there, so there's nothing to poll for -- see that function's own doc
+ * comment). Safe to call unconditionally from app startup, same as
+ * sdcard_init() itself. */
+void sdcard_hotplug_start(void);
+
 /* True if a card is physically in the slot, per the board's CD (card
  * detect) pin -- independent of sdcard_init()/sdcard_mounted(), so callers
  * (webui status, sdcard_init() itself) can tell "no card" apart from "card

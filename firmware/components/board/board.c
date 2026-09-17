@@ -30,6 +30,7 @@ static board_codec_t s_detected_codec = BOARD_CODEC_NONE;
 #define BOARD_LANG_MAX     8
 #define BOARD_ROH_EN_KEY   "roh_en"
 #define BOARD_ROH_SECS_KEY "roh_secs"
+#define BOARD_TONE_LANG_KEY "tone_lang"
 
 esp_err_t board_i2c_init(void)
 {
@@ -213,6 +214,31 @@ esp_err_t board_language_set(const char *lang)
     if (err == ESP_OK) err = nvs_commit(h);
     nvs_close(h);
     if (err == ESP_OK) ESP_LOGI(TAG, "phone language set to '%s'", trimmed);
+    return err;
+}
+
+bool board_tone_follow_language_get(void)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return true;
+    uint8_t follow;
+    esp_err_t err = nvs_get_u8(h, BOARD_TONE_LANG_KEY, &follow);
+    nvs_close(h);
+    return (err == ESP_OK) ? (follow != 0) : true;
+}
+
+esp_err_t board_tone_follow_language_set(bool follow)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, BOARD_TONE_LANG_KEY, follow ? 1 : 0);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "call-progress tones %s language setting",
+                 follow ? "now follow" : "no longer follow");
+    }
     return err;
 }
 

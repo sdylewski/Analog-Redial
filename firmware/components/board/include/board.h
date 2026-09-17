@@ -105,6 +105,17 @@ void board_hostname(char *out, size_t len);
 void      board_language_get(char *out, size_t len); /* defaults to "en" */
 esp_err_t board_language_set(const char *lang);
 
+/* ---- Call-progress tone region ----
+ * Separate switch from the language above: on by default (so a board that
+ * already picked a language to get its regional dial/ring/busy tones,
+ * tones/tone_regions.h, keeps them after a firmware update that adds this
+ * flag), but the two aren't the same thing -- someone might want the UI
+ * language changed without also changing what a familiar dial tone sounds
+ * like. Off means tones.c always uses the US entry (TONE_REGIONS[0])
+ * regardless of board_language_get(). */
+bool      board_tone_follow_language_get(void); /* defaults to true */
+esp_err_t board_tone_follow_language_set(bool follow);
+
 /* ---- Off-hook ("receiver off-hook" / ROH) alert ----
  * A handset left off the hook sits on dial tone forever otherwise: the line
  * is unreachable (callers get busy) with nothing to draw attention to it.

@@ -94,6 +94,12 @@ void tone_osc_fill(tone_osc_t *o, int16_t *out, size_t n)
 
 static const tone_region_t *lookup_region(void)
 {
+    /* TONE_REGIONS[0] is "en"/United States -- forcing that entry (rather
+     * than TONE_REGION_FALLBACK, which is a generic European spec) is what
+     * "off" actually means here: standard US tones, not just "some other
+     * default". See board_tone_follow_language_get()'s doc comment. */
+    if (!board_tone_follow_language_get()) return &TONE_REGIONS[0];
+
     char lang[8];
     board_language_get(lang, sizeof(lang));
     for (size_t i = 0; i < TONE_REGIONS_N; i++) {

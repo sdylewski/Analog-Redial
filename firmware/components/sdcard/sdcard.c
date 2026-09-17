@@ -9,6 +9,8 @@
 #include "driver/spi_common.h"
 #include "driver/gpio.h"
 #include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -116,6 +118,49 @@ esp_err_t sdcard_init(void)
 }
 
 bool sdcard_mounted(void) { return s_card != NULL; }
+
+void sdcard_deinit(void)
+{
+    if (!s_card) return;
+    esp_vfs_fat_sdcard_unmount(SD_MOUNT, s_card);
+    s_card = NULL;
+}
+
+#ifdef BOARD_SD_CD
+#define SD_HOTPLUG_POLL_MS 1500
+
+static void hotplug_task(void *arg)
+{
+    /* Starts from whatever sdcard_init() already established at boot (a
+     * card present at boot is already mounted by the time this task's first
+     * loop runs), so it only reacts to a CHANGE from here on, never
+     * redundantly re-triggers the boot-time state it was handed. */
+    bool was_present = sdcard_card_present();
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(SD_HOTPLUG_POLL_MS));
+        bool present = sdcard_card_present();
+        if (present && !was_present) {
+            ESP_LOGI(TAG, "card inserted -- mounting");
+            esp_err_t err = sdcard_init();
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "mount after insertion failed: %s", esp_err_to_name(err));
+            }
+        } else if (!present && was_present) {
+            ESP_LOGW(TAG, "card removed");
+            sdcard_deinit();
+        }
+        was_present = present;
+    }
+}
+#endif
+
+void sdcard_hotplug_start(void)
+{
+#ifdef BOARD_SD_CD
+    if (!board_hw_config_get().has_microsd) return;
+    xTaskCreate(hotplug_task, "sd_hotplug", 3072, NULL, tskIDLE_PRIORITY + 1, NULL);
+#endif
+}
 
 esp_err_t sdcard_capacity(uint64_t *total_bytes, uint64_t *free_bytes)
 {

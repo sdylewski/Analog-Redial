@@ -1333,8 +1333,25 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
 {
     int num_lines = board_hw_config_get().num_lines;
 
+    /* An answering machine only ever has anything to answer if a call can
+     * actually come IN: either a second line to call this one from (no
+     * VOIP needed), or VOIP registered so a SIP call can ring it -- a
+     * single-line, VOIP-off board has no path for an incoming call at all,
+     * so these settings would be saved but never do anything. Not worth
+     * hiding the card over (the config is harmless to leave in place for
+     * whenever VOIP/a second line gets added), just flagged. */
+    bool am_active = voip_is_enabled() || num_lines > 1;
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("am.title", "Answering machine"));
+    if (!am_active) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<p class=\"hint warn-text\">%s</p>",
+            i18n_str("am.inactive_hint",
+                     "Nothing can ring in to trigger this yet: VOIP is off (Settings -> VOIP) "
+                     "and this board only has one line, so there's no way for a call to reach "
+                     "it. Settings below are saved either way -- they'll take effect as soon as "
+                     "VOIP is enabled or a second line is configured."));
+    }
     for (int l = 0; l < num_lines; l++) {
         board_am_cfg_t am = board_am_get(l);
         char greeting[STORAGE_MAX_NAME];
@@ -1396,6 +1413,31 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "records the caller -- capped at the length above or ~8s of silence, whichever "
                  "comes first. Picking up the handset at any point takes the call live instead."),
         RECORDING_RELOAD_JS);
+
+    bool tone_follow_lang = board_tone_follow_language_get();
+    char cur_lang[8];
+    board_language_get(cur_lang, sizeof(cur_lang));
+    char tone_region_hint[420];
+    snprintf(tone_region_hint, sizeof(tone_region_hint),
+        i18n_str("tones.region.hint",
+                 "Checked: dial/ring/busy tones match the language picked in the header up top "
+                 "(e.g. selecting Italian also switches to its distinctive dial cadence) -- "
+                 "current language is \"%s\". Unchecked: always plays standard US tones (350+450 "
+                 "Hz dial, 440+480 Hz ringback, 480+620 Hz busy) no matter what language is "
+                 "selected. Takes effect on the next dial tone -- no reboot."),
+        cur_lang);
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<form method=\"POST\" action=\"/tone_lang_set\" class=\"settings-form\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form>"
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("tones.region.title", "Call-progress tones"),
+        tone_follow_lang ? " checked" : "",
+        i18n_str("tones.region.label", "Use phone tones matching language setting"),
+        i18n_str("general.button.save", "Save"),
+        tone_region_hint);
 
     board_offhook_alert_t roh = board_offhook_alert_get();
     char roh_status[48];
@@ -3493,6 +3535,33 @@ static int append_storage_section(char *buf, size_t cap, int off)
                  "its own section so anything saved before the card was inserted is still "
                  "reachable.") : "");
 
+    /* Configured for SD but nothing's mounted right now -- either a card
+     * was never inserted, the last mount attempt failed (bad format, wiring,
+     * a failing card), or it was just swapped in and sdcard_hotplug_start()
+     * (sdcard.c) hasn't picked it up yet (a couple of seconds on boards with
+     * a card-detect pin to watch). append_sdcard_info_card() itself renders
+     * nothing at all in this state (sdcard_get_info() needs a mounted
+     * card), so without this, a failed/pending mount is silently invisible
+     * here -- this is what "show inserted in web UI" actually needed. */
+    if (!sd && board_hw_config_get().has_microsd) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"card wide\" style=\"margin-top:16px\"><h2>%s</h2>"
+            "<p class=\"hint\">%s</p>"
+            "<div class=\"toolbar sub\">"
+            "<form method=\"POST\" action=\"/sd_selftest_ui\" style=\"display:inline\">"
+            "<button type=\"submit\">%s</button></form>"
+            "</div></div>",
+            i18n_str("storage.sd_info_title", "microSD card"),
+            i18n_str("storage.sd_not_mounted_hint",
+                     "Configured for a microSD card, but none is currently mounted. If a card "
+                     "is inserted, this usually means the last mount attempt failed (bad format, "
+                     "wiring, or a failing card -- check the activity/boot log for the exact "
+                     "error), or it was just inserted and hasn't been picked up yet -- rechecked "
+                     "automatically every couple of seconds. Reload this page in a moment, or "
+                     "force an immediate retry below."),
+            i18n_str("storage.sd_retry_button", "Retry mount"));
+    }
+
     if (sd) {
         off = append_sdcard_info_card(buf, cap, off);
         storage_entry_t *sd_entries = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
@@ -3624,8 +3693,12 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
          * renders. SD's own fixed share is bumped to 4096 (was 2048) to
          * also cover append_sdcard_info_card() -- product/manufacturer/
          * type/bus rows, self-test result, and the self-test + format
-         * buttons, on top of the bulk-delete form already accounted for. */
-        storage_room = (sd_n + in_n) * 600 + (storage_sd_present() ? 4096 : 0) + 2048;
+         * buttons, on top of the bulk-delete form already accounted for.
+         * +900 covers the "configured for SD but not mounted" fallback
+         * card (append_storage_section()) on a board that's configured for
+         * a card but doesn't currently have one mounted. */
+        storage_room = (sd_n + in_n) * 600 + (storage_sd_present() ? 4096 : 0) + 2048 +
+            (!storage_sd_present() && board_hw_config_get().has_microsd ? 900 : 0);
     }
     /* Hardware tab lost its heaviest content (speaker volume/echo/answering
      * machine, all per-line cards -- see append_phone_settings_tab()) to
@@ -3637,7 +3710,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * Answering Machine's own <script> blocks. */
     size_t hw_room = (strcmp(tab, "hardware") == 0) ? 6000 : 0; /* +memory map card, several partition rows */
     size_t general_room = (strcmp(tab, "general") == 0) ? 3200 : 0; /* +quiet hours card's timezone dropdown */
-    size_t phone_room = (strcmp(tab, "phone") == 0) ? 9000 : 0; /* +2x per-line speaker/echo/AM cards, 2 <script> blocks */
+    size_t phone_room = (strcmp(tab, "phone") == 0) ? 10000 : 0; /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card */
     size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 : 0; /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
     /* This tab's `n*220` share (n = ALL dialplan entries, not just clips)
      * was never actually enough for it: each dial-code row is TWO forms
@@ -4065,6 +4138,26 @@ static esp_err_t offhook_alert_handler(httpd_req_t *req)
 
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /tone_lang_set -- form body [enabled=1]. Unchecked checkbox submits
+ * nothing, same convention as offhook_alert_handler above. */
+static esp_err_t tone_lang_set_handler(httpd_req_t *req)
+{
+    char body[64] = {0};
+    if (req->content_len > 0 && req->content_len < sizeof(body)) {
+        int r = httpd_req_recv(req, body, req->content_len);
+        if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+        body[r] = '\0';
+    }
+    char enabled[8] = {0};
+    form_field(body, "enabled", enabled, sizeof(enabled));
+    board_tone_follow_language_set(enabled[0] == '1');
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=phone");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -6449,14 +6542,17 @@ esp_err_t webui_start(void)
      * enough (5s recv/send_wait_timeout above) that this fires well within
      * one idle_power TICK_MS of any actual click. */
     config.open_fn = webui_conn_open;
-    /* Default is 8 -- we register 46 routes below (two share the media
+    /* Default is 8 -- we register 65 routes below (two share the media
      * path, one GET, one POST, counted separately) and it keeps growing.
      * Past the cap, httpd_register_uri_handler() just fails per-route, which
      * used to go unchecked below, silently dropping the last couple of
-     * routes -- the loop below now at least logs it, but leave real
-     * headroom (was 48, i.e. 2 routes of slack -- too easy to quietly blow
-     * through next time a feature adds a couple more). */
-    config.max_uri_handlers = 64;
+     * routes -- the loop below now at least logs it, but this has already
+     * been quietly blown through once (64, with the previous count of 65
+     * routes -- the Bluetooth companion merge plus one new small feature
+     * pushed it over with zero warning until a live boot log showed
+     * ESP_ERR_HTTPD_HANDLERS_FULL). Leaving real headroom this time instead
+     * of matching the count exactly. */
+    config.max_uri_handlers = 96;
     /* Default httpd task stack is 4 KB. Our page handlers stack a few
      * storage_entry_t[32]/dialplan_entry_info_t[40] arrays and then descend
      * into SPIFFS readdir -> esp_flash_read, which is itself stack-hungry;
@@ -6535,6 +6631,7 @@ esp_err_t webui_start(void)
         { .uri = "/board_hw_set",    .method = HTTP_POST, .handler = board_hw_set_handler },
         { .uri = "/offhook_alert",   .method = HTTP_POST, .handler = offhook_alert_handler },
         { .uri = "/timezone_set",    .method = HTTP_POST, .handler = timezone_set_handler },
+        { .uri = "/tone_lang_set",   .method = HTTP_POST, .handler = tone_lang_set_handler },
         { .uri = "/quiet_hours",     .method = HTTP_POST, .handler = quiet_hours_handler },
         { .uri = "/voip_enable",     .method = HTTP_POST, .handler = voip_enable_handler },
         { .uri = "/idle_power",      .method = HTTP_POST, .handler = idle_power_settings_handler },

@@ -201,6 +201,11 @@ void app_main(void)
             ESP_LOGW(TAG, "sdcard_init failed: %s (insert a FAT-formatted card, then 'sd_test')",
                      esp_err_to_name(err));
         }
+        /* Picks up a card inserted/removed after this point -- sdcard_init()
+         * above only ever runs this once, at boot. No-op on boards with no
+         * card-detect pin to watch (see sdcard_hotplug_start()'s own doc
+         * comment). */
+        sdcard_hotplug_start();
     }
     if ((err = webui_start()) != ESP_OK) {
         ESP_LOGW(TAG, "webui_start failed: %s", esp_err_to_name(err));
