@@ -633,6 +633,21 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
                      "reconfigure this board in <a href=\"/settings?tab=hardware\">Settings "
                      "&rarr; Hardware</a> if it's actually meant to be single-line + microSD."));
     }
+    if (board_type_mismatch()) {
+        char recorded[16];
+        board_type_recorded(recorded, sizeof(recorded));
+        char mismatch_hint[420];
+        snprintf(mismatch_hint, sizeof(mismatch_hint),
+            i18n_str("hazard.board_type_mismatch",
+                     "&#9888; This firmware is built for <b>%s</b>, but this board last "
+                     "confirmed booting as <b>%s</b> -- GPIO pin routing differs between board "
+                     "types, so things like microSD or line 1 may silently misbehave. Reflash "
+                     "the correct firmware, or if this board genuinely changed, confirm it in "
+                     "<a href=\"/settings?tab=hardware\">Settings &rarr; Hardware</a>."),
+            board_pcb_variant_name(), recorded[0] ? recorded : "(unknown)");
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"hazard-banner\">%s</div>", mismatch_hint);
+    }
     return off;
 }
 
@@ -904,7 +919,8 @@ static esp_err_t index_handler(httpd_req_t *req)
      * activity entries, see append_activity_panel()). */
     dialplan_entry_info_t entries[40];
     size_t n = dialplan_list(entries, 40);
-    size_t cap = 8192 + n * 220 + 1800; /* +1800: append_first_boot_banner(), while unconfirmed */
+    size_t cap = 8192 + n * 220 + 1800 /* append_first_boot_banner(), while unconfirmed */
+        + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
@@ -1048,7 +1064,8 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
      * ~9600) before landing on these numbers from actual measurement
      * instead of another guess -- if this ever needs to change again,
      * measure a rendered row rather than estimating. */
-    size_t cap = 2048 + 1024 + n * 600;
+    size_t cap = 2048 + 1024 + n * 600
+        + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
     char *buf = malloc(cap);
     if (!buf) { free(entries); httpd_resp_send_500(req); return ESP_FAIL; }
 
@@ -2577,6 +2594,33 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                  "separately. RAM is live internal heap. Uptime/WiFi are on the <a href=\"/\">"
                  "Status</a> page."));
 
+    if (board_type_mismatch()) {
+        char recorded[16];
+        board_type_recorded(recorded, sizeof(recorded));
+        char confirm_msg[300];
+        snprintf(confirm_msg, sizeof(confirm_msg),
+            i18n_str("hardware.board_type_confirm",
+                     "Confirm this board is really %s now (was %s)? Only do this if the "
+                     "hardware itself genuinely changed -- if you flashed the wrong firmware "
+                     "by mistake, reflash the correct build instead."),
+            board_pcb_variant_name(), recorded[0] ? recorded : "(unknown)");
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"card\"><h2>%s</h2>"
+            "<p class=\"hint warn-text\">%s</p>"
+            "<form method=\"POST\" action=\"/board_type_confirm\" class=\"settings-form\" "
+            "onsubmit=\"return confirm('%s')\">"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"danger\">%s</button></div>"
+            "</form></div>",
+            i18n_str("hardware.board_type_mismatch_title", "Board type mismatch"),
+            i18n_str("hardware.board_type_mismatch_hint",
+                     "This is only safe to confirm if this physical board genuinely is the type "
+                     "this firmware was built for -- e.g. old hardware retired and replaced with "
+                     "a different variant. If this firmware just got flashed onto the wrong "
+                     "board by mistake, reflash the correct build instead of confirming."),
+            confirm_msg,
+            i18n_str("hardware.board_type_confirm_button", "Confirm board type changed"));
+    }
+
     idle_power_cfg_t ip = idle_power_get();
     char ip_status[64];
     if (ip.enabled) {
@@ -3738,7 +3782,10 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * card. Phone Settings inherits the per-line-card weight hw_room used
      * to carry, doubled on a 2-line board, plus Echo Cancellation's and
      * Answering Machine's own <script> blocks. */
-    size_t hw_room = (strcmp(tab, "hardware") == 0) ? 6000 : 0; /* +memory map card, several partition rows */
+    size_t hw_room = (strcmp(tab, "hardware") == 0)
+        ? 6000 + (board_type_mismatch() ? 900 : 0) /* +memory map card, several partition rows,
+                                                      * +the mismatch-confirm card if showing */
+        : 0;
     size_t general_room = (strcmp(tab, "general") == 0) ? 3200 : 0; /* +quiet hours card's timezone dropdown */
     size_t phone_room = (strcmp(tab, "phone") == 0) ? 10000 : 0; /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card */
     size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 : 0; /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
@@ -3756,7 +3803,8 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * and NVS-backed (not a filesystem walk), so sizing for that many
      * outright is cheap and avoids a second listing call just to count. */
     size_t dialcodes_room = (strcmp(tab, "dialcodes") == 0) ? DIALPLAN_MAX_CLIP_ENTRIES * 950 + 6000 : 0;
-    size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room + voip_room + dialcodes_room + phone_room;
+    size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room + voip_room + dialcodes_room + phone_room
+        + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
@@ -4432,6 +4480,26 @@ static esp_err_t board_hw_set_handler(httpd_req_t *req)
     /* Also appears on the Status page's first-boot banner -- see
      * board_name_handler's matching comment just above. */
     redirect_to_referer_or(req, "/settings?tab=hardware");
+    return ESP_OK;
+}
+
+/* POST /board_type_confirm -- records the currently-running binary's
+ * compile-time board type (board_pcb_variant_name()) as correct for this
+ * physical board, clearing board_type_mismatch(). Only reachable when a
+ * mismatch is already showing (the Hardware tab only renders this card
+ * then) -- the confirm() dialog on the form itself is the only real guard,
+ * same pattern as /sd_format. */
+static esp_err_t board_type_confirm_handler(httpd_req_t *req)
+{
+    esp_err_t err = board_type_confirm();
+    if (err == ESP_OK) {
+        activity_log("Board type confirmed after a mismatch");
+    } else {
+        ESP_LOGW(TAG, "board_type_confirm failed: %s", esp_err_to_name(err));
+    }
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=hardware");
+    httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
 
@@ -6689,6 +6757,7 @@ esp_err_t webui_start(void)
         { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
         { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },
         { .uri = "/board_hw_set",    .method = HTTP_POST, .handler = board_hw_set_handler },
+        { .uri = "/board_type_confirm", .method = HTTP_POST, .handler = board_type_confirm_handler },
         { .uri = "/offhook_alert",   .method = HTTP_POST, .handler = offhook_alert_handler },
         { .uri = "/timezone_set",    .method = HTTP_POST, .handler = timezone_set_handler },
         { .uri = "/tone_lang_set",   .method = HTTP_POST, .handler = tone_lang_set_handler },

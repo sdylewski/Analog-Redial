@@ -125,6 +125,66 @@ void board_serial_str(char *out, size_t len)
              mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
+#define PCB_TYPE_NVS_KEY "pcb_type"
+
+static bool s_type_mismatch;
+
+void board_type_check(void)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    char recorded[16] = {0};
+    size_t n = sizeof(recorded);
+    esp_err_t err = nvs_get_str(h, PCB_TYPE_NVS_KEY, recorded, &n);
+    const char *current = board_pcb_variant_name();
+    if (err != ESP_OK || !recorded[0]) {
+        /* Nothing recorded yet -- first boot ever, or a board already in
+         * the field from before this feature existed. Either way, there's
+         * nothing to compare against, so record the current type as the
+         * trusted baseline rather than flagging a mismatch that isn't
+         * actually one. */
+        nvs_set_str(h, PCB_TYPE_NVS_KEY, current);
+        nvs_commit(h);
+        s_type_mismatch = false;
+    } else {
+        s_type_mismatch = (strcmp(recorded, current) != 0);
+        if (s_type_mismatch) {
+            ESP_LOGE(TAG, "BOARD TYPE MISMATCH: this firmware is built for %s, but this "
+                          "physical board last confirmed booting as %s -- wrong firmware for "
+                          "this board (Settings -> Hardware)", current, recorded);
+        }
+    }
+    nvs_close(h);
+}
+
+bool board_type_mismatch(void) { return s_type_mismatch; }
+
+void board_type_recorded(char *out, size_t len)
+{
+    if (len == 0) return;
+    out[0] = '\0';
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return;
+    size_t n = len;
+    nvs_get_str(h, PCB_TYPE_NVS_KEY, out, &n);
+    nvs_close(h);
+}
+
+esp_err_t board_type_confirm(void)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_str(h, PCB_TYPE_NVS_KEY, board_pcb_variant_name());
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) {
+        s_type_mismatch = false;
+        ESP_LOGI(TAG, "board type confirmed as %s", board_pcb_variant_name());
+    }
+    return err;
+}
+
 void board_hardware_str(char *out, size_t len)
 {
     esp_chip_info_t info;

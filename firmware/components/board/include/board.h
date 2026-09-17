@@ -25,6 +25,37 @@ i2c_master_bus_handle_t board_i2c_bus(void);
  * switched at runtime. Safe to call before or after board_i2c_init(). */
 void board_detect_codec(void);
 
+/* ---- PCB type mismatch guard ----
+ * CONFIG_BOARD_TYPE_SMD2/_SMD4/_THT is fixed at compile time and drives
+ * GPIO pin routing that differs between variants -- notably, SMD2 and
+ * SMD4 disagree on which of the shared GPIO18-21 pads is SD's CS vs. MISO
+ * (board_pins_smd.h vs. board_pins_smd4.h). Flashing the wrong variant's
+ * firmware onto a given physical board doesn't fail loudly -- subsystems
+ * that don't touch the differing pins (WiFi, VOIP, general telephony)
+ * keep working fine, while the ones that do (microSD, line 1) just quietly
+ * stop, with nothing pointing at "wrong board type" as the reason.
+ *
+ * board_type_check() remembers which variant last confirmed-booted on
+ * THIS physical board (NVS, survives reflashes) and compares it against
+ * the CURRENT binary's own compile-time type on every boot. First boot
+ * ever (nothing recorded yet, including any board already in the field
+ * from before this existed) just records the current type as a trusted
+ * baseline -- there's nothing to compare against yet, so this can't create
+ * a false mismatch on a board that was already working fine. Call once,
+ * early in app_main() -- before board-specific GPIO is touched, so a real
+ * mismatch can be reflected in the boot LED state immediately. */
+void        board_type_check(void);
+bool        board_type_mismatch(void);
+/* What was recorded on a previous boot ("SMD2"/"SMD4"/"through-hole"), ""
+ * if nothing recorded yet -- for the hazard banner/Hardware tab to show
+ * expected-vs-actual. Compare against board_pcb_variant_name() (running
+ * binary's own compile-time type, board_config.h) for the other half. */
+void        board_type_recorded(char *out, size_t len);
+/* Records the CURRENTLY RUNNING binary's type as correct, clearing any
+ * mismatch -- for a genuine board swap (old hardware retired, new board
+ * really is a different variant), not for silencing a real mixup. */
+esp_err_t   board_type_confirm(void);
+
 typedef enum {
     BOARD_LED_BOOTING,         /* fast blink -- subsystems still coming up */
     BOARD_LED_OK,               /* solid off -- everything initialized cleanly */

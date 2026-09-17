@@ -114,10 +114,20 @@ void app_main(void)
 
     ESP_LOGI(TAG, "Rotary Phone Gateway (ESP32-C6) starting");
 
+    /* Detect a firmware/physical-board mismatch (e.g. SMD4 firmware on a
+     * hand-soldered SMD2 unit) before touching any board-specific GPIO --
+     * see board_type_check()'s own doc comment (board.h). */
+    board_type_check();
+
     /* 0. Status LED first -- fast blink means "booting", visible even if
      * something below hangs before reaching the "all subsystems up" log. */
     board_led_init();
     bool had_soft_failure = false;
+    if (board_type_mismatch()) {
+        ESP_LOGE(TAG, "continuing boot despite the board type mismatch above so the web "
+                      "UI/console stay reachable to fix it");
+        had_soft_failure = true;
+    }
 
     /* 1. Shared buses. */
     ESP_ERROR_CHECK(board_i2c_init());
