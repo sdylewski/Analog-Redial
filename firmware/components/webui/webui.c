@@ -6159,6 +6159,7 @@ static esp_err_t ota_upload_handler(httpd_req_t *req)
 
     char part_name[32], filename[64];
     bool wrote = false;
+    bool led_set = false; /* only restore the LED below if OTA_UPDATING was actually entered */
     const char *err_msg = "no file uploaded";
     const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
 
@@ -6175,6 +6176,14 @@ static esp_err_t ota_upload_handler(httpd_req_t *req)
                 err_msg = "failed to start writing to flash (see device log)";
                 break;
             }
+            /* Visible "don't unplug me" signal for the whole write -- set
+             * back to BOARD_LED_OK below on any failure path (upload only
+             * ever reaches here with WiFi/webui already up, so that's a
+             * safe state to restore); a successful write reboots into the
+             * new image shortly after anyway, restarting at BOOTING on its
+             * own without needing an explicit reset here. */
+            board_led_set_state(BOARD_LED_OTA_UPDATING);
+            led_set = true;
             uint8_t chunk[2048];
             size_t n;
             bool write_failed = false;
@@ -6208,6 +6217,7 @@ static esp_err_t ota_upload_handler(httpd_req_t *req)
     multipart_reader_close(&mp);
 
     if (!wrote) {
+        if (led_set) board_led_set_state(BOARD_LED_OK); /* only if OTA_UPDATING was actually entered */
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, err_msg);
         return ESP_FAIL;
     }

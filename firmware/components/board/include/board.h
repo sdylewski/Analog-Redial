@@ -31,12 +31,21 @@ typedef enum {
     BOARD_LED_ERROR,            /* slow blink -- a subsystem failed to init but
                                   * the device kept running (see app_main.c) */
     BOARD_LED_WIFI_CONNECTING,  /* slow PWM breathe -- WiFi connect in progress */
+    BOARD_LED_OTA_UPDATING,     /* fast blink -- writing a new firmware image
+                                  * (webui.c's ota_upload_handler); only ever
+                                  * seen briefly before the reboot into it, or
+                                  * not at all on SMD2 (single-color LED --
+                                  * see board.c, no separate OTA pattern there) */
 } board_led_state_t;
 
-/* Configures the status LED (SMD only, GPIO11 -- no-op on THT, which has no
- * LED) and starts it blinking fast (BOARD_LED_BOOTING). Call once, early in
- * app_main(), before other subsystem init so there's visible boot feedback
- * even if something later hangs. */
+/* Configures the status LED (SMD only -- GPIO11 on SMD2, the DevKitC-1
+ * module's own onboard addressable RGB on SMD4/GPIO8; no-op on THT, which
+ * has neither) and starts it blinking fast (BOARD_LED_BOOTING). Call once,
+ * early in app_main(), before other subsystem init so there's visible boot
+ * feedback even if something later hangs. Note this can only ever reflect
+ * APPLICATION state -- the chip's own ROM bootloader (e.g. stuck in USB
+ * download mode after a reset) runs before this code exists to run at all,
+ * so there is no way for firmware to light anything during that state. */
 void board_led_init(void);
 
 /* Change the blink pattern. Safe to call from any task. */

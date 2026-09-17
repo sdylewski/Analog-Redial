@@ -862,7 +862,10 @@ void board_led_set_state(board_led_state_t state)
 #define LED_TICK_MS      100
 #define ONBOARD_LED_GPIO GPIO_NUM_8
 #define LED_OK_HOLD_MS   30000 /* solid green this long after WiFi connects, then off */
-#define LED_DIM          40    /* out of 255 -- this is a light-pipe indicator, not a room light */
+#define LED_DIM          4     /* out of 255 -- WS2812 is startlingly bright even at low values;
+                                 * confirmed 2026-09-17 that 40 (~16%) was "SUPER BRIGHT" on real
+                                 * hardware, so this is a much smaller fraction, not a straight
+                                 * 10%-of-255 read of that -- tune further here if still too much */
 
 static esp_timer_handle_t s_led_timer;
 static board_led_state_t  s_led_state = BOARD_LED_BOOTING;
@@ -894,6 +897,9 @@ static void led_timer_cb(void *arg)
         break;
     case BOARD_LED_WIFI_CONNECTING:
         led_set_rgb(0, ((tick / 5) % 2) ? LED_DIM : 0, 0); /* green, ~500ms half-period */
+        break;
+    case BOARD_LED_OTA_UPDATING:
+        led_set_rgb(((tick / 3) % 2) ? LED_DIM : 0, ((tick / 3) % 2) ? LED_DIM : 0, 0); /* yellow (r+g), ~300ms half-period */
         break;
     case BOARD_LED_BOOTING:
     default:
