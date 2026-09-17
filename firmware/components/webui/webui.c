@@ -15,6 +15,7 @@
 #include "prompts.h"
 #include "dialplan.h"
 #include "voip.h"
+#include "bt_companion.h"
 #include "multipart.h"
 #include "audio_convert.h"
 #include "logctl.h"
@@ -126,6 +127,7 @@ static int append_storage_table(char *buf, size_t cap, int off,
  * needs it to escape possibly remote-supplied caller ID text, and is
  * defined earlier in the file, right after append_log_panel()) can call it. */
 static void html_escape(const char *in, char *out, size_t outsz);
+static void js_escape(const char *in, char *out, size_t outsz);
 
 /* firmware/assets/ ships README.md and .gitignore alongside actual clips
  * (see that directory's own README) -- filter those out of "pick a clip to
@@ -349,6 +351,12 @@ static cJSON *build_status_json(void)
         cJSON_AddStringToObject(root, "voip_user1", voip_user(1));
     }
 
+    bt_companion_status_t bt_st = bt_companion_get_status();
+    cJSON_AddBoolToObject(root, "bt_enabled", bt_st.enabled);
+    cJSON_AddBoolToObject(root, "bt_link_up", bt_st.link_up);
+    cJSON_AddBoolToObject(root, "bt_connected", bt_st.bt_connected);
+    cJSON_AddStringToObject(root, "bt_paired_name", bt_st.paired_name);
+
     cJSON *lines = cJSON_AddArrayToObject(root, "lines");
     for (int l = 0; l < num_lines; l++) {
         cJSON *jl = cJSON_CreateObject();
@@ -445,6 +453,28 @@ static void html_escape(const char *in, char *out, size_t outsz)
             if (o + rl >= outsz) break; /* no room for the whole entity */
             memcpy(out + o, rep, rl);
             o += rl;
+        } else {
+            out[o++] = in[i];
+        }
+    }
+    out[o] = '\0';
+}
+
+/* Escapes for a single-quoted JS string literal embedded directly in an
+ * inline <script> block (see append_bluetooth_tab()'s live-status JS) --
+ * i18n_str() strings are translator-supplied at runtime, not just the
+ * hardcoded English defaults, so a translated string containing an
+ * apostrophe or backslash has to be escaped here rather than assumed safe. */
+static void js_escape(const char *in, char *out, size_t outsz)
+{
+    size_t o = 0;
+    if (outsz == 0) return;
+    for (size_t i = 0; in[i] && o < outsz - 1; i++) {
+        if ((in[i] == '\'' || in[i] == '\\') && o + 2 < outsz) {
+            out[o++] = '\\';
+            out[o++] = in[i];
+        } else if (in[i] == '\n' || in[i] == '\r') {
+            continue; /* strip -- these are short single-line UI strings */
         } else {
             out[o++] = in[i];
         }
@@ -683,6 +713,18 @@ static const char *RECORDING_RELOAD_JS =
     "}).catch(function(){});"
     "},2000);"
     "})();";
+
+/* Shared by every "enable this feature" master checkbox (VOIP, Answering
+ * Machine, Bluetooth, ...): shows/hides the rest of that feature's fields
+ * based on the checkbox's live state, so unchecking it doesn't require a
+ * round trip to the server just to see the rest of the section collapse.
+ * Purely cosmetic -- the hidden fields are still part of the DOM (just
+ * [hidden]), so whatever's in them still submits normally with their own
+ * form's Save button. Each call site's initial [hidden] state is rendered
+ * server-side from the actual persisted value, so this JS only needs to
+ * handle live toggling after that, not an on-load sync. */
+static const char *FEATURE_TOGGLE_JS =
+    "function toggleSection(cb,id){var e=document.getElementById(id);if(e)e.hidden=!cb.checked;}";
 
 /* Setup page served on the SoftAP: an SSID picker (scanned live) + password
  * form. Kept minimal and self-contained (its own <form>, the shared
@@ -1100,6 +1142,7 @@ static const settings_tab_t SETTINGS_TABS[] = {
     { "phone",      "Phone Settings",       "settings.tab.phone" },
     { "dialcodes",  "Dial Codes & Prompts", "settings.tab.dialcodes" },
     { "voip",       "VOIP",                 "settings.tab.voip" },
+    { "bluetooth",  "Bluetooth",            "settings.tab.bluetooth" },
     { "hardware",   "Hardware",             "settings.tab.hardware" },
     { "storage",    "Storage",              "settings.tab.storage" },
     { "diag",       "Diagnostics",          "settings.tab.diag" },
@@ -1795,32 +1838,6 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     char name[32];
     board_name_get(name, sizeof(name));
 
-    /* Master on/off, independent of whether a server's even configured --
-     * see voip_is_enabled()'s doc comment (voip.h) for exactly what
-     * disabling does (nothing new to build for the "someone still dials
-     * 555-xxxx" case: voip_dial() already fails safely, telephony.c
-     * already turns that into a reorder tone). Sits above the status
-     * card since it gates whether that card's pills can ever say
-     * "registered" at all. */
-    bool voip_en = voip_is_enabled();
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\"><h2>%s</h2>"
-        "<form method=\"POST\" action=\"/voip_enable\" class=\"settings-form\">"
-        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-        "</form>"
-        "<p class=\"hint\">%s</p></div>",
-        i18n_str("voip.enable.title", "VOIP"),
-        voip_en ? " checked" : "", i18n_str("voip.enable.label", "Enable VOIP on this phone"),
-        i18n_str("general.button.save", "Save (takes effect on reboot)"),
-        i18n_str("voip.enable.hint",
-                 "Off entirely disables VOIP for this board: it never registers with the SIP "
-                 "server, so no incoming call can reach it, and dialing 555-xxxx on the "
-                 "handset just gets a fast-busy/reorder tone instead of connecting -- same as "
-                 "if the server were unreachable. Server/extension/password below stay saved "
-                 "either way, so turning this back on doesn't need re-entering them. Takes "
-                 "effect on next reboot, same as changes to the server/credentials below."));
-
     bool r0 = voip_is_registered(0);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card wide\"><h2>%s</h2>"
@@ -1845,6 +1862,30 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
             r1 ? "on" : "off", r1 ? i18n_str("voip.registered", "registered") : i18n_str("voip.not_registered", "not registered"));
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+
+    /* Master "enable VOIP" switch -- gates sip_task() itself (voip.c), not
+     * just this tab's own visibility. The status card above always shows
+     * (so "disabled" is visible at a glance even collapsed); everything
+     * below -- the actual config form, setup instructions, check-a-number
+     * -- lives inside #voip-extra, hidden client-side when unchecked
+     * (FEATURE_TOGGLE_JS) so toggling it is instant, no round trip. Saved
+     * values persist in NVS regardless of this switch's state -- each
+     * section below is its own <form>, so hiding it doesn't stop it from
+     * submitting normally when visible. */
+    bool voip_on = voip_is_enabled();
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card wide\">"
+        "<form method=\"POST\" action=\"/voip_enable\" class=\"settings-form\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\" "
+        "onchange=\"toggleSection(this,'voip-extra')\"%s> <b>Enable VOIP</b></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+        "</form>"
+        "<p class=\"hint\">Takes effect on reboot, like the server/extension settings below. "
+        "Turning this off doesn't erase anything you've saved -- it just stops the board from "
+        "registering with your SIP server until you turn it back on.</p>"
+        "</div>"
+        "<div id=\"voip-extra\"%s>",
+        voip_on ? " checked" : "", voip_on ? "" : " hidden");
 
     /* 1. Point this phone at your SIP server -- promoted to the top of the
      * tab (was step 4, behind an auto-provisioning flow that made server
@@ -2151,9 +2192,154 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "document.getElementById('voip_check_server_label').textContent=v||'(no SIP server saved yet)';"
         "}"
         "voipSyncCheckServer();"
-        "</script></div>",
+        "</script></div>"
+        "</div>", /* closes #voip-extra, opened above the master enable switch */
         voip_server()[0] ? voip_server() : "(no SIP server saved yet)");
 
+    return off;
+}
+
+/* Bluetooth Classic audio companion (BM64, or a second ESP32 running
+ * Bluedroid) -- see archive/BLUETOOTH_AUDIO_UPGRADE.md and bt_companion.h.
+ * No hardware exists on any board yet, so the master switch defaults off;
+ * this tab exists now so there's a real, working place to flip it on and
+ * see honest status once a daughter board is actually wired in, rather
+ * than adding the UI at the same time as the hardware. Same master-switch
+ * pattern as the VOIP tab above: only the enable checkbox shows when off,
+ * everything else collapses into #bt-extra. */
+static int append_bluetooth_tab(char *buf, size_t cap, int off)
+{
+    bool bt_on = bt_companion_enabled();
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card wide\"><h2>%s</h2>"
+        "<form method=\"POST\" action=\"/bt_enable_set\" class=\"settings-form\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\" "
+        "onchange=\"toggleSection(this,'bt-extra')\"%s> <b>%s</b></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form>"
+        "<p class=\"hint\">%s</p>"
+        "</div>"
+        "<div id=\"bt-extra\"%s>",
+        i18n_str("settings.tab.bluetooth", "Bluetooth"),
+        bt_on ? " checked" : "", i18n_str("bt.enable_label", "I have a Bluetooth companion board wired in"),
+        i18n_str("general.button.save", "Save"),
+        i18n_str("bt.enable_hint",
+                 "Turn this on once a Bluetooth Classic audio companion board (see "
+                 "<code>archive/BLUETOOTH_AUDIO_UPGRADE.md</code> in the repo) is actually wired "
+                 "to this board's GPIO16/17 UART header -- leave it off until then. Unlike VOIP's "
+                 "switch, this takes effect immediately, no reboot: it just starts or stops "
+                 "talking over that UART."),
+        bt_on ? "" : " hidden");
+
+    bt_companion_status_t st = bt_companion_get_status();
+    const char *link_pill = st.link_up ? "on" : "off";
+    const char *link_text = st.link_up
+        ? i18n_str("bt.link_up", "responding")
+        : i18n_str("bt.link_down", "not responding");
+    const char *bt_pill = st.bt_connected ? "on" : "off";
+    const char *bt_conn_text = st.bt_connected ? i18n_str("bt.connected", "connected")
+                                                : i18n_str("bt.not_connected", "not connected");
+    char paired[BT_COMPANION_NAME_MAX * 6];
+    html_escape(st.bt_connected ? st.paired_name : i18n_str("bt.none_paired", "(none)"),
+                paired, sizeof(paired));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card wide\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+        "<span id=\"bt-link-pill\" class=\"pill %s\">%s</span></div>"
+        "<div class=\"statusrow\"%s id=\"bt-paired-row\"><span class=\"label\">%s</span>"
+        "<span id=\"bt-paired-pill\" class=\"pill %s\">%s</span></div>"
+        "<div class=\"statusrow\"%s id=\"bt-paired-name-row\"><span class=\"label\">%s</span>"
+        "<span id=\"bt-paired-name\">%s</span></div>",
+        i18n_str("bt.status_title", "Status"),
+        i18n_str("bt.link_label", "Companion board"), link_pill, link_text,
+        st.link_up ? "" : " hidden",
+        i18n_str("bt.paired_phone_label", "Paired phone/laptop"), bt_pill, bt_conn_text,
+        st.link_up ? "" : " hidden",
+        i18n_str("bt.paired_name_label", "Name"), paired);
+
+    /* Live status: polls the shared /api/status JSON (already carries
+     * bt_link_up/bt_connected/bt_paired_name, see build_status_json())
+     * instead of a dedicated endpoint. The pairing button gets its own
+     * transient "Pairing..." / "Paired!" states so clicking it actually
+     * shows something happened -- previously it just re-rendered the same
+     * static page on submit, with no feedback while the phone/laptop side
+     * hadn't paired yet. */
+    char js_link_up[48], js_link_down[48], js_connected[48], js_not_connected[48],
+         js_none_paired[48], js_pair_btn[64], js_pairing[64], js_paired[48];
+    js_escape(i18n_str("bt.link_up", "responding"), js_link_up, sizeof(js_link_up));
+    js_escape(i18n_str("bt.link_down", "not responding"), js_link_down, sizeof(js_link_down));
+    js_escape(i18n_str("bt.connected", "connected"), js_connected, sizeof(js_connected));
+    js_escape(i18n_str("bt.not_connected", "not connected"), js_not_connected, sizeof(js_not_connected));
+    js_escape(i18n_str("bt.none_paired", "(none)"), js_none_paired, sizeof(js_none_paired));
+    js_escape(i18n_str("bt.pair_button", "Start pairing"), js_pair_btn, sizeof(js_pair_btn));
+    js_escape(i18n_str("bt.pair_button_pairing", "Pairing... check your phone/laptop"),
+              js_pairing, sizeof(js_pairing));
+    js_escape(i18n_str("bt.pair_button_paired", "Paired!"), js_paired, sizeof(js_paired));
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<form method=\"POST\" action=\"/bt_pair\" class=\"settings-form\" id=\"bt-pair-form\">"
+        "<div class=\"toolbar sub\"><button type=\"submit\" id=\"bt-pair-btn\"%s>%s</button></div>"
+        "</form>"
+        "<p class=\"hint\" id=\"bt-pair-hint\">%s</p>"
+        "</div>"
+        "<script>(function(){"
+        "var I={"
+        "linkUp:'%s',linkDown:'%s',connected:'%s',notConnected:'%s',nonePaired:'%s',"
+        "pairBtn:'%s',pairing:'%s',paired:'%s'"
+        "};"
+        "var linkPill=document.getElementById('bt-link-pill');"
+        "var pairedRow=document.getElementById('bt-paired-row');"
+        "var pairedPill=document.getElementById('bt-paired-pill');"
+        "var nameRow=document.getElementById('bt-paired-name-row');"
+        "var nameEl=document.getElementById('bt-paired-name');"
+        "var btn=document.getElementById('bt-pair-btn');"
+        "var form=document.getElementById('bt-pair-form');"
+        "var pairing=false, pairingTimeout=null;"
+        "function setBtnState(state){"
+        "btn.classList.remove('is-busy','is-active');"
+        "if(state==='pairing'){btn.disabled=true;btn.classList.add('is-busy');btn.textContent=I.pairing;}"
+        "else if(state==='paired'){btn.disabled=false;btn.classList.add('is-active');btn.textContent=I.paired;}"
+        "else{btn.disabled=(linkPill.className.indexOf('on')<0);btn.textContent=I.pairBtn;}"
+        "}"
+        "function poll(){"
+        "fetch('/api/status').then(function(r){return r.json();}).then(function(d){"
+        "var up=!!d.bt_link_up, conn=!!d.bt_connected;"
+        "linkPill.className='pill '+(up?'on':'off');linkPill.textContent=up?I.linkUp:I.linkDown;"
+        "pairedRow.hidden=!up; nameRow.hidden=!up;"
+        "pairedPill.className='pill '+(conn?'on':'off');pairedPill.textContent=conn?I.connected:I.notConnected;"
+        "nameEl.textContent=conn?(d.bt_paired_name||''):I.nonePaired;"
+        "if(!up){btn.disabled=true;}"
+        "if(pairing&&conn){"
+        "pairing=false; if(pairingTimeout)clearTimeout(pairingTimeout);"
+        "setBtnState('paired');"
+        "setTimeout(function(){if(!pairing)setBtnState('idle');},4000);"
+        "} else if(!pairing){"
+        "setBtnState('idle');"
+        "}"
+        "}).catch(function(){});"
+        "}"
+        "form.addEventListener('submit',function(ev){"
+        "ev.preventDefault();"
+        "pairing=true; setBtnState('pairing');"
+        "fetch('/bt_pair',{method:'POST'}).catch(function(){});"
+        "if(pairingTimeout)clearTimeout(pairingTimeout);"
+        "pairingTimeout=setTimeout(function(){pairing=false;setBtnState('idle');},45000);"
+        "});"
+        "setInterval(poll,3000);"
+        "})();</script>",
+        st.link_up ? "" : " disabled",
+        i18n_str("bt.pair_button", "Start pairing"),
+        st.link_up
+            ? i18n_str("bt.pair_hint", "Puts the companion board into pairing mode -- on your "
+                                        "phone/laptop, look for it in the Bluetooth device list "
+                                        "the same way you'd pair any headset.")
+            : i18n_str("bt.pair_hint_down",
+                       "Greyed out because the companion board isn't responding yet -- check the "
+                       "UART wiring (GPIO16/17, crossed TX/RX) once it's connected."),
+        js_link_up, js_link_down, js_connected, js_not_connected, js_none_paired,
+        js_pair_btn, js_pairing, js_paired);
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>"); /* closes #bt-extra */
     return off;
 }
 
@@ -3475,7 +3661,8 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "</header><main class=\"settings-main\">");
     off = append_settings_tabs(buf, cap, off, tab);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "<div class=\"cards\">");
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<script>%s</script><div class=\"cards\">", FEATURE_TOGGLE_JS);
 
     if (strcmp(tab, "general") == 0) off = append_general_tab(buf, cap, off);
     else if (strcmp(tab, "phone") == 0) off = append_phone_settings_tab(buf, cap, off);
@@ -3489,6 +3676,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         off = append_record_tab(buf, cap, off, entries, n);
     }
     else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off, checked, result, created, createresult);
+    else if (strcmp(tab, "bluetooth") == 0) off = append_bluetooth_tab(buf, cap, off);
     else if (strcmp(tab, "diag") == 0) off = append_diag_tab(buf, cap, off);
     /* Storage: the full SD+internal file manager, kept separate from
      * Hardware -- see SETTINGS_TABS's comment for why (its per-file
@@ -4124,6 +4312,49 @@ static esp_err_t board_hw_set_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* POST /bt_enable_set -- form body [enabled=1]. Master switch for the
+ * Bluetooth companion link (bt_companion_set_enabled()) -- unlike VOIP's
+ * equivalent, this takes effect immediately (starts/stops the UART task
+ * right away), so no "reboot to apply" wording here. */
+static esp_err_t bt_enable_set_handler(httpd_req_t *req)
+{
+    if (req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY] = {0};
+    if (req->content_len > 0) {
+        int r = httpd_req_recv(req, body, req->content_len);
+        if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+        body[r] = '\0';
+    }
+    char enabled[8] = {0};
+    form_field(body, "enabled", enabled, sizeof(enabled));
+    bt_companion_set_enabled(enabled[0] == '1');
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=bluetooth");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /bt_pair -- no form body. Tells the companion board to enter
+ * pairing mode; a no-op 400 if it's not enabled/linked (button is
+ * server-rendered disabled in that case too, see append_bluetooth_tab(),
+ * but a direct POST could still reach here). */
+static esp_err_t bt_pair_handler(httpd_req_t *req)
+{
+    esp_err_t err = bt_companion_start_pairing();
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "companion board not connected");
+        return ESP_OK;
+    }
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=bluetooth");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 /* POST /voip_set -- form body server=..&user0=..&pass0=..[&user1=..&pass1=..].
  * Blank password fields mean "leave unchanged" (voip_set_config() already
  * treats a NULL field that way; empty-string form fields are passed as
@@ -4443,6 +4674,67 @@ static esp_err_t test_inject_handler(httpd_req_t *req)
     } else {
         httpd_resp_sendstr(req, "ok\n");
     }
+    return ESP_OK;
+}
+
+/* POST /test/bt_tone  body hz=N & ms=N -- asks the Bluetooth companion to
+ * synthesize a tone straight out its own DAC, bypassing Bluetooth/the phone
+ * call entirely (see bt_companion_test_tone()/bt_audio_io_test_tone()).
+ * Pairs with /test/record: trigger this, then record on the line, to check
+ * whether the analog bridge itself is clean independent of live call
+ * audio. Requires test mode on, same as the other test endpoints. */
+static esp_err_t test_bt_tone_handler(httpd_req_t *req)
+{
+    char body[64], hz_s[8] = {0}, ms_s[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    if (!telephony_test_enabled()) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "test mode is off (POST /test/mode on=1 first)");
+        return ESP_OK;
+    }
+    form_field(body, "hz", hz_s, sizeof(hz_s));
+    form_field(body, "ms", ms_s, sizeof(ms_s));
+    int hz = hz_s[0] ? atoi(hz_s) : 1000;
+    int ms = ms_s[0] ? atoi(ms_s) : 3000;
+    if (hz <= 0 || hz > 4000 || ms <= 0 || ms > 30000) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad hz (1-4000) or ms (1-30000)"); return ESP_OK;
+    }
+    esp_err_t err = bt_companion_test_tone(hz, ms);
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "companion board not connected"); return ESP_OK;
+    }
+    httpd_resp_sendstr(req, "ok\n");
+    return ESP_OK;
+}
+
+/* POST /test/bt_level  body high=0|1 & ms=N -- asks the Bluetooth companion
+ * to drive a constant DC level out its DAC instead of a tone (see
+ * bt_companion_test_level()/bt_audio_io_test_level()). A static level is
+ * much easier to confirm with a multimeter/scope than a moving waveform --
+ * a quick sanity check before chasing a tone signal. Requires test mode on,
+ * same as the other test endpoints. */
+static esp_err_t test_bt_level_handler(httpd_req_t *req)
+{
+    char body[64], high_s[8] = {0}, ms_s[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    if (!telephony_test_enabled()) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "test mode is off (POST /test/mode on=1 first)");
+        return ESP_OK;
+    }
+    form_field(body, "high", high_s, sizeof(high_s));
+    form_field(body, "ms", ms_s, sizeof(ms_s));
+    int ms = ms_s[0] ? atoi(ms_s) : 10000;
+    if (ms <= 0 || ms > 30000) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad ms (1-30000)"); return ESP_OK;
+    }
+    esp_err_t err = bt_companion_test_level(high_s[0] == '1', ms);
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "companion board not connected"); return ESP_OK;
+    }
+    httpd_resp_sendstr(req, "ok\n");
     return ESP_OK;
 }
 
@@ -6255,6 +6547,8 @@ esp_err_t webui_start(void)
         { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },
         { .uri = "/prompt_text_set",        .method = HTTP_POST, .handler = prompt_text_set_handler },
         { .uri = "/api/prompt_requests",    .method = HTTP_GET,  .handler = prompt_requests_json_handler },
+        { .uri = "/bt_enable_set",           .method = HTTP_POST, .handler = bt_enable_set_handler },
+        { .uri = "/bt_pair",                 .method = HTTP_POST, .handler = bt_pair_handler },
         { .uri = "/voip_set",               .method = HTTP_POST, .handler = voip_set_handler },
         { .uri = "/voip_check",             .method = HTTP_POST, .handler = voip_check_handler },
         { .uri = "/voip_setup_password",    .method = HTTP_POST, .handler = voip_setup_password_handler },
@@ -6265,6 +6559,8 @@ esp_err_t webui_start(void)
         { .uri = "/test/mic_record",        .method = HTTP_POST, .handler = test_mic_record_handler },
         { .uri = "/test/inject",            .method = HTTP_POST, .handler = test_inject_handler },
         { .uri = "/test/record",            .method = HTTP_POST, .handler = test_record_handler },
+        { .uri = "/test/bt_tone",           .method = HTTP_POST, .handler = test_bt_tone_handler },
+        { .uri = "/test/bt_level",          .method = HTTP_POST, .handler = test_bt_level_handler },
         { .uri = "/test/sd",                .method = HTTP_POST, .handler = test_sd_handler },
         { .uri = "/sd_selftest_ui",         .method = HTTP_POST, .handler = sd_selftest_ui_handler },
         { .uri = "/sd_format",              .method = HTTP_POST, .handler = sd_format_handler },

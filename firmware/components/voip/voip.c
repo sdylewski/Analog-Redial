@@ -102,8 +102,14 @@ static char           s_myip[16];
 static TaskHandle_t   s_task;
 /* Master on/off for the whole VoIP subsystem, independent of whether a
  * server/credentials are configured -- see voip_is_enabled()'s doc comment
- * in voip.h. Defaults true so upgrading existing boards that already have
- * working VoIP doesn't silently turn it off. */
+ * in voip.h. Distinct from the per-line line_t.enabled above (which tracks
+ * whether that line's own SIP account is active -- currently always true,
+ * never exposed in the UI). This one gates the whole feature: sip_task()
+ * checks it once at boot the same way it already checks "is a server even
+ * configured", so flipping this takes effect on reboot, matching every
+ * other VoIP setting. Defaults to true so upgrading/updating a board that
+ * already has working VoIP doesn't silently turn it off -- the checkbox is
+ * how you turn it off going forward, not an opt-in to turn it on. */
 static bool           s_voip_enabled = true;
 /* Shared "setup" secret, per board -- see voip_setup_password()'s doc
  * comment in voip.h. Stored alongside the rest of the VoIP config since it

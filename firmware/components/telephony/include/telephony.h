@@ -43,6 +43,15 @@ typedef enum {
                                 * rather than just returning to dial tone */
     TEL_RECORD_BEEP,           /* beep tone playing, recording starts
                                 * when it finishes */
+    TEL_BT_PASSTHROUGH,        /* off-hook while the Bluetooth companion
+                                * (bt_companion.c) owns this line's audio --
+                                * silent, no dial tone, no digit collection,
+                                * no inter-digit timeout. See on_offhook()'s
+                                * bt_companion_enabled() check: this line's
+                                * Vin/Vout are physically shared with the
+                                * companion's GPIO25/34, so normal telephony
+                                * tones would electrically fight the
+                                * Bluetooth audio on the same node. */
 } tel_state_t;
 
 /* 211's optional spoken prompt ("record your message after the beep...").

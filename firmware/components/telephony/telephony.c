@@ -10,6 +10,7 @@
 #include "recorder.h"
 #include "storage.h"
 #include "activity.h"
+#include "bt_companion.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "board.h"
@@ -167,6 +168,7 @@ const char *telephony_state_name(tel_state_t s)
         case TEL_OFFHOOK_ALERT: return "OFFHOOK_ALERT";
         case TEL_PLAYING_RECORD_PROMPT: return "PLAYING_RECORD_PROMPT";
         case TEL_RECORD_BEEP: return "RECORD_BEEP";
+        case TEL_BT_PASSTHROUGH: return "BT_PASSTHROUGH";
         default: return "?";
     }
 }
@@ -307,6 +309,37 @@ static void enter_dialtone(int line)
     board_offhook_alert_t roh = board_offhook_alert_get();
     s_line[line].offhook_alert_at_us =
         roh.enabled ? esp_timer_get_time() + (int64_t)roh.seconds * 1000000 : 0;
+}
+
+/* The Bluetooth companion's analog bridge (bt_companion.c, GPIO25/34 on the
+ * ESP32 side) is physically wired to line 0's AG1171 Vin/Vout -- see
+ * archive/BLUETOOTH_AUDIO_UPGRADE.md's pin table. Not configurable (no
+ * board-config knob exists for it), since it's a fixed hardware choice, not
+ * a runtime setting. */
+#define BT_COMPANION_LINE 0
+
+/* Confirmed 2026-09-15 on real bench hardware: normal off-hook handling
+ * (enter_dialtone(), and later the 15s inter-digit timeout's wrong-number
+ * tone) plays audio through this line's own codec DAC -- which shares the
+ * exact same physical Vin node the Bluetooth companion's GPIO25 also drives.
+ * Two active DAC outputs fighting the same node isn't a "wrong tone", it's
+ * electrical contention: real testing showed it corrupting the Bluetooth
+ * audio and being a plausible cause of the phone's SCO link dropping
+ * outright a few seconds after the dial-collector timeout fired. While the
+ * companion is enabled, this line skips dial tone/digit collection/the
+ * timeout entirely and just stays silent on its own DAC -- the whole point
+ * of the line right now is being a dumb analog passthrough for the
+ * companion, not a rotary-dial line a user actually dials from. */
+static void enter_bt_passthrough(int line)
+{
+    ESP_LOGD(TAG, "line %d: %s -> BT_PASSTHROUGH", line, telephony_state_name(s_line[line].state));
+    audio_tx_silence(line);
+    s_line[line].state = TEL_BT_PASSTHROUGH;
+    s_line[line].peer = PEER_NONE;
+    s_line[line].dialing = false;
+    s_line[line].tone_return_us = 0;
+    dialplan_collector_reset(&s_line[line].coll);
+    activity_log("Line %d: off-hook, Bluetooth companion passthrough", line);
 }
 
 void telephony_force_recover(int line)
@@ -766,6 +799,10 @@ static bool am_active(int line)
 /* ---- main event handlers ---- */
 static void on_offhook(int line)
 {
+    if (line == BT_COMPANION_LINE && bt_companion_enabled()) {
+        enter_bt_passthrough(line);
+        return;
+    }
     tel_state_t st = s_line[line].state;
     if (st == TEL_RINGING) {
         /* answering an incoming call */

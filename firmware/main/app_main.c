@@ -25,6 +25,7 @@
 #include "storage.h"
 #include "sdcard.h"
 #include "idle_power.h"
+#include "bt_companion.h"
 #include "esp_ota_ops.h"
 #include "logbuf.h"
 #include "logctl.h"
@@ -210,6 +211,11 @@ void app_main(void)
      * telephony/voip and wifi so it has everything it needs to watch.
      * See idle_power.h and archive/POWER_SAVING.md. */
     idle_power_init();
+
+    /* Optional Bluetooth Classic audio companion board (disabled by
+     * default -- no hardware exists on any board yet). See
+     * archive/BLUETOOTH_AUDIO_UPGRADE.md and bt_companion.h. */
+    bt_companion_init();
 
     /* 7. BOOT-strap watcher: hold GPIO9 low ~3 s at runtime to factory-reset
      * WiFi. Started last so it can't interfere with subsystem bring-up. */

@@ -45,6 +45,17 @@ firmware/version.txt
 # checkout) -- regenerate with `idf.py reconfigure`, don't commit.
 firmware/managed_components/
 
+# Bluetooth companion bring-up test projects (bt_companion_fw/,
+# bt_companion_hfp_test/) -- copies of ESP-IDF's own A2DP-sink/HFP-HF
+# examples, used to validate the ESP32-original companion board before
+# writing the real companion firmware. Same ESP-IDF build-artifact pattern
+# as firmware/ above.
+bt_companion_fw/build/
+bt_companion_hfp_test/build/
+bt_companion_*/sdkconfig.old
+bt_companion_*/dependencies.lock
+bt_companion_*/managed_components/
+
 # Python
 __pycache__/
 *.py[cod]
