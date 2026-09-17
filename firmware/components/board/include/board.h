@@ -306,6 +306,22 @@ typedef struct {
 } board_hw_evidence_t;
 board_hw_evidence_t board_hw_detect_evidence(void);
 
+/* True when this board is configured for 2 lines but a microSD card is
+ * mechanically present (BOARD_SD_CD) anyway -- see docs/hardware.md's "J5:
+ * line-1 SLIC vs. microSD" for the physical wiring this reasons about.
+ * GPIO18-21 are a real jumper header, not a soft/logical switch: when
+ * jumpered for line 1, the card's data lines are electrically disconnected
+ * from the ESP32 entirely, so this is NOT an electrical hazard on those
+ * lines the way it might sound -- the card just sits there powered but
+ * silent. It's still a real physical/config mismatch worth surfacing
+ * loudly (someone built/jumpered for one option and left a card meant for
+ * the other sitting in the socket) rather than leaving "the SD card just
+ * silently doesn't work" as the only symptom. Just combines two existing
+ * calls (board_hw_config_get(), board_hw_detect_evidence()), so it's as
+ * cheap and safe to call from anywhere, any time, as they already are --
+ * no new state, no GPIO side effects. */
+bool board_sd_line1_conflict(void);
+
 #ifdef __cplusplus
 }
 #endif

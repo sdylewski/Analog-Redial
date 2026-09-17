@@ -587,6 +587,22 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
             UI_LANGUAGES[i].flag, UI_LANGUAGES[i].name);
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</select></form></nav>");
+
+    /* Shown on every page (this function is every page's shared head) --
+     * see board_sd_line1_conflict()'s own doc comment (board.h) for why
+     * this specific combination gets a loud banner instead of staying
+     * silent, and why line 1 has already been powered down by the time
+     * anyone sees this (app_main.c's periodic check, not this render). */
+    if (board_sd_line1_conflict()) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"hazard-banner\">%s</div>",
+            i18n_str("hazard.sd_line1_conflict",
+                     "&#9888; microSD card detected, but this board is configured for 2 lines "
+                     "-- microSD and line 1 share the same wiring and can't both be active. "
+                     "Line 1 has been disabled until this is fixed: remove the card, or "
+                     "reconfigure this board in <a href=\"/settings?tab=hardware\">Settings "
+                     "&rarr; Hardware</a> if it's actually meant to be single-line + microSD."));
+    }
     return off;
 }
 

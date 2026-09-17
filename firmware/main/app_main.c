@@ -50,6 +50,47 @@ static void on_factory_reset(void)
     esp_restart();
 }
 
+/* Physical/config safety guard: board_sd_line1_conflict() (board.h) is true
+ * when a microSD card is mechanically present but this board is configured
+ * for 2 lines -- GPIO18-21 are a real jumper (J5, docs/hardware.md "J5:
+ * line-1 SLIC vs. microSD") between line 1's SLIC and the microSD socket,
+ * so this isn't electrical contention on those lines (jumpered for line 1,
+ * the card's data lines are simply disconnected) -- but it IS a real
+ * physical/config mismatch: someone jumpered/configured this board for one
+ * option and left a card meant for the other sitting in the socket, which
+ * would otherwise show up only as "the SD card silently doesn't work."
+ * Line 1 gets powered down here as a precaution -- not because the card
+ * threatens it electrically, but because a board caught in this mismatched
+ * state deserves a human's attention before carrying a real call, and
+ * depowering makes "something is wrong" impossible to miss even without
+ * the web UI (see webui.c's append_page_head() for the on-screen banner).
+ * Polled rather than interrupt-driven since a card getting inserted/pulled
+ * is a human-timescale event -- 2s is plenty responsive without spinning a
+ * task needlessly. */
+#define SD_LINE1_CONFLICT_POLL_MS 2000
+
+static void sd_line1_conflict_task(void *arg)
+{
+    bool was_active = false;
+    while (1) {
+        bool active = board_sd_line1_conflict();
+        if (active && !was_active) {
+            ESP_LOGE(TAG, "microSD card present on a 2-line board -- disabling line 1 "
+                          "until this is resolved (see Settings -> Hardware)");
+            activity_log("Config mismatch: microSD card present on a 2-line board -- line 1 disabled");
+            board_led_set_state(BOARD_LED_ERROR);
+            ag1170_set_power(1, false);
+        } else if (!active && was_active) {
+            ESP_LOGW(TAG, "microSD/line-1 conflict cleared -- restoring line 1");
+            activity_log("Config mismatch cleared -- line 1 re-enabled");
+            board_led_set_state(BOARD_LED_OK);
+            if (board_hw_config_get().num_lines == 2) ag1170_set_power(1, true);
+        }
+        was_active = active;
+        vTaskDelay(pdMS_TO_TICKS(SD_LINE1_CONFLICT_POLL_MS));
+    }
+}
+
 void app_main(void)
 {
     /* Before anything else logs, so the ring buffer catches the whole boot
@@ -173,6 +214,12 @@ void app_main(void)
     /* 7. BOOT-strap watcher: hold GPIO9 low ~3 s at runtime to factory-reset
      * WiFi. Started last so it can't interfere with subsystem bring-up. */
     board_factory_reset_start(on_factory_reset);
+
+    /* microSD/line-1 physical config guard -- see sd_line1_conflict_task()'s
+     * own doc comment above. After ag1170_init() so line 1's SLIC (if
+     * configured) has already claimed its GPIO before this might power it
+     * back down/up. */
+    xTaskCreate(sd_line1_conflict_task, "sd_line1_guard", 3072, NULL, tskIDLE_PRIORITY + 1, NULL);
 
     /* Confirms this image is good, canceling CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE's
      * pending auto-revert -- everything that could plausibly fail to come up

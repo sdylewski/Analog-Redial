@@ -673,6 +673,11 @@ board_hw_evidence_t board_hw_detect_evidence(void)
     return ev;
 }
 
+bool board_sd_line1_conflict(void)
+{
+    return board_hw_config_get().num_lines == 2 && board_hw_detect_evidence().card_present;
+}
+
 void board_hw_config_autodetect(void)
 {
     if (board_current_type() != BOARD_TYPE_SMD) return;
