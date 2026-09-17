@@ -82,14 +82,19 @@ static esp_err_t do_mount(bool format_if_failed)
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = SPI2_HOST;
-    /* SDSPI_HOST_DEFAULT() leaves this at SDMMC_FREQ_DEFAULT (20MHz).
-     * SDMMC_FREQ_HIGHSPEED (40MHz) is a standard ESP-IDF value, not an
-     * aggressive/unsupported overclock -- most cards handle it fine even
-     * over SPI. This helps raw transfer time, not the bigger cost on this
-     * board (SPI-mode's per-file-open protocol overhead, unrelated to
-     * clock rate -- see webui.c's STORAGE_LIST_MAX/wav_duration_str() doc
-     * comments for the fixes that actually target that), but it's free. */
-    host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
+    /* Deliberately left at SDSPI_HOST_DEFAULT()'s own SDMMC_FREQ_DEFAULT
+     * (20MHz) -- 11759ad once bumped this to SDMMC_FREQ_HIGHSPEED (40MHz)
+     * for faster transfers, but confirmed 2026-09-17 that 40MHz is what
+     * was actually causing "command CRC error" / sdmmc_card_init failed
+     * (0x109) on BOTH dualphone2 (SMD4) and maxphone (SMD2) -- two
+     * different boards, two different pin maps, same card, same failure,
+     * which is what pointed at clock speed rather than wiring/board type.
+     * Real point-to-point SPI wiring (not a controlled-impedance PCB bus,
+     * let alone the native SD 4-bit mode this rate was designed around) is
+     * much more signal-integrity-sensitive than 40MHz assumes. Reverting
+     * to 20MHz alone fixed the mount on both boards with the exact same
+     * card that had failed at 40MHz -- do not re-enable HIGHSPEED without
+     * re-testing on real hardware, not just a clean build. */
 
     spi_bus_config_t bus = {
         .mosi_io_num = BOARD_SD_MOSI,
