@@ -3544,22 +3544,49 @@ static int append_storage_section(char *buf, size_t cap, int off)
      * card), so without this, a failed/pending mount is silently invisible
      * here -- this is what "show inserted in web UI" actually needed. */
     if (!sd && board_hw_config_get().has_microsd) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"card wide\" style=\"margin-top:16px\"><h2>%s</h2>"
-            "<p class=\"hint\">%s</p>"
-            "<div class=\"toolbar sub\">"
-            "<form method=\"POST\" action=\"/sd_selftest_ui\" style=\"display:inline\">"
-            "<button type=\"submit\">%s</button></form>"
-            "</div></div>",
-            i18n_str("storage.sd_info_title", "microSD card"),
-            i18n_str("storage.sd_not_mounted_hint",
-                     "Configured for a microSD card, but none is currently mounted. If a card "
-                     "is inserted, this usually means the last mount attempt failed (bad format, "
-                     "wiring, or a failing card -- check the activity/boot log for the exact "
-                     "error), or it was just inserted and hasn't been picked up yet -- rechecked "
-                     "automatically every couple of seconds. Reload this page in a moment, or "
-                     "force an immediate retry below."),
-            i18n_str("storage.sd_retry_button", "Retry mount"));
+        if (sdcard_needs_format()) {
+            /* sdcard_needs_format() means the card talked fine over SPI --
+             * this really is a wrong-filesystem problem (exFAT, a
+             * multi-partition card like a Raspberry Pi OS image, or blank/
+             * corrupted), not wiring -- so offer the thing that actually
+             * fixes it instead of a plain retry, which would just fail the
+             * same way again. */
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<div class=\"card wide\" style=\"margin-top:16px\"><h2>%s</h2>"
+                "<p class=\"hint warn-text\">%s</p>"
+                "<div class=\"toolbar sub\">"
+                "<form method=\"POST\" action=\"/sd_force_format\" style=\"display:inline\" "
+                "onsubmit=\"return confirm('%s')\">"
+                "<button type=\"submit\" class=\"danger\">%s</button></form>"
+                "</div></div>",
+                i18n_str("storage.sd_info_title", "microSD card"),
+                i18n_str("storage.sd_wrong_fs_hint",
+                         "Card detected and responding fine, but it isn't formatted as a plain "
+                         "FAT32 filesystem this board can use -- exFAT, a multi-partition card "
+                         "(e.g. a Raspberry Pi OS image), or something similar. This isn't a "
+                         "wiring problem; reformatting is the fix."),
+                i18n_str("storage.sd_force_format_confirm",
+                         "Format this microSD card as FAT32? This permanently erases EVERYTHING "
+                         "currently on it. This cannot be undone."),
+                i18n_str("storage.sd_force_format_button", "Format as FAT32"));
+        } else {
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<div class=\"card wide\" style=\"margin-top:16px\"><h2>%s</h2>"
+                "<p class=\"hint\">%s</p>"
+                "<div class=\"toolbar sub\">"
+                "<form method=\"POST\" action=\"/sd_selftest_ui\" style=\"display:inline\">"
+                "<button type=\"submit\">%s</button></form>"
+                "</div></div>",
+                i18n_str("storage.sd_info_title", "microSD card"),
+                i18n_str("storage.sd_not_mounted_hint",
+                         "Configured for a microSD card, but none is currently mounted. If a "
+                         "card is inserted, this usually means the last mount attempt failed "
+                         "(wiring, or a failing card -- check the activity/boot log for the "
+                         "exact error), or it was just inserted and hasn't been picked up yet -- "
+                         "rechecked automatically every couple of seconds. Reload this page in a "
+                         "moment, or force an immediate retry below."),
+                i18n_str("storage.sd_retry_button", "Retry mount"));
+        }
     }
 
     if (sd) {
@@ -3694,11 +3721,14 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
          * also cover append_sdcard_info_card() -- product/manufacturer/
          * type/bus rows, self-test result, and the self-test + format
          * buttons, on top of the bulk-delete form already accounted for.
-         * +900 covers the "configured for SD but not mounted" fallback
+         * +1200 covers the "configured for SD but not mounted" fallback
          * card (append_storage_section()) on a board that's configured for
-         * a card but doesn't currently have one mounted. */
+         * a card but doesn't currently have one mounted -- sized for its
+         * larger of two variants (sdcard_needs_format()'s force-format
+         * confirm dialog + danger button, bigger than the plain retry
+         * button the other variant renders). */
         storage_room = (sd_n + in_n) * 600 + (storage_sd_present() ? 4096 : 0) + 2048 +
-            (!storage_sd_present() && board_hw_config_get().has_microsd ? 900 : 0);
+            (!storage_sd_present() && board_hw_config_get().has_microsd ? 1200 : 0);
     }
     /* Hardware tab lost its heaviest content (speaker volume/echo/answering
      * machine, all per-line cards -- see append_phone_settings_tab()) to
@@ -4944,6 +4974,26 @@ static esp_err_t sd_format_handler(httpd_req_t *req)
         activity_log("microSD card formatted");
     } else {
         ESP_LOGW(TAG, "SD format failed: %s", esp_err_to_name(err));
+    }
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=storage");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /sd_force_format -- for a card sdcard_needs_format() flagged (talks
+ * fine over SPI, no valid FAT filesystem): formats and mounts it in one
+ * step, since /sd_format above requires an already-mounted card, which this
+ * one by definition isn't. Real, irreversible data loss, same as
+ * /sd_format -- the Storage tab's own confirm() dialog is the only guard. */
+static esp_err_t sd_force_format_handler(httpd_req_t *req)
+{
+    esp_err_t err = sdcard_force_format();
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "SD card reformatted (was unmounted/wrong filesystem) via web UI");
+        activity_log("microSD card reformatted as FAT32 (was unrecognized)");
+    } else {
+        ESP_LOGW(TAG, "SD force-format failed: %s", esp_err_to_name(err));
     }
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/settings?tab=storage");
@@ -6661,6 +6711,7 @@ esp_err_t webui_start(void)
         { .uri = "/test/sd",                .method = HTTP_POST, .handler = test_sd_handler },
         { .uri = "/sd_selftest_ui",         .method = HTTP_POST, .handler = sd_selftest_ui_handler },
         { .uri = "/sd_format",              .method = HTTP_POST, .handler = sd_format_handler },
+        { .uri = "/sd_force_format",        .method = HTTP_POST, .handler = sd_force_format_handler },
 #if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
         { .uri = "/speaker_volume_live",    .method = HTTP_POST, .handler = speaker_volume_live_handler },
         { .uri = "/speaker_volume",         .method = HTTP_POST, .handler = speaker_volume_handler },

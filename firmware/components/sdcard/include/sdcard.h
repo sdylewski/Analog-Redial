@@ -27,6 +27,24 @@ esp_err_t sdcard_init(void);
 
 bool sdcard_mounted(void);
 
+/* True if the last failed mount attempt talked to the card fine over SPI
+ * but found no valid FAT filesystem on it -- a formatting problem (exFAT, a
+ * multi-partition card like a Raspberry Pi OS image, or blank/corrupted),
+ * NOT a wiring/hardware one. Lets the web UI tell those two apart instead
+ * of showing the same generic "mount failed" for both. False after a
+ * successful mount, and false for every other failure (no card, CRC/comms
+ * error, etc.) -- see do_mount()'s doc comment in sdcard.c for exactly how
+ * this is derived from ESP-IDF's own (otherwise-generic) error code. */
+bool sdcard_needs_format(void);
+
+/* Explicit, user-initiated format-and-mount for a card sdcard_needs_format()
+ * flagged -- sdcard_format() below can't help there since it requires an
+ * already-mounted card. Real, irreversible data loss on whatever's on the
+ * card; the web UI gates this behind its own confirm() dialog, same as
+ * sdcard_format(). ESP_ERR_INVALID_STATE if already mounted (use
+ * sdcard_format() instead) or if no card is present. */
+esp_err_t sdcard_force_format(void);
+
 /* Unmounts and releases the card handle -- the counterpart sdcard_init()
  * itself doesn't have, needed so a hot-removed card (sdcard_hotplug_start(),
  * below) doesn't leave sdcard_mounted() reporting stale "yes" state against

@@ -10,6 +10,7 @@
 #include "nvs.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
+#include "led_strip.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <stdbool.h>
@@ -846,6 +847,92 @@ void board_led_init(void)
 
 void board_led_set_state(board_led_state_t state)
 {
+    s_led_state = state;
+}
+#elif CONFIG_BOARD_TYPE_SMD4
+/* No discrete status LED on this carrier (BOARD_STATUS_LED intentionally
+ * not defined -- GPIO11, SMD2's LED pin, is I2S BCLK here instead). This
+ * drives the ESP32-C6-DevKitC-1 MODULE's own onboard addressable RGB LED
+ * instead, which the carrier leaves completely free (docs/hardware.md's
+ * pin table: "GPIO8 (BOOT, strap) -- unconnected, free") -- a WS2812 on
+ * GPIO8 is Espressif's standard DevKitC-1 layout, not something specific
+ * to this project, so it needs no carrier PCB change. Unverified against
+ * the DevKit's own schematic as of writing -- if GPIO8 turns out wrong for
+ * a given DevKit revision, only ONBOARD_LED_GPIO below needs to change. */
+#define LED_TICK_MS      100
+#define ONBOARD_LED_GPIO GPIO_NUM_8
+#define LED_OK_HOLD_MS   30000 /* solid green this long after WiFi connects, then off */
+#define LED_DIM          40    /* out of 255 -- this is a light-pipe indicator, not a room light */
+
+static esp_timer_handle_t s_led_timer;
+static board_led_state_t  s_led_state = BOARD_LED_BOOTING;
+static led_strip_handle_t s_led_strip;
+static unsigned           s_ok_ticks; /* ticks spent in BOARD_LED_OK so far */
+
+static void led_set_rgb(uint8_t r, uint8_t g, uint8_t b)
+{
+    if (!s_led_strip) return;
+    led_strip_set_pixel(s_led_strip, 0, r, g, b);
+    led_strip_refresh(s_led_strip);
+}
+
+static void led_timer_cb(void *arg)
+{
+    static unsigned tick;
+    tick++;
+    switch (s_led_state) {
+    case BOARD_LED_OK:
+        /* Solid green for LED_OK_HOLD_MS (long enough to glance over and
+         * confirm "WiFi's up"), then off -- an indicator that never turns
+         * off is easy to stop noticing is even there, and by this point
+         * the web UI/console are the real source of truth anyway. */
+        s_ok_ticks++;
+        led_set_rgb(0, (s_ok_ticks * LED_TICK_MS < LED_OK_HOLD_MS) ? LED_DIM : 0, 0);
+        break;
+    case BOARD_LED_ERROR:
+        led_set_rgb(((tick / 5) % 2) ? LED_DIM : 0, 0, 0); /* red, ~500ms half-period */
+        break;
+    case BOARD_LED_WIFI_CONNECTING:
+        led_set_rgb(0, ((tick / 5) % 2) ? LED_DIM : 0, 0); /* green, ~500ms half-period */
+        break;
+    case BOARD_LED_BOOTING:
+    default:
+        led_set_rgb((tick % 2) ? LED_DIM : 0, 0, 0); /* red, ~100ms half-period */
+        break;
+    }
+}
+
+void board_led_init(void)
+{
+    led_strip_config_t strip_cfg = {
+        .strip_gpio_num = ONBOARD_LED_GPIO,
+        .max_leds = 1,
+        .led_model = LED_MODEL_WS2812,
+        .color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB,
+    };
+    led_strip_rmt_config_t rmt_cfg = {
+        .clk_src = RMT_CLK_SRC_DEFAULT,
+        .resolution_hz = 10 * 1000 * 1000,
+    };
+    esp_err_t err = led_strip_new_rmt_device(&strip_cfg, &rmt_cfg, &s_led_strip);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "onboard RGB LED init failed: %s -- no visible boot/WiFi status "
+                      "(wrong GPIO for this DevKit revision? see board.c's board_led_init())",
+                 esp_err_to_name(err));
+        s_led_strip = NULL;
+    }
+
+    const esp_timer_create_args_t targs = {
+        .callback = &led_timer_cb,
+        .name = "status_led",
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&targs, &s_led_timer));
+    ESP_ERROR_CHECK(esp_timer_start_periodic(s_led_timer, LED_TICK_MS * 1000));
+}
+
+void board_led_set_state(board_led_state_t state)
+{
+    if (state == BOARD_LED_OK && s_led_state != BOARD_LED_OK) s_ok_ticks = 0;
     s_led_state = state;
 }
 #else

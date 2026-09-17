@@ -51,9 +51,24 @@ bool sdcard_card_present(void)
 #endif
 }
 
-esp_err_t sdcard_init(void)
+/* True if the LAST failed mount attempt got far enough to talk to the card
+ * over SPI (sdmmc_card_init() succeeded) but found no valid FAT filesystem
+ * on it -- i.e. a formatting problem (exFAT, a multi-partition card like a
+ * Raspberry Pi OS image, or a blank/corrupted card), not a wiring/hardware
+ * one. Distinguishing these two matters: esp_vfs_fat_sdspi_mount() returns
+ * a SPECIFIC esp_err_t (ESP_ERR_INVALID_CRC, ESP_ERR_TIMEOUT, etc.) when the
+ * card-communication step itself fails, but collapses every filesystem-
+ * mount failure (wrong FS, corrupt FS) down to a generic ESP_FAIL (see
+ * s_f_mount() in ESP-IDF's vfs_fat_sdmmc.c) -- so ESP_FAIL specifically
+ * (and only that code) means "the card works, the filesystem doesn't."
+ * False on a successful mount and on every OTHER failure (no card, SPI/CRC
+ * error, etc.) -- those are hardware problems, not formatting ones. */
+static bool s_needs_format;
+
+bool sdcard_needs_format(void) { return s_needs_format; }
+
+static esp_err_t do_mount(bool format_if_failed)
 {
-    if (s_card) return ESP_OK;
     /* microSD is a runtime board config now (board.h), not a separate
      * firmware build -- GPIO18-21 might be wired to line 2's SLIC instead
      * on this specific board, so bail out before touching any SPI/GPIO
@@ -95,19 +110,30 @@ esp_err_t sdcard_init(void)
     dev.host_id  = host.slot;
 
     esp_vfs_fat_sdmmc_mount_config_t mnt = {
-        .format_if_mount_failed = false, /* don't wipe a card that just isn't FAT */
+        .format_if_mount_failed = format_if_failed, /* default false -- don't wipe a card
+                                                       * that just isn't FAT; true only via
+                                                       * sdcard_force_format(), an explicit,
+                                                       * user-initiated action */
         .max_files = 6,
         .allocation_unit_size = 16 * 1024,
     };
 
     err = esp_vfs_fat_sdspi_mount(SD_MOUNT, &host, &dev, &mnt, &s_card);
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "SD mount failed: %s -- card inserted & FAT-formatted? "
-                      "(CS=%d SCLK=%d MOSI=%d MISO=%d)",
-                 esp_err_to_name(err), BOARD_SD_CS, BOARD_SD_SCLK, BOARD_SD_MOSI, BOARD_SD_MISO);
+        s_needs_format = (err == ESP_FAIL);
+        if (s_needs_format) {
+            ESP_LOGW(TAG, "SD card responds fine over SPI, but has no valid FAT filesystem -- "
+                          "wrong format (exFAT, a multi-partition card e.g. a Raspberry Pi OS "
+                          "image, or blank/corrupted) -- reformat it as a single FAT32 partition");
+        } else {
+            ESP_LOGW(TAG, "SD mount failed: %s -- likely wiring/hardware, not a formatting "
+                          "issue (CS=%d SCLK=%d MOSI=%d MISO=%d)",
+                     esp_err_to_name(err), BOARD_SD_CS, BOARD_SD_SCLK, BOARD_SD_MOSI, BOARD_SD_MISO);
+        }
         s_card = NULL;
         return err;
     }
+    s_needs_format = false;
 
     uint64_t cap = (uint64_t)s_card->csd.capacity * s_card->csd.sector_size;
     ESP_LOGI(TAG, "SD mounted at %s: '%s' %lluMB, %d-bit, %d kHz",
@@ -115,6 +141,26 @@ esp_err_t sdcard_init(void)
              s_card->log_bus_width ? (1 << s_card->log_bus_width) : 1,
              s_card->max_freq_khz);
     return ESP_OK;
+}
+
+esp_err_t sdcard_init(void)
+{
+    if (s_card) return ESP_OK;
+    return do_mount(false);
+}
+
+/* Explicit, user-initiated "format this card and mount it" -- for a card
+ * that responds over SPI but has no valid FAT filesystem (see
+ * sdcard_needs_format()'s doc comment), where the normal sdcard_format()
+ * can't help because it requires an already-mounted card. Real data loss:
+ * this WILL overwrite whatever is on the card, valid filesystem or not --
+ * the web UI gates this behind its own confirm() dialog, same as
+ * sdcard_format(). ESP_ERR_INVALID_STATE if already mounted (use
+ * sdcard_format() there instead) or no card present. */
+esp_err_t sdcard_force_format(void)
+{
+    if (s_card) return ESP_ERR_INVALID_STATE;
+    return do_mount(true);
 }
 
 bool sdcard_mounted(void) { return s_card != NULL; }
