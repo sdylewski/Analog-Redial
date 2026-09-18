@@ -374,6 +374,22 @@ esp_err_t storage_read_seek(storage_reader_t *r, size_t offset)
     return (fseek((FILE *)r->file, (long)offset, SEEK_SET) == 0) ? ESP_OK : ESP_FAIL;
 }
 
+/* Total size of an already-open reader -- for callers (webui.c's
+ * media_handler(), HTTP Range support) that need the size of exactly the
+ * file storage_read_open() actually opened, not a second, separately-
+ * resolved lookup that could disagree with it. Restores the read position
+ * to wherever it was before this call. 0 on error/not open. */
+size_t storage_read_size(storage_reader_t *r)
+{
+    if (!r->file) return 0;
+    FILE *f = (FILE *)r->file;
+    long cur = ftell(f);
+    if (fseek(f, 0, SEEK_END) != 0) return 0;
+    long end = ftell(f);
+    fseek(f, cur, SEEK_SET);
+    return (end > 0) ? (size_t)end : 0;
+}
+
 size_t storage_read_chunk(storage_reader_t *r, void *buf, size_t len)
 {
     if (!r->file) return 0;

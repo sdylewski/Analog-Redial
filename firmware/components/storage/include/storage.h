@@ -121,6 +121,12 @@ typedef struct {
 /* ESP_ERR_NOT_FOUND if `name` doesn't exist. */
 esp_err_t storage_read_open(const char *name, storage_reader_t *r);
 esp_err_t storage_read_seek(storage_reader_t *r, size_t offset);
+/* Total size of the file storage_read_open() actually opened -- see
+ * storage.c's own doc comment for why this matters (media_handler()'s
+ * Range support needs the real, exact size of the opened file, not a
+ * separate lookup that can disagree about which backend/file it is).
+ * Restores the read position; 0 if not open or on error. */
+size_t    storage_read_size(storage_reader_t *r);
 /* Returns bytes actually read (0 = EOF). */
 size_t    storage_read_chunk(storage_reader_t *r, void *buf, size_t len);
 void      storage_read_close(storage_reader_t *r);

@@ -5811,37 +5811,34 @@ static esp_err_t media_handler(httpd_req_t *req)
     char *qmark = strchr(name, '?');
     if (qmark) *qmark = '\0';
 
-    storage_entry_t *entries = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
-    size_t n_entries = entries ? storage_list(entries, STORAGE_LIST_MAX) : 0;
-    bool found = false;
-    size_t total = 0;
-    for (size_t i = 0; i < n_entries; i++) {
-        if (strcmp(entries[i].name, name) == 0) { found = true; total = entries[i].size; break; }
-    }
-    free(entries);
-    if (!found) {
-        /* Not an upload/recording -- check the bundled (build-time) assets
-         * too, same fallback order as storage_read_open()/player_play(). */
-        storage_entry_t bundled[16];
-        size_t nb = storage_list_bundled(bundled, 16);
-        for (size_t i = 0; i < nb; i++) {
-            if (strcmp(bundled[i].name, name) == 0) { found = true; total = bundled[i].size; break; }
-        }
-    }
-    if (!found) {
+    /* Existence check + streaming both go through storage_read_open() --
+     * used to be a separate storage_list()-based pre-check first, which
+     * looks similar but silently disagrees with it: storage_list() dispatches
+     * to WHICHEVER backend is primary (SD when mounted, else internal,
+     * storage.c) and only that one, while prompt/clip uploads always land on
+     * internal flash specifically (storage_write_begin_local(), so pulling
+     * the card mid-use can't take dial tone or the operator message with it)
+     * -- storage_read_open() correctly checks both backends via
+     * resolve_existing_path(), but the old pre-check here didn't, so any
+     * internal-flash-only file 404'd here the instant a card was mounted,
+     * even though it played back fine moments earlier with no card in.
+     * Confirmed live 2026-09-17: a freshly-generated record_prompt.wav
+     * (internal-only, no bundled default to mask it) 404'd on a board with
+     * an SD card mounted; operator.wav on the same board happened to still
+     * "work" only because a bundled default of that exact name also exists
+     * (firmware/assets/operator.wav) for the bundled-assets fallback to
+     * find -- masking the same bug rather than avoiding it. */
+    storage_reader_t r;
+    if (storage_read_open(name, &r) != ESP_OK) {
         httpd_resp_send_404(req);
         return ESP_OK;
     }
+    size_t total = storage_read_size(&r);
 
     /* Stream in small chunks rather than malloc(size) + one-shot send --
      * clips can be a few hundred KB and the C6's heap doesn't reliably have
      * that much contiguous free RAM alongside WiFi/audio buffers (a single
      * malloc(338748) failed outright in testing). */
-    storage_reader_t r;
-    if (storage_read_open(name, &r) != ESP_OK) {
-        httpd_resp_send_500(req);
-        return ESP_FAIL;
-    }
 
     /* HTTP Range support: browsers' <audio> elements routinely probe with
      * "Range: bytes=0-" (or similar) before they'll even attempt playback --
