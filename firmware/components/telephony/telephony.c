@@ -311,25 +311,38 @@ static void enter_dialtone(int line)
         roh.enabled ? esp_timer_get_time() + (int64_t)roh.seconds * 1000000 : 0;
 }
 
-/* The Bluetooth companion's analog bridge (bt_companion.c, GPIO25/34 on the
- * ESP32 side) is physically wired to line 0's AG1171 Vin/Vout -- see
- * archive/BLUETOOTH_AUDIO_UPGRADE.md's pin table. Not configurable (no
- * board-config knob exists for it), since it's a fixed hardware choice, not
- * a runtime setting. */
-#define BT_COMPANION_LINE 0
+/* The Bluetooth companion's analog bridge taps line 1's AG1171 Vin/Vout,
+ * never line 0 -- deliberate: line 0 is the always-present, everyday
+ * rotary-dial line on every board (1-line or 2-line), and must keep working
+ * normally regardless of whether the Bluetooth companion feature happens to
+ * be enabled. Line 1 only exists at all on a 2-line board (board_hw_config,
+ * board.h) -- on a 1-line board, num_lines==1 means ag1170_init() never
+ * services line 1's hook FSM in the first place (its GPIO pads are either
+ * unpowered or doing microSD duty instead), so bt_companion_enabled() being
+ * true has no effect there at all: on_offhook(1) simply never fires.
+ * CORRECTED 2026-09-17: this was originally line 0 (see git history) --
+ * carried over unexamined from single-line bench bring-up, where line 0 was
+ * the only line that physically existed on that test board, and never
+ * revisited for a real 2-line board. Confirmed live 2026-09-17: an
+ * unrelated bt_enabled=true left over in NVS from earlier testing silently
+ * killed dial tone on line 0 on multiple boards, with no companion hardware
+ * even attached -- exactly the failure mode this line assignment exists to
+ * prevent. */
+#define BT_COMPANION_LINE 1
 
-/* Confirmed 2026-09-15 on real bench hardware: normal off-hook handling
- * (enter_dialtone(), and later the 15s inter-digit timeout's wrong-number
- * tone) plays audio through this line's own codec DAC -- which shares the
- * exact same physical Vin node the Bluetooth companion's GPIO25 also drives.
- * Two active DAC outputs fighting the same node isn't a "wrong tone", it's
- * electrical contention: real testing showed it corrupting the Bluetooth
- * audio and being a plausible cause of the phone's SCO link dropping
- * outright a few seconds after the dial-collector timeout fired. While the
- * companion is enabled, this line skips dial tone/digit collection/the
- * timeout entirely and just stays silent on its own DAC -- the whole point
- * of the line right now is being a dumb analog passthrough for the
- * companion, not a rotary-dial line a user actually dials from. */
+/* Confirmed 2026-09-15 on real bench hardware (then still on line 0 -- see
+ * this file's git history and the correction above): normal off-hook
+ * handling (enter_dialtone(), and later the 15s inter-digit timeout's
+ * wrong-number tone) plays audio through this line's own codec DAC -- which
+ * shares the exact same physical Vin node the Bluetooth companion's analog
+ * bridge also drives. Two active DAC outputs fighting the same node isn't a
+ * "wrong tone", it's electrical contention: real testing showed it
+ * corrupting the Bluetooth audio and being a plausible cause of the phone's
+ * SCO link dropping outright a few seconds after the dial-collector timeout
+ * fired. While the companion is enabled, this line skips dial tone/digit
+ * collection/the timeout entirely and just stays silent on its own DAC --
+ * the whole point of the line right now is being a dumb analog passthrough
+ * for the companion, not a rotary-dial line a user actually dials from. */
 static void enter_bt_passthrough(int line)
 {
     ESP_LOGD(TAG, "line %d: %s -> BT_PASSTHROUGH", line, telephony_state_name(s_line[line].state));
