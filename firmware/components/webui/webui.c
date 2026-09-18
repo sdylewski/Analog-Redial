@@ -2700,7 +2700,11 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                  "Clears the saved WiFi network only and reboots into setup mode (the "
                  "<code>AnalogRedial-XXXX</code> network) -- everything else (board name, dial "
                  "codes, VoIP, recordings) is untouched. Use this when moving the board to a "
-                 "different WiFi network."),
+                 "different WiFi network. Forgot to click this before moving the board, and can't "
+                 "reach this page anymore? Hold the <b>BOOT</b> button on the ESP32 module for "
+                 "3&nbsp;seconds <em>while it's already running</em> (not during power-on, which "
+                 "instead puts the chip in USB flashing mode) -- does the exact same thing, no web "
+                 "UI needed."),
         i18n_str("reset.factory.confirm",
                  "Reset ALL settings to factory defaults and reboot? This clears WiFi, board "
                  "name, dial codes, VoIP, and every other saved setting. Uploaded audio and "
