@@ -155,6 +155,54 @@ idf.py -p /dev/cu.usbmodemXXXX flash monitor
 
 Replace `/dev/cu.usbmodemXXXX` with your port from step 5 above.
 
+### Building for a different board type (SMD2/SMD4/SMD5/SMD5-cheap/THT)
+
+The default `build/` directory (and its tracked `sdkconfig`) targets SMD4.
+Every other board type gets its own build directory and its own
+`sdkconfig.<type>.defaults` file layered on top of the shared
+`sdkconfig.defaults`:
+
+| Board type | Build dir | Kconfig |
+|--|--|--|
+| SMD4 (default) | `build/` | `CONFIG_BOARD_TYPE_SMD4` |
+| SMD2 | `build.smd2/` | `CONFIG_BOARD_TYPE_SMD2` |
+| SMD5, real MCU module | `build.smd5/` | `CONFIG_BOARD_TYPE_SMD5` |
+| SMD5, AliExpress clone module | `build.smd5_cheap/` | `CONFIG_BOARD_TYPE_SMD5_CHEAP` |
+| Through-hole | `build/` with `CONFIG_BOARD_TYPE_THT` | (no separate build dir convention yet) |
+
+Create (or regenerate) a non-default board's build directory with an
+**explicit `-D SDKCONFIG=`** — leaving it out can silently make `idf.py`
+write to the *shared root* `sdkconfig` instead of the build directory you
+asked for:
+
+```bash
+idf.py -B build.smd5 -D SDKCONFIG="build.smd5/sdkconfig" \
+  -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.smd5.defaults" \
+  set-target esp32c6
+idf.py -B build.smd5 build
+```
+
+Then plain `idf.py -B build.smd5 build`/`flash`/`monitor` from then on —
+`-B` alone is enough once the build directory's own `sdkconfig` exists.
+**Always pass `-B`** for a non-default board type; a bare `idf.py build`
+targets `build/` (SMD4) regardless of which directory you last touched.
+
+SMD5's two Kconfig choices exist because of *which MCU module variant* is
+soldered down (see `archive/hardware/ANALOG_REDIAL_5.md`), not a different
+pin map — same SLIC/codec wiring either way. The real module keeps native
+USB working (flash/monitor exactly like SMD2/SMD4); the AliExpress clone
+module's native-USB pins don't reach the board's own USB connector once
+assembled, so that variant's `sdkconfig.smd5_cheap.defaults` leaves the
+console on plain UART0 instead — flash and monitor it over an external
+UART adapter on `GPIO16`/`GPIO17`/`EN`/`GPIO9`, or use OTA
+(`/ota_upload`) once a build is confirmed good.
+
+If you edit a `sdkconfig.<type>.defaults` file, note that defaults files
+only fill in values not already set in an existing `sdkconfig` — they never
+retroactively override one. Delete the build directory
+(`rm -rf build.<type>`) and re-run `set-target` for a defaults-file change
+to actually take effect.
+
 ### Monitor keys
 
 `idf_monitor` intentionally does **not** bind Ctrl+C to quit — Ctrl+C is

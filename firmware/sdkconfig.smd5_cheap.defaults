@@ -1,0 +1,29 @@
+# Layered on top of sdkconfig.defaults for the build.smd5_cheap/ build
+# directory only (see firmware/README.md's multi-board-type note) --
+# selects SMD5 with the AliExpress clone MCU module populated instead of a
+# real Espressif one (same pin map either way -- see
+# archive/hardware/ANALOG_REDIAL_5.md). For the real-module variant of the
+# same board, use sdkconfig.smd5.defaults instead, not this file.
+# Use: idf.py -B build.smd5_cheap -D SDKCONFIG="build.smd5_cheap/sdkconfig" -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.smd5_cheap.defaults" set-target esp32c6
+# then plain `idf.py -B build.smd5_cheap build`/`flash` from then on -- the
+# generated build.smd5_cheap/sdkconfig remembers this choice without
+# needing SDKCONFIG_DEFAULTS re-passed every time.
+CONFIG_BOARD_TYPE_SMD5_CHEAP=y
+
+# Same gaps sdkconfig.smd2.defaults documents in detail (stale generic
+# defaults the long-lived main sdkconfig has always overridden) -- repeated
+# here since every fresh build.<type>/ directory needs them again.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+
+# Deliberately NO console override here, unlike every other SMD board's
+# defaults file -- this is the one variant where sdkconfig.defaults' own
+# generic CONFIG_ESP_CONSOLE_UART_DEFAULT=y (plain UART0, GPIO16/17) is
+# actually the *right* choice instead of the usual gap to fix: the clone
+# module's native-USB pins don't reach this board's USB connector once
+# assembled (see archive/hardware/ANALOG_REDIAL_5.md), so UART0 -- the same
+# pins used for flashing over an external adapter -- is the only console
+# this variant can actually reach post-assembly. Don't "fix" this to
+# CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y like the other SMD defaults files;
+# that would just repeat 2026-09-21's console-input bug on this variant,
+# in the opposite direction.

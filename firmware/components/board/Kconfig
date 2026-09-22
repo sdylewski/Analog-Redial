@@ -24,6 +24,31 @@ config BOARD_TYPE_SMD4
         control pins accordingly (confirmed against the schematic netlist,
         not assumed).
 
+config BOARD_TYPE_SMD5
+    bool "SMD5 gateway, real Espressif module (ES8388, ESP32-C6-DevKitC-1 pin map, native USB)"
+    help
+        Not yet fabricated as of this writing -- see
+        archive/hardware/ANALOG_REDIAL_5.md. Same pin map as SMD4 (identical
+        SLIC/codec wiring); the only reason this is a separate board type
+        from SMD4 is the flash/console story: SMD5's dual MCU-module
+        footprint accepts a real Espressif module here, which keeps native
+        USB working exactly like SMD2/SMD4.
+
+config BOARD_TYPE_SMD5_CHEAP
+    bool "SMD5 gateway, AliExpress clone module (ES8388, ESP32-C6-DevKitC-1 pin map, no native USB)"
+    help
+        Same board and pin map as BOARD_TYPE_SMD5 above -- the only
+        difference is which MCU module variant is physically populated in
+        SMD5's dual footprint. The clone module swaps GPIO2/GPIO3 with
+        GPIO12/GPIO13 relative to the real module (silicon-fixed USB
+        peripheral pins on the real module land as ordinary GPIOs on the
+        clone, and vice versa -- see archive/hardware/ANALOG_REDIAL_5.md),
+        so native USB-Serial-JTAG doesn't reach this board's USB connector
+        once assembled. Selects UART0 as the console instead of native USB
+        (see sdkconfig.smd5_cheap.defaults) -- flash and monitor over an
+        external UART adapter on GPIO16/17/EN/GPIO9, or OTA once a build is
+        confirmed good.
+
 endchoice
 
 endmenu

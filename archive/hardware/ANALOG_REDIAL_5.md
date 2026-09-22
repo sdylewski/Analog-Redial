@@ -91,18 +91,25 @@ specific to SMD5. The concrete plan for SMD5:
   strap, pulled low at reset to enter download mode). An external
   FTDI-style USB-serial adapter on those four signals (+3V3/GND) drives
   `esptool`/`idf.py flash` exactly like the native-USB path does on
-  SMD2/SMD4, and also gives a working `idf.py monitor` console any time —
-  not just during the initial flash.
+  SMD2/SMD4.
 - **Plan**: flash + bench-test each board over that UART0 connection before
   or right after assembly (this is where bugs get caught, same commands as
   any other board type), then rely on OTA (`/ota_upload`) for every update
   after that, once firmware is confirmed good. Don't ship untested firmware
   to a clone-populated board expecting to debug it later over its own USB
   port — that port won't be reachable once assembled.
-- This doesn't need a new `CONFIG_BOARD_TYPE_SMD5` Kconfig choice by itself
-  — the pin map (SLIC/codec/etc) is identical to SMD4's; only the
-  flash/console *method* differs, and that's a bench-workflow choice, not
-  something firmware needs to know about at runtime.
+- **Two Kconfig board types exist for this** (added 2026-09-22, built and
+  verified against both — see `firmware/README.md`'s multi-board-type
+  section): `CONFIG_BOARD_TYPE_SMD5` (real module, native USB console, same
+  as SMD2/SMD4) and `CONFIG_BOARD_TYPE_SMD5_CHEAP` (clone module,
+  `sdkconfig.smd5_cheap.defaults` leaves the console on plain UART0 instead
+  of overriding to native USB — the one SMD board type where that's
+  correct, not a bug). Same pin map as SMD4 either way (`board_pins_smd4.h`)
+  — the split is purely about the console/flash story, nothing in the
+  active pin map differs yet. Building each needed the `wm8731`/`es8388`
+  components' own per-board-type CMakeLists.txt gates extended too (they
+  don't follow `board_pins.h`'s routing automatically) — worth remembering
+  if a 3rd variant ever gets added.
 
 ## BM64 Bluetooth companion header (J12)
 
@@ -115,34 +122,39 @@ why this exists (ESP32-C6 has BLE only, no Classic BT) and
 that talks to it (confirmed working against real BM64 hardware 2026-09-21/22
 — see that component's own doc comments for the full protocol writeup).
 
-Traced directly from the schematic (`Analog Redial 5.kicad_sch`):
+Confirmed directly by the board's designer 2026-09-22 (supersedes an
+earlier, incorrect trace attempt from the schematic text that had pins 2-5
+wrong):
 
-| J12 pin | Net | Confirmed via |
-|--|--|--|
-| 1 | GND | direct `power:GND` symbol on this pin |
-| 2 | `GPIO16`/`U0TXD` (ESP32 TX → BM64 RX) | wire-traced to `U1` pin 31 |
-| 3 | `GPIO17`/`U0RXD` (ESP32 RX ← BM64 TX) | wire-traced to `U1` pin 30 |
-| 4, 5 | a second GND/3.3V pair, each with a local decoupling cap at the header | wire-traced to two `C_Small` capacitors near J12; which of 4/5 is GND vs 3.3V wasn't independently confirmed — check visually in KiCad before relying on it |
-| 6 | +3.3V | direct `power:+3.3V` symbol on this pin |
+| J12 pin | Net |
+|--|--|
+| 1 | +3.3V |
+| 2 | Line0Vin, via a 10µF series cap (analog audio, network/BM64 → phone line) |
+| 3 | Line0Vout, via a 1µF series cap (analog audio, phone line → BM64) |
+| 4 | BM64 UART TX |
+| 5 | BM64 UART RX |
+| 6 | GND |
 
-So: 2 dedicated UART pins (TX/RX) plus two GND/3.3V pairs for a robust
-power connection to the daughter board — no MFB (module power-on/button)
-pin is broken out to this header, matching `bt_companion.c`'s UART-only
-design (see its own header doc comment). If a future revision wants
-firmware-controlled MFB (to support commanding the module to power off over
-UART via `BM64_MMI_POWEROFF_BT` and later waking it back up), that needs an
-extra conductor added to this header or a separate one — a fixed
-resistor-to-VCC on MFB (the current bench-test wiring) works to get the
-module running but gives no way back once powered off.
+So this header carries the **full companion interface**, not just UART:
+power, both audio directions (analog, per `bt_companion.h`'s own doc
+comment — audio never passes through firmware at all), and the UART
+control link (`GPIO16`/`U0TXD` and `GPIO17`/`U0RXD` on the ESP32 side, same
+pins as every other board type's `BOARD_UART_TX`/`BOARD_UART_RX`). Still no
+MFB (module power-on/button) conductor — that's still bench-wired
+separately (fixed pull-up to VCC as of 2026-09-21's bring-up; see the open
+question below). The header uses "Line0" naming here — double check against
+`BT_COMPANION_LINE` in `telephony.c` (currently line 1) before assuming
+this is the same line without confirming.
+
+**Companion daughter-board**: `hardware/kicad/Bluetooth_board/` is the BM64
+module's own carrier board, meant to mate to J12 with a matching female
+header (same 6-pin pinout as above, mirrored).
 
 ## Open questions
 
 - Full pad-by-pad diff between the two module footprints hasn't been
   independently re-verified beyond the one 12/13↔19/20 swap found by direct
   inspection — worth doing before ordering a batch of boards.
-- No `CONFIG_BOARD_TYPE_SMD5` exists yet; add one only if SMD5 ends up
-  needing a different pin map from SMD4, not just a different flash
-  workflow.
 - MFB wiring (fixed pull-up vs. GPIO-controlled) is still an open bench
   question — see the Bluetooth companion section above and
   `archive/BLUETOOTH_AUDIO_UPGRADE.md`.

@@ -2,7 +2,7 @@
 #include "board.h"
 #include "board_pins.h"
 #include "board_config.h"
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
 #include "es8388.h"
 #else
 #include "wm8731.h"
@@ -77,7 +77,7 @@ static int cmd_codec_detect(int argc, char **argv)
 /* ---------- codec_init / dump / bypass (ES8388 on SMD, WM8731 on THT) ---------- */
 static int cmd_codec_init(int argc, char **argv)
 {
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     es8388_config_t c = ES8388_DEFAULT_CONFIG();
     c.sample_rate_hz = audio_sample_rate() ? audio_sample_rate() : 48000;
     esp_err_t err = es8388_init(&c);
@@ -92,7 +92,7 @@ static int cmd_codec_init(int argc, char **argv)
 
 static int cmd_codec_dump(int argc, char **argv)
 {
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     static const struct { uint8_t reg; const char *name; } regs[] = {
         { ES8388_REG_CONTROL1, "CONTROL1" }, { ES8388_REG_CONTROL2, "CONTROL2" },
         { ES8388_REG_CHIPPOWER, "CHIPPOWER" }, { ES8388_REG_ADCPOWER, "ADCPOWER" },
@@ -136,7 +136,7 @@ static int cmd_codec_dump(int argc, char **argv)
 
 static int cmd_codec_bypass(int argc, char **argv)
 {
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     printf("analog bypass: not supported on ES8388 in this driver -- use "
            "'loopback' for a DSP-side (I2S) loopback instead\n");
     return 1;
@@ -151,7 +151,7 @@ static int cmd_codec_bypass(int argc, char **argv)
 /* ---------- micamp (ES8388 ADC PGA gain, live tuning) ---------- */
 static int cmd_micamp(int argc, char **argv)
 {
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     if (argc < 3) {
         printf("usage: micamp <left 0-8> <right 0-8>   (0=0dB ... 8=+24dB, 3dB/step)\n"
                "current ADCCONTROL1 (0x09) = 0x%02X\n", es8388_shadow(ES8388_REG_ADCCONTROL1));
@@ -186,7 +186,7 @@ static int cmd_micamp(int argc, char **argv)
  * one). */
 static int cmd_spkamp(int argc, char **argv)
 {
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     if (argc < 3) {
         printf("usage: spkamp <left 0-63> <right 0-63>   (0=mute, 33=0dB, 1dB/step)\n"
                "current LOUT1VOL/ROUT1VOL = 0x%02X / 0x%02X\n",

@@ -13,7 +13,7 @@ typedef enum {
 
 static inline board_type_t board_current_type(void)
 {
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     return BOARD_TYPE_SMD;
 #else
     return BOARD_TYPE_THT;
@@ -39,6 +39,10 @@ static inline const char *board_pcb_variant_name(void)
     return "SMD2";
 #elif CONFIG_BOARD_TYPE_SMD4
     return "SMD4";
+#elif CONFIG_BOARD_TYPE_SMD5
+    return "SMD5";
+#elif CONFIG_BOARD_TYPE_SMD5_CHEAP
+    return "SMD5 (clone module)";
 #else
     return "through-hole";
 #endif

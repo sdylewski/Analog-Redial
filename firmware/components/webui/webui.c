@@ -1581,7 +1581,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         i18n_str("general.button.turn_off", "Turn off"), "921",
         i18n_str("general.button.turn_on", "Turn on"), "922", -1);
 
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("speaker.title", "Speaker (earpiece) volume"));
     for (int l = 0; l < num_lines; l++) {
@@ -5025,7 +5025,7 @@ static esp_err_t sd_force_format_handler(httpd_req_t *req)
  * ES8388 LOUT1VOL/ROUT1VOL convention (0=mute, 33=0dB, 1dB/step), same
  * per-line NVS persistence (board_speaker_volume_get/set). ES8388/SMD2
  * only: LOUT1VOL/ROUT1VOL doesn't exist on the THT board's WM8731. */
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
 /* Sets one line's channel while preserving the other's current value --
  * es8388_set_dac_volume() always writes both at once, and this endpoint is
  * only ever asked to change one. */
@@ -5084,7 +5084,7 @@ static esp_err_t speaker_volume_handler(httpd_req_t *req)
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
-#endif /* CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 */
+#endif /* CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP */
 
 /* ---- AEC calibration wizard ----
  * Webui counterpart to the bring-up `echoprobe` console command, for a
@@ -6737,7 +6737,7 @@ esp_err_t webui_start(void)
         { .uri = "/sd_selftest_ui",         .method = HTTP_POST, .handler = sd_selftest_ui_handler },
         { .uri = "/sd_format",              .method = HTTP_POST, .handler = sd_format_handler },
         { .uri = "/sd_force_format",        .method = HTTP_POST, .handler = sd_force_format_handler },
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
         { .uri = "/speaker_volume_live",    .method = HTTP_POST, .handler = speaker_volume_live_handler },
         { .uri = "/speaker_volume",         .method = HTTP_POST, .handler = speaker_volume_handler },
 #endif

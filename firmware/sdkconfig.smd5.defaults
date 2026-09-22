@@ -1,0 +1,23 @@
+# Layered on top of sdkconfig.defaults for the build.smd5/ build directory
+# only (see firmware/README.md's multi-board-type note) -- selects SMD5
+# with the real Espressif MCU module populated (native USB works, same pin
+# map as SMD4 -- see archive/hardware/ANALOG_REDIAL_5.md). For the
+# AliExpress-clone-module variant of the same board, use
+# sdkconfig.smd5_cheap.defaults instead, not this file.
+# Use: idf.py -B build.smd5 -D SDKCONFIG="build.smd5/sdkconfig" -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.smd5.defaults" set-target esp32c6
+# then plain `idf.py -B build.smd5 build`/`flash` from then on -- the
+# generated build.smd5/sdkconfig remembers this choice without needing
+# SDKCONFIG_DEFAULTS re-passed every time.
+CONFIG_BOARD_TYPE_SMD5=y
+
+# Same gaps sdkconfig.smd2.defaults documents in detail (stale generic
+# defaults the long-lived main sdkconfig has always overridden) -- repeated
+# here since every fresh build.<type>/ directory needs them again.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+
+# Real module here means native USB-Serial-JTAG genuinely reaches this
+# board's USB connector, exactly like SMD2/SMD4 -- same override, same
+# reasoning as sdkconfig.smd2.defaults.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y

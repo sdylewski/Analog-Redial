@@ -80,8 +80,8 @@ void board_detect_codec(void)
         ESP_LOGI(TAG, "codec detect: ES8388 @ 0x10 (SMD board)");
         if (built_for != BOARD_TYPE_SMD) {
             ESP_LOGW(TAG, "firmware built for '%s' but an SMD/ES8388 codec is on "
-                          "the bus -- rebuild with CONFIG_BOARD_TYPE_SMD2=y or "
-                          "CONFIG_BOARD_TYPE_SMD4=y (whichever matches your board)",
+                          "the bus -- rebuild with CONFIG_BOARD_TYPE_SMD2/_SMD4/_SMD5/"
+                          "_SMD5_CHEAP=y (whichever matches your board)",
                      board_type_name(built_for));
         }
     } else if (wm8731_present && !es8388_present) {
@@ -909,7 +909,7 @@ void board_led_set_state(board_led_state_t state)
 {
     s_led_state = state;
 }
-#elif CONFIG_BOARD_TYPE_SMD4
+#elif CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
 /* No discrete status LED on this carrier (BOARD_STATUS_LED intentionally
  * not defined -- GPIO11, SMD2's LED pin, is I2S BCLK here instead). This
  * drives the ESP32-C6-DevKitC-1 MODULE's own onboard addressable RGB LED
