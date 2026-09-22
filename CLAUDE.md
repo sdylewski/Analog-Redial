@@ -14,15 +14,84 @@ why, and what else still exists in this tree.
 | MCU | ESP32-C6-DevKitC-1 |
 | Codec | ES8388 @ I²C 0x10 |
 | SLIC | AG1171 ×1–2 |
-| Pin map | `board_pins_smd.h` (SMD4-specific header not yet written — see `docs/hardware.md` §3; `CONFIG_BOARD_TYPE_SMD3`/`_SMD4` Kconfig choice needed alongside the existing ones) |
+| Pin map | `board_pins_smd4.h`, selected by `CONFIG_BOARD_TYPE_SMD4` |
 
 The firmware tree also still supports **`CONFIG_BOARD_TYPE_THT`** (the
 original through-hole reference board: ESP32-C6-DevKitM-1 + WM8731 + AG1170
 ×2, `board_pins.h`) and **`CONFIG_BOARD_TYPE_SMD2`** (the first hand-soldered
-SMD spin) — both real, working Kconfig choices in this codebase, just not
-part of the public-facing story since the project standardized on SMD4.
-Don't remove them without asking; they're what the earliest bring-up/bench
-testing ran on.
+SMD spin, `board_pins_smd.h`) — both real, working Kconfig choices in this
+codebase, just not part of the public-facing story since the project
+standardized on SMD4. Don't remove them without asking; they're what the
+earliest bring-up/bench testing ran on.
+
+**SMD5 ("Analog Redial 5")** is an in-progress next-generation board (not
+yet fabricated) — `hardware/kicad/Analog Redial 5/`, dev notes at
+[`archive/hardware/ANALOG_REDIAL_5.md`](archive/hardware/ANALOG_REDIAL_5.md).
+Headline change: a dual-compatible MCU footprint accepting either a real
+Espressif ESP32-C6-DevKitC-1 or a cheaper AliExpress clone module, plus a
+new 6-pin header for the BM64 Bluetooth companion (see that doc for the
+confirmed pinout and the clone module's one confirmed pin discrepancy).
+
+## Building/flashing for a specific board type (SMD2 vs SMD4 vs THT)
+
+Each board type is a separate build directory with its own `sdkconfig`, not
+just a Kconfig toggle flipped in place — mixing these up has actually
+corrupted the wrong `sdkconfig` in a past session (see incident below), so
+follow this exactly:
+
+| Board type | Build dir | Defaults file(s) |
+|--|--|--|
+| SMD4 (current, default) | `build/` | `sdkconfig.defaults` only — its `sdkconfig` is the one tracked in git |
+| SMD2 | `build.smd2/` | `sdkconfig.defaults;sdkconfig.smd2.defaults` |
+| THT | (no build.tht/ convention established yet — ask before inventing one) | `sdkconfig.defaults` only, `CONFIG_BOARD_TYPE_THT` |
+
+**Creating or regenerating a non-default board's build directory**, always
+with an explicit `SDKCONFIG` path:
+
+```
+idf.py -B build.smd2 -D SDKCONFIG="build.smd2/sdkconfig" \
+  -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.smd2.defaults" \
+  set-target esp32c6
+```
+
+**Why the explicit `-D SDKCONFIG=...` is non-negotiable**: `idf.py -B
+build.smd2 ...` without it can silently fall back to reading/writing the
+*shared root* `firmware/sdkconfig` (the SMD4 one) instead of
+`build.smd2/sdkconfig`, if no sdkconfig already exists inside `build.smd2/`
+yet. This isn't hypothetical — it happened in the 2026-09-21 session and
+silently flipped the tracked root `sdkconfig`'s `CONFIG_BOARD_TYPE` to SMD2,
+caught only via `git status`/`git diff` on `firmware/sdkconfig` afterward
+and fixed with `git checkout -- firmware/sdkconfig`. Always check
+`git status firmware/sdkconfig` after any `-B build.<other-type>` command
+that didn't pass an explicit `-D SDKCONFIG=`.
+
+**`sdkconfig.<type>.defaults` files only fill gaps, they never override an
+already-generated `sdkconfig`.** Editing one and re-running `idf.py build`
+does *nothing* to a `build.<type>/sdkconfig` that already exists — the file
+must be deleted (`rm -rf build.<type>` is simplest) and regenerated via
+`set-target` for the new default to actually apply. This has bitten the
+project more than once: `CONFIG_ESPTOOLPY_FLASHSIZE_16MB` (the generic
+`sdkconfig.defaults` still says 4MB) and, discovered 2026-09-21,
+`CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y` + `CONFIG_ESP_CONSOLE_SECONDARY_NONE=y`
+(every SMD board's only host-reachable console channel is native USB, not
+UART0 — no bridge chip wires UART0 to anything; without this override a
+fresh `build.smd2/sdkconfig` defaults to UART0 as the *primary*, input-
+reading console channel, so boot/log output still appears fine over the
+same USB-CDC port `idf.py monitor` uses, but literally zero keystrokes ever
+reach the interactive REPL, with nothing in the output to explain why). The
+lesson generalizes: `sdkconfig.defaults` is generic/stale in ways the
+long-lived main `sdkconfig` has organically accumulated fixes for over
+time, and every other board-type's defaults file needs those same fixes
+repeated explicitly — don't assume a fresh variant inherits them.
+
+**Flashing**: `idf.py -B build.smd2 -p <port> flash` (always pass `-B`,
+never rely on the default `build/`). Prefer a direct USB flash over the
+web UI's `/ota_upload` for firmware still being bench-tested — OTA writes
+to the *other* OTA slot and only takes effect after a successful boot/
+validation, so a build that doesn't come up cleanly can silently roll back
+to whatever old image happens to already be sitting in that other slot
+(observed 2026-09-21: reverted to a build old enough to be missing console
+commands added since).
 
 ## Public vs. internal docs
 
@@ -90,6 +159,6 @@ This is engineering guidance, not telecom safety certification.
 
 ## Status
 
-- Hardware: SMD4 is the current design — schematic unchanged from SMD3, re-routed as a 2-layer PCB. ERC/DRC-reviewed; not yet fabricated/bench-tested. `board_pins_smd4.h` and its Kconfig choice still need to be written once boards are back (see `docs/hardware.md` §3).
+- Hardware: SMD4 is the current design — schematic unchanged from SMD3, re-routed as a 2-layer PCB. ERC/DRC-reviewed; not yet fabricated/bench-tested.
 - Firmware: core telephony is mature and tested on earlier SMD-family hardware (hand-soldered SMD2, ES8388 + AG1171) and on THT + WM8731, selected via board Kconfig (`CONFIG_BOARD_TYPE_THT`/`_SMD2`); runtime `codec_detect` warns on board/firmware mismatch.
 - Pi parity: align dial plan and pulse FSM with `pi_rotary_phone` v1.0 before VoIP milestone.
