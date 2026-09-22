@@ -11,6 +11,44 @@ small line-based status/pairing protocol, an "enable this daughter board"
 master switch) and a Settings -> Bluetooth tab. See `bt_companion.h`'s own
 doc comment for the protocol.
 
+## Confirmed 2026-09-22: BM64 UART protocol + pairing work end-to-end on real hardware
+
+`firmware/components/bt_companion/` fully rewritten to speak BM64's real
+binary UART protocol (see its own doc comment for the frame format) and
+bench-confirmed against a real BM64 module: command/ACK/event framing and
+checksums all correct (`GET_UART_VERSION`, `READ_LOCAL_BD_ADDR` both
+verified), and **pairing confirmed working end-to-end -- a real iPhone
+found the module (advertised as the board's own name, e.g. "dualPhone")
+and paired**.
+
+The pairing mystery took a while to run down: sending the pairing MMI
+action (`0x5D`) alone got ACKed (status 0x00, i.e. accepted) but the module
+never actually broadcast as discoverable -- no state-change event followed
+at all, and no phone/laptop ever saw it, even across a full power cycle and
+several clean re-tries. The fix, found in `reference/BM64_arduino`'s own
+`powerOn()`: the module needs an MMI `POWERON_BUTTON_PRESS` (`0x51`) then
+`POWERON_BUTTON_RELEASE` (`0x52`) sent first -- only after that handshake
+did the module start emitting real `BTM_Status` events (Power ON -> Standby
+-> Pairing/discoverable), confirmed against Microchip's actual "Audio UART
+Command Set" doc (now in `datasheets/`, not just the third-party library).
+`bt_companion_start_pairing()` and the poll task's own startup sequence
+both send this handshake now.
+
+Also confirmed: MFB does not need to be released back low after its
+initial power-on assertion for any of this to work (an earlier hypothesis,
+disproven) -- the bench wiring (a fixed pull-up to VCC, no GPIO control)
+works fine held high indefinitely. The actual missing piece was purely the
+UART-side button handshake above.
+
+Not yet tested: actual audio quality over the paired link (dial a real
+number -- WWV's time signal is the established test tone for this, see the
+2026-09-15 HFP bench test below -- and record off the line to listen back).
+`BM64_EVENT_DEVICE_STATE`'s state table is now fully known from the real
+doc (not guessed), but the exact conditions under which the module
+auto-reconnects to an already-bonded phone after an ESP32-side reboot
+aren't confirmed yet -- observed once needing a manual reconnect from the
+phone's Bluetooth settings after a fresh flash.
+
 ## Confirmed 2026-09-15: ESP32 software HFP audio is a dead end
 
 Bench-tested end to end on real hardware (WWV call over a live HFP

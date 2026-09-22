@@ -10,17 +10,20 @@
  * Speaks BM64's real serial command protocol — a binary framed format
  * (sync byte, length, opcode/event code, parameters, checksum), NOT a
  * custom text protocol — see bt_companion.c's own doc comment for the full
- * frame layout and where it came from (Microchip's own protocol document
- * isn't fetchable from here; cross-checked against a working open-source
- * Arduino library instead, konikoni428/BM64_arduino, itself referencing
- * Microchip's "UART_CommandSet" document by name).
+ * frame layout. Confirmed against Microchip's actual "Audio UART Command
+ * Set" document and BM62/64 datasheet (datasheets/ in this repo) as of
+ * 2026-09-22 — cross-checked against a working open-source Arduino library
+ * too, konikoni428/BM64_arduino, vendored locally at reference/BM64_arduino.
  *
- * REWRITTEN 2026-09-21: an earlier version of this file spoke an invented
- * ASCII line protocol ("STATUS?\n", "PAIR\n") designed for a since-abandoned
- * plan (a second ESP32 running our own Bluedroid code as the companion,
- * see archive/BLUETOOTH_AUDIO_UPGRADE.md's "Option B") — a real BM64 module
- * never understood any of that. This is the first version that actually
- * talks to real BM64 hardware. */
+ * REWRITTEN 2026-09-21, confirmed working end-to-end 2026-09-22: an earlier
+ * version of this file spoke an invented ASCII line protocol ("STATUS?\n",
+ * "PAIR\n") designed for a since-abandoned plan (a second ESP32 running our
+ * own Bluedroid code as the companion, see
+ * archive/BLUETOOTH_AUDIO_UPGRADE.md's "Option B") — a real BM64 module
+ * never understood any of that. This version does, checksums and all, and
+ * pairing has been confirmed with a real phone (see that doc's 2026-09-22
+ * entry for the full story, including the POWERON_BUTTON_PRESS/RELEASE
+ * handshake the module turned out to need first). */
 #pragma once
 
 #include "esp_err.h"
