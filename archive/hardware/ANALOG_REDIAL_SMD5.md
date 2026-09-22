@@ -76,6 +76,27 @@ dual-footprint pad remap like this is inherently easy to get subtly wrong,
 and this project has exactly one clone-module sample's silkscreen to go on
 so far.
 
+## Open concern: clone module's onboard 3.3V regulator may be undersized
+
+Flagged 2026-09-22, not yet measured: the AliExpress clone module carries a
+smaller onboard 3.3V regulator than the real Espressif module's. This
+board's 3.3V rail has to feed more than just the MCU module itself once the
+BM64 companion and ES8388 codec are both wired in through J12/the
+audio path — worth checking, before relying on the clone variant for
+anything beyond bench testing, whether that regulator can actually supply
+everything at once under worst-case load (WiFi TX bursts + codec + BM64
+all drawing simultaneously). If it can't:
+- The simplest fix is adding a separate/second 3.3V regulator on the main
+  board for the codec (and BM64, if its own supply also comes from this
+  rail) rather than relying on the clone module's onboard one for
+  everything.
+- If that's not workable, the practical fallback is: don't populate BM64 on
+  a clone-module board at all (real-module boards only for the Bluetooth
+  companion feature) until this is measured and resolved.
+Needs an actual current-draw measurement on a real clone-module sample
+before this can be resolved either way — don't assume either outcome
+without measuring.
+
 ## Flashing/console tradeoff for clone-populated boards
 
 Because native USB dies (as data) on a clone-populated board, don't rely on
