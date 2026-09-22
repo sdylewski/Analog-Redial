@@ -38,9 +38,10 @@ typedef struct {
     bool    link_up;                          /* we've seen at least one valid framed
                                                 * reply/event from the module recently --
                                                 * proves the UART link itself is alive */
-    bool    bt_connected;                     /* best-effort -- see bt_companion.c's own
-                                                * doc comment on BM64_EVENT_DEVICE_STATE
-                                                * for exactly how confident to be in this */
+    bool    bt_connected;                     /* true once an HF or A2DP link is up
+                                                * (BM64_EVENT_DEVICE_STATE, confirmed
+                                                * against Microchip's real command-set
+                                                * doc 2026-09-22 -- see bt_companion.c) */
     char    paired_name[BT_COMPANION_NAME_MAX]; /* "" if bt_connected is false or unknown */
     char    bd_addr[18];                      /* this module's own BT MAC, "" until the
                                                 * background poller's one-time startup query
@@ -73,6 +74,15 @@ bt_companion_status_t bt_companion_get_status(void);
  * (nothing to send it to). */
 esp_err_t bt_companion_start_pairing(void);
 
+/* Bring-up/diagnostic only (see bringup.c's 'bm64_mmi' console command):
+ * sends BM64_MMI_CMD with an arbitrary MMI action code, same
+ * link-must-be-up precondition as bt_companion_start_pairing() (which is
+ * really just this, hardcoded to the pairing action). For testing MMI
+ * codes the reference library sends as part of its own powerOn() sequence
+ * (0x51 POWERON_BUTTON_PRESS, 0x52 POWERON_BUTTON_RELEASE) that this
+ * component doesn't send anywhere yet -- see reference/BM64_arduino. */
+esp_err_t bt_companion_send_mmi(uint8_t action);
+
 /* Bring-up/diagnostic only (see bringup.c's 'bm64_test' console command),
  * NOT wired to the web UI: sends GET_UART_VERSION (a harmless, always-
  * supported query -- every real BM64 answers it, paired or not, which is
@@ -102,6 +112,16 @@ esp_err_t bt_companion_raw_ping_at_baud(int timeout_ms, int baud);
  * should be at least 18). ESP_ERR_TIMEOUT if no address reply arrived in
  * time, ESP_ERR_INVALID_STATE if the background poll task is running. */
 esp_err_t bt_companion_read_bd_addr(int timeout_ms, char *out, size_t out_len);
+
+/* Bring-up/diagnostic only, same UART-exclusivity rule as the above: prints
+ * every raw RX byte live, in hex, the instant it arrives, for duration_ms --
+ * no framing/checksum validation at all (unlike every other command here).
+ * For watching what happens on the wire in real time while physically
+ * poking hardware (e.g. touching MFB) -- read_one_frame()-based commands
+ * only report a fully valid frame after the fact, which hides exactly the
+ * "did anything at all happen right when I touched that pin" moment this
+ * is for. */
+esp_err_t bt_companion_raw_snoop(int duration_ms);
 
 /* NOT implemented yet, deliberately: BM64_MMI_POWEROFF_BT (0x5E) exists in
  * bt_companion.c's opcode enum but nothing sends it. Don't wire this up

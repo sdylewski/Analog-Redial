@@ -54,13 +54,37 @@ static const char *TAG = "bt_companion";
 
 typedef enum {
     BM64_MMI_CMD                  = 0x02,
+    BM64_CHANGE_DEVICE_NAME_CMD   = 0x05,
     BM64_READ_LOCAL_BD_ADDR_CMD   = 0x0F,
     BM64_READ_LINK_STATUS_CMD     = 0x0D,
     BM64_GET_UART_VERSION_CMD     = 0x08,
     BM64_MCU_SEND_EVENT_ACK_CMD   = 0x14,
 } bm64_cmd_t;
 
+/* BM64_EVENT_DEVICE_STATE's State byte -- confirmed 2026-09-22 straight from
+ * Microchip's "Audio UART Command Set" doc (datasheets/AudioUARTCommandSet_v2
+ * 02.pdf, section 5.2 BTM_Status), not guessed. Only the values this project
+ * actually branches on are named; the rest exist in the real doc too (0x0B
+ * AVRCP link established, 0x10 iAP connected, 0x11 ACL disconnected, 0x12-14
+ * MAP, 0x15 ACL connected) but nothing here cares yet. */
 typedef enum {
+    BM64_STATE_POWER_OFF          = 0x00,
+    BM64_STATE_PAIRING            = 0x01, /* discoverable mode */
+    BM64_STATE_POWER_ON           = 0x02,
+    BM64_STATE_PAIRING_OK         = 0x03,
+    BM64_STATE_PAIRING_FAILED     = 0x04,
+    BM64_STATE_HF_LINK_UP         = 0x05,
+    BM64_STATE_A2DP_LINK_UP       = 0x06,
+    BM64_STATE_HF_LINK_DOWN       = 0x07,
+    BM64_STATE_A2DP_LINK_DOWN     = 0x08,
+    BM64_STATE_SCO_UP             = 0x09,
+    BM64_STATE_SCO_DOWN           = 0x0A,
+    BM64_STATE_STANDBY            = 0x0F,
+} bm64_btm_state_t;
+
+typedef enum {
+    BM64_MMI_POWERON_BUTTON_PRESS       = 0x51,
+    BM64_MMI_POWERON_BUTTON_RELEASE     = 0x52,
     BM64_MMI_ANY_MODE_ENTERING_PAIRING = 0x5D,
     BM64_MMI_POWEROFF_BT                = 0x5E, /* not wired to anything yet -- see
                                                   * bt_companion.h's own doc comment on
@@ -231,8 +255,41 @@ esp_err_t bt_companion_start_pairing(void)
     bool up = s_status.link_up;
     portEXIT_CRITICAL(&s_lock);
     if (!up) return ESP_ERR_INVALID_STATE;
+    /* Confirmed 2026-09-22 on real hardware: sending the pairing MMI action
+     * (0x5D) alone gets ACKed (status 0x00) but the module never actually
+     * broadcasts as discoverable -- no BM64_EVENT_DEVICE_STATE follows at
+     * all. The missing piece, straight from reference/BM64_arduino's own
+     * powerOn(): a POWERON_BUTTON_PRESS (0x51) then POWERON_BUTTON_RELEASE
+     * (0x52) MMI action pair first. Doing that (even with MFB itself just
+     * tied high on the bench, no GPIO control) is what got the module to
+     * actually emit DEVICE_STATE 0x02 (Power ON) -> 0x0F (Standby), and
+     * only *after* that did the pairing command that followed produce the
+     * expected DEVICE_STATE 0x01 (Pairing state / discoverable mode). Cheap
+     * insurance to always send this pair first -- harmless if the module
+     * was already past this point. */
+    uint8_t press[2]   = { 0x00, BM64_MMI_POWERON_BUTTON_PRESS };
+    uint8_t release[2] = { 0x00, BM64_MMI_POWERON_BUTTON_RELEASE };
+    send_command(BM64_MMI_CMD, press, 2);
+    vTaskDelay(pdMS_TO_TICKS(50));
+    send_command(BM64_MMI_CMD, release, 2);
+    vTaskDelay(pdMS_TO_TICKS(50));
     uint8_t params[2] = { 0x00, BM64_MMI_ANY_MODE_ENTERING_PAIRING };
     send_command(BM64_MMI_CMD, params, 2);
+    return ESP_OK;
+}
+
+esp_err_t bt_companion_send_mmi(uint8_t action)
+{
+    if (!s_enabled || !s_uart_installed) return ESP_ERR_INVALID_STATE;
+    portENTER_CRITICAL(&s_lock);
+    bool up = s_status.link_up;
+    portEXIT_CRITICAL(&s_lock);
+    if (!up) return ESP_ERR_INVALID_STATE;
+    uint8_t params[2] = { 0x00, action };
+    send_command(BM64_MMI_CMD, params, 2);
+    /* Reply (ACK, and whatever else it triggers) surfaces via the
+     * background poller's own read loop -> handle_event()'s ACK logging,
+     * same as bt_companion_start_pairing() -- not read here. */
     return ESP_OK;
 }
 
@@ -301,6 +358,35 @@ esp_err_t bt_companion_raw_ping(int timeout_ms)
     return bt_companion_raw_ping_at_baud(timeout_ms, 0);
 }
 
+esp_err_t bt_companion_raw_snoop(int duration_ms)
+{
+    if (s_task) return ESP_ERR_INVALID_STATE; /* background poller would race us for bytes */
+    esp_err_t err = ensure_uart();
+    if (err != ESP_OK) return err;
+
+    /* Deliberately no framing/checksum logic at all here -- unlike every
+     * other bring-up command, this prints every raw byte the instant it
+     * arrives, live, with no waiting for a complete valid frame first.
+     * That's the whole point: a bad/glitchy signal (or nothing at all)
+     * shows up immediately as you watch, instead of silently vanishing
+     * into read_one_frame()'s validation before you'd ever see it. */
+    printf("snooping raw RX bytes for %d ms (Ctrl-T Ctrl-R doesn't stop this -- just wait it "
+           "out)...\n", duration_ms);
+    int64_t deadline = esp_timer_get_time() + (int64_t)duration_ms * 1000;
+    uint32_t count = 0;
+    while (esp_timer_get_time() < deadline) {
+        uint8_t b;
+        if (uart_read_bytes(BT_COMPANION_UART, &b, 1, pdMS_TO_TICKS(20)) == 1) {
+            printf("%02X ", b);
+            fflush(stdout);
+            count++;
+            if (count % 16 == 0) printf("\n");
+        }
+    }
+    printf("\nsnoop done: %lu byte(s) seen\n", (unsigned long)count);
+    return ESP_OK;
+}
+
 esp_err_t bt_companion_read_bd_addr(int timeout_ms, char *out, size_t out_len)
 {
     if (s_task) return ESP_ERR_INVALID_STATE; /* background poller would race us for bytes */
@@ -340,22 +426,45 @@ static void handle_event(uint8_t event_code, const uint8_t *param, uint8_t param
 
     switch (event_code) {
     case BM64_EVENT_ACK:
-        break; /* nothing to do -- just proves the module got our last command */
+        /* params = {opcode being acknowledged, status byte} (confirmed
+         * 2026-09-21 on real hardware). Stay silent for the routine poll
+         * command (BM64_READ_LINK_STATUS_CMD, every 2s) -- that would just
+         * be log spam -- but log anything else at INFO, since that's
+         * always a foreground command a caller is actively waiting to see
+         * the result of (e.g. bt_companion_start_pairing()'s MMI_CMD),
+         * and this was the only way to tell whether the module actually
+         * accepted it. Status byte meaning not independently confirmed --
+         * watch for whether it's ever nonzero to find out empirically. */
+        if (param_len >= 2 && param[0] != BM64_READ_LINK_STATUS_CMD) {
+            ESP_LOGI(TAG, "ACK for opcode 0x%02X, status byte 0x%02X", param[0], param[1]);
+        }
+        break;
     case BM64_EVENT_DEVICE_STATE:
-        /* Real semantics of the state byte not yet confirmed against actual
-         * hardware (see this component's header/module doc comment) --
-         * logged raw so a live bring-up session can correlate this value
-         * against real pairing/connect/disconnect actions and calibrate the
-         * mapping. Treating "nonzero" as "probably not idle/standby" as a
-         * rough placeholder only -- do not trust this for anything beyond
-         * "the link is alive" until confirmed live. */
+        /* State byte meaning confirmed 2026-09-22 from Microchip's real
+         * command-set doc (BTM_Status, event 0x01) -- see the bm64_btm_state_t
+         * enum above. HF/A2DP/SCO link-up states are the actual "something is
+         * connected" signal; PAIRING_OK alone doesn't necessarily mean a
+         * profile link is up yet, so it's logged but doesn't set
+         * bt_connected on its own. */
         if (param_len >= 1) {
-            ESP_LOGI(TAG, "device state event, raw byte = 0x%02X (mapping not yet confirmed "
-                          "against real hardware -- watch this value while pairing/connecting)",
-                     param[0]);
-            portENTER_CRITICAL(&s_lock);
-            s_status.bt_connected = (param[0] != 0x00);
-            portEXIT_CRITICAL(&s_lock);
+            ESP_LOGI(TAG, "device state event: 0x%02X", param[0]);
+            switch (param[0]) {
+            case BM64_STATE_HF_LINK_UP:
+            case BM64_STATE_A2DP_LINK_UP:
+                portENTER_CRITICAL(&s_lock);
+                s_status.bt_connected = true;
+                portEXIT_CRITICAL(&s_lock);
+                break;
+            case BM64_STATE_HF_LINK_DOWN:
+            case BM64_STATE_A2DP_LINK_DOWN:
+                portENTER_CRITICAL(&s_lock);
+                s_status.bt_connected = false;
+                s_status.paired_name[0] = '\0';
+                portEXIT_CRITICAL(&s_lock);
+                break;
+            default:
+                break;
+            }
         }
         break;
     case BM64_EVENT_REMOTE_DEVICE_NAME:
@@ -382,6 +491,20 @@ static void poll_task(void *arg)
     const TickType_t period = pdMS_TO_TICKS(POLL_INTERVAL_MS);
     TickType_t last_wake = xTaskGetTickCount();
 
+    /* One-time at startup, before anything else: confirmed 2026-09-22 this
+     * is what actually gets the module from whatever state it's in after
+     * MFB power-on into one where later commands (pairing especially)
+     * genuinely take effect, not just get ACKed -- see
+     * bt_companion_start_pairing()'s own comment for the full story. */
+    {
+        uint8_t press[2]   = { 0x00, BM64_MMI_POWERON_BUTTON_PRESS };
+        uint8_t release[2] = { 0x00, BM64_MMI_POWERON_BUTTON_RELEASE };
+        send_command(BM64_MMI_CMD, press, 2);
+        vTaskDelay(pdMS_TO_TICKS(50));
+        send_command(BM64_MMI_CMD, release, 2);
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+
     /* One-time startup query, not part of the regular poll loop below: grabs
      * the module's own BD address so the web UI can show it (helps whoever's
      * pairing know which device to pick on their phone). Harmless if it
@@ -401,6 +524,22 @@ static void poll_task(void *arg)
                 portEXIT_CRITICAL(&s_lock);
             }
         }
+    }
+
+    /* Also one-time at startup: set the module's own advertised Bluetooth
+     * name to this board's name (e.g. "dualphone"), so pairing shows
+     * something short and recognizable instead of a generic factory name.
+     * Confirmed frame format 2026-09-22 straight from Microchip's real
+     * command-set doc: BT_Device_Name is a fixed 32-byte field, no length
+     * prefix, ASCII, unused tail padded with zeros. That same doc notes
+     * this does NOT persist to the module's own EEPROM/power cycle -- which
+     * is exactly why this runs here, every boot, rather than being a
+     * one-time provisioning step. */
+    {
+        char name[32] = {0};
+        board_name_get(name, sizeof(name));
+        send_command(BM64_CHANGE_DEVICE_NAME_CMD, (const uint8_t *)name, sizeof(name));
+        ESP_LOGI(TAG, "set BT device name to '%s'", name);
     }
 
     while (1) {

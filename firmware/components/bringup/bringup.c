@@ -1461,6 +1461,48 @@ static int cmd_bm64_addr(int argc, char **argv)
     return 0;
 }
 
+static int cmd_bm64_snoop(int argc, char **argv)
+{
+    int duration_ms = (argc > 1) ? atoi(argv[1]) * 1000 : 20000;
+    esp_err_t err = bt_companion_raw_snoop(duration_ms);
+    if (err == ESP_ERR_INVALID_STATE) {
+        printf("bt_companion is already enabled (its own poll task is running) -- disable it "
+               "first (bt_enable 0) before running this raw test, they can't share the UART at once\n");
+        return 1;
+    }
+    return err == ESP_OK ? 0 : 1;
+}
+
+static int cmd_bm64_mmi(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("usage: bm64_mmi <hex action code, e.g. 51> -- bt_companion must be enabled and "
+               "link up (unlike bm64_test/bm64_addr/bm64_snoop, this one needs it ON)\n");
+        return 1;
+    }
+    uint8_t action = (uint8_t)strtol(argv[1], NULL, 16);
+    esp_err_t err = bt_companion_send_mmi(action);
+    if (err != ESP_OK) {
+        printf("bm64_mmi: failed (bt_companion not enabled, or link not up)\n");
+        return 1;
+    }
+    printf("bm64_mmi: sent MMI action 0x%02X -- watch the log for the ACK\n", action);
+    return 0;
+}
+
+static int cmd_bt_enable(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("bt_companion is currently %s\n", bt_companion_enabled() ? "enabled" : "disabled");
+        printf("usage: bt_enable <0|1>\n");
+        return 0;
+    }
+    bool enabled = atoi(argv[1]) != 0;
+    esp_err_t err = bt_companion_set_enabled(enabled);
+    printf("bt_companion %s\n", err == ESP_OK ? (enabled ? "enabled" : "disabled") : "FAILED to change");
+    return err == ESP_OK ? 0 : 1;
+}
+
 /* Compact help: one line per command ("cmd  description"), instead of the
  * built-in esp_console help command's 2-line-plus-blank-line-per-command
  * format. We already have every (command, help) pair at registration time,
@@ -1594,6 +1636,9 @@ void bringup_console_start(void)
     register_cmd("sd_test", "microSD: mount (if needed), print card info, write/read/verify", cmd_sd_test);
     register_cmd("bm64_test", "Raw BM64 UART ping: bm64_test [timeout_ms, default 2000] [baud, default 115200] -- disable bt_companion first", cmd_bm64_test);
     register_cmd("bm64_addr", "Read BM64's own Bluetooth MAC address: bm64_addr [timeout_ms, default 2000] -- disable bt_companion first", cmd_bm64_addr);
+    register_cmd("bm64_snoop", "Live raw-byte dump of the BM64 UART, no framing: bm64_snoop [seconds, default 20] -- disable bt_companion first", cmd_bm64_snoop);
+    register_cmd("bt_enable", "Get/set bt_companion enabled: bt_enable [0|1]", cmd_bt_enable);
+    register_cmd("bm64_mmi", "Send a raw MMI action code: bm64_mmi <hex, e.g. 51> -- bt_companion must be ENABLED (opposite of bm64_test/addr/snoop)", cmd_bm64_mmi);
 
     /* esp_console_new_repl_*() above probes the terminal with a "device
      * status request" escape sequence (ESC[5n) and waits up to 500ms for the
