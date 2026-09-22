@@ -14,3 +14,22 @@ CONFIG_BOARD_TYPE_SMD2=y
 # build.<type>/ directory is) needs it repeated here explicitly.
 CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+
+# Same gap as above, for the same reason: sdkconfig.defaults' own generic
+# CONFIG_ESP_CONSOLE_UART_DEFAULT is wrong for every SMD board (SMD2 and
+# SMD4 alike) -- there's no bridge chip wiring UART0 to anything the host
+# can talk to, only native USB (USB-Serial/JTAG) reaches it. The main
+# sdkconfig (build/, SMD4) has carried the correct override for a long
+# time; a fresh build.smd2/sdkconfig generated from defaults alone never
+# had it, which is exactly why 2026-09-21's real-hardware confusion
+# happened: build.smd2 silently ended up with USB-Serial-JTAG as only a
+# SECONDARY (log-mirror, output-only) console channel while the real
+# interactive REPL attached to the unwired UART0 instead -- so every log
+# line still appeared over the same USB-CDC port idf.py monitor was
+# connected to, but not one single keystroke typed back ever reached it,
+# with nothing in the visible output to suggest why. Confirmed via a clean
+# A/B test against a build from before this file existed (which had this
+# right) -- not an application-code regression, just this file missing an
+# override the main sdkconfig always had.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
