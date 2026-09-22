@@ -20,8 +20,9 @@ writes from Bluedroid's own thread), a downlink AGC tried and reverted (made
 it worse, not better) -- and voice audio still came out "garbled, like
 underwater" while simple tones stayed clean.
 
-Built a diagnostic (`bt_companion_hfp_test`'s `capture_downlink` console
-command + `tools/capture_downlink.py`) that captures the raw PCM samples
+Built a diagnostic (a `capture_downlink` console command in the
+now-removed `bt_companion_hfp_test` project, plus `tools/capture_downlink.py`
+on the host side) that captured the raw PCM samples
 Bluedroid hands the app -- before ANY of our own code touches them -- and
 analyzed the spectrum. Result: **79% of all energy sat below 300Hz, ~0%
 above 2000Hz**, on a live voice call. That is not what decoded speech looks
@@ -194,62 +195,24 @@ GPIO, `AIL`/`AIR` line-in, `DP`/`DM` USB, `AMB_DET` thermal sense,
 BM64's built-in Li-ion charger/thermal-protection features are irrelevant
 since it's powered from the C6's own regulated rail, not a battery.
 
-## Option B: ESP32-original DevKitC board as a companion (superseded 2026-09-15)
+## Option B: ESP32-original DevKitC board as a companion (superseded 2026-09-15, code removed 2026-09-21)
 
 **No longer the plan** -- see "Confirmed: ESP32 software HFP audio is a dead
-end" above. Kept below as a real, working bring-up record: the UART link,
-pairing protocol, GPIO/LED patterns, and analog-bridge wiring approach all
-carry over directly to BM64, just on the other end of the same link/taps.
-The specific audio path (this chip's built-in 8-bit DAC/ADC via ESP-IDF's
-Bluedroid vHCI stack) is what's dead, not the overall architecture.
+end" above for why. The chip itself has real Classic BT + BLE dual-mode,
+with working A2DP-sink and HFP examples in ESP-IDF's own Bluedroid stack --
+cheaper than BM64, at the cost of audio quality (the original ESP32's
+built-in DAC is only 8-bit) and, as it turned out, a hard CVSD-decode
+limitation in the Bluetooth controller firmware itself that no amount of
+application-side fixing could work around.
 
-The chip itself has real Classic BT + BLE dual-mode, with working A2DP-sink
-and HFP examples in ESP-IDF's own Bluedroid stack -- same toolchain already
-used for this whole project. Cheaper than BM64, at the cost of audio
-quality: the original ESP32's built-in DAC (GPIO25/26) is only 8-bit, real
-audible quantization noise versus BM64's proper high-resolution DAC.
-
-**Using the full DevKitC board, not a bare WROOM-32 module -- decided
-2026-09-13, permanently, not just for prototyping.** A bare module is
-cheaper and smaller, but needs its own 3.3V regulator, USB-to-serial
-adapter for programming, and status LEDs added on the daughter board; the
-devkit already has all three built in, and the extra board space is a
-non-issue here. Traded a little board area for a lot of fungibility --
-any DevKitC-style board works, easy to swap/debug/reprogram over USB like
-every other board in this project, no separate programmer needed.
-
-**Regulator note** (came up while sourcing this): the ESP32 module itself
-needs regulated 3.3V, as its own datasheet says -- but the *devkit board*
-has its own onboard LDO regulator between its 5V/VIN pin and the module's
-actual 3.3V supply, which is exactly why devkits expose both a 5V/VIN pin
-(regulator input) and a separate 3.3V pin (regulator output). Powering the
-devkit from a 5V rail into VIN (or straight off USB, same thing) is the
-normal, intended way to run it -- not a workaround.
-
-Pin plan:
-
-| Signal | C6 side | Companion (ESP32-original DevKitC) | Notes |
-|---|---|---|---|
-| UART TX | GPIO16 | GPIO16 (RX2) | same pin *number* both ends -- see note below, this isn't a typo |
-| UART RX | GPIO17 | GPIO17 (TX2) | same pin *number* both ends |
-| GND | GND | GND | shared ground, required for the UART link to work at all -- confirmed 2026-09-14 this is easy to skip by accident on a breadboard |
-| 5V | 5V rail (or USB) | 5V/VIN pin | devkit's onboard regulator drops this to the module's 3.3V |
-| Downlink audio | AG1171 **Vin** pin, past its own 10nF coupling cap | GPIO25 (DAC1), **through its own new 100nF series cap** | see "Audio tap components" below |
-| Uplink audio | AG1171 **Vout** pin, past its own 100nF coupling cap | GPIO34 (ADC1_CH6), **plus a new bias divider** | see "Audio tap components" below |
-| Pairing-status LED | *(none -- companion-only)* | GPIO2 (onboard LED on most genuine DevKitC boards) | blinks while pairing, solid once connected, off otherwise -- see `bt_led.c` on the companion firmware |
-
-**On "same pin number, crossed role"**: C6's GPIO16 is *its* UART TX; the
-companion's GPIO16 is labeled RX2 on *its* side. Wire pin 16 to pin 16 and
-pin 17 to pin 17 straight across (not diagonally to the other number) --
-confirmed 2026-09-14 this is exactly the mistake that caused three failed
-pairing/flashing sessions: wiring by "TX goes to RX" instinct sent one leg
-to the companion's GPIO1/GPIO3 (its real USB-serial bootloader pins)
-instead, which also explained why flashing the companion over USB kept
-failing whenever that leg was connected.
-
-Companion-side UART pins match its own default UART2 pins purely as a
-mnemonic -- no electrical requirement, the GPIO matrix can route UART to any
-pins on either chip.
+The two standalone reference/bring-up projects this used
+(`bt_companion_fw/`, an A2DP-sink example; `bt_companion_hfp_test/`, the
+HFP bring-up + `capture_downlink` diagnostic that produced the dead-end
+finding above) were removed from the repo once BM64 became the real plan --
+their UART link/pairing-protocol/analog-bridge-wiring *approach* carried
+over to BM64's own bring-up, but the actual ESP32-Bluedroid code itself had
+no further use. See git history before 2026-09-21 to recover them if ever
+needed again.
 
 ### Audio tap components (new 2026-09-14, bench-bring-up wiring)
 
