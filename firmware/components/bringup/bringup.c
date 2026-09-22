@@ -17,6 +17,7 @@
 #include "sdcard.h"
 #include "player.h"
 #include "voip.h"
+#include "bt_companion.h"
 #include "logctl.h"
 #include "esp_console.h"
 #include "esp_log.h"
@@ -1425,6 +1426,41 @@ static int cmd_sd_test(int argc, char **argv)
     return sdcard_selftest(NULL, NULL) == ESP_OK ? 0 : 1;
 }
 
+/* ---------- BM64 bring-up ---------- */
+static int cmd_bm64_test(int argc, char **argv)
+{
+    int timeout_ms = (argc > 1) ? atoi(argv[1]) : 2000;
+    int baud = (argc > 2) ? atoi(argv[2]) : 0;
+    esp_err_t err = bt_companion_raw_ping_at_baud(timeout_ms, baud);
+    if (err == ESP_ERR_INVALID_STATE) {
+        printf("bt_companion is already enabled (its own poll task is running) -- disable it "
+               "first (Settings -> Bluetooth, or bt_companion_set_enabled(false)) before "
+               "running this raw test, they can't share the UART at once\n");
+        return 1;
+    }
+    printf("bm64_test: %s\n", err == ESP_OK ? "got a valid reply -- module is alive on this UART"
+                                             : "no valid reply -- see the log line above for what to check");
+    return err == ESP_OK ? 0 : 1;
+}
+
+static int cmd_bm64_addr(int argc, char **argv)
+{
+    int timeout_ms = (argc > 1) ? atoi(argv[1]) : 2000;
+    char addr[18];
+    esp_err_t err = bt_companion_read_bd_addr(timeout_ms, addr, sizeof(addr));
+    if (err == ESP_ERR_INVALID_STATE) {
+        printf("bt_companion is already enabled (its own poll task is running) -- disable it "
+               "first before running this raw test, they can't share the UART at once\n");
+        return 1;
+    }
+    if (err != ESP_OK) {
+        printf("bm64_addr: no reply -- see the log line above\n");
+        return 1;
+    }
+    printf("bm64_addr: %s\n", addr);
+    return 0;
+}
+
 /* Compact help: one line per command ("cmd  description"), instead of the
  * built-in esp_console help command's 2-line-plus-blank-line-per-command
  * format. We already have every (command, help) pair at registration time,
@@ -1556,6 +1592,8 @@ void bringup_console_start(void)
     register_cmd("sip_call", "Test SIP INVITE (signaling only): sip_call <number> [line]", cmd_sip_call);
     register_cmd("sip_hangup", "Hang up a SIP call: sip_hangup [line]", cmd_sip_hangup);
     register_cmd("sd_test", "microSD: mount (if needed), print card info, write/read/verify", cmd_sd_test);
+    register_cmd("bm64_test", "Raw BM64 UART ping: bm64_test [timeout_ms, default 2000] [baud, default 115200] -- disable bt_companion first", cmd_bm64_test);
+    register_cmd("bm64_addr", "Read BM64's own Bluetooth MAC address: bm64_addr [timeout_ms, default 2000] -- disable bt_companion first", cmd_bm64_addr);
 
     /* esp_console_new_repl_*() above probes the terminal with a "device
      * status request" escape sequence (ESC[5n) and waits up to 500ms for the

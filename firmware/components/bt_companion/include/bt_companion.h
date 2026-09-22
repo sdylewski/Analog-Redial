@@ -1,18 +1,26 @@
-/* bt_companion.h — link to an optional Bluetooth Classic audio companion
- * board (BM64, or a second ESP32 running Bluedroid) over UART on
- * BOARD_UART_TX/BOARD_UART_RX (GPIO16/17 — reserved in every board's pin
- * map, never otherwise used). See archive/BLUETOOTH_AUDIO_UPGRADE.md for
- * why this exists: the ESP32-C6 on this board has BLE only, no Classic BT,
- * so A2DP/HFP need a separate chip; this component is the C6 side of that
- * link. Audio itself doesn't come through here at all — it's wired in the
- * analog domain directly between the companion and the existing codec/
- * handset paths (also per that doc), so this is control/status only:
- * pairing, connection state, and (eventually) ring/answer/hangup events.
+/* bt_companion.h — link to a BM64 Bluetooth Classic audio module over UART
+ * on BOARD_UART_TX/BOARD_UART_RX (GPIO16/17 — reserved in every board's pin
+ * map, never otherwise used). See archive/BLUETOOTH_AUDIO_UPGRADE.md for why
+ * this exists: the ESP32-C6 on this board has BLE only, no Classic BT, so
+ * A2DP/HFP need a separate chip. Audio itself doesn't come through here at
+ * all — it's wired in the analog domain directly between BM64 and the
+ * existing codec/handset paths (also per that doc), so this is
+ * control/status only: pairing and connection state.
  *
- * No hardware exists yet as of this writing — this defines the NVS-backed
- * "do we have this daughter board" switch and the protocol/plumbing it'll
- * use once one is wired in, so the web UI has something real to show
- * (honestly reporting "not connected") rather than nothing at all. */
+ * Speaks BM64's real serial command protocol — a binary framed format
+ * (sync byte, length, opcode/event code, parameters, checksum), NOT a
+ * custom text protocol — see bt_companion.c's own doc comment for the full
+ * frame layout and where it came from (Microchip's own protocol document
+ * isn't fetchable from here; cross-checked against a working open-source
+ * Arduino library instead, konikoni428/BM64_arduino, itself referencing
+ * Microchip's "UART_CommandSet" document by name).
+ *
+ * REWRITTEN 2026-09-21: an earlier version of this file spoke an invented
+ * ASCII line protocol ("STATUS?\n", "PAIR\n") designed for a since-abandoned
+ * plan (a second ESP32 running our own Bluedroid code as the companion,
+ * see archive/BLUETOOTH_AUDIO_UPGRADE.md's "Option B") — a real BM64 module
+ * never understood any of that. This is the first version that actually
+ * talks to real BM64 hardware. */
 #pragma once
 
 #include "esp_err.h"
@@ -27,9 +35,17 @@ extern "C" {
 
 typedef struct {
     bool    enabled;                          /* "I have this daughter board wired in" */
-    bool    link_up;                          /* UART link to the companion itself alive */
-    bool    bt_connected;                     /* companion reports a paired phone/laptop */
-    char    paired_name[BT_COMPANION_NAME_MAX]; /* "" if bt_connected is false */
+    bool    link_up;                          /* we've seen at least one valid framed
+                                                * reply/event from the module recently --
+                                                * proves the UART link itself is alive */
+    bool    bt_connected;                     /* best-effort -- see bt_companion.c's own
+                                                * doc comment on BM64_EVENT_DEVICE_STATE
+                                                * for exactly how confident to be in this */
+    char    paired_name[BT_COMPANION_NAME_MAX]; /* "" if bt_connected is false or unknown */
+    char    bd_addr[18];                      /* this module's own BT MAC, "" until the
+                                                * background poller's one-time startup query
+                                                * gets a reply -- shown in the web UI so you
+                                                * know which device to pick on a phone */
 } bt_companion_status_t;
 
 /* Starts the UART + background poll task if (and only if) enabled -- see
@@ -48,26 +64,50 @@ bool        bt_companion_enabled(void);
 esp_err_t   bt_companion_set_enabled(bool enabled);
 
 /* Current link/pairing status. link_up/bt_connected/paired_name are all
- * runtime-only (not persisted) -- they reflect whatever the companion last
+ * runtime-only (not persisted) -- they reflect whatever the module last
  * reported, or all false/"" if disabled or nothing's answered yet. */
 bt_companion_status_t bt_companion_get_status(void);
 
-/* Sends the companion a "start pairing" command. ESP_ERR_INVALID_STATE if
- * not enabled or the UART link isn't up (nothing to send it to). */
+/* Sends the module a "start pairing" MMI command (BM64_MMI_ANY_MODE_ENTERING_
+ * PAIRING). ESP_ERR_INVALID_STATE if not enabled or the UART link isn't up
+ * (nothing to send it to). */
 esp_err_t bt_companion_start_pairing(void);
 
-/* Diagnostic: asks the companion to synthesize a tone and drive it straight
- * out its own DAC (downlink), bypassing Bluetooth/the phone call entirely
- * -- see bt_audio_io_test_tone() on that side. Useful for isolating whether
- * the analog bridge itself is clean, independent of live call audio.
- * ESP_ERR_INVALID_STATE if not enabled or the UART link isn't up. */
-esp_err_t bt_companion_test_tone(int hz, int ms);
+/* Bring-up/diagnostic only (see bringup.c's 'bm64_test' console command),
+ * NOT wired to the web UI: sends GET_UART_VERSION (a harmless, always-
+ * supported query -- every real BM64 answers it, paired or not, which is
+ * exactly why it's the right thing to send when the only question is "is
+ * anything even listening on this UART") and waits up to timeout_ms for
+ * any single valid framed reply, dumping it via ESP_LOGI as it decodes.
+ * Returns ESP_OK the instant a valid frame arrives (regardless of its
+ * content -- this only proves the link itself is alive), ESP_ERR_TIMEOUT
+ * if nothing valid arrived in time, ESP_ERR_INVALID_STATE if the background
+ * poll task is already running (bt_companion_set_enabled(true) already
+ * called) -- the two would fight over the same UART RX bytes, so this is
+ * deliberately a "test it before you turn the real feature on" tool, not
+ * something safe to run alongside it. */
+esp_err_t bt_companion_raw_ping(int timeout_ms);
 
-/* Diagnostic: asks the companion to drive a constant DC level out its DAC
- * (bypassing Bluetooth), instead of a tone -- see bt_audio_io_test_level()
- * on that side. Easier to confirm with a multimeter/scope than a moving
- * waveform. ESP_ERR_INVALID_STATE if not enabled or the UART link isn't up. */
-esp_err_t bt_companion_test_level(bool high, int ms);
+/* Same as bt_companion_raw_ping(), but overrides the UART baud rate for just
+ * this one probe (baud <= 0 means "use the normal 115200 default", identical
+ * to plain bt_companion_raw_ping()) -- restores the default baud rate before
+ * returning either way. For bring-up only: sweeping common BM64 baud rates
+ * (9600/19200/38400/57600/115200) is the fastest way to tell a wrong-baud
+ * module apart from a real wiring/power problem without re-flashing. */
+esp_err_t bt_companion_raw_ping_at_baud(int timeout_ms, int baud);
+
+/* Bring-up/diagnostic only, same "can't share the UART with the background
+ * poller" rule as bt_companion_raw_ping(): reads the module's own Bluetooth
+ * MAC/BD address and formats it into out ("XX:XX:XX:XX:XX:XX", out_len
+ * should be at least 18). ESP_ERR_TIMEOUT if no address reply arrived in
+ * time, ESP_ERR_INVALID_STATE if the background poll task is running. */
+esp_err_t bt_companion_read_bd_addr(int timeout_ms, char *out, size_t out_len);
+
+/* NOT implemented yet, deliberately: BM64_MMI_POWEROFF_BT (0x5E) exists in
+ * bt_companion.c's opcode enum but nothing sends it. Don't wire this up
+ * until MFB is on a controllable GPIO, not a fixed pull-up resistor --
+ * powering the module off over UART with MFB hard-tied high leaves no way
+ * to power it back on again short of physically disturbing the wiring. */
 
 #ifdef __cplusplus
 }
