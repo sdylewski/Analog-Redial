@@ -18,6 +18,7 @@
 #include "player.h"
 #include "voip.h"
 #include "bt_companion.h"
+#include "driver/gpio.h"
 #include "logctl.h"
 #include "esp_console.h"
 #include "esp_log.h"
@@ -1490,6 +1491,57 @@ static int cmd_bm64_mmi(int argc, char **argv)
     return 0;
 }
 
+static int cmd_bm64_cmd(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("usage: bm64_cmd <hex opcode, e.g. 0E for Read_Paired_Device_Record> -- "
+               "bt_companion must be enabled and link up; reply shows up as an 'unhandled "
+               "event' hex dump in the log at debug level (log_level debug first)\n");
+        return 1;
+    }
+    uint8_t opcode = (uint8_t)strtol(argv[1], NULL, 16);
+    esp_err_t err = bt_companion_send_raw_cmd(opcode, 0x00);
+    if (err != ESP_OK) {
+        printf("bm64_cmd: failed (bt_companion not enabled, or link not up)\n");
+        return 1;
+    }
+    printf("bm64_cmd: sent opcode 0x%02X -- watch the log (debug level) for the reply\n", opcode);
+    return 0;
+}
+
+/* Bring-up/bench only: bit-banged GPIO control of a BM64 module's MFB/RST_N/
+ * P2_0 pins, for boards that have wired one to the spare GPIO18-20 pads
+ * (see board_pins_smd4.h's BOARD_BT_MFB_PIN/_RST_PIN/_P20_PIN comment). Not
+ * safe on a real 2-line or microSD-equipped board -- refuses unless this
+ * board's runtime config says single-line, no SD, matching the same guard
+ * ag1170.c/sdcard.c use before touching these same shared pads. */
+static int cmd_bm64_pin(int argc, char **argv)
+{
+    if (argc < 3) {
+        printf("usage: bm64_pin <mfb|rst|p20> <0|1> -- only usable on a single-line, "
+               "no-microSD board with BM64 bench-wired to GPIO18-20 (see board_pins_smd4.h)\n");
+        return 1;
+    }
+    board_hw_config_t cfg = board_hw_config_get();
+    if (cfg.num_lines != 1 || cfg.has_microsd) {
+        printf("bm64_pin: refusing -- this board's config is %d-line%s, GPIO18-20 are claimed "
+               "by line 2 SLIC/microSD, not free for BM64 control\n",
+               cfg.num_lines, cfg.has_microsd ? " with microSD" : "");
+        return 1;
+    }
+    gpio_num_t pin;
+    if (strcmp(argv[1], "mfb") == 0) pin = BOARD_BT_MFB_PIN;
+    else if (strcmp(argv[1], "rst") == 0) pin = BOARD_BT_RST_PIN;
+    else if (strcmp(argv[1], "p20") == 0) pin = BOARD_BT_P20_PIN;
+    else { printf("bm64_pin: unknown pin '%s' (want mfb, rst, or p20)\n", argv[1]); return 1; }
+
+    gpio_set_direction(pin, GPIO_MODE_OUTPUT);
+    int level = atoi(argv[2]) != 0;
+    gpio_set_level(pin, level);
+    printf("bm64_pin: %s (GPIO%d) set %s\n", argv[1], pin, level ? "HIGH" : "LOW");
+    return 0;
+}
+
 static int cmd_bt_enable(int argc, char **argv)
 {
     if (argc < 2) {
@@ -1639,6 +1691,8 @@ void bringup_console_start(void)
     register_cmd("bm64_snoop", "Live raw-byte dump of the BM64 UART, no framing: bm64_snoop [seconds, default 20] -- disable bt_companion first", cmd_bm64_snoop);
     register_cmd("bt_enable", "Get/set bt_companion enabled: bt_enable [0|1]", cmd_bt_enable);
     register_cmd("bm64_mmi", "Send a raw MMI action code: bm64_mmi <hex, e.g. 51> -- bt_companion must be ENABLED (opposite of bm64_test/addr/snoop)", cmd_bm64_mmi);
+    register_cmd("bm64_cmd", "Send a raw opcode+reserved-byte command (e.g. 0E Read_Paired_Device_Record): bm64_cmd <hex opcode> -- bt_companion must be ENABLED, log_level debug to see the reply", cmd_bm64_cmd);
+    register_cmd("bm64_pin", "Bit-bang BM64's MFB/RST_N/P2_0 over GPIO18-20 (bench-wired only): bm64_pin <mfb|rst|p20> <0|1> -- single-line, no-microSD boards only", cmd_bm64_pin);
 
     /* esp_console_new_repl_*() above probes the terminal with a "device
      * status request" escape sequence (ESC[5n) and waits up to 500ms for the

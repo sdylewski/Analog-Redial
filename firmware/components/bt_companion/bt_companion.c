@@ -1,6 +1,7 @@
 #include "bt_companion.h"
 #include "board.h"
 #include "board_pins.h"
+#include "driver/gpio.h"
 #include "driver/uart.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -293,6 +294,25 @@ esp_err_t bt_companion_send_mmi(uint8_t action)
     return ESP_OK;
 }
 
+esp_err_t bt_companion_send_raw_cmd(uint8_t opcode, uint8_t reserved_byte)
+{
+    if (!s_enabled || !s_uart_installed) return ESP_ERR_INVALID_STATE;
+    portENTER_CRITICAL(&s_lock);
+    bool up = s_status.link_up;
+    portEXIT_CRITICAL(&s_lock);
+    if (!up) return ESP_ERR_INVALID_STATE;
+    /* Every simple "read info" command in the real command set (Read_Local_
+     * BD_Address, Read_Local_Device_Name, Read_Paired_Device_Record, ...)
+     * takes exactly this shape: opcode + one reserved byte, no other
+     * parameters. Reply surfaces the same way as bt_companion_send_mmi()'s
+     * does -- via the background poller -> handle_event()'s "unhandled
+     * event" hex dump, since this is deliberately generic rather than
+     * hardcoding a parser for whichever specific reply comes back. */
+    uint8_t params[1] = { reserved_byte };
+    send_command(opcode, params, 1);
+    return ESP_OK;
+}
+
 esp_err_t bt_companion_raw_ping_at_baud(int timeout_ms, int baud)
 {
     if (s_task) return ESP_ERR_INVALID_STATE; /* background poller would race us for bytes */
@@ -478,9 +498,18 @@ static void handle_event(uint8_t event_code, const uint8_t *param, uint8_t param
         s_status.paired_name[n] = '\0';
         portEXIT_CRITICAL(&s_lock);
         break;
-    default:
-        ESP_LOGD(TAG, "unhandled event 0x%02X (%u param bytes)", event_code, param_len);
+    default: {
+        /* Hex-dumped so a one-off diagnostic command (bm64_cmd) doesn't need
+         * bespoke parsing added here just to see what came back -- this is
+         * the ONLY place that would ever show it otherwise. */
+        char hex[3 * 32 + 1] = "";
+        int hn = 0;
+        for (uint8_t i = 0; i < param_len && i < 32; i++) {
+            hn += snprintf(hex + hn, sizeof(hex) - hn, "%02X ", param[i]);
+        }
+        ESP_LOGD(TAG, "unhandled event 0x%02X (%u param bytes): %s", event_code, param_len, hex);
         break;
+    }
     }
 
     if (event_code != BM64_EVENT_ACK) send_ack(event_code);
@@ -564,9 +593,46 @@ static void poll_task(void *arg)
     }
 }
 
+#ifdef BOARD_BT_MFB_PIN
+/* Bring-up rig only: on a board that's bench-wired the BM64's MFB/RST_N/P2_0
+ * to GPIO18-20 (see board_pins_smd4.h), those three must be driven high for
+ * the module to be powered/out-of-reset/in-ROM-app-mode at all -- confirmed
+ * 2026-09-23 on real hardware: without this, the UART line reads as
+ * undriven noise (heavy 0xFF/0x00 runs, no valid frames) no matter what's
+ * wired to TX/RX, and holding MFB (only) at 3.3V by hand was what made the
+ * module start responding. GPIO18-20 don't survive a reset (revert to
+ * floating input), so this has to run every time the UART is (re)brought
+ * up, not just once at boot. Gated the same way bringup.c's bm64_pin
+ * command is: only safe to drive these pads when this board's runtime
+ * config is single-line with no microSD (ag1170/sdcard don't have them
+ * claimed). No-op (with a log line) on a 2-line or has-microSD config, and
+ * compiled out entirely on boards whose pin map doesn't define these
+ * macros (SMD2, THT). */
+static void assert_bm64_control_pins(void)
+{
+    board_hw_config_t cfg = board_hw_config_get();
+    if (cfg.num_lines != 1 || cfg.has_microsd) {
+        ESP_LOGW(TAG, "not asserting bench BM64 control pins (MFB/RST_N/P2_0 on GPIO18-20) -- "
+                      "this board's config is %d-line%s, those pads are claimed by line 1's "
+                      "SLIC/microSD", cfg.num_lines, cfg.has_microsd ? " with microSD" : "");
+        return;
+    }
+    gpio_set_direction(BOARD_BT_MFB_PIN, GPIO_MODE_OUTPUT);
+    gpio_set_direction(BOARD_BT_RST_PIN, GPIO_MODE_OUTPUT);
+    gpio_set_direction(BOARD_BT_P20_PIN, GPIO_MODE_OUTPUT);
+    gpio_set_level(BOARD_BT_MFB_PIN, 1);
+    gpio_set_level(BOARD_BT_RST_PIN, 1);
+    gpio_set_level(BOARD_BT_P20_PIN, 1);
+    vTaskDelay(pdMS_TO_TICKS(200));
+}
+#endif
+
 static esp_err_t ensure_uart(void)
 {
     if (s_uart_installed) return ESP_OK;
+#ifdef BOARD_BT_MFB_PIN
+    assert_bm64_control_pins();
+#endif
     uart_config_t cfg = {
         .baud_rate = BT_COMPANION_BAUD,
         .data_bits = UART_DATA_8_BITS,

@@ -37,6 +37,12 @@ firmware/build/
 firmware/build.*/
 firmware/sdkconfig.old
 firmware/dependencies.lock
+# bm64_bridge is its own separate idf.py project (see its main.c) with the
+# same build-artifact shape as the main firmware/ tree above
+firmware/bm64_bridge/build/
+firmware/bm64_bridge/sdkconfig.old
+firmware/bm64_bridge/dependencies.lock
+firmware/bm64_bridge/managed_components/
 # Regenerated fresh every configure by firmware/CMakeLists.txt (a clean
 # git-describe, not ESP-IDF's own default which picks up this repo's
 # archive/* tags -- see that file's comment)

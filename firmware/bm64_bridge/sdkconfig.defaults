@@ -1,0 +1,12 @@
+# Same as the main gateway firmware's sdkconfig (see CLAUDE.md): every SMD
+# board's only host-reachable console/serial channel is native USB Serial/
+# JTAG -- no bridge chip wires UART0 to anything. main.c reuses this exact
+# path (plain read()/write() on stdin/stdout, with line-ending translation
+# turned off for byte transparency) rather than separately installing the
+# lower-level interrupt+ring-buffer driver -- that second approach was
+# tried first and produced total silence (no boot log, no reply, nothing),
+# most likely a resource-ownership conflict between the two; this one reuses
+# the exact mechanism already proven reliable by this project's real console
+# all night.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y

@@ -86,6 +86,15 @@ esp_err_t bt_companion_start_pairing(void);
  * component doesn't send anywhere yet -- see reference/BM64_arduino. */
 esp_err_t bt_companion_send_mmi(uint8_t action);
 
+/* Bring-up/diagnostic only, same link-must-be-up precondition: sends any
+ * simple "opcode + one reserved byte" command (see bt_companion.c's own
+ * doc comment -- this covers Read_Paired_Device_Record (0x0E),
+ * Read_Local_Device_Name (0x10), etc., anything not already wrapped by a
+ * dedicated function above). Reply shows up via the console log at DEBUG
+ * level (handle_event()'s hex-dumped "unhandled event" case) -- this
+ * deliberately doesn't parse the specific reply itself. */
+esp_err_t bt_companion_send_raw_cmd(uint8_t opcode, uint8_t reserved_byte);
+
 /* Bring-up/diagnostic only (see bringup.c's 'bm64_test' console command),
  * NOT wired to the web UI: sends GET_UART_VERSION (a harmless, always-
  * supported query -- every real BM64 answers it, paired or not, which is

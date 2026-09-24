@@ -127,6 +127,21 @@
 #define BOARD_UART_TX     GPIO_NUM_16
 #define BOARD_UART_RX     GPIO_NUM_17
 
+/* Bring-up/bench-only: BM64 MFB/RST_N/P2_0 control, for boards that have
+ * temporarily wired a BM64 companion module to the same GPIO18-20 pads line
+ * 1's SLIC/microSD would otherwise use (see the shared-pad comment above).
+ * These #defines exist on every SMD4 board unconditionally (harmless if
+ * unused), but the pins themselves are only safe to actually drive when
+ * this specific board's runtime config (board_hw_config_get(), board.h) is
+ * single-line with no microSD -- bringup.c's bm64_pin console command
+ * checks that before touching any of them, same pattern ag1170.c/sdcard.c
+ * already use for these same shared pads. Not part of bt_companion's normal
+ * runtime path -- dualphone's bench BM64 wiring ties MFB to VCC with a
+ * fixed resistor instead and has no GPIO control over any of these three. */
+#define BOARD_BT_MFB_PIN  BOARD_LINE2_PIN_FR_MISO  /* GPIO18 */
+#define BOARD_BT_RST_PIN  BOARD_LINE2_PIN_SHK_SCLK /* GPIO19 */
+#define BOARD_BT_P20_PIN  BOARD_LINE2_PIN_RM_MOSI  /* GPIO20 */
+
 /* No status LED on this board -- BOARD_STATUS_LED intentionally not
  * defined, see this file's own top-of-file comment. */
 
