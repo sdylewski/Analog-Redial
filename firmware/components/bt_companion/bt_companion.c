@@ -632,29 +632,30 @@ static void poll_task(void *arg)
 #ifdef BOARD_BT_MFB_PIN
 /* Bring-up rig only: on a board that's bench-wired the BM64's MFB/RST_N/P2_0
  * to GPIO18-20 (see board_pins_smd4.h), those three must be driven high for
- * the module to be powered/out-of-reset/in-ROM-app-mode at all -- confirmed
- * 2026-09-23 on real hardware: without this, the UART line reads as
- * undriven noise (heavy 0xFF/0x00 runs, no valid frames) no matter what's
- * wired to TX/RX, and holding MFB (only) at 3.3V by hand was what made the
- * module start responding. GPIO18-20 don't survive a reset (revert to
- * floating input), so this has to run every time the UART is (re)brought
- * up, not just once at boot. Gated the same way bringup.c's bm64_pin
- * command is: only safe to drive these pads when this board's runtime
- * config is single-line with no microSD (ag1170/sdcard don't have them
- * claimed). No-op (with a log line) on a 2-line or has-microSD config, and
- * compiled out entirely on boards whose pin map doesn't define these
- * macros (SMD2, THT).
+ * the module to be powered/out-of-reset/in-ROM-app-mode at all. GPIO18-20
+ * don't survive a reset (revert to floating input), so this has to run
+ * every time the UART is (re)brought up, not just once at boot. Gated the
+ * same way bringup.c's bm64_pin command is: only safe to drive these pads
+ * when this board's runtime config is single-line with no microSD
+ * (ag1170/sdcard don't have them claimed). No-op (with a log line) on a
+ * 2-line or has-microSD config, and compiled out entirely on boards whose
+ * pin map doesn't define these macros (SMD2, THT).
  *
- * MFB is not just "hold it high" -- the real datasheet names this pin
- * "UART RX_IND, active-high (used by host MCU to wakeup the Bluetooth
- * system)". That's a wake trigger, which strongly implies BM64 is watching
- * for a rising EDGE, not a static level. Confirmed 2026-09-24: driving
- * GPIO18 straight to 1 (no edge if it happened to already read high, e.g.
- * left over from a prior soft state) intermittently failed to bring the
- * UART up at all, while hand-tying MFB directly to 3.3V -- a genuine
- * floating-to-3.3V transition -- reliably worked every time. Forcing MFB
- * low first, then high, guarantees a real edge on every call regardless of
- * whatever state the pin was previously left in. */
+ * Root cause of a full night of "MFB won't reliably hold high" debugging
+ * that looked exactly like a wiring/connection fault (see
+ * archive/BM64_MFB_GPIO_DEBUG.md for the full story): a bare
+ * gpio_set_direction() + gpio_set_level() pair leaves pull_up_en at
+ * whatever it last was, and a leftover internal pull-up was fighting the
+ * output. Fixed by using full gpio_config() instead (pull-up/down and
+ * interrupts explicitly disabled in the same atomic call as the mode) --
+ * matches ag1170.c's config_line_gpio(), the proven pattern for this
+ * project's other bench-configured GPIO outputs (the SLIC's FR/RM pins).
+ * gpio_sleep_sel_dis()/gpio_hold_dis() below and the MFB low-then-high
+ * pulse are cheap insurance from earlier (now-superseded) theories, not
+ * the fix -- kept anyway since they're harmless and guard against a couple
+ * of real edge cases (this pin's state getting disturbed by an actual
+ * light-sleep transition; MFB needing a genuine wake edge per the
+ * datasheet's "UART RX_IND" description of that pin). */
 static void assert_bm64_control_pins(void)
 {
     board_hw_config_t cfg = board_hw_config_get();
@@ -664,9 +665,21 @@ static void assert_bm64_control_pins(void)
                       "SLIC/microSD", cfg.num_lines, cfg.has_microsd ? " with microSD" : "");
         return;
     }
-    gpio_set_direction(BOARD_BT_MFB_PIN, GPIO_MODE_OUTPUT);
-    gpio_set_direction(BOARD_BT_RST_PIN, GPIO_MODE_OUTPUT);
-    gpio_set_direction(BOARD_BT_P20_PIN, GPIO_MODE_OUTPUT);
+    gpio_hold_dis(BOARD_BT_MFB_PIN);
+    gpio_hold_dis(BOARD_BT_RST_PIN);
+    gpio_hold_dis(BOARD_BT_P20_PIN);
+    gpio_config_t gpio_cfg = {
+        .pin_bit_mask = (1ULL << BOARD_BT_MFB_PIN) | (1ULL << BOARD_BT_RST_PIN) |
+                        (1ULL << BOARD_BT_P20_PIN),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&gpio_cfg);
+    gpio_sleep_sel_dis(BOARD_BT_MFB_PIN);
+    gpio_sleep_sel_dis(BOARD_BT_RST_PIN);
+    gpio_sleep_sel_dis(BOARD_BT_P20_PIN);
     gpio_set_level(BOARD_BT_MFB_PIN, 0);
     vTaskDelay(pdMS_TO_TICKS(20));
     gpio_set_level(BOARD_BT_MFB_PIN, 1);

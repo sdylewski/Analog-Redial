@@ -1586,7 +1586,28 @@ static int cmd_bm64_pin(int argc, char **argv)
     else if (strcmp(argv[1], "p20") == 0) pin = BOARD_BT_P20_PIN;
     else { printf("bm64_pin: unknown pin '%s' (want mfb, rst, or p20)\n", argv[1]); return 1; }
 
-    gpio_set_direction(pin, GPIO_MODE_OUTPUT);
+    /* Full gpio_config() with pull-up/down and interrupts explicitly
+     * disabled -- matches ag1170.c's config_line_gpio(), the proven pattern
+     * for this project's other bench-configured GPIO outputs (the SLIC's
+     * FR/RM pins). Confirmed 2026-09-25: a bare gpio_set_direction() +
+     * gpio_set_level() pair (what this command used to do) leaves pull_up_en
+     * at whatever it last was, and a leftover internal pull-up fighting the
+     * output was the actual cause of a full night of "MFB won't hold high"
+     * debugging that looked exactly like a wiring/connection fault (see
+     * archive/BM64_MFB_GPIO_DEBUG.md). gpio_sleep_sel_dis()/gpio_hold_dis()
+     * are cheap insurance, not the fix -- keep them anyway so this pin's
+     * state can't be disturbed if this board ever does enter real light
+     * sleep for some other reason. */
+    gpio_hold_dis(pin);
+    gpio_config_t gpio_cfg = {
+        .pin_bit_mask = 1ULL << pin,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&gpio_cfg);
+    gpio_sleep_sel_dis(pin);
     int level = atoi(argv[2]) != 0;
     gpio_set_level(pin, level);
     printf("bm64_pin: %s (GPIO%d) set %s\n", argv[1], pin, level ? "HIGH" : "LOW");

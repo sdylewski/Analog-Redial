@@ -26,7 +26,7 @@ earliest bring-up/bench testing ran on.
 
 **SMD5 ("Analog Redial 5")** is an in-progress next-generation board (not
 yet fabricated) — `hardware/kicad/Analog Redial 5/`, dev notes at
-[`archive/hardware/ANALOG_REDIAL_5.md`](archive/hardware/ANALOG_REDIAL_5.md).
+[`archive/hardware/ANALOG_REDIAL_SMD5.md`](archive/hardware/ANALOG_REDIAL_SMD5.md).
 Headline change: a dual-compatible MCU footprint accepting either a real
 Espressif ESP32-C6-DevKitC-1 or a cheaper AliExpress clone module, plus a
 new 6-pin header for the BM64 Bluetooth companion (see that doc for the
@@ -92,6 +92,40 @@ validation, so a build that doesn't come up cleanly can silently roll back
 to whatever old image happens to already be sitting in that other slot
 (observed 2026-09-21: reverted to a build old enough to be missing console
 commands added since).
+
+## Bench-debugging GPIOs or board connections
+
+**Always configure a GPIO output with the full `gpio_config()` struct
+(explicit `pull_up_en`/`pull_down_en`/`intr_type`), never a bare
+`gpio_set_direction()` + `gpio_set_level()` pair.** The bare pair doesn't
+touch `pull_up_en` at all — a leftover internal pull-up (including one from
+ESP-IDF's own power-on defaults, or from a `gpio_reset_pin()` call, which
+resets a pin to its default state, pull-up included) can silently fight the
+output driver, and neither `gpio_set_level()`'s return value nor a
+`gpio_get_level()` readback will reveal it (`GPIO_MODE_OUTPUT` leaves
+`InputEn: 0` on this chip, so a software readback of an output-only pin
+isn't trustworthy either way — don't trust that diagnostic). This cost most
+of two evenings misdiagnosed as a wiring/connection fault while bringing up
+a bench-wired BM64 module on GPIO18-21 (full story:
+`archive/BM64_MFB_GPIO_DEBUG.md`) — `ag1170.c`'s `config_line_gpio()` never
+hit it because it already uses full `gpio_config()`.
+`gpio_dump_io_configuration(stdout, 1ULL << pin)` (`driver/gpio.h`) is the
+tool that actually shows what's happening at the pad (pull state, output
+enable, sleep-select, GPIO-matrix routing) — reach for it early on a GPIO
+that "should" be working but measures wrong, not after hours of
+wiring-focused debugging.
+
+Separately, also worth checking early (a real thing, just not what caused
+the above): Settings → Hardware → "Low-power idle mode" enables WiFi
+power-save after N minutes of an idle phone line (default 5,
+`components/idle_power/idle_power.c`), which permits automatic light sleep
+between WiFi beacon windows — ESP-IDF's boot log line "sleep: Configure to
+isolate all GPIO pins in sleep state" means GPIOs can float during those
+windows unless a pin has explicitly called `gpio_sleep_sel_dis()`. A
+multi-hour bench session will always run past that idle threshold. Disable
+it while debugging (`curl -X POST -d "minutes=5" http://<board>/idle_power`
+— the `enabled` field is a checkbox, omitting it disables) to rule it out
+before chasing something else.
 
 ## Public vs. internal docs
 
