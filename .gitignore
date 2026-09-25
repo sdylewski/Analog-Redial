@@ -84,6 +84,8 @@ datasheets/
 # under either of these paths and stay tracked.
 BM64/DSPK v2.1.5 Package/
 BM64/Docs/
+# DMS serial captures -- large binary blobs, keep locally only
+*.dmslog8
 
 # Secrets — never commit
 .env

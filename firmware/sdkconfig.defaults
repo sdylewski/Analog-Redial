@@ -41,9 +41,11 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 # that isn't physically reachable stuck on bad firmware.
 CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 
-# 4 MB flash to fit factory app + asset storage partition
-CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
-CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
+# 16 MB flash -- partition table totals ~11.5MB (two 1.75MB OTA slots +
+# 6MB writable storage + 2MB bundled assets + NVS/otadata/phy); see
+# partitions.csv's own sizing comment.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
 
 # Default (10) is tight once the web UI's httpd server claims 8 of them
 # (webui.c raises max_open_sockets from 7 -> 8 alongside lru_purge_enable,
