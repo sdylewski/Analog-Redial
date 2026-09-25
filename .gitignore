@@ -77,6 +77,14 @@ rotary_phone_gateway_statistics.rpt
 # locally on dev machines only
 datasheets/
 
+# Microchip's own proprietary BM64 tool/firmware package (isupdate.exe,
+# EEPROM_Tool, PIC18 reference source, MBA mobile app installers, ...) and
+# vendor datasheets/docs -- same reasoning as datasheets/ above. Our own
+# BM64/ research notes (BM64_Analog_Audio_Setup.md, eeprom_write/) are NOT
+# under either of these paths and stay tracked.
+BM64/DSPK v2.1.5 Package/
+BM64/Docs/
+
 # Secrets — never commit
 .env
 *.pem
