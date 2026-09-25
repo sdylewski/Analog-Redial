@@ -275,8 +275,17 @@ esp_err_t bt_companion_start_pairing(void)
     vTaskDelay(pdMS_TO_TICKS(50));
     send_command(BM64_MMI_CMD, release, 2);
     vTaskDelay(pdMS_TO_TICKS(50));
+    /* Re-send the device name right before entering discoverable mode,
+     * in case the startup send was too early and got ignored. */
+    {
+        char name[32] = {0};
+        board_name_get(name, sizeof(name));
+        send_command(BM64_CHANGE_DEVICE_NAME_CMD, (const uint8_t *)name, sizeof(name));
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
     uint8_t params[2] = { 0x00, BM64_MMI_ANY_MODE_ENTERING_PAIRING };
     send_command(BM64_MMI_CMD, params, 2);
+    board_led_set_state(BOARD_LED_BT_PAIRING);
     return ESP_OK;
 }
 
@@ -414,6 +423,29 @@ esp_err_t bt_companion_raw_send(const uint8_t *tx, size_t tx_len, int listen_ms)
     return ESP_OK;
 }
 
+int bt_companion_raw_xfer(const uint8_t *tx, size_t tx_len,
+                          uint8_t *rx_buf, size_t rx_buf_len,
+                          int listen_ms)
+{
+    if (s_task) return -1;
+    esp_err_t err = ensure_uart_peripheral_only();
+    if (err != ESP_OK) return -1;
+
+    uart_flush_input(BT_COMPANION_UART);
+    uart_write_bytes(BT_COMPANION_UART, (const char *)tx, tx_len);
+
+    int64_t deadline = esp_timer_get_time() + (int64_t)listen_ms * 1000;
+    size_t count = 0;
+    while (esp_timer_get_time() < deadline) {
+        uint8_t b;
+        if (uart_read_bytes(BT_COMPANION_UART, &b, 1, pdMS_TO_TICKS(20)) == 1) {
+            if (count < rx_buf_len) rx_buf[count] = b;
+            count++;
+        }
+    }
+    return (int)count;
+}
+
 esp_err_t bt_companion_raw_snoop(int duration_ms)
 {
     if (s_task) return ESP_ERR_INVALID_STATE; /* background poller would race us for bytes */
@@ -505,11 +537,15 @@ static void handle_event(uint8_t event_code, const uint8_t *param, uint8_t param
         if (param_len >= 1) {
             ESP_LOGI(TAG, "device state event: 0x%02X", param[0]);
             switch (param[0]) {
+            case BM64_STATE_PAIRING:
+                board_led_set_state(BOARD_LED_BT_PAIRING);
+                break;
             case BM64_STATE_HF_LINK_UP:
             case BM64_STATE_A2DP_LINK_UP:
                 portENTER_CRITICAL(&s_lock);
                 s_status.bt_connected = true;
                 portEXIT_CRITICAL(&s_lock);
+                board_led_set_state(BOARD_LED_BT_CONNECTED);
                 break;
             case BM64_STATE_HF_LINK_DOWN:
             case BM64_STATE_A2DP_LINK_DOWN:
@@ -568,6 +604,29 @@ static void poll_task(void *arg)
         vTaskDelay(pdMS_TO_TICKS(50));
         send_command(BM64_MMI_CMD, release, 2);
         vTaskDelay(pdMS_TO_TICKS(50));
+    }
+
+    /* Wait for the module to reach Power ON / Standby before sending any
+     * config commands -- the name-change especially gets silently ignored
+     * if it arrives before the module has finished its own power-on
+     * sequence. Drain events for up to 3 seconds, looking for DEVICE_STATE
+     * 0x02 (Power ON) or 0x0F (Standby). Harmless if it times out. */
+    {
+        int64_t deadline = esp_timer_get_time() + 3000000; /* 3s */
+        uint8_t event_code, param[255], param_len;
+        bool ready = false;
+        while (!ready && read_one_frame(&event_code, param, &param_len, deadline)) {
+            if (event_code != BM64_EVENT_ACK) send_ack(event_code);
+            if (event_code == BM64_EVENT_DEVICE_STATE && param_len >= 1) {
+                ESP_LOGI(TAG, "startup device state: 0x%02X", param[0]);
+                if (param[0] == BM64_STATE_POWER_ON || param[0] == 0x0F /*standby*/) {
+                    ready = true;
+                }
+            }
+        }
+        if (!ready) {
+            ESP_LOGW(TAG, "module did not reach standby within 3s -- continuing anyway");
+        }
     }
 
     /* One-time startup query, not part of the regular poll loop below: grabs

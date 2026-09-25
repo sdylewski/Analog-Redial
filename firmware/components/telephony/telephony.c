@@ -311,24 +311,19 @@ static void enter_dialtone(int line)
         roh.enabled ? esp_timer_get_time() + (int64_t)roh.seconds * 1000000 : 0;
 }
 
-/* The Bluetooth companion's analog bridge taps line 1's AG1171 Vin/Vout,
- * never line 0 -- deliberate: line 0 is the always-present, everyday
- * rotary-dial line on every board (1-line or 2-line), and must keep working
- * normally regardless of whether the Bluetooth companion feature happens to
- * be enabled. Line 1 only exists at all on a 2-line board (board_hw_config,
- * board.h) -- on a 1-line board, num_lines==1 means ag1170_init() never
- * services line 1's hook FSM in the first place (its GPIO pads are either
- * unpowered or doing microSD duty instead), so bt_companion_enabled() being
- * true has no effect there at all: on_offhook(1) simply never fires.
- * CORRECTED 2026-09-17: this was originally line 0 (see git history) --
- * carried over unexamined from single-line bench bring-up, where line 0 was
- * the only line that physically existed on that test board, and never
- * revisited for a real 2-line board. Confirmed live 2026-09-17: an
- * unrelated bt_enabled=true left over in NVS from earlier testing silently
- * killed dial tone on line 0 on multiple boards, with no companion hardware
- * even attached -- exactly the failure mode this line assignment exists to
- * prevent. */
-#define BT_COMPANION_LINE 1
+/* Which line the Bluetooth companion claims when bt_companion_enabled().
+ * On a 2-line board: line 1 -- line 0 is the everyday rotary-dial line and
+ * must keep working normally regardless of BT (confirmed 2026-09-17: an
+ * unrelated bt_enabled=true left over in NVS silently killed dial tone on
+ * line 0 on multiple 2-line boards).
+ * On a 1-line board: line 0 -- line 1 doesn't physically exist (no SLIC,
+ * GPIO pads doing microSD or nothing), so BT on line 1 simply never fires.
+ * The whole point of the board's single line is the BT passthrough when BT
+ * is enabled; picking up the handset routes audio to/from the phone. */
+static int bt_companion_line(void)
+{
+    return (board_hw_config_get().num_lines >= 2) ? 1 : 0;
+}
 
 /* Confirmed 2026-09-15 on real bench hardware (then still on line 0 -- see
  * this file's git history and the correction above): normal off-hook
@@ -812,7 +807,7 @@ static bool am_active(int line)
 /* ---- main event handlers ---- */
 static void on_offhook(int line)
 {
-    if (line == BT_COMPANION_LINE && bt_companion_enabled()) {
+    if (line == bt_companion_line() && bt_companion_enabled()) {
         enter_bt_passthrough(line);
         return;
     }

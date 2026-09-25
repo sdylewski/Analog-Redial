@@ -930,7 +930,9 @@ void board_led_set_state(board_led_state_t state)
 static esp_timer_handle_t s_led_timer;
 static board_led_state_t  s_led_state = BOARD_LED_BOOTING;
 static led_strip_handle_t s_led_strip;
-static unsigned           s_ok_ticks; /* ticks spent in BOARD_LED_OK so far */
+static unsigned           s_ok_ticks;  /* ticks spent in BOARD_LED_OK so far */
+static unsigned           s_bt_ticks;  /* ticks spent in BOARD_LED_BT_CONNECTED */
+#define LED_BT_HOLD_MS   5000  /* solid blue this long after BT connects, then revert */
 
 static void led_set_rgb(uint8_t r, uint8_t g, uint8_t b)
 {
@@ -960,6 +962,18 @@ static void led_timer_cb(void *arg)
         break;
     case BOARD_LED_OTA_UPDATING:
         led_set_rgb(((tick / 3) % 2) ? LED_DIM : 0, ((tick / 3) % 2) ? LED_DIM : 0, 0); /* yellow (r+g), ~300ms half-period */
+        break;
+    case BOARD_LED_BT_PAIRING:
+        led_set_rgb(0, 0, ((tick / 5) % 2) ? LED_DIM : 0); /* blue, ~500ms half-period */
+        break;
+    case BOARD_LED_BT_CONNECTED:
+        s_bt_ticks++;
+        if (s_bt_ticks * LED_TICK_MS < LED_BT_HOLD_MS) {
+            led_set_rgb(0, 0, LED_DIM); /* solid blue */
+        } else {
+            s_led_state = BOARD_LED_OK; /* revert automatically */
+            led_set_rgb(0, 0, 0);
+        }
         break;
     case BOARD_LED_BOOTING:
     default:
@@ -999,6 +1013,7 @@ void board_led_init(void)
 void board_led_set_state(board_led_state_t state)
 {
     if (state == BOARD_LED_OK && s_led_state != BOARD_LED_OK) s_ok_ticks = 0;
+    if (state == BOARD_LED_BT_CONNECTED && s_led_state != BOARD_LED_BT_CONNECTED) s_bt_ticks = 0;
     s_led_state = state;
 }
 #else

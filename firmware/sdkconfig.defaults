@@ -2,8 +2,16 @@
 
 CONFIG_IDF_TARGET="esp32c6"
 
-# Console (bring-up REPL over UART)
-CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+# Default board variant -- SMD3/SMD4 (ES8388 codec, DevKitC-1 pin map).
+# Other variants (SMD2, SMD5, THT) use their own sdkconfig.<type>.defaults
+# via a separate -B build directory (see README.md "Building for a different
+# board type").
+CONFIG_BOARD_TYPE_SMD4=y
+
+# Console over native USB Serial/JTAG (the DevKitC-1's built-in USB port).
+# SMD4's UART0 pins aren't wired to a USB bridge, so the REPL must use the
+# USB-Serial/JTAG peripheral that `idf.py monitor` actually connects to.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 
 # FreeRTOS tick at 1 kHz for tight telephony timing
 CONFIG_FREERTOS_HZ=1000

@@ -145,6 +145,14 @@ esp_err_t bt_companion_raw_snoop(int duration_ms);
  * calling this. */
 esp_err_t bt_companion_raw_send(const uint8_t *tx, size_t tx_len, int listen_ms);
 
+/* Like bt_companion_raw_send() but returns response bytes in a caller buffer
+ * instead of printing them. Returns the number of bytes received (may exceed
+ * rx_buf_len if the buffer was too small — only rx_buf_len bytes are stored).
+ * Returns -1 on UART conflict (background poller running) or init failure. */
+int bt_companion_raw_xfer(const uint8_t *tx, size_t tx_len,
+                          uint8_t *rx_buf, size_t rx_buf_len,
+                          int listen_ms);
+
 /* NOT implemented yet, deliberately: BM64_MMI_POWEROFF_BT (0x5E) exists in
  * bt_companion.c's opcode enum but nothing sends it. Don't wire this up
  * until MFB is on a controllable GPIO, not a fixed pull-up resistor --

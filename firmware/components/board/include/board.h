@@ -67,6 +67,8 @@ typedef enum {
                                   * seen briefly before the reboot into it, or
                                   * not at all on SMD2 (single-color LED --
                                   * see board.c, no separate OTA pattern there) */
+    BOARD_LED_BT_PAIRING,       /* blue blink -- BM64 in discoverable mode */
+    BOARD_LED_BT_CONNECTED,     /* solid blue (brief) -- BT link established */
 } board_led_state_t;
 
 /* Configures the status LED (SMD only -- GPIO11 on SMD2, the DevKitC-1

@@ -1,57 +1,64 @@
 # BM64 EEPROM Write — Procedure & Standalone ESP32 Writer Plan
 
-## CONFIRMED 2026-09-25: Raw EEPROM read/write command format
+## CONFIRMED 2026-09-25: Full EEPROM read/write protocol (HCI ACL Data)
 
-Two fresh DMS captures (`...20260925-084134.dmslog8` and
-`...20260925-085143.dmslog8`, the second including a full
-disconnect/reconnect cycle) both isolate the **exact same 12/13-byte raw
-command** for single-byte EEPROM access via isUpdate's eeprom-mode
-Read/Write, found via `analyze_read_capture4.py`/`analyze_read_capture5.py`/
-`analyze_read_response.py` (all in this folder). This is NOT standard HCI
-`01 xx FC` framing — same conclusion as the 2026-09-24 bulk-write finding,
-just now for single-byte access:
+**Breakthrough:** the EEPROM commands are NOT raw bytes on the wire — they
+travel as **HCI ACL Data packets** to connection handle `0x0FFF`, wrapped
+inside the standard HCI transport. The `0A`/`0B` bytes seen in DMS captures
+are the ACL *payload*, not the wire-level framing. Confirmed end-to-end on
+live hardware via the ESP-IDF console:
+
+- **Address 0x0094 = 0x73** ✓ (codec function — headphone DAC)
+- **Address 0x0348 = 0x0A** ✓ (single-end with earphone — the value we wrote)
+
+### Required init sequence (must run once after entering IBDK mode)
 
 ```
-READ:  0A 00 05 02 [ADDR_LO ADDR_HI 00 00] [LEN_LO LEN_HI 00 00]
-WRITE: 0B 00 05 02 [ADDR_LO ADDR_HI 00 00] [LEN_LO LEN_HI 00 00] [DATA...]
+1. 01 31 FC 0C 00 02 00 00 00 00 00 00 00 02 00 00   (vendor init 0xFC31)
+2. 01 05 10 00                                         (Read_Buffer_Size)
+3. 01 33 0C 07 01 00 02 03 00 04 00                    (Host_Buffer_Size)
+4. 01 05 04 0D 00 00 00 00 00 00 00 00 00 00 00 00 00 (Create_Connection → handle 0xFFF)
+5. 02 FF 0F 07 00 00 01 03 00 05 02 00                 (ACL setup: memory type)
+6. 02 FF 0F 04 00 20 00 00 00                           (ACL setup: buffer config)
 ```
 
-- Byte 0: **command** — `0x0A` = read, `0x0B` = write
-- Byte 1: `0x00` (reserved/always seen as 0)
-- Bytes 2-3: `05 02` (constant in every capture — byte 3 = `0x02` is very
-  likely the **memory-type selector = EEPROM**, matching isUpdate's memory
-  dropdown; byte 2 = `0x05` unconfirmed, could be a command-class byte)
-- Bytes 4-7: **address**, 32-bit little-endian (confirmed: always `48 03 00
-  00` = 0x0348, the address typed into isUpdate's Read/Write address box —
-  same field position in both captures)
-- Bytes 8-11: **length**, 32-bit little-endian (confirmed: always `01 00 00
-  00` = 1, matching the "Length: 01" typed into isUpdate)
-- Bytes 12+: **data** (write only) — confirmed `0A` in both write-0x0A
-  events, `09` in the additional write-0x09 events in the second capture
+### EEPROM READ command (ACL Data to handle 0xFFF)
 
-Sequence observed in the second (disconnect/reconnect) capture, in file
-order: `READ(0348)` → `WRITE(0348)=09` → `READ(0348)` → `WRITE(0348)=0A` →
-`READ(0348)` → *[disconnect/reconnect]* → `READ(0348)`. Every command
-appears twice consecutively in the log (request submission + IOCTL
-completion echo, identical bytes) — that pairing is a DMS/driver artifact,
-not two real commands.
+```
+02 FF 0F 0E 00  10 01  0A 00 05 02  [ADDR LE32]  [LEN LE32]
+│  └─handle──┘  │  │   └─EEPROM──┘
+│    ACL hdr    │  │    read type
+│   len=14      │  └─status
+└─ACL indicator └─sub-cmd: read
+```
 
-**What's still missing:** the actual byte value read back (e.g. the real
-`0x09`/`0x0A` at 0x0348) is never visible in either capture — every READ's
-"completion" record is a generic, payload-free IOCTL status frame; only a
-monotonic sequence counter changes between otherwise byte-identical
-completions. This DMS capture mode appears to log `WriteFile` buffers (COMMANDS
-sent) but not `ReadFile` buffers (RESPONSES received) for this driver.
-**Next step to get the response bytes:** replay this exact 12-byte command
-live via the ESP-IDF firmware's `bm64_raw` console command (see "IBDK Mode
-Protocol" section below) — that path prints whatever comes back over UART
-directly, sidestepping the DMS gap entirely e.g.:
+Response: `04 13 05 ...` (NumCompleted) + `02 FF 0F [len] 00 10 01 [payload_len LE32] [count LE32] [DATA...]`
+
+### EEPROM WRITE command
+
 ```
-bm64_raw 0A 00 05 02 48 03 00 00 01 00 00 00 200
+02 FF 0F 0F 00  11 01  0B 00 05 02  [ADDR LE32]  [LEN LE32]  [DATA...]
+                │  │   └─EEPROM──┘
+                │  │    write type
+                │  └─status
+                └─sub-cmd: write
 ```
-(200 = ms to listen for a reply). Only tested against address `0x0348` so
-far — worth also trying `0x0094` (expect `0x73`) to cross-validate the
-address field encoding against a second, independently-known value.
+
+### Firmware commands
+
+- **`bm64_ibdk`** — automates pin toggle + full init sequence (all 6 steps)
+- **`bm64_eeprom read <hex_addr> [len]`** — reads EEPROM, parses and prints data
+- **`bm64_eeprom write <hex_addr> <hex_byte>`** — writes single byte, confirms OK
+
+### Earlier DMS analysis (still valid, just reinterpreted)
+
+The DMS captures (`...084134.dmslog8`, `...085143.dmslog8`) showed the
+`0A 00 05 02` / `0B 00 05 02` EEPROM payload bytes inside `02 FF 0F`
+ACL records preceded by `00 04 00 00 00` outgoing-data markers. The raw
+`0A`/`0B` commands sent without ACL wrapping always returned `04 10 01 10`
+(HCI Hardware Error). The `02 FF 0F` prefix was initially misread as an
+IOCTL control code, but is actually the HCI ACL Data header for handle
+0x0FFF.
 
 ---
 
