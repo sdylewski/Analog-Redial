@@ -1,5 +1,60 @@
 # BM64 EEPROM Write — Procedure & Standalone ESP32 Writer Plan
 
+## CONFIRMED 2026-09-25: Raw EEPROM read/write command format
+
+Two fresh DMS captures (`...20260925-084134.dmslog8` and
+`...20260925-085143.dmslog8`, the second including a full
+disconnect/reconnect cycle) both isolate the **exact same 12/13-byte raw
+command** for single-byte EEPROM access via isUpdate's eeprom-mode
+Read/Write, found via `analyze_read_capture4.py`/`analyze_read_capture5.py`/
+`analyze_read_response.py` (all in this folder). This is NOT standard HCI
+`01 xx FC` framing — same conclusion as the 2026-09-24 bulk-write finding,
+just now for single-byte access:
+
+```
+READ:  0A 00 05 02 [ADDR_LO ADDR_HI 00 00] [LEN_LO LEN_HI 00 00]
+WRITE: 0B 00 05 02 [ADDR_LO ADDR_HI 00 00] [LEN_LO LEN_HI 00 00] [DATA...]
+```
+
+- Byte 0: **command** — `0x0A` = read, `0x0B` = write
+- Byte 1: `0x00` (reserved/always seen as 0)
+- Bytes 2-3: `05 02` (constant in every capture — byte 3 = `0x02` is very
+  likely the **memory-type selector = EEPROM**, matching isUpdate's memory
+  dropdown; byte 2 = `0x05` unconfirmed, could be a command-class byte)
+- Bytes 4-7: **address**, 32-bit little-endian (confirmed: always `48 03 00
+  00` = 0x0348, the address typed into isUpdate's Read/Write address box —
+  same field position in both captures)
+- Bytes 8-11: **length**, 32-bit little-endian (confirmed: always `01 00 00
+  00` = 1, matching the "Length: 01" typed into isUpdate)
+- Bytes 12+: **data** (write only) — confirmed `0A` in both write-0x0A
+  events, `09` in the additional write-0x09 events in the second capture
+
+Sequence observed in the second (disconnect/reconnect) capture, in file
+order: `READ(0348)` → `WRITE(0348)=09` → `READ(0348)` → `WRITE(0348)=0A` →
+`READ(0348)` → *[disconnect/reconnect]* → `READ(0348)`. Every command
+appears twice consecutively in the log (request submission + IOCTL
+completion echo, identical bytes) — that pairing is a DMS/driver artifact,
+not two real commands.
+
+**What's still missing:** the actual byte value read back (e.g. the real
+`0x09`/`0x0A` at 0x0348) is never visible in either capture — every READ's
+"completion" record is a generic, payload-free IOCTL status frame; only a
+monotonic sequence counter changes between otherwise byte-identical
+completions. This DMS capture mode appears to log `WriteFile` buffers (COMMANDS
+sent) but not `ReadFile` buffers (RESPONSES received) for this driver.
+**Next step to get the response bytes:** replay this exact 12-byte command
+live via the ESP-IDF firmware's `bm64_raw` console command (see "IBDK Mode
+Protocol" section below) — that path prints whatever comes back over UART
+directly, sidestepping the DMS gap entirely e.g.:
+```
+bm64_raw 0A 00 05 02 48 03 00 00 01 00 00 00 200
+```
+(200 = ms to listen for a reply). Only tested against address `0x0348` so
+far — worth also trying `0x0094` (expect `0x73`) to cross-validate the
+address field encoding against a second, independently-known value.
+
+---
+
 ## TOMORROW: quick reference (do this first)
 
 **The one byte that fixes audio:** address `0x348` currently holds `0x09`
