@@ -136,6 +136,7 @@ bool bt_companion_enabled(void) { return s_enabled; }
 static void start_task(void);
 static void stop_task(void);
 static esp_err_t ensure_uart(void);
+static esp_err_t ensure_uart_peripheral_only(void);
 
 esp_err_t bt_companion_set_enabled(bool enabled)
 {
@@ -378,6 +379,41 @@ esp_err_t bt_companion_raw_ping(int timeout_ms)
     return bt_companion_raw_ping_at_baud(timeout_ms, 0);
 }
 
+/* Sends arbitrary raw bytes (no AA00 framing, no checksum -- for probing
+ * BM64's undocumented IBDK/test-mode protocol, which isn't the normal
+ * command set at all) and prints whatever comes back for listen_ms, live,
+ * same style as bt_companion_raw_snoop(). Deliberately goes through
+ * ensure_uart_peripheral_only() rather than ensure_uart() -- IBDK mode
+ * needs P2_0 held LOW, the opposite of what ensure_uart()'s normal-mode
+ * pin assertion forces, so pin control here is 100% left to the caller
+ * (bringup.c's bm64_pin command) rather than being touched automatically. */
+esp_err_t bt_companion_raw_send(const uint8_t *tx, size_t tx_len, int listen_ms)
+{
+    if (s_task) return ESP_ERR_INVALID_STATE; /* background poller would race us for bytes */
+    esp_err_t err = ensure_uart_peripheral_only();
+    if (err != ESP_OK) return err;
+
+    uart_flush_input(BT_COMPANION_UART);
+    printf("TX: ");
+    for (size_t i = 0; i < tx_len; i++) printf("%02X ", tx[i]);
+    printf("\n");
+    uart_write_bytes(BT_COMPANION_UART, (const char *)tx, tx_len);
+
+    printf("RX (%d ms): ", listen_ms);
+    int64_t deadline = esp_timer_get_time() + (int64_t)listen_ms * 1000;
+    uint32_t count = 0;
+    while (esp_timer_get_time() < deadline) {
+        uint8_t b;
+        if (uart_read_bytes(BT_COMPANION_UART, &b, 1, pdMS_TO_TICKS(20)) == 1) {
+            printf("%02X ", b);
+            fflush(stdout);
+            count++;
+        }
+    }
+    printf("\n%lu byte(s) received\n", (unsigned long)count);
+    return ESP_OK;
+}
+
 esp_err_t bt_companion_raw_snoop(int duration_ms)
 {
     if (s_task) return ESP_ERR_INVALID_STATE; /* background poller would race us for bytes */
@@ -607,7 +643,18 @@ static void poll_task(void *arg)
  * config is single-line with no microSD (ag1170/sdcard don't have them
  * claimed). No-op (with a log line) on a 2-line or has-microSD config, and
  * compiled out entirely on boards whose pin map doesn't define these
- * macros (SMD2, THT). */
+ * macros (SMD2, THT).
+ *
+ * MFB is not just "hold it high" -- the real datasheet names this pin
+ * "UART RX_IND, active-high (used by host MCU to wakeup the Bluetooth
+ * system)". That's a wake trigger, which strongly implies BM64 is watching
+ * for a rising EDGE, not a static level. Confirmed 2026-09-24: driving
+ * GPIO18 straight to 1 (no edge if it happened to already read high, e.g.
+ * left over from a prior soft state) intermittently failed to bring the
+ * UART up at all, while hand-tying MFB directly to 3.3V -- a genuine
+ * floating-to-3.3V transition -- reliably worked every time. Forcing MFB
+ * low first, then high, guarantees a real edge on every call regardless of
+ * whatever state the pin was previously left in. */
 static void assert_bm64_control_pins(void)
 {
     board_hw_config_t cfg = board_hw_config_get();
@@ -620,6 +667,8 @@ static void assert_bm64_control_pins(void)
     gpio_set_direction(BOARD_BT_MFB_PIN, GPIO_MODE_OUTPUT);
     gpio_set_direction(BOARD_BT_RST_PIN, GPIO_MODE_OUTPUT);
     gpio_set_direction(BOARD_BT_P20_PIN, GPIO_MODE_OUTPUT);
+    gpio_set_level(BOARD_BT_MFB_PIN, 0);
+    vTaskDelay(pdMS_TO_TICKS(20));
     gpio_set_level(BOARD_BT_MFB_PIN, 1);
     gpio_set_level(BOARD_BT_RST_PIN, 1);
     gpio_set_level(BOARD_BT_P20_PIN, 1);
@@ -627,12 +676,14 @@ static void assert_bm64_control_pins(void)
 }
 #endif
 
-static esp_err_t ensure_uart(void)
+/* Just the UART1 peripheral -- no pin control at all. Shared by ensure_uart()
+ * (normal-mode path, which additionally forces MFB/RST_N/P2_0 for Flash
+ * Application mode) and bt_companion_raw_send() (IBDK/test-mode probing,
+ * which needs the OPPOSITE pin state -- P2_0 held low -- so it must never
+ * go through the normal-mode pin assertion). */
+static esp_err_t ensure_uart_peripheral_only(void)
 {
     if (s_uart_installed) return ESP_OK;
-#ifdef BOARD_BT_MFB_PIN
-    assert_bm64_control_pins();
-#endif
     uart_config_t cfg = {
         .baud_rate = BT_COMPANION_BAUD,
         .data_bits = UART_DATA_8_BITS,
@@ -653,6 +704,15 @@ static esp_err_t ensure_uart(void)
     }
     s_uart_installed = true;
     return ESP_OK;
+}
+
+static esp_err_t ensure_uart(void)
+{
+    if (s_uart_installed) return ESP_OK;
+#ifdef BOARD_BT_MFB_PIN
+    assert_bm64_control_pins();
+#endif
+    return ensure_uart_peripheral_only();
 }
 
 static void start_task(void)

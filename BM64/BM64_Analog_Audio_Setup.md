@@ -8,137 +8,16 @@ plus mic input on **MIC_P1** → BM64 → Bluetooth HFP back to phone.
 
 ---
 
-## Status as of 2026-09-23 (read this first)
+## Status (2026-09-24)
 
-Wiring is done and confirmed on the real "newphone" SMD4 board: BM64's MFB/
-RST_N/P2_0 are on GPIO18/19/20, UART is on GPIO16/17 (the board's existing
-header) -- see the wiring table below, all pin numbers there are the real,
-confirmed ones, not placeholders.
+**EEPROM flashed successfully.** Headphone DAC config confirmed written.
 
-**Two ways to get isupdate.exe talking to the BM64 now exist:**
+- **Before:** `IS2064S_012_SPK02_V2.1_BETA` (speaker output)
+- **After:** `MCHP_DSPKv2.1.7_BM64CLS1.txt` written via isUpdate Tool
+- **Verified bytes:** 0x0094=`73`, 0x0171=`46`, 0x01FC=`4A` (all correct)
+- **Device Name:** `BM64_DSPK v2.1.5`, BT Address: `40:BC:32:D0:B7:44`
 
-1. **`firmware/bm64_bridge/` (recommended, built tonight, no Arduino
-   needed)** -- a small standalone ESP-IDF project, built with the exact
-   same `idf.py` toolchain already set up for this project. See "Recommended
-   path" below -- this is the one to try first at work.
-2. **The Arduino sketches later in this doc** -- kept as a fallback in case
-   `bm64_bridge` doesn't pan out on your work machine for some reason.
-
-**Verification status, honestly:** the `bm64_bridge` firmware's "bridge"
-command is confirmed dispatching correctly against the real board tonight
-(typed over a live serial connection, got the expected response back). What
-is NOT independently confirmed from this Mac: a full round trip through the
-raw forwarding loop all the way to BM64 and back. Every attempt to verify
-that specific piece tonight produced inconsistent, corrupted-looking results
-across several different scripted test approaches -- bytes arriving out of
-order or missing, in a way that points at this Mac's native-USB-CDC host
-state after a very long session of rapid repeated flash/reset cycles, not at
-the firmware itself (every individual piece of it matches code already
-proven reliable elsewhere in this project). **First thing to try at work:**
-a full physical USB unplug/replug (for a clean enumeration on a machine that
-hasn't been hammering the same port for hours) and a real interactive
-terminal (PuTTY, TeraTerm, or `screen`) rather than a scripted one-shot
-connection -- interactive terminals are what's been reliable all session,
-scripted one-shot opens are what's been flaky.
-
----
-
-## Recommended path: `firmware/bm64_bridge/` (idf.py, no Arduino)
-
-**Files you need** (all in this repo, under `firmware/`):
-- `firmware/bm64_bridge/` -- the whole standalone project (`CMakeLists.txt`,
-  `sdkconfig.defaults`, `main/main.c`, `main/CMakeLists.txt`). Self-
-  contained -- no dependency on this project's `board`/`bt_companion`
-  components, just hardcoded GPIO16-20 (confirmed pin numbers, see wiring
-  table below).
-- Your existing ESP-IDF toolchain (same one used for the main gateway
-  firmware) -- `source ~/esp/esp-idf/export.sh` first, same as always.
-
-**Build and flash:**
-```
-cd firmware/bm64_bridge
-idf.py set-target esp32c6      # first time only
-idf.py -p <port> flash
-```
-
-**Use it:**
-1. Open a real serial terminal at 115200 baud on that port (PuTTY/TeraTerm
-   on Windows, or `screen <port> 115200` on macOS/Linux) -- not a one-shot
-   scripted connection.
-2. You'll land at a `bm64_bridge>` prompt (standard ESP-IDF console).
-3. Type `bridge` and press Enter. This does three things at once: puts BM64
-   into ROM IBDK/programming mode (P2_0 low + a real reset pulse -- see
-   Table 5-1 note below), starts forwarding raw bytes both directions
-   between this same serial port and BM64's UART, and never returns (no more
-   console prompt after this -- that's expected, not a hang).
-4. From this point, the port is pure BM64 UART traffic. Point `isupdate.exe`
-   (or `EEPROM_Tool.exe`, `SpkCommandSetTool`) at the same COM port and
-   proceed with flashing as normal.
-5. When done, physically reset the board (or power-cycle) to get the
-   `bm64_bridge>` console prompt back, or reflash the real gateway firmware
-   over USB (`idf.py -B build -p <port> flash` from `firmware/`, the main
-   project directory, not `bm64_bridge/`) to put the phone back in service.
-
-**Quick sanity check once connected via `isupdate.exe` or any raw serial
-tool:** BM64 in normal (non-IBDK) mode replies to `AA 00 02 08 00 F6`
-(GET_UART_VERSION) with a couple of framed reply packets -- if you want to
-confirm the bridge itself works before trusting it for a real flash, you can
-temporarily comment out the `enter_programming_mode()` call in `main.c`
-(leaves BM64 in normal mode instead), reflash, type `bridge`, and send that
-exact 6-byte frame -- a reply confirms the raw forwarding loop is solid.
-
----
-
-## Step 0: Arduino IDE Setup (for ESP32-C6) -- fallback if bm64_bridge doesn't work
-
-**Use Arduino IDE** — it's all you need for UART bridge and controller sketches. ESP-IDF is overkill here.
-
-### Install
-1. Download **Arduino IDE 2.x** from https://www.arduino.cc/en/software
-2. Open Arduino IDE → File → Preferences
-3. In **"Additional boards manager URLs"**, add:
-   ```
-   https://espressif.github.io/arduino-esp32/package_esp32_index.json
-   ```
-4. Tools → Board → Boards Manager → search **"esp32"** → install **"esp32 by Espressif Systems"** (v3.x)
-5. Tools → Board → ESP32 → select **"ESP32-C6 Dev Module"**
-6. Tools → Port → select your ESP32-C6's COM port (e.g., COM8)
-7. Tools → USB CDC On Boot → **Enabled** (ESP32-C6 uses native USB CDC)
-
-### Verify
-- Plug in ESP32-C6 via USB
-- In Arduino IDE: Tools → Port — you should see your COM port
-- Upload the "Blink" example to confirm flashing works
-
----
-
-## Step 0.5: Fix "COM Ports In Use" Problem
-
-If Device Manager shows COM ports as "in use" that shouldn't be:
-
-### Method 1: Remove Phantom COM Ports
-1. Open **Device Manager**
-2. View → **Show hidden devices**
-3. Expand **Ports (COM & LPT)**
-4. Right-click any grayed-out (phantom) COM ports → **Uninstall device**
-5. Unplug/replug your ESP32-C6
-
-### Method 2: Reassign Your ESP32-C6 to a Lower COM Port
-1. Device Manager → Ports → right-click your ESP32-C6 (COM8)
-2. Properties → Port Settings → **Advanced**
-3. Change "COM Port Number" to an unused low number (COM3, COM5, etc.)
-4. OK → unplug/replug
-
-### Method 3: Registry Cleanup (nuclear option)
-1. Open `regedit` → navigate to:
-   ```
-   HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\COM Name Arbiter
-   ```
-2. Delete the `ComDB` value → reboot
-3. This resets ALL COM port assignments
-
-> **Note:** `EEPROM_Tool.exe` only supports COM1–7. But **`isupdate.exe` supports COM8+**,
-> so use `isupdate.exe` if you can't free a low COM port.
+**Next:** pair phone → play audio → probe A0HPL/A0HPR with multimeter for AC signal.
 
 ---
 
@@ -198,261 +77,135 @@ to go change that EEPROM bit.
 
 ---
 
-## Step 2: Flash the UART Bridge Sketch (Arduino fallback -- try `firmware/bm64_bridge/` above first)
+## Step 2: Arduino Bridge Sketch
 
-This turns your ESP32-C6 into a transparent USB-to-UART bridge so PC tools
-(`isupdate.exe`, `EEPROM_Tool.exe`, `SPKCommandSetTool`) can talk directly to the BM64.
+The auto-bridge sketch in `bm64_bridge_arduino/` turns the ESP32-C6 into a
+transparent USB-to-UART bridge. It auto-enters the correct mode on every boot
+(survives the DTR reset that happens when any tool opens the COM port).
 
-```cpp
-// ============================================================
-// BM64 UART Bridge — ESP32-C6
-// Transparent passthrough: USB CDC ↔ BM64 UART
-// ============================================================
+**Sketch file:** `bm64_bridge_arduino/bm64_bridge_arduino.ino`
 
-#define BM64_TX_PIN   16  // ESP32-C6 GPIO → BM64 UART_RX
-#define BM64_RX_PIN   17  // ESP32-C6 GPIO ← BM64 UART_TX
-#define BM64_MFB_PIN  18  // → BM64 MFB (HIGH for normal UART)
-#define BM64_RST_PIN  19  // → BM64 RST_N (active LOW)
-#define BM64_P20_PIN  20  // → BM64 P2_0 (LOW = programming mode)
+**Arduino IDE settings:**
+- Board: **ESP32-C6 Dev Module**
+- USB CDC On Boot: **Enabled** (must re-upload after changing this)
+- Baud: 115200
 
-// Buffer for faster throughput (byte-by-byte is too slow for flash tools)
-uint8_t buf[512];
+**`BOOT_MODE` define** (line 23 of the sketch):
+| Value | Mode | Use |
+|-------|------|-----|
+| `0` | IBDK/Programming | For isUpdate Tool / EEPROM_Tool — auto-enters flash mode on boot |
+| `1` | Normal | For runtime testing, controller sketch, SPKCommandSetTool |
 
-void setup() {
-    // USB CDC serial (to PC)
-    Serial.begin(115200);
+Change `BOOT_MODE`, upload, then **fully quit Arduino IDE** before opening
+any flash tool. Arduino holds the COM port even when Serial Monitor is closed.
 
-    // Hardware UART to BM64
-    Serial1.begin(115200, SERIAL_8N1, BM64_RX_PIN, BM64_TX_PIN);
-
-    // Control pins
-    pinMode(BM64_MFB_PIN, OUTPUT);
-    pinMode(BM64_RST_PIN, OUTPUT);
-    pinMode(BM64_P20_PIN, OUTPUT);
-
-    // Default: normal run mode (not programming)
-    digitalWrite(BM64_MFB_PIN, HIGH);   // MFB HIGH = UART active
-    digitalWrite(BM64_P20_PIN, HIGH);   // P2_0 HIGH = normal mode
-    digitalWrite(BM64_RST_PIN, HIGH);   // RST_N HIGH = not in reset
-
-    // To enter programming mode, send 'F' over serial monitor (see loop)
-}
-
-void loop() {
-    // --- USB → BM64 ---
-    int avail = Serial.available();
-    if (avail > 0) {
-        // Check for special single-char commands from serial monitor
-        if (avail == 1) {
-            uint8_t c = Serial.peek();
-            if (c == 'F') {  // 'F' = enter Flash/programming mode
-                Serial.read();
-                enterProgrammingMode();
-                return;
-            }
-            if (c == 'R') {  // 'R' = reset BM64 to normal mode
-                Serial.read();
-                resetToNormalMode();
-                return;
-            }
-        }
-        int n = Serial.readBytes(buf, min(avail, (int)sizeof(buf)));
-        Serial1.write(buf, n);
-    }
-
-    // --- BM64 → USB ---
-    avail = Serial1.available();
-    if (avail > 0) {
-        int n = Serial1.readBytes(buf, min(avail, (int)sizeof(buf)));
-        Serial.write(buf, n);
-    }
-}
-
-void enterProgrammingMode() {
-    Serial.println("\n>>> Entering BM64 PROGRAMMING MODE...");
-    Serial.println(">>> P2_0 = LOW, resetting BM64...");
-
-    digitalWrite(BM64_P20_PIN, LOW);    // P2_0 LOW = programming mode
-    digitalWrite(BM64_MFB_PIN, LOW);    // MFB LOW during reset
-    digitalWrite(BM64_RST_PIN, LOW);    // Assert reset
-    delay(100);
-    digitalWrite(BM64_RST_PIN, HIGH);   // Release reset — BM64 boots into flash mode
-    delay(500);
-    digitalWrite(BM64_MFB_PIN, HIGH);   // MFB back HIGH
-
-    Serial.println(">>> BM64 is now in programming mode.");
-    Serial.println(">>> Run isupdate.exe on PC, select this COM port.");
-    Serial.println(">>> Send 'R' to reset back to normal mode when done.");
-}
-
-void resetToNormalMode() {
-    Serial.println("\n>>> Resetting BM64 to NORMAL mode...");
-
-    digitalWrite(BM64_P20_PIN, HIGH);   // P2_0 HIGH = normal mode
-    digitalWrite(BM64_MFB_PIN, LOW);
-    digitalWrite(BM64_RST_PIN, LOW);    // Assert reset
-    delay(100);
-    digitalWrite(BM64_RST_PIN, HIGH);   // Release reset — BM64 boots normally
-    delay(500);
-    digitalWrite(BM64_MFB_PIN, HIGH);   // MFB HIGH for UART
-
-    Serial.println(">>> BM64 is now in normal mode.");
-    Serial.println(">>> UART bridge active — tool commands pass through.");
-}
-```
-
-### This overwrites the phone board's real firmware
-This board normally runs the project's own ESP-IDF firmware (`bt_companion.c`
-+ the rest of the gateway). Uploading this Arduino sketch replaces it
-entirely -- there's no dual-boot here. After flashing/testing EEPROM changes,
-reflash the real firmware back with `idf.py -B build -p <port> flash` from
-`firmware/` before using the board as a phone again. (No need to manually
-re-set MFB/RST_N/P2_0 back to normal on that reflash -- the real firmware
-now asserts all three high automatically on boot whenever Bluetooth is
-enabled, see `bt_companion.c`'s `assert_bm64_control_pins()`.)
-
-### How to Use
-1. Upload this sketch to ESP32-C6
-2. Open Arduino Serial Monitor at **115200 baud** (set to **"No line ending"**)
-3. Type **`F`** and press Enter → puts BM64 into programming mode
-4. **Close the Serial Monitor** (so the COM port is free for `isupdate.exe`)
-5. Run `isupdate.exe` → select the same COM port → flash the .ipf file
-6. After flashing, re-open Serial Monitor → type **`R`** → resets BM64 to normal mode
+### Gotchas learned the hard way
+- **ESP32-C6 DTR reset:** opening/closing the COM port resets the ESP32.
+  That's why the sketch auto-enters the mode in `setup()` — interactive
+  F/R commands don't survive closing Serial Monitor.
+- **Must quit Arduino IDE entirely** (not just close Serial Monitor) before
+  isUpdate or EEPROM_Tool can open the port.
+- **ESP-IDF `firmware/bm64_bridge/`** has a confirmed bug (VFS layer keeps
+  owning USB-CDC input). Don't use it — use the Arduino sketch.
+- **`EEPROM_Tool.exe`** can identify the module but fails to write ("cannot
+  disconnect the device" error). Use **isUpdate Tool** instead.
 
 ---
 
-## Step 3: Flash BM64 EEPROM with isupdate.exe
+## Step 3: Flash BM64 EEPROM (confirmed working procedure)
 
-### Which Tool to Use
+### What you need
+- Arduino bridge sketch uploaded with **`BOOT_MODE 0`**
+- Arduino IDE **fully quit**
+- **isUpdate Tool v3.14** from `DSPK+v2.1.7+Package/Tools/FlashUpdate Tool/`
+- EEPROM table: `DSPK+v2.1.7+Package/Software/EEPROM Table/MCHP_DSPKv2.1.7_BM64CLS1.txt`
 
-| Tool | COM Port Range | What It Programs | Recommended? |
-|------|---------------|-----------------|--------------|
-| **`isupdate.exe`** | **COM1–COM99+** | Full flash (FW + EEPROM) | **← USE THIS** |
-| `EEPROM_Tool.exe` | COM1–COM7 only | EEPROM area only | Only if COM ≤ 7 |
-| `DSPTool` | Unknown | DSP params only (EQ, NR) | NOT for audio routing |
-| `SPKCommandSetTool` | Unknown | No flashing — runtime commands only | For testing |
+### Procedure
+1. Open **isUpdate Tool** → port: **COM9**, baudrate: **115200** → **Connect**
+   - Should show `Port connect -> COM9`, Device: `5506_SPK02`
+   - (The ESP32 resets when the tool opens the port, auto-enters IBDK mode)
+2. Change **Memory Type → memory** dropdown to **eeprom**
+3. In the bottom **Flash/EEPRom/MCU/AHB Access** section:
+   - Click **Browse** (the one next to "Write Table")
+   - Select `MCHP_DSPKv2.1.7_BM64CLS1.txt`
+   - Click **Write Table**
+4. **Verify** — still in eeprom mode, use the Read section:
+   - Address: `0094`, Length: `01` → should read **`73`**
+   - Address: `0171`, Length: `01` → should read **`46`**
+   - Address: `01FC`, Length: `01` → should read **`4A`**
+5. Disconnect isUpdate Tool
 
-### Flashing Procedure
+### Verify audio output
+1. Change bridge sketch to **`BOOT_MODE 1`** → upload → quit Arduino IDE
+2. BM64 boots in normal mode with headphone DAC config
+3. Pair phone via Bluetooth (appears as `BM64_DSPK v2.1.5`)
+4. Play audio → probe **A0HPL** / **A0HPR** pins with multimeter (AC mV)
 
-1. **Wire ESP32-C6 → BM64** per wiring table above
-2. **Upload UART bridge sketch** to ESP32-C6
-3. **Open Serial Monitor** → type `F` → BM64 enters programming mode
-4. **Close Serial Monitor** (releases COM port)
-5. **Run** `isupdate.exe` from:
-   ```
-   DSPK+v2.1.7+Package\Tools\FlashUpdate Tool\isupdate.exe
-   ```
-6. In isupdate.exe:
-   - Select your **COM port** (COM8 or whatever your ESP32-C6 is on)
-   - Browse to the **.ipf file**:
-     ```
-     DSPK+v2.1.7+Package\Software\EEPROM Table\MCHP_DSPKv2.1.7_BM64CLS1.ipf
-     ```
-     This is the **headphone DAC output** configuration (A0HPL/A0HPR).
-   - Click **Update** / **Program**
-   - Wait for completion (may take 30-60 seconds)
-7. **Re-open Serial Monitor** → type `R` → BM64 resets to normal mode
-8. BM64 is now running the headphone DAC configuration
+### Tool summary
 
-### If isupdate.exe Can't Connect
-- Make sure **Serial Monitor is closed** (only one app can use a COM port)
-- Try **different baud rates** in isupdate.exe if it has that option
-- Verify **P2_0 is LOW** (programming mode) — check with multimeter
-- Verify **RST_N went LOW then HIGH** (reset sequence completed)
-- Try the reset sequence again: type `R` then `F` in Serial Monitor
+| Tool | Works? | Notes |
+|------|--------|-------|
+| **isUpdate Tool v3.14** | **Yes** | Use "Write Table" with .txt file, memory type = eeprom |
+| EEPROM_Tool.exe | Identifies but fails to write | "cannot disconnect the device" error |
+| MPET.exe | Untested | Mass production tool, might also work |
 
----
-
-## Step 4: Query BM64 (Before or After Flashing)
-
-With the bridge sketch running and BM64 in **normal mode** (not programming mode),
-you can send diagnostic commands through the Serial Monitor to check what's running.
-
-### Diagnostic Commands (send as raw hex)
-
-Use the **controller sketch** (Step 5) which has these built in, or use the bridge sketch
-with `SPKCommandSetTool` on PC.
-
-| Command Name | Hex Bytes | Response Event | What You Learn |
-|-------------|-----------|----------------|---------------|
-| **Get UART Version** | `AA 00 02 08 00 F6` | Event `0x18` | Firmware UART protocol version |
-| **Read Feature List** | `AA 00 02 39 00 C5` | Event `0x40` | ROM name (e.g., "5506_DUAL_SPK"), capabilities |
-| **Read Device Name** | `AA 00 02 10 00 EE` | Event `0x21` | Bluetooth device name |
-| **Read BT Address** | `AA 00 02 0F 00 EF` | Event `0x20` | Local Bluetooth MAC address |
-| **Read Link Status** | `AA 00 02 0D 00 F1` | Event `0x1E` | Current connection state |
-
-> **Note:** These commands tell you the ROM/firmware version but there is no "read EEPROM byte"
-> command in the normal UART protocol. You can't directly read the 3 routing bytes (0x0094, 0x0171, 0x01FC).
-> The practical test is: pair → play audio → probe A0HPL with a multimeter for AC signal.
+### If isUpdate can't connect
+- Make sure **Arduino IDE is fully quit**
+- Power cycle the board, try again
+- Check Device Manager for correct COM port
 
 ---
 
-## EEPROM: Which .ipf File to Flash
+## Step 4: Query BM64 (normal mode, BOOT_MODE 1)
 
-Located in: `DSPK+v2.1.7+Package\Software\EEPROM Table\`
+Use the controller sketch (Step 5) or `SPKCommandSetTool` on PC.
+
+| Command | Hex Bytes | Response |
+|---------|-----------|----------|
+| Get UART Version | `AA 00 02 08 00 F6` | Event `0x18` — protocol version |
+| Read Device Name | `AA 00 02 10 00 EE` | Event `0x21` — BT name |
+| Read BT Address | `AA 00 02 0F 00 EF` | Event `0x20` — MAC address |
+| Read Link Status | `AA 00 02 0D 00 F1` | Event `0x1E` — connection state |
+
+> **EEPROM bytes can't be read via normal UART protocol.** Use isUpdate Tool
+> (memory type = eeprom, Read section) in BOOT_MODE 0 to read specific addresses.
+
+---
+
+## EEPROM Config Reference
+
+### Which file to flash
+
+Located in `DSPK+v2.1.7+Package/Software/EEPROM Table/`. Use the **.txt** file
+(not .ipf) with isUpdate Tool's "Write Table" feature.
 
 | File | Output Path | Use |
 |------|-------------|-----|
-| **`MCHP_DSPKv2.1.7_BM64CLS1.ipf`** | **A0HPL / A0HPR (headphone DAC)** | **← USE THIS** |
-| `MCHP_DSPKv2.1.7_BM64CLS1_SPKOUT.ipf` | SPK_P / SPK_N (Class D amp) | For driving speakers directly |
-| `MCHP_DSPKv2.1.7_BM64CLS2.ipf` | Headphone DAC, Class 2 power | Shorter BT range |
-| `MCHP_DSPKv2.1.7_BM62_*.ipf` | — | Wrong IC, don't use for BM64 |
+| **`MCHP_DSPKv2.1.7_BM64CLS1.txt`** | **A0HPL / A0HPR (headphone DAC)** | **← FLASHED** |
+| `MCHP_DSPKv2.1.7_BM64CLS1_SPKOUT.txt` | SPK_P / SPK_N (Class D amp) | Speaker config |
+| `MCHP_DSPKv2.1.7_BM62_*.txt` | — | Wrong IC, don't use for BM64 |
 
-### Critical EEPROM Bytes That Differ (CLS1 vs SPKOUT)
+### Critical EEPROM bytes (headphone DAC vs speaker)
 
-Confirmed by diffing the UI Tool exports (`UITool_IS206x_012_DualModeSPK_v2.1.32_BM64CLS1_EVB.txt`
-vs `..._SPKOUT.txt`). Only 3 bytes differ — these control the audio output routing:
-
-| Address | CLS1 (headphone) | SPKOUT (speaker amp) | Effect |
+| Address | Headphone (CLS1) | Speaker (SPKOUT) | Effect |
 |---------|-------------------|---------------------|--------|
-| **`0x0094`** | **`0x73`** | `0x13` | Bits 5+6 (`0x60`): headphone DAC enable on A0HPL/A0HPR |
-| **`0x0171`** | **`0x46`** | `0x40` | Bits 1+2 (`0x06`): DAC output path routing |
-| **`0x01FC`** | **`0x4A`** | `0x06` | Bits 3+6 (`0x48`): headphone feature flags |
+| **`0x0094`** | **`0x73`** | `0x13` | Headphone DAC enable on A0HPL/A0HPR |
+| **`0x0171`** | **`0x46`** | `0x40` | DAC output path routing |
+| **`0x01FC`** | **`0x4A`** | `0x06` | Headphone feature flags |
 
-> When these bits are cleared (SPKOUT values), audio routes to the Class D amplifier pins instead.
+The .txt files use `**` for "preserve current value" — BT address and other
+device-specific bytes are not overwritten.
 
----
+### Customizing with UI Tool (optional, no hardware needed)
 
-## EEPROM: Customizing Settings (Optional)
-
-The UI Tool can customize and re-export the EEPROM config. **No hardware needed** — it's just a config editor.
-
-### Customization Workflow
 1. Run `UITool_IS206x_012_DualModeSPK_v2.1.32.exe`
-2. Load `UITool_..._BM64CLS1_EVB.txt` as the starting point
-3. Enable **"LR Sound Mix"** for mono on both A0HPL + A0HPR
-4. Enable **"Voice Stereo"** for mono voice on both pins
-5. Disable **"Stereo Line in Loop Back"** (you don't use line-in)
-6. File → Export → save as new .txt
-7. The UI Tool also generates a corresponding .ipf for flashing
-
-### Key Settings (from .ihlp parameter help file)
-
-#### Audio / CODEC
-
-| Setting | What It Does | You Want |
-|---------|-------------|----------|
-| **Enable LR Sound Mix** (`CODEC_FUNC5`) | Mix L+R into mono on BOTH output pins | **Enabled** |
-| **Speaker Output** (`CODEC_FUNC1`) | Mono mix for speaker output | Enabled |
-| **Voice Stereo** (`CODEC_FUNC16`) | HFP voice on both L+R channels | **Enabled** |
-| **Tone Stereo** (`CODEC_FUNC15`) | Tones/prompts on both channels | Enabled |
-| **I2S Shutdown** (`CODEC_FUNC17`) | Shut down I2S when codec resets | Enabled |
-
-#### Profiles
-
-| Setting | You Want |
-|---------|----------|
-| **Support HF Profile** (`PROFILE_SETTING2`) | **Enabled** (mic + voice calls) |
-| **Support A2DP** (`PROFILE_SETTING3`) | **Enabled** (music streaming) |
-| **Support AVRCP** (`PROFILE_SETTING4/5`) | Enabled (play/pause/skip) |
-| **Wide Band Speech / mSBC** (`MISC_OPTION24`) | Recommended (HD voice) |
-
-#### UART
-
-| Setting | You Want |
-|---------|----------|
-| **Enable HCI UART** (`UART_SETTING1`) | **Enabled** |
-| **UART Baudrate** (`UART_SETTING2`) | 115200 |
+2. Load `UITool_..._BM64CLS1_EVB.txt` as starting point
+3. Key settings for mono headphone + mic:
+   - **Enable LR Sound Mix** — mono on both A0HPL + A0HPR
+   - **Voice Stereo** — HFP voice on both channels
+   - **Support HF Profile** — mic + voice calls
+   - **Support A2DP** — music streaming
+4. File → Export → save as new .txt → flash with isUpdate Tool
 
 ---
 
@@ -712,59 +465,48 @@ ACK each with `AA 00 02 14 [EVT_ID] [CHK]`:
 ## File Locations
 
 ```
-DSPK+v2.1.7+Package\
-├── Software\
-│   └── EEPROM Table\
-│       ├── MCHP_DSPKv2.1.7_BM64CLS1.ipf          ← FLASH THIS (headphone DAC out)
-│       ├── MCHP_DSPKv2.1.7_BM64CLS1_SPKOUT.ipf   ← speaker amp (don't use)
-│       └── *.txt                                    ← hex dumps of each config
-├── Tools\
-│   ├── EEPROM_Tool\EEPROM_Tool.exe                  ← COM1-7 only
-│   ├── FlashUpdate Tool\isupdate.exe                ← USE THIS (COM8+ works)
-│   ├── UI Tool\UITool_...\                          ← GUI config editor (no HW needed)
-│   ├── SpkCommandSetTool\                           ← Live UART command GUI
-│   ├── MP Tools\MPET.exe                            ← Mass production EEPROM tool
-│   └── DSP Tool\                                    ← EQ/NR config only (not audio routing)
-└── Documentation\
-    └── AudioUARTCommandSet_v2.10.pdf                ← full UART command reference
+DSPK+v2.1.7+Package/
+├── Software/EEPROM Table/
+│   ├── MCHP_DSPKv2.1.7_BM64CLS1.txt  ← headphone DAC (FLASHED)
+│   └── *.ipf                           ← binary format (EEPROM_Tool only)
+├── Tools/
+│   ├── FlashUpdate Tool/isupdate.exe   ← USE THIS for EEPROM writes
+│   ├── EEPROM_Tool/EEPROM_Tool.exe     ← identifies but can't write via bridge
+│   ├── UI Tool/                        ← GUI config editor (no HW needed)
+│   └── SpkCommandSetTool/             ← Live UART command GUI
+└── Software/Source Code/PIC18 MCU/BM6x_Audio_Refrence.X/
+    ├── bt_command_send.c/h            ← UART command builders
+    ├── bt_command_decode.c            ← event parser
+    └── bt_app.c/h                     ← application state machine
 ```
 
 ---
 
-## Source Code Reference
+## IBDK Mode Protocol (for standalone ESP32 writer — WIP)
 
-```
-Software\Source Code\PIC18 MCU\BM6x_Audio_Refrence.X\
-  bt_command_send.c   — All UART command builders (checksum, gain, etc.)
-  bt_command_send.h   — Command ID enums and MMI action codes
-  bt_command_decode.c — Event parser, event ID enums, BTM status enums
-  bt_app.c            — Main application state machine, boot sequence, volume
-  bt_app.h            — BT status, event, and profile enums
-  mcc/pin_manager.h   — Pin definitions (MFB, RST, etc.)
-```
+BM64 in IBDK/programming mode (P2_0 LOW during reset) speaks **HCI** (Host
+Controller Interface), not the normal `AA 00` UART protocol. Discovered via
+`probe_hci.py` and `sniff_bridge.py`.
 
-### BM64 Boot Sequence (from bt_app.c)
-The reference MCU code shows the correct initialization order:
-1. Wait 200ms
-2. Set **MFB HIGH**
-3. Wait 20ms
-4. Set **RST_N HIGH** (release reset)
-5. Wait 500ms for BM64 to boot
-6. Send `BT_SetRXBufferSize()` command
-7. Send `BT_SetupBTMGPIO()` command
-8. Read device address, name, feature list
-9. Start BLE advertising
-10. Enter power-on state
+**Confirmed working:**
+- HCI_Reset: send `01 03 0C 00` → response `04 0E 04 01 03 0C 00`
+- `0xFC09` = memory read (reads flash by default, returns data)
+- `0xFC0B` = control/config command (short ack response)
 
-### Checksum Algorithm (from bt_command_send.c)
-```c
-static uint8_t calculateChecksum(uint8_t* startByte, uint8_t* endByte) {
-    uint8_t checksum = 0;
-    while (startByte <= endByte)
-        checksum += *startByte++;
-    return ~checksum + 1;
-}
-```
+**TODO:** discover the command to select memory type (eeprom vs flash) before
+read/write. isUpdate Tool does this via its "memory" dropdown. See
+`eeprom_write.md` and `probe_hci.py` for details and next steps.
+
+**Update (2026-09-24, DMS log analysis):** Captured and reverse-engineered a
+DMS log of isUpdate's actual EEPROM write. Found the real write packet isn't
+standard HCI at all — it's a separate raw protocol:
+`[04 00 00 00 00 00][122 bytes of EEPROM data]` (header format unconfirmed
+beyond "byte 0 = 0x04 for write, block address = 0x0000"). Full write-up in
+`eeprom_write.md` under "DMS Log Reverse-Engineering Findings". **Next
+step (continue on macOS):** run `test_eeprom_raw_protocol.py` — cross-platform
+pyserial script that probes READ-only variants of this raw header format to
+confirm the address field encoding, see `eeprom_write.md` "NEXT ACTION"
+section for the full file list needed.
 
 ---
 

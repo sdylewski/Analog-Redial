@@ -135,6 +135,16 @@ esp_err_t bt_companion_read_bd_addr(int timeout_ms, char *out, size_t out_len);
  * is for. */
 esp_err_t bt_companion_raw_snoop(int duration_ms);
 
+/* Sends tx_len arbitrary raw bytes -- no AA00 framing, no checksum -- then
+ * prints whatever comes back for listen_ms, live, same style as
+ * bt_companion_raw_snoop(). For probing BM64's undocumented IBDK/test-mode
+ * protocol (EEPROM read/write), which is NOT the normal AA00 command set.
+ * Unlike every other raw_* function here, this does NOT touch MFB/RST_N/
+ * P2_0 at all (see bt_companion.c's comment) -- IBDK mode needs P2_0 held
+ * low, so set that up yourself first (bringup.c's bm64_pin command) before
+ * calling this. */
+esp_err_t bt_companion_raw_send(const uint8_t *tx, size_t tx_len, int listen_ms);
+
 /* NOT implemented yet, deliberately: BM64_MMI_POWEROFF_BT (0x5E) exists in
  * bt_companion.c's opcode enum but nothing sends it. Don't wire this up
  * until MFB is on a controllable GPIO, not a fixed pull-up resistor --

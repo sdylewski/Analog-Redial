@@ -1474,6 +1474,57 @@ static int cmd_bm64_snoop(int argc, char **argv)
     return err == ESP_OK ? 0 : 1;
 }
 
+/* Parses a hex string like "04 00 1D 07 00 00" or "0400 1D07 0000" (spaces
+ * optional/anywhere) into raw bytes. Returns the byte count, or -1 on a
+ * malformed string (odd number of hex digits). */
+static int parse_hex_bytes(const char *s, uint8_t *out, size_t out_max)
+{
+    size_t n = 0;
+    int hi = -1;
+    for (; *s; s++) {
+        if (*s == ' ' || *s == ',') continue;
+        int v;
+        if (*s >= '0' && *s <= '9') v = *s - '0';
+        else if (*s >= 'a' && *s <= 'f') v = *s - 'a' + 10;
+        else if (*s >= 'A' && *s <= 'F') v = *s - 'A' + 10;
+        else return -1;
+        if (hi < 0) {
+            hi = v;
+        } else {
+            if (n >= out_max) return -1;
+            out[n++] = (uint8_t)((hi << 4) | v);
+            hi = -1;
+        }
+    }
+    return (hi < 0) ? (int)n : -1; /* hi>=0 here means a trailing lone nibble */
+}
+
+static int cmd_bm64_raw(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("usage: bm64_raw <hex bytes, e.g. \"04 00 1D 07 00 00\"> [listen_ms, default 500] "
+               "-- sends raw bytes with NO AA00 framing, for probing BM64's undocumented IBDK/\n"
+               "test-mode EEPROM protocol. Does NOT touch MFB/RST_N/P2_0 -- set those yourself "
+               "with bm64_pin first (IBDK mode needs p2_0 held low). bt_companion must be "
+               "disabled.\n");
+        return 1;
+    }
+    uint8_t tx[64];
+    int tx_len = parse_hex_bytes(argv[1], tx, sizeof(tx));
+    if (tx_len <= 0) {
+        printf("bm64_raw: couldn't parse '%s' as hex bytes (need an even number of hex digits)\n", argv[1]);
+        return 1;
+    }
+    int listen_ms = (argc > 2) ? atoi(argv[2]) : 500;
+    esp_err_t err = bt_companion_raw_send(tx, (size_t)tx_len, listen_ms);
+    if (err == ESP_ERR_INVALID_STATE) {
+        printf("bt_companion is already enabled (its own poll task is running) -- disable it "
+               "first (bt_enable 0) before running this raw test, they can't share the UART at once\n");
+        return 1;
+    }
+    return err == ESP_OK ? 0 : 1;
+}
+
 static int cmd_bm64_mmi(int argc, char **argv)
 {
     if (argc < 2) {
@@ -1689,6 +1740,7 @@ void bringup_console_start(void)
     register_cmd("bm64_test", "Raw BM64 UART ping: bm64_test [timeout_ms, default 2000] [baud, default 115200] -- disable bt_companion first", cmd_bm64_test);
     register_cmd("bm64_addr", "Read BM64's own Bluetooth MAC address: bm64_addr [timeout_ms, default 2000] -- disable bt_companion first", cmd_bm64_addr);
     register_cmd("bm64_snoop", "Live raw-byte dump of the BM64 UART, no framing: bm64_snoop [seconds, default 20] -- disable bt_companion first", cmd_bm64_snoop);
+    register_cmd("bm64_raw", "Send raw hex bytes with NO AA00 framing, print the reply: bm64_raw <hex bytes> [listen_ms, default 500] -- for probing BM64's undocumented IBDK/EEPROM protocol; doesn't touch MFB/RST_N/P2_0, set those with bm64_pin first; disable bt_companion first", cmd_bm64_raw);
     register_cmd("bt_enable", "Get/set bt_companion enabled: bt_enable [0|1]", cmd_bt_enable);
     register_cmd("bm64_mmi", "Send a raw MMI action code: bm64_mmi <hex, e.g. 51> -- bt_companion must be ENABLED (opposite of bm64_test/addr/snoop)", cmd_bm64_mmi);
     register_cmd("bm64_cmd", "Send a raw opcode+reserved-byte command (e.g. 0E Read_Paired_Device_Record): bm64_cmd <hex opcode> -- bt_companion must be ENABLED, log_level debug to see the reply", cmd_bm64_cmd);

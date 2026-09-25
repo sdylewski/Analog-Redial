@@ -1,0 +1,10 @@
+Built lookup with 4643 unique 6-byte sequences
+
+Found 3 HIGH CONFIDENCE chunks (all known bytes matched, min 15 known, min 8 nonzero)
+
+file=0x02470D  eeprom_addr=0x0180  len=150  checked=124 nonzero=100
+    header(12B before): 8A 00 05 02 80 01 00 00 80 00 00 00
+file=0x0247D1  eeprom_addr=0x0180  len=150  checked=124 nonzero=100
+    header(12B before): 8A 00 05 02 80 01 00 00 80 00 00 00
+file=0x024D8F  eeprom_addr=0x0180  len=150  checked=124 nonzero=100
+    header(12B before): 00 00 10 01 86 00 00 00 80 00 00 00
