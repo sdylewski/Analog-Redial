@@ -1,5 +1,36 @@
 # BM64 EEPROM Write — Procedure & Standalone ESP32 Writer Plan
 
+## TOMORROW: quick reference (do this first)
+
+**The one byte that fixes audio:** address `0x348` currently holds `0x09`
+("capless with earphone") but needs to be `0x0A` ("single-end with
+earphone") to agree with `0x1D7` (already correctly `0x94` = Single End) --
+see "Found 2026-09-24 (evening)" section below for the full reasoning. This
+is a real inconsistency in Microchip's own `BM64CLS1` reference table, not
+something done wrong during the original flash.
+
+1. isUpdate Tool -> memory type = **eeprom** -> connect
+2. **Write** single byte: Address `0348`, Length `01`, Value `0A`
+3. **Verify**: Read Address `0348`, Length `01` -> should now read `0A`
+4. Also re-verify `0x1D7` still reads `94` (bit4=1, Single End) -- should be
+   unchanged, just confirming nothing else drifted
+5. Return to normal mode, re-pair, re-test audio (record + inspect for real
+   varying content, not a flat/repeating tone -- see the analysis approach
+   in "Verify audio output" below)
+
+**If you also want to capture the read-EEPROM protocol** (still unconfirmed
+-- see "Standalone ESP32 EEPROM Writer" section for everything ruled out
+2026-09-24/25 night): while isUpdate is connected and in eeprom mode, do a
+plain **Read** of some address (0x0348 or 0x1D7 work fine, or the OS's own
+DMS capture tool, whichever you used before) *before* doing the Write above,
+and save that capture. The `MCHP_DSPKv2.1.7_BM64CLS1.txt`-write capture
+already analyzed does NOT contain a read -- confirmed by finding the tool's
+own "read device name" query (opcode `0xFC20`) appearing exactly twice
+(matching connect -> write -> reconnect, no read/verify step in between).
+A capture of a genuine Read is the single most useful thing to bring back.
+
+---
+
 ## What Was Done (2026-09-24)
 
 ### Problem
@@ -255,44 +286,97 @@ HCI vendor-specific commands to write the EEPROM, then resets BM64 to normal.
    - Reset BM64 to normal mode (P2_0 HIGH + reset pulse)
 4. **Verify**: Read back key bytes (0x0094, 0x0171, 0x01FC) and compare
 
-### NEXT ACTION (continue here — macOS session)
-Run **`test_eeprom_raw_protocol.py`** (cross-platform, pyserial-based) — it
-does NOT use HCI opcode framing at all. Based on the DMS-log finding above,
-it sends raw `[CMD][RESERVED][ADDR_LO][ADDR_HI][RESERVED][RESERVED]` guesses
-(READ-only, non-destructive) to find the matching read command and confirm
-whether byte 1 is really an address field:
-```
-python test_eeprom_raw_protocol.py [PORT]
-```
-- No PORT arg needed — it lists available ports and auto-selects if only one.
-- On macOS the ESP32-C6 will enumerate as something like
-  `/dev/tty.usbmodemXXXX` — Arduino IDE must be fully quit first, same as
-  on Windows.
-- Looks for byte `0x73` (known EEPROM[0x0094] value) appearing in any
-  response, across all 3 test batteries (header CMD sweep with addr=0,
-  CMD=0x04 variants with addr=0x0094, and full CMD sweep with addr=0x0094).
-- If nothing hits, the next step is a live sniff: relay isUpdate through a
-  logging proxy (e.g. `com0com` + a Python passthrough on Windows) while
-  doing a **Read** (not Write) in isUpdate Tool's eeprom mode, then re-run
-  `extract_dmslog_data2.py` against that capture instead — reads are
-  smaller/simpler than the write we already decoded and should surface the
-  read opcode quickly using the same method.
+### Update 2026-09-25 (macOS session, continued): live probing + deeper log analysis
+
+**Live probing on real hardware**, once BM64 was confirmed to genuinely
+enter IBDK mode (see "GPIO fix" note below -- this took most of the session
+to get reliable) via the ESP-IDF firmware's new `bm64_raw <hex bytes>
+[listen_ms]` console command (`firmware/components/bringup/bringup.c` --
+sends raw non-AA00-framed bytes straight to BM64's UART and prints whatever
+comes back, no separate PC bridge tool needed):
+
+- Confirmed `0xFC09` (memory read) works exactly as documented: address
+  `0x0000` returns `0x55` (matches the original `probe_hci.py` finding
+  exactly), address `0x01D7` returns `0x00` (unprogrammed flash at that
+  offset -- NOT the real EEPROM value `0x94`, confirming this reads flash).
+- **Ruled out**: a 4th inline parameter byte on the `0xFC09` read command
+  (guessing it might select memory type) -- no effect, still reads flash.
+- **Ruled out**: `0xFC0B` as a memory-type selector -- swept parameter
+  values `0x00, 0x01, 0x02, 0x03, 0x10, 0xFF`, always gets a generic ack,
+  never changes what `0xFC09` subsequently reads.
+- **Ruled out**: a raw (non-HCI) `[CMD][00][ADDR_LO][ADDR_HI][00][00]`
+  6-byte header read, CMD swept `0x00`-`0x0F` at address 0 -- most CMD
+  values return nothing or a generic `04 10 01 10` error; none returned
+  plausible EEPROM content.
+
+**Deeper analysis of the existing `.dmslog8` capture** (see the "DMS Log
+Reverse-Engineering Findings" section above for the original write-block
+find) confirmed the file has only **92 total `[00 00 00 00][LEN][data]`
+records** (29 small + 63 large) -- NOT "1954" as an earlier session's notes
+said; that number was simply wrong. All 92 were printed and reviewed
+directly (`analyze_pre_write.py`, kept in this folder). Two genuine,
+non-coincidental commands were found by searching for the literal ASCII
+string the device would report at connect time (`5506_DUAL_SPK`, the ROM
+name from the `.txt` table's own header comment):
+
+- **`0xFC20`** = read device/ROM name. Reply: `01 20 FC` + null-terminated
+  ASCII string (`"5506_DUAL_SPK"` + `00`) + a few trailing bytes
+  (`42 15 00 01 00 00`).
+- **`0xFC31`** = some other status query (params `0C 00 02 00 00 00 00 00
+  00 00 02`, meaning unconfirmed) -- appears right after `0xFC20` both times.
+
+Both appear **exactly twice** in the file, matching connect -> write ->
+disconnect -> reconnect -> disconnect (confirmed against memory of the
+session: connect once, write the whole payload, disconnect/reconnect,
+never ran a Read/verify query). This is why no read-EEPROM command could be
+found in this file: **it was never captured, because it was never
+performed** -- not a parsing failure. A systematic sweep of every distinct
+`01 xx FC` opcode in the whole file turned up only these two plus two
+likely-coincidental matches (`0xFC82`, `0xFCFF`) inside dense
+audio-parameter table data with none of the clean framing (FILETIME
+markers, isolated position) the two real ones had.
+
+### GPIO fix that unblocked all of this (2026-09-25)
+Bench-wired MFB/RST_N/P2_0 (GPIO18/19/20) intermittently failed to hold a
+level for most of two evenings, looking exactly like a wiring fault. Root
+cause: `bm64_pin`/`assert_bm64_control_pins()` used a bare
+`gpio_set_direction()` + `gpio_set_level()` pair, which never touches
+`pull_up_en` -- a leftover internal pull-up was fighting the output. Fixed
+by using the full `gpio_config()` struct instead (explicit
+`pull_up_en`/`pull_down_en` in the same atomic call as the mode), matching
+this project's already-correct `ag1170.c` SLIC-pin pattern. Full writeup:
+`archive/BM64_MFB_GPIO_DEBUG.md` in the main repo. This is why live IBDK
+probing wasn't reliable until partway through tonight's session -- keep it
+in mind if GPIO18-20 seem flaky again, don't assume it's the wiring first.
+
+### NEXT ACTION, next isUpdate session
+Do a plain **Read** (not Write) of any EEPROM address in isUpdate Tool
+(memory type = eeprom), with the same DMS-log-style capture running, then
+re-run `analyze_pre_write.py`'s approach (or hand-search for `01 xx FC`
+opcodes as done above) against that new capture -- a real Read is the one
+thing this file provably never contained. Comparing that capture's opcodes
+against the confirmed `0xFC20`/`0xFC31` pair (and definitely-not `0xFC09`,
+since that's a flash-only debug read unrelated to isUpdate's own protocol)
+should surface the real read-EEPROM command directly.
 
 ### Files needed on macOS (nothing Windows-specific required for read tests)
-- `test_eeprom_raw_protocol.py` (new, cross-platform)
-- `probe_hci.py` (cross-platform, but PORT hardcoded to `COM9` — change to
-  your macOS device path or pass as arg if you adapt it similarly)
+- `analyze_pre_write.py` (new 2026-09-25, this folder -- prints all 92
+  records with the write block marked; the opcode-sweep one-liners used to
+  find `0xFC20`/`0xFC31` above aren't saved as a script yet, easy to redo:
+  search the raw file bytes for `b'\x01' + bytes([opcode_lsb, 0xFC])` at
+  every position)
 - `eeprom_write.md`, `BM64_Analog_Audio_Setup.md` (this doc + the main doc)
-- `bm64_bridge_arduino/bm64_bridge_arduino.ino` (flash to ESP32-C6 first,
-  BOOT_MODE 0, via Arduino IDE on macOS)
-- `DSPK+v2.1.7+Package/Software/EEPROM Table/MCHP_DSPKv2.1.7_BM64CLS1.txt`
-  (ground-truth table, referenced by `KNOWN_EEPROM_BYTES` in the test script)
 - The physical ESP32-C6 + BM64 hardware, wired per `BM64_Analog_Audio_Setup.md`
-  Step 1 (GPIO16/17/18/19/20)
+  Step 1 (GPIO16/17/18/19/20) -- `firmware/bm64_raw` console command
+  (main repo, `idf.py -B build -p <port> flash` then use the bring-up
+  console) can now do all the live probing directly, no separate Arduino
+  bridge or PC tool needed for probing (still need isUpdate for the actual
+  EEPROM byte 0x348 fix and any fresh DMS capture).
 
 **Not needed on macOS:** the `.dmslog8` capture file, `isupdate.exe`,
 `EEPROM_Tool.exe` (Windows-only tools) — already fully mined for the finding
-above; `find_all_eeprom_chunks.py` (superseded, don't re-run — see notes above).
+above; `find_all_eeprom_chunks.py`/`test_eeprom_raw_protocol.py` (both
+superseded by live probing via `bm64_raw`, don't re-run).
 
 ### Architecture
 ```
