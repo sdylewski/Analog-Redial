@@ -62,23 +62,33 @@ IOCTL control code, but is actually the HCI ACL Data header for handle
 
 ---
 
-## TOMORROW: quick reference (do this first)
+## NEXT: fix audio routing (do this first)
 
-**The one byte that fixes audio:** address `0x348` currently holds `0x09`
-("capless with earphone") but needs to be `0x0A` ("single-end with
-earphone") to agree with `0x1D7` (already correctly `0x94` = Single End) --
-see "Found 2026-09-24 (evening)" section below for the full reasoning. This
-is a real inconsistency in Microchip's own `BM64CLS1` reference table, not
-something done wrong during the original flash.
+**Primary fix — 3 bytes to switch from I2S to analog output:**
 
-1. isUpdate Tool -> memory type = **eeprom** -> connect
-2. **Write** single byte: Address `0348`, Length `01`, Value `0A`
-3. **Verify**: Read Address `0348`, Length `01` -> should now read `0A`
-4. Also re-verify `0x1D7` still reads `94` (bit4=1, Single End) -- should be
-   unchanged, just confirming nothing else drifted
-5. Return to normal mode, re-pair, re-test audio (record + inspect for real
-   varying content, not a flat/repeating tone -- see the analysis approach
-   in "Verify audio output" below)
+The `MCHP_DSPKv2.1.7_BM64CLS1.txt` table that was flashed routes audio to
+I2S, not the analog AOHPL/AOHPR DAC. See `BM64_AUDIO_DEBUG.md` for the
+full analysis. The `_SPKOUT` table is the analog variant; only 3 bytes
+differ. `0x348` was already changed from `0x09` to `0x0A` (capless→single-
+ended) in a previous session.
+
+Using the ESP-IDF console (`bm64_ibdk` then `bm64_eeprom`):
+```
+bm64_eeprom write 01FC 06    (bit2=1 → internal codec / analog output)
+bm64_eeprom write 0094 13    (SRC off — not needed for internal codec)
+bm64_eeprom write 0171 40    (voice/tone stereo off — match SPKOUT table)
+```
+Read each back, then also verify the single-ended bytes:
+```
+bm64_eeprom read 01FC 1    → expect 06
+bm64_eeprom read 0094 1    → expect 13
+bm64_eeprom read 0171 1    → expect 40
+bm64_eeprom read 0348 1    → expect 0A (already written)
+bm64_eeprom read 01D7 1    → expect 94 (unchanged, single-end)
+```
+Return to normal mode (`bm64_ibdk exit`, `bt_enable 1`, `bm64_pair`),
+forget the device on the phone, re-pair, play a 1 kHz test tone, scope
+BM64 pin 7 (AOHPL). See `BM64_AUDIO_DEBUG.md` for the full test plan.
 
 **If you also want to capture the read-EEPROM protocol** (still unconfirmed
 -- see "Standalone ESP32 EEPROM Writer" section for everything ruled out
@@ -97,18 +107,22 @@ A capture of a genuine Read is the single most useful thing to bring back.
 
 ### Problem
 BM64 shipped with speaker output config (`IS2064S_012_SPK02_V2.1_BETA`).
-Need headphone DAC output on A0HPL/A0HPR + mic input on MIC_P1.
+Need analog DAC output on AOHPL/AOHPR + mic input on MIC_P1.
 
 ### Solution
-Flashed EEPROM with `MCHP_DSPKv2.1.7_BM64CLS1.txt` (headphone DAC config)
-using `isUpdate Tool v3.14` via an ESP32-C6 Arduino bridge sketch.
+Flashed EEPROM with `MCHP_DSPKv2.1.7_BM64CLS1.txt` using `isUpdate Tool
+v3.14` via an ESP32-C6 Arduino bridge sketch.
 
-### Verified EEPROM bytes (headphone DAC)
-| Address | Value | Meaning |
-|---------|-------|---------|
-| 0x0094  | 0x73  | Codec function — headphone DAC output |
-| 0x0171  | 0x46  | Audio path config |
-| 0x01FC  | 0x4A  | Audio routing |
+**CORRECTED 2026-09-26:** this table routes audio to **I2S**, not the
+analog DAC. The correct table for analog output is `_SPKOUT`. Only 3 bytes
+differ — see `BM64_AUDIO_DEBUG.md`.
+
+### Verified EEPROM bytes (these are the I2S/CLS1 values — WRONG for analog)
+| Address | Value | Meaning (corrected) |
+|---------|-------|---------------------|
+| 0x0094  | 0x73  | Audio/Voice SRC on (pairs with external codec / I2S) |
+| 0x0171  | 0x46  | Voice Stereo + Tone Stereo on |
+| 0x01FC  | 0x4A  | External CODEC (bit2=0 → I2S output, NOT analog) |
 
 ---
 

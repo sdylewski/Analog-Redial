@@ -181,17 +181,19 @@ Located in `DSPK+v2.1.7+Package/Software/EEPROM Table/`. Use the **.txt** file
 
 | File | Output Path | Use |
 |------|-------------|-----|
-| **`MCHP_DSPKv2.1.7_BM64CLS1.txt`** | **A0HPL / A0HPR (headphone DAC)** | **← FLASHED** |
-| `MCHP_DSPKv2.1.7_BM64CLS1_SPKOUT.txt` | SPK_P / SPK_N (Class D amp) | Speaker config |
+| **`MCHP_DSPKv2.1.7_BM64CLS1.txt`** | **I2S (external codec/DSP)** | **← WAS FLASHED (WRONG for us)** |
+| **`MCHP_DSPKv2.1.7_BM64CLS1_SPKOUT.txt`** | **AOHPL / AOHPR (internal analog DAC)** | **← NEED THESE 3 BYTES** |
 | `MCHP_DSPKv2.1.7_BM62_*.txt` | — | Wrong IC, don't use for BM64 |
 
-### Critical EEPROM bytes (headphone DAC vs speaker)
+> **CORRECTED 2026-09-26:** See `BM64_AUDIO_DEBUG.md` for full analysis.
 
-| Address | Headphone (CLS1) | Speaker (SPKOUT) | Effect |
-|---------|-------------------|---------------------|--------|
-| **`0x0094`** | **`0x73`** | `0x13` | Headphone DAC enable on A0HPL/A0HPR |
-| **`0x0171`** | **`0x46`** | `0x40` | DAC output path routing |
-| **`0x01FC`** | **`0x4A`** | `0x06` | Headphone feature flags |
+### Critical EEPROM bytes (I2S vs analog output)
+
+| Address | CLS1 (I2S) | SPKOUT (analog) | Field (from Parameter Table) | Effect |
+|---------|------------|-----------------|------------------------------|--------|
+| **`0x01FC`** | `0x4A` (bit2=0) | **`0x06`** (bit2=1) | dsp_option2 bit2 "External CODEC" | **I2S vs internal analog DAC** |
+| **`0x0094`** | `0x73` | **`0x13`** | shs_action_option12 bit5+6 | Audio SRC + Voice SRC |
+| **`0x0171`** | `0x46` | **`0x40`** | shs_action_option13 bit1+2 | Voice Stereo + Tone Stereo |
 
 The .txt files use `**` for "preserve current value" — BT address and other
 device-specific bytes are not overwritten.
@@ -514,10 +516,11 @@ section for the full file list needed.
 
 | Pin | Function | Your Use |
 |-----|----------|----------|
-| **A0HPL** (pin 24) | Headphone DAC Left | Audio output (mono) |
-| **A0HPR** (pin 23) | Headphone DAC Right | Audio output (mono) |
-| **MIC_P1** (pin 19) | Mic input (+) | Mic input |
-| **MIC_N1** (pin 20) | Mic input (−) | Mic ground / bias |
+| **AOHPL** (pin 7) | Headphone DAC Left | Audio output (mono) |
+| **AOHPM** (pin 6) | Headphone common-mode output/sense | Not connected (single-ended mode) |
+| **AOHPR** (pin 5) | Headphone DAC Right | Audio output (mono) |
+| **MIC_P1** (pin 9) | Mic input (+) | Mic input |
+| **MIC_N1** (pin 8) | Mic input (−) | Mic ground / bias |
 | **UART_TX** | BM64 transmit | → ESP32-C6 RX (GPIO17) |
 | **UART_RX** | BM64 receive | ← ESP32-C6 TX (GPIO16) |
 | **MFB** | Multi-function button | ← ESP32-C6 GPIO18 (HIGH, held, for UART) |
