@@ -233,6 +233,34 @@ GPIO, `AIL`/`AIR` line-in, `DP`/`DM` USB, `AMB_DET` thermal sense,
 BM64's built-in Li-ion charger/thermal-protection features are irrelevant
 since it's powered from the C6's own regulated rail, not a battery.
 
+### Confirmed 2026-09-26: the AOHPL tap measurably loads and distorts Vin
+
+Measured directly at the SLIC VIN pin (same point used to debug the
+spkamp/LOUT1VOL bug above), `spkamp 32`, 1 kHz test tone: **1.97 Vpp with
+the BM64's AOHPL wire disconnected from Vin, dropping to 1.1 Vpp -- and
+visibly more square than sinusoidal -- with it reconnected.** That's
+roughly a 5 dB loss plus real harmonic distortion, not just a benign
+AC-coupled "branch" as the pin-plan table above assumed. The two coupling
+caps (SLIC's own 10 nF toward the codec, BM64's new 10 uF toward AOHPL) do
+correctly block DC between the two branches, but a series cap says nothing
+about the *AC* loading of whatever sits behind it -- and AOHPL's own output
+impedance (or the offset/bias network Figure 2-8's single-ended mode
+uses internally) is evidently low enough, and/or nonlinear enough near the
+signal's peaks, to noticeably sag and clip a signal designed only around
+the codec's own ~10s-of-kOhm expectations on that node.
+
+Not yet root-caused to a specific mechanism (need the BM64 datasheet's
+AOHPL output-impedance/single-ended-mode section, and ideally a scope
+capture of AOHPL's own waveform in isolation to see whether the distortion
+originates at the BM64 side or only appears once it's fighting the shared
+node) -- but it's real, reproducible, and worth designing around before
+finalizing SMD5's BM64 header: either a unity-gain buffer between AOHPL and
+the shared Vin node (isolates the two branches' AC loading from each other,
+the textbook fix), or accept the loss and compensate with a few dB of extra
+`spkamp` gain when BM64 is the active path -- but the *distortion* (not
+just the level drop) argues for the buffer, since gain can't undo clipping
+that already happened upstream of it.
+
 ## Option B: ESP32-original DevKitC board as a companion (superseded 2026-09-15, code removed 2026-09-21)
 
 **No longer the plan** -- see "Confirmed: ESP32 software HFP audio is a dead
