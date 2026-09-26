@@ -2267,6 +2267,88 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
  * than adding the UI at the same time as the hardware. Same master-switch
  * pattern as the VOIP tab above: only the enable checkbox shows when off,
  * everything else collapses into #bt-extra. */
+/* "Module configuration" card: a stock BM64 ships routing audio to I2S for
+ * the EVB's external DAC, so the analog pin this board taps stays silent
+ * until a few EEPROM bytes are changed (BM64/BM64_AUDIO_DEBUG.md has the
+ * full derivation). The check is keyed on the module's own BD address rather
+ * than a plain "already done" flag, so swapping the BM64 or moving this
+ * ESP32 to another board re-prompts instead of trusting a stale marker.
+ * Deliberately a button, not something done on every boot: it costs two
+ * module resets and ~15s of Bluetooth downtime. */
+static int append_bt_config_card(char *buf, size_t cap, int off,
+                                 const bt_companion_status_t *st)
+{
+    bm64_config_report_t rep;
+    bool have_report = bt_companion_config_last_report(&rep);
+    bool verified    = bt_companion_config_is_verified();
+
+    const char *pill_cls  = verified ? "on" : "warn";
+    const char *pill_text = verified
+        ? i18n_str("bt.cfg_verified", "verified")
+        : (st->bd_addr[0] ? i18n_str("bt.cfg_unverified", "not checked yet")
+                          : i18n_str("bt.cfg_unknown", "unknown"));
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card wide\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+        "<span class=\"pill %s\">%s</span></div>"
+        "<p class=\"hint\">%s</p>",
+        i18n_str("bt.cfg_title", "Module configuration"),
+        i18n_str("bt.cfg_label", "Audio output settings"),
+        pill_cls, pill_text,
+        i18n_str("bt.cfg_hint",
+                 "A factory BM64 sends audio out over I2S to an external DAC, which this board "
+                 "doesn't use -- it taps the module's analog output instead, so audio stays "
+                 "silent until a few EEPROM bytes are corrected. This checks them and fixes any "
+                 "that are wrong. Bluetooth drops for about 15 seconds and a paired phone will "
+                 "need to reconnect."));
+
+    if (have_report) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<table class=\"filetable\"><thead><tr><th>%s</th><th>%s</th><th>%s</th>"
+            "<th>%s</th><th>%s</th></tr></thead><tbody>",
+            i18n_str("bt.cfg_col_addr", "Address"),
+            i18n_str("bt.cfg_col_found", "Found"),
+            i18n_str("bt.cfg_col_want", "Wanted"),
+            i18n_str("bt.cfg_col_state", "State"),
+            i18n_str("bt.cfg_col_what", "What it controls"));
+        for (int i = 0; i < rep.n_items && i < BM64_CONFIG_ITEM_MAX; i++) {
+            const bm64_config_item_t *it = &rep.items[i];
+            const char *state = it->written
+                ? i18n_str("bt.cfg_state_written", "fixed")
+                : (it->found == it->expected ? i18n_str("bt.cfg_state_ok", "ok")
+                                             : i18n_str("bt.cfg_state_bad", "wrong"));
+            char what[160];
+            html_escape(it->what ? it->what : "", what, sizeof(what));
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<tr><td>0x%04X</td><td>%02X</td><td>%02X</td><td>%s</td><td>%s</td></tr>",
+                it->addr, it->found, it->expected, state, what);
+        }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</tbody></table>");
+
+        if (rep.error[0]) {
+            char esc[128];
+            html_escape(rep.error, esc, sizeof(esc));
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<p class=\"hint err\">%s</p>", esc);
+        } else {
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<p class=\"hint\">%s</p>",
+                rep.ok ? i18n_str("bt.cfg_all_ok", "All bytes correct.")
+                       : i18n_str("bt.cfg_still_wrong", "Some bytes are still wrong."));
+        }
+    }
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<form method=\"POST\" action=\"/bt_config_check\" class=\"settings-form\">"
+        "<div class=\"toolbar sub\"><button type=\"submit\"%s>%s</button></div>"
+        "</form>"
+        "</div>",
+        st->link_up ? "" : " disabled",
+        i18n_str("bt.cfg_button", "Check and repair module configuration"));
+    return off;
+}
+
 static int append_bluetooth_tab(char *buf, size_t cap, int off)
 {
     bool bt_on = bt_companion_enabled();
@@ -2405,6 +2487,8 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
                        "UART wiring (GPIO16/17, crossed TX/RX) once it's connected."),
         js_link_up, js_link_down, js_connected, js_not_connected, js_none_paired,
         js_pair_btn, js_pairing, js_paired);
+
+    off = append_bt_config_card(buf, cap, off, &st);
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>"); /* closes #bt-extra */
     return off;
@@ -4550,6 +4634,27 @@ static esp_err_t bt_pair_handler(httpd_req_t *req)
     esp_err_t err = bt_companion_start_pairing();
     if (err != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "companion board not connected");
+        return ESP_OK;
+    }
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=bluetooth");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /bt_config_check -- no form body. Checks (and repairs) the BM64's
+ * EEPROM bytes needed for analog audio out. Deliberately synchronous even
+ * though it takes ~15 seconds: it's a rare maintenance action, and the
+ * report it leaves behind is what the page renders after the redirect
+ * (bt_companion_config_last_report()). Bluetooth drops for the duration --
+ * IBDK mode involves two module resets -- so any paired phone disconnects
+ * and has to reconnect afterward. */
+static esp_err_t bt_config_check_handler(httpd_req_t *req)
+{
+    esp_err_t err = bt_companion_config_check(true, NULL);
+    if (err == ESP_ERR_NOT_SUPPORTED) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                            "this board has no GPIO control of the BM64 mode pins");
         return ESP_OK;
     }
     httpd_resp_set_status(req, "303 See Other");
@@ -6723,6 +6828,7 @@ esp_err_t webui_start(void)
         { .uri = "/api/prompt_requests",    .method = HTTP_GET,  .handler = prompt_requests_json_handler },
         { .uri = "/bt_enable_set",           .method = HTTP_POST, .handler = bt_enable_set_handler },
         { .uri = "/bt_pair",                 .method = HTTP_POST, .handler = bt_pair_handler },
+        { .uri = "/bt_config_check",         .method = HTTP_POST, .handler = bt_config_check_handler },
         { .uri = "/voip_set",               .method = HTTP_POST, .handler = voip_set_handler },
         { .uri = "/voip_check",             .method = HTTP_POST, .handler = voip_check_handler },
         { .uri = "/voip_setup_password",    .method = HTTP_POST, .handler = voip_setup_password_handler },

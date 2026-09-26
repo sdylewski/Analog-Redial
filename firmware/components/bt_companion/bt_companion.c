@@ -118,6 +118,15 @@ static uint8_t  s_dbg_last_bytes[16];
 static bool                  s_enabled = false;
 static bool                  s_uart_installed = false;
 static TaskHandle_t          s_task;
+/* Set to ask poll_task to exit at its next check, instead of vTaskDelete()ing
+ * it from outside. Killing it outright can land while it's blocked inside
+ * uart_read_bytes(), which leaves the UART driver's internal read lock held
+ * forever -- every later UART call then blocks. Confirmed live 2026-09-26:
+ * the boot config-autocheck fires while poll_task is still in its ~3.5s
+ * startup sequence, and the old vTaskDelete() path hung the whole check
+ * silently right after "IBDK: entering". */
+static volatile bool         s_task_stop;
+static TaskHandle_t          s_autocheck_task; /* one-shot EEPROM config check */
 static int64_t               s_last_reply_us;
 static bt_companion_status_t s_status;
 static portMUX_TYPE          s_lock = portMUX_INITIALIZER_UNLOCKED;
@@ -135,6 +144,7 @@ bool bt_companion_enabled(void) { return s_enabled; }
 
 static void start_task(void);
 static void stop_task(void);
+static void start_autocheck(void);
 static esp_err_t ensure_uart(void);
 static esp_err_t ensure_uart_peripheral_only(void);
 
@@ -150,8 +160,12 @@ esp_err_t bt_companion_set_enabled(bool enabled)
 
     s_enabled = enabled;
     ESP_LOGI(TAG, "%s", enabled ? "enabled -- starting UART link" : "disabled -- stopping UART link");
-    if (enabled) start_task();
-    else stop_task();
+    if (enabled) {
+        start_task();
+        start_autocheck();
+    } else {
+        stop_task();
+    }
     return ESP_OK;
 }
 
@@ -650,6 +664,11 @@ static void poll_task(void *arg)
         }
     }
 
+    /* A stop requested during the startup sequence above (the config
+     * autocheck fires the moment the BD address lands, which is mid-startup)
+     * shouldn't have to wait out the rest of it. */
+    if (s_task_stop) { s_task = NULL; vTaskDelete(NULL); }
+
     /* Also one-time at startup: set the module's own advertised Bluetooth
      * name to this board's name (e.g. "dualphone"), so pairing shows
      * something short and recognizable instead of a generic factory name.
@@ -666,7 +685,7 @@ static void poll_task(void *arg)
         ESP_LOGI(TAG, "set BT device name to '%s'", name);
     }
 
-    while (1) {
+    while (!s_task_stop) {
         uint8_t params[1] = { 0x00 };
         send_command(BM64_READ_LINK_STATUS_CMD, params, 1);
 
@@ -686,6 +705,11 @@ static void poll_task(void *arg)
 
         vTaskDelayUntil(&last_wake, period);
     }
+
+    /* Cooperative exit -- see stop_task(). Clearing the handle from inside
+     * the task is what tells stop_task() it's safe to touch the UART. */
+    s_task = NULL;
+    vTaskDelete(NULL);
 }
 
 #ifdef BOARD_BT_MFB_PIN
@@ -794,14 +818,27 @@ static void start_task(void)
     portENTER_CRITICAL(&s_lock);
     memset(&s_status, 0, sizeof(s_status));
     portEXIT_CRITICAL(&s_lock);
+    s_task_stop = false;
     xTaskCreate(poll_task, "bt_companion", 3072, NULL, tskIDLE_PRIORITY + 1, &s_task);
 }
 
+/* Asks poll_task to exit and waits for it, rather than vTaskDelete()ing it
+ * from under whatever UART call it's in the middle of -- see s_task_stop.
+ * Worst case is one startup-sequence's worth of wait (~4s); the timeout is
+ * only a backstop so a genuinely wedged task can't block this forever. */
 static void stop_task(void)
 {
     if (s_task) {
-        vTaskDelete(s_task);
-        s_task = NULL;
+        s_task_stop = true;
+        for (int waited = 0; s_task && waited < 6000; waited += 50) {
+            vTaskDelay(pdMS_TO_TICKS(50));
+        }
+        if (s_task) {
+            ESP_LOGW(TAG, "poll task didn't exit in time -- deleting it outright; the "
+                          "UART may need reinstalling if the next command misbehaves");
+            vTaskDelete(s_task);
+            s_task = NULL;
+        }
     }
     portENTER_CRITICAL(&s_lock);
     memset(&s_status, 0, sizeof(s_status));
@@ -810,8 +847,457 @@ static void stop_task(void)
      * claimant) so re-enabling doesn't need to reinstall the driver. */
 }
 
+/* ---- IBDK mode + EEPROM access ----------------------------------------- */
+
+#define CFG_VERIFIED_NVS_KEY "cfg_bd"   /* BD address whose config we've verified */
+
+static bool s_ibdk_ready;
+
+#ifdef BOARD_BT_MFB_PIN
+
+/* Finds the HCI ACL Data response (02 FF 0F ...) inside a raw RX capture.
+ * The module interleaves Number_Of_Completed_Packets events with the actual
+ * ACL reply, so the reply isn't reliably at offset 0. */
+static int find_acl_response(const uint8_t *rx, int n)
+{
+    for (int i = 0; i + 5 <= n; i++) {
+        if (rx[i] == 0x02 && rx[i + 1] == 0xFF && rx[i + 2] == 0x0F) return i;
+    }
+    return -1;
+}
+
+bool bt_companion_ibdk_ready(void) { return s_ibdk_ready; }
+
+esp_err_t bt_companion_ibdk_enter(bool toggle_pins)
+{
+    /* Keyed on the task, not s_enabled, to match every other raw_* entry
+     * point here -- that lets bt_companion_config_check() park the poll task
+     * without touching the persisted enabled flag. */
+    if (s_task) return ESP_ERR_INVALID_STATE; /* poll task would fight for RX */
+    board_hw_config_t cfg = board_hw_config_get();
+    if (cfg.num_lines != 1 || cfg.has_microsd) {
+        ESP_LOGE(TAG, "IBDK: refusing -- GPIO18-20 are claimed by line 1 SLIC/microSD");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    s_ibdk_ready = false;
+
+    if (toggle_pins) {
+        /* Sequence from the Arduino bridge sketch: P2_0 LOW + MFB LOW ->
+         * RST LOW -> RST HIGH -> MFB HIGH, with generous settling between
+         * each (the module needs it; manual testing had seconds of typing
+         * delay between steps and that's what worked). */
+        gpio_hold_dis(BOARD_BT_MFB_PIN);
+        gpio_hold_dis(BOARD_BT_RST_PIN);
+        gpio_hold_dis(BOARD_BT_P20_PIN);
+        gpio_config_t gpio_cfg = {
+            .pin_bit_mask = (1ULL << BOARD_BT_MFB_PIN) | (1ULL << BOARD_BT_RST_PIN) |
+                            (1ULL << BOARD_BT_P20_PIN),
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE,
+        };
+        gpio_config(&gpio_cfg);
+        gpio_sleep_sel_dis(BOARD_BT_MFB_PIN);
+        gpio_sleep_sel_dis(BOARD_BT_RST_PIN);
+        gpio_sleep_sel_dis(BOARD_BT_P20_PIN);
+
+        ESP_LOGI(TAG, "IBDK: entering (P2_0 low across reset)");
+        gpio_set_level(BOARD_BT_P20_PIN, 0);
+        gpio_set_level(BOARD_BT_MFB_PIN, 0);
+        vTaskDelay(pdMS_TO_TICKS(200));
+        gpio_set_level(BOARD_BT_RST_PIN, 0);
+        vTaskDelay(pdMS_TO_TICKS(200));
+        gpio_set_level(BOARD_BT_RST_PIN, 1);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        gpio_set_level(BOARD_BT_MFB_PIN, 1);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
+    uint8_t rx[64];
+    int n;
+
+    /* 1. Vendor init (0xFC31). Retried -- the module sometimes needs extra
+     *    boot time after the pin-toggle entry. */
+    static const uint8_t init_fc31[] = { 0x01, 0x31, 0xFC, 0x0C,
+        0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00 };
+    n = 0;
+    for (int attempt = 0; attempt < 3 && (n < 7 || rx[0] != 0x04); attempt++) {
+        if (attempt) vTaskDelay(pdMS_TO_TICKS(500));
+        n = bt_companion_raw_xfer(init_fc31, sizeof(init_fc31), rx, sizeof(rx), 2000);
+    }
+    if (n < 7 || rx[0] != 0x04 || rx[1] != 0x0E) {
+        ESP_LOGE(TAG, "IBDK: vendor init (0xFC31) failed (%d bytes)", n);
+        return ESP_FAIL;
+    }
+
+    /* 2-3. Buffer size negotiation. */
+    static const uint8_t read_buf[] = { 0x01, 0x05, 0x10, 0x00 };
+    n = bt_companion_raw_xfer(read_buf, sizeof(read_buf), rx, sizeof(rx), 2000);
+    if (n < 7 || rx[0] != 0x04 || rx[1] != 0x0E) {
+        ESP_LOGE(TAG, "IBDK: Read_Buffer_Size failed");
+        return ESP_FAIL;
+    }
+    static const uint8_t host_buf[] = { 0x01, 0x33, 0x0C, 0x07,
+        0x01, 0x00, 0x02, 0x03, 0x00, 0x04, 0x00 };
+    n = bt_companion_raw_xfer(host_buf, sizeof(host_buf), rx, sizeof(rx), 2000);
+    if (n < 7 || rx[0] != 0x04 || rx[1] != 0x0E) {
+        ESP_LOGE(TAG, "IBDK: Host_Buffer_Size failed");
+        return ESP_FAIL;
+    }
+
+    /* 4. Create_Connection -> establishes the 0x0FFF pseudo-handle every
+     *    EEPROM ACL packet is addressed to. */
+    static const uint8_t create_conn[] = { 0x01, 0x05, 0x04, 0x0D,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    n = bt_companion_raw_xfer(create_conn, sizeof(create_conn), rx, sizeof(rx), 5000);
+    if (n < 18 || rx[0] != 0x04 || rx[1] != 0x0F) {
+        ESP_LOGE(TAG, "IBDK: Create_Connection failed (%d bytes)", n);
+        return ESP_FAIL;
+    }
+
+    /* 5-6. Memory-type / buffer-window setup. Replies aren't checked --
+     *      isUpdate.exe's own capture doesn't act on them either. */
+    static const uint8_t acl_setup1[] = { 0x02, 0xFF, 0x0F, 0x07, 0x00,
+        0x00, 0x01, 0x03, 0x00, 0x05, 0x02, 0x00 };
+    bt_companion_raw_xfer(acl_setup1, sizeof(acl_setup1), rx, sizeof(rx), 2000);
+    static const uint8_t acl_setup2[] = { 0x02, 0xFF, 0x0F, 0x04, 0x00,
+        0x20, 0x00, 0x00, 0x00 };
+    bt_companion_raw_xfer(acl_setup2, sizeof(acl_setup2), rx, sizeof(rx), 2000);
+
+    s_ibdk_ready = true;
+
+    /* Probe a byte with a known value as proof the link really works, rather
+     * than trusting the setup replies above. */
+    uint8_t probe = 0;
+    if (bt_companion_eeprom_read(0x0094, &probe, 1) != ESP_OK) {
+        s_ibdk_ready = false;
+        ESP_LOGE(TAG, "IBDK: probe read failed");
+        return ESP_FAIL;
+    }
+    ESP_LOGI(TAG, "IBDK: ready (probe 0x0094 = 0x%02X)", probe);
+    return ESP_OK;
+}
+
+esp_err_t bt_companion_ibdk_exit(void)
+{
+    board_hw_config_t cfg = board_hw_config_get();
+    if (cfg.num_lines != 1 || cfg.has_microsd) return ESP_ERR_INVALID_STATE;
+
+    ESP_LOGI(TAG, "IBDK: exiting -> normal Flash Application mode");
+    gpio_config_t gpio_cfg = {
+        .pin_bit_mask = (1ULL << BOARD_BT_MFB_PIN) | (1ULL << BOARD_BT_RST_PIN) |
+                        (1ULL << BOARD_BT_P20_PIN),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&gpio_cfg);
+    gpio_set_level(BOARD_BT_P20_PIN, 1);   /* high across reset = normal mode */
+    gpio_set_level(BOARD_BT_MFB_PIN, 0);
+    gpio_set_level(BOARD_BT_RST_PIN, 0);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    gpio_set_level(BOARD_BT_RST_PIN, 1);
+    vTaskDelay(pdMS_TO_TICKS(500));
+    gpio_set_level(BOARD_BT_MFB_PIN, 1);
+    vTaskDelay(pdMS_TO_TICKS(500));
+    s_ibdk_ready = false;
+    return ESP_OK;
+}
+
+esp_err_t bt_companion_eeprom_read(uint16_t addr, uint8_t *out, size_t len)
+{
+    if (!out || len == 0 || len > 256) return ESP_ERR_INVALID_ARG;
+    if (!s_ibdk_ready) return ESP_ERR_INVALID_STATE;
+
+    /* ACL EEPROM READ: 02 FF 0F [len16] 10 01 | 0A 00 05 02 | addr32 | len32 */
+    uint8_t cmd[19] = {
+        0x02, 0xFF, 0x0F, 0x0E, 0x00,
+        0x10, 0x01,
+        0x0A, 0x00, 0x05, 0x02,
+        (uint8_t)(addr & 0xFF), (uint8_t)((addr >> 8) & 0xFF), 0x00, 0x00,
+        (uint8_t)(len & 0xFF), (uint8_t)((len >> 8) & 0xFF), 0x00, 0x00
+    };
+    uint8_t rx[320];
+    int n = bt_companion_raw_xfer(cmd, sizeof(cmd), rx, sizeof(rx), 2000);
+    int acl = find_acl_response(rx, n);
+    if (acl < 0 || acl + 5 + 10 > n) return ESP_ERR_TIMEOUT;
+    int payload = acl + 5;
+    if (rx[payload] != 0x10 || rx[payload + 1] != 0x01) return ESP_FAIL;
+    int data_start = payload + 10;  /* skip type(2) + payload_len(4) + count(4) */
+    if (data_start + (int)len > n) return ESP_ERR_INVALID_SIZE;
+    memcpy(out, &rx[data_start], len);
+    return ESP_OK;
+}
+
+esp_err_t bt_companion_eeprom_write(uint16_t addr, uint8_t value)
+{
+    if (!s_ibdk_ready) return ESP_ERR_INVALID_STATE;
+
+    /* Same shape as the read, sub-command 11 01 / type 0B, one data byte. */
+    uint8_t cmd[20] = {
+        0x02, 0xFF, 0x0F, 0x0F, 0x00,
+        0x11, 0x01,
+        0x0B, 0x00, 0x05, 0x02,
+        (uint8_t)(addr & 0xFF), (uint8_t)((addr >> 8) & 0xFF), 0x00, 0x00,
+        0x01, 0x00, 0x00, 0x00,
+        value
+    };
+    uint8_t rx[320];
+    int n = bt_companion_raw_xfer(cmd, sizeof(cmd), rx, sizeof(rx), 2000);
+    int acl = find_acl_response(rx, n);
+    if (acl < 0 || acl + 5 + 2 > n) return ESP_ERR_TIMEOUT;
+    int payload = acl + 5;
+    if (rx[payload] != 0x11 || rx[payload + 1] != 0x01) return ESP_FAIL;
+    return ESP_OK;
+}
+
+#else  /* no GPIO control of the mode pins -> IBDK is unreachable */
+
+bool      bt_companion_ibdk_ready(void) { return false; }
+esp_err_t bt_companion_ibdk_enter(bool toggle_pins)
+{
+    (void)toggle_pins; return ESP_ERR_NOT_SUPPORTED;
+}
+esp_err_t bt_companion_ibdk_exit(void) { return ESP_ERR_NOT_SUPPORTED; }
+esp_err_t bt_companion_eeprom_read(uint16_t addr, uint8_t *out, size_t len)
+{
+    (void)addr; (void)out; (void)len; return ESP_ERR_NOT_SUPPORTED;
+}
+esp_err_t bt_companion_eeprom_write(uint16_t addr, uint8_t value)
+{
+    (void)addr; (void)value; return ESP_ERR_NOT_SUPPORTED;
+}
+
+#endif /* BOARD_BT_MFB_PIN */
+
+/* ---- Known-good EEPROM configuration ----------------------------------- */
+
+/* Why each byte, and what the stock value breaks -- full derivation in
+ * BM64/BM64_AUDIO_DEBUG.md. The short version: a stock BM64CLS1 table routes
+ * A2DP audio to I2S for the EVB's external Yamaha DSP amp, so the analog
+ * AOHPL pin this board taps stays silent no matter how loud the phone is. */
+static const struct { uint16_t addr; uint8_t expected; const char *what; }
+s_expected_config[] = {
+    { 0x01FC, 0x06, "audio to internal codec (analog AOHPL), not I2S" },
+    { 0x0094, 0x13, "sample-rate converter off (I2S-only feature)" },
+    { 0x0171, 0x40, "voice/tone stereo off, matching the SPKOUT table" },
+    { 0x01D7, 0x94, "stereo DAC path single-ended" },
+    { 0x01D8, 0x93, "mono DAC path single-ended" },
+    { 0x0348, 0x0A, "single-ended with earphone (not capless)" },
+};
+#define N_EXPECTED_CONFIG (sizeof(s_expected_config) / sizeof(s_expected_config[0]))
+_Static_assert(N_EXPECTED_CONFIG <= BM64_CONFIG_ITEM_MAX, "grow BM64_CONFIG_ITEM_MAX");
+
+static bm64_config_report_t s_last_report;
+static bool                 s_have_last_report;
+/* Serializes config checks. Without this, the boot autocheck and a
+ * console/web-UI-triggered check will both drive IBDK mode and the same UART
+ * at once -- confirmed live 2026-09-26, which looked like a dead module
+ * ("no BD address reply") rather than the race it actually was. */
+static bool                 s_config_busy;
+
+static void config_verified_addr_get(char *out, size_t out_len)
+{
+    if (out_len) out[0] = '\0';
+    nvs_handle_t h;
+    if (nvs_open(BT_COMPANION_NVS_NS, NVS_READONLY, &h) != ESP_OK) return;
+    size_t len = out_len;
+    if (nvs_get_str(h, CFG_VERIFIED_NVS_KEY, out, &len) != ESP_OK && out_len) out[0] = '\0';
+    nvs_close(h);
+}
+
+static void config_verified_addr_set(const char *addr)
+{
+    nvs_handle_t h;
+    if (nvs_open(BT_COMPANION_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    if (nvs_set_str(h, CFG_VERIFIED_NVS_KEY, addr) == ESP_OK) nvs_commit(h);
+    nvs_close(h);
+}
+
+bool bt_companion_config_is_verified(void)
+{
+    bt_companion_status_t st = bt_companion_get_status();
+    if (!st.bd_addr[0]) return false;  /* don't know which module this is yet */
+    char saved[18] = {0};
+    config_verified_addr_get(saved, sizeof(saved));
+    return saved[0] && strcmp(saved, st.bd_addr) == 0;
+}
+
+bool bt_companion_config_last_report(bm64_config_report_t *out)
+{
+    if (!s_have_last_report) return false;
+    if (out) *out = s_last_report;
+    return true;
+}
+
+esp_err_t bt_companion_config_check(bool apply, bm64_config_report_t *out)
+{
+#ifndef BOARD_BT_MFB_PIN
+    (void)apply;
+    if (out) {
+        memset(out, 0, sizeof(*out));
+        snprintf(out->error, sizeof(out->error),
+                 "this board has no GPIO control of the BM64 mode pins");
+    }
+    return ESP_ERR_NOT_SUPPORTED;
+#else
+    portENTER_CRITICAL(&s_lock);
+    bool busy = s_config_busy;
+    if (!busy) s_config_busy = true;
+    portEXIT_CRITICAL(&s_lock);
+    if (busy) {
+        ESP_LOGW(TAG, "config check already running -- ignoring this request");
+        if (out) {
+            memset(out, 0, sizeof(*out));
+            snprintf(out->error, sizeof(out->error), "a configuration check is already running");
+        }
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    bm64_config_report_t rep;
+    memset(&rep, 0, sizeof(rep));
+    rep.n_items = (int)N_EXPECTED_CONFIG;
+    for (size_t i = 0; i < N_EXPECTED_CONFIG; i++) {
+        rep.items[i].addr     = s_expected_config[i].addr;
+        rep.items[i].expected = s_expected_config[i].expected;
+        rep.items[i].what     = s_expected_config[i].what;
+    }
+
+    /* Park the poll task rather than calling bt_companion_set_enabled(false):
+     * that one persists the flag to NVS, so a reset or crash midway through
+     * this (IBDK mode involves two module resets) would leave Bluetooth
+     * switched off from the user's point of view. stop_task()/start_task()
+     * leave both s_enabled and NVS alone. */
+    bool had_task = (s_task != NULL);
+
+    /* The BD address identifies which module we're about to verify, so it has
+     * to be captured before IBDK mode takes the module away. Prefer the copy
+     * the poll task already queried at startup -- re-asking costs a round trip
+     * and, worse, has to happen with the task stopped, which is exactly when
+     * a stray reply gets missed. Only query directly if the poller never got
+     * one (e.g. a check triggered before the link settled). */
+    bt_companion_status_t pre = bt_companion_get_status();
+    if (pre.bd_addr[0]) {
+        snprintf(rep.bd_addr, sizeof(rep.bd_addr), "%s", pre.bd_addr);
+    }
+    if (had_task) stop_task();
+    if (!rep.bd_addr[0] &&
+        bt_companion_read_bd_addr(2000, rep.bd_addr, sizeof(rep.bd_addr)) != ESP_OK) {
+        rep.bd_addr[0] = '\0';
+        ESP_LOGW(TAG, "config check: couldn't read BD address -- proceeding, but the "
+                      "result won't be remembered for this module");
+    }
+
+    esp_err_t err = bt_companion_ibdk_enter(true);
+    if (err != ESP_OK) {
+        snprintf(rep.error, sizeof(rep.error), "couldn't enter IBDK mode (%s)",
+                 esp_err_to_name(err));
+        goto done;
+    }
+
+    for (size_t i = 0; i < N_EXPECTED_CONFIG; i++) {
+        bm64_config_item_t *it = &rep.items[i];
+        uint8_t got = 0;
+        if (bt_companion_eeprom_read(it->addr, &got, 1) != ESP_OK) {
+            snprintf(rep.error, sizeof(rep.error), "EEPROM read failed at 0x%04X", it->addr);
+            goto exit_ibdk;
+        }
+        it->found   = got;
+        it->matched = (got == it->expected);
+        if (!it->matched) rep.n_mismatched++;
+
+        if (!it->matched && apply) {
+            if (bt_companion_eeprom_write(it->addr, it->expected) != ESP_OK) {
+                snprintf(rep.error, sizeof(rep.error), "EEPROM write failed at 0x%04X", it->addr);
+                goto exit_ibdk;
+            }
+            /* Verify rather than trust the write's own ACK. */
+            if (bt_companion_eeprom_read(it->addr, &got, 1) != ESP_OK || got != it->expected) {
+                snprintf(rep.error, sizeof(rep.error),
+                         "wrote 0x%04X but read back 0x%02X", it->addr, got);
+                goto exit_ibdk;
+            }
+            it->found   = got;
+            it->written = true;
+            rep.n_written++;
+        }
+    }
+
+    /* ok = nothing left differing. In check-only mode that means it was
+     * already correct; in apply mode, that every write verified. */
+    rep.ok = true;
+    for (size_t i = 0; i < N_EXPECTED_CONFIG; i++) {
+        if (rep.items[i].found != rep.items[i].expected) rep.ok = false;
+    }
+
+exit_ibdk:
+    bt_companion_ibdk_exit();
+done:
+    if (rep.ok && rep.bd_addr[0]) config_verified_addr_set(rep.bd_addr);
+    if (had_task) start_task();
+
+    ESP_LOGI(TAG, "config check: %d/%d correct, %d written%s%s",
+             rep.n_items - rep.n_mismatched + rep.n_written, rep.n_items,
+             rep.n_written, rep.error[0] ? ", error: " : "", rep.error);
+
+    s_last_report = rep;
+    s_have_last_report = true;
+    portENTER_CRITICAL(&s_lock);
+    s_config_busy = false;
+    portEXIT_CRITICAL(&s_lock);
+    if (out) *out = rep;
+    return rep.error[0] ? ESP_FAIL : ESP_OK;
+#endif
+}
+
+/* One-shot: waits for the link to come up far enough to know which module
+ * this is, then repairs its config if we've never verified that BD address.
+ * A separate task because the check stops and restarts the poll task, which
+ * it obviously can't do from inside the poll task itself. */
+static void config_autocheck_task(void *arg)
+{
+    (void)arg;
+    const int poll_ms = 500, max_wait_ms = 30000;
+    for (int waited = 0; waited < max_wait_ms; waited += poll_ms) {
+        if (!s_enabled) goto out;   /* turned off again while we waited */
+        bt_companion_status_t st = bt_companion_get_status();
+        if (st.link_up && st.bd_addr[0]) {
+            if (bt_companion_config_is_verified()) {
+                ESP_LOGI(TAG, "EEPROM config already verified for %s -- skipping check",
+                         st.bd_addr);
+            } else {
+                ESP_LOGI(TAG, "unverified BM64 (%s) -- checking/repairing EEPROM config; "
+                              "Bluetooth will be down for ~15s", st.bd_addr);
+                bt_companion_config_check(true, NULL);
+            }
+            goto out;
+        }
+        vTaskDelay(pdMS_TO_TICKS(poll_ms));
+    }
+    ESP_LOGW(TAG, "config autocheck: module never reported a BD address -- skipping "
+                  "(run it by hand from Settings -> Bluetooth)");
+out:
+    s_autocheck_task = NULL;
+    vTaskDelete(NULL);
+}
+
+static void start_autocheck(void)
+{
+    if (s_autocheck_task) return;  /* already waiting */
+    /* Needs its own stack rather than piggybacking on the caller: it sleeps
+     * for up to 30s waiting for the link, then runs a ~15s IBDK sequence. */
+    xTaskCreate(config_autocheck_task, "bm64_cfgchk", 4096, NULL,
+                tskIDLE_PRIORITY + 1, &s_autocheck_task);
+}
+
 void bt_companion_init(void)
 {
     load_config();
-    if (s_enabled) start_task();
+    if (s_enabled) {
+        start_task();
+        start_autocheck();
+    }
 }

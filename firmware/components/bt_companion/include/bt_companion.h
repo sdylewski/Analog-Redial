@@ -153,6 +153,98 @@ int bt_companion_raw_xfer(const uint8_t *tx, size_t tx_len,
                           uint8_t *rx_buf, size_t rx_buf_len,
                           int listen_ms);
 
+/* ---- IBDK mode + EEPROM access ------------------------------------------
+ *
+ * IBDK ("in-board development kit") is the BM64's test/programming mode,
+ * entered by holding P2_0 low across a reset -- so it needs real GPIO
+ * control of MFB/RST_N/P2_0, and is only available on boards that define
+ * BOARD_BT_MFB_PIN. In this mode the module speaks HCI, not the normal AA00
+ * framed command set, and EEPROM access travels as HCI ACL Data packets to
+ * connection handle 0x0FFF (reverse-engineered from a DMS capture of
+ * Microchip's own isUpdate.exe -- see BM64/eeprom_write/eeprom_write.md).
+ *
+ * All of these stop the module talking Bluetooth for as long as IBDK mode
+ * is held, and they can't share the UART with the background poll task, so
+ * bt_companion must be disabled first (bt_companion_set_enabled(false)) --
+ * they return ESP_ERR_INVALID_STATE otherwise. bt_companion_config_check()
+ * below handles that sequencing itself; these raw primitives don't. */
+
+/* toggle_pins=false skips the P2_0/RST_N/MFB dance and only re-runs the HCI
+ * init handshake, for when the module is already sitting in IBDK mode (or
+ * the pins are being driven by hand). */
+esp_err_t bt_companion_ibdk_enter(bool toggle_pins);
+/* Resets the module back into normal Flash Application mode. Leaves
+ * bt_companion itself disabled -- re-enable separately. */
+esp_err_t bt_companion_ibdk_exit(void);
+bool      bt_companion_ibdk_ready(void);
+
+/* len 1-256. Requires bt_companion_ibdk_enter() to have succeeded. */
+esp_err_t bt_companion_eeprom_read(uint16_t addr, uint8_t *out, size_t len);
+esp_err_t bt_companion_eeprom_write(uint16_t addr, uint8_t value);
+
+/* ---- Known-good EEPROM configuration check ------------------------------
+ *
+ * A stock BM64 ships configured for the EVB it was characterized on, which
+ * routes audio out over I2S to an external DAC -- not to the analog
+ * AOHPL/AOHPR pins this board taps. Getting analog audio needs a handful of
+ * EEPROM bytes changed (see BM64/BM64_AUDIO_DEBUG.md for how each one was
+ * identified, and what the wrong value does).
+ *
+ * This deliberately checks a short curated list of bytes whose meaning is
+ * actually understood, rather than diffing the whole EEPROM against
+ * Microchip's reference table: the module's own BD address and device name
+ * live in that same EEPROM, so bulk-writing it to match a reference image
+ * would destroy the module's identity. */
+#define BM64_CONFIG_ITEM_MAX 8
+
+typedef struct {
+    uint16_t    addr;
+    uint8_t     expected;
+    uint8_t     found;
+    bool        matched;   /* found == expected, as read before any write */
+    bool        written;   /* this run wrote it (apply mode, and it differed) */
+    const char *what;      /* short human label, not translated */
+} bm64_config_item_t;
+
+typedef struct {
+    bool ok;             /* every item matches now (after writes, in apply mode) */
+    int  n_items;
+    int  n_mismatched;   /* items that differed when read */
+    int  n_written;      /* items actually written (0 unless apply) */
+    char bd_addr[18];    /* module's BD address, "" if it couldn't be read */
+    char error[96];      /* "" unless something failed outright */
+    bm64_config_item_t items[BM64_CONFIG_ITEM_MAX];
+} bm64_config_report_t;
+
+/* Reads every byte in the table, compares, and (if apply) writes just the
+ * ones that differ, then verifies each write by reading it back.
+ *
+ * Handles the whole disruptive sequence itself: stops the poll task, reads
+ * the module's BD address, enters IBDK mode, does the work, returns the
+ * module to normal mode, and restores bt_companion to whatever enabled
+ * state it started in. Takes roughly 10-15 seconds, during which Bluetooth
+ * is down and any paired phone disconnects.
+ *
+ * On a successful apply where everything ends up matching, records this
+ * module's BD address in NVS so bt_companion_config_is_verified() can skip
+ * re-checking it -- keyed by BD address specifically so swapping the BM64
+ * module, or moving this ESP32 to another board, re-triggers the check
+ * instead of trusting a stale "already done" flag.
+ *
+ * `out` may be NULL. ESP_ERR_NOT_SUPPORTED on boards without
+ * BOARD_BT_MFB_PIN (no GPIO control of the mode pins -> no IBDK). */
+esp_err_t bt_companion_config_check(bool apply, bm64_config_report_t *out);
+
+/* True if the currently-connected module's BD address matches the one
+ * recorded by a successful bt_companion_config_check(true, ...). False if
+ * nothing is recorded, the addresses differ, or the module's own address
+ * isn't known yet (link still coming up). */
+bool bt_companion_config_is_verified(void);
+
+/* Most recent report from bt_companion_config_check(), for rendering after
+ * a redirect. False if none has run since boot. */
+bool bt_companion_config_last_report(bm64_config_report_t *out);
+
 /* NOT implemented yet, deliberately: BM64_MMI_POWEROFF_BT (0x5E) exists in
  * bt_companion.c's opcode enum but nothing sends it. Don't wire this up
  * until MFB is on a controllable GPIO, not a fixed pull-up resistor --

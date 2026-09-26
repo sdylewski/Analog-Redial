@@ -1541,179 +1541,37 @@ static int cmd_bm64_raw(int argc, char **argv)
     return err == ESP_OK ? 0 : 1;
 }
 
-/* ---------- bm64_ibdk: automated IBDK mode entry + HCI init ---------- */
-
-#ifdef BOARD_BT_MFB_PIN
-static void configure_bm64_gpio(gpio_num_t pin)
-{
-    gpio_hold_dis(pin);
-    gpio_config_t gpio_cfg = {
-        .pin_bit_mask = 1ULL << pin,
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    gpio_config(&gpio_cfg);
-    gpio_sleep_sel_dis(pin);
-}
-
-static bool s_ibdk_ready = false;
+/* ---------- bm64_ibdk / bm64_eeprom / bm64_config ----------
+ * Thin wrappers now: the IBDK entry sequence, HCI init and the ACL-based
+ * EEPROM read/write all live in bt_companion so the web UI can run the
+ * config check too (see bt_companion.h's "IBDK mode + EEPROM access"). */
 
 static int cmd_bm64_ibdk(int argc, char **argv)
 {
-    bool skip_pins = (argc > 1 && strcmp(argv[1], "init") == 0);
-    bool exit_mode = (argc > 1 && strcmp(argv[1], "exit") == 0);
-
-    board_hw_config_t cfg = board_hw_config_get();
-    if (cfg.num_lines != 1 || cfg.has_microsd) {
-        printf("bm64_ibdk: refusing -- GPIO18-20 are claimed by line 2 SLIC/microSD\n");
+    if (argc > 1 && strcmp(argv[1], "exit") == 0) {
+        esp_err_t err = bt_companion_ibdk_exit();
+        printf("bm64_ibdk exit: %s\n", err == ESP_OK
+               ? "BM64 reset to normal mode -- use bt_enable 1 to restart bt_companion"
+               : esp_err_to_name(err));
+        return err == ESP_OK ? 0 : 1;
+    }
+    /* "init" re-runs only the HCI handshake, for a module already sitting in
+     * IBDK mode (or with the mode pins driven by hand via bm64_pin). */
+    bool toggle_pins = !(argc > 1 && strcmp(argv[1], "init") == 0);
+    esp_err_t err = bt_companion_ibdk_enter(toggle_pins);
+    if (err == ESP_ERR_INVALID_STATE) {
+        printf("bm64_ibdk: disable bt_companion first (bt_enable 0), and this board's "
+               "config must be single-line with no microSD\n");
         return 1;
     }
-
-    if (exit_mode) {
-        printf("exiting IBDK mode -> normal BT operation...\n");
-        configure_bm64_gpio(BOARD_BT_P20_PIN);
-        configure_bm64_gpio(BOARD_BT_RST_PIN);
-        configure_bm64_gpio(BOARD_BT_MFB_PIN);
-        gpio_set_level(BOARD_BT_P20_PIN, 1);   /* normal app mode */
-        gpio_set_level(BOARD_BT_MFB_PIN, 0);
-        gpio_set_level(BOARD_BT_RST_PIN, 0);
-        vTaskDelay(pdMS_TO_TICKS(200));
-        gpio_set_level(BOARD_BT_RST_PIN, 1);
-        vTaskDelay(pdMS_TO_TICKS(500));
-        gpio_set_level(BOARD_BT_MFB_PIN, 1);
-        vTaskDelay(pdMS_TO_TICKS(500));
-        s_ibdk_ready = false;
-        printf("BM64 reset to normal mode. Use bt_enable 1 to start bt_companion.\n");
-        return 0;
-    }
-
-    if (bt_companion_enabled()) {
-        printf("bm64_ibdk: disable bt_companion first (bt_enable 0)\n");
+    if (err != ESP_OK) {
+        printf("bm64_ibdk: failed (%s) -- see the log above for which step\n",
+               esp_err_to_name(err));
         return 1;
     }
-
-    s_ibdk_ready = false;
-
-    if (!skip_pins) {
-        configure_bm64_gpio(BOARD_BT_MFB_PIN);
-        configure_bm64_gpio(BOARD_BT_RST_PIN);
-        configure_bm64_gpio(BOARD_BT_P20_PIN);
-
-        /* Sequence from the Arduino bridge sketch (bm64_bridge_arduino.ino):
-         * P2_0 LOW + MFB LOW → RST LOW 100ms → RST HIGH → wait → MFB HIGH → wait
-         * Manual testing had many seconds of typing delay between steps — the BM64
-         * appears to need generous settling time after each transition. */
-        printf("entering IBDK mode...\n");
-        gpio_set_level(BOARD_BT_P20_PIN, 0);
-        gpio_set_level(BOARD_BT_MFB_PIN, 0);
-        printf("  P2_0=LOW MFB=LOW\n");
-        vTaskDelay(pdMS_TO_TICKS(200));
-        gpio_set_level(BOARD_BT_RST_PIN, 0);
-        printf("  RST=LOW\n");
-        vTaskDelay(pdMS_TO_TICKS(200));
-        gpio_set_level(BOARD_BT_RST_PIN, 1);
-        printf("  RST=HIGH (IBDK boot)\n");
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        gpio_set_level(BOARD_BT_MFB_PIN, 1);
-        printf("  MFB=HIGH\n");
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    } else {
-        printf("skipping pin toggle (init only)...\n");
-    }
-
-    uint8_t rx[64];
-    int n;
-
-    /* HCI init sequence — confirmed working 2026-09-25 by replaying isUpdate's
-     * DMS-captured IBDK session. EEPROM commands travel as HCI ACL Data to
-     * connection handle 0x0FFF, NOT as raw bytes or HCI vendor commands. */
-
-    /* 1. Vendor init (0xFC31) — retry up to 3 times; the module may need
-     *    extra boot time after the pin-toggle IBDK entry. */
-    static const uint8_t init_fc31[] = { 0x01, 0x31, 0xFC, 0x0C,
-        0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00 };
-    n = 0;
-    for (int attempt = 0; attempt < 3 && (n < 7 || rx[0] != 0x04); attempt++) {
-        if (attempt) {
-            printf("  vendor init retry %d...\n", attempt);
-            vTaskDelay(pdMS_TO_TICKS(500));
-        }
-        n = bt_companion_raw_xfer(init_fc31, sizeof(init_fc31), rx, sizeof(rx), 2000);
-    }
-    if (n < 7 || rx[0] != 0x04 || rx[1] != 0x0E) {
-        printf("  vendor init (0xFC31) failed (%d bytes", n);
-        if (n > 0) { printf(":"); for (int i = 0; i < n && i < 16; i++) printf(" %02X", rx[i]); }
-        printf(")\n");
-        return 1;
-    }
-    printf("  vendor init OK\n");
-
-    /* 2. Read_Buffer_Size (0x1005) */
-    static const uint8_t read_buf[] = { 0x01, 0x05, 0x10, 0x00 };
-    n = bt_companion_raw_xfer(read_buf, sizeof(read_buf), rx, sizeof(rx), 2000);
-    if (n < 7 || rx[0] != 0x04 || rx[1] != 0x0E) {
-        printf("  Read_Buffer_Size failed\n");
-        return 1;
-    }
-    printf("  Read_Buffer_Size OK\n");
-
-    /* 3. Host_Buffer_Size (0x0C33) */
-    static const uint8_t host_buf[] = { 0x01, 0x33, 0x0C, 0x07,
-        0x01, 0x00, 0x02, 0x03, 0x00, 0x04, 0x00 };
-    n = bt_companion_raw_xfer(host_buf, sizeof(host_buf), rx, sizeof(rx), 2000);
-    if (n < 7 || rx[0] != 0x04 || rx[1] != 0x0E) {
-        printf("  Host_Buffer_Size failed\n");
-        return 1;
-    }
-    printf("  Host_Buffer_Size OK\n");
-
-    /* 4. Create_Connection (0x0405) → establishes handle 0x0FFF */
-    static const uint8_t create_conn[] = { 0x01, 0x05, 0x04, 0x0D,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-    n = bt_companion_raw_xfer(create_conn, sizeof(create_conn), rx, sizeof(rx), 5000);
-    /* Expect: Command Status (04 0F ...) + Connection Complete (04 03 0B ...) */
-    if (n < 18 || rx[0] != 0x04 || rx[1] != 0x0F) {
-        printf("  Create_Connection failed (%d bytes)\n", n);
-        return 1;
-    }
-    uint16_t handle = (uint16_t)rx[11] | ((uint16_t)rx[12] << 8);
-    printf("  Create_Connection OK (handle=0x%04X)\n", handle);
-
-    /* 5. ACL setup: memory type / access config */
-    static const uint8_t acl_setup1[] = { 0x02, 0xFF, 0x0F, 0x07, 0x00,
-        0x00, 0x01, 0x03, 0x00, 0x05, 0x02, 0x00 };
-    n = bt_companion_raw_xfer(acl_setup1, sizeof(acl_setup1), rx, sizeof(rx), 2000);
-    printf("  ACL setup 1: %d bytes\n", n);
-
-    /* 6. ACL setup: buffer/window config */
-    static const uint8_t acl_setup2[] = { 0x02, 0xFF, 0x0F, 0x04, 0x00,
-        0x20, 0x00, 0x00, 0x00 };
-    n = bt_companion_raw_xfer(acl_setup2, sizeof(acl_setup2), rx, sizeof(rx), 2000);
-    printf("  ACL setup 2: %d bytes\n", n);
-
-    /* 7. Probe: read 1 byte at 0x0094 (should be 0x73) */
-    static const uint8_t probe[] = { 0x02, 0xFF, 0x0F, 0x0E, 0x00,
-        0x10, 0x01, 0x0A, 0x00, 0x05, 0x02,
-        0x94, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00 };
-    n = bt_companion_raw_xfer(probe, sizeof(probe), rx, sizeof(rx), 2000);
-    if (n >= 24) {
-        /* ACL response data byte is at offset 23 (last byte) */
-        printf("  probe read 0x0094 = 0x%02X %s\n", rx[23],
-               rx[23] == 0x73 ? "(OK)" : "(unexpected!)");
-    } else {
-        printf("  probe read failed (%d bytes)\n", n);
-        return 1;
-    }
-
-    s_ibdk_ready = true;
     printf("IBDK init complete. Use bm64_eeprom to read/write EEPROM.\n");
     return 0;
 }
-#endif /* BOARD_BT_MFB_PIN */
-
-/* ---------- bm64_eeprom: high-level EEPROM read/write via ACL ---------- */
 
 static int cmd_bm64_eeprom(int argc, char **argv)
 {
@@ -1732,92 +1590,77 @@ static int cmd_bm64_eeprom(int argc, char **argv)
         printf("bm64_eeprom: first arg must be 'read' or 'write'\n");
         return 1;
     }
-#ifdef BOARD_BT_MFB_PIN
-    if (!s_ibdk_ready) {
+    if (!bt_companion_ibdk_ready()) {
         printf("bm64_eeprom: run bm64_ibdk first\n");
         return 1;
     }
-#endif
 
-    uint32_t addr = (uint32_t)strtoul(argv[2], NULL, 16);
-    uint8_t rx[320];
-    int n;
+    uint16_t addr = (uint16_t)strtoul(argv[2], NULL, 16);
 
     if (is_read) {
-        uint32_t len = 1;
-        if (argc > 3) len = (uint32_t)strtoul(argv[3], NULL, 10);
+        unsigned long len = (argc > 3) ? strtoul(argv[3], NULL, 10) : 1;
         if (len == 0 || len > 256) { printf("bm64_eeprom: len must be 1-256\n"); return 1; }
-
-        /* ACL EEPROM READ: 02 FF 0F [acl_len_lo acl_len_hi]
-         *   10 01               — sub-command: read
-         *   0A 00 05 02         — EEPROM read type
-         *   [addr LE32]         — address
-         *   [len  LE32]         — byte count  */
-        uint8_t cmd[19] = {
-            0x02, 0xFF, 0x0F, 0x0E, 0x00,
-            0x10, 0x01,
-            0x0A, 0x00, 0x05, 0x02,
-            (uint8_t)(addr & 0xFF), (uint8_t)((addr >> 8) & 0xFF), 0x00, 0x00,
-            (uint8_t)(len & 0xFF),  (uint8_t)((len >> 8) & 0xFF),  0x00, 0x00
-        };
-        n = bt_companion_raw_xfer(cmd, sizeof(cmd), rx, sizeof(rx), 2000);
-
-        /* Response: [8B NumCompleted] [5B ACL hdr] [2B type+status] [4B payload_len] [4B count] [data]
-         * Find the ACL response (02 FF 0F) in the rx buffer */
-        int acl = -1;
-        for (int i = 0; i < n - 5; i++) {
-            if (rx[i] == 0x02 && rx[i+1] == 0xFF && rx[i+2] == 0x0F) { acl = i; break; }
-        }
-        if (acl < 0 || acl + 5 + 10 > n) {
-            printf("EEPROM READ failed: no valid ACL response (%d bytes)\n", n);
+        uint8_t data[256];
+        esp_err_t err = bt_companion_eeprom_read(addr, data, len);
+        if (err != ESP_OK) {
+            printf("EEPROM READ failed: %s\n", esp_err_to_name(err));
             return 1;
         }
-        int payload = acl + 5; /* start of ACL payload */
-        if (rx[payload] != 0x10 || rx[payload + 1] != 0x01) {
-            printf("EEPROM READ error: type=0x%02X status=0x%02X\n",
-                   rx[payload], rx[payload + 1]);
-            return 1;
-        }
-        int data_start = payload + 10; /* skip type(2) + length(4) + count(4) */
-        int data_avail = n - data_start;
-        printf("0x%04X:", (unsigned)addr);
-        for (uint32_t i = 0; i < len && (int)i < data_avail; i++) {
-            printf(" %02X", rx[data_start + i]);
-        }
+        printf("0x%04X:", addr);
+        for (unsigned long i = 0; i < len; i++) printf(" %02X", data[i]);
         printf("\n");
+        return 0;
+    }
+
+    if (argc < 4) {
+        printf("bm64_eeprom write: need a data byte, e.g. bm64_eeprom write 0348 0A\n");
+        return 1;
+    }
+    uint8_t value = (uint8_t)strtoul(argv[3], NULL, 16);
+    esp_err_t err = bt_companion_eeprom_write(addr, value);
+    if (err != ESP_OK) {
+        printf("EEPROM WRITE failed: %s\n", esp_err_to_name(err));
+        return 1;
+    }
+    printf("0x%04X: wrote 0x%02X OK\n", addr, value);
+    return 0;
+}
+
+/* Checks (and with 'apply', repairs) the handful of EEPROM bytes this board
+ * needs for analog audio out of the BM64. Handles the whole disruptive
+ * sequence itself -- parks the poll task, enters IBDK, restores normal mode
+ * -- so unlike bm64_ibdk/bm64_eeprom it does NOT want bt_enable 0 first. */
+static int cmd_bm64_config(int argc, char **argv)
+{
+    bool apply = (argc > 1 && (strcmp(argv[1], "apply") == 0 || strcmp(argv[1], "fix") == 0));
+    printf("%s BM64 EEPROM config -- Bluetooth drops for ~15s...\n",
+           apply ? "Checking and repairing" : "Checking");
+
+    bm64_config_report_t rep;
+    esp_err_t err = bt_companion_config_check(apply, &rep);
+    if (err == ESP_ERR_NOT_SUPPORTED) {
+        printf("bm64_config: this board has no GPIO control of the BM64 mode pins\n");
+        return 1;
+    }
+
+    if (rep.bd_addr[0]) printf("module BD address: %s\n", rep.bd_addr);
+    for (int i = 0; i < rep.n_items; i++) {
+        const bm64_config_item_t *it = &rep.items[i];
+        printf("  0x%04X: got %02X want %02X  %-8s %s\n",
+               it->addr, it->found, it->expected,
+               it->written ? "WRITTEN" : (it->matched ? "ok" : "MISMATCH"),
+               it->what ? it->what : "");
+    }
+    if (rep.error[0]) {
+        printf("bm64_config: %s\n", rep.error);
+        return 1;
+    }
+    if (rep.ok) {
+        printf("bm64_config: all %d bytes correct%s\n", rep.n_items,
+               rep.n_written ? " (after writing)" : "");
     } else {
-        if (argc < 4) {
-            printf("bm64_eeprom write: need a data byte, e.g. bm64_eeprom write 0348 0A\n");
-            return 1;
-        }
-        uint8_t data = (uint8_t)strtoul(argv[3], NULL, 16);
-
-        /* ACL EEPROM WRITE: same structure, sub-command 11 01, type 0B */
-        uint8_t cmd[20] = {
-            0x02, 0xFF, 0x0F, 0x0F, 0x00,
-            0x11, 0x01,
-            0x0B, 0x00, 0x05, 0x02,
-            (uint8_t)(addr & 0xFF), (uint8_t)((addr >> 8) & 0xFF), 0x00, 0x00,
-            0x01, 0x00, 0x00, 0x00,
-            data
-        };
-        n = bt_companion_raw_xfer(cmd, sizeof(cmd), rx, sizeof(rx), 2000);
-
-        int acl = -1;
-        for (int i = 0; i < n - 5; i++) {
-            if (rx[i] == 0x02 && rx[i+1] == 0xFF && rx[i+2] == 0x0F) { acl = i; break; }
-        }
-        if (acl < 0 || acl + 5 + 2 > n) {
-            printf("EEPROM WRITE failed: no valid ACL response (%d bytes)\n", n);
-            return 1;
-        }
-        int payload = acl + 5;
-        if (rx[payload] != 0x11 || rx[payload + 1] != 0x01) {
-            printf("EEPROM WRITE error: type=0x%02X status=0x%02X\n",
-                   rx[payload], rx[payload + 1]);
-            return 1;
-        }
-        printf("0x%04X: wrote 0x%02X OK\n", (unsigned)addr, data);
+        printf("bm64_config: %d of %d byte(s) still wrong -- run 'bm64_config apply' to fix\n",
+               rep.n_mismatched, rep.n_items);
     }
     return 0;
 }
@@ -2091,10 +1934,12 @@ void bringup_console_start(void)
     register_cmd("bm64_addr", "Read BM64's own Bluetooth MAC address: bm64_addr [timeout_ms, default 2000] -- disable bt_companion first", cmd_bm64_addr);
     register_cmd("bm64_snoop", "Live raw-byte dump of the BM64 UART, no framing: bm64_snoop [seconds, default 20] -- disable bt_companion first", cmd_bm64_snoop);
     register_cmd("bm64_raw", "Send raw hex bytes with NO AA00 framing, print the reply: bm64_raw <hex bytes> [listen_ms, default 500] -- for probing BM64's undocumented IBDK/EEPROM protocol; doesn't touch MFB/RST_N/P2_0, set those with bm64_pin first; disable bt_companion first", cmd_bm64_raw);
-#ifdef BOARD_BT_MFB_PIN
+    /* Registered unconditionally now -- bt_companion returns
+     * ESP_ERR_NOT_SUPPORTED with a clear message on boards whose pin map has
+     * no BM64 mode pins, which beats the command silently not existing. */
     register_cmd("bm64_ibdk", "IBDK mode: bm64_ibdk [init|exit] -- no arg = full pin toggle + HCI init; 'init' = HCI only (manual pins); 'exit' = reset to normal BT mode", cmd_bm64_ibdk);
-#endif
     register_cmd("bm64_eeprom", "Read/write BM64 EEPROM: bm64_eeprom read <hex_addr> [len] | bm64_eeprom write <hex_addr> <hex_byte> -- BM64 must be in IBDK mode (bm64_ibdk)", cmd_bm64_eeprom);
+    register_cmd("bm64_config", "Check (or 'bm64_config apply' to repair) the BM64 EEPROM bytes needed for analog audio -- handles IBDK entry/exit itself, no bt_enable 0 needed", cmd_bm64_config);
     register_cmd("device_name", "Get/set device name (BT + mDNS): device_name [new_name] -- persists to NVS, takes effect on reboot", cmd_device_name);
     register_cmd("bt_enable", "Get/set bt_companion enabled: bt_enable [0|1]", cmd_bt_enable);
     register_cmd("bm64_pair", "Start BT pairing (discoverable mode): bm64_pair -- bt_companion must be enabled and link up", cmd_bm64_pair);

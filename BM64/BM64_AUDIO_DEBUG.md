@@ -156,6 +156,26 @@ bm64_eeprom read 0348 1    → expect 0A
 bm64_eeprom read 01D7 1    → expect 94 (unchanged)
 ```
 
+### APPLIED AND VERIFIED 2026-09-26 (newphone, SMD4 single-line)
+
+Every pre-write read matched this doc's predictions exactly, so the
+diagnosis above is confirmed against real silicon, not inferred:
+
+| Address | Before | After | Verified by read-back |
+|---------|--------|-------|----------------------|
+| `0x01FC` | `4A` | **`06`** | ✓ reads `06` |
+| `0x0094` | `73` | **`13`** | ✓ reads `13` |
+| `0x0171` | `46` | **`40`** | ✓ reads `40` |
+| `0x01D7` | `94` | `94` (untouched) | ✓ reads `94` |
+| `0x01D8` | `93` | `93` (untouched) | ✓ — |
+| `0x0348` | `0A` | `0A` (untouched) | ✓ reads `0A` — the earlier capless→single-end fix survived |
+
+IBDK init came up clean (`Create_Connection OK (handle=0x0FFF)`, probe read
+`0x0094 = 0x73` pre-write). Module returned to normal mode via `bm64_ibdk
+exit`, `bt_enable 1` reported `startup device state: 0x02` (Power ON), and
+`bm64_pair` succeeded. **EEPROM writes are persistent** — they survive
+resets, unlike IBDK/pairing state.
+
 ---
 
 ## Test Plan: BM64 Audio on SMD4 Board
@@ -173,7 +193,7 @@ bm64_eeprom read 01D7 1    → expect 94 (unchanged)
       near the minimum spec. A voltage sag under load could brown out the
       analog section.
 
-### 3. Read current EEPROM state
+### 3. Read current EEPROM state — [x] DONE 2026-09-26
 
 ```
 bt_enable 0
@@ -185,7 +205,10 @@ bm64_eeprom read 01D7 1
 bm64_eeprom read 0348 1
 ```
 
-### 4. Write the analog-output bytes
+Results: `4A` / `73` / `46` / `94` / `0A` — all exactly as predicted. See
+"APPLIED AND VERIFIED" above.
+
+### 4. Write the analog-output bytes — [x] DONE 2026-09-26
 
 ```
 bm64_eeprom write 01FC 06
@@ -193,9 +216,25 @@ bm64_eeprom write 0094 13
 bm64_eeprom write 0171 40
 ```
 
-Read each back to confirm.
+All three wrote OK and read back correct.
 
-### 5. Return to normal mode and pair
+**Two gotchas worth knowing before repeating any of this** (both cost real
+time on 2026-09-26):
+
+1. **Opening a serial connection resets the board.** On the ESP32-C6's
+   native USB-serial-JTAG, DTR/RTS drive GPIO9(boot)/EN(reset), and any
+   host program opening the port asserts them briefly. That reset clears
+   `s_ibdk_ready` *and* knocks the BM64 back out of IBDK mode — so
+   `bt_enable 0` → `bm64_ibdk` → every read/write must run in **one
+   uninterrupted session**. Symptom if you get this wrong: reads fail with
+   "run bm64_ibdk first" seconds after IBDK reported success.
+2. **A bad open can land the chip in download mode** (`boot:0x4
+   (DOWNLOAD(USB/UART0/SDIO_FEI_FEO))`, "waiting for download", total
+   console silence). No power cycle needed to recover: hold DTR
+   de-asserted (GPIO9 high = normal boot) and pulse RTS (assert ~150ms,
+   release) to reset into `boot:0xc (SPI_FAST_FLASH_BOOT)`.
+
+### 5. Return to normal mode and pair — [x] DONE 2026-09-26
 
 ```
 bm64_ibdk exit
@@ -205,6 +244,13 @@ bm64_pair
 
 May need to forget the device on the phone first (the name/capabilities
 may have changed).
+
+`bm64_ibdk exit` → `bt_enable 1` reported `startup device state: 0x02`
+(Power ON, noticeably cleaner than the "did not reach standby within 3s"
+warning seen before the EEPROM change), and `bm64_pair` started
+advertising. Note the pairing window is only ~38 s before the module falls
+back to `0x0F STANDBY` — re-run `bm64_pair` immediately before connecting
+from the phone rather than well in advance.
 
 ### 6. Signal test
 
