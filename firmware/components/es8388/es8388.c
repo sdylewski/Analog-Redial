@@ -101,7 +101,19 @@ esp_err_t es8388_set_adc_volume(uint8_t left_step, uint8_t right_step)
 
 esp_err_t es8388_set_dac_volume(uint8_t left_step, uint8_t right_step)
 {
-    /* LOUT1VOL/ROUT1VOL: 0x00 = mute, 0x21 (33) = 0 dB, 1 dB/step above. */
+    /* LOUT1VOL/ROUT1VOL (datasheet Reg. 46/47): 0x00 = -45 dB, 0x1E (30) =
+     * 0 dB, 1.5 dB/step, only documented up through 0x21 (33) = +4.5 dB.
+     * Confirmed live 2026-09-25 on real hardware (scope on the SLIC VIN
+     * pin) that values above 33 are genuinely undefined, not just "more
+     * gain": 35/36 gave plausibly-increasing output, but 37 and 40 cut the
+     * AC signal to a dead 0 Vpp -- the chip's internal gain-control DAC
+     * isn't wired for anything past the documented 34 codes, even though
+     * the register field itself is 6 bits wide. Clamp here (not just at
+     * the `spkamp` console command) since this is the one place every
+     * caller -- console, board_speaker_volume persistence -- funnels
+     * through. */
+    if (left_step > 33) left_step = 33;
+    if (right_step > 33) right_step = 33;
     esp_err_t e1 = raw_write(ES8388_REG_LOUT1VOL, left_step);
     esp_err_t e2 = raw_write(ES8388_REG_ROUT1VOL, right_step);
     return (e1 != ESP_OK) ? e1 : e2;
@@ -159,14 +171,17 @@ esp_err_t es8388_init(const es8388_config_t *cfg)
     raw_write(ES8388_REG_LDACVOL, 0x00);               /* 0 dB */
     raw_write(ES8388_REG_RDACVOL, 0x00);               /* 0 dB */
 
-    /* LOUT1/ROUT1: per-line earpiece drive level. 0x1E (30 = -3dB, see
-     * es8388_set_dac_volume()'s comment for the 0/33/1dB-step convention) is
-     * the compiled fallback; board_speaker_volume_get() returns whatever was
+    /* LOUT1/ROUT1: per-line earpiece drive level. 31 (+1.5dB, see
+     * es8388_set_dac_volume()'s comment for the real 0/30/1.5dB-step
+     * datasheet convention) is the compiled fallback -- confirmed by ear on
+     * real hardware 2026-09-25 as a good default, slightly above the 30/0dB
+     * nominal point without being "a bit loud" like 33 (+4.5dB, the
+     * documented max). board_speaker_volume_get() returns whatever was
      * persisted via the bring-up `spkamp` command or the webui volume
      * control, so a level tuned by ear survives a reboot instead of
      * reverting to the fallback every time. */
-    uint8_t spk_l = board_speaker_volume_get(0, 0x1E);
-    uint8_t spk_r = board_speaker_volume_get(1, 0x1E);
+    uint8_t spk_l = board_speaker_volume_get(0, 31);
+    uint8_t spk_r = board_speaker_volume_get(1, 31);
     es8388_set_dac_volume(spk_l, spk_r);
     raw_write(ES8388_REG_LOUT2VOL, spk_l);             /* LOUT2 mirrors LOUT1 (J5 debug header) */
     raw_write(ES8388_REG_ROUT2VOL, spk_r);             /* ROUT2 mirrors ROUT1 (J5 debug header) */

@@ -315,6 +315,134 @@ variants mean).
   and why BM64 (implementing HFP in its own firmware, independent of
   ESP-IDF) avoids that specific failure mode entirely.
 
+## Full BT-as-cordless-handset plan (2026-09-26)
+
+The goal, in the user's own words: **when a phone (iPhone or otherwise) is
+connected over Bluetooth, this board's analog handset acts as that phone's
+mic/speaker** -- lift the handset, it's the phone's audio; hang up, it's
+released. Normal PSTN/VoIP telephony on that line is unavailable while a BT
+device is actively connected (matches `bt_companion_line()`'s existing
+design -- see `telephony.c`, confirmed working 2026-09-25). On top of the
+audio-passthrough piece already built, this section works out the two
+pieces still missing: **incoming-call ringing** and **outgoing dial**, plus
+a real gap found while writing this up.
+
+This all rides on the standard Bluetooth **Hands-Free Profile (HFP)** --
+BM64 implements the AT-command side of HFP internally and exposes it to the
+host MCU as simple UART events/commands (confirmed real, not guessed --
+`reference/BM64_arduino/src/BM64_enum.h`), so none of this needs any custom
+iPhone app or new pairing work. It's the exact same mechanism a Bluetooth
+car kit or AirPods already use to ring/answer a call.
+
+### Incoming call: ring the bell, answer on pickup
+
+1. **BM64 -> ESP32**: `BM64_EVENT_CALL_STATUS` (`0x02`) with value
+   `INCOMING_CALL` (`0x02`) fires the moment the connected phone starts
+   ringing (before the user does anything). `bt_companion.c`'s event
+   handler doesn't currently branch on this event at all -- needs a new
+   case.
+2. **ESP32 -> handset**: call `ag1170_ring_start(line)` (same function
+   normal PSTN incoming ringing already uses) and set `telephony_state`
+   to `TEL_RINGING` (already exists, currently PSTN-only) or a new
+   dedicated state if PSTN-incoming and BT-incoming ever need to be told
+   apart in the UI/logs -- probably not worth a new state, the trigger
+   (BT event vs. PSTN ring detect) is already distinguishable at the call
+   site.
+3. **User lifts handset** (`on_offhook()`, `telephony.c`): today this
+   function's very first check is `if (line == bt_companion_line() &&
+   bt_companion_enabled())` -> `enter_bt_passthrough(line)`. That's exactly
+   right for this case -- picking up *is* answering -- but it needs one
+   more thing alongside entering passthrough: send `BM64_MMI_ACCEPT_CALL`
+   (`0x04`, as an `MMI_CMD` `0x02`) over UART so the phone's call actually
+   connects (per HFP, it rings on the phone's own side too until answered
+   from either end -- the handset lift alone doesn't answer anything on
+   the phone's side without this).
+4. **`ag1170_ring_stop(line)`** on that same pickup, same as any normal
+   incoming call.
+5. **Hang-up mid-call**: on-hook while `CALL_STATUS` is still
+   `CALL_ACTIVE` (`0x04`) should send `BM64_MMI_FORCE_END_CALL` (`0x02`)
+   so the phone call actually ends, not just the local audio tap.
+6. **Caller declines to answer / hangs up before pickup**: `CALL_STATUS`
+   returning to `IDLE` (`0x00`) while still on-hook should stop the ringer
+   (`ag1170_ring_stop`) and return telephony state to whatever BT-idle
+   looks like (see the gap below) -- a missed/aborted ring, not an error.
+
+### Outgoing call: dial from the rotary phone
+
+`BM64_MAKE_CALL_CMD` (`0x00`) takes the phone number as its literal ASCII
+text parameter (confirmed in the reference library's `makeCall()` --
+`sendCommand(BM64_MAKE_CALL_CMD, 0, (uint8_t*)number, len)`, no special
+encoding). This means:
+
+1. Off-hook while BT is connected and idle enters `TEL_BT_PASSTHROUGH`
+   today (audio only, no dial collection at all in this state currently).
+   Dialing needs its own path: reuse the existing pulse/DTMF digit
+   collector (already built for PSTN/VoIP dialing) to gather digits while
+   in this state, the same debounce/inter-digit-timeout logic, just a
+   different destination for the finished number.
+2. Once the collector decides dialing is complete (same
+   timeout/terminator logic normal dialing already uses), send the
+   collected digits as `BM64_MAKE_CALL_CMD`'s parameter instead of
+   consulting the dialplan/VoIP dispatch.
+3. Feedback while dialing: reuse dial tone (already playing, since we're
+   off-hook) until the first digit, silence during collection (matches
+   normal dialing's own UX) -- no new tone needed there.
+4. Feedback on call result: `CALL_STATUS` -> `OUTGOING_CALL` (`0x03`) means
+   it's ringing out -- could optionally play ringback tone
+   (`TEL_RINGBACK` already exists for the PSTN/VoIP case) for
+   consistency, though the phone's own earpiece-equivalent audio may
+   already carry a ringback tone over the BT audio link itself, making a
+   locally-generated one redundant or even doubled -- worth listening to
+   a real test call before deciding whether to add this. `CALL_STATUS`
+   never leaving `OUTGOING_CALL` (call not answered, or rejected) should
+   time out to on-hook-equivalent + a busy/reorder tone (`TEL_BUSY` /
+   `TEL_REORDER` already exist), matching how a failed PSTN/VoIP call
+   already resolves.
+
+### Gap found while writing this up: BT "enabled" vs. BT "connected"
+
+`on_offhook()`'s routing check today is `bt_companion_enabled()` alone --
+**not** whether a phone is actually connected. That means simply turning
+the BT companion feature on (Settings -> Bluetooth) makes that line's
+normal dial tone disappear entirely, even with no phone paired/in range at
+all, any time the handset is lifted -- confirmed live 2026-09-25 (see the
+top of this file's newer notes) that this exact condition can make a board
+look completely broken ("no dial tone") when BT is simply sitting enabled
+with nothing connected. This directly answers the "can we still make a
+call if BT isn't actively sending audio" question: **yes, and it should be
+the default** -- the routing check should be `bt_companion_enabled() &&
+bt_companion_connected()` (a new or existing status field -- `bt_connected`
+already exists in `bt_companion_status_t`, just needs threading through to
+this check), so lifting the handset with BT enabled-but-idle falls through
+to completely normal PSTN/VoIP dial tone, and only actually diverts to BT
+passthrough when a phone is genuinely linked. This is a real bug to fix
+independent of everything else in this section, not just a planning nice-
+to-have.
+
+### Open questions / out of scope for a first pass
+
+- **Call waiting / second incoming call while already on a BT call**: HFP
+  supports this (`BM64_MMI_ACCEPT_WAITING_HOLD_CALL_RLS_ACTIVE_CALL`
+  exists in the reference enum) but a rotary phone has no way to signal
+  "which call" -- probably just ignore/reject the second call for a first
+  pass, revisit if it's ever actually annoying in practice.
+- **Caller ID**: HFP provides it (`BM64_EVENT_CALL_ID`, `0x03`) but a
+  rotary phone has no display -- genuinely nothing to do with this info
+  today; noting it exists in case a future feature (spoken caller-name
+  prompt via TTS, logged to the web UI activity feed) wants it.
+- **Two-line boards**: this whole design already only applies to
+  whichever line `bt_companion_line()` returns (1 on a 2-line board) --
+  the other line keeps working as pure normal PSTN/VoIP telephony
+  throughout, no interaction expected, but worth explicitly testing once
+  this is built, not just assumed.
+- **BM64 EEPROM HF-profile settings**: confirm `PROFILE_SETTING2`
+  ("Support HF Profile") is actually enabled in whatever EEPROM config
+  ends up shipped (see `BM64/eeprom_write/` for the current audio-fix
+  work) -- A2DP-only audio passthrough (music) would keep working even if
+  this got missed, but call ringing/answer/dial silently wouldn't, and
+  that failure mode (BM64 just never emitting `CALL_STATUS` events at
+  all) would look identical to a bug in this new code, not a config gap.
+
 ## FaceTime / incoming-call ringing, for whenever call routing gets built
 
 FaceTime Audio/Video calls integrate into iOS's system telephony (CallKit)
@@ -326,3 +454,5 @@ answer FaceTime calls today. The only new firmware work is translating that
 `RING` event into physically triggering this board's SLIC bell, and the
 handset's hook-switch into sending `ATA` back -- both squarely within the
 UART control link already being built for pairing/status, not new scope.
+(Superseded by the fuller plan above, kept here since it was the original
+seed of the idea and is still an accurate one-paragraph summary.)

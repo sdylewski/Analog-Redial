@@ -189,14 +189,25 @@ static int cmd_spkamp(int argc, char **argv)
 {
 #if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     if (argc < 3) {
-        printf("usage: spkamp <left 0-63> <right 0-63>   (0=mute, 33=0dB, 1dB/step)\n"
+        printf("usage: spkamp <left 0-33> <right 0-33>   (0=-45dB, 30=0dB, 33=+4.5dB, 1.5dB/step)\n"
                "current LOUT1VOL/ROUT1VOL = 0x%02X / 0x%02X\n",
                es8388_shadow(ES8388_REG_LOUT1VOL), es8388_shadow(ES8388_REG_ROUT1VOL));
         return 1;
     }
     int l = atoi(argv[1]), r = atoi(argv[2]);
-    if (l < 0 || l > 63 || r < 0 || r > 63) {
-        printf("left/right must each be 0-63\n");
+    /* ES8388 datasheet (Reg. 46/47, LOUT1VOL/ROUT1VOL) only documents
+     * 000000(0)=-45dB ... 011110(30)=0dB ... 100001(33)=+4.5dB, 1.5dB/step --
+     * confirmed live 2026-09-25 that values above 33 are genuinely undefined
+     * hardware behavior, not just "more gain": 35/36 gave plausible-looking
+     * (if unverified) increasing output, but 37 and 40 produced a dead 0 Vpp
+     * at the SLIC VIN pin -- an oscilloscope-confirmed cliff, not a mute
+     * setting or a bad SLIC. The register is 6 bits wide (0-63 fits), but
+     * the chip's internal gain-control DAC apparently isn't wired for
+     * anything past the documented 34 codes. Reject out-of-range values
+     * outright rather than silently writing into that territory again. */
+    if (l < 0 || l > 33 || r < 0 || r > 33) {
+        printf("left/right must each be 0-33 (0dB at 30) -- see ES8388 datasheet Reg. 46/47; "
+               "values above 33 are undocumented and were confirmed live to cut output to 0\n");
         return 1;
     }
     esp_err_t err = es8388_set_dac_volume((uint8_t)l, (uint8_t)r);
@@ -209,7 +220,7 @@ static int cmd_spkamp(int argc, char **argv)
      * ear once and expects to keep -- same treatment as `aec delay`. */
     board_speaker_volume_set(0, (uint8_t)l);
     board_speaker_volume_set(1, (uint8_t)r);
-    printf("LOUT1VOL=%d ROUT1VOL=%d (0dB at 33, 1dB/step, saved as default)\n", l, r);
+    printf("LOUT1VOL=%d ROUT1VOL=%d (0dB at 30, 1.5dB/step, saved as default)\n", l, r);
     return 0;
 #else
     printf("spkamp: SMD2/ES8388 only\n");
@@ -1073,14 +1084,19 @@ static int cmd_hookmon(int argc, char **argv)
 {
     int secs = (argc > 1) ? atoi(argv[1]) : 10;
     printf("Monitoring SHK for %d s (lift/replace handsets, dial)...\n", secs);
+    int64_t t0 = esp_timer_get_time();
     int prev0 = -1, prev1 = -1;
+    bool prev_off0 = false, prev_off1 = false;
     for (int i = 0; i < secs * 50; i++) {
         int r0 = ag1170_raw_shk(0), r1 = ag1170_raw_shk(1);
-        if (r0 != prev0 || r1 != prev1) {
-            printf("  raw SHK: L0=%d(%s) L1=%d(%s)\n",
-                   r0, ag1170_is_offhook(0) ? "off" : "on",
-                   r1, ag1170_is_offhook(1) ? "off" : "on");
+        bool off0 = ag1170_is_offhook(0), off1 = ag1170_is_offhook(1);
+        if (r0 != prev0 || r1 != prev1 || off0 != prev_off0 || off1 != prev_off1) {
+            long long t_ms = (long long)((esp_timer_get_time() - t0) / 1000);
+            printf("  t=%6lldms  raw SHK: L0=%d(%s) L1=%d(%s)\n", t_ms,
+                   r0, off0 ? "off" : "on",
+                   r1, off1 ? "off" : "on");
             prev0 = r0; prev1 = r1;
+            prev_off0 = off0; prev_off1 = off1;
         }
         vTaskDelay(pdMS_TO_TICKS(20));
     }
