@@ -3086,9 +3086,9 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
                  "The Bluetooth setting is about whether the hardware is physically present, "
                  "which is separate from switching the feature on in Settings -> Bluetooth. "
                  "The companion's audio is always line 0 and its UART is always GPIO16/17, so "
-                 "it works alongside either choice above -- but entering the module's EEPROM "
-                 "programming mode temporarily borrows line 1's control pins, so that step "
-                 "needs a board without a second line."));
+                 "it works alongside either choice above. On SMD4 its control pins share line "
+                 "1's (GPIO18-20), so on a 2-line board pull J5's four shunts, wire the module "
+                 "to J5, and choose \"Neither\" above -- line 1 stays stuffed but disconnected."));
 
     return off;
 }

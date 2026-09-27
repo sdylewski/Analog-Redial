@@ -29,8 +29,10 @@ yet fabricated) — `hardware/kicad/Analog Redial 5/`, dev notes at
 [`archive/hardware/ANALOG_REDIAL_SMD5.md`](archive/hardware/ANALOG_REDIAL_SMD5.md).
 Headline change: a dual-compatible MCU footprint accepting either a real
 Espressif ESP32-C6-DevKitC-1 or a cheaper AliExpress clone module, plus a
-new 6-pin header for the BM64 Bluetooth companion (see that doc for the
-confirmed pinout and the clone module's one confirmed pin discrepancy).
+new header for the BM64 Bluetooth companion. **Not fabricated or tested** --
+a re-route is still planned (MFB onto its own GPIO via an expanded BM64
+header, EEPROM programming through J5 instead), so treat that doc's pinout
+as a draft. Firmware reuses SMD4's pin map for it today.
 
 ## Building/flashing for a specific board type (SMD2 vs SMD4 vs THT)
 

@@ -1,5 +1,13 @@
 # Analog Redial 5 board (SMD5) — dev notes
 
+> **Status (2026-09-27): work in progress, not fabricated, not tested.**
+> This is the planned next generation, not a board anyone should build from
+> yet. Nothing below has been validated on real hardware, and the BM64
+> header section describes a planned re-route that isn't in the KiCad files
+> yet. Firmware supports it only because SMD5 shares SMD4's pin map
+> (`board_pins.h`) -- that sharing will need revisiting once MFB moves (see
+> below).
+
 KiCad project: `hardware/kicad/Analog Redial 5/`. This is a work-in-progress
 board, not yet fabricated as of this writing (2026-09-22) — these are
 working notes per [`CLAUDE.md`](../../CLAUDE.md)'s public-vs-internal-docs
@@ -162,20 +170,47 @@ comment — audio never passes through firmware at all), and the UART
 control link (`GPIO16`/`U0TXD` and `GPIO17`/`U0RXD` on the ESP32 side, same
 pins as every other board type's `BOARD_UART_TX`/`BOARD_UART_RX`). Still no
 MFB (module power-on/button) conductor — that's still bench-wired
-separately (fixed pull-up to VCC as of 2026-09-21's bring-up; see the open
-question below). The header uses "Line0" naming here — double check against
-`BT_COMPANION_LINE` in `telephony.c` (currently line 1) before assuming
-this is the same line without confirming.
+separately (fixed pull-up to VCC as of 2026-09-21's bring-up; see the
+planned re-route below). The "Line0" naming is correct: firmware's
+`bt_companion_line()` (`telephony.c`) now always returns line 0, matching
+this header (resolved 2026-09-27 -- it had briefly been line 1).
 
 **Companion daughter-board**: `hardware/kicad/Bluetooth_board/` is the BM64
 module's own carrier board, meant to mate to J12 with a matching female
 header (same 6-pin pinout as above, mirrored).
+
+### Planned re-route (decided 2026-09-27, not yet in KiCad)
+
+1. **Grow J12 by at least one pin to carry MFB**, on its own ESP32 GPIO --
+   so normal operation (power-on/wake) is firmware-controlled rather than a
+   bench-wired pull-up, and no longer borrows line 1's pins. GPIO not yet
+   chosen. **Firmware follow-up:** SMD5 currently inherits
+   `BOARD_BT_MFB_PIN = GPIO18` from `board_pins_smd4.h`; once MFB has its own
+   pin, SMD5 needs its own `BOARD_BT_MFB_PIN` (and likely its own pin header
+   rather than sharing SMD4's).
+2. **EEPROM programming goes through J5, not J12.** The BM64's IBDK mode
+   needs RST_N and P2_0 (plus MFB) driven at reset -- rare, one-time-per-
+   module setup. Rather than route those permanently, the Bluetooth board
+   gets a *separate* small header that mates to J5 (the line-1/microSD
+   jumper header) just for programming. Procedure: pull J5's four shunts
+   (line 2's SLIC, if stuffed, is then electrically disconnected), plug the
+   Bluetooth board's programming header into J5, set Settings -> Hardware to
+   one line + BM64 fitted, run the EEPROM check, then unplug and re-fit the
+   shunts. Firmware already supports this path: `bt_companion_ibdk_enter()`
+   drives GPIO18-20 and refuses on a board configured for two lines.
+3. **Add the Vin protection network** -- series resistor + clamp diodes to
+   +5 V at the Line0Vin tap -- designed in
+   [`archive/BLUETOOTH_AUDIO_UPGRADE.md`](../BLUETOOTH_AUDIO_UPGRADE.md)
+   after a SLIC's audio hybrid died during BM64 bench work on SMD4. The
+   existing 10 µF series cap on J12 pin 2 alone is not protection.
 
 ## Open questions
 
 - Full pad-by-pad diff between the two module footprints hasn't been
   independently re-verified beyond the one 12/13↔19/20 swap found by direct
   inspection — worth doing before ordering a batch of boards.
-- MFB wiring (fixed pull-up vs. GPIO-controlled) is still an open bench
-  question — see the Bluetooth companion section above and
-  `archive/BLUETOOTH_AUDIO_UPGRADE.md`.
+- ~~MFB wiring (fixed pull-up vs. GPIO-controlled)~~ -- decided: its own
+  GPIO on an expanded J12 (see the planned re-route above). Which GPIO is
+  still open.
+- Power sequencing between the BM64 and the SLICs -- see the open question
+  in `archive/BLUETOOTH_AUDIO_UPGRADE.md`.

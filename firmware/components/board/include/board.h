@@ -309,9 +309,11 @@ typedef struct {
      * Orthogonal to num_lines: the companion's audio is always line 0's
      * Vin/Vout and its UART is always GPIO16/17, neither of which collides
      * with line 1. (Its MFB/RST_N/P2_0 pins DO land on line 1's SLIC control
-     * pins on SMD4/SMD5, but those are only needed to enter the module's IBDK
-     * programming mode -- a deliberate, temporary operation -- not for normal
-     * running, where MFB is just a pull-up. See bt_companion_ibdk_enter().) */
+     * pins on SMD4/SMD5. On SMD4 that means a 2-line board takes a BM64 by
+     * pulling J5's shunts -- line 1's SLIC stays stuffed but disconnected --
+     * and is then configured as one line. SMD5 plans to give MFB its own GPIO
+     * and use J5 only temporarily for EEPROM programming. See
+     * archive/BLUETOOTH_AUDIO_UPGRADE.md and bt_companion_ibdk_enter().) */
     bool has_bt_module;
 } board_hw_config_t;
 

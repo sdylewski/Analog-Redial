@@ -261,6 +261,24 @@ the textbook fix), or accept the loss and compensate with a few dB of extra
 just the level drop) argues for the buffer, since gain can't undo clipping
 that already happened upstream of it.
 
+### Adding a BM64 to a 2-line SMD4 board (decided 2026-09-27)
+
+A 2-line SMD4 has line 1's SLIC wired to GPIO18-21 through J5's four
+shunts. The BM64's MFB/RST_N/P2_0 need those same three GPIOs (18-20), so
+the two can't share them. The plan: **pull J5's four shunts** -- line 1's
+SLIC stays stuffed but is electrically disconnected -- and wire the BM64's
+three control pins to J5's GPIO-side pins instead. Then in Settings ->
+Hardware set **"Neither (one phone line, no microSD)" + "BM64 module
+fitted"**. That's a normal one-line + Bluetooth board as far as firmware is
+concerned, so both normal operation and EEPROM programming
+(`bt_companion_ibdk_enter()`, which refuses on a 2-line config) work
+without further changes. Restoring line 1 later is just re-fitting the
+shunts and switching back to two lines.
+
+SMD5 plans to avoid this trade by giving MFB its own GPIO and using J5 only
+temporarily for programming -- see
+[`hardware/ANALOG_REDIAL_SMD5.md`](hardware/ANALOG_REDIAL_SMD5.md).
+
 ### TODO 2026-09-27: protect Vin from the BM64 before wiring another SLIC
 
 A SLIC died during this bench work (newphone, line 0): its DC feed and hook
