@@ -131,6 +131,8 @@ GPIO -- under the ESP32-C6's 2.475 V guaranteed high. On dualphone2, line 1
 line 0 (GPIO6) read the same 1.88 V as high. Firmware treats both lines
 identically (checked); this is purely which pad happens to switch where.
 
+**Confirmed 2026-09-27:** removing the 15 kΩ on both lines of dualphone2 made both lines detect the handset reliably.
+
 **Rework for built boards:** remove the 15 kΩ on each line (off-hook then
 ~3.1–3.2 V; the 10 kΩ remains as series protection). **For the next
 spin:** 15 kΩ → 100 kΩ. See `docs/hardware.md`'s rework note.
