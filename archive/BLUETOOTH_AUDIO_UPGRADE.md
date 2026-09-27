@@ -329,22 +329,36 @@ gets the series resistor + clamp diodes that this SLIC died for the lack of:
   │  (ADC in)    │       100nF  [Rdiv]   │           │   (10 Ohm out)   │
   └──────────────┘                │      │           └──────────────────┘
                                  GND     │
-                                         │  ◄── shared AC-only node
-                        ┌────────────────┴────────────────┐
-                        │                                 │
-                     R_prot 1k                         (noise)
-                        │
-          ┌─────────────┴─────────────┐   ← clamp to the SLIC's own local
-          │                           │     rails, at the Vin tap
-         ─┴─ D1                      ─┴─ D2
-         /_\  (to +3V3)              /_\  (to GND)
-          │                           │
-        +3V3                         GND
-          │
-          │        C_bm64
-  BM64 ───┴────────┤├──── AOHPL (pin 7)
-  (module)        10uF
+                                         │  ◄── shared AC-only node,
+                                         │      sits at ~3.9 V DC (the
+                                         │      SLIC's own Vin reference)
+                                         │
+                     R_prot 1k           │
+  BM64          ┌───/\/\/\───────────────┘
+  (module)      │
+                │     ┌──────────┬──────────┐
+                │     │          │          │
+                │    ─┴─ D1     ─┴─ D2      │  ← clamp at the Vin tap
+                │    /_\        /_\         │
+                │     │          │          │
+                │   +5 V        GND         │
+                │                           │
+                │        C_bm64             │
+  AOHPL (pin 7) ┴────────┤├─────────────────┘
+                        10uF
 ```
+
+**Clamp to +5 V, not +3.3 V** -- Vin idles at ~3.9 V DC (measured), so a
+diode to a 3.3 V rail would forward-bias continuously and short the audio
+away. The SLIC runs from +5 V, which is the rail to clamp to.
+
+**A standard silicon diode is the right choice here, better than a Schottky.**
+Counter-intuitive, but: with Vin biased at 3.9 V and the loudest measured
+signal 2.35 Vpp, the positive peak reaches ~5.1 V. A 1N4148/BAV99 (Vf ~0.7 V)
+starts conducting above ~5.7 V, comfortably clear of that peak. A Schottky
+(Vf ~0.3 V) would conduct from ~5.3 V and clip the top of a loud signal. The
+GND-side diode never conducts in normal operation at all (the negative peak
+only swings down to ~2.7 V) -- it's purely there for faults.
 
 Why each part, and what happens without it:
 
@@ -360,6 +374,30 @@ free. **The series R and the diodes are not redundant** -- diodes bound the
 voltage but do nothing about the cap's inrush current, and the resistor
 limits current but can't stop a sustained overvoltage. Both, or neither
 helps much.
+
+### Considered and rejected: optocoupler isolation
+
+Tempting (it would make the damage mechanisms structurally impossible) but
+the wrong tool here:
+
+- **Cheap optocouplers are switching devices, not linear ones.** Feeding
+  line-level audio through a standard phototransistor coupler produces gross
+  distortion -- the transfer curve isn't remotely linear. Passing audio needs
+  a *linear* optocoupler (IL300-class, with a servo photodiode and a feedback
+  amplifier around it), which is several dollars plus an op-amp and its own
+  bias network on each side, versus cents for a resistor and a diode pair.
+- **There's no isolation barrier to maintain.** The BM64 and the SLIC already
+  share this board's ground and its 3.3/5 V rails. Galvanic isolation earns
+  its cost across a real domain boundary -- tip/ring is one, and that's why
+  the line side already has bridge diodes and a TVS. The AOHPL-to-Vin hop is
+  entirely inside one low-voltage domain.
+- **It wouldn't address the actual failure modes any better.** The suspects
+  are inrush from hot-plugging, transients through the cap, and a possibly-
+  open ground return -- all of which a series resistor plus clamp diodes
+  handles directly, at the tap, for pennies.
+
+So: **series resistor + standard silicon diodes.** The cost instinct and the
+engineering agree for once.
 
 **Open questions for next session:**
 
