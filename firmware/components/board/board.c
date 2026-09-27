@@ -697,12 +697,22 @@ esp_err_t board_hw_config_set(board_hw_config_t cfg)
 static bool read_card_present(void)
 {
 #ifdef BOARD_SD_CD
-    gpio_config_t cd_cfg = {
-        .pin_bit_mask = 1ULL << BOARD_SD_CD,
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_ENABLE,
-    };
-    gpio_config(&cd_cfg);
+    /* Configure once, not per call. sd_line1_conflict_task() polls this every
+     * 2 seconds forever, and ESP-IDF's gpio_config() logs the resulting pin
+     * configuration at INFO level -- so re-configuring here buried the console
+     * in a "gpio: GPIO[3]| InputEn: 1|..." line every 2 seconds. The level
+     * itself is still read live on every call, which is the part that
+     * actually needs to be fresh. */
+    static bool configured;
+    if (!configured) {
+        gpio_config_t cd_cfg = {
+            .pin_bit_mask = 1ULL << BOARD_SD_CD,
+            .mode = GPIO_MODE_INPUT,
+            .pull_up_en = GPIO_PULLUP_ENABLE,
+        };
+        gpio_config(&cd_cfg);
+        configured = true;
+    }
     return gpio_get_level(BOARD_SD_CD) == 0;
 #else
     return false;
