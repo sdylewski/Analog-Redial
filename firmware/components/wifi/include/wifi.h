@@ -73,6 +73,14 @@ int wifi_scan(wifi_scan_result_t *out, int max);
  * enable when nothing needs the radio to stay instantly reachable. */
 void wifi_set_power_save(bool eco);
 
+/* Maximum WiFi transmit power, in whole dBm (clamped to 2..20 -- the PHY's
+ * configured ceiling is CONFIG_ESP_PHY_MAX_WIFI_TX_POWER=20). Only meaningful
+ * once WiFi has started; returns the error from esp_wifi_set_max_tx_power()
+ * otherwise. */
+esp_err_t wifi_set_tx_power_dbm(int dbm);
+/* Current maximum TX power in whole dBm, or 0 if WiFi isn't running. */
+int       wifi_get_tx_power_dbm(void);
+
 #ifdef __cplusplus
 }
 #endif

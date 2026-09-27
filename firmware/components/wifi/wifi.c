@@ -444,3 +444,17 @@ int wifi_scan(wifi_scan_result_t *out, int max)
     qsort(out, n, sizeof(*out), scan_rssi_cmp);
     return n;
 }
+
+esp_err_t wifi_set_tx_power_dbm(int dbm)
+{
+    if (dbm < 2) dbm = 2;
+    if (dbm > 20) dbm = 20;
+    return esp_wifi_set_max_tx_power((int8_t)(dbm * 4)); /* units of 0.25 dBm */
+}
+
+int wifi_get_tx_power_dbm(void)
+{
+    int8_t q = 0;
+    if (esp_wifi_get_max_tx_power(&q) != ESP_OK) return 0;
+    return (q + 2) / 4;
+}

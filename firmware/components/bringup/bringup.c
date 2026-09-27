@@ -1277,6 +1277,19 @@ static int cmd_power(int argc, char **argv)
     return 0;
 }
 
+/* ---------- txpower: WiFi transmit power, for testing adaptive TX ----------
+ * A manual value sticks until the adaptive loop next decides to *change*
+ * level, so this is for trying out a link at reduced power, not a setting. */
+static int cmd_txpower(int argc, char **argv)
+{
+    if (argc > 1) {
+        esp_err_t err = wifi_set_tx_power_dbm(atoi(argv[1]));
+        if (err != ESP_OK) { printf("txpower: %s\n", esp_err_to_name(err)); return 1; }
+    }
+    printf("WiFi TX power %d dBm, RSSI %d dBm\n", wifi_get_tx_power_dbm(), wifi_rssi());
+    return 0;
+}
+
 /* ---------- selftest: guided hardware bring-up check ---------- */
 
 static const char *selftest_result_str(selftest_result_t r)
@@ -2107,6 +2120,7 @@ void bringup_console_start(void)
     register_cmd("hookmon", "Watch SHK: hookmon [secs]", cmd_hookmon);
     register_cmd("pulsemon", "Watch raw pulse dialing + timing: pulsemon [secs] [line]", cmd_pulsemon);
     register_cmd("tonemon", "Watch DTMF (touch-tone) digits + timing: tonemon [secs] [line]", cmd_tonemon);
+    register_cmd("txpower", "WiFi transmit power: txpower [dBm 2-20] -- for testing; the adaptive-TX setting may change it back", cmd_txpower);
     register_cmd("power", "Low-power idle state (the console, unlike the web UI, doesn't wake the board)", cmd_power);
     register_cmd("selftest", "Guided hardware bring-up check: selftest | action <id> | stimulus <id> | answer <id> <0|1> | save | history -- results stored on this board", cmd_selftest);
     register_cmd("status", "Per-line telephony status", cmd_status);

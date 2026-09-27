@@ -2795,6 +2795,17 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
             "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>",
             i18n_str("idlepower.total_label", "Time in low-power"), ip_total);
     }
+    if (ips.tx_power_dbm > 0) {
+        char tx[96];
+        snprintf(tx, sizeof(tx),
+                 ips.tx_power_dbm < IDLE_POWER_TX_FULL_DBM
+                     ? i18n_str("idlepower.tx_reduced", "%d dBm (reduced -- signal %d dBm)")
+                     : i18n_str("idlepower.tx_full", "%d dBm (full -- signal %d dBm)"),
+                 ips.tx_power_dbm, ips.rssi_dbm);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>",
+            i18n_str("idlepower.tx_label", "WiFi transmit power"), tx);
+    }
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<form method=\"POST\" action=\"/idle_power\" class=\"settings-form\">"
@@ -2806,6 +2817,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "<option value=\"0\"%s>%s</option>"
         "<option value=\"1\"%s>%s</option>"
         "</select></label>"
+        "<label><input type=\"checkbox\" name=\"adaptive_tx\" value=\"1\"%s> %s</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>",
         ip.enabled ? " checked" : "", i18n_str("general.offhook.enabled", "Enabled"),
@@ -2814,6 +2826,9 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         i18n_str("idlepower.preset_label", "Duty-cycle preset"),
         !ip.max_savings ? " selected" : "", opt_balanced,
         ip.max_savings ? " selected" : "", opt_max_savings,
+        ip.adaptive_tx ? " checked" : "",
+        i18n_str("idlepower.adaptive_tx", "Lower WiFi transmit power while the signal is strong "
+                                         "(applies all the time, not just when idle)"),
         i18n_str("general.button.save", "Save"));
 
     char idlepower_hint[420];
@@ -4654,7 +4669,8 @@ static esp_err_t idle_power_settings_handler(httpd_req_t *req)
     if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
     body[r] = '\0';
 
-    char enabled[8] = {0}, minutes[12] = {0}, max_savings[8] = {0};
+    char enabled[8] = {0}, minutes[12] = {0}, max_savings[8] = {0}, adaptive_tx[8] = {0};
+    form_field(body, "adaptive_tx", adaptive_tx, sizeof(adaptive_tx));
     form_field(body, "enabled", enabled, sizeof(enabled));
     form_field(body, "minutes", minutes, sizeof(minutes));
     form_field(body, "max_savings", max_savings, sizeof(max_savings));
@@ -4663,6 +4679,7 @@ static esp_err_t idle_power_settings_handler(httpd_req_t *req)
         .enabled = (enabled[0] == '1'),
         .minutes = minutes[0] ? (uint16_t)strtoul(minutes, NULL, 10) : 0,
         .max_savings = (max_savings[0] == '1'),
+        .adaptive_tx = (adaptive_tx[0] == '1'),
     };
     esp_err_t err = idle_power_set(cfg);
     if (err != ESP_OK) {
