@@ -67,6 +67,14 @@ bool        bt_companion_enabled(void);
  * restart to reset. */
 esp_err_t   bt_companion_set_enabled(bool enabled);
 
+/* True only when the feature is switched on AND a module is actually fitted
+ * per board_hw_config_get().has_bt_module. This is what behavior should gate
+ * on -- bt_companion_enabled() alone is just the user's toggle, and acting on
+ * it by itself is what let a stray enabled flag claim a phone line on a board
+ * with no hardware attached, leaving no dial tone and no way to tell why
+ * (2026-09-26). "Fitted" is a fact about the board, "enabled" is a choice. */
+bool bt_companion_active(void);
+
 /* Current link/pairing status. link_up/bt_connected/paired_name are all
  * runtime-only (not persisted) -- they reflect whatever the module last
  * reported, or all false/"" if disabled or nothing's answered yet. */

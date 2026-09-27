@@ -613,6 +613,7 @@ esp_err_t board_record_max_ms_set(uint32_t ms)
 #define HW_CONFIG_NVS_NS       "board"
 #define HW_CONFIG_NVS_KEY_LINES "hw_lines"  /* u8: 1 or 2 */
 #define HW_CONFIG_NVS_KEY_SD    "hw_sd"     /* u8: 0 or 1 */
+#define HW_CONFIG_NVS_KEY_BT    "hw_bt"     /* u8: 0 or 1 -- BM64 module fitted */
 #define HW_CONFIG_NVS_KEY_CONFIRMED "hw_confirmed" /* u8: 1 once a human has actually reviewed this */
 
 board_hw_config_t board_hw_config_get(void)
@@ -620,17 +621,22 @@ board_hw_config_t board_hw_config_get(void)
     /* THT has no GPIO-sharing tradeoff at all (see board_pins_tht.h) --
      * always 2 lines, no microSD, not a runtime question there. */
     if (board_current_type() != BOARD_TYPE_SMD) {
-        return (board_hw_config_t){ .num_lines = 2, .has_microsd = false };
+        return (board_hw_config_t){ .num_lines = 2, .has_microsd = false,
+                                    .has_bt_module = false };
     }
-    board_hw_config_t cfg = { .num_lines = 1, .has_microsd = false }; /* safe fallback if nothing saved yet */
+    /* safe fallback if nothing saved yet */
+    board_hw_config_t cfg = { .num_lines = 1, .has_microsd = false, .has_bt_module = false };
     nvs_handle_t h;
     if (nvs_open(HW_CONFIG_NVS_NS, NVS_READONLY, &h) == ESP_OK) {
-        uint8_t lines = 0, sd = 0;
+        uint8_t lines = 0, sd = 0, bt = 0;
         if (nvs_get_u8(h, HW_CONFIG_NVS_KEY_LINES, &lines) == ESP_OK && (lines == 1 || lines == 2)) {
             cfg.num_lines = lines;
         }
         if (nvs_get_u8(h, HW_CONFIG_NVS_KEY_SD, &sd) == ESP_OK) {
             cfg.has_microsd = (sd != 0);
+        }
+        if (nvs_get_u8(h, HW_CONFIG_NVS_KEY_BT, &bt) == ESP_OK) {
+            cfg.has_bt_module = (bt != 0);
         }
         nvs_close(h);
     }
@@ -675,6 +681,7 @@ esp_err_t board_hw_config_set(board_hw_config_t cfg)
     if (err != ESP_OK) return err;
     err = nvs_set_u8(h, HW_CONFIG_NVS_KEY_LINES, (uint8_t)cfg.num_lines);
     if (err == ESP_OK) err = nvs_set_u8(h, HW_CONFIG_NVS_KEY_SD, cfg.has_microsd ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_u8(h, HW_CONFIG_NVS_KEY_BT, cfg.has_bt_module ? 1 : 0);
     /* A human went through the Settings/first-boot form and hit Save --
      * that's what makes this "confirmed", not just a value existing (see
      * board_hw_config_autodetect(), which writes lines/sd but deliberately
@@ -683,9 +690,10 @@ esp_err_t board_hw_config_set(board_hw_config_t cfg)
     if (err == ESP_OK) err = nvs_commit(h);
     nvs_close(h);
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "hardware config set: %d line%s, microSD %s",
+        ESP_LOGI(TAG, "hardware config set: %d line%s, microSD %s, BM64 module %s",
                  cfg.num_lines, cfg.num_lines == 1 ? "" : "s",
-                 cfg.has_microsd ? "yes" : "no");
+                 cfg.has_microsd ? "yes" : "no",
+                 cfg.has_bt_module ? "fitted" : "not fitted");
     }
     return err;
 }

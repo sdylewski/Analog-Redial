@@ -144,6 +144,11 @@ static void load_config(void)
 
 bool bt_companion_enabled(void) { return s_enabled; }
 
+bool bt_companion_active(void)
+{
+    return s_enabled && board_hw_config_get().has_bt_module;
+}
+
 static void start_task(void);
 static void stop_task(void);
 static void send_command(uint8_t opcode, const uint8_t *params, uint8_t param_count);
@@ -1341,6 +1346,11 @@ static void start_autocheck(void)
 void bt_companion_init(void)
 {
     load_config();
+    if (s_enabled && !board_hw_config_get().has_bt_module) {
+        ESP_LOGW(TAG, "enabled in settings but no BM64 module is marked as fitted "
+                      "(Settings -> Hardware) -- not starting the link");
+        return;
+    }
     if (s_enabled) {
         start_task();
         start_autocheck();

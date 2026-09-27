@@ -298,6 +298,21 @@ esp_err_t board_speaker_volume_set(int line, uint8_t vol);
 typedef struct {
     int  num_lines;    /* 1 or 2 */
     bool has_microsd;  /* only meaningful combined with num_lines == 1 */
+    /* A BM64 Bluetooth companion is physically fitted. Deliberately separate
+     * from bt_companion_set_enabled(), which is the runtime feature toggle:
+     * conflating "this board has the hardware" with "the feature is on" is
+     * what let a stray enabled flag claim a phone line on a board with no
+     * module attached, killing dial tone with no way to tell why (2026-09-26,
+     * hours of it). "Fitted" is a fact about the board; "enabled" is a
+     * choice, and the feature only acts when both are true.
+     *
+     * Orthogonal to num_lines: the companion's audio is always line 0's
+     * Vin/Vout and its UART is always GPIO16/17, neither of which collides
+     * with line 1. (Its MFB/RST_N/P2_0 pins DO land on line 1's SLIC control
+     * pins on SMD4/SMD5, but those are only needed to enter the module's IBDK
+     * programming mode -- a deliberate, temporary operation -- not for normal
+     * running, where MFB is just a pull-up. See bt_companion_ibdk_enter().) */
+    bool has_bt_module;
 } board_hw_config_t;
 
 /* Current config: whatever was last written, by a human

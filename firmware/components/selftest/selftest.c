@@ -3,8 +3,8 @@
 #include "board_pins.h"
 #include "ag1170.h"
 #include "es8388.h"
+#include "bt_companion.h"
 #include "esp_log.h"
-#include "esp_mac.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -147,6 +147,44 @@ static void check_sd_conflict(selftest_check_t *c)
     set_result(c, SELFTEST_PASS, "no microSD/line-1 conflict");
 }
 
+/* Only meaningful once a module is declared fitted (Settings -> Hardware) --
+ * which is exactly the distinction that was missing on 2026-09-26, when the
+ * feature being merely "enabled" with no hardware attached claimed a phone
+ * line and killed dial tone. */
+static void check_bt_link(selftest_check_t *c)
+{
+    if (!bt_companion_enabled()) {
+        set_result(c, SELFTEST_FAIL, "module fitted but the feature is switched off");
+        return;
+    }
+    bt_companion_status_t st = bt_companion_get_status();
+    if (!st.link_up) {
+        set_result(c, SELFTEST_FAIL, "no reply over UART -- check GPIO16/17 (TX/RX crossed)");
+        return;
+    }
+    set_result(c, SELFTEST_PASS, "module responding%s%s", st.bd_addr[0] ? ", addr " : "",
+               st.bd_addr[0] ? st.bd_addr : "");
+}
+
+/* A stock BM64 routes audio to I2S, leaving the analog pin this board taps
+ * silent no matter how loud the phone is -- the fault that cost most of
+ * 2026-09-26. bt_companion_config_check() records the module's BD address
+ * once its EEPROM is right, so this is a cheap read of that marker rather
+ * than a 15s IBDK round trip. */
+static void check_bt_eeprom(selftest_check_t *c)
+{
+    if (!bt_companion_get_status().link_up) {
+        set_result(c, SELFTEST_SKIP, "module not responding, can't tell");
+        return;
+    }
+    if (!bt_companion_config_is_verified()) {
+        set_result(c, SELFTEST_FAIL,
+                   "EEPROM not verified -- run the check in Settings -> Bluetooth");
+        return;
+    }
+    set_result(c, SELFTEST_PASS, "audio EEPROM bytes verified for this module");
+}
+
 /* ---- building the check list ------------------------------------------- */
 
 void selftest_begin(void)
@@ -184,6 +222,16 @@ void selftest_begin(void)
         set_result(h1, SELFTEST_SKIP, "board has one line");
         set_result(d1, SELFTEST_SKIP, "board has one line");
         set_result(r1, SELFTEST_SKIP, "board has one line");
+    }
+
+    selftest_check_t *bl = add_check("btlink", "Bluetooth module link", NULL, SELFTEST_AUTO);
+    selftest_check_t *be = add_check("bteeprom", "Bluetooth audio EEPROM", NULL, SELFTEST_AUTO);
+    if (board_hw_config_get().has_bt_module) {
+        check_bt_link(bl);
+        check_bt_eeprom(be);
+    } else {
+        set_result(bl, SELFTEST_SKIP, "no BM64 module fitted");
+        set_result(be, SELFTEST_SKIP, "no BM64 module fitted");
     }
 
 }
@@ -275,12 +323,10 @@ esp_err_t selftest_answer(const char *id, bool ok)
 
 void selftest_board_id(char *out, size_t len)
 {
-    if (!out || len == 0) return;
-    out[0] = '\0';
-    uint8_t mac[6] = {0};
-    if (esp_efuse_mac_get_default(mac) != ESP_OK) return;
-    snprintf(out, len, "%02X%02X%02X%02X%02X%02X",
-             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    /* Delegates rather than re-deriving: board_serial_str() already formats
+     * this board's factory MAC, and two implementations of "which board is
+     * this" would be one too many. */
+    board_serial_str(out, len);
 }
 
 size_t selftest_history_get(selftest_run_t *out, size_t max)

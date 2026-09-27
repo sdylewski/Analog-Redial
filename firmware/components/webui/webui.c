@@ -3034,24 +3034,42 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
         }
     }
 
+    /* Two orthogonal selects rather than one flattened variant list: what
+     * GPIO18-21 are wired to (line 2 XOR microSD -- a real either/or) and
+     * whether a BM64 companion is fitted, which is independent of both. The
+     * old single dropdown would have needed an entry per combination, and
+     * the board generation isn't in here at all because it's a compile-time
+     * choice (CONFIG_BOARD_TYPE_*) -- it's shown above and confirmed
+     * separately, not selected. */
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<form method=\"POST\" action=\"/board_hw_set\" class=\"settings-form\">"
         "<label>%s"
-        "<select name=\"variant\">"
+        "<select name=\"lines\">"
         "<option value=\"2line\"%s>%s</option>"
         "<option value=\"1line_sd\"%s>%s</option>"
         "<option value=\"1line_nosd\"%s>%s</option>"
         "</select></label>"
+        "<label>%s"
+        "<select name=\"bt\">"
+        "<option value=\"0\"%s>%s</option>"
+        "<option value=\"1\"%s>%s</option>"
+        "</select></label>"
         "<button type=\"submit\">%s</button>"
         "</form>"
-        "<p class=\"hint\">%s %s</p></div>",
-        i18n_str("hwconfig.variant_label", "Board variant"),
+        "<p class=\"hint\">%s %s</p>"
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("hwconfig.variant_label", "GPIO18-21 wired to"),
         cfg.num_lines > 1 ? " selected" : "",
-        i18n_str("hwconfig.2line", "2-line board (jumpers + 2nd AG1171 populated)"),
+        i18n_str("hwconfig.2line", "A second phone line (jumpers + 2nd AG1171 populated)"),
         (cfg.num_lines == 1 && cfg.has_microsd) ? " selected" : "",
-        i18n_str("hwconfig.opt_1line_sd", "1-line board (no jumpers), microSD populated"),
+        i18n_str("hwconfig.opt_1line_sd", "microSD slot (one phone line only)"),
         (cfg.num_lines == 1 && !cfg.has_microsd) ? " selected" : "",
-        i18n_str("hwconfig.opt_1line_nosd", "1-line board (no jumpers), no microSD"),
+        i18n_str("hwconfig.opt_1line_nosd", "Neither (one phone line, no microSD)"),
+        i18n_str("hwconfig.bt_label", "Bluetooth companion module"),
+        !cfg.has_bt_module ? " selected" : "",
+        i18n_str("hwconfig.bt_no", "Not fitted"),
+        cfg.has_bt_module ? " selected" : "",
+        i18n_str("hwconfig.bt_yes", "BM64 module fitted"),
         i18n_str("hwconfig.button", "Save (takes effect on reboot)"),
         i18n_str("hwconfig.hint",
                  "This board can carry a second phone line <em>or</em> a microSD card, never "
@@ -3063,7 +3081,14 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
             ? i18n_str("hwconfig.hint_confirmed", "-- please double-check before changing it")
             : i18n_str("hwconfig.hint_unconfirmed",
                        "-- the setting above was pre-filled from onboard evidence and should "
-                       "already work, but please confirm it matches what you actually built"));
+                       "already work, but please confirm it matches what you actually built"),
+        i18n_str("hwconfig.bt_hint",
+                 "The Bluetooth setting is about whether the hardware is physically present, "
+                 "which is separate from switching the feature on in Settings -> Bluetooth. "
+                 "The companion's audio is always line 0 and its UART is always GPIO16/17, so "
+                 "it works alongside either choice above -- but entering the module's EEPROM "
+                 "programming mode temporarily borrows line 1's control pins, so that step "
+                 "needs a board without a second line."));
 
     return off;
 }
@@ -4682,8 +4707,13 @@ static esp_err_t board_hw_set_handler(httpd_req_t *req)
     if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
     body[r] = '\0';
 
-    char variant[16] = {0};
-    form_field(body, "variant", variant, sizeof(variant));
+    /* "lines" is the GPIO18-21 either/or; "bt" is independent of it. Accepts
+     * the field under its old name "variant" too, so the first-boot banner's
+     * form (and any bookmarked POST) keeps working. */
+    char variant[16] = {0}, bt[4] = {0};
+    form_field(body, "lines", variant, sizeof(variant));
+    if (!variant[0]) form_field(body, "variant", variant, sizeof(variant));
+    form_field(body, "bt", bt, sizeof(bt));
 
     board_hw_config_t cfg;
     if (strcmp(variant, "2line") == 0) {
@@ -4696,6 +4726,9 @@ static esp_err_t board_hw_set_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "unknown variant");
         return ESP_OK;
     }
+    /* A form that doesn't carry the field at all (the first-boot banner)
+     * mustn't silently clear a module someone already declared fitted. */
+    cfg.has_bt_module = bt[0] ? (bt[0] == '1') : board_hw_config_get().has_bt_module;
     board_hw_config_set(cfg);
 
     /* Also appears on the Status page's first-boot banner -- see

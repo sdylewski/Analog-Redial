@@ -311,18 +311,23 @@ static void enter_dialtone(int line)
         roh.enabled ? esp_timer_get_time() + (int64_t)roh.seconds * 1000000 : 0;
 }
 
-/* Which line the Bluetooth companion claims when bt_companion_enabled().
- * On a 2-line board: line 1 -- line 0 is the everyday rotary-dial line and
- * must keep working normally regardless of BT (confirmed 2026-09-17: an
- * unrelated bt_enabled=true left over in NVS silently killed dial tone on
- * line 0 on multiple 2-line boards).
- * On a 1-line board: line 0 -- line 1 doesn't physically exist (no SLIC,
- * GPIO pads doing microSD or nothing), so BT on line 1 simply never fires.
- * The whole point of the board's single line is the BT passthrough when BT
- * is enabled; picking up the handset routes audio to/from the phone. */
+/* Which line the Bluetooth companion claims. Always line 0: the companion's
+ * analog audio is wired to line 0's Vin/Vout on every board that has it --
+ * SMD4/newphone by bench wiring, and SMD5 by its J12 header, whose pin table
+ * names those nets Line0Vin/Line0Vout outright.
+ *
+ * History worth keeping, because this flipped twice: it was line 0, moved to
+ * line 1 (2026-09-17) to stop a stray bt_enabled=true in NVS from silently
+ * killing dial tone on the one line every board has, then moved back here
+ * once the hardware was pinned down -- routing passthrough to line 1 while
+ * the audio is physically on line 0 is just broken, and on a 2-line SMD5 it
+ * would have been silently broken. The original safety concern is now handled
+ * properly instead of by relocation: board_hw_config_get().has_bt_module says
+ * whether the hardware even exists, so an enabled flag alone can no longer
+ * claim a line (see bt_companion_active()). */
 static int bt_companion_line(void)
 {
-    return (board_hw_config_get().num_lines >= 2) ? 1 : 0;
+    return 0;
 }
 
 /* Confirmed 2026-09-15 on real bench hardware (then still on line 0 -- see
@@ -807,7 +812,7 @@ static bool am_active(int line)
 /* ---- main event handlers ---- */
 static void on_offhook(int line)
 {
-    if (line == bt_companion_line() && bt_companion_enabled()) {
+    if (line == bt_companion_line() && bt_companion_active()) {
         enter_bt_passthrough(line);
         return;
     }
