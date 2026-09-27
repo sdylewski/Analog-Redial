@@ -60,6 +60,8 @@ typedef enum {
     BM64_READ_LINK_STATUS_CMD     = 0x0D,
     BM64_GET_UART_VERSION_CMD     = 0x08,
     BM64_MCU_SEND_EVENT_ACK_CMD   = 0x14,
+    /* Takes one Disconnection_Flag byte (see bt_companion_set_enabled()). */
+    BM64_DISCONNECT_CMD           = 0x18,
 } bm64_cmd_t;
 
 /* BM64_EVENT_DEVICE_STATE's State byte -- confirmed 2026-09-22 straight from
@@ -144,6 +146,7 @@ bool bt_companion_enabled(void) { return s_enabled; }
 
 static void start_task(void);
 static void stop_task(void);
+static void send_command(uint8_t opcode, const uint8_t *params, uint8_t param_count);
 static void start_autocheck(void);
 static esp_err_t ensure_uart(void);
 static esp_err_t ensure_uart_peripheral_only(void);
@@ -158,14 +161,38 @@ esp_err_t bt_companion_set_enabled(bool enabled)
     nvs_close(h);
     if (err != ESP_OK) return err;
 
-    s_enabled = enabled;
-    ESP_LOGI(TAG, "%s", enabled ? "enabled -- starting UART link" : "disabled -- stopping UART link");
     if (enabled) {
+        s_enabled = true;
+        ESP_LOGI(TAG, "enabled -- starting UART link");
         start_task();
         start_autocheck();
-    } else {
-        stop_task();
+        return ESP_OK;
     }
+
+    /* Turning the feature off has to actually tear the Bluetooth link down,
+     * not just stop us listening to it. Merely stopping the poll task leaves
+     * the module still paired, still connected, and still driving the
+     * analog audio node -- which on 2026-09-26 looked exactly like "I turned
+     * Bluetooth off and the phone still has no dial tone", because the BM64
+     * was happily streaming into the SLIC's Vin the whole time.
+     *
+     * Disconnect (0x18) flag bits: 0 = cancel a page still in progress,
+     * 1 = drop all HF links, 2 = drop all A2DP links (Microchip Audio UART
+     * Command Set 5.1.22). Sent before the task stops so the module is still
+     * being serviced, and best-effort -- if the link is already down there's
+     * nothing to disconnect and the module just NAKs it. */
+    portENTER_CRITICAL(&s_lock);
+    bool was_linked = s_status.link_up;
+    portEXIT_CRITICAL(&s_lock);
+    if (was_linked && s_uart_installed) {
+        uint8_t flags[1] = { 0x07 };
+        send_command(BM64_DISCONNECT_CMD, flags, 1);
+        vTaskDelay(pdMS_TO_TICKS(150)); /* let it go out and be acted on */
+    }
+
+    s_enabled = false;
+    ESP_LOGI(TAG, "disabled -- disconnected and stopping UART link");
+    stop_task();
     return ESP_OK;
 }
 
