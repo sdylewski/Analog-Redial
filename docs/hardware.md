@@ -217,7 +217,7 @@ so only the corrected circuit is described below.
 |--------|--------|
 | **+VPWR** | Board **+5 V** rail, with local **470 µF** electrolytic bulk capacitance per SLIC plus a 100 nF bypass close to the SLIC's power pins |
 | **PD** (power-down) | Driven from an ESP32 GPIO through a series diode only (1N4148W-class, cathode toward the PD pin) — **no pull-up or pull-down resistor**. Per the AG1171 datasheet, PD should never be pulled to a logic high; GPIO low = power-down, GPIO high (diode blocks, PD floats) = run |
-| **SHK** (hook status) | AG1171 SHK swings ~4.5–5 V when off-hook; ESP32 GPIOs are not 5 V-tolerant, so each SHK line runs through a resistor divider (10 kΩ from SHK to the GPIO tap, 15 kΩ from the tap to GND) before reaching the ESP32. At SHK ≈ 4.5–5 V, the GPIO tap lands around 2.7–3.0 V — a valid, safe logic high |
+| **SHK** (hook status) | AG1171 SHK is a ~3.3 V logic output with an internal 3.3 kΩ pull-up (datasheet: VOH 2.8 V min) — **not** 5 V, whichever rail the SLIC runs from. As built, SMD4 runs it through a 10 kΩ / 15 kΩ divider (10 kΩ from SHK to the GPIO tap, 15 kΩ from tap to GND) sized for an assumed 5 V swing, which lands the off-hook level at **~1.9 V — below the ESP32-C6's 2.475 V input-high threshold** (0.75 × VDD). Some pads still read it as high and some don't; see the rework note below |
 | **F/R** (ring cadence), **RM** (ringing mode) | Driven directly as 3.3 V ESP32 GPIO outputs — no level shifting needed, since these are ESP32-driven control inputs on the SLIC, not SLIC-driven signals |
 | **VIN** (needs external drive) | Fed from the codec's DAC output for that line — **LOUT1 → U4 VIN** (line 0), **ROUT1 → U3 VIN** (line 1) — through a coupling capacitor |
 | **VOUT** (SLIC-driven) | Feeds the codec's ADC input for that line — **U4 VOUT → LIN1** (line 0), **U3 VOUT → RIN1** (line 1) — through a coupling capacitor and series resistor |
@@ -228,8 +228,8 @@ so only the corrected circuit is described below.
 
 ESP32 GPIO ── PD net ──►|──► PD pin      (diode only — cathode toward PD, no pull-up)
 
-ESP32 GPIO ◄── SHK ── 10k ──┬── (from SLIC SHK pin)
-                            15k
+ESP32 GPIO ◄── SHK ── 10k ──┬── (from SLIC SHK pin, ~3.3 V logic)
+                            15k   ← as built; should be 100k (see below)
                              │
                             GND
 
@@ -243,6 +243,17 @@ Tip/Ring ◄──► RJ12 jack
               │
               └── [M7 ×4 full-wave bridge] ── [line TVS across tip/ring]
 ```
+
+**SHK divider rework (SMD4 as built).** The 15 kΩ pull-down makes the
+off-hook level ~1.9 V, below the ESP32-C6's guaranteed input-high
+threshold of 2.475 V. It shows up as a line whose `hookmon` never sees the
+handset lift while its audio path works fine; on the first board where this
+was diagnosed, line 0 (GPIO6) happened to read 1.9 V as high and line 1
+(GPIO19) didn't. Fix: **change the 15 kΩ to 100 kΩ** (≈2.9 V off-hook;
+the 100 kΩ still gives a defined low when the SLIC is powered down), or on
+an existing board simply **remove the 15 kΩ** (≈3.1–3.2 V; the 10 kΩ stays
+in series as current protection). Both are safe: SHK can't exceed its own
+~3.3 V internal pull-up, under the ESP32's 3.6 V absolute maximum.
 
 **Mounting:** the AG1171 is a through-hole SIL module — hand-soldered even
 on this SMD board.

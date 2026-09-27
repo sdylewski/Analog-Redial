@@ -27,7 +27,7 @@ ES8388 absolute maximum on its supply pins is **3.63 V** — never run it from
 
 | Pin | Direction | ESP32 side |
 |-----|-----------|------------|
-| **SHK** (hook state) | SLIC → ESP32 | Can swing close to 5 V — a resistive divider (10 kΩ / 15 kΩ, see `hardware.md`) brings it into 3.3 V-safe range before the GPIO input |
+| **SHK** (hook state) | SLIC → ESP32 | ~3.3 V logic (internal 3.3 kΩ pull-up, VOH 2.8 V min), not 5 V. SMD4's 10 kΩ / 15 kΩ divider over-attenuates it to ~1.9 V, below the ESP32's 2.475 V input-high threshold — use 10 kΩ / 100 kΩ (see `hardware.md`) |
 | **F/R** (forward/reverse) | ESP32 → SLIC | Logic 1 = forward battery sense (normal polarity); used for ring cadence |
 | **RM** (ringing mode) | ESP32 → SLIC | Logic 1 during ringing |
 | **PD** (power-down) | ESP32 → SLIC | **Never drive a logic-1 directly** — datasheet requires PD be left open-circuit or driven through a diode (see `hardware.md`); a GPIO output low pulls PD low (power-down), driving high lets the diode block and PD floats (run) |
@@ -71,7 +71,7 @@ still gets through fine.
 ## 4. Quick checklist before you build
 
 - [ ] ES8388 all supply pins at 3.3 V — never 5 V.
-- [ ] AG1171 `+VPWR` on the 5 V rail; SHK divider present before the GPIO.
+- [ ] AG1171 `+VPWR` on the 5 V rail; SHK divider is 10 kΩ / **100 kΩ** (not 15 kΩ) — off-hook should measure ≥2.6 V at the GPIO.
 - [ ] PD never driven to a hard logic-1 — diode or open-circuit only.
 - [ ] AC coupling on VIN/VOUT per `hardware.md`; if real handsets misdetect
       DTMF, add the divider above.

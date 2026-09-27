@@ -122,6 +122,19 @@ headers on this board) with nothing else claiming it.
   which applies here too) — the moment that's added, this feature is live
   with no other code changes.
 
+## SHK divider is marginal as built (found 2026-09-27)
+
+The 10 kΩ / 15 kΩ SHK dividers assume a 5 V SHK swing; the AG1171's SHK is
+really ~3.3 V (internal 3.3 kΩ pull-up), so off-hook reads ~1.9 V at the
+GPIO -- under the ESP32-C6's 2.475 V guaranteed high. On dualphone2, line 1
+(GPIO19) never saw the handset lift even with J5 correctly soldered, while
+line 0 (GPIO6) read the same 1.88 V as high. Firmware treats both lines
+identically (checked); this is purely which pad happens to switch where.
+
+**Rework for built boards:** remove the 15 kΩ on each line (off-hook then
+~3.1–3.2 V; the 10 kΩ remains as series protection). **For the next
+spin:** 15 kΩ → 100 kΩ. See `docs/hardware.md`'s rework note.
+
 ## Open questions
 
 - **JLCImport library portability** (see above) — confirm it's registered

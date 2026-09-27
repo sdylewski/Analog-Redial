@@ -204,6 +204,19 @@ header (same 6-pin pinout as above, mirrored).
    after a SLIC's audio hybrid died during BM64 bench work on SMD4. The
    existing 10 µF series cap on J12 pin 2 alone is not protection.
 
+### SHK divider: change 15 kΩ → 100 kΩ (found 2026-09-27)
+
+SMD5 inherits SMD4's 10 kΩ / 15 kΩ SHK divider, which was sized for a 5 V
+SHK swing. The AG1171's SHK is actually a ~3.3 V output with a 3.3 kΩ
+internal pull-up (VOH 2.8 V min), so the divider lands off-hook at ~1.9 V
+-- below the ESP32-C6's 2.475 V input-high threshold. On dualphone2, line
+1 (GPIO19) never registered the handset lift at all while line 0 (GPIO6)
+worked with the identical voltage, purely by pad-threshold luck. **Keep the
+10 kΩ, change the 15 kΩ to 100 kΩ on both lines** (~2.9 V off-hook, still
+a defined low with the SLIC powered down). Both values are JLCPCB Basic
+parts in common footprints, which was the constraint behind the original
+15 kΩ -- confirm at the chosen footprint. Details in `docs/hardware.md`.
+
 ## Open questions
 
 - Full pad-by-pad diff between the two module footprints hasn't been
