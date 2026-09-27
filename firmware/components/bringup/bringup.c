@@ -12,6 +12,7 @@
 #include "ag1170.h"
 #include "dtmf.h"
 #include "telephony.h"
+#include "selftest.h"
 #include "wifi.h"
 #include "storage.h"
 #include "sdcard.h"
@@ -1257,6 +1258,99 @@ static int cmd_status(int argc, char **argv)
     return 0;
 }
 
+/* ---------- selftest: guided hardware bring-up check ---------- */
+
+static const char *selftest_result_str(selftest_result_t r)
+{
+    switch (r) {
+        case SELFTEST_PASS: return "PASS";
+        case SELFTEST_FAIL: return "FAIL";
+        case SELFTEST_SKIP: return "skip";
+        default:            return "----";
+    }
+}
+
+/* Takes a borrowed pointer, never a copy -- selftest_report_t is ~1.2 KB and
+ * the console REPL task only has a 4 KB stack (a by-value copy here faulted
+ * it outright on hardware). */
+static void selftest_print(const selftest_report_t *rep)
+{
+    for (int i = 0; i < rep->n; i++) {
+        const selftest_check_t *c = &rep->checks[i];
+        printf("  %-9s %-4s %-32s %s\n", c->id, selftest_result_str(c->result),
+               c->title, c->detail);
+    }
+}
+
+static int cmd_selftest(int argc, char **argv)
+{
+    /* Sub-commands mirror the web UI's flow so either can drive a run:
+     * no arg = run the automated checks and list what's left for a human. */
+    if (argc > 2 && strcmp(argv[1], "answer") == 0) {
+        bool ok = (argc > 3) && (atoi(argv[3]) != 0);
+        esp_err_t err = selftest_answer(argv[2], ok);
+        if (err != ESP_OK) {
+            printf("selftest: no such check '%s' (or it's skipped on this board)\n", argv[2]);
+            return 1;
+        }
+        printf("selftest: %s = %s\n", argv[2], ok ? "PASS" : "FAIL");
+        return 0;
+    }
+    if (argc > 2 && strcmp(argv[1], "action") == 0) {
+        printf("waiting up to 15s -- do the thing now...\n");
+        selftest_result_t r = selftest_run_action(argv[2], 15000);
+        const selftest_report_t *rep = selftest_report();
+        const selftest_check_t *c = NULL;
+        for (int i = 0; i < rep->n; i++) {
+            if (strcmp(rep->checks[i].id, argv[2]) == 0) c = &rep->checks[i];
+        }
+        printf("selftest: %s = %s%s%s\n", argv[2], selftest_result_str(r),
+               (c && c->detail[0]) ? " -- " : "", (c && c->detail[0]) ? c->detail : "");
+        return (r == SELFTEST_FAIL) ? 1 : 0;
+    }
+    if (argc > 2 && strcmp(argv[1], "stimulus") == 0) {
+        esp_err_t err = selftest_stimulus(argv[2]);
+        printf("selftest stimulus %s: %s\n", argv[2],
+               err == ESP_OK ? "done" : esp_err_to_name(err));
+        return err == ESP_OK ? 0 : 1;
+    }
+    if (argc > 1 && strcmp(argv[1], "save") == 0) {
+        esp_err_t err = selftest_history_append();
+        printf("selftest: %s\n", err == ESP_OK ? "run recorded to this board's NVS"
+                                               : esp_err_to_name(err));
+        return err == ESP_OK ? 0 : 1;
+    }
+    if (argc > 1 && strcmp(argv[1], "history") == 0) {
+        selftest_run_t hist[SELFTEST_HISTORY_MAX];
+        size_t n = selftest_history_get(hist, SELFTEST_HISTORY_MAX);
+        if (n == 0) { printf("no recorded runs on this board yet\n"); return 0; }
+        printf("recorded runs (newest first):\n");
+        for (size_t i = 0; i < n; i++) {
+            char when[32] = "date unknown";
+            if (hist[i].unix_time) {
+                time_t t = (time_t)hist[i].unix_time;
+                struct tm tmv;
+                gmtime_r(&t, &tmv);
+                strftime(when, sizeof(when), "%Y-%m-%d %H:%M UTC", &tmv);
+            }
+            printf("  %-20s %u pass, %u fail, %u skip, %u unanswered\n", when,
+                   hist[i].n_pass, hist[i].n_fail, hist[i].n_skip, hist[i].n_pending);
+        }
+        return 0;
+    }
+
+    char id[16] = {0};
+    selftest_board_id(id, sizeof(id));
+    selftest_begin();
+    printf("board id %s -- automated checks done, human steps still pending:\n", id);
+    selftest_print(selftest_report());
+    printf("\nnext: selftest action <id>   (physical step, firmware verifies)\n"
+           "      selftest stimulus <id>  (make it ring, etc)\n"
+           "      selftest answer <id> <0|1>\n"
+           "      selftest save           (record this run on the board)\n");
+    return 0;
+}
+
 /* ---------- reset ---------- */
 static int cmd_reset(int argc, char **argv)
 {
@@ -1994,6 +2088,7 @@ void bringup_console_start(void)
     register_cmd("hookmon", "Watch SHK: hookmon [secs]", cmd_hookmon);
     register_cmd("pulsemon", "Watch raw pulse dialing + timing: pulsemon [secs] [line]", cmd_pulsemon);
     register_cmd("tonemon", "Watch DTMF (touch-tone) digits + timing: tonemon [secs] [line]", cmd_tonemon);
+    register_cmd("selftest", "Guided hardware bring-up check: selftest | action <id> | stimulus <id> | answer <id> <0|1> | save | history -- results stored on this board", cmd_selftest);
     register_cmd("status", "Per-line telephony status", cmd_status);
     register_cmd("reset", "Force line(s) out of a stuck tone/reorder state: reset [line]", cmd_reset);
     register_cmd("wifi_set", "Save WiFi credentials + reconnect: wifi_set <ssid> <password>", cmd_wifi_set);

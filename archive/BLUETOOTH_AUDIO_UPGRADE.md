@@ -261,6 +261,118 @@ the textbook fix), or accept the loss and compensate with a few dB of extra
 just the level drop) argues for the buffer, since gain can't undo clipping
 that already happened upstream of it.
 
+### TODO 2026-09-27: protect Vin from the BM64 before wiring another SLIC
+
+A SLIC died during this bench work (newphone, line 0): its DC feed and hook
+detection still work perfectly (tip 51 V on-hook -> 14 V off-hook, SHK
+swings 0/3.2 V) but its **2-wire/4-wire audio hybrid is dead** -- a clean
+dial tone at Vin produces no AC on tip at all. Whether that was caused by
+the BM64 hookup or was a bad clone from the start is unresolved (check
+dualphone/SMD2 line 0, which also had BM64 on it, for a second data point).
+
+**The key lesson regardless: a series coupling cap is not protection.** It
+blocks steady DC and nothing else. Ranked suspects, all present in this
+bench setup:
+
+1. **Hot-plug charge dump.** That wire was connected/disconnected many
+   times with both sides powered. A cap bridging two nodes at different
+   potentials is a momentary short -- 10 uF across a few volts is a current
+   impulse limited only by wire resistance.
+2. **Ground integrity.** If the module's ground return ever opened (or was
+   marginal) while the signal wire stayed connected, Vin becomes the return
+   path and can see the full supply differential. This rig is jumper wires,
+   and a real grounding fault did show up on the scope side the same day.
+3. **Transients straight through the cap.** Fast edges pass essentially
+   unattenuated -- module power-on/off pops, DAC enable/disable steps. A
+   3-5 V fast edge at AOHPL lands at Vin nearly intact.
+4. **Tip/ring bridging back during probing.** Tip sits at ~51 V; a probe
+   slip to the Vin node is far outside what a low-level audio input on that
+   chip tolerates.
+
+**Vin input impedance is 60 kOhm** (AG1171 datasheet, Electrical
+Characteristics: "Input Impedance at VIN 60 kohm"; VOUT output impedance is
+10 Ohm). That's the number the earlier `BM64_AUDIO_DEBUG.md` guess of "a
+few hundred ohms worst case" was standing in for, and it makes protection
+cheap:
+
+- **Series resistor is nearly free.** 1 kOhm against 60 kOhm is ~0.14 dB of
+  loss; even 4.7 kOhm costs under 1 dB. Use it to limit inrush to a few mA.
+- **Clamp diodes alone are not enough** -- they bound the voltage but do
+  nothing about the cap's inrush current. Series R + clamp diodes (or a
+  low-capacitance TVS) to the SLIC's local rails, together, is the right
+  combination. Put both at the Vin tap.
+- **Also worth fixing while in there:** the existing 10 nF cap between the
+  codec's LOUT1/ROUT1 and Vin sets a high-pass corner at 1/(2*pi*60k*10n)
+  = **265 Hz**, which is *inside* the 300-3400 Hz voice band -- the bottom
+  of the band is rolling off today. 100 nF would put the corner near 26 Hz.
+  Unrelated to the dead SLIC, but a real find from the same datasheet
+  number.
+
+**Proposed Vin interface (schematic).** Three sources meet at the SLIC's Vin
+pin -- the codec's DAC, the BM64's analog output, and (unavoidably) whatever
+noise the wiring picks up. Each source gets its own series coupling cap so
+neither one's DC bias reaches the other, and the BM64 branch additionally
+gets the series resistor + clamp diodes that this SLIC died for the lack of:
+
+```text
+  ES8388 (codec)                                     AG1171 SLIC (U4/U3)
+  ┌──────────────┐                                   ┌──────────────────┐
+  │              │        C_codec                    │                  │
+  │  LOUT1 ──────┼────────┤├─────────────┬───────────┼── VIN            │
+  │  (line 0)    │        100nF          │           │   (60 kOhm,      │
+  │              │     (was 10nF --      │           │    AC-coupled)   │
+  │              │      265 Hz corner    │           │                  │
+  │              │      against 60k,     │           │      TIP ────────┼──► RJ12
+  │              │      inside the       │           │      RING ───────┼──► RJ12
+  │              │      voice band)      │           │                  │
+  │  LIN1  ──────┼────────┤├──────┬──────┼───────────┼── VOUT           │
+  │  (ADC in)    │       100nF  [Rdiv]   │           │   (10 Ohm out)   │
+  └──────────────┘                │      │           └──────────────────┘
+                                 GND     │
+                                         │  ◄── shared AC-only node
+                        ┌────────────────┴────────────────┐
+                        │                                 │
+                     R_prot 1k                         (noise)
+                        │
+          ┌─────────────┴─────────────┐   ← clamp to the SLIC's own local
+          │                           │     rails, at the Vin tap
+         ─┴─ D1                      ─┴─ D2
+         /_\  (to +3V3)              /_\  (to GND)
+          │                           │
+        +3V3                         GND
+          │
+          │        C_bm64
+  BM64 ───┴────────┤├──── AOHPL (pin 7)
+  (module)        10uF
+```
+
+Why each part, and what happens without it:
+
+| Part | Value | Purpose | Failure mode if omitted |
+|---|---|---|---|
+| `C_bm64` | 10 uF | Blocks AOHPL's DC bias (~1.5 V measured) from the Vin node | DC bias fights the SLIC's own Vin reference |
+| **`R_prot`** | **1 k** | **Limits inrush during hot-plug and fault current into Vin** | **A charged cap dumps unlimited current into Vin — the prime suspect for the dead SLIC** |
+| **`D1`/`D2`** | **BAV99 / low-C dual** | **Clamps anything outside the local rails** | **Transients and tip/ring bridging reach Vin unclamped** |
+| `C_codec` | 100 nF | AC-couples the codec's DAC | 10 nF puts the corner at 265 Hz, inside the voice band |
+
+`R_prot` at 1 k against Vin's 60 kOhm costs ~0.14 dB, so it's effectively
+free. **The series R and the diodes are not redundant** -- diodes bound the
+voltage but do nothing about the cap's inrush current, and the resistor
+limits current but can't stop a sustained overvoltage. Both, or neither
+helps much.
+
+**Open questions for next session:**
+
+- **Power sequencing:** does the BM64 need to come up before/after the SLIC,
+  or share a rail so they rise together? The damage mechanism above is
+  really about hot-plugging rather than sequencing per se, but with both
+  permanently wired on SMD5 it's worth confirming no ordering leaves AOHPL
+  driving an unpowered Vin (or vice versa) -- check the BM64 datasheet's
+  AOHPL output stage behavior during its own power-up/down.
+- **Bench procedure until protection exists:** power down before rewiring;
+  connect ground first and disconnect it last; never probe tip/ring and the
+  Vin node in the same session without re-checking the probe ground.
+
 ## Option B: ESP32-original DevKitC board as a companion (superseded 2026-09-15, code removed 2026-09-21)
 
 **No longer the plan** -- see "Confirmed: ESP32 software HFP audio is a dead

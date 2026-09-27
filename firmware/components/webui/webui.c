@@ -16,6 +16,7 @@
 #include "dialplan.h"
 #include "voip.h"
 #include "bt_companion.h"
+#include "selftest.h"
 #include "multipart.h"
 #include "audio_convert.h"
 #include "logctl.h"
@@ -3069,10 +3070,134 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
 
 /* Diagnostics tab: runtime log level (and, in test builds, test-mode
  * controls -- see Phase 2). */
+/* Guided hardware bring-up check (selftest.h). Structured around the lesson
+ * from 2026-09-26: the hook path and the audio path fail independently, so
+ * each line gets one check for each, and a pass on one says nothing about the
+ * other. Three step kinds render differently -- automatic ones are already
+ * judged, ACTION steps ask the operator to do something physical and have
+ * firmware verify it, CONFIRM steps can only be judged by ear. */
+static int append_selftest_card(char *buf, size_t cap, int off)
+{
+    const selftest_report_t *rep = selftest_report();
+    char board_id[16] = {0};
+    selftest_board_id(board_id, sizeof(board_id));
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card wide\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<p class=\"hint\">%s</p>"
+        "<form method=\"POST\" action=\"/selftest_begin\" class=\"settings-form\">"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form>",
+        i18n_str("diag.selftest.title", "Hardware bring-up check"),
+        i18n_str("diag.selftest.board_id", "Board ID"), board_id,
+        i18n_str("diag.selftest.hint",
+                 "Checks a freshly-built board one subsystem at a time. Hook detection and "
+                 "audio are tested separately on each line, because they fail independently -- "
+                 "a line can detect the handset perfectly and still pass no audio, or pass "
+                 "audio while never seeing the hook. Results are stored on this board, so a "
+                 "later failure can be compared against a run that passed."),
+        i18n_str("diag.selftest.start", "Run automatic checks"));
+
+    if (rep->n > 0) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<table class=\"filetable\"><thead><tr><th>%s</th><th>%s</th><th>%s</th></tr>"
+            "</thead><tbody>",
+            i18n_str("diag.selftest.col_check", "Check"),
+            i18n_str("diag.selftest.col_result", "Result"),
+            i18n_str("diag.selftest.col_what", "Detail / what to do"));
+
+        for (int i = 0; i < rep->n; i++) {
+            const selftest_check_t *c = &rep->checks[i];
+            const char *badge, *label;
+            switch (c->result) {
+                case SELFTEST_PASS: badge = "on";  label = i18n_str("diag.selftest.pass", "pass"); break;
+                case SELFTEST_FAIL: badge = "off"; label = i18n_str("diag.selftest.fail", "FAIL"); break;
+                case SELFTEST_SKIP: badge = "";    label = i18n_str("diag.selftest.skip", "n/a"); break;
+                default:            badge = "warn"; label = i18n_str("diag.selftest.todo", "to do"); break;
+            }
+            char detail[SELFTEST_DETAIL_MAX * 2];
+            html_escape(c->detail[0] ? c->detail : (c->instruction ? c->instruction : ""),
+                        detail, sizeof(detail));
+
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<tr><td>%s</td><td><span class=\"pill %s\">%s</span></td><td>%s",
+                c->title, badge, label, detail);
+
+            /* Controls only where a human still has something to do. */
+            if (c->result == SELFTEST_PENDING && c->kind == SELFTEST_ACTION) {
+                off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                    "<form method=\"POST\" action=\"/selftest_action\" class=\"settings-form\">"
+                    "<input type=\"hidden\" name=\"id\" value=\"%s\">"
+                    "<div class=\"toolbar sub\"><button type=\"submit\">%s</button></div></form>",
+                    c->id, i18n_str("diag.selftest.watch", "Watch for it now (15s)"));
+            } else if (c->result == SELFTEST_PENDING && c->kind == SELFTEST_CONFIRM) {
+                if (strncmp(c->id, "ring", 4) == 0) {
+                    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                        "<form method=\"POST\" action=\"/selftest_stimulus\" class=\"settings-form\">"
+                        "<input type=\"hidden\" name=\"id\" value=\"%s\">"
+                        "<div class=\"toolbar sub\"><button type=\"submit\">%s</button></div></form>",
+                        c->id, i18n_str("diag.selftest.ring_now", "Ring it now"));
+                }
+                off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                    "<form method=\"POST\" action=\"/selftest_answer\" class=\"settings-form\">"
+                    "<input type=\"hidden\" name=\"id\" value=\"%s\">"
+                    "<div class=\"toolbar sub\">"
+                    "<button type=\"submit\" name=\"ok\" value=\"1\">%s</button> "
+                    "<button type=\"submit\" name=\"ok\" value=\"0\">%s</button>"
+                    "</div></form>",
+                    c->id, i18n_str("diag.selftest.yes", "Yes"),
+                    i18n_str("diag.selftest.no", "No"));
+            }
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</td></tr>");
+        }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "</tbody></table>"
+            "<form method=\"POST\" action=\"/selftest_save\" class=\"settings-form\">"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+            "</form>",
+            i18n_str("diag.selftest.save", "Record this run on the board"));
+    }
+
+    /* Prior runs: the whole reason results live on the board rather than on
+     * whoever ran the test -- "did this ever pass?" months later. */
+    selftest_run_t hist[SELFTEST_HISTORY_MAX];
+    size_t n_hist = selftest_history_get(hist, SELFTEST_HISTORY_MAX);
+    if (n_hist > 0) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<h3>%s</h3><table class=\"filetable\"><thead><tr><th>%s</th><th>%s</th></tr>"
+            "</thead><tbody>",
+            i18n_str("diag.selftest.history", "Previous runs"),
+            i18n_str("diag.selftest.when", "When"),
+            i18n_str("diag.selftest.outcome", "Outcome"));
+        for (size_t i = 0; i < n_hist; i++) {
+            char when[40];
+            if (hist[i].unix_time) {
+                time_t t = (time_t)hist[i].unix_time;
+                struct tm tmv;
+                gmtime_r(&t, &tmv);
+                strftime(when, sizeof(when), "%Y-%m-%d %H:%M UTC", &tmv);
+            } else {
+                snprintf(when, sizeof(when), "%s",
+                         i18n_str("diag.selftest.no_clock", "date unknown (clock unsynced)"));
+            }
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<tr><td>%s</td><td>%u pass, %u fail, %u n/a, %u unanswered</td></tr>",
+                when, hist[i].n_pass, hist[i].n_fail, hist[i].n_skip, hist[i].n_pending);
+        }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</tbody></table>");
+    }
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    return off;
+}
+
 static int append_diag_tab(char *buf, size_t cap, int off)
 {
     static const char *LEVELS[] = { "none", "error", "warn", "info", "debug", "verbose" };
     esp_log_level_t cur = logctl_get_level();
+
+    off = append_selftest_card(buf, cap, off);
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>"
@@ -4660,6 +4785,79 @@ static esp_err_t bt_config_check_handler(httpd_req_t *req)
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/settings?tab=bluetooth");
     httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* ---- hardware bring-up check (selftest.h) ----
+ * All five are plain form POSTs that redirect back to the Diagnostics tab, so
+ * the walkthrough works without JavaScript and each step's result is visible
+ * in the re-rendered table. */
+
+static esp_err_t selftest_begin_handler(httpd_req_t *req)
+{
+    selftest_begin();
+    redirect_to_referer_or(req, "/settings?tab=diag");
+    return ESP_OK;
+}
+
+/* Reads the "id" form field into out. Returns false if absent/too long. */
+static bool selftest_form_id(httpd_req_t *req, char *out, size_t out_len, char *body, size_t body_cap)
+{
+    if (req->content_len == 0 || req->content_len >= body_cap) return false;
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) return false;
+    body[r] = '\0';
+    form_field(body, "id", out, out_len);
+    return out[0] != '\0';
+}
+
+/* Blocks up to 15s waiting for the physical event (a hook change), which is
+ * within httpd's socket timeout. */
+static esp_err_t selftest_action_handler(httpd_req_t *req)
+{
+    char body[WIFI_FORM_MAX_BODY], id[SELFTEST_ID_MAX] = {0};
+    if (!selftest_form_id(req, id, sizeof(id), body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "missing id");
+        return ESP_OK;
+    }
+    selftest_run_action(id, 15000);
+    redirect_to_referer_or(req, "/settings?tab=diag");
+    return ESP_OK;
+}
+
+static esp_err_t selftest_stimulus_handler(httpd_req_t *req)
+{
+    char body[WIFI_FORM_MAX_BODY], id[SELFTEST_ID_MAX] = {0};
+    if (!selftest_form_id(req, id, sizeof(id), body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "missing id");
+        return ESP_OK;
+    }
+    selftest_stimulus(id);
+    redirect_to_referer_or(req, "/settings?tab=diag");
+    return ESP_OK;
+}
+
+static esp_err_t selftest_answer_handler(httpd_req_t *req)
+{
+    char body[WIFI_FORM_MAX_BODY], id[SELFTEST_ID_MAX] = {0}, ok[4] = {0};
+    if (req->content_len == 0 || req->content_len >= sizeof(body)) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+    form_field(body, "id", id, sizeof(id));
+    form_field(body, "ok", ok, sizeof(ok));
+    if (id[0]) selftest_answer(id, ok[0] == '1');
+    redirect_to_referer_or(req, "/settings?tab=diag");
+    return ESP_OK;
+}
+
+static esp_err_t selftest_save_handler(httpd_req_t *req)
+{
+    selftest_history_append();
+    redirect_to_referer_or(req, "/settings?tab=diag");
     return ESP_OK;
 }
 
@@ -6829,6 +7027,11 @@ esp_err_t webui_start(void)
         { .uri = "/bt_enable_set",           .method = HTTP_POST, .handler = bt_enable_set_handler },
         { .uri = "/bt_pair",                 .method = HTTP_POST, .handler = bt_pair_handler },
         { .uri = "/bt_config_check",         .method = HTTP_POST, .handler = bt_config_check_handler },
+        { .uri = "/selftest_begin",          .method = HTTP_POST, .handler = selftest_begin_handler },
+        { .uri = "/selftest_action",         .method = HTTP_POST, .handler = selftest_action_handler },
+        { .uri = "/selftest_stimulus",       .method = HTTP_POST, .handler = selftest_stimulus_handler },
+        { .uri = "/selftest_answer",         .method = HTTP_POST, .handler = selftest_answer_handler },
+        { .uri = "/selftest_save",           .method = HTTP_POST, .handler = selftest_save_handler },
         { .uri = "/voip_set",               .method = HTTP_POST, .handler = voip_set_handler },
         { .uri = "/voip_check",             .method = HTTP_POST, .handler = voip_check_handler },
         { .uri = "/voip_setup_password",    .method = HTTP_POST, .handler = voip_setup_password_handler },
