@@ -95,6 +95,16 @@ esp_err_t bt_companion_send_mmi(uint8_t action);
  * deliberately doesn't parse the specific reply itself. */
 esp_err_t bt_companion_send_raw_cmd(uint8_t opcode, uint8_t reserved_byte);
 
+/* Bring-up/diagnostic only, same link-must-be-up precondition: sends any
+ * real command-set command (AA00-framed, checksummed -- NOT the raw IBDK
+ * probing bt_companion_raw_send() does) with an arbitrary multi-byte
+ * parameter list, for commands bt_companion_send_raw_cmd()'s fixed
+ * "opcode + one byte" shape can't cover -- e.g. Set_Overall_Gain (0x23),
+ * which takes 6 parameter bytes (Data_Base_Index, Mask, Type, Gain1-3; see
+ * Microchip's Audio UART Command Set doc, BM64/Docs/, section 5.1.30).
+ * Same reply-surfaces-via-the-log behavior as bt_companion_send_raw_cmd(). */
+esp_err_t bt_companion_send_cmd(uint8_t opcode, const uint8_t *params, uint8_t param_count);
+
 /* Bring-up/diagnostic only (see bringup.c's 'bm64_test' console command),
  * NOT wired to the web UI: sends GET_UART_VERSION (a harmless, always-
  * supported query -- every real BM64 answers it, paired or not, which is

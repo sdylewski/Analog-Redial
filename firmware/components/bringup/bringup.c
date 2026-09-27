@@ -228,6 +228,67 @@ static int cmd_spkamp(int argc, char **argv)
 #endif
 }
 
+/* ---------- spkhiz: force a line's LOUT/ROUT driver to high-Z ----------
+ * Diagnostic for the BM64-loading problem (BM64/BM64_AUDIO_DEBUG.md,
+ * "AOHPL tap measurably loads and distorts Vin"): the ES8388's LOUT1/ROUT1
+ * pins are active drivers even when "silent" (0V AC, not high-impedance),
+ * which shunts the BM64's weaker analog output on the shared Vin node.
+ * Two bits control this, and BOTH matter -- disabling one alone still
+ * leaves the other:
+ *   DACPOWER (Reg 4) bit5=LOUT1/bit4=ROUT1 -- output driver enable. Clearing
+ *     it stops the driver actively holding the node...
+ *   DACCONTROL23 (Reg 45) bit4=VROI -- 0=1.5k VREF-to-output (default), a
+ *     real path to the shared node even with the driver disabled; 1=40k,
+ *     a much lighter load. Confirmed against the real ES8388 datasheet.
+ * VROI is a single global bit, not per-channel -- it only matters for a
+ * disabled channel (an enabled driver dominates the node regardless), so
+ * this only clears it back to the documented default once no line is left
+ * in high-Z mode, rather than tracking it per-line. */
+static uint8_t s_spkhiz_mask; /* which DACPOWER output-enable bits WE cleared (0x20=line0, 0x10=line1) */
+
+static int cmd_spkhiz(int argc, char **argv)
+{
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
+    if (argc < 3) {
+        printf("usage: spkhiz <line 0|1> <0|1>   (1 = force that line's codec output to "
+               "high-Z -- LOUT1/ROUT1 disabled + VROI=40k -- so a companion signal on the "
+               "shared Vin/Vout node isn't shunted by the codec's own driver)\n");
+        return 1;
+    }
+    int line = atoi(argv[1]);
+    if (line != 0 && line != 1) { printf("spkhiz: line must be 0 or 1\n"); return 1; }
+    bool hiz = atoi(argv[2]) != 0;
+    uint8_t bit = (line == 0) ? 0x20 /* LOUT1 */ : 0x10 /* ROUT1 */;
+
+    uint8_t dacpower;
+    if (es8388_read_reg(ES8388_REG_DACPOWER, &dacpower) != ESP_OK) {
+        printf("spkhiz: DACPOWER read failed\n");
+        return 1;
+    }
+
+    if (hiz) {
+        dacpower &= (uint8_t)~bit;
+        s_spkhiz_mask |= bit;
+        es8388_write_reg(ES8388_REG_DACCONTROL23, 0x10); /* VROI=1 (40k) */
+    } else {
+        dacpower |= bit;
+        s_spkhiz_mask &= (uint8_t)~bit;
+        if (s_spkhiz_mask == 0) {
+            es8388_write_reg(ES8388_REG_DACCONTROL23, 0x00); /* back to documented default */
+        }
+    }
+    es8388_write_reg(ES8388_REG_DACPOWER, dacpower);
+
+    printf("line %d: %s (DACPOWER=0x%02X, VROI=%s)\n", line,
+           hiz ? "HIGH-Z" : "normal drive", dacpower,
+           s_spkhiz_mask ? "40k" : "1.5k (default)");
+    return 0;
+#else
+    printf("spkhiz: SMD2/ES8388 only\n");
+    return 1;
+#endif
+}
+
 /* ---------- tone ---------- */
 static struct {
     struct arg_dbl *hz;
@@ -1717,18 +1778,33 @@ static int cmd_bm64_pair(int argc, char **argv)
 static int cmd_bm64_cmd(int argc, char **argv)
 {
     if (argc < 2) {
-        printf("usage: bm64_cmd <hex opcode, e.g. 0E for Read_Paired_Device_Record> -- "
-               "bt_companion must be enabled and link up; reply shows up as an 'unhandled "
-               "event' hex dump in the log at debug level (log_level debug first)\n");
+        printf("usage: bm64_cmd <hex opcode> [param bytes...] -- e.g.\n"
+               "         bm64_cmd 0E                     (Read_Paired_Device_Record, no params)\n"
+               "         bm64_cmd 23 00 01 03 0F 0F 00    (Set_Overall_Gain: db0, A2DP+HF mask, "
+               "abs level, A2DP=15, HF=15, line_in unused)\n"
+               "       No param bytes sends a single 0x00 reserved byte, matching the plain "
+               "opcode-only real command set entries.\n"
+               "       bt_companion must be enabled and link up; reply shows up as an "
+               "'unhandled event' hex dump in the log at debug level (log_level debug first)\n");
         return 1;
     }
     uint8_t opcode = (uint8_t)strtol(argv[1], NULL, 16);
-    esp_err_t err = bt_companion_send_raw_cmd(opcode, 0x00);
+    uint8_t params[254];
+    uint8_t n = 0;
+    if (argc > 2) {
+        for (int i = 2; i < argc && n < sizeof(params); i++) {
+            params[n++] = (uint8_t)strtol(argv[i], NULL, 16);
+        }
+    } else {
+        params[n++] = 0x00; /* matches the old bm64_cmd's fixed single reserved byte */
+    }
+    esp_err_t err = bt_companion_send_cmd(opcode, params, n);
     if (err != ESP_OK) {
         printf("bm64_cmd: failed (bt_companion not enabled, or link not up)\n");
         return 1;
     }
-    printf("bm64_cmd: sent opcode 0x%02X -- watch the log (debug level) for the reply\n", opcode);
+    printf("bm64_cmd: sent opcode 0x%02X (%u param byte%s) -- watch the log (debug level) for "
+           "the reply\n", opcode, n, n == 1 ? "" : "s");
     return 0;
 }
 
@@ -1881,7 +1957,8 @@ void bringup_console_start(void)
     register_cmd("codec_dump", "Dump codec shadow registers", cmd_codec_dump);
     register_cmd("codec_bypass", "Analog bypass on/off (WM8731 only): codec_bypass <0|1>", cmd_codec_bypass);
     register_cmd("micamp", "ES8388 ADC PGA gain (SMD2): micamp <left 0-8> <right 0-8>, 3dB/step", cmd_micamp);
-    register_cmd("spkamp", "ES8388 earpiece drive level (SMD2): spkamp <left 0-63> <right 0-63>, 1dB/step, 33=0dB", cmd_spkamp);
+    register_cmd("spkamp", "ES8388 earpiece drive level: spkamp <left 0-33> <right 0-33>, 1.5dB/step, 30=0dB", cmd_spkamp);
+    register_cmd("spkhiz", "Force a line's codec output to high-Z (for BT companion loading tests): spkhiz <line 0|1> <0|1>", cmd_spkhiz);
 
     tone_args.hz   = arg_dbl0(NULL, NULL, "<hz>", "frequency (default 1000)");
     tone_args.ms   = arg_int0(NULL, NULL, "<ms>", "duration ms (default 1000)");
@@ -1944,7 +2021,7 @@ void bringup_console_start(void)
     register_cmd("bt_enable", "Get/set bt_companion enabled: bt_enable [0|1]", cmd_bt_enable);
     register_cmd("bm64_pair", "Start BT pairing (discoverable mode): bm64_pair -- bt_companion must be enabled and link up", cmd_bm64_pair);
     register_cmd("bm64_mmi", "Send a raw MMI action code: bm64_mmi <hex, e.g. 51> -- bt_companion must be ENABLED (opposite of bm64_test/addr/snoop)", cmd_bm64_mmi);
-    register_cmd("bm64_cmd", "Send a raw opcode+reserved-byte command (e.g. 0E Read_Paired_Device_Record): bm64_cmd <hex opcode> -- bt_companion must be ENABLED, log_level debug to see the reply", cmd_bm64_cmd);
+    register_cmd("bm64_cmd", "Send a real command-set command with hex param bytes (e.g. 23 00 01 03 0F 0F 00 for Set_Overall_Gain): bm64_cmd <hex opcode> [params...] -- bt_companion must be ENABLED, log_level debug to see the reply", cmd_bm64_cmd);
     register_cmd("bm64_pin", "Bit-bang BM64's MFB/RST_N/P2_0 over GPIO18-20 (bench-wired only): bm64_pin <mfb|rst|p20> <0|1> -- single-line, no-microSD boards only", cmd_bm64_pin);
 
     /* esp_console_new_repl_*() above probes the terminal with a "device

@@ -318,6 +318,24 @@ esp_err_t bt_companion_send_mmi(uint8_t action)
     return ESP_OK;
 }
 
+esp_err_t bt_companion_send_cmd(uint8_t opcode, const uint8_t *params, uint8_t param_count)
+{
+    if (!s_enabled || !s_uart_installed) return ESP_ERR_INVALID_STATE;
+    portENTER_CRITICAL(&s_lock);
+    bool up = s_status.link_up;
+    portEXIT_CRITICAL(&s_lock);
+    if (!up) return ESP_ERR_INVALID_STATE;
+    /* Framing only -- like bt_companion_send_raw_cmd()/bt_companion_send_mmi(),
+     * the reply surfaces via the background poller's own read loop, not here.
+     * Unlike those two (which only ever need a fixed 1-2 byte payload), this
+     * is the general entry point for real command-set commands that take
+     * their own multi-byte parameter list -- e.g. Set_Overall_Gain (0x23),
+     * Data_Base_Index/Mask/Type/Gain1/Gain2/Gain3, 6 bytes, per Microchip's
+     * Audio UART Command Set doc (BM64/Docs/, section 5.1.30). */
+    send_command(opcode, params, param_count);
+    return ESP_OK;
+}
+
 esp_err_t bt_companion_send_raw_cmd(uint8_t opcode, uint8_t reserved_byte)
 {
     if (!s_enabled || !s_uart_installed) return ESP_ERR_INVALID_STATE;
