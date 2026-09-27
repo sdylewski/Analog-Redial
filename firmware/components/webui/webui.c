@@ -2795,6 +2795,17 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
             "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>",
             i18n_str("idlepower.total_label", "Time in low-power"), ip_total);
     }
+    if (ip.pause_audio) {
+        /* Like the "Right now" row, this page's own request can't un-pause
+         * audio (only an audio user can), so this one IS a live reading. */
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+            "<span class=\"pill %s\">%s</span></div>",
+            i18n_str("idlepower.audio_label", "Audio processing"),
+            ips.audio_paused ? "on" : "off",
+            ips.audio_paused ? i18n_str("idlepower.audio_paused", "paused (all phones hung up)")
+                             : i18n_str("idlepower.audio_running", "running"));
+    }
     if (ips.tx_power_dbm > 0) {
         char tx[96];
         snprintf(tx, sizeof(tx),
@@ -2818,6 +2829,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "<option value=\"1\"%s>%s</option>"
         "</select></label>"
         "<label><input type=\"checkbox\" name=\"adaptive_tx\" value=\"1\"%s> %s</label>"
+        "<label><input type=\"checkbox\" name=\"pause_audio\" value=\"1\"%s> %s</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>",
         ip.enabled ? " checked" : "", i18n_str("general.offhook.enabled", "Enabled"),
@@ -2829,6 +2841,9 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         ip.adaptive_tx ? " checked" : "",
         i18n_str("idlepower.adaptive_tx", "Lower WiFi transmit power while the signal is strong "
                                          "(applies all the time, not just when idle)"),
+        ip.pause_audio ? " checked" : "",
+        i18n_str("idlepower.pause_audio", "Pause audio processing while every phone is hung up "
+                                         "(resumes on pickup; not yet tested by ear)"),
         i18n_str("general.button.save", "Save"));
 
     char idlepower_hint[420];
@@ -4669,8 +4684,10 @@ static esp_err_t idle_power_settings_handler(httpd_req_t *req)
     if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
     body[r] = '\0';
 
-    char enabled[8] = {0}, minutes[12] = {0}, max_savings[8] = {0}, adaptive_tx[8] = {0};
+    char enabled[8] = {0}, minutes[12] = {0}, max_savings[8] = {0}, adaptive_tx[8] = {0},
+         pause_audio[8] = {0};
     form_field(body, "adaptive_tx", adaptive_tx, sizeof(adaptive_tx));
+    form_field(body, "pause_audio", pause_audio, sizeof(pause_audio));
     form_field(body, "enabled", enabled, sizeof(enabled));
     form_field(body, "minutes", minutes, sizeof(minutes));
     form_field(body, "max_savings", max_savings, sizeof(max_savings));
@@ -4680,6 +4697,7 @@ static esp_err_t idle_power_settings_handler(httpd_req_t *req)
         .minutes = minutes[0] ? (uint16_t)strtoul(minutes, NULL, 10) : 0,
         .max_savings = (max_savings[0] == '1'),
         .adaptive_tx = (adaptive_tx[0] == '1'),
+        .pause_audio = (pause_audio[0] == '1'),
     };
     esp_err_t err = idle_power_set(cfg);
     if (err != ESP_OK) {

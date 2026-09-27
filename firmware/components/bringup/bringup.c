@@ -1274,6 +1274,8 @@ static int cmd_power(int argc, char **argv)
            (unsigned long)st.sleep_count, (unsigned long)st.total_asleep_s,
            (unsigned long)st.uptime_s, (unsigned long)st.last_sleep_s,
            st.woken_by_web ? " (ended by a web request)" : "");
+    printf("  audio pipeline %s, WiFi TX %d dBm (RSSI %d dBm)\n",
+           st.audio_paused ? "PAUSED" : "running", st.tx_power_dbm, st.rssi_dbm);
     return 0;
 }
 

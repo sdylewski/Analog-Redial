@@ -3,6 +3,7 @@
 #include "dtmf.h"
 #include "aec.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/stream_buffer.h"
@@ -68,6 +69,26 @@ static TaskHandle_t s_task;
  * mic->speaker `loopback` command + a listen are for. */
 static volatile bool s_test_loopback;
 
+/* Idle pause (see audio_allow_pause()). The task normally runs a full
+ * read-process-write cycle every 10ms forever, even with every phone hung up
+ * -- the biggest steady CPU load on the board. When the layer above says all
+ * lines are idle AND nothing has touched audio for AUDIO_PAUSE_AFTER_MS, the
+ * task disables both I2S channels and sleeps. Anything that wants audio
+ * wakes it through audio_wake(), called from every setter that starts a
+ * source/tap and from audio_rx_read(), so tools that use audio with the
+ * phones on-hook (bring-up `tone`, `capture`, test loopback, the web UI's
+ * test recording) keep working without knowing any of this exists. */
+#define AUDIO_PAUSE_AFTER_MS 2000
+static volatile bool    s_allow_pause;
+static volatile bool    s_paused;
+static volatile int64_t s_last_use_us;   /* last time something asked for audio */
+
+static void audio_wake(void)
+{
+    s_last_use_us = esp_timer_get_time();
+    if (s_paused && s_task) xTaskNotifyGive(s_task);
+}
+
 uint32_t audio_sample_rate(void) { return s_sr; }
 size_t   audio_frame_samples(void) { return s_frame; }
 
@@ -82,6 +103,7 @@ void audio_tx_silence(int line)
 
 void audio_tx_tone(int line, call_progress_t tone)
 {
+    audio_wake();
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
     progress_tone_t p;
     progress_tone_start(&p, s_sr, tone);
@@ -93,6 +115,7 @@ void audio_tx_tone(int line, call_progress_t tone)
 
 void audio_tx_dtmf(int line, char key, uint32_t ms)
 {
+    audio_wake();
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
     tone_osc_t o;
     if (!dtmf_make_osc(&o, s_sr, key, 0.5f)) return;
@@ -106,6 +129,7 @@ void audio_tx_dtmf(int line, char key, uint32_t ms)
 
 void audio_tx_burst(int line, float f1, float f2, float amp, uint32_t ms)
 {
+    audio_wake();
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
     tone_osc_t o;
     tone_osc_init(&o, s_sr, f1, f2, amp);
@@ -119,6 +143,7 @@ void audio_tx_burst(int line, float f1, float f2, float amp, uint32_t ms)
 
 void audio_tx_bridge(int line, int from_line, bool enable)
 {
+    if (enable) audio_wake();
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
     portENTER_CRITICAL(&s_mux);
     if (enable) {
@@ -132,6 +157,7 @@ void audio_tx_bridge(int line, int from_line, bool enable)
 
 void audio_tx_external(int line, bool enable)
 {
+    if (enable) audio_wake();
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
     portENTER_CRITICAL(&s_mux);
     s_line[line].src = enable ? SRC_EXTERNAL : SRC_SILENCE;
@@ -140,6 +166,7 @@ void audio_tx_external(int line, bool enable)
 
 void audio_set_uplink_inject(int line, bool on)
 {
+    if (on) audio_wake();
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
     s_line[line].inject_uplink = on; /* read in audio_task's RX-processing loop; no lock needed for a single bool */
 }
@@ -165,6 +192,7 @@ void audio_set_rx_tap(int line, audio_rx_tap_fn fn, void *ctx)
 
 void audio_add_diag_tap(int line, audio_rx_tap_fn fn, void *ctx)
 {
+    audio_wake();
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
     portENTER_CRITICAL(&s_mux);
     s_line[line].diag_tap = fn;
@@ -183,6 +211,7 @@ void audio_remove_diag_tap(int line)
 
 void audio_add_downlink_tap(int line, audio_rx_tap_fn fn, void *ctx)
 {
+    audio_wake();
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
     portENTER_CRITICAL(&s_mux);
     s_line[line].downlink_tap = fn;
@@ -201,6 +230,7 @@ void audio_remove_downlink_tap(int line)
 
 void audio_add_extwrite_tap(int line, audio_rx_tap_fn fn, void *ctx)
 {
+    audio_wake();
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
     portENTER_CRITICAL(&s_mux);
     s_line[line].extwrite_tap = fn;
@@ -322,6 +352,7 @@ bool audio_echo_probe(int line, uint32_t burst_hz, uint32_t burst_ms,
 
 size_t audio_rx_read(int line, int16_t *mono, size_t n, uint32_t timeout_ms)
 {
+    audio_wake();
     if (line < 0 || line >= AUDIO_NUM_LINES || !s_line[line].rx) return 0;
     return xStreamBufferReceive(s_line[line].rx, mono, n * sizeof(int16_t),
                                 pdMS_TO_TICKS(timeout_ms)) / sizeof(int16_t);
@@ -342,6 +373,7 @@ uint16_t audio_rx_level(int line)
 
 void audio_set_test_loopback(bool on)
 {
+    if (on) audio_wake();
     s_test_loopback = on;
 }
 
@@ -413,6 +445,32 @@ static uint16_t rms_of(const int16_t *x, size_t n)
     return (uint16_t)sqrt((double)acc / (double)n);
 }
 
+/* Something still needs the pipeline running, independent of what the layer
+ * above says. The telephony DTMF rx_tap is deliberately NOT counted -- it's
+ * registered permanently on every line, and DTMF only matters off-hook,
+ * which the layer above already reports as not-idle. */
+static bool audio_busy(void)
+{
+    if (s_test_loopback) return true;
+    for (int i = 0; i < AUDIO_NUM_LINES; i++) {
+        const line_t *l = &s_line[i];
+        if (l->src != SRC_SILENCE || l->inject_uplink || l->diag_tap ||
+            l->downlink_tap || l->extwrite_tap) {
+            return true;
+        }
+    }
+    return (esp_timer_get_time() - s_last_use_us) < (int64_t)AUDIO_PAUSE_AFTER_MS * 1000;
+}
+
+void audio_allow_pause(bool allow)
+{
+    if (!allow) s_last_use_us = esp_timer_get_time();
+    s_allow_pause = allow;
+    if (!allow && s_paused && s_task) xTaskNotifyGive(s_task);
+}
+
+bool audio_is_paused(void) { return s_paused; }
+
 static void audio_task(void *arg)
 {
     const size_t n = s_frame;
@@ -426,6 +484,28 @@ static void audio_task(void *arg)
     }
 
     while (1) {
+        bool want_pause = s_allow_pause && !audio_busy();
+        if (!s_paused && want_pause) {
+            i2s_channel_disable(s_tx);
+            i2s_channel_disable(s_rx);
+            s_paused = true;
+            ESP_LOGI(TAG, "all lines idle -- audio pipeline paused");
+        }
+        if (s_paused) {
+            if (want_pause) {
+                /* Woken early by audio_wake()/audio_allow_pause(false); the
+                 * timeout just re-checks in case a flag changed silently. */
+                ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(500));
+                continue;
+            }
+            int64_t t0 = esp_timer_get_time();
+            i2s_channel_enable(s_tx);
+            i2s_channel_enable(s_rx);
+            s_paused = false;
+            ESP_LOGI(TAG, "audio pipeline resumed (%lld us)",
+                     (long long)(esp_timer_get_time() - t0));
+        }
+
         /* Always drain the codec RX so the I2S channel can't back up, even
          * when we're going to substitute the loopback source below. */
         size_t bytes_read = 0, got = 0;

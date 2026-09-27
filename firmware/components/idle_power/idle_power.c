@@ -1,4 +1,5 @@
 #include "idle_power.h"
+#include "audio.h"
 #include "board_pins.h"
 #include "board.h"
 #include "ag1170.h"
@@ -19,6 +20,7 @@ static const char *TAG = "idle_power";
 #define NVS_KEY_MIN  "minutes"
 #define NVS_KEY_MAXS "maxsave"
 #define NVS_KEY_ADTX "adtx"
+#define NVS_KEY_PAUD "paudio"
 
 /* SLIC duty cycle while past the idle threshold -- see
  * archive/POWER_SAVING.md for the full derivation and for where the two
@@ -79,6 +81,8 @@ static void load_cfg(void)
     if (nvs_get_u8(h, NVS_KEY_MAXS, &maxs) == ESP_OK) s_cfg.max_savings = (maxs != 0);
     uint8_t adtx;
     if (nvs_get_u8(h, NVS_KEY_ADTX, &adtx) == ESP_OK) s_cfg.adaptive_tx = (adtx != 0);
+    uint8_t paud;
+    if (nvs_get_u8(h, NVS_KEY_PAUD, &paud) == ESP_OK) s_cfg.pause_audio = (paud != 0);
     nvs_close(h);
 }
 
@@ -101,6 +105,7 @@ esp_err_t idle_power_set(idle_power_cfg_t cfg)
     if (err == ESP_OK) err = nvs_set_u32(h, NVS_KEY_MIN, cfg.minutes);
     if (err == ESP_OK) err = nvs_set_u8(h, NVS_KEY_MAXS, cfg.max_savings ? 1 : 0);
     if (err == ESP_OK) err = nvs_set_u8(h, NVS_KEY_ADTX, cfg.adaptive_tx ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_u8(h, NVS_KEY_PAUD, cfg.pause_audio ? 1 : 0);
     if (err == ESP_OK) err = nvs_commit(h);
     nvs_close(h);
     if (err == ESP_OK) {
@@ -108,6 +113,7 @@ esp_err_t idle_power_set(idle_power_cfg_t cfg)
         ESP_LOGI(TAG, "idle power %s, %u min, %s, adaptive TX %s",
                  cfg.enabled ? "enabled" : "disabled", (unsigned)cfg.minutes,
                  cfg.max_savings ? "max savings" : "balanced", cfg.adaptive_tx ? "on" : "off");
+        ESP_LOGI(TAG, "pause audio when idle: %s", cfg.pause_audio ? "on" : "off");
     }
     return err;
 }
@@ -138,6 +144,7 @@ idle_power_status_t idle_power_status(void)
         st.uptime_s = (uint32_t)(now / 1000000);
         st.sleep_count = s_sleep_count;
         st.tx_power_dbm = wifi_get_tx_power_dbm();
+        st.audio_paused = audio_is_paused();
         st.rssi_dbm = wifi_rssi();
         return st;
     } else if (s_sleeping) {
@@ -157,6 +164,7 @@ idle_power_status_t idle_power_status(void)
     st.uptime_s       = (uint32_t)(now / 1000000);
     st.sleep_count    = s_sleep_count;
     st.tx_power_dbm   = wifi_get_tx_power_dbm();
+    st.audio_paused   = audio_is_paused();
     st.rssi_dbm       = wifi_rssi();
     return st;
 }
@@ -268,6 +276,7 @@ static void idle_power_task(void *arg)
         int64_t now = esp_timer_get_time();
 
         adaptive_tx_step(now);
+        audio_allow_pause(s_cfg.pause_audio && all_lines_idle(num_lines));
 
         /* Web UI activity (or anything else that pings us) counts as "not
          * idle" for the idle clock even though telephony itself still says

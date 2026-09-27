@@ -47,6 +47,11 @@ typedef struct {
      * `enabled` -- it applies all the time, not just while idle, since a
      * strong link is wasting TX power whether or not the phone is in use. */
     bool     adaptive_tx;
+    /* Stop the audio pipeline (I2S + its 10ms processing task) whenever every
+     * line is on-hook, resuming on pickup. Also independent of `enabled`:
+     * it's cheap to undo (no multi-minute threshold), so it applies after a
+     * couple of idle seconds. See audio_allow_pause(). */
+    bool     pause_audio;
 } idle_power_cfg_t;
 
 /* Thresholds for adaptive_tx, on the RSSI we *receive* from the AP. The link
@@ -100,6 +105,7 @@ typedef struct {
     uint32_t sleep_count;       /* sleeps entered since boot */
     int      tx_power_dbm;      /* current WiFi TX power ceiling, 0 if WiFi off */
     int      rssi_dbm;          /* 0 if not connected */
+    bool     audio_paused;
 } idle_power_status_t;
 
 idle_power_status_t idle_power_status(void);

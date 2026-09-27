@@ -177,6 +177,15 @@ bool audio_echo_probe(int line, uint32_t burst_hz, uint32_t burst_ms,
                        uint32_t listen_ms, int16_t *cap_out, size_t cap_out_n,
                        audio_echo_probe_t *out);
 
+/* Lets the audio task pause itself (both I2S channels disabled, task asleep)
+ * once every line is idle and nothing has used audio for 2s. The caller must
+ * know the phones are all on-hook -- audio can't, since hook state comes from
+ * the SLIC, not the codec. Pausing is automatically undone by anything that
+ * asks for audio (a tone, a tap, an rx read), so allow=true is safe to leave
+ * set; allow=false forces an immediate resume. */
+void audio_allow_pause(bool allow);
+bool audio_is_paused(void);
+
 #ifdef __cplusplus
 }
 #endif
