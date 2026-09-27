@@ -14,6 +14,7 @@
 #include "telephony.h"
 #include "selftest.h"
 #include "idle_power.h"
+#include "esp_pm.h"
 #include "wifi.h"
 #include "storage.h"
 #include "sdcard.h"
@@ -1264,7 +1265,16 @@ static int cmd_status(int argc, char **argv)
  * actually observe the board asleep. */
 static int cmd_power(int argc, char **argv)
 {
-    (void)argc; (void)argv;
+#if CONFIG_PM_ENABLE
+    /* `power locks`: which drivers are holding the clock up right now. A
+     * CPU-frequency readout would be useless here -- FreeRTOS holds the
+     * clock at max while any task runs, including this one. Rebuild with
+     * CONFIG_PM_PROFILING=y to also get time spent at each clock. */
+    if (argc > 1 && strcmp(argv[1], "locks") == 0) {
+        esp_pm_dump_locks(stdout);
+        return 0;
+    }
+#endif
     static const char *names[] = { "disabled", "awake (line in use)", "awake, idle", "ASLEEP" };
     idle_power_status_t st = idle_power_status();
     printf("low-power: %s", names[st.state]);

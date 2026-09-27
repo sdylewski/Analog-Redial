@@ -2770,7 +2770,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
             break;
         default:
             snprintf(ip_now, sizeof(ip_now), "%s",
-                     i18n_str("idlepower.now_disabled", "Always full power (feature off)"));
+                     i18n_str("idlepower.now_disabled", "Idle sleep off (the options below still apply)"));
             break;
     }
     char ip_total[96] = "";
@@ -2830,6 +2830,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "</select></label>"
         "<label><input type=\"checkbox\" name=\"adaptive_tx\" value=\"1\"%s> %s</label>"
         "<label><input type=\"checkbox\" name=\"pause_audio\" value=\"1\"%s> %s</label>"
+        "<label><input type=\"checkbox\" name=\"cpu_scale\" value=\"1\"%s> %s</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>",
         ip.enabled ? " checked" : "", i18n_str("general.offhook.enabled", "Enabled"),
@@ -2844,6 +2845,9 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         ip.pause_audio ? " checked" : "",
         i18n_str("idlepower.pause_audio", "Pause audio processing while every phone is hung up "
                                          "(resumes on pickup; not yet tested by ear)"),
+        ip.cpu_scale ? " checked" : "",
+        i18n_str("idlepower.cpu_scale", "Slow the CPU clock to 80 MHz between tasks (full speed "
+                                       "whenever there's work to do)"),
         i18n_str("general.button.save", "Save"));
 
     char idlepower_hint[420];
@@ -4685,7 +4689,8 @@ static esp_err_t idle_power_settings_handler(httpd_req_t *req)
     body[r] = '\0';
 
     char enabled[8] = {0}, minutes[12] = {0}, max_savings[8] = {0}, adaptive_tx[8] = {0},
-         pause_audio[8] = {0};
+         pause_audio[8] = {0}, cpu_scale[8] = {0};
+    form_field(body, "cpu_scale", cpu_scale, sizeof(cpu_scale));
     form_field(body, "adaptive_tx", adaptive_tx, sizeof(adaptive_tx));
     form_field(body, "pause_audio", pause_audio, sizeof(pause_audio));
     form_field(body, "enabled", enabled, sizeof(enabled));
@@ -4698,6 +4703,7 @@ static esp_err_t idle_power_settings_handler(httpd_req_t *req)
         .max_savings = (max_savings[0] == '1'),
         .adaptive_tx = (adaptive_tx[0] == '1'),
         .pause_audio = (pause_audio[0] == '1'),
+        .cpu_scale = (cpu_scale[0] == '1'),
     };
     esp_err_t err = idle_power_set(cfg);
     if (err != ESP_OK) {

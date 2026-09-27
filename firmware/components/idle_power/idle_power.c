@@ -1,5 +1,6 @@
 #include "idle_power.h"
 #include "audio.h"
+#include "esp_pm.h"
 #include "board_pins.h"
 #include "board.h"
 #include "ag1170.h"
@@ -21,6 +22,7 @@ static const char *TAG = "idle_power";
 #define NVS_KEY_MAXS "maxsave"
 #define NVS_KEY_ADTX "adtx"
 #define NVS_KEY_PAUD "paudio"
+#define NVS_KEY_CPUS "cpuscale"
 
 /* SLIC duty cycle while past the idle threshold -- see
  * archive/POWER_SAVING.md for the full derivation and for where the two
@@ -83,6 +85,8 @@ static void load_cfg(void)
     if (nvs_get_u8(h, NVS_KEY_ADTX, &adtx) == ESP_OK) s_cfg.adaptive_tx = (adtx != 0);
     uint8_t paud;
     if (nvs_get_u8(h, NVS_KEY_PAUD, &paud) == ESP_OK) s_cfg.pause_audio = (paud != 0);
+    uint8_t cpus;
+    if (nvs_get_u8(h, NVS_KEY_CPUS, &cpus) == ESP_OK) s_cfg.cpu_scale = (cpus != 0);
     nvs_close(h);
 }
 
@@ -91,6 +95,24 @@ idle_power_cfg_t idle_power_get(void) { return s_cfg; }
 static int current_interval_ms(void)
 {
     return s_cfg.max_savings ? IDLE_POWER_INTERVAL_MS_MAX_SAVINGS : IDLE_POWER_INTERVAL_MS_BALANCED;
+}
+
+/* min == max pins the clock, which is how "off" is expressed -- there's no
+ * separate disable call. Light sleep stays off: it isolates GPIOs between
+ * wakeups (see CLAUDE.md's bench-debugging notes) and the SLIC hook poll runs
+ * every 1ms anyway, so it would never get a chance to sleep. */
+static void apply_cpu_scale(void)
+{
+#if CONFIG_PM_ENABLE
+    esp_pm_config_t pm = {
+        .max_freq_mhz = CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ,
+        .min_freq_mhz = s_cfg.cpu_scale ? 80 : CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ,
+        .light_sleep_enable = false,
+    };
+    esp_err_t err = esp_pm_configure(&pm);
+    if (err != ESP_OK) ESP_LOGW(TAG, "esp_pm_configure: %s", esp_err_to_name(err));
+    else ESP_LOGI(TAG, "CPU clock %d-%d MHz", pm.min_freq_mhz, pm.max_freq_mhz);
+#endif
 }
 
 esp_err_t idle_power_set(idle_power_cfg_t cfg)
@@ -106,6 +128,7 @@ esp_err_t idle_power_set(idle_power_cfg_t cfg)
     if (err == ESP_OK) err = nvs_set_u8(h, NVS_KEY_MAXS, cfg.max_savings ? 1 : 0);
     if (err == ESP_OK) err = nvs_set_u8(h, NVS_KEY_ADTX, cfg.adaptive_tx ? 1 : 0);
     if (err == ESP_OK) err = nvs_set_u8(h, NVS_KEY_PAUD, cfg.pause_audio ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_u8(h, NVS_KEY_CPUS, cfg.cpu_scale ? 1 : 0);
     if (err == ESP_OK) err = nvs_commit(h);
     nvs_close(h);
     if (err == ESP_OK) {
@@ -114,6 +137,7 @@ esp_err_t idle_power_set(idle_power_cfg_t cfg)
                  cfg.enabled ? "enabled" : "disabled", (unsigned)cfg.minutes,
                  cfg.max_savings ? "max savings" : "balanced", cfg.adaptive_tx ? "on" : "off");
         ESP_LOGI(TAG, "pause audio when idle: %s", cfg.pause_audio ? "on" : "off");
+        apply_cpu_scale();
     }
     return err;
 }
@@ -342,6 +366,7 @@ static void idle_power_task(void *arg)
 void idle_power_init(void)
 {
     load_cfg();
+    apply_cpu_scale();
     for (int i = 0; i < BOARD_NUM_LINES; i++) s_slic_on[i] = true;
     BaseType_t ok = xTaskCreate(idle_power_task, "idle_power", 4096, NULL,
                                  tskIDLE_PRIORITY + 2, NULL);

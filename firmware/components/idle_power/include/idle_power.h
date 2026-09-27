@@ -52,6 +52,13 @@ typedef struct {
      * it's cheap to undo (no multi-minute threshold), so it applies after a
      * couple of idle seconds. See audio_allow_pause(). */
     bool     pause_audio;
+    /* Let the CPU clock drop from 160 to 80 MHz whenever it's idle (esp_pm
+     * dynamic frequency scaling). FreeRTOS switches back to 160 the moment
+     * any task runs, so real work -- including the 10ms audio frames --
+     * always happens at full speed; only idle time runs slower. Measured on
+     * dualphone2 with CONFIG_PM_PROFILING: 89% of time at 80 MHz idle with
+     * audio paused, ~75% with audio running. */
+    bool     cpu_scale;
 } idle_power_cfg_t;
 
 /* Thresholds for adaptive_tx, on the RSSI we *receive* from the AP. The link

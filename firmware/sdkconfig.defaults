@@ -88,3 +88,7 @@ CONFIG_FATFS_MAX_LFN=64
 # CONFIG_AUDIO_CONVERT_MP3 (browser-upload decode, left off -- see that
 # option's own Kconfig for its very different, permanent RAM cost).
 CONFIG_PLAYER_MP3=y
+
+# Dynamic frequency scaling, runtime-controlled by idle_power's "slow the CPU
+# clock" option (min==max until that is switched on). Light sleep stays off.
+CONFIG_PM_ENABLE=y
