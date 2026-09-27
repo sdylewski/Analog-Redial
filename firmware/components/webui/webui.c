@@ -2610,6 +2610,16 @@ static int append_firmware_card(char *buf, size_t cap, int off)
     return off;
 }
 
+/* "45 s", "12 min", "3 h 05 min" -- whole minutes alone read as "0 min" for
+ * the short sleeps a quick test produces. */
+static void fmt_duration(uint32_t secs, char *out, size_t len)
+{
+    if (secs < 60)        snprintf(out, len, "%lu s", (unsigned long)secs);
+    else if (secs < 3600) snprintf(out, len, "%lu min", (unsigned long)(secs / 60));
+    else                  snprintf(out, len, "%lu h %02lu min", (unsigned long)(secs / 3600),
+                                   (unsigned long)((secs / 60) % 60));
+}
+
 static int append_hardware_tab(char *buf, size_t cap, int off)
 {
     char hw[64], serial[16];
@@ -2730,9 +2740,63 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
     snprintf(opt_max_savings, sizeof(opt_max_savings),
              i18n_str("idlepower.opt_max_savings", "Max savings (~%dms delay)"),
              IDLE_POWER_INTERVAL_MS_MAX_SAVINGS + 80);
+    /* Live state. Loading this page is itself a web request, which counts as
+     * activity and wakes the board, so "asleep" is almost never what a page
+     * can see -- say what it was doing just before instead. */
+    idle_power_status_t ips = idle_power_status();
+    char ip_now[160], d1[24], d2[24];
+    const char *ip_now_pill = "off";
+    switch (ips.state) {
+        case IDLE_POWER_ASLEEP:
+            ip_now_pill = "on";
+            fmt_duration(ips.secs_asleep_now, d1, sizeof(d1));
+            snprintf(ip_now, sizeof(ip_now), i18n_str("idlepower.now_asleep", "In low-power mode (%s)"), d1);
+            break;
+        case IDLE_POWER_COUNTING:
+            fmt_duration(ips.secs_until_sleep, d2, sizeof(d2));
+            if (ips.woken_by_web && ips.sleep_count > 0) {
+                fmt_duration(ips.last_sleep_s, d1, sizeof(d1));
+                snprintf(ip_now, sizeof(ip_now),
+                         i18n_str("idlepower.now_woken", "Awake -- loading this page woke it from %s "
+                                                          "in low-power; sleeps again in %s"), d1, d2);
+            } else {
+                snprintf(ip_now, sizeof(ip_now),
+                         i18n_str("idlepower.now_counting", "Awake, idle -- low-power in %s"), d2);
+            }
+            break;
+        case IDLE_POWER_IN_USE:
+            snprintf(ip_now, sizeof(ip_now), "%s",
+                     i18n_str("idlepower.now_in_use", "Awake -- a line is in use"));
+            break;
+        default:
+            snprintf(ip_now, sizeof(ip_now), "%s",
+                     i18n_str("idlepower.now_disabled", "Always full power (feature off)"));
+            break;
+    }
+    char ip_total[96] = "";
+    if (ips.uptime_s > 0 && ips.sleep_count > 0) {
+        fmt_duration(ips.total_asleep_s, d1, sizeof(d1));
+        snprintf(ip_total, sizeof(ip_total),
+                 i18n_str("idlepower.total", "%s (%lu%% of uptime), %lu times since boot"), d1,
+                 (unsigned long)((uint64_t)ips.total_asleep_s * 100 / ips.uptime_s),
+                 (unsigned long)ips.sleep_count);
+    }
+
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+        "<span class=\"pill %s\">%s</span></div>",
+        i18n_str("idlepower.title", "Low-power idle mode"),
+        i18n_str("general.current", "Current"), ip_status,
+        i18n_str("idlepower.now_label", "Right now"), ip_now_pill, ip_now);
+    if (ip_total[0]) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>",
+            i18n_str("idlepower.total_label", "Time in low-power"), ip_total);
+    }
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<form method=\"POST\" action=\"/idle_power\" class=\"settings-form\">"
         "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
         "<label>%s "
@@ -2744,8 +2808,6 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "</select></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>",
-        i18n_str("idlepower.title", "Low-power idle mode"),
-        i18n_str("general.current", "Current"), ip_status,
         ip.enabled ? " checked" : "", i18n_str("general.offhook.enabled", "Enabled"),
         i18n_str("idlepower.minutes_label", "Minutes idle before sleeping"),
         (unsigned)ip.minutes, IDLE_POWER_MINUTES_MIN, IDLE_POWER_MINUTES_MAX,

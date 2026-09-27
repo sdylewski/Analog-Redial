@@ -61,6 +61,33 @@ void idle_power_init(void);
  * Settings/status page -- not something normal callers need. */
 bool idle_power_is_sleeping(void);
 
+typedef enum {
+    IDLE_POWER_DISABLED = 0, /* feature switched off */
+    IDLE_POWER_IN_USE,       /* a line isn't idle, so the clock isn't running */
+    IDLE_POWER_COUNTING,     /* idle, but not long enough to sleep yet */
+    IDLE_POWER_ASLEEP,       /* in low-power mode right now */
+} idle_power_state_t;
+
+/* What the low-power logic is doing, for display. Any web request counts as
+ * activity and wakes the board (see idle_power_note_activity()), so a web
+ * page can essentially never observe IDLE_POWER_ASLEEP -- loading the page
+ * ended it. woken_by_web and slept_s say what the board was doing just before
+ * that page load, which is the part actually worth showing. The console
+ * doesn't count as activity, so the `power` console command can see
+ * IDLE_POWER_ASLEEP directly. */
+typedef struct {
+    idle_power_state_t state;
+    uint32_t secs_until_sleep;  /* IDLE_POWER_COUNTING only */
+    uint32_t secs_asleep_now;   /* IDLE_POWER_ASLEEP only */
+    bool     woken_by_web;      /* the most recent wake came from a web request */
+    uint32_t last_sleep_s;      /* how long that most recent sleep lasted */
+    uint32_t total_asleep_s;    /* summed over every sleep since boot */
+    uint32_t uptime_s;
+    uint32_t sleep_count;       /* sleeps entered since boot */
+} idle_power_status_t;
+
+idle_power_status_t idle_power_status(void);
+
 /* Call whenever there's activity that should postpone/undo low-power idle
  * even though every line is on-hook -- currently just the web UI (webui.c
  * calls this from the httpd server's connection-open hook, so simply

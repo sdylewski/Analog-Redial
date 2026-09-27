@@ -13,6 +13,7 @@
 #include "dtmf.h"
 #include "telephony.h"
 #include "selftest.h"
+#include "idle_power.h"
 #include "wifi.h"
 #include "storage.h"
 #include "sdcard.h"
@@ -1258,6 +1259,24 @@ static int cmd_status(int argc, char **argv)
     return 0;
 }
 
+/* ---------- power: low-power idle state ----------
+ * Unlike the web UI, the console doesn't count as activity, so this can
+ * actually observe the board asleep. */
+static int cmd_power(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    static const char *names[] = { "disabled", "awake (line in use)", "awake, idle", "ASLEEP" };
+    idle_power_status_t st = idle_power_status();
+    printf("low-power: %s", names[st.state]);
+    if (st.state == IDLE_POWER_COUNTING) printf(", sleeps in %lu s", (unsigned long)st.secs_until_sleep);
+    if (st.state == IDLE_POWER_ASLEEP)   printf(" for %lu s", (unsigned long)st.secs_asleep_now);
+    printf("\n  %lu sleeps since boot, %lu s asleep of %lu s up; last sleep %lu s%s\n",
+           (unsigned long)st.sleep_count, (unsigned long)st.total_asleep_s,
+           (unsigned long)st.uptime_s, (unsigned long)st.last_sleep_s,
+           st.woken_by_web ? " (ended by a web request)" : "");
+    return 0;
+}
+
 /* ---------- selftest: guided hardware bring-up check ---------- */
 
 static const char *selftest_result_str(selftest_result_t r)
@@ -2088,6 +2107,7 @@ void bringup_console_start(void)
     register_cmd("hookmon", "Watch SHK: hookmon [secs]", cmd_hookmon);
     register_cmd("pulsemon", "Watch raw pulse dialing + timing: pulsemon [secs] [line]", cmd_pulsemon);
     register_cmd("tonemon", "Watch DTMF (touch-tone) digits + timing: tonemon [secs] [line]", cmd_tonemon);
+    register_cmd("power", "Low-power idle state (the console, unlike the web UI, doesn't wake the board)", cmd_power);
     register_cmd("selftest", "Guided hardware bring-up check: selftest | action <id> | stimulus <id> | answer <id> <0|1> | save | history -- results stored on this board", cmd_selftest);
     register_cmd("status", "Per-line telephony status", cmd_status);
     register_cmd("reset", "Force line(s) out of a stuck tone/reorder state: reset [line]", cmd_reset);

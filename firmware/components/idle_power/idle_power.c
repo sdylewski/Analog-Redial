@@ -39,6 +39,8 @@ static const char *TAG = "idle_power";
  * formula.) */
 #define WIFI_SAVINGS_W 0.18f
 
+static bool all_lines_idle(int num_lines);
+
 static idle_power_cfg_t s_cfg = { .enabled = false, .minutes = 5, .max_savings = false };
 static bool             s_sleeping;
 static bool             s_wifi_eco;
@@ -50,6 +52,16 @@ static int64_t          s_idle_since_us; /* 0 while any line is busy */
  * TICK_MS), so this doesn't need a lock the way actually touching hardware
  * (wake_fully()) would if it were called from more than one task. */
 static volatile bool    s_activity_ping;
+
+/* Bookkeeping for idle_power_status() only -- nothing decides anything off
+ * these. Written from idle_power_task() except s_woken_by_web, which
+ * wake_fully() sets from the same task based on s_wake_reason_web. */
+static int64_t          s_sleep_started_us;
+static int64_t          s_total_asleep_us;
+static int64_t          s_last_sleep_us;
+static uint32_t         s_sleep_count;
+static bool             s_woken_by_web;
+static bool             s_wake_reason_web; /* set just before a wake_fully() call */
 
 static void load_cfg(void)
 {
@@ -98,6 +110,47 @@ esp_err_t idle_power_set(idle_power_cfg_t cfg)
 bool idle_power_is_sleeping(void) { return s_sleeping; }
 
 void idle_power_note_activity(void) { s_activity_ping = true; }
+
+idle_power_status_t idle_power_status(void)
+{
+    idle_power_status_t st = { 0 };
+    int64_t now = esp_timer_get_time();
+    int num_lines = board_hw_config_get().num_lines;
+
+    if (!s_cfg.enabled) {
+        st.state = IDLE_POWER_DISABLED;
+    } else if (s_sleeping && s_activity_ping) {
+        /* A web request has just arrived but idle_power_task() (50ms tick)
+         * hasn't acted on it yet -- which is exactly the situation of a web
+         * page asking for this status. Report the wake that's already
+         * underway rather than "asleep", which would be true for a few more
+         * milliseconds and misleading after. */
+        st.state = IDLE_POWER_COUNTING;
+        st.secs_until_sleep = (uint32_t)s_cfg.minutes * 60;
+        st.woken_by_web = true;
+        st.last_sleep_s = (uint32_t)((now - s_sleep_started_us) / 1000000);
+        st.total_asleep_s = (uint32_t)((s_total_asleep_us + now - s_sleep_started_us) / 1000000);
+        st.uptime_s = (uint32_t)(now / 1000000);
+        st.sleep_count = s_sleep_count;
+        return st;
+    } else if (s_sleeping) {
+        st.state = IDLE_POWER_ASLEEP;
+        st.secs_asleep_now = (uint32_t)((now - s_sleep_started_us) / 1000000);
+    } else if (!all_lines_idle(num_lines) || s_idle_since_us == 0) {
+        st.state = IDLE_POWER_IN_USE;
+    } else {
+        st.state = IDLE_POWER_COUNTING;
+        int64_t left_us = (int64_t)s_cfg.minutes * 60 * 1000000 - (now - s_idle_since_us);
+        st.secs_until_sleep = left_us > 0 ? (uint32_t)(left_us / 1000000) : 0;
+    }
+    st.woken_by_web   = s_woken_by_web;
+    st.last_sleep_s   = (uint32_t)(s_last_sleep_us / 1000000);
+    int64_t total = s_total_asleep_us + (s_sleeping ? now - s_sleep_started_us : 0);
+    st.total_asleep_s = (uint32_t)(total / 1000000);
+    st.uptime_s       = (uint32_t)(now / 1000000);
+    st.sleep_count    = s_sleep_count;
+    return st;
+}
 
 float idle_power_estimated_savings_w(void)
 {
@@ -151,9 +204,15 @@ static void wake_fully(int num_lines)
         s_wifi_eco = false;
     }
     if (s_sleeping) {
-        ESP_LOGI(TAG, "leaving low-power idle");
+        int64_t slept = esp_timer_get_time() - s_sleep_started_us;
+        s_last_sleep_us = slept;
+        s_total_asleep_us += slept;
+        s_woken_by_web = s_wake_reason_web;
+        ESP_LOGI(TAG, "leaving low-power idle after %lld s%s", (long long)(slept / 1000000),
+                 s_wake_reason_web ? " (web request)" : "");
         s_sleeping = false;
     }
+    s_wake_reason_web = false;
 }
 
 static void idle_power_task(void *arg)
@@ -176,7 +235,10 @@ static void idle_power_task(void *arg)
          * exact HTTP latency/flakiness WIFI_PS_NONE was chosen to fix. */
         if (s_activity_ping) {
             s_activity_ping = false;
-            if (s_sleeping || s_wifi_eco) wake_fully(num_lines);
+            if (s_sleeping || s_wifi_eco) {
+                s_wake_reason_web = true;
+                wake_fully(num_lines);
+            }
             s_idle_since_us = all_lines_idle(num_lines) ? now : 0;
         }
 
@@ -200,6 +262,8 @@ static void idle_power_task(void *arg)
         if (!s_sleeping) {
             ESP_LOGI(TAG, "entering low-power idle after %u min", (unsigned)s_cfg.minutes);
             s_sleeping = true;
+            s_sleep_started_us = now;
+            s_sleep_count++;
         }
 
         int64_t phase = (now / 1000) % current_interval_ms();
