@@ -1260,6 +1260,25 @@ static int cmd_status(int argc, char **argv)
     return 0;
 }
 
+/* ---------- btcall: HF call control / state, for testing ring-and-answer ---------- */
+static int cmd_btcall(int argc, char **argv)
+{
+    static const char *names[] = { "idle", "voice dial", "incoming", "outgoing",
+                                   "active", "active+waiting", "active+hold" };
+    if (argc > 1) {
+        esp_err_t err = ESP_ERR_INVALID_ARG;
+        if (strcmp(argv[1], "accept") == 0)      err = bt_companion_accept_call();
+        else if (strcmp(argv[1], "reject") == 0) err = bt_companion_reject_call();
+        else if (strcmp(argv[1], "end") == 0)    err = bt_companion_end_call();
+        if (err != ESP_OK) { printf("btcall: %s\n", esp_err_to_name(err)); return 1; }
+    }
+    bt_companion_status_t st = bt_companion_get_status();
+    unsigned cs = (unsigned)st.call_state;
+    printf("BT call: %s%s%s\n", cs < 7 ? names[cs] : "?",
+           st.caller_id[0] ? ", caller " : "", st.caller_id);
+    return 0;
+}
+
 /* ---------- power: low-power idle state ----------
  * Unlike the web UI, the console doesn't count as activity, so this can
  * actually observe the board asleep. */
@@ -2133,6 +2152,7 @@ void bringup_console_start(void)
     register_cmd("pulsemon", "Watch raw pulse dialing + timing: pulsemon [secs] [line]", cmd_pulsemon);
     register_cmd("tonemon", "Watch DTMF (touch-tone) digits + timing: tonemon [secs] [line]", cmd_tonemon);
     register_cmd("txpower", "WiFi transmit power: txpower [dBm 2-20] -- for testing; the adaptive-TX setting may change it back", cmd_txpower);
+    register_cmd("btcall", "Bluetooth phone call: btcall [accept|reject|end] -- no arg shows call state and caller ID", cmd_btcall);
     register_cmd("power", "Low-power idle state (the console, unlike the web UI, doesn't wake the board)", cmd_power);
     register_cmd("selftest", "Guided hardware bring-up check: selftest | action <id> | stimulus <id> | answer <id> <0|1> | save | history -- results stored on this board", cmd_selftest);
     register_cmd("status", "Per-line telephony status", cmd_status);

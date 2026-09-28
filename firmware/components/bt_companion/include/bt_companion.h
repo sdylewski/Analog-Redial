@@ -35,6 +35,19 @@ extern "C" {
 #endif
 
 #define BT_COMPANION_NAME_MAX 32
+#define BT_COMPANION_CALLER_ID_MAX 24
+
+/* HF call state as the module reports it (Call_Status event 0x02, Microchip
+ * Audio UART Command Set 7.3). Values are the module's own. */
+typedef enum {
+    BT_CALL_IDLE           = 0,
+    BT_CALL_VOICE_DIAL     = 1,
+    BT_CALL_INCOMING       = 2,
+    BT_CALL_OUTGOING       = 3,
+    BT_CALL_ACTIVE         = 4,
+    BT_CALL_ACTIVE_WAITING = 5, /* a call active with another waiting */
+    BT_CALL_ACTIVE_HOLD    = 6, /* a call active with another on hold */
+} bt_call_state_t;
 
 typedef struct {
     bool    enabled;                          /* "I have this daughter board wired in" */
@@ -46,6 +59,9 @@ typedef struct {
                                                 * against Microchip's real command-set
                                                 * doc 2026-09-22 -- see bt_companion.c) */
     char    paired_name[BT_COMPANION_NAME_MAX]; /* "" if bt_connected is false or unknown */
+    bt_call_state_t call_state;                  /* the paired phone's HF call state */
+    char    caller_id[BT_COMPANION_CALLER_ID_MAX]; /* number from the Caller_ID event,
+                                                * "" if none reported (yet) */
     char    bd_addr[18];                      /* this module's own BT MAC, "" until the
                                                 * background poller's one-time startup query
                                                 * gets a reply -- shown in the web UI so you
@@ -79,6 +95,24 @@ bool bt_companion_active(void);
  * runtime-only (not persisted) -- they reflect whatever the module last
  * reported, or all false/"" if disabled or nothing's answered yet. */
 bt_companion_status_t bt_companion_get_status(void);
+
+/* Notified from the Bluetooth task whenever the paired phone's call state
+ * changes, or a caller ID arrives for a call already ringing (state
+ * unchanged). Also fires with BT_CALL_IDLE when the link drops or the feature
+ * is switched off mid-call, so a ringing bell can't be left ringing. Runs in
+ * bt_companion's own task -- the listener should just queue the event. One
+ * listener; a second registration replaces the first. */
+typedef void (*bt_companion_call_cb)(bt_call_state_t state, void *ctx);
+void bt_companion_set_call_cb(bt_companion_call_cb cb, void *ctx);
+
+/* HF call control (MMI actions 0x04/0x05/0x06). ESP_ERR_INVALID_STATE if the
+ * feature isn't on or the module isn't responding; whether the phone actually
+ * acts on it comes back as a later call-state change, not as a return value.
+ * End uses 0x06 ("end call / transfer audio to phone"), not 0x02 -- the
+ * latter is marked deprecated in the v2.06 command set. */
+esp_err_t bt_companion_accept_call(void);
+esp_err_t bt_companion_reject_call(void);
+esp_err_t bt_companion_end_call(void);
 
 /* Sends the module a "start pairing" MMI command (BM64_MMI_ANY_MODE_ENTERING_
  * PAIRING). ESP_ERR_INVALID_STATE if not enabled or the UART link isn't up

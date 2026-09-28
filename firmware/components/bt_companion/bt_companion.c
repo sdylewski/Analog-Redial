@@ -86,6 +86,9 @@ typedef enum {
 } bm64_btm_state_t;
 
 typedef enum {
+    BM64_MMI_ACCEPT_CALL                = 0x04,
+    BM64_MMI_REJECT_CALL                = 0x05,
+    BM64_MMI_END_CALL                   = 0x06,
     BM64_MMI_POWERON_BUTTON_PRESS       = 0x51,
     BM64_MMI_POWERON_BUTTON_RELEASE     = 0x52,
     BM64_MMI_ANY_MODE_ENTERING_PAIRING = 0x5D,
@@ -98,6 +101,8 @@ typedef enum {
 typedef enum {
     BM64_EVENT_ACK                    = 0x00,
     BM64_EVENT_DEVICE_STATE           = 0x01,
+    BM64_EVENT_CALL_STATUS            = 0x02, /* Data_Base_Index, Call_Status */
+    BM64_EVENT_CALLER_ID              = 0x03, /* Data_Base_Index, ASCII number */
     BM64_EVENT_REMOTE_DEVICE_NAME     = 0x17,
     BM64_EVENT_UART_VERSION           = 0x18,
     BM64_EVENT_REPORT_LINK_STATUS     = 0x1E,
@@ -129,6 +134,8 @@ static TaskHandle_t          s_task;
  * silently right after "IBDK: entering". */
 static volatile bool         s_task_stop;
 static TaskHandle_t          s_autocheck_task; /* one-shot EEPROM config check */
+static bt_companion_call_cb  s_call_cb;
+static void                 *s_call_cb_ctx;
 static int64_t               s_last_reply_us;
 static bt_companion_status_t s_status;
 static portMUX_TYPE          s_lock = portMUX_INITIALIZER_UNLOCKED;
@@ -349,6 +356,16 @@ esp_err_t bt_companion_send_mmi(uint8_t action)
      * same as bt_companion_start_pairing() -- not read here. */
     return ESP_OK;
 }
+
+void bt_companion_set_call_cb(bt_companion_call_cb cb, void *ctx)
+{
+    s_call_cb_ctx = ctx;
+    s_call_cb = cb;
+}
+
+esp_err_t bt_companion_accept_call(void) { return bt_companion_send_mmi(BM64_MMI_ACCEPT_CALL); }
+esp_err_t bt_companion_reject_call(void) { return bt_companion_send_mmi(BM64_MMI_REJECT_CALL); }
+esp_err_t bt_companion_end_call(void)    { return bt_companion_send_mmi(BM64_MMI_END_CALL); }
 
 esp_err_t bt_companion_send_cmd(uint8_t opcode, const uint8_t *params, uint8_t param_count)
 {
@@ -612,15 +629,52 @@ static void handle_event(uint8_t event_code, const uint8_t *param, uint8_t param
                 board_led_set_state(BOARD_LED_BT_CONNECTED);
                 break;
             case BM64_STATE_HF_LINK_DOWN:
-            case BM64_STATE_A2DP_LINK_DOWN:
+            case BM64_STATE_A2DP_LINK_DOWN: {
                 portENTER_CRITICAL(&s_lock);
                 s_status.bt_connected = false;
                 s_status.paired_name[0] = '\0';
+                /* Losing the HF link ends any call -- without this a bell
+                 * started for an incoming call would ring on forever. */
+                bool had_call = (param[0] == BM64_STATE_HF_LINK_DOWN &&
+                                 s_status.call_state != BT_CALL_IDLE);
+                if (had_call) {
+                    s_status.call_state = BT_CALL_IDLE;
+                    s_status.caller_id[0] = '\0';
+                }
                 portEXIT_CRITICAL(&s_lock);
+                if (had_call && s_call_cb) s_call_cb(BT_CALL_IDLE, s_call_cb_ctx);
                 break;
+            }
             default:
                 break;
             }
+        }
+        break;
+    case BM64_EVENT_CALL_STATUS:
+        if (param_len >= 2) {
+            bt_call_state_t cs = (bt_call_state_t)param[1];
+            portENTER_CRITICAL(&s_lock);
+            bt_call_state_t prev = s_status.call_state;
+            s_status.call_state = cs;
+            if (cs == BT_CALL_IDLE) s_status.caller_id[0] = '\0';
+            portEXIT_CRITICAL(&s_lock);
+            ESP_LOGI(TAG, "call state %d -> %d", prev, cs);
+            if (cs != prev && s_call_cb) s_call_cb(cs, s_call_cb_ctx);
+        }
+        break;
+    case BM64_EVENT_CALLER_ID:
+        if (param_len >= 2) {
+            portENTER_CRITICAL(&s_lock);
+            size_t cn = (size_t)(param_len - 1);
+            if (cn > sizeof(s_status.caller_id) - 1) cn = sizeof(s_status.caller_id) - 1;
+            memcpy(s_status.caller_id, &param[1], cn);
+            s_status.caller_id[cn] = '\0';
+            bt_call_state_t cs = s_status.call_state;
+            portEXIT_CRITICAL(&s_lock);
+            ESP_LOGI(TAG, "caller ID: %s", s_status.caller_id);
+            /* Same state, re-notified so a listener already ringing can pick
+             * up the number, which often arrives after the ring starts. */
+            if (s_call_cb) s_call_cb(cs, s_call_cb_ctx);
         }
         break;
     case BM64_EVENT_REMOTE_DEVICE_NAME:
@@ -891,8 +945,12 @@ static void stop_task(void)
         }
     }
     portENTER_CRITICAL(&s_lock);
+    bool had_call = (s_status.call_state != BT_CALL_IDLE);
     memset(&s_status, 0, sizeof(s_status));
     portEXIT_CRITICAL(&s_lock);
+    /* Switched off (or parked for a config check) mid-call: tell the listener,
+     * or a ringing bell would never be told to stop. */
+    if (had_call && s_call_cb) s_call_cb(BT_CALL_IDLE, s_call_cb_ctx);
     /* UART left installed (cheap, and BOARD_UART_TX/RX have no other
      * claimant) so re-enabling doesn't need to reinstall the driver. */
 }
