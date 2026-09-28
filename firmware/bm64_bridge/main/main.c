@@ -46,7 +46,7 @@
  * a real serial terminal (PuTTY, screen, TeraTerm -- NOT a one-shot
  * scripted send), type "bridge", then point the PC-side tool at that same
  * port. Reflash the real gateway firmware afterward -- see
- * BM64/BM64_Analog_Audio_Setup.md.
+ * Bluetooth/BM64_Analog_Audio_Setup.md.
  *
  * Pins match board_pins_smd4.h / BOARD_UART_TX/RX and BOARD_BT_MFB/RST/
  * P20_PIN exactly (confirmed on real "newphone" hardware 2026-09-23) --

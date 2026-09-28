@@ -175,7 +175,7 @@ planned re-route below). The "Line0" naming is correct: firmware's
 `bt_companion_line()` (`telephony.c`) now always returns line 0, matching
 this header (resolved 2026-09-27 -- it had briefly been line 1).
 
-**Companion daughter-board**: `hardware/kicad/Bluetooth_board/` is the BM64
+**Companion daughter-board**: `Bluetooth/Bluetooth_board/` is the BM64
 module's own carrier board, meant to mate to J12 with a matching female
 header (same 6-pin pinout as above, mirrored).
 

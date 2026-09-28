@@ -2271,7 +2271,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
  * everything else collapses into #bt-extra. */
 /* "Module configuration" card: a stock BM64 ships routing audio to I2S for
  * the EVB's external DAC, so the analog pin this board taps stays silent
- * until a few EEPROM bytes are changed (BM64/BM64_AUDIO_DEBUG.md has the
+ * until a few EEPROM bytes are changed (Bluetooth/BM64_AUDIO_DEBUG.md has the
  * full derivation). The check is keyed on the module's own BD address rather
  * than a plain "already done" flag, so swapping the BM64 or moving this
  * ESP32 to another board re-prompts instead of trusting a stale marker.

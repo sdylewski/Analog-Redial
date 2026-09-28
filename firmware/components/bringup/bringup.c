@@ -232,7 +232,7 @@ static int cmd_spkamp(int argc, char **argv)
 }
 
 /* ---------- spkhiz: force a line's LOUT/ROUT driver to high-Z ----------
- * Diagnostic for the BM64-loading problem (BM64/BM64_AUDIO_DEBUG.md,
+ * Diagnostic for the BM64-loading problem (Bluetooth/BM64_AUDIO_DEBUG.md,
  * "AOHPL tap measurably loads and distorts Vin"): the ES8388's LOUT1/ROUT1
  * pins are active drivers even when "silent" (0V AC, not high-impedance),
  * which shunts the BM64's weaker analog output on the shared Vin node.

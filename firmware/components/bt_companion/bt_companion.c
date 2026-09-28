@@ -495,7 +495,7 @@ esp_err_t bt_companion_send_cmd(uint8_t opcode, const uint8_t *params, uint8_t p
      * is the general entry point for real command-set commands that take
      * their own multi-byte parameter list -- e.g. Set_Overall_Gain (0x23),
      * Data_Base_Index/Mask/Type/Gain1/Gain2/Gain3, 6 bytes, per Microchip's
-     * Audio UART Command Set doc (BM64/Docs/, section 5.1.30). */
+     * Audio UART Command Set doc (Bluetooth/Docs/, section 5.1.30). */
     send_command(opcode, params, param_count);
     return ESP_OK;
 }
@@ -1318,7 +1318,7 @@ esp_err_t bt_companion_eeprom_write(uint16_t addr, uint8_t value)
 /* ---- Known-good EEPROM configuration ----------------------------------- */
 
 /* Why each byte, and what the stock value breaks -- full derivation in
- * BM64/BM64_AUDIO_DEBUG.md. The short version: a stock BM64CLS1 table routes
+ * Bluetooth/BM64_AUDIO_DEBUG.md. The short version: a stock BM64CLS1 table routes
  * A2DP audio to I2S for the EVB's external Yamaha DSP amp, so the analog
  * AOHPL pin this board taps stays silent no matter how loud the phone is. */
 static const struct { uint16_t addr; uint8_t expected; const char *what; }

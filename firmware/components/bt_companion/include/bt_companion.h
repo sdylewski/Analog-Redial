@@ -160,7 +160,7 @@ esp_err_t bt_companion_send_raw_cmd(uint8_t opcode, uint8_t reserved_byte);
  * parameter list, for commands bt_companion_send_raw_cmd()'s fixed
  * "opcode + one byte" shape can't cover -- e.g. Set_Overall_Gain (0x23),
  * which takes 6 parameter bytes (Data_Base_Index, Mask, Type, Gain1-3; see
- * Microchip's Audio UART Command Set doc, BM64/Docs/, section 5.1.30).
+ * Microchip's Audio UART Command Set doc, Bluetooth/Docs/, section 5.1.30).
  * Same reply-surfaces-via-the-log behavior as bt_companion_send_raw_cmd(). */
 esp_err_t bt_companion_send_cmd(uint8_t opcode, const uint8_t *params, uint8_t param_count);
 
@@ -230,7 +230,7 @@ int bt_companion_raw_xfer(const uint8_t *tx, size_t tx_len,
  * BOARD_BT_MFB_PIN. In this mode the module speaks HCI, not the normal AA00
  * framed command set, and EEPROM access travels as HCI ACL Data packets to
  * connection handle 0x0FFF (reverse-engineered from a DMS capture of
- * Microchip's own isUpdate.exe -- see BM64/eeprom_write/eeprom_write.md).
+ * Microchip's own isUpdate.exe -- see Bluetooth/eeprom_write/eeprom_write.md).
  *
  * All of these stop the module talking Bluetooth for as long as IBDK mode
  * is held, and they can't share the UART with the background poll task, so
@@ -256,7 +256,7 @@ esp_err_t bt_companion_eeprom_write(uint16_t addr, uint8_t value);
  * A stock BM64 ships configured for the EVB it was characterized on, which
  * routes audio out over I2S to an external DAC -- not to the analog
  * AOHPL/AOHPR pins this board taps. Getting analog audio needs a handful of
- * EEPROM bytes changed (see BM64/BM64_AUDIO_DEBUG.md for how each one was
+ * EEPROM bytes changed (see Bluetooth/BM64_AUDIO_DEBUG.md for how each one was
  * identified, and what the wrong value does).
  *
  * This deliberately checks a short curated list of bytes whose meaning is

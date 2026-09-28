@@ -673,7 +673,7 @@ matter in practice.
   this is built, not just assumed.
 - **BM64 EEPROM HF-profile settings**: confirm `PROFILE_SETTING2`
   ("Support HF Profile") is actually enabled in whatever EEPROM config
-  ends up shipped (see `BM64/eeprom_write/` for the current audio-fix
+  ends up shipped (see `Bluetooth/eeprom_write/` for the current audio-fix
   work) -- A2DP-only audio passthrough (music) would keep working even if
   this got missed, but call ringing/answer/dial silently wouldn't, and
   that failure mode (BM64 just never emitting `CALL_STATUS` events at
