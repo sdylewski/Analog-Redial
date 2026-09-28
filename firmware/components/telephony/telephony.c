@@ -61,6 +61,7 @@ static void rec_name_timestamped(char *out, size_t out_len)
 #define NLINES_ACTIVE BOARD_NUM_LINES
 #define PEER_NONE     (-1)
 #define PEER_VOIP     (-2)
+#define PEER_BT       (-3) /* the Bluetooth-paired phone's call, via bt_companion */
 
 /* What an in-progress TEL_PLAYING_RECORD_PROMPT/TEL_RECORD_BEEP/TEL_RECORDING
  * sequence is actually for -- all three purposes share the exact same state
@@ -81,6 +82,7 @@ typedef enum {
     IN_VOIP_INCOMING, IN_VOIP_ANSWERED, IN_VOIP_CLOSED,
     IN_CLIP_DONE,
     IN_REC_DONE,
+    IN_BT_CALL,   /* .digit carries the new bt_call_state_t */
 } in_type_t;
 
 typedef struct {
@@ -267,6 +269,14 @@ static void voip_cb(const voip_event_t *ev, void *ctx)
     xQueueSend(s_q, &e, 0);
 }
 
+/* Runs in bt_companion's task -- just queue it, like every other source. */
+static void bt_call_cb(bt_call_state_t state, void *ctx)
+{
+    (void)ctx;
+    in_evt_t e = { .line = 0, .type = IN_BT_CALL, .digit = (char)state };
+    xQueueSend(s_q, &e, 0);
+}
+
 /* ---- state helpers ---- */
 static void enter_idle(int line)
 {
@@ -341,9 +351,18 @@ static int bt_companion_line(void)
  * the line to. Matches the design intent written up in
  * archive/BLUETOOTH_AUDIO_UPGRADE.md: normal telephony should keep working
  * whenever Bluetooth isn't actively in use, not just whenever it's off. */
+static void enter_bt_passthrough(int line);
+
 static bool bt_companion_should_intercept(int line)
 {
     if (line != bt_companion_line() || !bt_companion_active()) return false;
+    /* Only a fresh pickup from idle. An off-hook while this line is ringing is
+     * someone answering that call -- VoIP, local, or the Bluetooth phone's own
+     * (on_offhook() handles all three) -- and must never be diverted into
+     * passthrough instead. Before this check existed, lifting the handset to
+     * answer a ringing VoIP call on line 0 would do exactly that whenever a
+     * phone happened to be paired. */
+    if (s_line[line].state != TEL_IDLE) return false;
     return bt_companion_get_status().bt_connected;
 }
 
@@ -571,6 +590,17 @@ static void connect_bridge(int a, int b)
 static void end_call(int line)
 {
     int peer = s_line[line].peer;
+
+    /* Hanging up the handset during a Bluetooth call ends that call on the
+     * phone, as with any headset. Only for a real call -- passthrough with
+     * just music playing (A2DP, no HF call) is left alone. */
+    if (s_line[line].state == TEL_BT_PASSTHROUGH) {
+        bt_call_state_t cs = bt_companion_get_status().call_state;
+        if (cs == BT_CALL_OUTGOING || cs == BT_CALL_ACTIVE ||
+            cs == BT_CALL_ACTIVE_WAITING || cs == BT_CALL_ACTIVE_HOLD) {
+            bt_companion_end_call();
+        }
+    }
 
     /* Capture before anything below tears down state/peer. */
     if (peer >= 0 && peer < NLINES) {
@@ -834,6 +864,16 @@ static void on_offhook(int line)
         return;
     }
     tel_state_t st = s_line[line].state;
+    if (st == TEL_RINGING && s_line[line].peer == PEER_BT) {
+        /* Lifting the handset answers the paired phone's call, just as a
+         * Bluetooth headset would. ag1170 has already silenced the bell (its
+         * ring-trip path stops ringing on off-hook). */
+        bt_companion_accept_call();
+        activity_log("Line %d: answered Bluetooth call%s%s", line,
+                     s_line[line].caller_number[0] ? " from " : "", s_line[line].caller_number);
+        enter_bt_passthrough(line);
+        return;
+    }
     if (st == TEL_RINGING) {
         /* answering an incoming call */
         int peer = s_line[line].peer;
@@ -926,6 +966,70 @@ static void on_voip_incoming(int line)
     start_ring(line);
 }
 
+/* The paired phone's call state changed (or a caller ID arrived for a call
+ * already ringing). Only line 0 carries Bluetooth audio, see
+ * bt_companion_line(). */
+static void on_bt_call(int line, bt_call_state_t cs)
+{
+    const char *cid = bt_companion_get_status().caller_id;
+    tel_state_t st = s_line[line].state;
+
+    switch (cs) {
+    case BT_CALL_INCOMING:
+        if (st == TEL_RINGING && s_line[line].peer == PEER_BT) {
+            /* Already ringing -- a caller ID that arrived after the ring. */
+            if (cid[0]) strlcpy(s_line[line].caller_number, cid, sizeof(s_line[line].caller_number));
+            break;
+        }
+        if (st != TEL_IDLE || line_offhook(line)) {
+            /* Line busy, or the handset is already up (e.g. listening to
+             * music in passthrough) -- an off-hook phone can't be rung. The
+             * paired phone keeps ringing on its own. */
+            ESP_LOGI(TAG, "line %d: Bluetooth call incoming but line busy (%s) -- not ringing",
+                     line, telephony_state_name(st));
+            break;
+        }
+        s_line[line].caller_name[0] = '\0';
+        strlcpy(s_line[line].caller_number, cid, sizeof(s_line[line].caller_number));
+        ESP_LOGI(TAG, "line %d: ringing -- Bluetooth call%s%s", line, cid[0] ? " from " : "", cid);
+        activity_log("Line %d: ringing -- Bluetooth call%s%s", line, cid[0] ? " from " : "", cid);
+        s_line[line].state = TEL_RINGING;
+        s_line[line].peer = PEER_BT;
+        start_ring(line);
+        break;
+
+    case BT_CALL_ACTIVE:
+    case BT_CALL_ACTIVE_WAITING:
+    case BT_CALL_ACTIVE_HOLD:
+        if (st == TEL_RINGING && s_line[line].peer == PEER_BT) {
+            /* Answered on the phone itself -- stop the bell. The call stays
+             * on the phone; lifting the handset afterwards still picks it up,
+             * since a live connection routes pickup into passthrough. */
+            ag1170_ring_stop(line);
+            activity_log("Line %d: Bluetooth call answered on the phone", line);
+            enter_idle(line);
+        }
+        break;
+
+    case BT_CALL_IDLE:
+        if (st == TEL_RINGING && s_line[line].peer == PEER_BT) {
+            /* Caller gave up, or it was declined on the phone. */
+            ag1170_ring_stop(line);
+            activity_log("Line %d: missed Bluetooth call%s%s", line,
+                         s_line[line].caller_number[0] ? " from " : "", s_line[line].caller_number);
+            enter_idle(line);
+        } else if (st == TEL_BT_PASSTHROUGH) {
+            activity_log("Line %d: Bluetooth call ended", line);
+            /* Stay in passthrough: the handset is still up and the phone is
+             * still connected (music, or the next call placed from it). */
+        }
+        break;
+
+    default:
+        break; /* outgoing / voice dial: placed from the phone, nothing to do */
+    }
+}
+
 static void fsm_task(void *arg)
 {
     const TickType_t tick = pdMS_TO_TICKS(10);
@@ -940,6 +1044,7 @@ static void fsm_task(void *arg)
                 case IN_ONHOOK:         on_onhook(e.line);  break;
                 case IN_DIGIT:          process_digit(e.line, e.digit); break;
                 case IN_VOIP_INCOMING:  on_voip_incoming(e.line); break;
+                case IN_BT_CALL:        on_bt_call(e.line, (bt_call_state_t)e.digit); break;
                 case IN_VOIP_ANSWERED:
                     if (s_line[e.line].state == TEL_RINGBACK) {
                         audio_tx_external(e.line, true);
@@ -1081,7 +1186,9 @@ static void fsm_task(void *arg)
              * comment. */
             if (s_line[line].state == TEL_RINGING && s_line[line].ring_started_us) {
                 board_am_cfg_t cfg = s_line[line].ring_am_cfg;
-                bool eligible = cfg.enabled &&
+                /* Never for a Bluetooth call -- the paired phone has its own
+                 * voicemail, and answering here would take its call away. */
+                bool eligible = cfg.enabled && s_line[line].peer != PEER_BT &&
                     (s_line[line].peer == PEER_VOIP || cfg.other_line);
                 if (eligible) {
                     uint16_t on_ms, off_ms;
@@ -1129,6 +1236,7 @@ esp_err_t telephony_start(void)
     }
 
     ag1170_set_event_cb(ag_cb, NULL);
+    bt_companion_set_call_cb(bt_call_cb, NULL);
     voip_init(voip_cb, NULL);
 
     /* Was 4096 -- confirmed live via a "Stack protection fault" panic in this
