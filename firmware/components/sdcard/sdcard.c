@@ -259,6 +259,16 @@ esp_err_t sdcard_selftest(float *write_kbps, float *read_kbps)
     if (!s_card) { printf("SD: not mounted\n"); return ESP_ERR_INVALID_STATE; }
     const char *path = SD_MOUNT "/_sdtest.bin";
 
+    /* One buffer only, reused for the read-back -- comparing against the
+     * formula directly instead of keeping a second full-size buffer around
+     * for memcmp() halves peak heap use (was 2x SELFTEST_BYTES at once).
+     * Found needing this 2026-09-22: a single-line SMD4 board with WiFi/
+     * webserver/telephony all running genuinely didn't have 256KB
+     * contiguous free, and the self-test failed with "out of memory" even
+     * though the SD card itself was fine (mounted, correct size, healthy
+     * FAT) -- see project convention on this class of bug (don't malloc()
+     * large one-shot buffers on this chip; player.c streams for the same
+     * reason). */
     uint8_t *buf = malloc(SELFTEST_BYTES);
     if (!buf) { printf("SD: out of memory for self-test buffer\n"); return ESP_FAIL; }
     /* A repeating-but-not-constant pattern -- catches a stuck-bit or
@@ -279,20 +289,22 @@ esp_err_t sdcard_selftest(float *write_kbps, float *read_kbps)
     }
     if (write_kbps) *write_kbps = (float)SELFTEST_BYTES / 1024.0f / ((float)(t1 - t0) / 1000000.0f);
 
-    uint8_t *readback = malloc(SELFTEST_BYTES);
-    if (!readback) { printf("SD: out of memory for readback buffer\n"); unlink(path); free(buf); return ESP_FAIL; }
     int64_t t2 = esp_timer_get_time();
     f = fopen(path, "rb");
-    if (!f) { printf("SD: open-for-read failed\n"); unlink(path); free(buf); free(readback); return ESP_FAIL; }
-    size_t got = fread(readback, 1, SELFTEST_BYTES, f);
+    if (!f) { printf("SD: open-for-read failed\n"); unlink(path); free(buf); return ESP_FAIL; }
+    size_t got = fread(buf, 1, SELFTEST_BYTES, f);
     fclose(f);
     int64_t t3 = esp_timer_get_time();
     unlink(path);
     if (read_kbps) *read_kbps = (float)got / 1024.0f / ((float)(t3 - t2) / 1000000.0f);
 
-    bool match = (got == SELFTEST_BYTES) && (memcmp(buf, readback, SELFTEST_BYTES) == 0);
+    bool match = (got == SELFTEST_BYTES);
+    if (match) {
+        for (size_t i = 0; i < SELFTEST_BYTES; i++) {
+            if (buf[i] != (uint8_t)(i * 31 + 7)) { match = false; break; }
+        }
+    }
     free(buf);
-    free(readback);
     if (!match) {
         printf("SD: readback mismatch (%u/%u bytes, content %s)\n", (unsigned)got, SELFTEST_BYTES,
                (got == SELFTEST_BYTES) ? "differs" : "short");

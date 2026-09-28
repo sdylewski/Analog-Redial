@@ -7,11 +7,11 @@
 **An ESP32-C6 analog phone exchange** — two POTS phones (rotary or
 touch-tone), no server required, VoIP when you want it.
 
-Plug in one or two analog telephones and this board gives them dial tone,
-call-progress tones, and full phone-line signaling on real hardware — with
+Plug in one or two analog telephones and this board gives them dial tone
+and full phone-line signaling on real hardware — with
 enough on-chip smarts to be a self-contained phone system on its own, or a
 gateway onto a SIP/VoIP network when you want it to be.
-
+![Analog Redial PCB](docs/pics/smd4_board.jpg)
 ---
 
 ## Why not just buy a VoIP adapter (ATA)?
@@ -30,7 +30,7 @@ phones on the same box call each other. This board is different:
   you still have a working two-line phone system.
 - **VoIP when you want it.** Register a line with Asterisk, FreePBX, or any
   standards-compliant SIP server for calls beyond the board itself.
-- **Open, hackable firmware.** ESP-IDF C source, not a sealed appliance —
+- **Open, hackable hardware and firmware.** ESP-IDF C source, not a sealed appliance —
   add your own dial codes, tones, dial plans, or recordings.
 
 ## Features

@@ -24210,7 +24210,31 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "Analog Phone 4.0\nMajor Hack\n2026/08"
+	(gr_text "470uF"
+		(at 82.25 76.75 0)
+		(layer "F.SilkS")
+		(uuid "f3fd14a8-b42a-40d0-98e4-42c315eaffd3")
+		(effects
+			(font
+				(size 1 1)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+	)
+	(gr_text "470uF"
+		(at 93.25 76.5 0)
+		(layer "F.SilkS")
+		(uuid "318e66d4-7ed7-456d-b40c-625b9d8a9048")
+		(effects
+			(font
+				(size 1 1)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+	)
+	(gr_text "Analog Redial 4.0\nMajor Hack\n2026/08"
 		(at 55.15 93.5 90)
 		(layer "F.SilkS")
 		(uuid "141c93e3-e1ff-4257-aafd-f523c6daa016")
