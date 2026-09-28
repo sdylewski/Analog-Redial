@@ -54,6 +54,7 @@ static const char *TAG = "bt_companion";
 #define BM64_SYNC 0xAA
 
 typedef enum {
+    BM64_MAKE_CALL_CMD            = 0x00, /* Data_Base_Index + ASCII number (max 19) */
     BM64_MMI_CMD                  = 0x02,
     BM64_CHANGE_DEVICE_NAME_CMD   = 0x05,
     BM64_READ_LOCAL_BD_ADDR_CMD   = 0x0F,
@@ -410,6 +411,32 @@ void bt_companion_set_call_cb(bt_companion_call_cb cb, void *ctx)
 
 /* Sends a call-control MMI to device `dev` (the MMI's data_base_index,
  * bits 0-2). Same preconditions as bt_companion_send_mmi(). */
+/* Which database index has its HF profile up -- from the poller's
+ * Read_Link_Status_Reply (0x1E, Database0/1_Connect_Status bit 3). Make_Call
+ * has to name a device, and a call needs HF (A2DP alone can't place one). */
+static bool s_dev_hf[BT_MAX_DEVICES];
+
+esp_err_t bt_companion_make_call(const char *number)
+{
+    if (!s_enabled || !s_uart_installed) return ESP_ERR_INVALID_STATE;
+    size_t len = number ? strlen(number) : 0;
+    if (len == 0 || len > 19) return ESP_ERR_INVALID_ARG;
+    portENTER_CRITICAL(&s_lock);
+    bool up = s_status.link_up && s_status.bt_connected;
+    int dev = -1;
+    for (int d = 0; d < BT_MAX_DEVICES && dev < 0; d++)
+        if (s_dev_hf[d]) dev = d;
+    portEXIT_CRITICAL(&s_lock);
+    if (!up) return ESP_ERR_INVALID_STATE;
+    if (dev < 0) dev = 0; /* no link-status reply yet -- the usual single device */
+    uint8_t params[1 + 19];
+    params[0] = (uint8_t)dev;
+    memcpy(&params[1], number, len);
+    send_command(BM64_MAKE_CALL_CMD, params, (uint8_t)(1 + len));
+    ESP_LOGI(TAG, "make call via device %d: %s", dev, number);
+    return ESP_OK;
+}
+
 static esp_err_t send_mmi_to(int dev, uint8_t action)
 {
     if (!s_enabled || !s_uart_installed) return ESP_ERR_INVALID_STATE;
@@ -771,6 +798,15 @@ static void handle_event(uint8_t event_code, const uint8_t *param, uint8_t param
             /* Same state, re-notified so a listener already ringing can pick
              * up the number, which often arrives after the ring starts. */
             if (s_call_cb) s_call_cb(cs, s_call_cb_ctx);
+        }
+        break;
+    case BM64_EVENT_REPORT_LINK_STATUS:
+        /* Device_State, DB0_Connect, DB1_Connect, ... -- bit 3 = HF up. */
+        if (param_len >= 3) {
+            portENTER_CRITICAL(&s_lock);
+            s_dev_hf[0] = (param[1] & 0x08) != 0;
+            s_dev_hf[1] = (param[2] & 0x08) != 0;
+            portEXIT_CRITICAL(&s_lock);
         }
         break;
     case BM64_EVENT_REMOTE_DEVICE_NAME:

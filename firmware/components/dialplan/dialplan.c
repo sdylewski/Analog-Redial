@@ -320,6 +320,10 @@ static dialplan_action_t fire(const entry_t *e, int line)
     }
 }
 
+static bool s_bt_dialout;
+
+void dialplan_set_bt_dialout(bool on) { s_bt_dialout = on; }
+
 dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit)
 {
     if (digit < '0' || digit > '9') return make(ACT_NONE, 0, 0);
@@ -335,6 +339,16 @@ dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit)
             return a;
         }
         return make(ACT_NONE, 0, 0); /* keep collecting */
+    }
+
+    /* Bluetooth dial-out: 1 + 10 digits (see dialplan_set_bt_dialout()). */
+    if (s_bt_dialout && c->buf[0] == DIALPLAN_BT_PREFIX) {
+        if (c->len >= DIALPLAN_BT_DIGITS) {
+            dialplan_action_t a = make(ACT_BT_DIAL, 0, 0);
+            strncpy(a.number, c->buf, sizeof(a.number) - 1);
+            return a;
+        }
+        return make(ACT_NONE, 0, 0);
     }
 
     bool longer = has_longer_prefix(c->buf) || clip_has_longer_prefix(c->buf);
@@ -414,6 +428,7 @@ static bool code_conflicts_except(const char *code, int except_idx)
     size_t clen = strlen(code);
     size_t vlen = (clen < 3) ? clen : 3;
     if (strncmp(code, "555", vlen) == 0) return true; /* shares a prefix with 555-xxxx */
+    if (code[0] == DIALPLAN_BT_PREFIX) return true;   /* reserved for Bluetooth dial-out */
 
     for (size_t i = 0; i < TABLE_N; i++) {
         size_t tlen = strlen(TABLE[i].code);

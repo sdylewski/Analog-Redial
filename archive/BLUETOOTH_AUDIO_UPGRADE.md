@@ -595,6 +595,35 @@ encoding). This means:
    `TEL_REORDER` already exist), matching how a failed PSTN/VoIP call
    already resolves.
 
+**Built 2026-09-27 (untested on hardware yet), and simpler than the plan
+above.** Instead of a separate collector inside BT passthrough:
+
+- Off-hook with a phone connected but **no BT call live** now gets normal
+  dial tone (`bt_companion_should_intercept()` also requires
+  `bt_companion_call_live()`), so local codes and dial-out share the one
+  existing collector. Passthrough is entered only for an actual call:
+  answering a BT ring, a call already up on the phone at pickup, a call
+  that starts while this handset sits at dial tone, or our own dial-out.
+- **Dial-out = `1` + 10 digits** (US long-distance style), fired on the
+  11th digit, no timeout. Picked over "disable short codes while BT is on"
+  and "prefix every local code with 555" (collides with VoIP's 555-xxxx):
+  nothing in the dial plan starts with `1`, so `211` etc. keep working.
+  `dialplan_set_bt_dialout()` enables it per-digit only for line 0 with the
+  module enabled; clip codes can never start with `1`
+  (`code_conflicts_except()`). Not handled: 7-digit local, 011
+  international, 911 (would need an explicit code; 9xx is otherwise taken
+  by 921/922/999).
+- `bt_companion_make_call()` sends `Make_Call` (`0x00`) as
+  `[Data_Base_Index, ASCII number]` (the command-set doc's framing -- the
+  reference library's `sendCommand(..., 0, number, len)` was the same thing
+  with index 0). The index comes from the poller's `Read_Link_Status_Reply`
+  (`0x1E`, bit 3 of each database's connect status = HF up), which was
+  previously just hex-dumped.
+- The line goes straight to passthrough after `Make_Call` (no local
+  ringback -- the phone's in-band ringback comes over SCO). When the merged
+  call state returns to IDLE while in passthrough, the line now plays
+  reorder until hang-up instead of sitting in dead air.
+
 ### Gap found while writing this up: BT "enabled" vs. BT "connected"
 
 `on_offhook()`'s routing check today is `bt_companion_enabled()` alone --

@@ -363,7 +363,11 @@ static bool bt_companion_should_intercept(int line)
      * answer a ringing VoIP call on line 0 would do exactly that whenever a
      * phone happened to be paired. */
     if (s_line[line].state != TEL_IDLE) return false;
-    return bt_companion_get_status().bt_connected;
+    /* And only while the paired phone has a call up (e.g. placed from the
+     * phone itself, audio routed here). With a phone merely connected the
+     * pickup gets normal dial tone, so local codes and 1 + number dial-out
+     * work -- a connected-but-idle passthrough was just dead air. */
+    return bt_companion_get_status().bt_connected && bt_companion_call_live();
 }
 
 /* Confirmed 2026-09-15 on real bench hardware (then still on line 0 -- see
@@ -388,7 +392,6 @@ static void enter_bt_passthrough(int line)
     s_line[line].dialing = false;
     s_line[line].tone_return_us = 0;
     dialplan_collector_reset(&s_line[line].coll);
-    activity_log("Line %d: off-hook, Bluetooth companion passthrough", line);
 }
 
 void telephony_force_recover(int line)
@@ -802,6 +805,28 @@ static void handle_action(int line, const dialplan_action_t *a)
             break;
         }
 
+        case ACT_BT_DIAL: {
+            /* Only reachable on the Bluetooth line with the module enabled
+             * (process_digit() gates dialplan_set_bt_dialout()). The call's
+             * own audio -- network ringback, then the far end -- comes back
+             * over SCO, so the line goes straight to passthrough instead of
+             * playing a local ringback that would fight the BM64's output. */
+            strncpy(s_line[line].last_number, a->number, sizeof(s_line[line].last_number) - 1);
+            esp_err_t r = bt_companion_get_status().bt_connected
+                              ? bt_companion_make_call(a->number) : ESP_ERR_INVALID_STATE;
+            if (r == ESP_OK) {
+                activity_log("Line %d: dialing %s via Bluetooth", line, a->number);
+                enter_bt_passthrough(line);
+            } else {
+                ESP_LOGW(TAG, "line %d: Bluetooth dial %s -> %s (reorder)",
+                         line, a->number, esp_err_to_name(r));
+                activity_log("Line %d: can't dial %s -- no phone connected over Bluetooth",
+                             line, a->number);
+                play_persistent(line, TONE_REORDER, TEL_REORDER);
+            }
+            break;
+        }
+
         case ACT_WRONG_NUMBER:
             ESP_LOGI(TAG, "line %d: wrong number '%s'", line, s_line[line].coll.buf);
             activity_log("Line %d: wrong number '%s'", line, s_line[line].coll.buf);
@@ -833,6 +858,7 @@ static void process_digit(int line, char ch)
         audio_tx_dtmf(line, ch, 120);
     }
 
+    dialplan_set_bt_dialout(line == bt_companion_line() && bt_companion_active());
     dialplan_action_t a = dialplan_feed(&s_line[line].coll, line, ch);
     ESP_LOGD(TAG, "line %d: digit '%c' -> collected '%s', action kind=%d", line,
              ch, s_line[line].coll.buf, a.kind);
@@ -856,6 +882,7 @@ static bool am_active(int line)
 static void on_offhook(int line)
 {
     if (bt_companion_should_intercept(line)) {
+        activity_log("Line %d: picked up the paired phone's call", line);
         enter_bt_passthrough(line);
         return;
     }
@@ -1014,9 +1041,18 @@ static void on_bt_call(int line, bt_call_state_t cs)
         return;
     }
     if (cs == BT_CALL_IDLE && st == TEL_BT_PASSTHROUGH) {
+        /* Far end hung up, the dial-out failed, or the call was moved back
+         * to the phone. Like the phone network: reorder until hang-up. SCO
+         * is down by now, so the codec has the Vin node to itself again. */
         activity_log("Line %d: Bluetooth call ended", line);
-        /* Stay in passthrough: the handset is still up and the phone is still
-         * connected (music, or the next call placed from it). */
+        play_persistent(line, TONE_REORDER, TEL_REORDER);
+        return;
+    }
+    if (bt_companion_call_live() && (st == TEL_DIALTONE || st == TEL_DIALING)) {
+        /* A call started from the phone itself while this handset was up
+         * (dialing on the phone with the audio routed here). */
+        activity_log("Line %d: picked up the paired phone's call", line);
+        enter_bt_passthrough(line);
     }
 }
 

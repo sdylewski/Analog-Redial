@@ -29,6 +29,7 @@ typedef enum {
     ACT_CALL_LINE,      /* arg = target line index; effect in arg2 */
     ACT_RADIO,          /* arg = station index */
     ACT_VOIP_DIAL,      /* number[] holds digits (e.g. 555xxxx) */
+    ACT_BT_DIAL,        /* number[] holds 1 + 10 digits, placed via the paired phone */
     ACT_SET_MODE,       /* arg = dialplan_mode_change_t */
 } dialplan_action_kind_t;
 
@@ -48,7 +49,7 @@ typedef struct {
     dialplan_action_kind_t kind;
     int   arg;          /* effect / target line / station / mode */
     int   arg2;         /* secondary (e.g. call effect) */
-    char  number[16];   /* for ACT_VOIP_DIAL */
+    char  number[16];   /* for ACT_VOIP_DIAL / ACT_BT_DIAL */
     char  filename[32]; /* for ACT_PLAY_CLIP -- matches STORAGE_MAX_NAME
                           * (storage.h), duplicated rather than shared since
                           * dialplan doesn't otherwise depend on storage */
@@ -97,6 +98,18 @@ dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit);
  * valid prefix, keep waiting" (caller may extend or eventually give up).
  */
 dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line);
+
+/* Bluetooth dial-out: while on, "1" + 10 digits (US long-distance style,
+ * e.g. 1-211-555-0123) resolves to ACT_BT_DIAL as soon as the 11th digit
+ * arrives. The leading 1 is what keeps real numbers from colliding with the
+ * short local codes (211 still records a message). While off, a leading 1 is
+ * just an unassigned prefix (wrong number). The caller sets this before each
+ * dialplan_feed() -- telephony turns it on only for the line the Bluetooth
+ * module is wired to, and only while the module is enabled. "1" is reserved:
+ * clip codes can never start with it. */
+#define DIALPLAN_BT_PREFIX     '1'
+#define DIALPLAN_BT_DIGITS     11
+void dialplan_set_bt_dialout(bool on);
 
 /* Inter-digit timeout to use (ms). */
 uint32_t dialplan_interdigit_ms(void);

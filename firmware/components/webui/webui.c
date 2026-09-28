@@ -922,6 +922,7 @@ static esp_err_t index_handler(httpd_req_t *req)
     dialplan_entry_info_t entries[40];
     size_t n = dialplan_list(entries, 40);
     size_t cap = 8192 + n * 220 + 1800 /* append_first_boot_banner(), while unconfirmed */
+        + 300 /* dial guide's Bluetooth dial-out card */
         + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
@@ -2362,6 +2363,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
         "</form>"
         "<p class=\"hint\">%s</p>"
         "</div>"
+        "<div class=\"card wide\"><h2>%s</h2>%s</div>"
         "<div id=\"bt-extra\"%s>",
         i18n_str("settings.tab.bluetooth", "Bluetooth"),
         bt_on ? " checked" : "", i18n_str("bt.enable_label", "I have a Bluetooth companion board wired in"),
@@ -2372,6 +2374,31 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
                  "to this board's GPIO16/17 UART header -- leave it off until then. Unlike VOIP's "
                  "switch, this takes effect immediately, no reboot: it just starts or stops "
                  "talking over that UART."),
+        i18n_str("bt.features_title", "What Bluetooth can do"),
+        i18n_str("bt.features_html",
+            "<p class=\"hint\">Pair a cell phone or laptop and the rotary phone on line 1 "
+            "acts as its handset, like a Bluetooth headset.</p>"
+            "<ul>"
+            "<li><b>Incoming calls ring the phone.</b> Anything that rings through the paired "
+            "device's Bluetooth headset rings the bell here: cell calls, and usually FaceTime, "
+            "WhatsApp, Zoom and similar apps too. Lift the handset to answer, hang up to end "
+            "the call.</li>"
+            "<li><b>Caller ID</b> shows in the activity log when the phone sends it.</li>"
+            "<li><b>Dial out: 1 + area code + number.</b> Dial it like old long distance "
+            "(e.g. 1-415-555-0123) and the call goes out through the paired phone as soon as "
+            "the 11th digit is dialed. The leading 1 keeps real numbers apart from this "
+            "phone's own short codes, so 211 still records a message. Dial codes can't start "
+            "with 1 for this reason.</li>"
+            "<li><b>Everything else keeps working.</b> With a phone connected but no call up, "
+            "picking up still gives dial tone and all the usual dial codes.</li>"
+            "<li><b>Calls placed on the paired phone</b> can be moved to this handset: pick up "
+            "(or already be off-hook) once the call's audio is routed to Bluetooth.</li>"
+            "<li><b>Two devices</b> can be connected at once; answer and hang-up go to "
+            "whichever one has the call.</li>"
+            "</ul>"
+            "<p class=\"hint\">Not supported: music playback controls, dialing out on line 2, "
+            "and numbers that aren't 1 + 10 digits (7-digit local or international). "
+            "Bluetooth audio is always wired to line 1.</p>"),
         bt_on ? "" : " hidden");
 
     bt_companion_status_t st = bt_companion_get_status();
@@ -4130,7 +4157,8 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         : 0;
     size_t general_room = (strcmp(tab, "general") == 0) ? 3200 : 0; /* +quiet hours card's timezone dropdown */
     size_t phone_room = (strcmp(tab, "phone") == 0) ? 10000 : 0; /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card */
-    size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 : 0; /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
+    size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 : 0;
+    size_t bt_room = (strcmp(tab, "bluetooth") == 0) ? 2500 : 0; /* "What Bluetooth can do" card */ /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
     /* This tab's `n*220` share (n = ALL dialplan entries, not just clips)
      * was never actually enough for it: each dial-code row is TWO forms
      * (recode + description) plus an audio player -- measured at up to
@@ -4145,7 +4173,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * and NVS-backed (not a filesystem walk), so sizing for that many
      * outright is cheap and avoids a second listing call just to count. */
     size_t dialcodes_room = (strcmp(tab, "dialcodes") == 0) ? DIALPLAN_MAX_CLIP_ENTRIES * 950 + 6000 : 0;
-    size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room + voip_room + dialcodes_room + phone_room
+    size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room + voip_room + dialcodes_room + phone_room + bt_room
         + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
@@ -6134,10 +6162,19 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
             "<div class=\"code-row\"><span class=\"code\">5-5-5-x-x-x-x</span>"
             "<span class=\"desc\">7-digit extension</span>"
             "<span class=\"pill on\">working</span></div></div>"
+            "%s"
             "</div>" /* .cards, opened by the caller (index_handler) */
             "<p class=\"hint\">Source of truth: <code>components/dialplan/dialplan.c</code> -- "
             "this list is generated from the same table the phone actually matches against, "
-            "so it can't drift out of sync with real behavior.</p>");
+            "so it can't drift out of sync with real behavior.</p>",
+            /* Also matched directly in dialplan_feed(), only while the
+             * Bluetooth module is enabled (dialplan_set_bt_dialout()). */
+            bt_companion_active()
+                ? "<div class=\"card\"><h2>Bluetooth</h2>"
+                  "<div class=\"code-row\"><span class=\"code\">1-x-x-x-x-x-x-x-x-x-x</span>"
+                  "<span class=\"desc\">Call via the paired phone (line 1)</span>"
+                  "<span class=\"pill on\">working</span></div></div>"
+                : "");
     }
     return off;
 }

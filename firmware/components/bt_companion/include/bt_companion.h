@@ -125,6 +125,12 @@ esp_err_t bt_companion_end_call(void);
  * one. */
 bool bt_companion_call_live(void);
 
+/* Places an outgoing call on the paired phone (BM64 Make_Call): `number` is
+ * ASCII digits, max 19. Picks the connected device with its HF profile up.
+ * ESP_ERR_INVALID_STATE if disabled or no phone is connected. Progress comes
+ * back through the call callback (OUTGOING, then ACTIVE or IDLE). */
+esp_err_t bt_companion_make_call(const char *number);
+
 /* Sends the module a "start pairing" MMI command (BM64_MMI_ANY_MODE_ENTERING_
  * PAIRING). ESP_ERR_INVALID_STATE if not enabled or the UART link isn't up
  * (nothing to send it to). */
