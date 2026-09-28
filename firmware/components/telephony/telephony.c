@@ -594,12 +594,8 @@ static void end_call(int line)
     /* Hanging up the handset during a Bluetooth call ends that call on the
      * phone, as with any headset. Only for a real call -- passthrough with
      * just music playing (A2DP, no HF call) is left alone. */
-    if (s_line[line].state == TEL_BT_PASSTHROUGH) {
-        bt_call_state_t cs = bt_companion_get_status().call_state;
-        if (cs == BT_CALL_OUTGOING || cs == BT_CALL_ACTIVE ||
-            cs == BT_CALL_ACTIVE_WAITING || cs == BT_CALL_ACTIVE_HOLD) {
-            bt_companion_end_call();
-        }
+    if (s_line[line].state == TEL_BT_PASSTHROUGH && bt_companion_call_live()) {
+        bt_companion_end_call();
     }
 
     /* Capture before anything below tears down state/peer. */
@@ -973,21 +969,21 @@ static void on_bt_call(int line, bt_call_state_t cs)
 {
     const char *cid = bt_companion_get_status().caller_id;
     tel_state_t st = s_line[line].state;
+    bool ringing_for_bt = (st == TEL_RINGING && s_line[line].peer == PEER_BT);
 
-    switch (cs) {
-    case BT_CALL_INCOMING:
-        if (st == TEL_RINGING && s_line[line].peer == PEER_BT) {
+    if (cs == BT_CALL_INCOMING) {
+        if (ringing_for_bt) {
             /* Already ringing -- a caller ID that arrived after the ring. */
             if (cid[0]) strlcpy(s_line[line].caller_number, cid, sizeof(s_line[line].caller_number));
-            break;
+            return;
         }
         if (st != TEL_IDLE || line_offhook(line)) {
-            /* Line busy, or the handset is already up (e.g. listening to
-             * music in passthrough) -- an off-hook phone can't be rung. The
-             * paired phone keeps ringing on its own. */
+            /* Line busy, or the handset is already up (e.g. mid-call with the
+             * other connected device, or listening to music) -- an off-hook
+             * phone can't be rung. The ringing device rings on its own. */
             ESP_LOGI(TAG, "line %d: Bluetooth call incoming but line busy (%s) -- not ringing",
                      line, telephony_state_name(st));
-            break;
+            return;
         }
         s_line[line].caller_name[0] = '\0';
         strlcpy(s_line[line].caller_number, cid, sizeof(s_line[line].caller_number));
@@ -996,37 +992,31 @@ static void on_bt_call(int line, bt_call_state_t cs)
         s_line[line].state = TEL_RINGING;
         s_line[line].peer = PEER_BT;
         start_ring(line);
-        break;
+        return;
+    }
 
-    case BT_CALL_ACTIVE:
-    case BT_CALL_ACTIVE_WAITING:
-    case BT_CALL_ACTIVE_HOLD:
-        if (st == TEL_RINGING && s_line[line].peer == PEER_BT) {
-            /* Answered on the phone itself -- stop the bell. The call stays
-             * on the phone; lifting the handset afterwards still picks it up,
-             * since a live connection routes pickup into passthrough. */
-            ag1170_ring_stop(line);
+    /* No longer ringing anywhere. The merged state (see bt_companion.h) could
+     * have moved to anything -- answered on the phone, declined, caller gave
+     * up, or another connected device's call now being the one reported --
+     * and in every case the bell must stop. */
+    if (ringing_for_bt) {
+        ag1170_ring_stop(line);
+        if (cs == BT_CALL_ACTIVE || cs == BT_CALL_ACTIVE_WAITING || cs == BT_CALL_ACTIVE_HOLD) {
+            /* Answered on the phone itself. The call stays there; lifting the
+             * handset afterwards still picks it up, since a live connection
+             * routes pickup into passthrough. */
             activity_log("Line %d: Bluetooth call answered on the phone", line);
-            enter_idle(line);
-        }
-        break;
-
-    case BT_CALL_IDLE:
-        if (st == TEL_RINGING && s_line[line].peer == PEER_BT) {
-            /* Caller gave up, or it was declined on the phone. */
-            ag1170_ring_stop(line);
+        } else {
             activity_log("Line %d: missed Bluetooth call%s%s", line,
                          s_line[line].caller_number[0] ? " from " : "", s_line[line].caller_number);
-            enter_idle(line);
-        } else if (st == TEL_BT_PASSTHROUGH) {
-            activity_log("Line %d: Bluetooth call ended", line);
-            /* Stay in passthrough: the handset is still up and the phone is
-             * still connected (music, or the next call placed from it). */
         }
-        break;
-
-    default:
-        break; /* outgoing / voice dial: placed from the phone, nothing to do */
+        enter_idle(line);
+        return;
+    }
+    if (cs == BT_CALL_IDLE && st == TEL_BT_PASSTHROUGH) {
+        activity_log("Line %d: Bluetooth call ended", line);
+        /* Stay in passthrough: the handset is still up and the phone is still
+         * connected (music, or the next call placed from it). */
     }
 }
 

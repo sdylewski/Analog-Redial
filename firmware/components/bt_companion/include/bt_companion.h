@@ -105,14 +105,25 @@ bt_companion_status_t bt_companion_get_status(void);
 typedef void (*bt_companion_call_cb)(bt_call_state_t state, void *ctx);
 void bt_companion_set_call_cb(bt_companion_call_cb cb, void *ctx);
 
-/* HF call control (MMI actions 0x04/0x05/0x06). ESP_ERR_INVALID_STATE if the
+/* HF call control (MMI actions 0x04/0x05/0x06). With two devices connected
+ * (e.g. a phone and a laptop), status.call_state is merged across both --
+ * a ringing call wins, then a live one. ESP_ERR_INVALID_STATE if the
  * feature isn't on or the module isn't responding; whether the phone actually
  * acts on it comes back as a later call-state change, not as a return value.
  * End uses 0x06 ("end call / transfer audio to phone"), not 0x02 -- the
  * latter is marked deprecated in the v2.06 command set. */
+/* Each goes to the right connected device: accept/reject to the one that's
+ * ringing, end to the one with a live call. ESP_ERR_NOT_FOUND if no device
+ * is in that state. */
 esp_err_t bt_companion_accept_call(void);
 esp_err_t bt_companion_reject_call(void);
 esp_err_t bt_companion_end_call(void);
+
+/* A call is outgoing or in progress on any connected device. Use this, not
+ * the merged status.call_state, for "should hanging up end a call": with one
+ * device mid-call and another ringing, the merged state reports the ringing
+ * one. */
+bool bt_companion_call_live(void);
 
 /* Sends the module a "start pairing" MMI command (BM64_MMI_ANY_MODE_ENTERING_
  * PAIRING). ESP_ERR_INVALID_STATE if not enabled or the UART link isn't up

@@ -136,9 +136,54 @@ static volatile bool         s_task_stop;
 static TaskHandle_t          s_autocheck_task; /* one-shot EEPROM config check */
 static bt_companion_call_cb  s_call_cb;
 static void                 *s_call_cb_ctx;
+
+
 static int64_t               s_last_reply_us;
 static bt_companion_status_t s_status;
 static portMUX_TYPE          s_lock = portMUX_INITIALIZER_UNLOCKED;
+
+/* Per-connected-device call state. The BM64 can hold two devices at once
+ * (e.g. a phone and a laptop), and every Call_Status/Caller_ID event says
+ * which one it's about (Data_Base_Index). Call-control MMIs must go back to
+ * that same device: with a phone mid-call and a laptop ringing, "answer" has
+ * to reach the laptop and "hang up" the phone. Guarded by s_lock. */
+#define BT_MAX_DEVICES 2
+static bt_call_state_t s_dev_call[BT_MAX_DEVICES];
+static char            s_dev_cid[BT_MAX_DEVICES][BT_COMPANION_CALLER_ID_MAX];
+
+static bool call_is_live(bt_call_state_t cs)
+{
+    return cs == BT_CALL_OUTGOING || cs == BT_CALL_ACTIVE ||
+           cs == BT_CALL_ACTIVE_WAITING || cs == BT_CALL_ACTIVE_HOLD;
+}
+
+/* The one state reported to the listener, merged across devices. A ringing
+ * call wins, since that's what decides whether to ring the bell; otherwise
+ * any live call; otherwise whatever is left. Caller must hold s_lock. */
+static void merge_call_state_locked(void)
+{
+    int pick = -1;
+    for (int d = 0; d < BT_MAX_DEVICES && pick < 0; d++)
+        if (s_dev_call[d] == BT_CALL_INCOMING) pick = d;
+    for (int d = 0; d < BT_MAX_DEVICES && pick < 0; d++)
+        if (call_is_live(s_dev_call[d])) pick = d;
+    for (int d = 0; d < BT_MAX_DEVICES && pick < 0; d++)
+        if (s_dev_call[d] != BT_CALL_IDLE) pick = d;
+    if (pick < 0) {
+        s_status.call_state = BT_CALL_IDLE;
+        s_status.caller_id[0] = '\0';
+    } else {
+        s_status.call_state = s_dev_call[pick];
+        memcpy(s_status.caller_id, s_dev_cid[pick], sizeof(s_status.caller_id));
+    }
+}
+
+static void clear_all_calls_locked(void)
+{
+    memset(s_dev_call, 0, sizeof(s_dev_call));
+    memset(s_dev_cid, 0, sizeof(s_dev_cid));
+    merge_call_state_locked();
+}
 
 static void load_config(void)
 {
@@ -363,9 +408,52 @@ void bt_companion_set_call_cb(bt_companion_call_cb cb, void *ctx)
     s_call_cb = cb;
 }
 
-esp_err_t bt_companion_accept_call(void) { return bt_companion_send_mmi(BM64_MMI_ACCEPT_CALL); }
-esp_err_t bt_companion_reject_call(void) { return bt_companion_send_mmi(BM64_MMI_REJECT_CALL); }
-esp_err_t bt_companion_end_call(void)    { return bt_companion_send_mmi(BM64_MMI_END_CALL); }
+/* Sends a call-control MMI to device `dev` (the MMI's data_base_index,
+ * bits 0-2). Same preconditions as bt_companion_send_mmi(). */
+static esp_err_t send_mmi_to(int dev, uint8_t action)
+{
+    if (!s_enabled || !s_uart_installed) return ESP_ERR_INVALID_STATE;
+    portENTER_CRITICAL(&s_lock);
+    bool up = s_status.link_up;
+    portEXIT_CRITICAL(&s_lock);
+    if (!up) return ESP_ERR_INVALID_STATE;
+    uint8_t params[2] = { (uint8_t)(dev & 0x07), action };
+    send_command(BM64_MMI_CMD, params, 2);
+    return ESP_OK;
+}
+
+/* First device whose call satisfies `want`, or -1. */
+static int find_device(bool (*want)(bt_call_state_t))
+{
+    int found = -1;
+    portENTER_CRITICAL(&s_lock);
+    for (int d = 0; d < BT_MAX_DEVICES && found < 0; d++)
+        if (want(s_dev_call[d])) found = d;
+    portEXIT_CRITICAL(&s_lock);
+    return found;
+}
+
+static bool call_is_incoming(bt_call_state_t cs) { return cs == BT_CALL_INCOMING; }
+
+esp_err_t bt_companion_accept_call(void)
+{
+    int d = find_device(call_is_incoming);
+    return d < 0 ? ESP_ERR_NOT_FOUND : send_mmi_to(d, BM64_MMI_ACCEPT_CALL);
+}
+
+esp_err_t bt_companion_reject_call(void)
+{
+    int d = find_device(call_is_incoming);
+    return d < 0 ? ESP_ERR_NOT_FOUND : send_mmi_to(d, BM64_MMI_REJECT_CALL);
+}
+
+esp_err_t bt_companion_end_call(void)
+{
+    int d = find_device(call_is_live);
+    return d < 0 ? ESP_ERR_NOT_FOUND : send_mmi_to(d, BM64_MMI_END_CALL);
+}
+
+bool bt_companion_call_live(void) { return find_device(call_is_live) >= 0; }
 
 esp_err_t bt_companion_send_cmd(uint8_t opcode, const uint8_t *params, uint8_t param_count)
 {
@@ -635,12 +723,13 @@ static void handle_event(uint8_t event_code, const uint8_t *param, uint8_t param
                 s_status.paired_name[0] = '\0';
                 /* Losing the HF link ends any call -- without this a bell
                  * started for an incoming call would ring on forever. */
+                /* The event doesn't say which device dropped, so every call
+                 * is cleared -- right for the usual one-device case; with two
+                 * connected it's conservative (the survivor re-reports its
+                 * state on its next change). */
                 bool had_call = (param[0] == BM64_STATE_HF_LINK_DOWN &&
                                  s_status.call_state != BT_CALL_IDLE);
-                if (had_call) {
-                    s_status.call_state = BT_CALL_IDLE;
-                    s_status.caller_id[0] = '\0';
-                }
+                if (had_call) clear_all_calls_locked();
                 portEXIT_CRITICAL(&s_lock);
                 if (had_call && s_call_cb) s_call_cb(BT_CALL_IDLE, s_call_cb_ctx);
                 break;
@@ -652,23 +741,30 @@ static void handle_event(uint8_t event_code, const uint8_t *param, uint8_t param
         break;
     case BM64_EVENT_CALL_STATUS:
         if (param_len >= 2) {
+            int dev = param[0] & 0x07;
+            if (dev >= BT_MAX_DEVICES) break;
             bt_call_state_t cs = (bt_call_state_t)param[1];
             portENTER_CRITICAL(&s_lock);
             bt_call_state_t prev = s_status.call_state;
-            s_status.call_state = cs;
-            if (cs == BT_CALL_IDLE) s_status.caller_id[0] = '\0';
+            s_dev_call[dev] = cs;
+            if (cs == BT_CALL_IDLE) s_dev_cid[dev][0] = '\0';
+            merge_call_state_locked();
+            bt_call_state_t now = s_status.call_state;
             portEXIT_CRITICAL(&s_lock);
-            ESP_LOGI(TAG, "call state %d -> %d", prev, cs);
-            if (cs != prev && s_call_cb) s_call_cb(cs, s_call_cb_ctx);
+            ESP_LOGI(TAG, "device %d call state -> %d (reported %d -> %d)", dev, cs, prev, now);
+            if (now != prev && s_call_cb) s_call_cb(now, s_call_cb_ctx);
         }
         break;
     case BM64_EVENT_CALLER_ID:
         if (param_len >= 2) {
+            int dev = param[0] & 0x07;
+            if (dev >= BT_MAX_DEVICES) break;
             portENTER_CRITICAL(&s_lock);
             size_t cn = (size_t)(param_len - 1);
-            if (cn > sizeof(s_status.caller_id) - 1) cn = sizeof(s_status.caller_id) - 1;
-            memcpy(s_status.caller_id, &param[1], cn);
-            s_status.caller_id[cn] = '\0';
+            if (cn > sizeof(s_dev_cid[dev]) - 1) cn = sizeof(s_dev_cid[dev]) - 1;
+            memcpy(s_dev_cid[dev], &param[1], cn);
+            s_dev_cid[dev][cn] = '\0';
+            merge_call_state_locked();
             bt_call_state_t cs = s_status.call_state;
             portEXIT_CRITICAL(&s_lock);
             ESP_LOGI(TAG, "caller ID: %s", s_status.caller_id);
@@ -947,6 +1043,8 @@ static void stop_task(void)
     portENTER_CRITICAL(&s_lock);
     bool had_call = (s_status.call_state != BT_CALL_IDLE);
     memset(&s_status, 0, sizeof(s_status));
+    memset(s_dev_call, 0, sizeof(s_dev_call));
+    memset(s_dev_cid, 0, sizeof(s_dev_cid));
     portEXIT_CRITICAL(&s_lock);
     /* Switched off (or parked for a config check) mid-call: tell the listener,
      * or a ringing bell would never be told to stop. */
