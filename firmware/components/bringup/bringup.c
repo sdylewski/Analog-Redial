@@ -496,6 +496,140 @@ static int cmd_capture(int argc, char **argv)
     return 0;
 }
 
+/* ---------- miclevel (handset mic level / clipping check) ----------
+ * Talk into the handset for a few seconds and see how hot the uplink is at
+ * the codec ADC: peak dBFS, RMS, and how many samples hit (or nearly hit)
+ * full scale. Line 0's SLIC VOUT feeds both the ES8388 LIN1 and (on BT
+ * boards) the BM64 MIC_P1, so this is also the best proxy we have for what
+ * the BM64's mic input sees -- the estimated volts are referred back to the
+ * codec pin using the ES8388 ADC full scale (~1.0 Vrms at AVDD 3.3 V) and the
+ * current PGA gain, ignoring any series-R/input-impedance divider in front.
+ *
+ * Uses the diag tap (not audio_rx_read()), so it's safe during a live call or
+ * BT passthrough. It does silence the line's own TX first, because dial tone
+ * leaks straight through the SLIC hybrid into VOUT and would swamp the
+ * reading -- hang up and pick up again to get dial tone back afterwards. */
+typedef struct {
+    volatile uint32_t n;
+    volatile uint32_t clip;       /* |x| >= 32767 (hard full scale) */
+    volatile uint32_t near;       /* |x| >= -1 dBFS */
+    volatile int32_t  peak;
+    volatile uint64_t sumsq;
+    volatile int32_t  win_peak;   /* per-print-window, reset by the console side */
+    volatile uint64_t win_sumsq;
+    volatile uint32_t win_n;
+} miclevel_ctx_t;
+
+#define MICLEVEL_NEAR_THRESH 29204   /* 32767 * 10^(-1/20) */
+
+static void miclevel_tap(int line, const int16_t *mono, size_t n, void *ctx)
+{
+    (void)line;
+    miclevel_ctx_t *m = ctx;
+    int32_t pk = m->peak, wpk = m->win_peak;
+    uint64_t ss = 0;
+    uint32_t clip = 0, near = 0;
+    for (size_t i = 0; i < n; i++) {
+        int32_t a = mono[i] < 0 ? -(int32_t)mono[i] : mono[i];
+        if (a > pk) pk = a;
+        if (a > wpk) wpk = a;
+        if (a >= 32767) clip++;
+        if (a >= MICLEVEL_NEAR_THRESH) near++;
+        ss += (uint64_t)(a * a);
+    }
+    m->peak = pk;
+    m->win_peak = wpk;
+    m->sumsq += ss;
+    m->win_sumsq += ss;
+    m->n += n;
+    m->win_n += n;
+    m->clip += clip;
+    m->near += near;
+}
+
+static float dbfs(double v)
+{
+    return v > 0 ? 20.0f * log10f((float)(v / 32768.0)) : -99.0f;
+}
+
+static int cmd_miclevel(int argc, char **argv)
+{
+    int secs = (argc > 1) ? atoi(argv[1]) : 5;
+    int line = (argc > 2) ? atoi(argv[2]) : 0;
+    if (secs < 1 || secs > 60 || line < 0 || line >= AUDIO_NUM_LINES) {
+        printf("usage: miclevel [secs 1-60, default 5] [line, default 0]\n");
+        return 1;
+    }
+    float pga_db = 0;
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
+    uint8_t a1 = es8388_shadow(ES8388_REG_ADCCONTROL1);
+    pga_db = 3.0f * (float)((line == 0) ? (a1 >> 4) : (a1 & 0x0F));
+#endif
+    if (!ag1170_is_offhook(line)) {
+        printf("note: line %d is on-hook -- pick up the handset or you'll only see the idle floor\n", line);
+    }
+    static miclevel_ctx_t m;
+    memset((void *)&m, 0, sizeof(m));
+    audio_tx_silence(line);
+    audio_add_diag_tap(line, miclevel_tap, &m);
+    printf("Line %d, PGA +%.0f dB. Talk normally, then loud, for %d s...\n", line, pga_db, secs);
+    printf("   peak dBFS   rms dBFS\n");
+    int steps = secs * 4;
+    float loudest_rms = -99;
+    for (int i = 0; i < steps; i++) {
+        vTaskDelay(pdMS_TO_TICKS(250));
+        int32_t wpk = m.win_peak;
+        uint64_t wss = m.win_sumsq;
+        uint32_t wn = m.win_n;
+        m.win_peak = 0; m.win_sumsq = 0; m.win_n = 0;
+        float pk = dbfs(wpk);
+        float rms = wn ? dbfs(sqrt((double)wss / wn)) : -99;
+        if (rms > loudest_rms) loudest_rms = rms;
+        int bar = (int)((pk + 60.0f) / 2.0f);   /* 1 char per 2 dB, -60..0 dBFS */
+        if (bar < 0) bar = 0;
+        if (bar > 30) bar = 30;
+        char b[32];
+        memset(b, '#', bar);
+        b[bar] = 0;
+        printf("   %7.1f   %7.1f  |%-30s|%s\n", pk, rms, b, wpk >= 32767 ? " CLIP" : "");
+    }
+    audio_remove_diag_tap(line);
+
+    if (m.n == 0) {
+        printf("no samples captured (audio task not running?)\n");
+        return 1;
+    }
+    double rms_all = sqrt((double)m.sumsq / m.n);
+    float pk_db = dbfs(m.peak);
+    /* ES8388 ADC: full-scale sine (peak 32767) ~= 1.0 Vrms at the pin with PGA 0 dB. */
+    float gain = powf(10.0f, pga_db / 20.0f);
+    float vpk_in = (float)m.peak / 32768.0f * 1.414f / gain;
+    /* dBFS is re FS peak; a full-scale sine is -3 dBFS rms and ~1.0 Vrms. */
+    float vrms_loud = powf(10.0f, (loudest_rms + 3.01f) / 20.0f) / gain;
+    printf("\nSummary over %.1f s (%lu samples):\n", (double)m.n / audio_sample_rate(), (unsigned long)m.n);
+    printf("  peak           %6.1f dBFS  (~%.0f mV peak at codec pin)\n", pk_db, vpk_in * 1000);
+    printf("  rms (overall)  %6.1f dBFS\n", dbfs(rms_all));
+    printf("  rms (loudest 0.25 s) %4.1f dBFS  (~%.0f mVrms at codec pin)\n", loudest_rms, vrms_loud * 1000);
+    printf("  clipped        %lu samples (%.3f%%)\n", (unsigned long)m.clip, 100.0 * m.clip / m.n);
+    printf("  within 1 dB FS %lu samples (%.3f%%)\n", (unsigned long)m.near, 100.0 * m.near / m.n);
+    if (m.clip > 0) {
+        printf("  -> CLIPPING: lower micamp (ADC PGA) for this line\n");
+    } else if (pk_db > -3) {
+        printf("  -> hot but not clipping: OK, little headroom\n");
+    } else if (pk_db < -20) {
+        printf("  -> quiet: raise micamp, or check the handset mic/VOUT path\n");
+    } else {
+        printf("  -> healthy level\n");
+    }
+    if (line == 0) {
+        printf("  BM64 MIC_P1 sees roughly the same VOUT: its full scale is ~800 mVrms at min\n"
+               "  mic gain, ~4 mVrms at max -- ~%.0f mVrms loud speech wants a low BM64 mic gain.\n",
+               vrms_loud * 1000);
+    }
+    printf("(line TX was silenced for the test -- hang up/pick up to get dial tone back)\n");
+    return 0;
+}
+
 /* ---------- record (raw mic capture -> storage, no live bridge/playback) ---------- */
 static void wav_put_u32(uint8_t *p, uint32_t v)
 {
@@ -2137,6 +2271,7 @@ void bringup_console_start(void)
     register_cmd("silence", "Stop audio: silence [line]", cmd_silence);
     register_cmd("loopback", "Mic->speaker: loopback [line] [0|1]", cmd_loopback);
     register_cmd("capture", "RX level meter, both lines simultaneously: capture [ms]", cmd_capture);
+    register_cmd("miclevel", "Handset mic level/clipping check while you talk: miclevel [secs] [line]", cmd_miclevel);
     register_cmd("echopulse", "Periodic 1kHz burst for echo/hybrid debugging: echopulse <line> <on|off> [period_ms]", cmd_echopulse);
     register_cmd("echosweep", "Cycles 9 tones 300-3400Hz for echo/resonance debugging: echosweep <line> <on|off> [period_ms]", cmd_echosweep);
     register_cmd("record", "Raw mic capture to storage, no live playback, safe during an active call: record <ms> [line]", cmd_record);
