@@ -204,6 +204,57 @@ header (same 6-pin pinout as above, mirrored).
    after a SLIC's audio hybrid died during BM64 bench work on SMD4. The
    existing 10 µF series cap on J12 pin 2 alone is not protection.
 
+### BM64 connection table (from both netlists, 2026-09-28)
+
+Pulled from `kicad-cli sch export netlist` of `Analog Redial 5.kicad_sch`
+and `Bluetooth/Bluetooth_board/Bluetooth_board.kicad_sch` -- "Now" is what
+the schematics say today, "Change" is the recommendation.
+
+| BM64 pin | Carrier (J2) | SMD5 side | Now | Change |
+|--|--|--|--|--|
+| 22 BAT_IN | J2.1 | J12.1 +3.3V | direct, no decoupling on carrier | add 10 µF + 100 nF at BAT_IN on the carrier. Spec is 3.2-4.2 V; the DevKit 3.3 V rail measured 3.15 V -- see below |
+| 7 AOHPL | J2.2 | J12.2 → C23 → Line0Vin (U4.9) | C23 10 µF 0805 | **C23 → 1 µF 0603 16 V X5R/X7R; add R_prot 1 kΩ 0402 between C23 and Line0Vin; add BAV99 (dual) at the C23/R_prot node to +5V and GND** |
+| 9 MIC_P1 | J2.3 | J12.3 → C22 → Line0Vout (U4.10) | C22 1 µF 0402 | keep. Optional 1 kΩ in series (−0.4 dB into 24 kΩ) |
+| 8 MIC_N1 | -- | -- | **floating** | **1 µF 0402 to GND on the carrier** (AC ground; don't short it to GND, it's internally biased) |
+| 10 MIC_BIAS | -- | -- | NC | keep NC (no electret) |
+| 5 AOHPR / 6 AOHPM | -- | -- | NC | keep NC (single-ended mono) |
+| 20 HCI_TXD | J2.4 | J12.4 → GPIO17 (U0RXD) | direct | OK |
+| 19 HCI_RXD | J2.5 | J12.5 ← GPIO16 (U0TXD) | direct | OK |
+| 14, 43 GND | J2.6 | J12.6 | | OK |
+| 26 MFB | J6.1 (J6.2 = GND) | -- | jumper/button only | own GPIO on a 7th J12 pin (planned re-route) |
+| 13 RST_N | -- | -- | NC (internal POR) | see supply note; IBDK programming via J5 |
+| 32 EAN / 41 P2_0 | J10 / J11 (to GND) | -- | jumpers | OK for programming |
+
+**Why 1 µF is enough for C23.** The AOHPL cap drives R_prot + (Vin's 60 kΩ
+in parallel with the 10 nF C12 to the codec's LOUT1) -- at least ~5 kΩ
+at 3.4 kHz and ~29 kΩ at 300 Hz. 1 µF against that puts the corner well
+under 30 Hz even at the band top, and around 5 Hz at the bottom. After X5R DC-bias
+derating (~2.4 V across it: AOHPL's ~1.5 V bias vs Vin's ~3.9 V) it's still
+~0.6 µF. The 10 µF was chosen for a "few hundred ohm" Vin that turned out to
+be 60 kΩ. 16 V rather than 6.3 V: a fault on either side should not also
+take out the cap.
+
+**Don't bump line 0's C12 (codec → Vin) to 100 nF** as suggested for the
+265 Hz corner in `BLUETOOTH_AUDIO_UPGRADE.md`: during a BT call the codec's
+LOUT1 is an active low-impedance output, so C12 shunts the BM64's signal at
+the Vin node. With 10 nF that costs ~1.5 dB at 3 kHz through the 1 kΩ R_prot;
+100 nF would cost ~9 dB. Line 1's C15 has no BM64 branch and can go to
+100 nF. (Firmware alternative: power down LOUT1 during passthrough with
+DACCONTROL23 VROI=40 kΩ -- untested.) The reverse direction -- an active
+AOHPL shunting dial tone through the 1 kΩ -- evidently doesn't happen when
+idle (dial tone is fine on newphone with the BM64 fitted), but a quick check
+is worth doing: dial-tone Vpp at Vin with the BM64 powered and paired vs.
+unplugged.
+
+**Supply.** BAT_IN's minimum is 3.2 V (UVP 2.9 V) and the datasheet
+recommends, for a non-battery supply, a voltage supervisor holding RST_N low
+(open-drain, 2.93 V threshold) before BAT_IN drops to 2.7 V. The DevKit's 3.3 V rail
+already measured 3.15 V on dualphone2, and WiFi TX bursts dip it further.
+Candidate contributor to paired devices vanishing across ESP32 reboots.
+Options: a dedicated LDO from +5V at 3.6-3.8 V for BAT_IN (HCI UART levels
+come from the module's internal VDD_IO, so 3.3 V logic is unaffected), and/or
+the supervisor on RST_N.
+
 ### SHK divider: change 15 kΩ → 100 kΩ (found 2026-09-27)
 
 SMD5 inherits SMD4's 10 kΩ / 15 kΩ SHK divider, which was sized for a 5 V
