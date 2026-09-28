@@ -257,6 +257,17 @@ Options: a dedicated LDO from +5V at 3.6-3.8 V for BAT_IN (HCI UART levels
 come from the module's internal VDD_IO, so 3.3 V logic is unaffected), and/or
 the supervisor on RST_N.
 
+**Decided 2026-09-28: dedicated LDO for the BM64.** +5V → fixed 3.3 V LDO
+(XC6206P332MR, SOT-23, 1 µF in/out -- or ME6211/AP2112K if Basic stock
+changes) → its own net (e.g. `+3V3_BT`) → J12.1. **Not tied to the ESP32's
++3.3V rail**: two regulators on one net fight, and isolating the BM64's RF
+bursts from the DevKit's (small, on the clone) regulator is the point.
+Current budget from the datasheet: ~0.6 mA standby, 1.2 mA pairing,
+~16 mA in a SCO call or A2DP (Class 1 radio, so short TX peaks well above
+that -- size for ~100 mA). Microchip's own MCU-hosted EVB measurements were
+taken at BAT_IN = 3.3 V, so 3.3 V is a supported operating point when it's
+a clean, dedicated rail.
+
 ### SHK divider: change 15 kΩ → 100 kΩ (found 2026-09-27)
 
 SMD5 inherits SMD4's 10 kΩ / 15 kΩ SHK divider, which was sized for a 5 V
