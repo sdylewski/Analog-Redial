@@ -615,6 +615,17 @@ passthrough when a phone is genuinely linked. This is a real bug to fix
 independent of everything else in this section, not just a planning nice-
 to-have.
 
+**Fixed 2026-09-27.** `on_offhook()` now calls `bt_companion_should_intercept()`,
+which checks `bt_companion_get_status().bt_connected` in addition to
+`bt_companion_active()`. Found the hard way on newphone with the rebuilt
+SLIC: `tone` played perfectly over the exact physical path a real off-hook
+produced total silence on, because BT_PASSTHROUGH was intercepting the line
+with Bluetooth enabled and fitted but nothing actually paired. Deliberately
+scoped to the pickup moment only -- a live disconnect *during* an
+already-answered BT_PASSTHROUGH call still doesn't drop back to dial tone
+automatically until the next hang-up/pickup. Revisit if that turns out to
+matter in practice.
+
 ### Open questions / out of scope for a first pass
 
 - **Call waiting / second incoming call while already on a BT call**: HFP

@@ -330,6 +330,23 @@ static int bt_companion_line(void)
     return 0;
 }
 
+/* Whether lifting the handset on `line` right now should hand it to the
+ * Bluetooth companion instead of normal telephony. Deliberately checks
+ * bt_connected, not just bt_companion_active() (enabled + a module fitted):
+ * a board can sit with Bluetooth switched on for days with no phone actually
+ * paired, and until this check existed that alone was enough to make line 0
+ * permanently silent -- confirmed live 2026-09-27, `tone` played perfectly
+ * over the exact same physical path that produced nothing on a real off-hook,
+ * because BT_PASSTHROUGH was intercepting it with no live connection to hand
+ * the line to. Matches the design intent written up in
+ * archive/BLUETOOTH_AUDIO_UPGRADE.md: normal telephony should keep working
+ * whenever Bluetooth isn't actively in use, not just whenever it's off. */
+static bool bt_companion_should_intercept(int line)
+{
+    if (line != bt_companion_line() || !bt_companion_active()) return false;
+    return bt_companion_get_status().bt_connected;
+}
+
 /* Confirmed 2026-09-15 on real bench hardware (then still on line 0 -- see
  * this file's git history and the correction above): normal off-hook
  * handling (enter_dialtone(), and later the 15s inter-digit timeout's
@@ -812,7 +829,7 @@ static bool am_active(int line)
 /* ---- main event handlers ---- */
 static void on_offhook(int line)
 {
-    if (line == bt_companion_line() && bt_companion_active()) {
+    if (bt_companion_should_intercept(line)) {
         enter_bt_passthrough(line);
         return;
     }
