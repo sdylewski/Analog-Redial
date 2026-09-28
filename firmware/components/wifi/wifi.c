@@ -73,7 +73,15 @@ static void event_handler(void *arg, esp_event_base_t base, int32_t id, void *da
     if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
         if (s_ssid[0]) esp_wifi_connect();
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
-        if (s_connected) ESP_LOGW(TAG, "WiFi disconnected, retrying");
+        /* The reason code is what tells a flaky link (beacon timeout, 200+,
+         * e.g. radio interference) apart from the AP deliberately kicking us
+         * (auth/assoc codes) -- without it, "disconnected, retrying" alone
+         * can't distinguish them. See wifi_err_reason_t in esp_wifi_types.h. */
+        if (s_connected) {
+            const wifi_event_sta_disconnected_t *d = (const wifi_event_sta_disconnected_t *)data;
+            ESP_LOGW(TAG, "WiFi disconnected (reason %d, RSSI %d dBm), retrying",
+                     d ? d->reason : -1, d ? d->rssi : 0);
+        }
         s_connected = false;
         if (s_ssid[0]) esp_wifi_connect();
     } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
