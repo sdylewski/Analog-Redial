@@ -151,7 +151,21 @@
  * already use for these same shared pads. Not part of bt_companion's normal
  * runtime path -- dualphone's bench BM64 wiring ties MFB to VCC with a
  * fixed resistor instead and has no GPIO control over any of these three. */
+#if CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
+/* SMD5 gives MFB a pin of its own on the expanded J12 header: GPIO15, the
+ * only genuinely spare pin on this pin map (GPIO8 drives the DevKit's RGB
+ * LED, GPIO9 is the download-mode strap -- MFB's pull-down there would boot
+ * the board into download mode every time). GPIO15 is a strapping pin too,
+ * but it only selects the JTAG source and only when an eFuse that ships
+ * unburned is set, so an external 100k pull-down on it is harmless.
+ * Because it's dedicated, MFB works on a 2-line/microSD board as well --
+ * unlike RST_N/P2_0, which SMD5 only borrows through J5 for one-time
+ * EEPROM programming (see archive/hardware/ANALOG_REDIAL_SMD5.md). */
+#define BOARD_BT_MFB_PIN  GPIO_NUM_15
+#define BOARD_BT_MFB_DEDICATED 1
+#else
 #define BOARD_BT_MFB_PIN  BOARD_LINE2_PIN_FR_MISO  /* GPIO18 */
+#endif
 #define BOARD_BT_RST_PIN  BOARD_LINE2_PIN_SHK_SCLK /* GPIO19 */
 #define BOARD_BT_P20_PIN  BOARD_LINE2_PIN_RM_MOSI  /* GPIO20 */
 

@@ -1163,41 +1163,62 @@ static void mfb_after_tx(void)
 static void assert_bm64_control_pins(void)
 {
     board_hw_config_t cfg = board_hw_config_get();
-    if (cfg.num_lines != 1 || cfg.has_microsd) {
-        ESP_LOGW(TAG, "not asserting bench BM64 control pins (MFB/RST_N/P2_0 on GPIO18-20) -- "
-                      "this board's config is %d-line%s, those pads are claimed by line 1's "
-                      "SLIC/microSD", cfg.num_lines, cfg.has_microsd ? " with microSD" : "");
-        return;
+    /* RST_N/P2_0 live on the GPIO18-20 pads line 1's SLIC / the microSD slot
+     * also use, so they're only safe on a single-line, no-microSD config.
+     * MFB may or may not share that fate -- SMD5 gives it its own pin
+     * (BOARD_BT_MFB_DEDICATED), and then it's always drivable. */
+    bool shared_pads_free = (cfg.num_lines == 1 && !cfg.has_microsd);
+#ifdef BOARD_BT_MFB_DEDICATED
+    const bool mfb_free = true;
+#else
+    const bool mfb_free = shared_pads_free;
+#endif
+    if (!shared_pads_free) {
+        ESP_LOGW(TAG, "not asserting BM64 RST_N/P2_0 (GPIO19-20)%s -- this board's config is "
+                      "%d-line%s, those pads are claimed by line 1's SLIC/microSD",
+                 mfb_free ? " (MFB has its own pin, still driven)" : " or MFB",
+                 cfg.num_lines, cfg.has_microsd ? " with microSD" : "");
     }
-    gpio_hold_dis(BOARD_BT_MFB_PIN);
-    gpio_hold_dis(BOARD_BT_RST_PIN);
-    gpio_hold_dis(BOARD_BT_P20_PIN);
-    gpio_config_t gpio_cfg = {
-        .pin_bit_mask = (1ULL << BOARD_BT_MFB_PIN) | (1ULL << BOARD_BT_RST_PIN) |
-                        (1ULL << BOARD_BT_P20_PIN),
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    gpio_config(&gpio_cfg);
-    gpio_sleep_sel_dis(BOARD_BT_MFB_PIN);
-    gpio_sleep_sel_dis(BOARD_BT_RST_PIN);
-    gpio_sleep_sel_dis(BOARD_BT_P20_PIN);
-    /* MFB idles LOW (see mfb_hold()); poll_task's startup raises it for the
-     * datasheet power-on sequence. RST_N/P2_0 high = out of reset, normal
-     * (not ROM/IBDK) mode. */
-    gpio_set_level(BOARD_BT_MFB_PIN, 0);
-    s_mfb_high = false;
-    s_mfb_held = false;
-    gpio_set_level(BOARD_BT_RST_PIN, 1);
-    gpio_set_level(BOARD_BT_P20_PIN, 1);
-    if (!s_mfb_timer) {
-        const esp_timer_create_args_t targs = { .callback = mfb_timer_cb, .name = "bm64_mfb" };
-        esp_timer_create(&targs, &s_mfb_timer);
+    if (mfb_free) {
+        gpio_hold_dis(BOARD_BT_MFB_PIN);
+        gpio_config_t mfb_cfg = {
+            .pin_bit_mask = 1ULL << BOARD_BT_MFB_PIN,
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE,
+        };
+        gpio_config(&mfb_cfg);
+        gpio_sleep_sel_dis(BOARD_BT_MFB_PIN);
+        /* MFB idles LOW (see mfb_hold()); poll_task's startup raises it for
+         * the datasheet power-on sequence. */
+        gpio_set_level(BOARD_BT_MFB_PIN, 0);
+        s_mfb_high = false;
+        s_mfb_held = false;
+        if (!s_mfb_timer) {
+            const esp_timer_create_args_t targs = { .callback = mfb_timer_cb, .name = "bm64_mfb" };
+            esp_timer_create(&targs, &s_mfb_timer);
+        }
+        s_mfb_ctrl = true;
     }
-    s_mfb_ctrl = true;
-    vTaskDelay(pdMS_TO_TICKS(200));
+    if (shared_pads_free) {
+        gpio_hold_dis(BOARD_BT_RST_PIN);
+        gpio_hold_dis(BOARD_BT_P20_PIN);
+        gpio_config_t ctl_cfg = {
+            .pin_bit_mask = (1ULL << BOARD_BT_RST_PIN) | (1ULL << BOARD_BT_P20_PIN),
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE,
+        };
+        gpio_config(&ctl_cfg);
+        gpio_sleep_sel_dis(BOARD_BT_RST_PIN);
+        gpio_sleep_sel_dis(BOARD_BT_P20_PIN);
+        /* High = out of reset, normal (not ROM/IBDK) mode. */
+        gpio_set_level(BOARD_BT_RST_PIN, 1);
+        gpio_set_level(BOARD_BT_P20_PIN, 1);
+    }
+    if (mfb_free || shared_pads_free) vTaskDelay(pdMS_TO_TICKS(200));
 }
 #endif
 

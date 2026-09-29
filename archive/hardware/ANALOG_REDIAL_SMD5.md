@@ -86,10 +86,38 @@ its own. Between reset and that call (~1 s) the ROM still owns them: MCLK is
 silent and CD reads "no card" (D+ pull-up), both harmless. Don't plug a
 cable into the clone module's own native-USB port while it runs. Pads 19/20
 (real module's USB) go to J4/J3; on the clone those are GPIO2/3, unused.
-**Open conflict:** the clone variant's console is UART0 on GPIO16/17 -- the
-same pins as the BM64 UART on J12. Console/ROM boot log and the BM64 can't
-share them; decide which wins (or move one) before a clone board gets a
-BM64.
+**Flashing/console on the clone variant.** Native USB still works for
+flashing: the ROM owns GPIO12/13 from every reset, so esptool talks to it
+normally -- the pins only become MCLK/CD ~1 s later, when the USB device
+disappears from the host mid-session. To get back in without the BOOT
+button, the `download` console command (bringup.c, added 2026-09-29) quiets
+the codec/SLICs, sets `LP_AON_SYS_CFG_REG`'s force-download-boot bit and
+restarts, so the ROM stops there and USB stays up. That bit survives a
+reset, so **power-cycle the board when flashing is done**; BOOT + RESET is
+the same thing in hardware, and the escape hatch when firmware is too
+broken to reach the command.
+
+**Two clone-only conflicts to settle before building one:**
+
+1. **microSD card-detect vs. USB.** `SD_CD` is a switch that shorts its pin
+   to GND with a card seated, and on the clone that pin is GPIO13 = USB
+   **D+**. A seated card therefore holds D+ low and native USB can't
+   enumerate at all -- no flashing, no console, with no obvious symptom. A
+   series resistor doesn't fix it (anything small enough to keep D+ usable
+   is too small to read as a valid low). Options: pull the card before
+   flashing; or don't route `SD_CD` on SMD5 at all -- `sdcard.c` compiles to
+   a card-always-present check when `BOARD_SD_CD` is undefined, and microSD
+   is mutually exclusive with line 1 via J5 anyway.
+2. **UART0 console vs. the BM64.** `sdkconfig.smd5_cheap.defaults` puts the
+   console on UART0 (GPIO16/17) -- the same pins as the BM64 UART on J12.
+   They can't share: decide which wins (or move one) before a clone board
+   gets a BM64. With the `download` command above, native USB is a workable
+   flashing path for this variant, which makes "BM64 keeps GPIO16/17, no
+   UART console" the cheaper answer.
+
+Also worth knowing: while the app runs, the clone module's own USB-C
+connector has 12.288 MHz MCLK sitting on its D- pin. Harmless, but don't
+plug a cable in there.
 
 **Other duplicate pad-number entries in the `.kicad_mod` files** (15, 18,
 22-31) are *not* additional known discrepancies — they're just how the dual
@@ -199,13 +227,17 @@ header (same 6-pin pinout as above, mirrored).
 
 ### Planned re-route (decided 2026-09-27, not yet in KiCad)
 
-1. **Grow J12 by at least one pin to carry MFB**, on its own ESP32 GPIO --
-   so normal operation (power-on/wake) is firmware-controlled rather than a
-   bench-wired pull-up, and no longer borrows line 1's pins. GPIO not yet
-   chosen. **Firmware follow-up:** SMD5 currently inherits
-   `BOARD_BT_MFB_PIN = GPIO18` from `board_pins_smd4.h`; once MFB has its own
-   pin, SMD5 needs its own `BOARD_BT_MFB_PIN` (and likely its own pin header
-   rather than sharing SMD4's).
+1. **MFB gets the 7th J12 pin, on GPIO15** (decided 2026-09-29, done in the
+   schematic). GPIO15 is the only genuinely spare pin in this map: GPIO8
+   drives the DevKit's RGB LED and GPIO9 is the download-mode strap, where
+   MFB's pull-down would boot the board into download mode every time.
+   GPIO15 is a strapping pin too, but it only selects the JTAG signal source
+   and only when an eFuse that ships unburned is set, so a 100 kΩ pull-down
+   on it is harmless. **Firmware: done** -- `board_pins_smd4.h` defines
+   `BOARD_BT_MFB_PIN = GPIO_NUM_15` plus `BOARD_BT_MFB_DEDICATED` for both
+   SMD5 variants, and because MFB no longer borrows a shared pad it works on
+   a 2-line/microSD board; only RST_N/P2_0 (still GPIO19/20, via J5) keep the
+   single-line gate.
 2. **EEPROM programming goes through J5, not J12.** The BM64's IBDK mode
    needs RST_N and P2_0 (plus MFB) driven at reset -- rare, one-time-per-
    module setup. Rather than route those permanently, the Bluetooth board
@@ -239,7 +271,7 @@ the schematics say today, "Change" is the recommendation.
 | 20 HCI_TXD | J2.4 | J12.4 → GPIO17 (U0RXD) | direct | OK |
 | 19 HCI_RXD | J2.5 | J12.5 ← GPIO16 (U0TXD) | direct | OK |
 | 14, 43 GND | J2.6 | J12.6 | | OK |
-| 26 MFB | J6.1 (J6.2 = GND) | -- | jumper/button only | own GPIO on a 7th J12 pin (planned re-route). **Never tie it high permanently**: it's the BM64's power button, and held from power-up it triggers a MASTER RESET that wipes pairings (found 2026-09-28). Add a **100 kΩ pull-down** so it idles low while the ESP32 is in reset/booting. Firmware follows datasheet Fig 5-3/5-4: high 400 ms for power-on, then idle low, 1 ms wake pulse + >=150 ms high around each UART command |
+| 26 MFB | J6.1 (J6.2 = GND) | **GPIO15**, 7th J12 pin (decided 2026-09-29) | jumper/button only | **Never tie it high permanently**: it's the BM64's power button, and held from power-up it triggers a MASTER RESET that wipes pairings (found 2026-09-28). Add a **100 kΩ pull-down** so it idles low while the ESP32 is in reset/booting -- the internal pull-down isn't a substitute, it only exists once firmware configures the pin (~1 s after every reset), and MFB floats until then. Firmware follows datasheet Fig 5-3/5-4: high 400 ms for power-on, then idle low, 1 ms wake pulse + >=150 ms high around each UART command |
 | 13 RST_N | -- | -- | NC (internal POR) | **keep NC in normal use** (or, if ever GPIO-driven for the Fig 5-5 power-off sequence, give it an external pull-up so it can't float low during an ESP32 reset) -- confirmed 2026-09-28 on newphone: bench-wired to GPIO19, it reset the BM64 on every ESP32 reboot and the phone's pairing was lost each time; with the wire off, pairing survives reboots. Only connect it for IBDK programming via J5 |
 | 32 EAN / 41 P2_0 | J10 / J11 (to GND) | -- | jumpers | OK for programming |
 

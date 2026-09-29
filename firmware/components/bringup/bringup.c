@@ -27,6 +27,8 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_system.h"
+#include "soc/lp_aon_reg.h"
+#include "soc/soc.h"
 #include "argtable3/argtable3.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -507,6 +509,47 @@ static int cmd_capture(int argc, char **argv)
                audio_rx_level(0), audio_rx_level(1));
         vTaskDelay(pdMS_TO_TICKS(200));
     }
+    return 0;
+}
+
+/* ---------- download (reboot into the ROM's bootloader) ----------
+ * Sets LP_AON_SYS_CFG_REG's force-download-boot bit and restarts, so the
+ * ROM stops there instead of running the app. Two reasons this exists:
+ *
+ *  - On SMD5 with the clone MCU module, GPIO12/13 carry I2S MCLK and
+ *    microSD card-detect, so ~1s into every boot the firmware takes them
+ *    away from the native-USB PHY and the USB device disappears from the
+ *    host -- there's no port left for esptool to open and reset. In the ROM
+ *    they're USB again, and they stay that way.
+ *  - On any board it saves reaching for the BOOT button.
+ *
+ * The analog side is quieted first: MCLK stops (or starts carrying USB
+ * traffic) the moment the ROM takes over, and a codec running on a dead or
+ * garbage clock can bang the SLIC's VIN node. DAC muted, both lines
+ * silenced, ringers stopped, SLICs powered down -- the same state a
+ * hung-up line sits in.
+ *
+ * The bit survives a software/hard reset, so the board keeps landing in
+ * download mode until it loses power: **power-cycle when flashing is
+ * done**. (BOOT + RESET does the same job with no firmware involved, and
+ * is the escape hatch when firmware is too broken to reach this command.)
+ */
+static int cmd_download(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    for (int l = 0; l < AUDIO_NUM_LINES; l++) {
+        audio_tx_silence(l);
+        ag1170_ring_stop(l);
+        ag1170_set_power(l, false);
+    }
+#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
+    es8388_set_dac_mute(true);
+#endif
+    printf("entering download mode -- flash now; power-cycle the board when done\n");
+    fflush(stdout);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    REG_SET_BIT(LP_AON_SYS_CFG_REG, LP_AON_FORCE_DOWNLOAD_BOOT);
+    esp_restart();
     return 0;
 }
 
@@ -2126,18 +2169,25 @@ static int cmd_bm64_pin(int argc, char **argv)
                "no-microSD board with BM64 bench-wired to GPIO18-20 (see board_pins_smd4.h)\n");
         return 1;
     }
+    gpio_num_t pin;
+    bool needs_shared_pads = true;   /* GPIO18-20: line 1's SLIC / microSD */
+    if (strcmp(argv[1], "mfb") == 0) {
+        pin = BOARD_BT_MFB_PIN;
+#ifdef BOARD_BT_MFB_DEDICATED
+        needs_shared_pads = false;   /* SMD5: MFB has a pin of its own */
+#endif
+    }
+    else if (strcmp(argv[1], "rst") == 0) pin = BOARD_BT_RST_PIN;
+    else if (strcmp(argv[1], "p20") == 0) pin = BOARD_BT_P20_PIN;
+    else { printf("bm64_pin: unknown pin '%s' (want mfb, rst, or p20)\n", argv[1]); return 1; }
+
     board_hw_config_t cfg = board_hw_config_get();
-    if (cfg.num_lines != 1 || cfg.has_microsd) {
+    if (needs_shared_pads && (cfg.num_lines != 1 || cfg.has_microsd)) {
         printf("bm64_pin: refusing -- this board's config is %d-line%s, GPIO18-20 are claimed "
                "by line 2 SLIC/microSD, not free for BM64 control\n",
                cfg.num_lines, cfg.has_microsd ? " with microSD" : "");
         return 1;
     }
-    gpio_num_t pin;
-    if (strcmp(argv[1], "mfb") == 0) pin = BOARD_BT_MFB_PIN;
-    else if (strcmp(argv[1], "rst") == 0) pin = BOARD_BT_RST_PIN;
-    else if (strcmp(argv[1], "p20") == 0) pin = BOARD_BT_P20_PIN;
-    else { printf("bm64_pin: unknown pin '%s' (want mfb, rst, or p20)\n", argv[1]); return 1; }
 
     /* Full gpio_config() with pull-up/down and interrupts explicitly
      * disabled -- matches ag1170.c's config_line_gpio(), the proven pattern
@@ -2286,6 +2336,7 @@ void bringup_console_start(void)
     register_cmd("loopback", "Mic->speaker: loopback [line] [0|1]", cmd_loopback);
     register_cmd("capture", "RX level meter, both lines simultaneously: capture [ms]", cmd_capture);
     register_cmd("reboot", "Software restart of the ESP32 (keeps the monitor attached)", cmd_reboot);
+    register_cmd("download", "Reboot into the ROM bootloader for flashing (quiets audio/SLIC first; power-cycle when done)", cmd_download);
     register_cmd("miclevel", "Handset mic level/clipping check while you talk: miclevel [secs] [line]", cmd_miclevel);
     register_cmd("echopulse", "Periodic 1kHz burst for echo/hybrid debugging: echopulse <line> <on|off> [period_ms]", cmd_echopulse);
     register_cmd("echosweep", "Cycles 9 tones 300-3400Hz for echo/resonance debugging: echosweep <line> <on|off> [period_ms]", cmd_echosweep);
