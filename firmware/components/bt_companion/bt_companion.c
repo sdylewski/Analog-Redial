@@ -5,6 +5,7 @@
 #include "driver/uart.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "esp_rom_sys.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "freertos/FreeRTOS.h"
@@ -213,7 +214,9 @@ static void send_command(uint8_t opcode, const uint8_t *params, uint8_t param_co
 static void start_autocheck(void);
 #ifdef BOARD_BT_MFB_PIN
 static volatile bool s_mfb_held;
-static void mfb_release(void);
+static void mfb_hold(bool on);
+static void mfb_before_tx(void);
+static void mfb_after_tx(void);
 #endif
 static esp_err_t ensure_uart(void);
 static esp_err_t ensure_uart_peripheral_only(void);
@@ -296,7 +299,13 @@ static void send_command(uint8_t opcode, const uint8_t *params, uint8_t param_co
     frame[3] = opcode;
     if (param_count) memcpy(&frame[4], params, param_count);
     frame[4 + param_count] = frame_checksum(&frame[2], (size_t)len + 1);
+#ifdef BOARD_BT_MFB_PIN
+    mfb_before_tx();
+#endif
     uart_write_bytes(BT_COMPANION_UART, (const char *)frame, (size_t)(4 + param_count + 1));
+#ifdef BOARD_BT_MFB_PIN
+    mfb_after_tx();
+#endif
 }
 
 static void send_ack(uint8_t event_code)
@@ -934,6 +943,11 @@ static void poll_task(void *arg)
      * genuinely take effect, not just get ACKed -- see
      * bt_companion_start_pairing()'s own comment for the full story. */
     {
+#ifdef BOARD_BT_MFB_PIN
+        /* Datasheet Fig 5-3/5-6: MFB high, 400 ms, then the power-on command. */
+        mfb_hold(true);
+        vTaskDelay(pdMS_TO_TICKS(400));
+#endif
         uint8_t press[2]   = { 0x00, BM64_MMI_POWERON_BUTTON_PRESS };
         uint8_t release[2] = { 0x00, BM64_MMI_POWERON_BUTTON_RELEASE };
         send_command(BM64_MMI_CMD, press, 2);
@@ -952,6 +966,9 @@ static void poll_task(void *arg)
         uint8_t event_code, param[255], param_len;
         bool ready = false;
         while (!ready && read_one_frame(&event_code, param, &param_len, deadline)) {
+#ifdef BOARD_BT_MFB_PIN
+            mfb_hold(false);   /* it answered -- stop "pressing" MFB (see mfb_hold()) */
+#endif
             if (event_code != BM64_EVENT_ACK) send_ack(event_code);
             if (event_code == BM64_EVENT_DEVICE_STATE && param_len >= 1) {
                 ESP_LOGI(TAG, "startup device state: 0x%02X", param[0]);
@@ -963,6 +980,9 @@ static void poll_task(void *arg)
         if (!ready) {
             ESP_LOGW(TAG, "module did not reach standby within 3s -- continuing anyway");
         }
+#ifdef BOARD_BT_MFB_PIN
+        mfb_hold(false);   /* never leave it held, answer or not */
+#endif
     }
 
     /* One-time startup query, not part of the regular poll loop below: grabs
@@ -1009,7 +1029,7 @@ static void poll_task(void *arg)
 
     while (!s_task_stop) {
 #ifdef BOARD_BT_MFB_PIN
-        if (s_mfb_held && s_status.link_up) mfb_release();
+        if (s_mfb_held && s_status.link_up) mfb_hold(false);
 #endif
         uint8_t params[1] = { 0x00 };
         send_command(BM64_READ_LINK_STATUS_CMD, params, 1);
@@ -1050,12 +1070,68 @@ static void poll_task(void *arg)
  * with MFB low ignores the UART entirely), so: raise it to wake/power the
  * module, drop it as soon as any valid frame comes back. With the module
  * on, the UART works fine with MFB low. */
-static void mfb_release(void)
+static bool               s_mfb_ctrl;   /* this board drives MFB (assert_bm64_control_pins() ran) */
+static volatile bool      s_mfb_high;
+static esp_timer_handle_t s_mfb_timer;
+static portMUX_TYPE       s_mfb_mux = portMUX_INITIALIZER_UNLOCKED;
+
+static void mfb_timer_cb(void *arg)
 {
-    if (!s_mfb_held) return;
-    s_mfb_held = false;
-    gpio_set_level(BOARD_BT_MFB_PIN, 0);
-    ESP_LOGI(TAG, "module answering -- released MFB (holding it would factory-reset the pairing list)");
+    (void)arg;
+    portENTER_CRITICAL(&s_mfb_mux);
+    if (!s_mfb_held) {
+        gpio_set_level(BOARD_BT_MFB_PIN, 0);
+        s_mfb_high = false;
+    }
+    portEXIT_CRITICAL(&s_mfb_mux);
+}
+
+/* Held high = the power-on phase only (Fig 5-3/5-6). Releasing doesn't drop
+ * the pin at once: it falls 150 ms later via the same timer the per-command
+ * window uses, so an in-flight command still gets its slot. */
+static void mfb_hold(bool on)
+{
+    if (!s_mfb_ctrl) return;
+    if (on) {
+        if (s_mfb_timer) esp_timer_stop(s_mfb_timer);
+        portENTER_CRITICAL(&s_mfb_mux);
+        s_mfb_held = true;
+        s_mfb_high = true;
+        gpio_set_level(BOARD_BT_MFB_PIN, 1);
+        portEXIT_CRITICAL(&s_mfb_mux);
+    } else if (s_mfb_held) {
+        s_mfb_held = false;
+        if (s_mfb_timer) {
+            esp_timer_stop(s_mfb_timer);
+            esp_timer_start_once(s_mfb_timer, 150 * 1000);
+        }
+        ESP_LOGI(TAG, "module answering -- MFB back to idle-low (held, it would factory-reset the pairing list)");
+    }
+}
+
+/* Fig 5-4 "RX indication after power-on state": the module idles in 32 kHz
+ * mode with MFB low. Wake it with a 1 ms pulse, 2 ms low, then MFB high
+ * and 2 ms before the first byte; keep MFB high >= 150 ms (longer than the
+ * UART command slot). Back-to-back commands just extend the window. */
+static void mfb_before_tx(void)
+{
+    if (!s_mfb_ctrl || s_mfb_held) return;
+    if (s_mfb_timer) esp_timer_stop(s_mfb_timer);
+    if (!s_mfb_high) {
+        gpio_set_level(BOARD_BT_MFB_PIN, 1);
+        esp_rom_delay_us(1000);
+        gpio_set_level(BOARD_BT_MFB_PIN, 0);
+        esp_rom_delay_us(2000);
+        gpio_set_level(BOARD_BT_MFB_PIN, 1);
+        s_mfb_high = true;
+        esp_rom_delay_us(2000);
+    }
+}
+
+static void mfb_after_tx(void)
+{
+    if (!s_mfb_ctrl || s_mfb_held || !s_mfb_timer) return;
+    esp_timer_start_once(s_mfb_timer, 150 * 1000);
 }
 
 /* Bring-up rig only: on a board that's bench-wired the BM64's MFB/RST_N/P2_0
@@ -1108,12 +1184,19 @@ static void assert_bm64_control_pins(void)
     gpio_sleep_sel_dis(BOARD_BT_MFB_PIN);
     gpio_sleep_sel_dis(BOARD_BT_RST_PIN);
     gpio_sleep_sel_dis(BOARD_BT_P20_PIN);
+    /* MFB idles LOW (see mfb_hold()); poll_task's startup raises it for the
+     * datasheet power-on sequence. RST_N/P2_0 high = out of reset, normal
+     * (not ROM/IBDK) mode. */
     gpio_set_level(BOARD_BT_MFB_PIN, 0);
-    vTaskDelay(pdMS_TO_TICKS(20));
-    gpio_set_level(BOARD_BT_MFB_PIN, 1);
-    s_mfb_held = true;   /* released once the module answers -- see mfb_release() */
+    s_mfb_high = false;
+    s_mfb_held = false;
     gpio_set_level(BOARD_BT_RST_PIN, 1);
     gpio_set_level(BOARD_BT_P20_PIN, 1);
+    if (!s_mfb_timer) {
+        const esp_timer_create_args_t targs = { .callback = mfb_timer_cb, .name = "bm64_mfb" };
+        esp_timer_create(&targs, &s_mfb_timer);
+    }
+    s_mfb_ctrl = true;
     vTaskDelay(pdMS_TO_TICKS(200));
 }
 #endif
@@ -1264,7 +1347,7 @@ esp_err_t bt_companion_ibdk_enter(bool toggle_pins)
         gpio_set_level(BOARD_BT_RST_PIN, 1);
         vTaskDelay(pdMS_TO_TICKS(1000));
         gpio_set_level(BOARD_BT_MFB_PIN, 1);
-        s_mfb_held = true;   /* released once the module answers -- see mfb_release() */
+        s_mfb_held = true; s_mfb_high = true;   /* poll_task's startup hands it back to idle-low */
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
@@ -1355,7 +1438,7 @@ esp_err_t bt_companion_ibdk_exit(void)
     gpio_set_level(BOARD_BT_RST_PIN, 1);
     vTaskDelay(pdMS_TO_TICKS(500));
     gpio_set_level(BOARD_BT_MFB_PIN, 1);
-    s_mfb_held = true;   /* released once the module answers -- see mfb_release() */
+    s_mfb_held = true; s_mfb_high = true;   /* poll_task's startup hands it back to idle-low */
     vTaskDelay(pdMS_TO_TICKS(500));
     s_ibdk_ready = false;
     return ESP_OK;
