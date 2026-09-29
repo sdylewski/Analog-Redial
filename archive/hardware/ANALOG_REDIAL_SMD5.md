@@ -111,6 +111,42 @@ GPIO2/GPIO3 for both variants) and `board_early_pin_init()`'s USB-PHY
 detach can be deleted with it. Everything in "Clone variant" below then
 collapses to just the console/BM64 question.
 
+#### Getting the jumper wrong: what it looks like
+
+**Nothing errors.** MCLK is an ESP32 *output*, so a jumper on the wrong
+side just leaves it driving an open pad while the codec sees no clock at
+all. I²C runs on different pins, so the codec still answers and the boot
+log still prints `codec detect: ES8388 @ 0x10` and `es8388: init ok`. WiFi,
+the web UI, hook detection and ringing all come up normally. The board
+looks healthy and is stone deaf.
+
+| Module | Jumper | Firmware | Result |
+|--|--|--|--|
+| Real | default (12/13) | `SMD5` | correct |
+| Clone | alternate (19/20) | `SMD5` | correct — this is the point of the jumpers |
+| **Clone** | **default (12/13)** | `SMD5` | **no audio**, microSD always "no card" |
+| Clone | default (12/13) | `SMD5_CHEAP` | works, but it's the pre-jumper arrangement: no USB console, and a seated card kills USB |
+| **Clone** | **alternate (19/20)** | `SMD5_CHEAP` | **no audio**, and no USB console either |
+| **Real** | **alternate (19/20)** | `SMD5` | **no audio**, *plus* MCLK and the card-detect switch now sit on USB D-/D+ — with a card seated USB won't enumerate, so no flashing and no console until the card comes out or the jumper goes back |
+
+In every "no audio" row, what you'd actually observe, in the order you'd
+hit it:
+
+- **No dial tone on any line**, on-hook or off. `tone 1000 3000 0` from the
+  console plays nothing and `capture` reads flat zero on both lines.
+- Everything non-audio still works — hook events, ringing, WiFi, web UI,
+  the dial plan, recordings that never contain sound — which makes it look
+  like a dead codec or a SLIC fault, and sends you down the wrong path.
+- **microSD reports no card, always**, because card-detect is on the open
+  pad too (internal pull-up, nothing pulling it down).
+
+**Fastest check: scope the codec's MCLK pin (U2 pin 1).** 12.288 MHz should
+be present any time the board is powered, regardless of call state. A dead
+pin there with `es8388: init ok` in the log is this fault, not a dead
+codec — the two use different pins, which is exactly why the boot log stays
+clean. If MCLK is alive at the ESP32 pad but dead at the codec, the jumper
+is on the wrong side.
+
 ### Real module: the default build
 
 Nothing special. Native USB on pads 19/20 is the flash/console link exactly
