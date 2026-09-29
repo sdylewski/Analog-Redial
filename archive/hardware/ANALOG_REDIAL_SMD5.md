@@ -71,53 +71,90 @@ clone-populated units. No electrical risk either way (both are just 3.3V
 digital pins), just a functional loss of native-USB flash/console on that
 variant.
 
-**Layout rule this implies**: don't assign anything else important to pad
-positions 12/13/19/20 in this footprint — a clone-populated board puts live
-USB D-/D+ signaling on whichever of those positions its real GPIO12/13 land
-at, so anything else routed there risks interference.
+**Layout rule this implies**: apart from the two nets handled by the
+jumpers below, don't assign anything to pad positions 12/13/19/20 — one
+module or the other puts live USB D-/D+ signaling there.
 
-**Firmware for the clone (`CONFIG_BOARD_TYPE_SMD5_CHEAP`, added 2026-09-28):**
-on SMD5 the `I2S_MCLK` and `SD_CD` nets sit on pads 12/13, so with the clone
-fitted they land on its GPIO12/13 (its native-USB pins). `board_pins_smd4.h`
-maps MCLK -> GPIO12 and CD -> GPIO13 for that variant, and
-`board_early_pin_init()` detaches the USB PHY from those pads (and drops its
-D+ pull-up) before audio starts -- ESP-IDF's GPIO driver won't do that on
-its own. Between reset and that call (~1 s) the ROM still owns them: MCLK is
-silent and CD reads "no card" (D+ pull-up), both harmless. Don't plug a
-cable into the clone module's own native-USB port while it runs. Pads 19/20
-(real module's USB) go to J4/J3; on the clone those are GPIO2/3, unused.
-**Flashing/console on the clone variant.** Native USB still works for
-flashing: the ROM owns GPIO12/13 from every reset, so esptool talks to it
-normally -- the pins only become MCLK/CD ~1 s later, when the USB device
-disappears from the host mid-session. To get back in without the BOOT
-button, the `download` console command (bringup.c, added 2026-09-29) quiets
-the codec/SLICs, sets `LP_AON_SYS_CFG_REG`'s force-download-boot bit and
-restarts, so the ROM stops there and USB stays up. That bit survives a
-reset, so **power-cycle the board when flashing is done**; BOOT + RESET is
-the same thing in hardware, and the escape hatch when firmware is too
-broken to reach the command.
+### Planned fix: solder-jumper select for MCLK and card-detect
 
-**Two clone-only conflicts to settle before building one:**
+Decided 2026-09-29, **not yet in KiCad**. Only two nets need a pad in the
+swapped group: `I2S_MCLK` and `SD_CD`. Give each a 3-pad solder jumper
+(symbol `Jumper:SolderJumper_3_Bridged12`, footprint
+`Jumper:SolderJumper-3_P1.3mm_Bridged12_Pad1.0x1.5mm`) so the same net can
+reach *either* module's GPIO2/GPIO3:
 
-1. **microSD card-detect vs. USB.** `SD_CD` is a switch that shorts its pin
-   to GND with a card seated, and on the clone that pin is GPIO13 = USB
-   **D+**. A seated card therefore holds D+ low and native USB can't
-   enumerate at all -- no flashing, no console, with no obvious symptom. A
-   series resistor doesn't fix it (anything small enough to keep D+ usable
-   is too small to read as a valid low). Options: pull the card before
-   flashing; or don't route `SD_CD` on SMD5 at all -- `sdcard.c` compiles to
-   a card-always-present check when `BOARD_SD_CD` is undefined, and microSD
-   is mutually exclusive with line 1 via J5 anyway.
-2. **UART0 console vs. the BM64.** `sdkconfig.smd5_cheap.defaults` puts the
-   console on UART0 (GPIO16/17) -- the same pins as the BM64 UART on J12.
-   They can't share: decide which wins (or move one) before a clone board
-   gets a BM64. With the `download` command above, native USB is a workable
-   flashing path for this variant, which makes "BM64 keeps GPIO16/17, no
-   UART console" the cheaper answer.
+| Jumper | Centre pad (common) | Default, pre-bridged | Alternate, open |
+|--|--|--|--|
+| `JP_MCLK` | `I2S_MCLK` → codec `MCLK` | footprint pad **12** = real module `GPIO2` | footprint pad **19** = clone `GPIO2` |
+| `JP_CD` | `SD_CD` → `Card1` pin 9 | footprint pad **13** = real module `GPIO3` | footprint pad **20** = clone `GPIO3` |
 
-Also worth knowing: while the app runs, the clone module's own USB-C
-connector has 12.288 MHz MCLK sitting on its D- pin. Harmless, but don't
-plug a cable in there.
+Both positions land on **GPIO2/GPIO3 in firmware** whichever module is
+fitted, so the pin map stops depending on the variant and native USB keeps
+its own pads in both cases. The `Bridged12` footprints ship with pads 1-2
+joined by a hair-thin trace, so the board has a working default straight
+from the fab: cut that trace and blob 2-3 to switch. (Two 2-pad jumpers at
+90° work too — the 3-pad part just reads as one A/B selector.)
+
+- **Bridge one side only.** Bridging both shorts pad 12 to pad 19 — with
+  the real module that's GPIO2 fighting USB D-.
+- **Silkscreen each jumper** ("MCLK: ESP / CLONE"): a wrong one gives a
+  board with no audio and no obvious cause.
+- **Drop J3/J4 from pads 19/20** while in there. They tap those pads today,
+  which with the real module puts header stubs on live USB D-/D+, and after
+  this change they'd also hang off the MCLK/CD alternates.
+- Signal integrity isn't a concern here (MCLK is 12.288 MHz, card-detect is
+  DC). Don't extend the same trick to the USB pair itself.
+
+**Firmware once the jumpers exist:** `CONFIG_BOARD_TYPE_SMD5_CHEAP` stops
+needing its own pin map (`BOARD_I2S_MCLK`/`BOARD_SD_CD` go back to
+GPIO2/GPIO3 for both variants) and `board_early_pin_init()`'s USB-PHY
+detach can be deleted with it. Everything in "Clone variant" below then
+collapses to just the console/BM64 question.
+
+### Real module: the default build
+
+Nothing special. Native USB on pads 19/20 is the flash/console link exactly
+as on SMD2/SMD4, and pads 12/13 are `GPIO2`/`GPIO3` = MCLK and card-detect.
+Build `CONFIG_BOARD_TYPE_SMD5`. Don't put MFB — or anything else — on
+GPIO12/13.
+
+### Clone variant: what's different
+
+All of this applies **only** to a clone-populated board built from the
+current, jumper-less layout, where MCLK and card-detect land on the clone's
+GPIO12/13:
+
+- **Its own pin map** (`CONFIG_BOARD_TYPE_SMD5_CHEAP`, added 2026-09-28):
+  `board_pins_smd4.h` maps MCLK → `GPIO12` and CD → `GPIO13`, and
+  `board_early_pin_init()` (board.c) detaches the USB PHY from those pads,
+  D+ pull-up included, before audio starts — ESP-IDF's GPIO driver won't do
+  that on its own, and with the PHY still attached MCLK never reaches the
+  codec. For the first ~1 s after reset the ROM still owns the pads: MCLK is
+  silent and CD reads "no card". Both harmless.
+- **No USB console.** The port disappears from the host ~1 s into every
+  boot. Use the web UI's Diagnostics tab, or UART0 — but see the BM64
+  conflict below.
+- **Flashing over native USB still works**, because the ROM owns GPIO12/13
+  from every reset. To get back into the ROM without the BOOT button, the
+  `download` console command (bringup.c, 2026-09-29) quiets the codec and
+  SLICs, sets `LP_AON_SYS_CFG_REG`'s force-download-boot bit, and restarts.
+  That bit survives a reset, so **power-cycle the board when flashing is
+  done**. BOOT + RESET is the same thing in hardware, and the escape hatch
+  when firmware is too broken to reach the command.
+- **A seated microSD card blocks USB entirely.** `SD_CD` is a switch that
+  shorts its pin to GND with a card in, and that pin is USB **D+** — held
+  low, USB can't enumerate at all, with no obvious symptom. A series
+  resistor can't fix it: anything small enough to keep D+ usable is too
+  small to read as a valid low. Pull the card before flashing, or don't
+  route `SD_CD` at all — `sdcard.c` compiles to a card-always-present check
+  when `BOARD_SD_CD` is undefined, and microSD is mutually exclusive with
+  line 1 via J5 anyway.
+- **UART0 console vs. the BM64.** `sdkconfig.smd5_cheap.defaults` puts the
+  console on UART0 (GPIO16/17) — the same pins as the BM64 UART on J12.
+  They can't share. With `download` making native USB a workable flashing
+  path, "BM64 keeps GPIO16/17, no UART console" is the cheaper answer.
+- **Don't plug a cable into the clone module's own USB-C** while the app
+  runs: 12.288 MHz MCLK is sitting on its D- pin.
 
 **Other duplicate pad-number entries in the `.kicad_mod` files** (15, 18,
 22-31) are *not* additional known discrepancies — they're just how the dual
@@ -153,8 +190,11 @@ without measuring.
 
 ## Flashing/console tradeoff for clone-populated boards
 
-Because native USB dies (as data) on a clone-populated board, don't rely on
-it for flashing or the interactive console there — see
+Partly superseded by the `download` command and the jumper plan above —
+native USB *is* usable for flashing a clone-populated board, it's the
+interactive console that isn't. The UART0 path below remains the fallback,
+and stays the only option if firmware ever comes up too broken to reach
+`download` and the BOOT button isn't accessible. See
 [`CLAUDE.md`](../../CLAUDE.md)'s "Building/flashing for a specific board
 type" section for the general multi-board-type gotchas, none of which are
 specific to SMD5. The concrete plan for SMD5:
@@ -179,9 +219,10 @@ specific to SMD5. The concrete plan for SMD5:
   as SMD2/SMD4) and `CONFIG_BOARD_TYPE_SMD5_CHEAP` (clone module,
   `sdkconfig.smd5_cheap.defaults` leaves the console on plain UART0 instead
   of overriding to native USB — the one SMD board type where that's
-  correct, not a bug). Same pin map as SMD4 either way (`board_pins_smd4.h`)
-  — the split is purely about the console/flash story, nothing in the
-  active pin map differs yet. Building each needed the `wm8731`/`es8388`
+  correct, not a bug). The two no longer share a pin map: as of 2026-09-28
+  `board_pins_smd4.h` gives the clone variant MCLK/CD on GPIO12/13 (see
+  "Clone variant" above), and as of 2026-09-29 both SMD5 variants put the
+  BM64's MFB on GPIO15. Building each needed the `wm8731`/`es8388`
   components' own per-board-type CMakeLists.txt gates extended too (they
   don't follow `board_pins.h`'s routing automatically) — worth remembering
   if a 3rd variant ever gets added.
