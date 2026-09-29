@@ -832,12 +832,25 @@ static void handle_event(uint8_t event_code, const uint8_t *param, uint8_t param
         }
         break;
     case BM64_EVENT_REPORT_LINK_STATUS:
-        /* Device_State, DB0_Connect, DB1_Connect, ... -- bit 3 = HF up. */
+        /* Device_State, DB0_Connect, DB1_Connect, ... -- bit 3 = HF up.
+         * Device_State 3/4/5/6 = connected (HF / A2DP / SPP / multi).
+         * Also the source of truth for bt_connected: with the BM64 no longer
+         * reset when the ESP32 reboots, a phone stays linked across our
+         * reboot and no link-up event ever arrives -- without this we'd
+         * report "no phone connected" and refuse to dial out. */
         if (param_len >= 3) {
+            bool conn = param[0] >= 0x03 && param[0] <= 0x06;
             portENTER_CRITICAL(&s_lock);
             s_dev_hf[0] = (param[1] & 0x08) != 0;
             s_dev_hf[1] = (param[2] & 0x08) != 0;
+            bool was = s_status.bt_connected;
+            s_status.bt_connected = conn;
+            if (!conn) s_status.paired_name[0] = '\0';
             portEXIT_CRITICAL(&s_lock);
+            if (conn != was) {
+                ESP_LOGI(TAG, "link status: phone %s", conn ? "connected" : "not connected");
+                if (conn) board_led_set_state(BOARD_LED_BT_CONNECTED);
+            }
         }
         break;
     case BM64_EVENT_HF_GAIN_LEVEL:

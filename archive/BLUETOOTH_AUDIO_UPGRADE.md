@@ -624,6 +624,19 @@ above.** Instead of a separate collector inside BT passthrough:
   call state returns to IDLE while in passthrough, the line now plays
   reorder until hang-up instead of sitting in dead air.
 
+**Tested on newphone 2026-09-28:** dial-out (1 + number) connects and
+rings; reorder with no phone connected; call audio both directions after
+forcing the call speaker level to max on SCO-up (the phone had restored
+level 4/15, which was audible but invisible on the scope); hang-up ends
+the call; the BM64 links back to the phone by itself after a power-on.
+**Pairing lost on every ESP32 reboot** was the bench-wired RST_N on GPIO19
+(floats during the ESP32's reset -> BM64 reset -> the new pairing, not yet
+in EEPROM, gone; `bm64_cmd 0E` showed 0 records). With RST_N disconnected,
+pairing survives `reboot`. Since the BM64 now stays linked across our
+reboot, `bt_connected` is also derived from the 2 s link-status poll, not
+only from link-up events. Still open: does a pairing survive a full power
+loss (the BM64 writes its EEPROM at a clean power-off -- event 0x1B/03)?
+
 ### Gap found while writing this up: BT "enabled" vs. BT "connected"
 
 `on_offhook()`'s routing check today is `bt_companion_enabled()` alone --
