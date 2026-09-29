@@ -55,6 +55,7 @@ static const char *TAG = "bt_companion";
 
 typedef enum {
     BM64_MAKE_CALL_CMD            = 0x00, /* Data_Base_Index + ASCII number (max 19) */
+    BM64_SET_HF_SPEAKER_GAIN_CMD  = 0x1B, /* Data_Base_Index, Gain_Level 0-15 */
     BM64_MMI_CMD                  = 0x02,
     BM64_CHANGE_DEVICE_NAME_CMD   = 0x05,
     BM64_READ_LOCAL_BD_ADDR_CMD   = 0x0F,
@@ -107,6 +108,8 @@ typedef enum {
     BM64_EVENT_REMOTE_DEVICE_NAME     = 0x17,
     BM64_EVENT_UART_VERSION           = 0x18,
     BM64_EVENT_REPORT_LINK_STATUS     = 0x1E,
+    BM64_EVENT_HF_GAIN_LEVEL          = 0x0F, /* Data_Base_Index, Gain_Level 0-15 (set by the phone) */
+    BM64_EVENT_TYPE_CODEC             = 0x2D, /* Sampling_Frequency, Mode */
     BM64_EVENT_PAIRED_RECORD_REPLY    = 0x1F, /* count, then 7 bytes each: priority + BD addr (LSB first) */
     BM64_EVENT_REPORT_LOCAL_BD_ADDR   = 0x20,
 } bm64_event_t;
@@ -150,6 +153,7 @@ static portMUX_TYPE          s_lock = portMUX_INITIALIZER_UNLOCKED;
  * that same device: with a phone mid-call and a laptop ringing, "answer" has
  * to reach the laptop and "hang up" the phone. Guarded by s_lock. */
 #define BT_MAX_DEVICES 2
+#define BT_CALL_SPEAKER_GAIN 0x0F /* max; see the SCO-up handler */
 static bt_call_state_t s_dev_call[BT_MAX_DEVICES];
 static char            s_dev_cid[BT_MAX_DEVICES][BT_COMPANION_CALLER_ID_MAX];
 
@@ -753,6 +757,23 @@ static void handle_event(uint8_t event_code, const uint8_t *param, uint8_t param
                 portEXIT_CRITICAL(&s_lock);
                 board_led_set_state(BOARD_LED_BT_CONNECTED);
                 break;
+            case BM64_STATE_SCO_UP: {
+                /* Call audio just started. The phone restores its remembered
+                 * call volume for this headset (level 4 of 15 on the first
+                 * real test call -- audible only faintly, and invisible on a
+                 * scope at Vin). A rotary handset has no volume control, so
+                 * pin it to max; the phone's own volume buttons still work
+                 * mid-call. Max is ~1.1 Vpp at AOHPL, well inside what the
+                 * SLIC's Vin takes from the codec. */
+                int dev = 0;
+                portENTER_CRITICAL(&s_lock);
+                for (int d = 0; d < BT_MAX_DEVICES; d++)
+                    if (s_dev_call[d] != BT_CALL_IDLE) { dev = d; break; }
+                portEXIT_CRITICAL(&s_lock);
+                uint8_t gain[2] = { (uint8_t)dev, BT_CALL_SPEAKER_GAIN };
+                send_command(BM64_SET_HF_SPEAKER_GAIN_CMD, gain, 2);
+                break;
+            }
             case BM64_STATE_HF_LINK_DOWN:
             case BM64_STATE_A2DP_LINK_DOWN: {
                 portENTER_CRITICAL(&s_lock);
@@ -818,6 +839,23 @@ static void handle_event(uint8_t event_code, const uint8_t *param, uint8_t param
             s_dev_hf[1] = (param[2] & 0x08) != 0;
             portEXIT_CRITICAL(&s_lock);
         }
+        break;
+    case BM64_EVENT_HF_GAIN_LEVEL:
+        if (param_len >= 2)
+            ESP_LOGI(TAG, "device %d call speaker level %u/15 (set by the phone)", param[0] & 0x07, param[1]);
+        break;
+    case BM64_EVENT_TYPE_CODEC:
+        if (param_len >= 2 && param[1] == 0x06)
+            ESP_LOGI(TAG, "call audio codec: %s", param[0] == 0x02 ? "16 kHz wideband (mSBC)"
+                                                   : param[0] == 0x00 ? "8 kHz narrowband (CVSD)" : "other rate");
+        else
+            ESP_LOGD(TAG, "codec mode 0x%02X rate 0x%02X", param_len >= 2 ? param[1] : 0, param[0]);
+        break;
+    case 0x06: case 0x07: case 0x08: case 0x09: case 0x0A: case 0x0B: /* phone battery/signal/roaming/service */
+    case 0x1A: /* AVRCP vendor response */
+    case 0x24: /* ringtone status */
+    case 0x32: /* LE signaling */
+        ESP_LOGD(TAG, "phone status event 0x%02X", event_code);
         break;
     case BM64_EVENT_PAIRED_RECORD_REPLY:
         /* Reply to Read_Paired_Device_Record (bm64_cmd 0E) -- logged at INFO
