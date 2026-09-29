@@ -927,13 +927,23 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "PCM_SL_Pin_Headers:PINHD_1x2_Male"
+		(symbol "PCM_SL_Pin_Headers:PINHD_1x4_Male"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
 			(in_pos_files yes)
 			(duplicate_pin_numbers_are_jumpers no)
 			(property "Reference" "J"
+				(at 0 8.89 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "PINHD_1x4_Male"
 				(at 0 6.35 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -943,18 +953,8 @@
 					)
 				)
 			)
-			(property "Value" "PINHD_1x2_Male"
-				(at 0 3.81 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
-				(at 1.27 -3.81 0)
+			(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
+				(at -1.27 11.43 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(hide yes)
@@ -965,7 +965,7 @@
 				)
 			)
 			(property "Datasheet" ""
-				(at 0 7.62 0)
+				(at 0 10.16 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(hide yes)
@@ -975,7 +975,7 @@
 					)
 				)
 			)
-			(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -2"
+			(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -4"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -997,7 +997,7 @@
 					)
 				)
 			)
-			(property "ki_fp_filters" "PinHeader_1x02_P2.54mm*"
+			(property "ki_fp_filters" "PinHeader_1x04_P2.54mm*"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -1008,10 +1008,10 @@
 					)
 				)
 			)
-			(symbol "PINHD_1x2_Male_0_1"
+			(symbol "PINHD_1x4_Male_0_1"
 				(rectangle
-					(start -1.27 2.54)
-					(end 1.27 -2.54)
+					(start -1.27 5.08)
+					(end 1.27 -5.08)
 					(stroke
 						(width 0)
 						(type default)
@@ -1022,6 +1022,30 @@
 				)
 				(polyline
 					(pts
+						(xy -1.27 3.81) (xy 0 3.81)
+					)
+					(stroke
+						(width 0.3)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 3.81) (xy 0 3.81)
+					)
+					(stroke
+						(width 0.5)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
 						(xy -1.27 1.27) (xy 0 1.27)
 					)
 					(stroke
@@ -1059,6 +1083,30 @@
 				(polyline
 					(pts
 						(xy -1.27 -1.27) (xy 0 -1.27)
+					)
+					(stroke
+						(width 0.5)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 -3.81) (xy 0 -3.81)
+					)
+					(stroke
+						(width 0.3)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 -3.81) (xy 0 -3.81)
 					)
 					(stroke
 						(width 0.5)
@@ -1069,9 +1117,9 @@
 					)
 				)
 			)
-			(symbol "PINHD_1x2_Male_1_1"
+			(symbol "PINHD_1x4_Male_1_1"
 				(pin passive line
-					(at -3.81 1.27 0)
+					(at -3.81 3.81 0)
 					(length 2.54)
 					(name ""
 						(effects
@@ -1089,7 +1137,7 @@
 					)
 				)
 				(pin passive line
-					(at -3.81 -1.27 0)
+					(at -3.81 1.27 0)
 					(length 2.54)
 					(name ""
 						(effects
@@ -1106,16 +1154,62 @@
 						)
 					)
 				)
+				(pin passive line
+					(at -3.81 -1.27 0)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -3.81 -3.81 0)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
 			)
 			(embedded_fonts no)
 		)
-		(symbol "PCM_SL_Pin_Headers:PINHD_1x6_Female"
+		(symbol "PCM_SL_Pin_Headers:PINHD_1x8_Female"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
 			(in_pos_files yes)
 			(duplicate_pin_numbers_are_jumpers no)
 			(property "Reference" "J"
+				(at 0 15.24 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "PINHD_1x8_Female"
 				(at 0 12.7 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -1125,18 +1219,8 @@
 					)
 				)
 			)
-			(property "Value" "PINHD_1x6_Female"
-				(at 0 10.16 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_1x06_P2.54mm_Vertical"
-				(at 2.54 15.24 0)
+			(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_1x08_P2.54mm_Vertical"
+				(at 2.54 17.78 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(hide yes)
@@ -1147,7 +1231,7 @@
 				)
 			)
 			(property "Datasheet" ""
-				(at 0 12.7 0)
+				(at 0 15.24 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(hide yes)
@@ -1157,7 +1241,7 @@
 					)
 				)
 			)
-			(property "Description" "Pin Header female with pin space 2.54mm. Pin Count -6"
+			(property "Description" "Pin Header female with pin space 2.54mm. Pin Count -8"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -1179,7 +1263,7 @@
 					)
 				)
 			)
-			(property "ki_fp_filters" "PinSocket_1x06_P2.54mm*"
+			(property "ki_fp_filters" "PinSocket_1x08_P2.54mm*"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -1190,16 +1274,28 @@
 					)
 				)
 			)
-			(symbol "PINHD_1x6_Female_0_1"
+			(symbol "PINHD_1x8_Female_0_1"
 				(rectangle
-					(start -1.27 7.62)
-					(end 1.905 -7.62)
+					(start -1.27 10.16)
+					(end 1.905 -10.16)
 					(stroke
 						(width 0)
 						(type default)
 					)
 					(fill
 						(type background)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 8.89) (xy -0.508 8.89)
+					)
+					(stroke
+						(width 0.25)
+						(type default)
+					)
+					(fill
+						(type none)
 					)
 				)
 				(polyline
@@ -1265,6 +1361,66 @@
 				(polyline
 					(pts
 						(xy -1.27 -6.35) (xy -0.508 -6.35)
+					)
+					(stroke
+						(width 0.25)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 -8.89) (xy -0.508 -8.89)
+					)
+					(stroke
+						(width 0.25)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 9.398) (xy 1.016 9.398)
+					)
+					(stroke
+						(width 0.25)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start -0.508 8.89)
+					(mid -0.3592 9.2492)
+					(end 0 9.398)
+					(stroke
+						(width 0.25)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start 0 8.382)
+					(mid -0.3592 8.5308)
+					(end -0.508 8.89)
+					(stroke
+						(width 0.25)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 8.382) (xy 1.016 8.382)
 					)
 					(stroke
 						(width 0.25)
@@ -1562,10 +1718,58 @@
 						(type none)
 					)
 				)
+				(polyline
+					(pts
+						(xy 0 -8.382) (xy 1.016 -8.382)
+					)
+					(stroke
+						(width 0.25)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start -0.508 -8.89)
+					(mid -0.3592 -8.5308)
+					(end 0 -8.382)
+					(stroke
+						(width 0.25)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start 0 -9.398)
+					(mid -0.3592 -9.2492)
+					(end -0.508 -8.89)
+					(stroke
+						(width 0.25)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 -9.398) (xy 1.016 -9.398)
+					)
+					(stroke
+						(width 0.25)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
 			)
-			(symbol "PINHD_1x6_Female_1_1"
+			(symbol "PINHD_1x8_Female_1_1"
 				(pin passive line
-					(at -3.81 6.35 0)
+					(at -3.81 8.89 0)
 					(length 2.54)
 					(name ""
 						(effects
@@ -1583,7 +1787,7 @@
 					)
 				)
 				(pin passive line
-					(at -3.81 3.81 0)
+					(at -3.81 6.35 0)
 					(length 2.54)
 					(name ""
 						(effects
@@ -1601,7 +1805,7 @@
 					)
 				)
 				(pin passive line
-					(at -3.81 1.27 0)
+					(at -3.81 3.81 0)
 					(length 2.54)
 					(name ""
 						(effects
@@ -1619,7 +1823,7 @@
 					)
 				)
 				(pin passive line
-					(at -3.81 -1.27 0)
+					(at -3.81 1.27 0)
 					(length 2.54)
 					(name ""
 						(effects
@@ -1637,7 +1841,7 @@
 					)
 				)
 				(pin passive line
-					(at -3.81 -3.81 0)
+					(at -3.81 -1.27 0)
 					(length 2.54)
 					(name ""
 						(effects
@@ -1655,7 +1859,7 @@
 					)
 				)
 				(pin passive line
-					(at -3.81 -6.35 0)
+					(at -3.81 -3.81 0)
 					(length 2.54)
 					(name ""
 						(effects
@@ -1665,6 +1869,42 @@
 						)
 					)
 					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -3.81 -6.35 0)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -3.81 -8.89 0)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -1930,11 +2170,67 @@
 			(embedded_fonts no)
 		)
 	)
+	(text "Uart Tx"
+		(exclude_from_sim no)
+		(at 167.386 125.984 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "3f923da2-da62-49c1-9a61-709a043152f4")
+	)
+	(text "Line1 Vin"
+		(exclude_from_sim no)
+		(at 168.91 113.03 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "89abf949-cf2f-4a9b-9f32-04dbf255a915")
+	)
+	(text "Uart Rx"
+		(exclude_from_sim no)
+		(at 167.64 123.444 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "925533a7-6ec5-482c-bd41-e5b1043072b0")
+	)
+	(text "Line1 Vout"
+		(exclude_from_sim no)
+		(at 169.418 115.824 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "9be2bbd4-233f-4c98-8793-96078d400048")
+	)
+	(text "MFB"
+		(exclude_from_sim no)
+		(at 165.862 128.778 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "d45deff5-d42c-46a6-b928-ebb76888be7b")
+	)
 	(junction
-		(at 129.54 115.57)
+		(at 127 105.41)
 		(diameter 0)
 		(color 0 0 0 0)
-		(uuid "81b22ac6-801b-4e86-be34-d6fc32acd1bc")
+		(uuid "271e203d-9bf8-48c4-b037-135a03206441")
+	)
+	(junction
+		(at 134.62 113.03)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "3a9316ae-3531-482e-bfde-c5cb69a0d201")
 	)
 	(wire
 		(pts
@@ -1948,23 +2244,13 @@
 	)
 	(wire
 		(pts
-			(xy 58.42 123.19) (xy 147.32 123.19)
+			(xy 58.42 123.19) (xy 157.48 123.19)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "25cfb1c4-56b7-44dc-8fc3-ac0ef40882c5")
-	)
-	(wire
-		(pts
-			(xy 151.13 105.41) (xy 123.19 105.41)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2bdb954d-95ea-43fb-8ad8-1a65d87174d9")
 	)
 	(wire
 		(pts
@@ -1988,6 +2274,16 @@
 	)
 	(wire
 		(pts
+			(xy 134.62 113.03) (xy 129.54 113.03)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "49076d1c-9d11-4b60-aeaa-9c00168b2708")
+	)
+	(wire
+		(pts
 			(xy 123.19 62.23) (xy 130.81 62.23)
 		)
 		(stroke
@@ -1998,23 +2294,23 @@
 	)
 	(wire
 		(pts
-			(xy 151.13 100.33) (xy 151.13 105.41)
+			(xy 153.67 78.74) (xy 157.48 78.74)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "6111133e-4a5a-4325-b578-42c5ef1d32ea")
+		(uuid "613f2da3-d03d-4ba5-9593-32009e65120c")
 	)
 	(wire
 		(pts
-			(xy 147.32 123.19) (xy 147.32 120.65)
+			(xy 66.04 80.01) (xy 67.31 80.01)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "6ba2b854-d2f0-467b-acfa-2be0300f2167")
+		(uuid "67b5af1c-6a8c-42fe-8c10-ff66e5ac32ce")
 	)
 	(wire
 		(pts
@@ -2028,7 +2324,7 @@
 	)
 	(wire
 		(pts
-			(xy 55.88 125.73) (xy 149.86 125.73)
+			(xy 55.88 125.73) (xy 157.48 125.73)
 		)
 		(stroke
 			(width 0)
@@ -2038,33 +2334,23 @@
 	)
 	(wire
 		(pts
-			(xy 151.13 83.82) (xy 151.13 90.17)
+			(xy 64.77 92.71) (xy 67.31 92.71)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "8cbdc127-cd36-44bd-bca3-8a26a236f7f8")
+		(uuid "75286fc7-81fe-4a70-aa51-06fbf54687ad")
 	)
 	(wire
 		(pts
-			(xy 123.19 67.31) (xy 151.13 67.31)
+			(xy 123.19 67.31) (xy 157.48 67.31)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "8e774d66-b0b8-4bb8-9f04-f8a0c84fb2f2")
-	)
-	(wire
-		(pts
-			(xy 153.67 83.82) (xy 154.94 83.82)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "945b6c35-0d0c-410b-afaa-32f3a9c70684")
 	)
 	(wire
 		(pts
@@ -2078,26 +2364,6 @@
 	)
 	(wire
 		(pts
-			(xy 157.48 123.19) (xy 149.86 123.19)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a6cda970-9760-4b5e-870e-a357ed45c619")
-	)
-	(wire
-		(pts
-			(xy 147.32 120.65) (xy 157.48 120.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b07b7bca-a512-4ae6-8653-7966fa1b01ba")
-	)
-	(wire
-		(pts
 			(xy 123.19 115.57) (xy 129.54 115.57)
 		)
 		(stroke
@@ -2108,17 +2374,7 @@
 	)
 	(wire
 		(pts
-			(xy 149.86 123.19) (xy 149.86 125.73)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "cceaeaba-729a-4462-8dae-5cc74852c599")
-	)
-	(wire
-		(pts
-			(xy 157.48 113.03) (xy 129.54 113.03)
+			(xy 157.48 113.03) (xy 134.62 113.03)
 		)
 		(stroke
 			(width 0)
@@ -2128,13 +2384,43 @@
 	)
 	(wire
 		(pts
-			(xy 151.13 90.17) (xy 123.19 90.17)
+			(xy 127 105.41) (xy 123.19 105.41)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "cf98bf37-76bc-45dc-a545-364bb1a4d9d1")
+		(uuid "d94b76e4-677c-4ba7-a4ec-52a8c5dcb2c9")
+	)
+	(wire
+		(pts
+			(xy 147.32 105.41) (xy 127 105.41)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "dc7d30a7-2853-4387-a3c7-4a9e3cfa7d1b")
+	)
+	(wire
+		(pts
+			(xy 157.48 81.28) (xy 147.32 81.28)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "dee67605-4651-4a7a-ac16-e989dba09c1f")
+	)
+	(wire
+		(pts
+			(xy 147.32 81.28) (xy 147.32 105.41)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e1b539de-3b99-45a1-bf0e-e6a9b0f51b19")
 	)
 	(wire
 		(pts
@@ -2166,15 +2452,45 @@
 		)
 		(uuid "e75cc237-7d45-4ab9-8ea0-ab3788e993e2")
 	)
-	(label "Line1Vin"
-		(at 165.1 115.57 0)
+	(wire
+		(pts
+			(xy 157.48 128.27) (xy 127 128.27)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ea1d7851-6800-43e2-b8d2-e8c93352f390")
+	)
+	(wire
+		(pts
+			(xy 127 128.27) (xy 127 105.41)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f5b3c2d4-2a2e-4aed-a8e9-bd598f32fbd1")
+	)
+	(wire
+		(pts
+			(xy 157.48 67.31) (xy 157.48 76.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fdc9874a-7188-4363-be91-8d80b5127db3")
+	)
+	(label "Mic_N1"
+		(at 66.04 80.01 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
-		(uuid "01b0d9b3-0428-4dbe-a312-8f72f91cabee")
+		(uuid "11821638-4762-496b-b966-b32102b0f626")
 	)
 	(label "A0HPL"
 		(at 66.04 77.47 180)
@@ -2206,15 +2522,35 @@
 		)
 		(uuid "2c2843fb-3795-4f79-88b6-fd3bdea34d79")
 	)
-	(label "Line1Vout"
-		(at 173.99 118.11 180)
+	(label "RST"
+		(at 64.77 92.71 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right bottom)
 		)
-		(uuid "943f2843-a442-4396-acf1-f4696ff56f7a")
+		(uuid "34753b87-4359-42b7-a8b0-61a73f90a151")
+	)
+	(label "RST"
+		(at 153.67 78.74 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "62f92015-77db-4783-b1ef-b06555b3c5a2")
+	)
+	(label "Mic_N1"
+		(at 157.48 120.65 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "9b596e53-a278-48c4-8752-86c3bd771b70")
 	)
 	(label "espUartRx"
 		(at 67.31 110.49 180)
@@ -2247,8 +2583,8 @@
 		(uuid "f3b134df-79b6-4149-89a4-4abbf3be32c0")
 	)
 	(symbol
-		(lib_id "PCM_SL_Pin_Headers:PINHD_1x2_Male")
-		(at 152.4 96.52 90)
+		(lib_id "PCM_SL_Pin_Headers:PINHD_1x8_Female")
+		(at 161.29 121.92 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -2256,31 +2592,31 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "21ef33a7-1bb2-4a1e-a313-ce62c1edf909")
-		(property "Reference" "J6"
-			(at 151.384 94.742 90)
+		(uuid "09160d5a-0143-4194-874f-b0fa4c447ce9")
+		(property "Reference" "J1"
+			(at 164.592 132.08 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify right)
+				(justify left)
 			)
 		)
-		(property "Value" "PINHD_1x2_Male"
-			(at 146.558 92.202 90)
+		(property "Value" "PINHD_1x8_Female"
+			(at 163.576 135.128 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify right)
+				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
-			(at 156.21 95.25 0)
+		(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_1x08_P2.54mm_Vertical"
+			(at 163.83 104.14 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2291,7 +2627,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 144.78 96.52 0)
+			(at 161.29 106.68 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2301,8 +2637,8 @@
 				)
 			)
 		)
-		(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -2"
-			(at 152.4 96.52 0)
+		(property "Description" "Pin Header female with pin space 2.54mm. Pin Count -8"
+			(at 161.29 121.92 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2312,8 +2648,52 @@
 				)
 			)
 		)
-		(property "Availability" ""
-			(at 152.4 96.52 90)
+		(pin "5"
+			(uuid "4b11c7c4-93b6-4237-a1aa-a57db73e7a10")
+		)
+		(pin "6"
+			(uuid "d8769bec-dc02-4b0b-ae15-ffd07ba6f680")
+		)
+		(pin "8"
+			(uuid "af2dd8fc-86dc-4ac3-b627-77667da45ed8")
+		)
+		(pin "4"
+			(uuid "6690d7d8-1874-47fe-9cc7-b6c8387e19d9")
+		)
+		(pin "7"
+			(uuid "ee298e0c-7d4a-4f08-a2af-fae5c7215419")
+		)
+		(pin "1"
+			(uuid "bb0aed0f-2fad-4bcd-871f-c211297867c1")
+		)
+		(pin "3"
+			(uuid "a27d9173-6f8d-4071-b551-3b0b4ae000c2")
+		)
+		(pin "2"
+			(uuid "3be15a61-5cff-4479-897f-1381f898f84e")
+		)
+		(instances
+			(project "Bluetooth_board"
+				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
+					(reference "J1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3.3V")
+		(at 134.62 113.03 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "2378a1a9-ce9a-4af8-8629-86b259e27990")
+		(property "Reference" "#PWR044"
+			(at 134.62 116.84 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2323,8 +2703,18 @@
 				)
 			)
 		)
-		(property "Check_prices" ""
-			(at 152.4 96.52 90)
+		(property "Value" "+3.3V"
+			(at 134.366 107.95 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 134.62 113.03 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2334,8 +2724,8 @@
 				)
 			)
 		)
-		(property "MF" ""
-			(at 152.4 96.52 90)
+		(property "Datasheet" ""
+			(at 134.62 113.03 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2345,85 +2735,8 @@
 				)
 			)
 		)
-		(property "MP" ""
-			(at 152.4 96.52 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" ""
-			(at 152.4 96.52 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Package" ""
-			(at 152.4 96.52 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Price" ""
-			(at 152.4 96.52 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "SnapEDA_Link" ""
-			(at 152.4 96.52 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 152.4 96.52 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 152.4 96.52 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 152.4 96.52 90)
+		(property "Description" "Power symbol creates a global label with name \"+3.3V\""
+			(at 134.62 113.03 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2434,15 +2747,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "4501e805-6155-4ea4-a11b-5b417e137e17")
-		)
-		(pin "2"
-			(uuid "553ea713-7c71-4d52-9a83-bdb8929acc1d")
+			(uuid "430844d5-ac74-42d8-93d3-dee7932e5a6b")
 		)
 		(instances
 			(project "Bluetooth_board"
 				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "J6")
+					(reference "#PWR044")
 					(unit 1)
 				)
 			)
@@ -2654,208 +2964,6 @@
 		)
 	)
 	(symbol
-		(lib_id "PCM_SL_Pin_Headers:PINHD_1x2_Male")
-		(at 152.4 80.01 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "3cf78de9-c878-4663-af9c-abcb92c8e5cd")
-		(property "Reference" "J10"
-			(at 151.384 78.232 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "PINHD_1x2_Male"
-			(at 146.558 75.692 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
-			(at 156.21 78.74 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 144.78 80.01 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -2"
-			(at 152.4 80.01 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Availability" ""
-			(at 152.4 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Check_prices" ""
-			(at 152.4 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MF" ""
-			(at 152.4 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MP" ""
-			(at 152.4 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" ""
-			(at 152.4 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Package" ""
-			(at 152.4 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Price" ""
-			(at 152.4 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "SnapEDA_Link" ""
-			(at 152.4 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 152.4 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 152.4 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 152.4 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "ca8fb50f-eb52-4542-b658-72e94ab369b7")
-		)
-		(pin "2"
-			(uuid "69a46ab7-de91-42ea-a89e-37c619541e58")
-		)
-		(instances
-			(project "Bluetooth_board"
-				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "J10")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:GND")
 		(at 59.69 95.25 0)
 		(unit 1)
@@ -3013,334 +3121,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 154.94 83.82 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "8b30b308-3175-44ef-b5ad-03bddbde4eef")
-		(property "Reference" "#PWR046"
-			(at 154.94 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 156.21 87.63 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" ""
-			(at 154.94 83.82 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 154.94 83.82 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 154.94 83.82 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "fe586f74-70ec-43aa-ae76-a548e348a6c4")
-		)
-		(instances
-			(project "Bluetooth_board"
-				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "#PWR046")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 153.67 67.31 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "8ed3a995-2081-4ae1-8b91-3b66f498fe0e")
-		(property "Reference" "#PWR047"
-			(at 153.67 73.66 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 154.94 71.12 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" ""
-			(at 153.67 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 153.67 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 153.67 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "b5b62a7d-df91-4857-b58f-14ddda276c2d")
-		)
-		(instances
-			(project "Bluetooth_board"
-				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "#PWR047")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 153.67 100.33 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "a53c9656-ec00-491b-a55b-d6ef456587bc")
-		(property "Reference" "#PWR045"
-			(at 153.67 106.68 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 154.94 104.14 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" ""
-			(at 153.67 100.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 153.67 100.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 153.67 100.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "c7a87673-7ce6-4b31-8fed-a92591e6259c")
-		)
-		(instances
-			(project "Bluetooth_board"
-				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "#PWR045")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "PCM_SL_Pin_Headers:PINHD_1x6_Female")
-		(at 161.29 119.38 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "bb1e4ed6-7c63-4ab4-a975-0b53ee064149")
-		(property "Reference" "J2"
-			(at 160.528 109.728 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "PINHD_1x6_Female"
-			(at 160.02 128.524 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_1x06_P2.54mm_Vertical"
-			(at 163.83 104.14 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 161.29 106.68 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Pin Header female with pin space 2.54mm. Pin Count -6"
-			(at 161.29 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "6"
-			(uuid "15d75e1b-f1da-4772-bc15-63a83d768da3")
-		)
-		(pin "5"
-			(uuid "f5b175ee-f47e-4961-a093-b92e5be83b83")
-		)
-		(pin "2"
-			(uuid "e65b70f7-cef5-4bc0-8020-48ffd703df1f")
-		)
-		(pin "3"
-			(uuid "c63a38a6-adda-4305-b2fc-600c28508f1d")
-		)
-		(pin "4"
-			(uuid "d4824392-1512-4925-9862-b11ea25b0277")
-		)
-		(pin "1"
-			(uuid "d857c7e6-08eb-4384-a206-2e5949cdcb9f")
-		)
-		(instances
-			(project "Bluetooth_board"
-				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "J2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 157.48 125.73 0)
+		(at 157.48 130.81 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -3350,7 +3131,7 @@
 		(dnp no)
 		(uuid "c7024fea-ecc0-42cc-85ba-d3a2be292047")
 		(property "Reference" "#PWR048"
-			(at 157.48 132.08 0)
+			(at 157.48 137.16 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3361,7 +3142,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 158.75 129.54 0)
+			(at 158.75 134.62 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3372,7 +3153,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 157.48 125.73 0)
+			(at 157.48 130.81 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3383,7 +3164,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 157.48 125.73 0)
+			(at 157.48 130.81 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3394,7 +3175,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 157.48 125.73 0)
+			(at 157.48 130.81 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3417,8 +3198,8 @@
 		)
 	)
 	(symbol
-		(lib_id "PCM_SL_Pin_Headers:PINHD_1x2_Male")
-		(at 152.4 63.5 90)
+		(lib_id "PCM_SL_Pin_Headers:PINHD_1x4_Male")
+		(at 161.29 80.01 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -3426,31 +3207,32 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "d98450d1-188d-4297-adb1-8c562a925305")
-		(property "Reference" "J11"
-			(at 151.384 61.722 90)
+		(fields_autoplaced yes)
+		(uuid "de1ff8d6-2af1-4cfb-bec8-0fb4d6d2d84b")
+		(property "Reference" "J2"
+			(at 163.83 78.7399 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify right)
+				(justify left)
 			)
 		)
-		(property "Value" "PINHD_1x2_Male"
-			(at 146.558 59.182 90)
+		(property "Value" "PINHD_1x4_Male"
+			(at 163.83 81.2799 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify right)
+				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
-			(at 156.21 62.23 0)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
+			(at 160.02 68.58 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3461,7 +3243,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 144.78 63.5 0)
+			(at 161.29 69.85 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3471,8 +3253,8 @@
 				)
 			)
 		)
-		(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -2"
-			(at 152.4 63.5 0)
+		(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -4"
+			(at 161.29 80.01 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3481,215 +3263,23 @@
 					(size 1.27 1.27)
 				)
 			)
-		)
-		(property "Availability" ""
-			(at 152.4 63.5 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Check_prices" ""
-			(at 152.4 63.5 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MF" ""
-			(at 152.4 63.5 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MP" ""
-			(at 152.4 63.5 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" ""
-			(at 152.4 63.5 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Package" ""
-			(at 152.4 63.5 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Price" ""
-			(at 152.4 63.5 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "SnapEDA_Link" ""
-			(at 152.4 63.5 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 152.4 63.5 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 152.4 63.5 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 152.4 63.5 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "686e0a97-6efa-413e-8044-ee58ba81f2e5")
 		)
 		(pin "2"
-			(uuid "dac679ca-1d68-432d-bd3c-5b7780d30c6f")
-		)
-		(instances
-			(project "Bluetooth_board"
-				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "J11")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+3.3V")
-		(at 129.54 115.57 270)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "e63e5277-778b-41cd-8a4f-10a28ab2faa5")
-		(property "Reference" "#PWR044"
-			(at 125.73 115.57 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3.3V"
-			(at 133.858 115.57 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 129.54 115.57 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 129.54 115.57 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"+3.3V\""
-			(at 129.54 115.57 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
+			(uuid "e954e25d-8265-439f-bab7-7b4841a35109")
 		)
 		(pin "1"
-			(uuid "d9125c44-74e8-4ce7-b2a8-3ce88e291bb2")
+			(uuid "3777ae48-a584-43e8-be3e-17c7aa7070e6")
+		)
+		(pin "4"
+			(uuid "9472d112-47a8-4f8f-9fcc-a25b256c876a")
+		)
+		(pin "3"
+			(uuid "7c01d1b5-fa2e-4a82-876a-3a833ecfbe19")
 		)
 		(instances
 			(project "Bluetooth_board"
 				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "#PWR044")
+					(reference "J2")
 					(unit 1)
 				)
 			)
