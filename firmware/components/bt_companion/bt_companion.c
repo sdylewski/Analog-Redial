@@ -211,6 +211,10 @@ static void start_task(void);
 static void stop_task(void);
 static void send_command(uint8_t opcode, const uint8_t *params, uint8_t param_count);
 static void start_autocheck(void);
+#ifdef BOARD_BT_MFB_PIN
+static volatile bool s_mfb_held;
+static void mfb_release(void);
+#endif
 static esp_err_t ensure_uart(void);
 static esp_err_t ensure_uart_peripheral_only(void);
 
@@ -1004,6 +1008,9 @@ static void poll_task(void *arg)
     }
 
     while (!s_task_stop) {
+#ifdef BOARD_BT_MFB_PIN
+        if (s_mfb_held && s_status.link_up) mfb_release();
+#endif
         uint8_t params[1] = { 0x00 };
         send_command(BM64_READ_LINK_STATUS_CMD, params, 1);
 
@@ -1031,6 +1038,26 @@ static void poll_task(void *arg)
 }
 
 #ifdef BOARD_BT_MFB_PIN
+/* MFB must not be held high indefinitely. The BM64 treats it as its power
+ * button (EEPROM 0xAE bit0 = 0, "MFB used as power function"), and a press
+ * that starts while the module is OFF and is held past reset_to_default_timer
+ * (0x1AC) triggers a "MASTER RESET" that clears the paired-device list --
+ * confirmed 2026-09-28 on newphone: every cold boot (and every ESP32 reset
+ * while RST_N was bench-wired) pulsed MFB low->high and held it, and the
+ * phone's pairing was gone every time, even right after the module had
+ * reported saving its EEPROM at a clean power-off. MFB high is still
+ * needed while the module is off (it's also UART RX_IND -- an off module
+ * with MFB low ignores the UART entirely), so: raise it to wake/power the
+ * module, drop it as soon as any valid frame comes back. With the module
+ * on, the UART works fine with MFB low. */
+static void mfb_release(void)
+{
+    if (!s_mfb_held) return;
+    s_mfb_held = false;
+    gpio_set_level(BOARD_BT_MFB_PIN, 0);
+    ESP_LOGI(TAG, "module answering -- released MFB (holding it would factory-reset the pairing list)");
+}
+
 /* Bring-up rig only: on a board that's bench-wired the BM64's MFB/RST_N/P2_0
  * to GPIO18-20 (see board_pins_smd4.h), those three must be driven high for
  * the module to be powered/out-of-reset/in-ROM-app-mode at all. GPIO18-20
@@ -1084,6 +1111,7 @@ static void assert_bm64_control_pins(void)
     gpio_set_level(BOARD_BT_MFB_PIN, 0);
     vTaskDelay(pdMS_TO_TICKS(20));
     gpio_set_level(BOARD_BT_MFB_PIN, 1);
+    s_mfb_held = true;   /* released once the module answers -- see mfb_release() */
     gpio_set_level(BOARD_BT_RST_PIN, 1);
     gpio_set_level(BOARD_BT_P20_PIN, 1);
     vTaskDelay(pdMS_TO_TICKS(200));
@@ -1236,6 +1264,7 @@ esp_err_t bt_companion_ibdk_enter(bool toggle_pins)
         gpio_set_level(BOARD_BT_RST_PIN, 1);
         vTaskDelay(pdMS_TO_TICKS(1000));
         gpio_set_level(BOARD_BT_MFB_PIN, 1);
+        s_mfb_held = true;   /* released once the module answers -- see mfb_release() */
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
@@ -1326,6 +1355,7 @@ esp_err_t bt_companion_ibdk_exit(void)
     gpio_set_level(BOARD_BT_RST_PIN, 1);
     vTaskDelay(pdMS_TO_TICKS(500));
     gpio_set_level(BOARD_BT_MFB_PIN, 1);
+    s_mfb_held = true;   /* released once the module answers -- see mfb_release() */
     vTaskDelay(pdMS_TO_TICKS(500));
     s_ibdk_ready = false;
     return ESP_OK;

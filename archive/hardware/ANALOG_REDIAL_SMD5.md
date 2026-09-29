@@ -221,7 +221,7 @@ the schematics say today, "Change" is the recommendation.
 | 20 HCI_TXD | J2.4 | J12.4 → GPIO17 (U0RXD) | direct | OK |
 | 19 HCI_RXD | J2.5 | J12.5 ← GPIO16 (U0TXD) | direct | OK |
 | 14, 43 GND | J2.6 | J12.6 | | OK |
-| 26 MFB | J6.1 (J6.2 = GND) | -- | jumper/button only | own GPIO on a 7th J12 pin (planned re-route) |
+| 26 MFB | J6.1 (J6.2 = GND) | -- | jumper/button only | own GPIO on a 7th J12 pin (planned re-route). **Never tie it high permanently** (no fixed pull-up to 3.3 V): it's the BM64's power button, and held from power-up it triggers a MASTER RESET that wipes pairings (found 2026-09-28). Firmware raises it only until the module answers |
 | 13 RST_N | -- | -- | NC (internal POR) | **keep NC in normal use** -- confirmed 2026-09-28 on newphone: bench-wired to GPIO19, it reset the BM64 on every ESP32 reboot and the phone's pairing was lost each time; with the wire off, pairing survives reboots. Only connect it for IBDK programming via J5 |
 | 32 EAN / 41 P2_0 | J10 / J11 (to GND) | -- | jumpers | OK for programming |
 
