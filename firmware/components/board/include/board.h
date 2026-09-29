@@ -14,6 +14,12 @@ extern "C" {
 /* Initialize the shared I2C master bus (codec control). Idempotent. */
 esp_err_t board_i2c_init(void);
 
+/* Pin setup that has to happen before any peripheral claims its pins. On
+ * SMD5 with the clone MCU module, detaches the USB-Serial-JTAG PHY from
+ * GPIO12/13 (which carry I2S MCLK and SD card-detect there); no-op on every
+ * other board. Call first thing in app_main. */
+void board_early_pin_init(void);
+
 /* Handle to the shared I2C master bus, or NULL if not initialized. */
 i2c_master_bus_handle_t board_i2c_bus(void);
 

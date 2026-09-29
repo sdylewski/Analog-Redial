@@ -76,6 +76,21 @@ positions 12/13/19/20 in this footprint — a clone-populated board puts live
 USB D-/D+ signaling on whichever of those positions its real GPIO12/13 land
 at, so anything else routed there risks interference.
 
+**Firmware for the clone (`CONFIG_BOARD_TYPE_SMD5_CHEAP`, added 2026-09-28):**
+on SMD5 the `I2S_MCLK` and `SD_CD` nets sit on pads 12/13, so with the clone
+fitted they land on its GPIO12/13 (its native-USB pins). `board_pins_smd4.h`
+maps MCLK -> GPIO12 and CD -> GPIO13 for that variant, and
+`board_early_pin_init()` detaches the USB PHY from those pads (and drops its
+D+ pull-up) before audio starts -- ESP-IDF's GPIO driver won't do that on
+its own. Between reset and that call (~1 s) the ROM still owns them: MCLK is
+silent and CD reads "no card" (D+ pull-up), both harmless. Don't plug a
+cable into the clone module's own native-USB port while it runs. Pads 19/20
+(real module's USB) go to J4/J3; on the clone those are GPIO2/3, unused.
+**Open conflict:** the clone variant's console is UART0 on GPIO16/17 -- the
+same pins as the BM64 UART on J12. Console/ROM boot log and the BM64 can't
+share them; decide which wins (or move one) before a clone board gets a
+BM64.
+
 **Other duplicate pad-number entries in the `.kicad_mod` files** (15, 18,
 22-31) are *not* additional known discrepancies — they're just how the dual
 footprint records that both vendors happen to agree at that position. Only

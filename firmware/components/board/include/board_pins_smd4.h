@@ -63,7 +63,16 @@
 #define BOARD_NUM_LINES 2
 
 /* ---- I2S (ES8388) ---- */
+#if CONFIG_BOARD_TYPE_SMD5_CHEAP
+/* The dual MCU footprint swaps pads 12/13 <-> 19/20 between the real
+ * Espressif module and the AliExpress clone (archive/hardware/
+ * ANALOG_REDIAL_SMD5.md). The I2S_MCLK and SD_CD nets sit on pads 12/13,
+ * which are GPIO2/3 on the real module but the clone's GPIO12/13 -- the
+ * native-USB pins, freed up by board_early_pin_init() before audio starts. */
+#define BOARD_I2S_MCLK    GPIO_NUM_12
+#else
 #define BOARD_I2S_MCLK    GPIO_NUM_2
+#endif
 #define BOARD_I2S_BCLK    GPIO_NUM_11
 #define BOARD_I2S_LRCK    GPIO_NUM_1
 #define BOARD_I2S_DOUT    GPIO_NUM_10
@@ -118,7 +127,11 @@
  * yet drawn". Confirm this actually reads a real card-detect signal (not
  * floating) during bring-up before trusting it, same as every other pin
  * on a first-fabrication board. */
+#if CONFIG_BOARD_TYPE_SMD5_CHEAP
+#define BOARD_SD_CD       GPIO_NUM_13   /* clone: pad 13 -- see BOARD_I2S_MCLK above */
+#else
 #define BOARD_SD_CD       GPIO_NUM_3
+#endif
 
 #define BOARD_PD_LEVEL_RUN        0
 #define BOARD_PD_LEVEL_POWERDOWN  1

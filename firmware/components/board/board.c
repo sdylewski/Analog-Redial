@@ -1,3 +1,7 @@
+#include "sdkconfig.h"
+#if CONFIG_BOARD_TYPE_SMD5_CHEAP
+#include "hal/usb_serial_jtag_ll.h"
+#endif
 #include "board.h"
 #include "board_pins.h"
 #include "board_config.h"
@@ -32,6 +36,23 @@ static board_codec_t s_detected_codec = BOARD_CODEC_NONE;
 #define BOARD_ROH_EN_KEY   "roh_en"
 #define BOARD_ROH_SECS_KEY "roh_secs"
 #define BOARD_TONE_LANG_KEY "tone_lang"
+
+void board_early_pin_init(void)
+{
+#if CONFIG_BOARD_TYPE_SMD5_CHEAP
+    /* The chip's ROM hands GPIO12/13 to the native-USB PHY at every reset
+     * (D+ pull-up on), and ESP-IDF's GPIO driver doesn't take them back on
+     * its own -- with the PHY still attached, MCLK never reaches the
+     * codec. The clone's USB port isn't the console on this variant
+     * (UART0 is), so nothing is lost. Don't plug a USB cable into the
+     * clone module's own native-USB port while it runs: it shares these
+     * two pins with MCLK and card-detect. */
+    usb_serial_jtag_pull_override_vals_t no_pulls = { 0 };
+    usb_serial_jtag_ll_phy_enable_pull_override(&no_pulls);
+    usb_serial_jtag_ll_phy_enable_pad(false);
+    ESP_LOGI(TAG, "clone MCU module: native USB detached from GPIO12/13 (MCLK, SD card-detect)");
+#endif
+}
 
 esp_err_t board_i2c_init(void)
 {

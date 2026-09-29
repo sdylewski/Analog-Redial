@@ -130,6 +130,7 @@ void app_main(void)
     }
 
     /* 1. Shared buses. */
+    board_early_pin_init();
     ESP_ERROR_CHECK(board_i2c_init());
     board_detect_codec(); /* sanity-check flashed board type vs. codec on the bus */
 
