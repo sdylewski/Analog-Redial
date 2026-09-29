@@ -107,6 +107,7 @@ typedef enum {
     BM64_EVENT_REMOTE_DEVICE_NAME     = 0x17,
     BM64_EVENT_UART_VERSION           = 0x18,
     BM64_EVENT_REPORT_LINK_STATUS     = 0x1E,
+    BM64_EVENT_PAIRED_RECORD_REPLY    = 0x1F, /* count, then 7 bytes each: priority + BD addr (LSB first) */
     BM64_EVENT_REPORT_LOCAL_BD_ADDR   = 0x20,
 } bm64_event_t;
 
@@ -731,7 +732,16 @@ static void handle_event(uint8_t event_code, const uint8_t *param, uint8_t param
          * profile link is up yet, so it's logged but doesn't set
          * bt_connected on its own. */
         if (param_len >= 1) {
-            ESP_LOGI(TAG, "device state event: 0x%02X", param[0]);
+            static const char *const names[] = {
+                "power off", "pairing (discoverable)", "power on", "pairing OK",
+                "pairing failed", "HF link up", "A2DP link up", "HF link down",
+                "A2DP link down", "call audio (SCO) up", "call audio (SCO) down",
+                "AVRCP link up", "AVRCP link down", "SPP up", "SPP down", "standby",
+                "iAP up", "ACL disconnected", "MAP up", "MAP forbidden", "MAP down",
+                "ACL connected", "SPP/iAP down", "link back (paging)", "inquiry",
+            };
+            ESP_LOGI(TAG, "device state event: 0x%02X (%s)", param[0],
+                     param[0] < sizeof(names) / sizeof(names[0]) ? names[param[0]] : "other");
             switch (param[0]) {
             case BM64_STATE_PAIRING:
                 board_led_set_state(BOARD_LED_BT_PAIRING);
@@ -809,6 +819,19 @@ static void handle_event(uint8_t event_code, const uint8_t *param, uint8_t param
             portEXIT_CRITICAL(&s_lock);
         }
         break;
+    case BM64_EVENT_PAIRED_RECORD_REPLY:
+        /* Reply to Read_Paired_Device_Record (bm64_cmd 0E) -- logged at INFO
+         * because "did the module keep its pairing across a reboot" is the
+         * open question behind phones failing to reconnect. */
+        if (param_len >= 1) {
+            ESP_LOGI(TAG, "paired device records: %u", param[0]);
+            for (int i = 0; i < param[0] && 1 + 7 * (i + 1) <= param_len; i++) {
+                const uint8_t *r = &param[1 + 7 * i];
+                ESP_LOGI(TAG, "  #%d priority %u  %02X:%02X:%02X:%02X:%02X:%02X", i, r[0],
+                         r[6], r[5], r[4], r[3], r[2], r[1]);
+            }
+        }
+        break;
     case BM64_EVENT_REMOTE_DEVICE_NAME:
         /* An unambiguous signal, unlike DEVICE_STATE above -- the module
          * only has a real remote name to report once something is actually
@@ -829,7 +852,9 @@ static void handle_event(uint8_t event_code, const uint8_t *param, uint8_t param
         for (uint8_t i = 0; i < param_len && i < 32; i++) {
             hn += snprintf(hex + hn, sizeof(hex) - hn, "%02X ", param[i]);
         }
-        ESP_LOGD(TAG, "unhandled event 0x%02X (%u param bytes): %s", event_code, param_len, hex);
+        /* INFO, not DEBUG: the 2 s link-status poll reply is handled above,
+         * so what lands here is rare and usually exactly what's being chased. */
+        ESP_LOGI(TAG, "unhandled event 0x%02X (%u param bytes): %s", event_code, param_len, hex);
         break;
     }
     }
