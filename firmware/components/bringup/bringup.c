@@ -480,6 +480,20 @@ static int cmd_loopback(int argc, char **argv)
     return 0;
 }
 
+/* ---------- reboot ----------
+ * A software restart of the ESP32 only -- unlike reopening the serial port
+ * (which toggles DTR/RTS and resets the chip), this keeps the monitor
+ * session attached across the reboot. */
+static int cmd_reboot(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    printf("rebooting...\n");
+    fflush(stdout);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    esp_restart();
+    return 0;
+}
+
 /* ---------- capture (RX level meter) ---------- */
 static int cmd_capture(int argc, char **argv)
 {
@@ -2271,6 +2285,7 @@ void bringup_console_start(void)
     register_cmd("silence", "Stop audio: silence [line]", cmd_silence);
     register_cmd("loopback", "Mic->speaker: loopback [line] [0|1]", cmd_loopback);
     register_cmd("capture", "RX level meter, both lines simultaneously: capture [ms]", cmd_capture);
+    register_cmd("reboot", "Software restart of the ESP32 (keeps the monitor attached)", cmd_reboot);
     register_cmd("miclevel", "Handset mic level/clipping check while you talk: miclevel [secs] [line]", cmd_miclevel);
     register_cmd("echopulse", "Periodic 1kHz burst for echo/hybrid debugging: echopulse <line> <on|off> [period_ms]", cmd_echopulse);
     register_cmd("echosweep", "Cycles 9 tones 300-3400Hz for echo/resonance debugging: echosweep <line> <on|off> [period_ms]", cmd_echosweep);
