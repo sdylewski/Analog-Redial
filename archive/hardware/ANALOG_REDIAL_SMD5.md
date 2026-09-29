@@ -56,7 +56,10 @@ pin you configure, native USB cannot be relocated to different pins in
 software. That's exactly why Espressif's own schematic labels these pins
 "GPIO12"/"GPIO13" first (with the USB function as a secondary annotation,
 same as this project's own symbol does above) — they're ordinary GPIOs any
-time the native-USB peripheral isn't in use, which is the normal case here.
+time the native-USB peripheral isn't in use. **With the real module, it is
+in use**: native USB is the board's flash/console link (corrected
+2026-09-28 — an earlier version of this note called it "the normal case"
+that they're free). So don't put MFB or anything else on GPIO12/13.
 
 **Practical consequence**: whichever physical pad position ends up wired to
 this board's actual USB-C/micro connector will only carry real native-USB

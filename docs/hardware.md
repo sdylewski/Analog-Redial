@@ -84,8 +84,8 @@ spare pin brought to a header, now wires to the microSD card-detect switch.
 | GPIO9 (BOOT, strap) | — | unconnected, free — this is the download-mode strap |
 | GPIO10 | I²S **DOUT** | to codec **DSDIN** (playback) |
 | GPIO11 | I²S **BCLK** | to codec **SCLK** |
-| GPIO12 (USB D−) | — | unconnected, free (native USB-JTAG unused) |
-| GPIO13 (USB D+) | — | unconnected, free |
+| GPIO12 (USB D−) | DevKit **USB** port | native USB-Serial-JTAG — the board's flash/console connection; not free |
+| GPIO13 (USB D+) | DevKit **USB** port | native USB-Serial-JTAG; not free |
 | GPIO14 | — | not brought out on the DevKit's header (module packaging limit) |
 | GPIO15 (JTAG, strap) | — | unconnected, free |
 | GPIO16 (U0TXD) | header **J3** pin 1 | UART TX, optional/spare |
@@ -113,8 +113,11 @@ power-on/reset. GPIO4/5 drive the SLIC as ESP32 **outputs**, which is a safe
 direction for a strapping pin. GPIO9 is the one that actually matters
 (download-mode select) and is left unconnected on this board.
 
-**GPIO12/13**: USB-Serial-JTAG by default, not a boot hazard — left as plain
-GPIOs (unconnected) since that peripheral isn't enabled.
+**GPIO12/13**: native USB (USB-Serial-JTAG), wired to the DevKit's own USB
+port. That's how this board is flashed and how its console is reached
+(`/dev/cu.usbmodem…`), so don't reuse them. They *can* be plain GPIOs in
+silicon, but only by giving up native USB, and the ROM enables USB on them
+(D+ pull-up included) at every reset regardless of firmware.
 
 **GPIO24–30**: internal flash, never available. **GPIO14**: not led out on
 this module's package.
