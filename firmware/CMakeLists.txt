@@ -1,5 +1,5 @@
 # ESP32-C6 Rotary Phone Gateway firmware
-# Requires ESP-IDF v5.1+ (target esp32c6).
+# Pinned to ESP-IDF v5.2.8 (target esp32c6) -- see IDF_PINNED_VERSION below.
 cmake_minimum_required(VERSION 3.16)
 
 # Regenerate version.txt fresh every configure with a clean git describe,
@@ -32,4 +32,18 @@ if(GIT_EXECUTABLE)
 endif()
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+
+# Every dev machine must build with the same ESP-IDF: a different version
+# regenerates the tracked sdkconfig (header, CONFIG_SOC_* lines, ...) and it
+# shows up as a modified file with no real setting changed -- this laptop
+# (5.2.0) vs. the work machine (5.2.8) did exactly that until 2026-09-28.
+# A warning, not an error, so a deliberate upgrade can still be tried.
+set(IDF_PINNED_VERSION "5.2.8")
+set(IDF_ACTUAL_VERSION "${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}.${IDF_VERSION_PATCH}")
+if(NOT IDF_ACTUAL_VERSION VERSION_EQUAL IDF_PINNED_VERSION)
+    message(WARNING "ESP-IDF ${IDF_ACTUAL_VERSION} in use, but this project is pinned to "
+        "v${IDF_PINNED_VERSION}. Building will rewrite firmware/sdkconfig -- don't commit "
+        "that. See firmware/README.md to switch versions.")
+endif()
+
 project(rotary_phone_gateway)

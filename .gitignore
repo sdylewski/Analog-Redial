@@ -36,7 +36,10 @@ hardware/kicad/**/*.step
 firmware/build/
 firmware/build.*/
 firmware/sdkconfig.old
-firmware/dependencies.lock
+# firmware/dependencies.lock IS tracked (since 2026-09-28): it pins the exact
+# managed-component versions (mdns, led_strip) so every machine builds the
+# same thing -- untracked, each machine resolved its own mdns and the
+# tracked sdkconfig churned. Bump with `idf.py update-dependencies`.
 # bm64_bridge is its own separate idf.py project (see its main.c) with the
 # same build-artifact shape as the main firmware/ tree above
 firmware/bm64_bridge/build/

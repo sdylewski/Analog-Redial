@@ -25,7 +25,7 @@ and [`hardware.md`](hardware.md).
 (Hardware design files are under [`../hardware/`](../hardware/); a BOM/shopping
 checklist is at [`bom.md`](bom.md).)
 
-**Software** — **ESP-IDF v5.2** and its toolchain (this is Espressif's
+**Software** — **ESP-IDF v5.2.8** and its toolchain (this is Espressif's
 official SDK; it brings its own compiler and Python environment).
 
 ---
@@ -38,7 +38,7 @@ The short version (macOS/Linux):
 
 ```bash
 mkdir -p ~/esp && cd ~/esp
-git clone -b v5.2 --recursive https://github.com/espressif/esp-idf.git
+git clone -b v5.2.8 --recursive https://github.com/espressif/esp-idf.git
 cd esp-idf
 ./install.sh esp32c6
 ```
