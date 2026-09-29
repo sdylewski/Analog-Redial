@@ -857,6 +857,12 @@ static void handle_event(uint8_t event_code, const uint8_t *param, uint8_t param
     case 0x32: /* LE signaling */
         ESP_LOGD(TAG, "phone status event 0x%02X", event_code);
         break;
+    case 0x1B: /* BTM_Utility_Req -- Action_Type first; 0x03 = EEPROM update finished */
+        if (param_len >= 1 && param[0] == 0x03)
+            ESP_LOGI(TAG, "module finished writing its EEPROM (pairings are saved at power-off)");
+        else
+            ESP_LOGI(TAG, "module request to MCU: action 0x%02X", param_len ? param[0] : 0);
+        break;
     case BM64_EVENT_PAIRED_RECORD_REPLY:
         /* Reply to Read_Paired_Device_Record (bm64_cmd 0E) -- logged at INFO
          * because "did the module keep its pairing across a reboot" is the
