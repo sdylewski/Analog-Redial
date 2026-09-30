@@ -334,7 +334,7 @@ modifying the layout:
 
 | Item | Detail |
 |------|--------|
-| Board size | ~100 × 50 mm, 2-layer |
+| Board size | **110 × 54 mm**, 2-layer |
 | Phone lines | RJ12 ×1 (single-line build) or ×2 (dual-line build), **J9**/**J8** |
 | Power | USB-C (via the DevKit module's own port) and DC jack (**J1**), diode-ORed |
 | Storage | microSD, optional, single-line build only |

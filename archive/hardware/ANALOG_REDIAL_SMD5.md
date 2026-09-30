@@ -23,7 +23,7 @@ footprint (`Scott.pretty/ESP32-C6-DevKitC-dual.kicad_mod` for the real
 module, `ESP32-C6-DevKitC-cheap.kicad_mod` for the clone). Everything else
 (SLIC/codec/tip-ring layout, clearance rules) carries over unchanged from
 SMD4 — see [`ROTARY_PHONE_SMD4.md`](ROTARY_PHONE_SMD4.md) and
-[`docs/hardware.md`](../../docs/hardware.md) for that baseline.
+[`docs/hardware-smd4.md`](../../docs/hardware-smd4.md) for that baseline.
 
 ## The module swap: what actually changes
 
@@ -341,7 +341,40 @@ header (same 6-pin pinout as above, mirrored).
    one line + BM64 fitted, run the EEPROM check, then unplug and re-fit the
    shunts. Firmware already supports this path: `bt_companion_ibdk_enter()`
    drives GPIO18-20 and refuses on a board configured for two lines.
-3. **Add the Vin protection network** -- series resistor + clamp diodes to
+3. **Hole size for the solderless programming header.** The J5-mating
+   header is used once per BM64 and then removed, so a friction fit is
+   tempting. A standard 2.54 mm header pin is a **0.64 mm square post** —
+   0.64 mm across the flats, **~0.90 mm across the corners** — and plating
+   takes roughly 0.05 mm off the drilled diameter:
+
+   | Intent | Drill | Finished | Feel |
+   |--------|-------|----------|------|
+   | Normal, soldered | 1.0 mm | ~0.95 mm | Free-moving |
+   | **Snug** | **0.9 mm** | ~0.85 mm | Corners bite lightly; still solderable |
+   | Press fit | 0.85 mm | ~0.80 mm | Firm, needs deliberate pushing |
+
+   **The catch is tolerance, not geometry.** JLCPCB's plated-hole tolerance
+   is around ±0.08 mm, which is larger than the interference being aimed
+   for: a nominal 0.85 mm finished hole can land anywhere from ~0.77 mm
+   (a genuine press fit) to ~0.93 mm (the pin drops through). Friction alone
+   is therefore not repeatable across a batch.
+
+   Two better options, in order:
+
+   - **Stagger alternate holes** ~0.1–0.15 mm perpendicular to the row. The
+     pins are forced into a slight zigzag and grip by spring force, which
+     tolerates drill variation far better than an undersized round hole.
+     This is the standard trick for solderless headers.
+   - **Tack-solder two end pins** and remove them afterwards. It's a
+     once-per-module operation, and this is the pragmatic answer.
+
+   **Why this matters more than usual here:** a friction contact through
+   plating isn't gas-tight and can go intermittent or high-resistance. This
+   header's whole job is writing the BM64's EEPROM — a dropout mid-write
+   leaves the module half-configured, which is a much worse failure than a
+   dropped console character.
+
+4. **Add the Vin protection network** -- series resistor + clamp diodes to
    +5 V at the Line0Vin tap -- designed in
    [`archive/BLUETOOTH_AUDIO_UPGRADE.md`](../BLUETOOTH_AUDIO_UPGRADE.md)
    after a SLIC's audio hybrid died during BM64 bench work on SMD4. The
@@ -425,7 +458,7 @@ worked with the identical voltage, purely by pad-threshold luck. **Keep the
 10 kΩ, change the 15 kΩ to 100 kΩ on both lines** (~2.9 V off-hook, still
 a defined low with the SLIC powered down). Both values are JLCPCB Basic
 parts in common footprints, which was the constraint behind the original
-15 kΩ -- confirm at the chosen footprint. Details in `docs/hardware.md`.
+15 kΩ -- confirm at the chosen footprint. Details in `docs/hardware-smd4.md`.
 
 ## Open questions
 

@@ -23,6 +23,7 @@ KiCad project: `hardware/kicad/Analog Redial 5/`.
 | **SHK divider 15 kΩ → 100 kΩ** | Fixes SMD4's as-built off-hook level, which sat below the ESP32's input-high threshold |
 | **Dual MCU footprint** | Takes the genuine 32-pin DevKitC-1 *or* a 30-pin AliExpress clone |
 | **C10/C11 → 5 mm disc footprint, DNP** | Drops an Extended part; fit 1 µF only if you want the J7 monitor header |
+| **Board grew to 115 × 54 mm** | 5 mm longer than SMD4 — **needs its own enclosure**, an SMD4 case won't fit |
 
 ## 1. Board overview
 
@@ -346,7 +347,7 @@ modifying the layout:
 
 | Item | Detail |
 |------|--------|
-| Board size | ~100 × 50 mm, 2-layer |
+| Board size | **115 × 54 mm**, 2-layer — **5 mm longer than SMD4** (110 × 54 mm), so an SMD4 enclosure will not fit |
 | Phone lines | RJ12 ×1 (single-line build) or ×2 (dual-line build), **J9**/**J8** |
 | Power | USB-C (via the DevKit module's own port) and DC jack (**J1**), diode-ORed |
 | Storage | microSD, optional, single-line build only |
