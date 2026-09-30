@@ -359,14 +359,72 @@ header (same 6-pin pinout as above, mirrored).
    (a genuine press fit) to ~0.93 mm (the pin drops through). Friction alone
    is therefore not repeatable across a batch.
 
-   Two better options, in order:
+   **The staggered-hole alternative.** Instead of making the hole smaller
+   than the pin, keep a normal 1.0 mm hole and move alternate holes a little
+   to either side of the row's centreline. Top view of the PCB:
 
-   - **Stagger alternate holes** ~0.1–0.15 mm perpendicular to the row. The
-     pins are forced into a slight zigzag and grip by spring force, which
-     tolerates drill variation far better than an undersized round hole.
-     This is the standard trick for solderless headers.
-   - **Tack-solder two end pins** and remove them afterwards. It's a
-     once-per-module operation, and this is the pragmatic answer.
+   ```
+   Straight row — every hole centred on the line:
+
+        ┌───────────────────────────────────────┐
+        │    ◯     ◯     ◯     ◯     ◯     ◯    │
+        └───────────────────────────────────────┘
+             └2.54┘
+        Grip depends on the hole being SMALLER than the
+        pin's 0.90 mm corner-to-corner diagonal.
+
+   Staggered row — alternate holes nudged off the line:
+
+        ┌───────────────────────────────────────┐
+        │    ◯           ◯           ◯          │  ← odd pins, "up"
+        │ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ ‑ │  ← nominal centreline
+        │          ◯           ◯           ◯    │  ← even pins, "down"
+        └───────────────────────────────────────┘
+        Grip depends on how far the holes are OFFSET.
+   ```
+
+   The header's pins are moulded into a rigid strip in a dead-straight line.
+   The holes are not straight, so the pins cannot all sit centred: each one
+   is pushed against one wall of its barrel and pushes back. Side view, pins
+   entering the board:
+
+   ```
+        plastic strip
+        ████████████████████████
+          │    │    │    │    │        pins: straight and stiff
+          ▼    ▼    ▼    ▼    ▼
+        ──┬────┬────┬────┬────┬──
+          │→   │   ←│→   │   ←│        each pin leans on one side
+        ──┴────┴────┴────┴────┴──      of its (normal-sized) hole
+   ```
+
+   **Why that tolerates a sloppy fab better.** An interference fit is
+   *dimension*-controlled: grip comes from ~0.05 mm of pin-vs-hole overlap,
+   and the fab's ±0.08 mm diameter tolerance is larger than the thing you're
+   relying on. A staggered fit is *force*-controlled: grip comes from
+   elastically deflecting the pins, and the deflection is set mostly by the
+   offset you drew. Hole **position** tolerance is also tighter than hole
+   **diameter** tolerance, so the feature doing the work is the better-
+   controlled one. Pick an offset bigger than the diameter tolerance and an
+   oversized hole only softens the grip instead of eliminating it.
+
+   **It's a maker technique, not an engineered press fit.** Real press-fit
+   connectors use compliant pins — an "eye of the needle" section designed
+   to deform elastically. A plain square post isn't, so it's the *pin* that
+   bends, and too much offset will either refuse to insert or take a
+   permanent set. For a once-per-module programming header that's an
+   acceptable trade; for anything permanent, use pogo pins.
+
+   **Prototype the offset rather than trusting a number.** Somewhere between
+   **0.05 mm and 0.15 mm** each way is the range worth trying, but how much
+   a given header tolerates depends on its pin stiffness and how much free
+   length sits between the plastic and the board. Put a test strip on the
+   panel — a few rows of 8 holes at 0.05 / 0.10 / 0.15 mm offset — and find
+   out which grips without fighting you. That costs nothing on a board
+   you're already ordering.
+
+   **Or just tack-solder two end pins** and lift them afterwards. It's a
+   once-per-module operation, and this remains the pragmatic answer.
 
    **Why this matters more than usual here:** a friction contact through
    plating isn't gas-tight and can go intermittent or high-resistance. This
