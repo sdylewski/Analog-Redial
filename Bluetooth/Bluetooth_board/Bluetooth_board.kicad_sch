@@ -927,23 +927,13 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "PCM_SL_Pin_Headers:PINHD_1x4_Male"
+		(symbol "PCM_SL_Pin_Headers:PINHD_1x2_Male"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
 			(in_pos_files yes)
 			(duplicate_pin_numbers_are_jumpers no)
 			(property "Reference" "J"
-				(at 0 8.89 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" "PINHD_1x4_Male"
 				(at 0 6.35 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -953,8 +943,18 @@
 					)
 				)
 			)
-			(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
-				(at -1.27 11.43 0)
+			(property "Value" "PINHD_1x2_Male"
+				(at 0 3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+				(at 1.27 -3.81 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(hide yes)
@@ -965,7 +965,7 @@
 				)
 			)
 			(property "Datasheet" ""
-				(at 0 10.16 0)
+				(at 0 7.62 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(hide yes)
@@ -975,7 +975,7 @@
 					)
 				)
 			)
-			(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -4"
+			(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -2"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -997,7 +997,7 @@
 					)
 				)
 			)
-			(property "ki_fp_filters" "PinHeader_1x04_P2.54mm*"
+			(property "ki_fp_filters" "PinHeader_1x02_P2.54mm*"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -1008,10 +1008,10 @@
 					)
 				)
 			)
-			(symbol "PINHD_1x4_Male_0_1"
+			(symbol "PINHD_1x2_Male_0_1"
 				(rectangle
-					(start -1.27 5.08)
-					(end 1.27 -5.08)
+					(start -1.27 2.54)
+					(end 1.27 -2.54)
 					(stroke
 						(width 0)
 						(type default)
@@ -1022,30 +1022,6 @@
 				)
 				(polyline
 					(pts
-						(xy -1.27 3.81) (xy 0 3.81)
-					)
-					(stroke
-						(width 0.3)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 3.81) (xy 0 3.81)
-					)
-					(stroke
-						(width 0.5)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
 						(xy -1.27 1.27) (xy 0 1.27)
 					)
 					(stroke
@@ -1083,30 +1059,6 @@
 				(polyline
 					(pts
 						(xy -1.27 -1.27) (xy 0 -1.27)
-					)
-					(stroke
-						(width 0.5)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 -3.81) (xy 0 -3.81)
-					)
-					(stroke
-						(width 0.3)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 -3.81) (xy 0 -3.81)
 					)
 					(stroke
 						(width 0.5)
@@ -1117,9 +1069,9 @@
 					)
 				)
 			)
-			(symbol "PINHD_1x4_Male_1_1"
+			(symbol "PINHD_1x2_Male_1_1"
 				(pin passive line
-					(at -3.81 3.81 0)
+					(at -3.81 1.27 0)
 					(length 2.54)
 					(name ""
 						(effects
@@ -1137,24 +1089,6 @@
 					)
 				)
 				(pin passive line
-					(at -3.81 1.27 0)
-					(length 2.54)
-					(name ""
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
 					(at -3.81 -1.27 0)
 					(length 2.54)
 					(name ""
@@ -1164,25 +1098,7 @@
 							)
 						)
 					)
-					(number "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -3.81 -3.81 0)
-					(length 2.54)
-					(name ""
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "4"
+					(number "2"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -2172,7 +2088,7 @@
 	)
 	(text "Uart Tx"
 		(exclude_from_sim no)
-		(at 167.386 125.984 0)
+		(at 167.386 118.11 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2182,7 +2098,7 @@
 	)
 	(text "Line1 Vin"
 		(exclude_from_sim no)
-		(at 168.91 113.03 0)
+		(at 167.894 128.524 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2192,7 +2108,7 @@
 	)
 	(text "Uart Rx"
 		(exclude_from_sim no)
-		(at 167.64 123.444 0)
+		(at 167.386 115.57 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2202,7 +2118,7 @@
 	)
 	(text "Line1 Vout"
 		(exclude_from_sim no)
-		(at 169.418 115.824 0)
+		(at 168.91 123.19 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2212,19 +2128,13 @@
 	)
 	(text "MFB"
 		(exclude_from_sim no)
-		(at 165.862 128.778 0)
+		(at 165.608 120.904 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 		)
 		(uuid "d45deff5-d42c-46a6-b928-ebb76888be7b")
-	)
-	(junction
-		(at 127 105.41)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "271e203d-9bf8-48c4-b037-135a03206441")
 	)
 	(junction
 		(at 134.62 113.03)
@@ -2234,33 +2144,23 @@
 	)
 	(wire
 		(pts
-			(xy 55.88 107.95) (xy 55.88 125.73)
+			(xy 157.48 120.65) (xy 127 120.65)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "11e18ca8-098c-4f9f-a073-bd0bebe89579")
+		(uuid "125894d9-e654-4428-a3a0-4111e5f3152e")
 	)
 	(wire
 		(pts
-			(xy 58.42 123.19) (xy 157.48 123.19)
+			(xy 156.21 67.31) (xy 156.21 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "25cfb1c4-56b7-44dc-8fc3-ac0ef40882c5")
-	)
-	(wire
-		(pts
-			(xy 67.31 110.49) (xy 58.42 110.49)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "4243bb29-8110-475d-b033-19b571c56e23")
+		(uuid "2ddfee4d-c9ef-4bcf-b811-bf71ae2d1033")
 	)
 	(wire
 		(pts
@@ -2294,16 +2194,6 @@
 	)
 	(wire
 		(pts
-			(xy 153.67 78.74) (xy 157.48 78.74)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "613f2da3-d03d-4ba5-9593-32009e65120c")
-	)
-	(wire
-		(pts
 			(xy 66.04 80.01) (xy 67.31 80.01)
 		)
 		(stroke
@@ -2324,16 +2214,6 @@
 	)
 	(wire
 		(pts
-			(xy 55.88 125.73) (xy 157.48 125.73)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7108f8d9-50b0-470e-84cc-d39f247eabb2")
-	)
-	(wire
-		(pts
 			(xy 64.77 92.71) (xy 67.31 92.71)
 		)
 		(stroke
@@ -2344,7 +2224,7 @@
 	)
 	(wire
 		(pts
-			(xy 123.19 67.31) (xy 157.48 67.31)
+			(xy 123.19 67.31) (xy 156.21 67.31)
 		)
 		(stroke
 			(width 0)
@@ -2354,13 +2234,23 @@
 	)
 	(wire
 		(pts
-			(xy 58.42 110.49) (xy 58.42 123.19)
+			(xy 156.21 78.74) (xy 156.21 76.2)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "9b860173-b710-41fb-828d-e23b4d4e069f")
+		(uuid "9c9e9792-ecc7-4980-9dd6-4da2e502777d")
+	)
+	(wire
+		(pts
+			(xy 64.77 107.95) (xy 67.31 107.95)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b0fec3b7-4db0-4888-84f8-2cc09a8ed13a")
 	)
 	(wire
 		(pts
@@ -2371,6 +2261,16 @@
 			(type default)
 		)
 		(uuid "c545b131-3fa6-49e0-82eb-1410c839a326")
+	)
+	(wire
+		(pts
+			(xy 153.67 78.74) (xy 156.21 78.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cacc0e8c-8e6c-487e-b1ce-2826c12d4d77")
 	)
 	(wire
 		(pts
@@ -2394,33 +2294,13 @@
 	)
 	(wire
 		(pts
-			(xy 147.32 105.41) (xy 127 105.41)
+			(xy 64.77 110.49) (xy 67.31 110.49)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "dc7d30a7-2853-4387-a3c7-4a9e3cfa7d1b")
-	)
-	(wire
-		(pts
-			(xy 157.48 81.28) (xy 147.32 81.28)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "dee67605-4651-4a7a-ac16-e989dba09c1f")
-	)
-	(wire
-		(pts
-			(xy 147.32 81.28) (xy 147.32 105.41)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e1b539de-3b99-45a1-bf0e-e6a9b0f51b19")
+		(uuid "dc20ef4a-75fb-4756-a8a7-5c5a902acc63")
 	)
 	(wire
 		(pts
@@ -2434,16 +2314,6 @@
 	)
 	(wire
 		(pts
-			(xy 67.31 107.95) (xy 55.88 107.95)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e676cd3e-7c5b-4bd6-b5ba-fd4749bf949b")
-	)
-	(wire
-		(pts
 			(xy 129.54 113.03) (xy 129.54 115.57)
 		)
 		(stroke
@@ -2454,33 +2324,13 @@
 	)
 	(wire
 		(pts
-			(xy 157.48 128.27) (xy 127 128.27)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ea1d7851-6800-43e2-b8d2-e8c93352f390")
-	)
-	(wire
-		(pts
-			(xy 127 128.27) (xy 127 105.41)
+			(xy 127 105.41) (xy 127 120.65)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "f5b3c2d4-2a2e-4aed-a8e9-bd598f32fbd1")
-	)
-	(wire
-		(pts
-			(xy 157.48 67.31) (xy 157.48 76.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "fdc9874a-7188-4363-be91-8d80b5127db3")
 	)
 	(label "Mic_N1"
 		(at 66.04 80.01 180)
@@ -2513,7 +2363,7 @@
 		(uuid "22935b95-4ed5-4964-a438-f6a6fa9e0465")
 	)
 	(label "espUartTx"
-		(at 67.31 107.95 180)
+		(at 64.77 107.95 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2543,7 +2393,7 @@
 		(uuid "62f92015-77db-4783-b1ef-b06555b3c5a2")
 	)
 	(label "Mic_N1"
-		(at 157.48 120.65 180)
+		(at 157.48 125.73 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2553,7 +2403,7 @@
 		(uuid "9b596e53-a278-48c4-8752-86c3bd771b70")
 	)
 	(label "espUartRx"
-		(at 67.31 110.49 180)
+		(at 64.77 110.49 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2562,8 +2412,28 @@
 		)
 		(uuid "b9467b20-623f-4fbe-b89e-bbd58d8a0f0f")
 	)
-	(label "A0HPL"
+	(label "espUartTx"
+		(at 157.48 118.11 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "beef296a-1de0-4db1-bb71-5809bf6360f9")
+	)
+	(label "espUartRx"
 		(at 157.48 115.57 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "ce08a224-e762-4e5c-98ae-d472d3a5235e")
+	)
+	(label "A0HPL"
+		(at 157.48 128.27 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2573,7 +2443,7 @@
 		(uuid "d2986fb5-e661-46ad-a856-0ccfe85f5503")
 	)
 	(label "Mic_P1"
-		(at 157.48 118.11 180)
+		(at 157.48 123.19 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3198,8 +3068,8 @@
 		)
 	)
 	(symbol
-		(lib_id "PCM_SL_Pin_Headers:PINHD_1x4_Male")
-		(at 161.29 80.01 0)
+		(lib_id "PCM_SL_Pin_Headers:PINHD_1x2_Male")
+		(at 160.02 74.93 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -3210,7 +3080,7 @@
 		(fields_autoplaced yes)
 		(uuid "de1ff8d6-2af1-4cfb-bec8-0fb4d6d2d84b")
 		(property "Reference" "J2"
-			(at 163.83 78.7399 0)
+			(at 162.56 73.6599 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3221,7 +3091,7 @@
 			)
 		)
 		(property "Value" "PINHD_1x4_Male"
-			(at 163.83 81.2799 0)
+			(at 162.56 76.1999 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3231,8 +3101,8 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
-			(at 160.02 68.58 0)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+			(at 161.29 78.74 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3243,7 +3113,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 161.29 69.85 0)
+			(at 160.02 67.31 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3253,8 +3123,8 @@
 				)
 			)
 		)
-		(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -4"
-			(at 161.29 80.01 0)
+		(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -2"
+			(at 160.02 74.93 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3269,12 +3139,6 @@
 		)
 		(pin "1"
 			(uuid "3777ae48-a584-43e8-be3e-17c7aa7070e6")
-		)
-		(pin "4"
-			(uuid "9472d112-47a8-4f8f-9fcc-a25b256c876a")
-		)
-		(pin "3"
-			(uuid "7c01d1b5-fa2e-4a82-876a-3a833ecfbe19")
 		)
 		(instances
 			(project "Bluetooth_board"

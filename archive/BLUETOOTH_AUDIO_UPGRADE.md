@@ -453,7 +453,7 @@ needed again.
 **Never tap a raw AG1171 pin directly** -- Vin/Vout sit in the SLIC's own
 5V-referenced domain. Both taps below go *after* the SLIC's own existing
 coupling cap, at the same already-AC-only node the ES8388 codec itself
-uses (see `docs/signal-levels.md` §3: Vin has a 10nF series cap toward the
+uses (see `archive/signal-levels.md` §3: Vin has a 10nF series cap toward the
 codec's DAC output, Vout has a 100nF series cap toward the codec's ADC
 input) -- these are the exact same physical pins/traces the codec already
 uses, not new dedicated pins.
@@ -483,7 +483,7 @@ Component values above are reasonable starting points, not yet bench-
 verified against a scope -- confirm with an oscilloscope on GPIO25/GPIO34
 before treating them as final (measuring actual DC bias and AC swing at
 each pin, per the existing DTMF-headroom divider worked out the same way
-in `docs/signal-levels.md` §3).
+in `archive/signal-levels.md` §3).
 
 ## Decision: BM64 (updated 2026-09-15, was ESP32 DevKitC first)
 

@@ -95,6 +95,10 @@ Bluetooth/**/*-backups/
 Bluetooth/**/*.kicad_prl
 Bluetooth/**/*.lck
 Bluetooth/**/*.step
+Bluetooth/**/jlcpcb/
+Bluetooth/**/production_files/
+Bluetooth/**/tmp*.rpt
+Bluetooth/**/_restore_backup_*/
 # DMS serial captures -- large binary blobs, keep locally only
 *.dmslog8
 

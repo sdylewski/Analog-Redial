@@ -135,7 +135,7 @@ identically (checked); this is purely which pad happens to switch where.
 
 **Rework for built boards:** remove the 15 kΩ on each line (off-hook then
 ~3.1–3.2 V; the 10 kΩ remains as series protection). **For the next
-spin:** 15 kΩ → 100 kΩ. See `docs/hardware.md`'s rework note.
+spin:** 15 kΩ → 100 kΩ. See `docs/hardware-smd4.md`'s rework note.
 
 ## Open questions
 

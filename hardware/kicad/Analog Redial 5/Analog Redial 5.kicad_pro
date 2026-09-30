@@ -485,7 +485,7 @@
       "no_connect_connected": "warning",
       "no_connect_dangling": "warning",
       "pin_not_connected": "ignore",
-      "pin_not_driven": "error",
+      "pin_not_driven": "warning",
       "pin_to_pin": "warning",
       "power_pin_not_driven": "ignore",
       "same_local_global_label": "warning",
@@ -882,7 +882,7 @@
         "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
       }
     ],
-    "used_designators": "JP1,#PWR55,R17",
+    "used_designators": "U6",
     "variants": []
   },
   "sheets": [

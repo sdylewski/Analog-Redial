@@ -242,14 +242,17 @@ firmware mirrors from the earpiece volume) to **J7**, each through a 47 kΩ
 bleed to GND. They were 100 µF 1206 — an Extended part sized for driving
 16–32 Ω headphones directly.
 
-**As built they're a 5 mm-pitch disc footprint, left unpopulated**
+**As built they're `Capacitor_THT:C_Disc_D4.7mm_W2.5mm_P5.00mm`, left unpopulated**
 (2026-09-30), which keeps J7 available later without paying the Extended fee.
 A radial electrolytic footprint was tried first and the cans were simply too
 big for the space. The schematic carries **47 µF** as the nominal value, but
 **fit 1 µF** to listen to or scope the header — against the 47 kΩ bleed
 that's a ~3 Hz corner, far below the 300–3400 Hz phone band, and a
 non-polarized film or ceramic part has no orientation to get wrong. Only
-driving headphones directly needs the full 47 µF.
+driving headphones directly needs the full 47 µF, which the schematic
+carries as the nominal value. Note the 4.7 mm courtyard is drawn for a disc:
+the 5 mm pads will still take a 6.3 mm electrolytic with its leads splayed,
+it will just overhang the silkscreen.
 
 **Polarity, if an electrolytic is ever squeezed in: + toward the ES8388**
 (`LOUT2`/`ROUT2`, U2 pins 14/15), − toward J7. The codec's outputs idle at

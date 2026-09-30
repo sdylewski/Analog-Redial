@@ -18,7 +18,7 @@ instant off-hook detection or (b) VoIP call delivery?
 ## Datasheet numbers (all already in `datasheets/`)
 
 **AG1171 SLIC**, §8.3 DC Electrical Characteristics, @5.0V (this board's SLIC
-rail — `docs/hardware.md` §2):
+rail — `docs/hardware-smd4.md` §2):
 
 | State | Current | |
 |---|---|---|
