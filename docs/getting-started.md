@@ -8,13 +8,13 @@ offline, streams internet radio, and places VoIP calls over Wi-Fi.
 New here? This is the doc to start with. It assumes no prior ESP32
 experience. For deeper detail see [`../README.md`](../README.md),
 [`features.md`](features.md), [`../firmware/README.md`](../firmware/README.md),
-and [`hardware.md`](hardware.md).
+and [`hardware-smd4.md`](hardware-smd4.md).
 
 ---
 
 ## 1. What you need
 
-**Hardware** — an SMD4 or SMD5 board ([`hardware.md`](hardware.md)):
+**Hardware** — an SMD4 or SMD5 board ([`hardware-smd4.md`](hardware-smd4.md)):
 
 - ESP32-C6-DevKit
 - ES8388 stereo codec
@@ -231,10 +231,11 @@ Wi-Fi credentials and reboots into the setup AP (section 6).
 |-----|-----|
 | [`../firmware/README.md`](../firmware/README.md) | Toolchain detail, console command reference, build layout |
 | [`features.md`](features.md) | What's implemented + firmware architecture |
-| [`hardware.md`](hardware.md) | SMD4 schematic, pin map, power tree |
+| [`hardware-smd4.md`](hardware-smd4.md) | SMD4 schematic, pin map, power tree |
+| [`hardware-smd5.md`](hardware-smd5.md) | Next-spin board (Bluetooth, LDO, dual MCU footprint) — not yet fabricated |
 | [`bom.md`](bom.md) | Parts list / shopping checklist |
 | [`voip-setup.md`](voip-setup.md) | Connecting to a SIP server, dial-plan reference |
-| [`signal-levels.md`](signal-levels.md) | Audio/logic levels reference |
+| [`../archive/signal-levels.md`](../archive/signal-levels.md) | Audio/logic levels reference |
 
 Questions or a board that behaves oddly? The serial `help` console is the
 fastest way to poke at hardware (hook, ring, DTMF, audio, SD, SIP) directly.

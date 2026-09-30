@@ -62,7 +62,7 @@ firmware architecture.
 | PCB | 2-layer, ~100×50 mm |
 | Storage | Internal flash; optional microSD (single-line build) |
 
-Full design reference: [`docs/hardware.md`](docs/hardware.md). Parts list:
+Full design reference: [`docs/hardware-smd4.md`](docs/hardware-smd4.md). Parts list:
 [`docs/bom.md`](docs/bom.md).
 
 ---
@@ -87,9 +87,10 @@ Full walkthrough (toolchain install, first-boot Wi-Fi setup, web UI tour):
 |-----|--------|
 | [`docs/getting-started.md`](docs/getting-started.md) | From-scratch build/flash/setup walkthrough |
 | [`docs/features.md`](docs/features.md) | Feature list and firmware architecture |
-| [`docs/hardware.md`](docs/hardware.md) | Schematic reference, GPIO pin map, power tree |
+| [`docs/hardware-smd4.md`](docs/hardware-smd4.md) | Schematic reference, GPIO pin map, power tree |
+| [`docs/hardware-smd5.md`](docs/hardware-smd5.md) | Next-spin board: Bluetooth companion, dedicated LDO, dual MCU footprint — **not yet fabricated** |
 | [`docs/bom.md`](docs/bom.md) | Parts list / shopping checklist |
-| [`docs/signal-levels.md`](docs/signal-levels.md) | Audio/logic level reference |
+| [`archive/signal-levels.md`](archive/signal-levels.md) | Audio/logic level reference |
 | [`docs/voip-setup.md`](docs/voip-setup.md) | Connecting a line to a SIP server |
 | [`firmware/README.md`](firmware/README.md) | Toolchain setup, build layout, console commands |
 | [`hardware/3d-printed-case/`](hardware/3d-printed-case/) | Enclosure (placeholder — no files yet) |
@@ -101,7 +102,7 @@ Full walkthrough (toolchain install, first-boot Wi-Fi setup, web UI tour):
 Real telephone lines carry meaningful voltage: **~48 V DC** off-hook feed,
 **~60 Vrms** ringing (up to **~90 V** peaks). This is engineering guidance,
 not a telecom safety certification — review
-[`docs/hardware.md`](docs/hardware.md) before fabricating a board, and treat
+[`docs/hardware-smd4.md`](docs/hardware-smd4.md) before fabricating a board, and treat
 tip/ring copper with real respect.
 
 ---

@@ -151,8 +151,9 @@ structure) — only links from live files (this one included) need the
 
 - [`README.md`](README.md) — public project overview, build/flash instructions
 - [`docs/features.md`](docs/features.md) — feature list, firmware architecture (components, threading model, VoIP seams)
-- [`docs/hardware.md`](docs/hardware.md) — SMD4 schematic reference, GPIO pin map, power tree
-- [`docs/signal-levels.md`](docs/signal-levels.md) — SLIC/codec levels, SHK dividers
+- [`docs/hardware-smd4.md`](docs/hardware-smd4.md) — SMD4 schematic reference, GPIO pin map, power tree
+- [`docs/hardware-smd5.md`](docs/hardware-smd5.md) — SMD5 board reference (Bluetooth companion, LDO, dual MCU footprint); not yet fabricated
+- [`archive/signal-levels.md`](archive/signal-levels.md) — SLIC/codec levels, SHK dividers
 - [`docs/voip-setup.md`](docs/voip-setup.md) — SIP server setup, dial-plan reference
 - [`firmware/README.md`](firmware/README.md) — ESP-IDF toolchain setup, build/flash
 - [`archive/ESP32_PORT_PLAN.md`](archive/ESP32_PORT_PLAN.md) *(internal)* — Pi v1.0 → ESP32 scope, phases, dual-board plan
@@ -164,7 +165,7 @@ ESP-IDF (FreeRTOS) C, split into components so telephony logic never touches reg
 
 ## SMD phone-line (tip/ring) PCB clearance rules
 
-Applies to: `hardware/kicad/Rotary_phone_SMD4/**`, `docs/hardware.md`.
+Applies to: `hardware/kicad/Rotary_phone_SMD4/**`, `docs/hardware-smd4.md`.
 
 Subscriber-loop copper on this board can see **~48 V DC** off-hook feed, **~60 Vrms** ringing (**72 V** SLIC battery during ring per AG1171), and **~90 V** peaks (matches **P6KE82**-class TVS). Design spacing for **100 V peak** tip–ring.
 
@@ -189,7 +190,7 @@ Global fab minimum stays **0.15 mm**; phone-line spacing comes from the `PhoneLi
 - Prefer same-layer pairs; avoid tip/ring vias. If unavoidable, no via between paired traces.
 - At tight RJ12 pads, fan out immediately — do not run tip/ring parallel closer than 0.8 mm.
 - Solder mask is not safety insulation; do not shrink spacing below IPC values to save space.
-- 2-layer board: no internal ground plane — confirm a continuous GND pour actually exists under the tip/ring path, not just traces (see `docs/hardware.md` §8).
+- 2-layer board: no internal ground plane — confirm a continuous GND pour actually exists under the tip/ring path, not just traces (see `docs/hardware-smd4.md` §8).
 
 This is engineering guidance, not telecom safety certification.
 

@@ -1,6 +1,6 @@
 # Bill of Materials — SMD4 / SMD5
 
-Shopping / build checklist (design reference: [`hardware.md`](hardware.md);
+Shopping / build checklist (design reference: [`hardware-smd4.md`](hardware-smd4.md);
 KiCad: `hardware/kicad/Rotary_phone_SMD4/`).
 
 The parts are the same for both spins. The options that only exist on
@@ -12,7 +12,7 @@ fill in the hand-solder table below for everything JLC won't place. Mark rows
 done in the leading empty column (e.g. `x` or `☑`), or strike through the
 component name.
 
-Reference designators follow `docs/hardware.md`: **U1** = ESP32-C6-DevKitC-1
+Reference designators follow `hardware-smd4.md`: **U1** = ESP32-C6-DevKitC-1
 carrier, **U3**/**U4** = AG1171 SLICs, **J8**/**J9** = their RJ12 jacks,
 **J1** = DC jack, **D1** = diode-OR diode, **J5** = line-1/microSD jumper
 header, **Card1** = microSD socket. Passives whose SMD4-specific reference

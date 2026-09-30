@@ -27,7 +27,7 @@ A single-line build can trade line 2 for **microSD** (GPIO 18–21 shared).
 | Ring | **RM** + **F/R** toggle (~20 Hz) |
 | Net | Wi-Fi → SIP |
 
-See [`hardware.md`](hardware.md) and [`signal-levels.md`](signal-levels.md).
+See [`hardware-smd4.md`](hardware-smd4.md) and [`../archive/signal-levels.md`](../archive/signal-levels.md).
 
 ---
 

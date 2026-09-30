@@ -1,11 +1,28 @@
-# Hardware Reference — SMD4 Board
+# Hardware Reference — SMD5 Board
 
-Design reference for the current production board: a 2-layer, ESP32-C6-based
+> **SMD5 has not been fabricated or tested.** It is the next spin, and this
+> document describes the design as drawn. For a board you can build today,
+> see [`hardware-smd4.md`](hardware-smd4.md). Everything below that isn't
+> marked as an SMD5 change carries over from SMD4 unchanged and is proven on
+> real hardware; the SMD5-only parts are not.
+
+Design reference for the next-generation board: a 2-layer, ESP32-C6-based
 analog-phone-line gateway carrying one or two POTS lines through Silvertel
-AG1171 SLICs and an Everest ES8388 stereo codec. This document describes the
-board as it is today — it is not a changelog against earlier spins.
+AG1171 SLICs and an Everest ES8388 stereo codec, plus an optional Bluetooth
+companion.
 
-KiCad project: `hardware/kicad/Rotary_phone_SMD4/`.
+KiCad project: `hardware/kicad/Analog Redial 5/`.
+
+## What's new against SMD4
+
+| Change | Why |
+|--------|-----|
+| **Bluetooth companion header (J2)** | 8-pin board-to-board link to a BM64 carrier — see §10 |
+| **Dedicated 3.3 V LDO (U5)** for the BM64 | Keeps the module's radio bursts off the DevKit's own regulator |
+| **MFB on GPIO15** with a 100 kΩ pull-down | The BM64's power button needs firmware control and must idle low |
+| **SHK divider 15 kΩ → 100 kΩ** | Fixes SMD4's as-built off-hook level, which sat below the ESP32's input-high threshold |
+| **Dual MCU footprint** | Takes the genuine 32-pin DevKitC-1 *or* a 30-pin AliExpress clone |
+| **C10/C11 → 5 mm disc footprint, DNP** | Drops an Extended part; fit 1 µF only if you want the J7 monitor header |
 
 ## 1. Board overview
 
@@ -84,10 +101,10 @@ spare pin brought to a header, now wires to the microSD card-detect switch.
 | GPIO9 (BOOT, strap) | — | unconnected, free — this is the download-mode strap |
 | GPIO10 | I²S **DOUT** | to codec **DSDIN** (playback) |
 | GPIO11 | I²S **BCLK** | to codec **SCLK** |
-| GPIO12 (USB D−) | DevKit **USB** port | native USB-Serial-JTAG — the board's flash/console connection; not free |
-| GPIO13 (USB D+) | DevKit **USB** port | native USB-Serial-JTAG; not free |
+| GPIO12 (USB D−) | DevKit **USB** port | native USB-Serial-JTAG — the board's flash/console connection; not free. **On the 30-pin clone module these carry I²S MCLK and microSD card-detect instead** — see §11 |
+| GPIO13 (USB D+) | DevKit **USB** port | native USB-Serial-JTAG; not free. See §11 for the clone module |
 | GPIO14 | — | not brought out on the DevKit's header (module packaging limit) |
-| GPIO15 (JTAG, strap) | — | unconnected, free |
+| GPIO15 (JTAG, strap) | **BM64 MFB** (J2 pin 4) | **SMD5 change.** Bluetooth module's power button, with a 100 kΩ pull-down so it idles low while the ESP32 is in reset. Free if Bluetooth isn't fitted. Strapping pin, but it only selects the JTAG source and only when an eFuse that ships unburned is set |
 | GPIO16 (U0TXD) | header **J3** pin 1 | UART TX, optional/spare |
 | GPIO17 (U0RXD) | header **J4** pin 1 | UART RX, optional/spare |
 | GPIO18 | SD **MISO** *or* Line 1 **F/R** | shared via jumper header **J5** |
@@ -220,7 +237,7 @@ so only the corrected circuit is described below.
 |--------|--------|
 | **+VPWR** | Board **+5 V** rail, with local **470 µF** electrolytic bulk capacitance per SLIC plus a 100 nF bypass close to the SLIC's power pins |
 | **PD** (power-down) | Driven from an ESP32 GPIO through a series diode only (1N4148W-class, cathode toward the PD pin) — **no pull-up or pull-down resistor**. Per the AG1171 datasheet, PD should never be pulled to a logic high; GPIO low = power-down, GPIO high (diode blocks, PD floats) = run |
-| **SHK** (hook status) | AG1171 SHK is a ~3.3 V logic output with an internal 3.3 kΩ pull-up (datasheet: VOH 2.8 V min) — **not** 5 V, whichever rail the SLIC runs from. As built, SMD4 runs it through a 10 kΩ / 15 kΩ divider (10 kΩ from SHK to the GPIO tap, 15 kΩ from tap to GND) sized for an assumed 5 V swing, which lands the off-hook level at **~1.9 V — below the ESP32-C6's 2.475 V input-high threshold** (0.75 × VDD). Some pads still read it as high and some don't; see the rework note below |
+| **SHK** (hook status) | AG1171 SHK is a ~3.3 V logic output with an internal 3.3 kΩ pull-up (datasheet: VOH 2.8 V min) — **not** 5 V, whichever rail the SLIC runs from. **SMD5 uses a 10 kΩ / 100 kΩ divider**, giving ~2.9 V off-hook — comfortably above the ESP32-C6's 2.475 V input-high threshold (0.75 × VDD). This fixes SMD4's as-built 10 kΩ / 15 kΩ divider, which landed at ~1.9 V and only worked on some pads by luck |
 | **F/R** (ring cadence), **RM** (ringing mode) | Driven directly as 3.3 V ESP32 GPIO outputs — no level shifting needed, since these are ESP32-driven control inputs on the SLIC, not SLIC-driven signals |
 | **VIN** (needs external drive) | Fed from the codec's DAC output for that line — **LOUT1 → U4 VIN** (line 0), **ROUT1 → U3 VIN** (line 1) — through a coupling capacitor |
 | **VOUT** (SLIC-driven) | Feeds the codec's ADC input for that line — **U4 VOUT → LIN1** (line 0), **U3 VOUT → RIN1** (line 1) — through a coupling capacitor and series resistor |
@@ -247,7 +264,7 @@ Tip/Ring ◄──► RJ12 jack
               └── [M7 ×4 full-wave bridge] ── [line TVS across tip/ring]
 ```
 
-**SHK divider rework (SMD4 as built).** The 15 kΩ pull-down makes the
+**SHK divider (fixed on SMD5).** The 15 kΩ pull-down makes the
 off-hook level ~1.9 V, below the ESP32-C6's guaranteed input-high
 threshold of 2.475 V. It shows up as a line whose `hookmon` never sees the
 handset lift while its audio path works fine; on the first board where this
@@ -328,3 +345,56 @@ modifying the layout:
 | Power | USB-C (via the DevKit module's own port) and DC jack (**J1**), diode-ORed |
 | Storage | microSD, optional, single-line build only |
 | Debug | UART header (**J3** TX / **J4** RX), optional |
+
+## 10. Bluetooth companion header (J2)
+
+**SMD5 addition.** An 8-pin board-to-board header links a BM64 Bluetooth
+Classic audio carrier to the main board. The carrier is a separate PCB
+(`Bluetooth/Bluetooth_board/`) and **has not been fabricated**.
+
+| J2 pin | Net | Carrier side | Notes |
+|--------|-----|--------------|-------|
+| 1 | `+3V3_BM` | BM64 `BAT_IN` | From **U5**, a dedicated XC6206 LDO off +5 V — not the DevKit's 3.3 V rail |
+| 2 | GPIO16 / U0TXD | BM64 `HCI_RXD` | ESP transmits |
+| 3 | GPIO17 / U0RXD | BM64 `HCI_TXD` | ESP receives |
+| 4 | `MFB` (GPIO15) | BM64 `MFB` | Power button / UART wake, 100 kΩ pull-down on the main board |
+| 5 | via **C22** 1 µF ← `Line0Vin`'s SLIC `VOUT` | BM64 `MIC_P1` | Handset mic → Bluetooth |
+| 6 | via **C24** 1 µF ← GND | BM64 `MIC_N1` | AC ground for the differential mic input |
+| 7 | via **C23** 1 µF → **R16** 1 kΩ → `Line0Vin` | BM64 `AOHPL` | Bluetooth audio → earpiece. The 1 kΩ limits fault current into the SLIC |
+| 8 | GND | GND | |
+
+Audio never passes through firmware — both directions are analog, between
+the BM64 and line 0's SLIC. The ESP32 only carries control over the UART.
+
+**Orientation matters.** Pin 1 is +3.3 V and pin 8 is GND, so mating the two
+boards rotated 180° shorts the LDO output straight to ground. Mark pin 1 on
+both silkscreens and dry-fit before applying power.
+
+**Bluetooth is SMD5-only.** On SMD4 it takes hand-wiring and board
+modifications, which is why [`hardware-smd4.md`](hardware-smd4.md) doesn't
+describe it.
+
+## 11. MCU module variants
+
+The footprint accepts two modules, and they are **not** pin-compatible:
+pad positions 12/13 and 19/20 swap between vendors.
+
+| Pad | Genuine ESP32-C6-DevKitC-1 | 30-pin AliExpress clone |
+|-----|---------------------------|--------------------------|
+| 12 | `GPIO2` (I²S MCLK) | `GPIO12` / USB D− |
+| 13 | `GPIO3` (microSD card-detect) | `GPIO13` / USB D+ |
+| 19 | `GPIO12` / USB D− | `GPIO2` |
+| 20 | `GPIO13` / USB D+ | `GPIO3` |
+
+With the genuine module everything is as SMD4. With the clone, MCLK and
+card-detect land on its native-USB pins, so the firmware build must be
+`CONFIG_BOARD_TYPE_SMD5_CHEAP` — it remaps those two and detaches the USB
+PHY at boot. Consequences: no USB console after ~1 s of boot, a seated
+microSD card blocks USB entirely, and the **J3**/**J4** spare-UART header
+becomes unreachable.
+
+A planned fix (two solder jumpers selecting pad 12/13 or 19/20 for those two
+nets) would let both variants land on GPIO2/GPIO3 and retire all of that.
+Full detail, including the jumper wiring and the symptoms of getting it
+wrong, is in
+[`../archive/hardware/ANALOG_REDIAL_SMD5.md`](../archive/hardware/ANALOG_REDIAL_SMD5.md).
