@@ -52,8 +52,8 @@ checked 2026-09-30, quantity 1.
 | | 1 | MCU carrier: **U1** ESP32-C6-DevKitC-1 (or equivalent) | [DigiKey](https://www.digikey.com/en/products/detail/espressif-systems/ESP32-C6-DEVKITC-1-N8/17728861) $9.00 | [AliExpress](https://www.aliexpress.us/item/3256806563223929.html) $7.72 · [AliExpress](https://www.aliexpress.us/item/3256809110312291.html) $3.99 | **N16 (16 MB) recommended; N8 (8 MB) acceptable** — the firmware fits either, N8 just leaves less room for recordings and voicemail (see *Flash size*). DigiKey stocks the N8 only. AliExpress $7.72 = 32-pin **N16**, the known-good shape. $3.99 = 30-pin clone: **needs trace cuts + 2 solder bridges, and is untested here** |
 | | 1 | SLIC: **U4** AG1171 @ **J9** (line 0) | [DigiKey](https://www.digikey.com/en/products/detail/silvertel/AG1171/21187236) $8.50 | [AliExpress](https://www.aliexpress.us/item/3256804758849823.html) $3.79 | Always populated. 14-SIP; DigiKey lead time 16 weeks |
 | | 1 | SLIC: **U3** AG1171 @ **J8** (line 1) | same as **U4** | same as **U4** | Build **A** only |
-| | 1 | **J1** DC barrel jack, 5.5 × 2.1 mm | [DigiKey](https://www.digikey.com/en/products/detail/mpd-memory-protection-devices/EJ508A/2439547) $1.25 | [AliExpress](https://www.aliexpress.us/item/3256802445218613.html) $2.70 / 10 | **EJ508A**, 2.1 mm ID / 5.5 mm OD, right-angle THT, 5 A. **Verify against the board's `Barrel_Jack_PTH_Slot` footprint before ordering** — barrel jacks vary in pin pattern. Alternate 5 V input, diode-ORed with USB-C; a 5.5–6 V brick covers the diode drop |
-| | 1 | Line TVS (line 0, @ **U4**/**J9**) — *optional indoors, see below* | [DigiKey](https://www.digikey.com/en/products/detail/littelfuse-inc/P6KE82A/688097) $0.75 | [AliExpress](https://www.aliexpress.us/item/3256809218310441.html) $2.70 / 20 | **P6KE82A** (Littelfuse), the part Silvertel names. 70 V standoff, 113 V clamp, 600 W. **Package is DO-204AC (DO-15), not DO-41** — check it against the board's `D_DO-41_..._P10.16mm` pads before ordering (10.16 mm lead span is generous; the 0.8 mm lead may want a slightly bigger drill). Alt **BZT03C82** — [DigiKey](https://www.digikey.com/en/products/detail/vishay-general-semiconductor-diodes-division/BZT03C82-TAP/7464977) ~$1.00, genuinely DO-41 |
+| | 1 | **J1** DC barrel jack, 5.5 × 2.1 mm | [DigiKey](https://www.digikey.com/en/products/detail/mpd-memory-protection-devices/EJ508A/2439547) $1.25 | [AliExpress](https://www.aliexpress.us/item/3256802445218613.html) $2.70 / 10 | **EJ508A**, 2.1 mm ID / 5.5 mm OD, right-angle THT, 5 A. The **AliExpress jack is confirmed to fit this board** (verified 2026-09-30); the EJ508A's pin pattern hasn't been checked against the `Barrel_Jack_PTH_Slot` footprint yet. Alternate 5 V input, diode-ORed with USB-C; a 5.5–6 V brick covers the diode drop |
+| | 1 | Line TVS (line 0, @ **U4**/**J9**) — *optional indoors, see below* | [DigiKey](https://www.digikey.com/en/products/detail/littelfuse-inc/P6KE82A/688097) $0.75 | [AliExpress](https://www.aliexpress.us/item/3256809218310441.html) $2.70 / 20 | **P6KE82A** (Littelfuse), the part Silvertel names. 70 V standoff, 113 V clamp, 600 W. **Package is DO-204AC (DO-15), not DO-41** — check it against the board's `D_DO-41_..._P10.16mm` pads before ordering (10.16 mm lead span is generous; the 0.8 mm lead may want a slightly bigger drill). Alt **BZT03C82** — [DigiKey](https://www.digikey.com/en/products/detail/vishay-general-semiconductor-diodes-division/BZT03C82-TR/4827518) $2.17 (SOD-57 axial) or [DigiKey](https://www.digikey.com/en/products/detail/vishay-general-semiconductor-diodes-division/BZT03C82-TAP/7464977) ~$1.00. **Only if the package matters** — it's a 1.3 W zener, not a 600 W TVS, so it clamps the same voltage with far less surge energy, and costs more |
 | | 1 | Line TVS (line 1, @ **U3**/**J8**) | same as above | same as above | Build **A** only |
 | | 1 | **J9** RJ12 horizontal, 6p2c | [DigiKey](https://www.digikey.com/en/products/detail/amphenol-cs-fci/87180-062LF/1001369) $1.07 | [AliExpress](https://www.aliexpress.us/item/3256810043215346.html) $3.38 / 10 pcs | **87180-062LF**. AliExpress: pick the **322** variant. Alt **54601-006** — [DigiKey](https://www.digikey.com/en/products/detail/amphenol-icc/54601-006/1158894) |
 | | 1 | **J8** RJ12 horizontal, 6p2c | same as **J9** | same as **J9** | Build **A** only |
@@ -68,18 +68,23 @@ returns. The SLICs are the bulk of the saving.
 
 ### Is the line TVS optional?
 
-**Indoors, on a self-contained exchange, yes.** The TVS across tip/ring is
-purely protective — it clamps at 113 V, well above anything this board
-produces (48 V loop feed, ~60 Vrms ring, ~90 V peak), so nothing about
-normal operation depends on it. It's there for surges arriving *from
-outside*: lightning-induced transients on outside-plant wiring, or a mis-plug
-into a live telco jack.
+**Optional, but recommended.** Nothing in normal operation depends on it:
+it clamps at 113 V, well above anything this board produces (48 V loop feed,
+~60 Vrms ring, ~90 V peak). It earns its place the day something goes
+wrong, and there are two realistic ways for that to happen:
 
-If every phone is in the same room on a short cord and the RJ12 jacks never
-touch house or telco wiring, the risk it guards against basically doesn't
-exist. That said, it's **$0.75 protecting an $8.50 SLIC** that takes 16
-weeks to re-order — cheap insurance. Populate it if the board will ever sit
-near real phone wiring; skip it for a desk demo if you're short on parts.
+- **Someone plugs a board jack into a real phone line.** The RJ12 jacks here
+  look exactly like wall jacks, and this board is its own exchange — it
+  expects to *drive* tip/ring, not to meet a live telco line with its own
+  ring voltage on it. That's an easy mistake for a guest, a housemate, or
+  future-you in a hurry.
+- **Surges from outside wiring.** Lightning-induced transients and ESD get
+  onto house and outside-plant cabling and arrive down the phone cord.
+
+If every phone sits in the same room on a short cord, and the jacks can
+never reach house or telco wiring, you can leave it off. Otherwise populate
+it: **$0.75 protecting an $8.50 SLIC** with a 16-week re-order time is
+cheap insurance, and the failure it prevents is a dead board, not a glitch.
 
 ### Flash size: 16 MB vs 8 MB
 
@@ -178,16 +183,39 @@ point is to keep the option open for whoever wants it later without paying
 the Extended fee now, change C10/C11 to a radial electrolytic footprint and
 mark them DNP:
 
-- **`Capacitor_THT:CP_Radial_D6.3mm_P2.50mm`** — the flexible choice: takes
-  47 µF *or* 100 µF at 16–35 V, so a later builder picks the value to suit
-  whatever they hang off J7.
-- **`Capacitor_THT:CP_Radial_D5.0mm_P2.00mm`** — one size smaller, fine for
-  47 µF/16–25 V, if board space is tight.
+**Lead spacing.** Through-hole capacitors are standardised on **2.5 mm** and
+**5.0 mm** pitch (0.1" and 0.2"); commodity parts use one or the other.
+Electrolytics in this range:
 
-These are polarized: **+ toward the ES8388** (`LOUT2`/`ROUT2` idle around
-VDD/2, while the J7 side is held at 0 V by the 47 kΩ bleed). With the caps
-left out, J7 is simply dead — the bleed resistors tie it to ground and no
-signal reaches it — which is the intended state until someone fits them.
+| Value | Can diameter | Lead spacing | KiCad footprint |
+|-------|--------------|--------------|-----------------|
+| 47 µF 16 V | 5 mm | **2.0 mm** | `Capacitor_THT:CP_Radial_D5.0mm_P2.00mm` |
+| 47 µF 25–35 V | 6.3 mm | **2.5 mm** | `Capacitor_THT:CP_Radial_D6.3mm_P2.50mm` |
+| **100 µF 16–25 V** | 6.3 mm | **2.5 mm** | `Capacitor_THT:CP_Radial_D6.3mm_P2.50mm` |
+| 100 µF 35 V | 8 mm | 3.5 mm | `Capacitor_THT:CP_Radial_D8.0mm_P3.50mm` (same as the 470 µF bulk caps) |
+
+So **6.3 mm / 2.5 mm** is the one to design for if 100 µF is the target — it
+covers 47 µF and 100 µF at sane voltages.
+
+**About the `C_Disc_*` series:** those are ceramic disc footprints, and a
+100 µF ceramic disc doesn't exist — discs stop far short of that, so a disc
+footprint can't hold the value you'd want for headphone drive. It *is* a
+good fit for the other option, though: since 1 µF is already ample here
+(~3 Hz corner against the 47 kΩ bleed), a 1 µF film or ceramic part in a
+**5.00 mm** pitch disc footprint works, is non-polarized, and has no
+orientation to get wrong.
+
+**Most flexible single choice:** a **5.00 mm** pitch footprint with a
+roomy courtyard, e.g. `Capacitor_THT:C_Disc_D10.5mm_W5.0mm_P5.00mm`. A
+1 µF film/disc drops straight in, and a 6.3 mm electrolytic fits too with
+its 2.5 mm leads splayed out to 5 mm — which is a normal thing to do, where
+bending leads *inward* is not.
+
+Electrolytics are polarized: **+ toward the ES8388** (`LOUT2`/`ROUT2` idle
+around VDD/2, while the J7 side is held at 0 V by the 47 kΩ bleed). Film and
+ceramic parts don't care. With the caps left out, J7 is simply dead — the
+bleed resistors tie it to ground and no signal reaches it — which is the
+intended state until someone fits them.
 
 **470 µF SLIC bulk caps are hand-solder only** — THT electrolytic, not a JLC
 SMT part; see the hand-solder capacitors table above.
@@ -209,9 +237,9 @@ SMT part; see the hand-solder capacitors table above.
   pinned down; confirm the specific module/vendor and its onboard
   regulator's minimum 5 V input headroom (affects the DC jack voltage spec)
   before finalizing this line.
-- **DC jack (J1) footprint match** — part picked (**EJ508A**), but its pin
-  pattern hasn't been checked against the board's `Barrel_Jack_PTH_Slot`
-  footprint. Do that before ordering.
+- **DC jack (J1), DigiKey option** — the AliExpress jack is verified to fit;
+  the **EJ508A** pin pattern hasn't been checked against the
+  `Barrel_Jack_PTH_Slot` footprint. Check before ordering that one.
 - **Line TVS package** — **P6KE82A** is DO-204AC (DO-15) while the board's
   pads are DO-41. Almost certainly fine at a 10.16 mm lead span, but confirm
   the drill diameter, or use the DO-41 **BZT03C82** instead.
