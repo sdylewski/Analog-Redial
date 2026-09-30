@@ -105,6 +105,22 @@ from the fab: cut that trace and blob 2-3 to switch. (Two 2-pad jumpers at
 - Signal integrity isn't a concern here (MCLK is 12.288 MHz, card-detect is
   DC). Don't extend the same trick to the USB pair itself.
 
+**Symbol trap (hit 2026-09-29).** SparkFun's PCM symbol
+`PCM_SparkFun-Jumper:SolderJumper_3_Bridged12_No_Silk` numbers its pins
+**A=1, B=2, C=2** — pins B and C both claim pad 2, and pad 3 gets nothing.
+Wire B and C to different nets and KiCad rejects it ("pad 2 connected to
+multiple nets"); the SparkFun *footprint* is fine (pads 1/2/3). Use KiCad's
+stock `Jumper:SolderJumper_3_Bridged12` instead, whose pins really are
+1/2/3 — its letters run A=1, **C=2**, B=3, so wire by pin **number**, not
+letter. Pad numbers match SparkFun's footprint either way, so swapping only
+the symbol (Edit → Change Symbols, keep the Footprint field) needs no PCB
+rework.
+
+**Footprint variant:** `Jumper_3_NC-1_Trace_NoSilk` has its copper trace
+between pads 1 and 2 — one gap closed, which is what's wanted.
+`Jumper_3_NC-2_Trace_NoSilk` closes *both* gaps (all three pads shorted);
+don't use it here.
+
 **Firmware once the jumpers exist:** `CONFIG_BOARD_TYPE_SMD5_CHEAP` stops
 needing its own pin map (`BOARD_I2S_MCLK`/`BOARD_SD_CD` go back to
 GPIO2/GPIO3 for both variants) and `board_early_pin_init()`'s USB-PHY
