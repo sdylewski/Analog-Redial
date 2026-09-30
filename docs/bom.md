@@ -43,18 +43,18 @@ passives — carries over unchanged from the SMD2 parts list.
 
 ## Hand-solder BOM
 
-**DigiKey subtotal, priced rows below — build A (dual line): ~$31.11 · build
-B (single + SD): ~$19.99.** Excludes the DC jack (still unpicked) and
-everything JLC assembles. Prices checked 2026-09-30, quantity 1.
+**DigiKey total — build A (dual line): ~$31.86 · build B (single + SD):
+~$20.99.** Every row below is priced; excludes what JLC assembles. Prices
+checked 2026-09-30, quantity 1.
 
 | | Qty | Component | DigiKey | AliExpress | Notes |
 |---|-----|-----------|---------|------------|-------|
-| | 1 | MCU carrier: **U1** ESP32-C6-DevKitC-1 (or equivalent) | [DigiKey](https://www.digikey.com/en/products/detail/espressif-systems/ESP32-C6-DEVKITC-1-N8/17728861) $9.00 | [AliExpress](https://www.aliexpress.us/item/3256806563223929.html) $7.72 · [AliExpress](https://www.aliexpress.us/item/3256809110312291.html) $3.99 | DigiKey stocks the **N8** (8 MB) only — fine, but see *Flash size* below. AliExpress $7.72 = 32-pin **N16** (16 MB), the known-good shape. $3.99 = 30-pin clone: **needs trace cuts + 2 solder bridges, and is untested here** |
+| | 1 | MCU carrier: **U1** ESP32-C6-DevKitC-1 (or equivalent) | [DigiKey](https://www.digikey.com/en/products/detail/espressif-systems/ESP32-C6-DEVKITC-1-N8/17728861) $9.00 | [AliExpress](https://www.aliexpress.us/item/3256806563223929.html) $7.72 · [AliExpress](https://www.aliexpress.us/item/3256809110312291.html) $3.99 | **N16 (16 MB) recommended; N8 (8 MB) acceptable** — the firmware fits either, N8 just leaves less room for recordings and voicemail (see *Flash size*). DigiKey stocks the N8 only. AliExpress $7.72 = 32-pin **N16**, the known-good shape. $3.99 = 30-pin clone: **needs trace cuts + 2 solder bridges, and is untested here** |
 | | 1 | SLIC: **U4** AG1171 @ **J9** (line 0) | [DigiKey](https://www.digikey.com/en/products/detail/silvertel/AG1171/21187236) $8.50 | [AliExpress](https://www.aliexpress.us/item/3256804758849823.html) $3.79 | Always populated. 14-SIP; DigiKey lead time 16 weeks |
 | | 1 | SLIC: **U3** AG1171 @ **J8** (line 1) | same as **U4** | same as **U4** | Build **A** only |
-| | 1 | **J1** DC barrel jack | `[TODO: confirm part number/price]` | | Alternate 5 V input, diode-ORed with USB-C; confirm the DevKit regulator's input headroom before picking a voltage (5.5–6 V brick if the diode drop matters) |
-| | 1 | Line TVS (line 0, @ **U4**/**J9**) | [DigiKey](https://www.digikey.com/en/products/detail/vishay-general-semiconductor-diodes-division/BZT03C82-TAP/7464977) ~$1.00 | | DO-41 axial; alt **P6KE82** per Silvertel |
-| | 1 | Line TVS (line 1, @ **U3**/**J8**) | same as above | | Build **A** only |
+| | 1 | **J1** DC barrel jack, 5.5 × 2.1 mm | [DigiKey](https://www.digikey.com/en/products/detail/mpd-memory-protection-devices/EJ508A/2439547) $1.25 | [AliExpress](https://www.aliexpress.us/item/3256802445218613.html) $2.70 / 10 | **EJ508A**, 2.1 mm ID / 5.5 mm OD, right-angle THT, 5 A. **Verify against the board's `Barrel_Jack_PTH_Slot` footprint before ordering** — barrel jacks vary in pin pattern. Alternate 5 V input, diode-ORed with USB-C; a 5.5–6 V brick covers the diode drop |
+| | 1 | Line TVS (line 0, @ **U4**/**J9**) — *optional indoors, see below* | [DigiKey](https://www.digikey.com/en/products/detail/littelfuse-inc/P6KE82A/688097) $0.75 | [AliExpress](https://www.aliexpress.us/item/3256809218310441.html) $2.70 / 20 | **P6KE82A** (Littelfuse), the part Silvertel names. 70 V standoff, 113 V clamp, 600 W. **Package is DO-204AC (DO-15), not DO-41** — check it against the board's `D_DO-41_..._P10.16mm` pads before ordering (10.16 mm lead span is generous; the 0.8 mm lead may want a slightly bigger drill). Alt **BZT03C82** — [DigiKey](https://www.digikey.com/en/products/detail/vishay-general-semiconductor-diodes-division/BZT03C82-TAP/7464977) ~$1.00, genuinely DO-41 |
+| | 1 | Line TVS (line 1, @ **U3**/**J8**) | same as above | same as above | Build **A** only |
 | | 1 | **J9** RJ12 horizontal, 6p2c | [DigiKey](https://www.digikey.com/en/products/detail/amphenol-cs-fci/87180-062LF/1001369) $1.07 | [AliExpress](https://www.aliexpress.us/item/3256810043215346.html) $3.38 / 10 pcs | **87180-062LF**. AliExpress: pick the **322** variant. Alt **54601-006** — [DigiKey](https://www.digikey.com/en/products/detail/amphenol-icc/54601-006/1158894) |
 | | 1 | **J8** RJ12 horizontal, 6p2c | same as **J9** | same as **J9** | Build **A** only |
 | | 1 | **J5** 2×4 (8-pin) 2.54 mm header + 4× shunts | [DigiKey](https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/SSK03-MPH-254-B4/28772142) $0.13 | | **SSK03-MPH-254-B4**. Only needed for a 2nd line *or* the Bluetooth option (its programming header mates here) — a single-line board with microSD leaves J5 open and can skip it |
@@ -66,6 +66,21 @@ everything JLC assembles. Prices checked 2026-09-30, quantity 1.
 16 MB of flash rather than 8 MB — at the cost of longer shipping and no
 returns. The SLICs are the bulk of the saving.
 
+### Is the line TVS optional?
+
+**Indoors, on a self-contained exchange, yes.** The TVS across tip/ring is
+purely protective — it clamps at 113 V, well above anything this board
+produces (48 V loop feed, ~60 Vrms ring, ~90 V peak), so nothing about
+normal operation depends on it. It's there for surges arriving *from
+outside*: lightning-induced transients on outside-plant wiring, or a mis-plug
+into a live telco jack.
+
+If every phone is in the same room on a short cord and the RJ12 jacks never
+touch house or telco wiring, the risk it guards against basically doesn't
+exist. That said, it's **$0.75 protecting an $8.50 SLIC** that takes 16
+weeks to re-order — cheap insurance. Populate it if the board will ever sit
+near real phone wiring; skip it for a desk demo if you're short on parts.
+
 ### Flash size: 16 MB vs 8 MB
 
 **The firmware fits either way** — the app is ~1.5 MB against a 1.75 MB OTA
@@ -74,12 +89,28 @@ layout (`firmware/partitions.csv`) spends 1.75 MB × 2 on OTA slots, 6 MB on
 recordings (`/assets`) and 2 MB on built-in clips (`/bundled`), and still
 leaves ~4.5 MB unused.
 
-An 8 MB part needs a re-cut: keep both OTA slots (3.5 MB), shrink `bundled`
-to ~1.75 MB (it only holds ~1.55 MB today) and `storage` lands at ~2.5 MB
-instead of 6 MB — so lower the recording cap from its current 4 MB to
-match. Dropping OTA entirely would buy back 1.75 MB for recordings, at the
-cost of web-UI firmware updates. Either is a `partitions.csv` edit, not a
-code change.
+**What to change for an 8 MB part** — three files, no code:
+
+| File | From | To |
+|------|------|-----|
+| `firmware/partitions.csv` — `storage` | `0x600000` (6 MB) | **`0x2A0000`** (2.625 MB) |
+| `firmware/partitions.csv` — `bundled` | `0x200000` (2 MB) | **`0x1C0000`** (1.75 MB) |
+| `firmware/sdkconfig.defaults` (and `sdkconfig.smd5*.defaults`) | `CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y` / `="16MB"` | **`..._8MB=y`** / **`="8MB"`** |
+| `CONFIG_STORAGE_RECORDING_CAP_BYTES` (`components/storage/Kconfig`, default) | `4194304` (4 MB) | **`2097152`** (2 MB) |
+
+That budget: 0x20000 for bootloader/tables/NVS, 1.75 MB × 2 OTA slots
+(0x3A0000), leaving 4.375 MB to split between `bundled` and `storage`.
+`bundled` holds ~1.55 MB today, so 1.75 MB keeps a little headroom; the rest
+goes to recordings.
+
+**Want more recording room?** Drop to a single app partition (no `ota_1`)
+and `storage` grows to ~4.25 MB — at the cost of web-UI firmware updates,
+which write to the inactive slot. USB flashing is unaffected either way.
+
+After editing, rebuild from scratch (`idf.py fullclean build`): a
+`sdkconfig.*.defaults` change does nothing to an already-generated
+`sdkconfig`, so a non-default board's build directory has to be deleted and
+regenerated — see `CLAUDE.md`'s build-directory rules.
 
 ---
 
@@ -142,6 +173,22 @@ J7, swap to the 1 µF 0402 already on the reel: it drops an Extended part
 (~$3 of the JLC fee) and two 1206 footprints. Keep ≥47 µF only for the
 headphone case.
 
+**Or give them a through-hole footprint and leave them unpopulated.** If the
+point is to keep the option open for whoever wants it later without paying
+the Extended fee now, change C10/C11 to a radial electrolytic footprint and
+mark them DNP:
+
+- **`Capacitor_THT:CP_Radial_D6.3mm_P2.50mm`** — the flexible choice: takes
+  47 µF *or* 100 µF at 16–35 V, so a later builder picks the value to suit
+  whatever they hang off J7.
+- **`Capacitor_THT:CP_Radial_D5.0mm_P2.00mm`** — one size smaller, fine for
+  47 µF/16–25 V, if board space is tight.
+
+These are polarized: **+ toward the ES8388** (`LOUT2`/`ROUT2` idle around
+VDD/2, while the J7 side is held at 0 V by the 47 kΩ bleed). With the caps
+left out, J7 is simply dead — the bleed resistors tie it to ground and no
+signal reaches it — which is the intended state until someone fits them.
+
 **470 µF SLIC bulk caps are hand-solder only** — THT electrolytic, not a JLC
 SMT part; see the hand-solder capacitors table above.
 
@@ -162,8 +209,9 @@ SMT part; see the hand-solder capacitors table above.
   pinned down; confirm the specific module/vendor and its onboard
   regulator's minimum 5 V input headroom (affects the DC jack voltage spec)
   before finalizing this line.
-- **DC jack (J1) part number and price** — not yet specified in the design
-  docs; pick a standard 5.5×2.1 mm (or similar) barrel jack rated for the
-  board's 5 V/SLIC current draw.
-- **J5 jumper header part number** — a generic 2×4, 0.1" pin header plus 4
-  shunts will work mechanically; no specific part has been chosen yet.
+- **DC jack (J1) footprint match** — part picked (**EJ508A**), but its pin
+  pattern hasn't been checked against the board's `Barrel_Jack_PTH_Slot`
+  footprint. Do that before ordering.
+- **Line TVS package** — **P6KE82A** is DO-204AC (DO-15) while the board's
+  pads are DO-41. Almost certainly fine at a 10.16 mm lead span, but confirm
+  the drill diameter, or use the DO-41 **BZT03C82** instead.
