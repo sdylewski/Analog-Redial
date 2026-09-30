@@ -53,7 +53,7 @@ checked 2026-09-30, quantity 1.
 | | 1 | SLIC: **U4** AG1171 @ **J9** (line 0) | [DigiKey](https://www.digikey.com/en/products/detail/silvertel/AG1171/21187236) $8.50 | [AliExpress](https://www.aliexpress.us/item/3256804758849823.html) $3.79 | Always populated. 14-SIP; DigiKey lead time 16 weeks |
 | | 1 | SLIC: **U3** AG1171 @ **J8** (line 1) | same as **U4** | same as **U4** | Build **A** only |
 | | 1 | **J1** DC barrel jack, 5.5 × 2.1 mm | [DigiKey](https://www.digikey.com/en/products/detail/mpd-memory-protection-devices/EJ508A/2439547) $1.25 | [AliExpress](https://www.aliexpress.us/item/3256802445218613.html) $2.70 / 10 | **EJ508A**, 2.1 mm ID / 5.5 mm OD, right-angle THT, 5 A. The **AliExpress jack is confirmed to fit this board** (verified 2026-09-30); the EJ508A's pin pattern hasn't been checked against the `Barrel_Jack_PTH_Slot` footprint yet. Alternate 5 V input, diode-ORed with USB-C; a 5.5–6 V brick covers the diode drop |
-| | 1 | Line TVS (line 0, @ **U4**/**J9**) — *optional indoors, see below* | [DigiKey](https://www.digikey.com/en/products/detail/littelfuse-inc/P6KE82A/688097) $0.75 | [AliExpress](https://www.aliexpress.us/item/3256809218310441.html) $2.70 / 20 | **P6KE82A** (Littelfuse), the part Silvertel names. 70 V standoff, 113 V clamp, 600 W. **Package is DO-204AC (DO-15), not DO-41** — check it against the board's `D_DO-41_..._P10.16mm` pads before ordering (10.16 mm lead span is generous; the 0.8 mm lead may want a slightly bigger drill). Alt **BZT03C82** — [DigiKey](https://www.digikey.com/en/products/detail/vishay-general-semiconductor-diodes-division/BZT03C82-TR/4827518) $2.17 (SOD-57 axial) or [DigiKey](https://www.digikey.com/en/products/detail/vishay-general-semiconductor-diodes-division/BZT03C82-TAP/7464977) ~$1.00. **Only if the package matters** — it's a 1.3 W zener, not a 600 W TVS, so it clamps the same voltage with far less surge energy, and costs more |
+| | 1 | Line TVS (line 0, @ **U4**/**J9**) — *optional indoors, see below* | [DigiKey](https://www.digikey.com/en/products/detail/littelfuse-inc/P6KE82A/688097) $0.75 | [AliExpress](https://www.aliexpress.us/item/3256809218310441.html) $2.70 / 20 | **P6KE82A** (Littelfuse), the part Silvertel names. 70 V standoff, 113 V clamp, 600 W. **Package is DO-204AC (DO-15), not DO-41** — check it against the board's `D_DO-41_..._P10.16mm` pads before ordering (10.16 mm lead span is generous; the 0.8 mm lead may want a slightly bigger drill). |
 | | 1 | Line TVS (line 1, @ **U3**/**J8**) | same as above | same as above | Build **A** only |
 | | 1 | **J9** RJ12 horizontal, 6p2c | [DigiKey](https://www.digikey.com/en/products/detail/amphenol-cs-fci/87180-062LF/1001369) $1.07 | [AliExpress](https://www.aliexpress.us/item/3256810043215346.html) $3.38 / 10 pcs | **87180-062LF**. AliExpress: pick the **322** variant. Alt **54601-006** — [DigiKey](https://www.digikey.com/en/products/detail/amphenol-icc/54601-006/1158894) |
 | | 1 | **J8** RJ12 horizontal, 6p2c | same as **J9** | same as **J9** | Build **A** only |
@@ -178,44 +178,17 @@ J7, swap to the 1 µF 0402 already on the reel: it drops an Extended part
 (~$3 of the JLC fee) and two 1206 footprints. Keep ≥47 µF only for the
 headphone case.
 
-**Or give them a through-hole footprint and leave them unpopulated.** If the
-point is to keep the option open for whoever wants it later without paying
-the Extended fee now, change C10/C11 to a radial electrolytic footprint and
-mark them DNP:
+**As built, C10/C11 are a 5 mm-pitch through-hole footprint, left
+unpopulated** (decided 2026-09-30). That keeps J7 available to whoever wants
+it later without paying the Extended-part fee or committing to a value now.
+**Fit 1 µF** when you want to listen to or scope that header — film or
+ceramic, non-polarized, nothing to get backwards, and a ~3 Hz corner against
+the 47 kΩ bleed. A 6.3 mm electrolytic also fits with its 2.5 mm leads
+splayed out to 5 mm, if someone later wants the 47–100 µF needed to drive
+headphones directly.
 
-**Lead spacing.** Through-hole capacitors are standardised on **2.5 mm** and
-**5.0 mm** pitch (0.1" and 0.2"); commodity parts use one or the other.
-Electrolytics in this range:
-
-| Value | Can diameter | Lead spacing | KiCad footprint |
-|-------|--------------|--------------|-----------------|
-| 47 µF 16 V | 5 mm | **2.0 mm** | `Capacitor_THT:CP_Radial_D5.0mm_P2.00mm` |
-| 47 µF 25–35 V | 6.3 mm | **2.5 mm** | `Capacitor_THT:CP_Radial_D6.3mm_P2.50mm` |
-| **100 µF 16–25 V** | 6.3 mm | **2.5 mm** | `Capacitor_THT:CP_Radial_D6.3mm_P2.50mm` |
-| 100 µF 35 V | 8 mm | 3.5 mm | `Capacitor_THT:CP_Radial_D8.0mm_P3.50mm` (same as the 470 µF bulk caps) |
-
-So **6.3 mm / 2.5 mm** is the one to design for if 100 µF is the target — it
-covers 47 µF and 100 µF at sane voltages.
-
-**About the `C_Disc_*` series:** those are ceramic disc footprints, and a
-100 µF ceramic disc doesn't exist — discs stop far short of that, so a disc
-footprint can't hold the value you'd want for headphone drive. It *is* a
-good fit for the other option, though: since 1 µF is already ample here
-(~3 Hz corner against the 47 kΩ bleed), a 1 µF film or ceramic part in a
-**5.00 mm** pitch disc footprint works, is non-polarized, and has no
-orientation to get wrong.
-
-**Most flexible single choice:** a **5.00 mm** pitch footprint with a
-roomy courtyard, e.g. `Capacitor_THT:C_Disc_D10.5mm_W5.0mm_P5.00mm`. A
-1 µF film/disc drops straight in, and a 6.3 mm electrolytic fits too with
-its 2.5 mm leads splayed out to 5 mm — which is a normal thing to do, where
-bending leads *inward* is not.
-
-Electrolytics are polarized: **+ toward the ES8388** (`LOUT2`/`ROUT2` idle
-around VDD/2, while the J7 side is held at 0 V by the 47 kΩ bleed). Film and
-ceramic parts don't care. With the caps left out, J7 is simply dead — the
-bleed resistors tie it to ground and no signal reaches it — which is the
-intended state until someone fits them.
+Unpopulated, **J7 is dead** — the bleed resistors tie it to ground and no
+signal reaches it. That's the intended state, not a fault.
 
 **470 µF SLIC bulk caps are hand-solder only** — THT electrolytic, not a JLC
 SMT part; see the hand-solder capacitors table above.
@@ -241,5 +214,6 @@ SMT part; see the hand-solder capacitors table above.
   the **EJ508A** pin pattern hasn't been checked against the
   `Barrel_Jack_PTH_Slot` footprint. Check before ordering that one.
 - **Line TVS package** — **P6KE82A** is DO-204AC (DO-15) while the board's
-  pads are DO-41. Almost certainly fine at a 10.16 mm lead span, but confirm
-  the drill diameter, or use the DO-41 **BZT03C82** instead.
+  pads are DO-41. The 10.16 mm lead span has room to spare for the longer
+  body; the open question is only whether the 0.8 mm lead clears the drill.
+  Confirm before ordering.
