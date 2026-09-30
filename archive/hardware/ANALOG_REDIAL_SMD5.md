@@ -347,6 +347,9 @@ header (same 6-pin pinout as above, mirrored).
    after a SLIC's audio hybrid died during BM64 bench work on SMD4. The
    existing 10 µF series cap on J12 pin 2 alone is not protection.
 
+Parts to order for this option (module, headers, the LDO and its passives,
+and which BM64 suffix to buy): [`BOM-bluetooth.md`](BOM-bluetooth.md).
+
 ### BM64 connection table (from both netlists, 2026-09-28)
 
 Pulled from `kicad-cli sch export netlist` of `Analog Redial 5.kicad_sch`
