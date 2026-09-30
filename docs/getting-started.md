@@ -14,13 +14,15 @@ and [`hardware.md`](hardware.md).
 
 ## 1. What you need
 
-**Hardware** — the SMD4 board ([`hardware.md`](hardware.md)):
+**Hardware** — an SMD4 or SMD5 board ([`hardware.md`](hardware.md)):
 
 - ESP32-C6-DevKit
 - ES8388 stereo codec
 - 1–2× Silvertel AG1171 SLIC (one per phone line)
 - 1 or 2 analog (rotary or touch-tone) telephones on tip/ring
-- A USB-C cable or 5 V DC supply, and a 2.4 GHz Wi-Fi network
+- **A 2 A supply** — USB-C into the DevKit, or a 5.5–6 V brick on the DC
+  jack. See [`bom.md`](bom.md) for why 2 A rather than 1 A.
+- A 2.4 GHz Wi-Fi network
 
 (Hardware design files are under [`../hardware/`](../hardware/); a BOM/shopping
 checklist is at [`bom.md`](bom.md).)
@@ -75,8 +77,13 @@ Under **Board configuration**:
 
 | Option | Choose |
 |--------|--------|
+| **Target board type** | **Set this first.** `SMD3/SMD4` for an SMD4 board; `SMD5` for an SMD5 with the genuine 32-pin module; `SMD5 (clone module)` for an SMD5 with the 30-pin AliExpress module. Getting this wrong on a clone-populated board costs you audio entirely — MCLK lands on the wrong pin. |
 | **Number of active phone lines** | `1` or `2` (single-line boards leave line 2 unpopulated) |
 | **Use microSD instead of line 2** | Enable **only** if your board has the microSD socket stuffed instead of the line-2 SLIC (they share GPIO 18–21). Requires *lines = 1*. |
+
+> The Kconfig **default is the old through-hole board**, not SMD4 — the
+> tracked `sdkconfig` already selects SMD4, but if you ever regenerate the
+> config from scratch, set the board type before anything else.
 
 Save and exit — the line count and SD-vs-line-2 routing follow from these
 choices. (Wi-Fi and VoIP are **not** set here; those are configured at

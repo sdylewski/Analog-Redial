@@ -1,7 +1,11 @@
-# Bill of Materials — SMD4 Board
+# Bill of Materials — SMD4 / SMD5
 
-Shopping / build checklist for the current production board (design
-reference: [`hardware.md`](hardware.md); KiCad: `hardware/kicad/Rotary_phone_SMD4/`).
+Shopping / build checklist (design reference: [`hardware.md`](hardware.md);
+KiCad: `hardware/kicad/Rotary_phone_SMD4/`).
+
+The parts are the same for both spins. The options that only exist on
+**SMD5** — the Bluetooth companion, the 30-pin clone module — are marked
+where they come up; **SMD5 has not been fabricated or tested yet.**
 
 Most builders order **JLCPCB** for SMT passives and JLC-placeable parts, then
 fill in the hand-solder table below for everything JLC won't place. Mark rows
