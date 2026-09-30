@@ -1353,7 +1353,7 @@
 			(uuid "3fb757d1-88a6-43e9-b47f-8d179a3ca954")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/Scott.3dshapes/87180-062LF.step"
+		(model "${KIPRJMOD}/../libraries/Custom.3dshapes/87180-062LF.step"
 			(offset
 				(xyz 3.175 -8.9 0)
 			)
@@ -2357,7 +2357,7 @@
 			)
 		)
 	)
-	(footprint "Scott:AG1171_SIL"
+	(footprint "Custom:AG1171_SIL"
 		(layer "F.Cu")
 		(uuid "18f4d573-7b25-43b8-a468-1b2954354a4b")
 		(at 100.7 107.99)
@@ -2958,7 +2958,7 @@
 			)
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/Scott.3dshapes/AG1171.step"
+		(model "${KIPRJMOD}/../libraries/Custom.3dshapes/AG1171.step"
 			(offset
 				(xyz 31.25 4.3 0)
 			)
@@ -7508,7 +7508,7 @@
 			(uuid "5e1f7a90-d36a-42ed-a663-08261f999a5b")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/JLCImport.3dshapes/1N4007W_C18199088.wrl"
+		(model "${KIPRJMOD}/../libraries/JLCImport.3dshapes/1N4007W_C18199088.wrl"
 			(offset
 				(xyz 0 0 -0.09)
 			)
@@ -9169,7 +9169,7 @@
 			(uuid "76feac6d-ffac-4c1e-85b1-776e3764776b")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/JLCImport.3dshapes/TYPE-C_16PIN_2MD_073.wrl"
+		(model "${KIPRJMOD}/../libraries/JLCImport.3dshapes/TYPE-C_16PIN_2MD_073.wrl"
 			(offset
 				(xyz 0 -1.2 1.68)
 			)
@@ -11041,7 +11041,7 @@
 			(uuid "32d9e10a-57b7-45d5-8dff-8b37976b636d")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/JLCImport.3dshapes/TF-01A.wrl"
+		(model "${KIPRJMOD}/../libraries/JLCImport.3dshapes/TF-01A.wrl"
 			(offset
 				(xyz 0.002223 -5.10134 0.14732)
 			)
@@ -16500,7 +16500,7 @@
 			(uuid "72bd05cd-c30a-424d-943d-4be0869bc87d")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/JLCImport.3dshapes/1N4148W_C81598.wrl"
+		(model "${KIPRJMOD}/../libraries/JLCImport.3dshapes/1N4148W_C81598.wrl"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -16815,7 +16815,7 @@
 			(uuid "9f754316-6225-4013-b0d9-a3a9ca7f6a23")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/JLCImport.3dshapes/1N4007W_C18199088.wrl"
+		(model "${KIPRJMOD}/../libraries/JLCImport.3dshapes/1N4007W_C18199088.wrl"
 			(offset
 				(xyz 0 0 -0.09)
 			)
@@ -17245,7 +17245,7 @@
 			(uuid "6bebff95-7707-4d7f-acec-c9360b0a3864")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/JLCImport.3dshapes/1N4007W_C18199088.wrl"
+		(model "${KIPRJMOD}/../libraries/JLCImport.3dshapes/1N4007W_C18199088.wrl"
 			(offset
 				(xyz 0 0 -0.09)
 			)
@@ -18423,7 +18423,7 @@
 			(uuid "a99e6946-9be3-44a2-ae6f-43deefcff714")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/JLCImport.3dshapes/1N4007W_C18199088.wrl"
+		(model "${KIPRJMOD}/../libraries/JLCImport.3dshapes/1N4007W_C18199088.wrl"
 			(offset
 				(xyz 0 0 -0.09)
 			)
@@ -19024,7 +19024,7 @@
 			)
 		)
 	)
-	(footprint "Scott:AG1171_SIL"
+	(footprint "Custom:AG1171_SIL"
 		(layer "F.Cu")
 		(uuid "a985bd5f-37a9-446b-ae95-860e0d0a59ba")
 		(at 100.71 95.29)
@@ -19625,7 +19625,7 @@
 			)
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/Scott.3dshapes/AG1171.step"
+		(model "${KIPRJMOD}/../libraries/Custom.3dshapes/AG1171.step"
 			(offset
 				(xyz 31.25 4.3 0)
 			)
@@ -22209,7 +22209,7 @@
 			(uuid "95160650-b1ce-447c-b0a1-bb022c0f8d85")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/JLCImport.3dshapes/1N4007W_C18199088.wrl"
+		(model "${KIPRJMOD}/../libraries/JLCImport.3dshapes/1N4007W_C18199088.wrl"
 			(offset
 				(xyz 0 0 -0.09)
 			)
@@ -23159,7 +23159,7 @@
 			(uuid "ca4d5c39-4902-4b53-baa7-1ae43dccad71")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/JLCImport.3dshapes/1N4007W_C18199088.wrl"
+		(model "${KIPRJMOD}/../libraries/JLCImport.3dshapes/1N4007W_C18199088.wrl"
 			(offset
 				(xyz 0 0 -0.09)
 			)
@@ -24841,7 +24841,7 @@
 			(uuid "c078e060-728a-43a8-a654-e860425cd385")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/JLCImport.3dshapes/1N4007W_C18199088.wrl"
+		(model "${KIPRJMOD}/../libraries/JLCImport.3dshapes/1N4007W_C18199088.wrl"
 			(offset
 				(xyz 0 0 -0.09)
 			)
@@ -27525,7 +27525,7 @@
 			(uuid "bf1749c2-438a-4b87-a715-14ed13f41ad9")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/Scott.3dshapes/87180-062LF.step"
+		(model "${KIPRJMOD}/../libraries/Custom.3dshapes/87180-062LF.step"
 			(offset
 				(xyz 3.175 -8.9 0)
 			)
@@ -28205,7 +28205,7 @@
 			(uuid "8b98fd14-da00-4ce0-935e-9072a003ec47")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/JLCImport.3dshapes/1N4148W_C81598.wrl"
+		(model "${KIPRJMOD}/../libraries/JLCImport.3dshapes/1N4148W_C81598.wrl"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -28520,7 +28520,7 @@
 			(uuid "6f7dacb0-c465-40bb-9d8f-f28a8c2ec175")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/JLCImport.3dshapes/1N4007W_C18199088.wrl"
+		(model "${KIPRJMOD}/../libraries/JLCImport.3dshapes/1N4007W_C18199088.wrl"
 			(offset
 				(xyz 0 0 -0.09)
 			)

@@ -380,7 +380,7 @@
 		(uuid "60f6db18-30e9-4101-8493-69a06b5b3fba")
 	)
 	(embedded_fonts no)
-	(model "${KIPRJMOD}/Scott.3dshapes/87180-066LF.step"
+	(model "${KIPRJMOD}/../libraries/Custom.3dshapes/87180-066LF.step"
 		(offset
 			(xyz 0 0 0)
 		)

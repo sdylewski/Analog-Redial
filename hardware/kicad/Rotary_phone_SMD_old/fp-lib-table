@@ -1,6 +1,6 @@
 (fp_lib_table
 	(version 7)
-	(lib (name "Scott") (type "KiCad") (uri "${KIPRJMOD}/Scott.pretty") (options "") (descr "Project footprints (WM8731, AG1171, ESP32-C6-WROOM-1)"))
+	(lib (name "Custom") (type "KiCad") (uri "${KIPRJMOD}/../libraries/Custom.pretty") (options "") (descr "Project footprints (WM8731, AG1171, ESP32-C6-WROOM-1)"))
 	(lib (name "Resistor_SMD") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/Resistor_SMD.pretty") (options "") (descr "SMD resistors (0402 default)"))
 	(lib (name "Capacitor_SMD") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/Capacitor_SMD.pretty") (options "") (descr "SMD capacitors (0402/0603/elec)"))
 	(lib (name "Diode_SMD") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/Diode_SMD.pretty") (options "") (descr "SMD diodes (SOD-123, SMB)"))

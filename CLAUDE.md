@@ -194,6 +194,13 @@ Global fab minimum stays **0.15 mm**; phone-line spacing comes from the `PhoneLi
 
 This is engineering guidance, not telecom safety certification.
 
+## Devin Agent Notes
+
+- **Do NOT run `launchctl`** — `launchctl` is blocked by organization policy.
+  If you need to set environment variables for GUI apps (e.g. `SSL_CERT_FILE`
+  for KiCad's bundled Python), describe the commands and ask the user to run
+  them in their own terminal.
+
 ## Status
 
 - Hardware: SMD4 is the current design — schematic unchanged from SMD3, re-routed as a 2-layer PCB. ERC/DRC-reviewed; not yet fabricated/bench-tested.

@@ -4212,7 +4212,7 @@
 			)
 		)
 	)
-	(footprint "Scott:AG1170_SIL"
+	(footprint "Custom:AG1170_SIL"
 		(layer "F.Cu")
 		(uuid "3bcebaf6-663f-4cdc-b6a4-b9015e04a02d")
 		(at 78.81 66.04)
@@ -8202,7 +8202,7 @@
 			)
 		)
 	)
-	(footprint "Scott:AG1170_SIL"
+	(footprint "Custom:AG1170_SIL"
 		(locked yes)
 		(layer "F.Cu")
 		(uuid "62d5bc46-528d-45a5-93a2-fb94f14af07d")
@@ -14923,7 +14923,7 @@
 			)
 		)
 	)
-	(footprint "Scott:WM8731_SSOP-28"
+	(footprint "Custom:WM8731_SSOP-28"
 		(layer "F.Cu")
 		(uuid "bd4da221-1f0a-4db9-9914-529983596b72")
 		(at 118.275 94 -90)

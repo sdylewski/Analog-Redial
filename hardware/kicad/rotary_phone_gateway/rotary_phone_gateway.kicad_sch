@@ -2955,7 +2955,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Scott_Symbol_Library:AG1170_SIL"
+		(symbol "Custom_Symbol_Library:AG1170_SIL"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -3283,7 +3283,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Scott_Symbol_Library:WM8731"
+		(symbol "Custom_Symbol_Library:WM8731"
 			(pin_names
 				(offset 1.016)
 			)
@@ -3315,7 +3315,7 @@
 					(justify bottom)
 				)
 			)
-			(property "Footprint" "Scott:WM8731_SSOP-28"
+			(property "Footprint" "Custom:WM8731_SSOP-28"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -7925,7 +7925,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Scott_Symbol_Library:AG1170_SIL")
+		(lib_id "Custom_Symbol_Library:AG1170_SIL")
 		(at 204.47 172.72 180)
 		(unit 1)
 		(body_style 1)
@@ -7956,7 +7956,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Scott:AG1170_SIL"
+		(property "Footprint" "Custom:AG1170_SIL"
 			(at 204.47 172.72 0)
 			(hide yes)
 			(show_name no)
@@ -12622,7 +12622,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Scott_Symbol_Library:AG1170_SIL")
+		(lib_id "Custom_Symbol_Library:AG1170_SIL")
 		(at 203.2 102.87 180)
 		(unit 1)
 		(body_style 1)
@@ -12653,7 +12653,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Scott:AG1170_SIL"
+		(property "Footprint" "Custom:AG1170_SIL"
 			(at 203.2 102.87 0)
 			(hide yes)
 			(show_name no)
@@ -14561,7 +14561,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Scott_Symbol_Library:WM8731")
+		(lib_id "Custom_Symbol_Library:WM8731")
 		(at 143.51 88.9 0)
 		(unit 1)
 		(body_style 1)
@@ -14592,7 +14592,7 @@
 				(justify bottom)
 			)
 		)
-		(property "Footprint" "Scott:WM8731_SSOP-28"
+		(property "Footprint" "Custom:WM8731_SSOP-28"
 			(at 143.51 88.9 0)
 			(hide yes)
 			(show_name no)

@@ -4826,7 +4826,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Scott_Symbol_Library:AG1171_SIL"
+		(symbol "Custom_Symbol_Library:AG1171_SIL"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -4853,7 +4853,7 @@
 					)
 				)
 			)
-			(property "Footprint" "Scott:AG1171_SIL"
+			(property "Footprint" "Custom:AG1171_SIL"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -8534,7 +8534,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Scott:RJ12_Amphenol_87180_Horizontal"
+		(property "Footprint" "Custom:RJ12_Amphenol_87180_Horizontal"
 			(at 364.49 67.945 90)
 			(hide yes)
 			(show_name no)
@@ -11480,7 +11480,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Scott:RJ12_Amphenol_87180_Horizontal"
+		(property "Footprint" "Custom:RJ12_Amphenol_87180_Horizontal"
 			(at 367.03 140.335 90)
 			(hide yes)
 			(show_name no)
@@ -17235,7 +17235,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Scott_Symbol_Library:AG1171_SIL")
+		(lib_id "Custom_Symbol_Library:AG1171_SIL")
 		(at 308.61 160.02 180)
 		(unit 1)
 		(body_style 1)
@@ -17267,7 +17267,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Scott:AG1171_SIL"
+		(property "Footprint" "Custom:AG1171_SIL"
 			(at 308.61 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -21997,7 +21997,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Scott_Symbol_Library:AG1171_SIL")
+		(lib_id "Custom_Symbol_Library:AG1171_SIL")
 		(at 307.34 87.63 180)
 		(unit 1)
 		(body_style 1)
@@ -22029,7 +22029,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Scott:AG1171_SIL"
+		(property "Footprint" "Custom:AG1171_SIL"
 			(at 307.34 87.63 0)
 			(hide yes)
 			(show_name no)
