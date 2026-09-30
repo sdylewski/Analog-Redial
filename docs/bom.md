@@ -43,9 +43,12 @@ passives — carries over unchanged from the SMD2 parts list.
 
 ## Hand-solder BOM
 
-**DigiKey total — build A (dual line): ~$31.86 · build B (single + SD):
-~$20.99.** Every row below is priced; excludes what JLC assembles. Prices
-checked 2026-09-30, quantity 1.
+**DigiKey total — build A (dual line): ~$31.11 · build B (single + SD):
+~$20.99.** Excludes what JLC assembles, plus the generic 2.54 mm headers,
+shunts and M3 hardware at the bottom of the table — commodity items, and the
+120-piece assortment linked in
+[`../archive/hardware/BOM-bluetooth.md`](../archive/hardware/BOM-bluetooth.md)
+covers every header on this board. Prices checked 2026-09-30, quantity 1.
 
 | | Qty | Component | DigiKey | AliExpress | Notes |
 |---|-----|-----------|---------|------------|-------|
@@ -53,13 +56,17 @@ checked 2026-09-30, quantity 1.
 | | 1 | SLIC: **U4** AG1171 @ **J9** (line 0) | [DigiKey](https://www.digikey.com/en/products/detail/silvertel/AG1171/21187236) $8.50 | [AliExpress](https://www.aliexpress.us/item/3256804758849823.html) $3.79 | Always populated. 14-SIP; DigiKey lead time 16 weeks |
 | | 1 | SLIC: **U3** AG1171 @ **J8** (line 1) | same as **U4** | same as **U4** | Build **A** only |
 | | 1 | **J1** DC barrel jack, 5.5 × 2.1 mm | [DigiKey](https://www.digikey.com/en/products/detail/mpd-memory-protection-devices/EJ508A/2439547) $1.25 | [AliExpress](https://www.aliexpress.us/item/3256802445218613.html) $2.70 / 10 | **EJ508A**, 2.1 mm ID / 5.5 mm OD, right-angle THT, 5 A. The **AliExpress jack is confirmed to fit this board** (verified 2026-09-30); the EJ508A's pin pattern hasn't been checked against the `Barrel_Jack_PTH_Slot` footprint yet. Alternate 5 V input, diode-ORed with USB-C; a 5.5–6 V brick covers the diode drop |
-| | 1 | Line TVS (line 0, @ **U4**/**J9**) — *optional indoors, see below* | [DigiKey](https://www.digikey.com/en/products/detail/littelfuse-inc/P6KE82A/688097) $0.75 | [AliExpress](https://www.aliexpress.us/item/3256809218310441.html) $2.70 / 20 | **P6KE82A** (Littelfuse), the part Silvertel names. 70 V standoff, 113 V clamp, 600 W. **Package is DO-204AC (DO-15), not DO-41** — check it against the board's `D_DO-41_..._P10.16mm` pads before ordering (10.16 mm lead span is generous; the 0.8 mm lead may want a slightly bigger drill). |
-| | 1 | Line TVS (line 1, @ **U3**/**J8**) | same as above | same as above | Build **A** only |
+| | 1 | **D12** line TVS — *optional, see below* | [DigiKey](https://www.digikey.com/en/products/detail/littelfuse-inc/P6KE82A/688097) $0.75 | [AliExpress](https://www.aliexpress.us/item/3256809218310441.html) $2.70 / 20 | **P6KE82A** (Littelfuse), the part Silvertel names. **One per board, not per line** — both lines' bridge diodes (D4–D11) feed the shared `/P6K` node that D12 clamps. 70 V standoff, 113 V clamp, 600 W. **Package is DO-204AC (DO-15), not DO-41** — check it against the board's `D_DO-41_..._P10.16mm` pads before ordering (10.16 mm lead span is generous; the 0.8 mm lead may want a slightly bigger drill). |
+
 | | 1 | **J9** RJ12 horizontal, 6p2c | [DigiKey](https://www.digikey.com/en/products/detail/amphenol-cs-fci/87180-062LF/1001369) $1.07 | [AliExpress](https://www.aliexpress.us/item/3256810043215346.html) $3.38 / 10 pcs | **87180-062LF**. AliExpress: pick the **322** variant. Alt **54601-006** — [DigiKey](https://www.digikey.com/en/products/detail/amphenol-icc/54601-006/1158894) |
 | | 1 | **J8** RJ12 horizontal, 6p2c | same as **J9** | same as **J9** | Build **A** only |
-| | 1 | **J5** 2×4 (8-pin) 2.54 mm header + 4× shunts | [DigiKey](https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/SSK03-MPH-254-B4/28772142) $0.13 | | **SSK03-MPH-254-B4**. Only needed for a 2nd line *or* the Bluetooth option (its programming header mates here) — a single-line board with microSD leaves J5 open and can skip it |
-| | 1 | 470 µF 16 V radial, line 0 SLIC bulk | [DigiKey](https://www.digikey.com/en/products/detail/rubycon/16YXJ470M8X11-5/3134104) $0.42 | | **16YXJ470M8X11.5**, **U4** +VPWR bulk (was $0.24 — DigiKey price rose) |
-| | 1 | 470 µF 16 V radial, line 1 SLIC bulk | same as above | | Build **A** only, **U3** +VPWR |
+| | 1 | **J5** 2×4 (8-pin) 2.54 mm header | [DigiKey](https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/SSK03-MPH-254-B4/28772142) $0.13 | | **SSK03-MPH-254-B4**. Only needed for a 2nd line *or* the Bluetooth option (its programming header mates here) — a single-line board with microSD leaves J5 open and can skip it |
+| | 1 | **C16** 470 µF 16 V radial, line 0 SLIC bulk | [DigiKey](https://www.digikey.com/en/products/detail/rubycon/16YXJ470M8X11-5/3134104) $0.42 | | **16YXJ470M8X11.5**, **U4** +VPWR bulk (was $0.24 — DigiKey price rose) |
+| | 1 | **C17** 470 µF 16 V radial, line 1 SLIC bulk | same as above | | Build **A** only, **U3** +VPWR |
+| | 2 | **J3**, **J4** 1×2 pin header, 2.54 mm | | | GPIO16/GPIO17 (UART) breakout — optional, skip if you never need the spare UART |
+| | 1 | **J7** 1×3 pin header, 2.54 mm | | | LOUT2/ROUT2 audio monitor header — optional, and dead unless **C10/C11** are populated (see below) |
+| | 4 | **J5** jumper shunts, 2.54 mm | | | Build **A** only, one per bridged pair |
+| | 4 | **H1**–**H4** M3 standoffs + screws | | | 3.2 mm mounting holes, one at each corner |
 
 **Buying the three big items from AliExpress instead** (carrier + 2× AG1171
 + RJ12) costs about **$18.68** against **$28.14** at DigiKey, and gets you
@@ -119,86 +126,54 @@ regenerated — see `CLAUDE.md`'s build-directory rules.
 
 ---
 
-## JLCPCB SMT assembly
+## SMT parts (JLCPCB-assembled)
 
-Mark all hand-solder refs **DNP** on the JLC BOM. **Extended loading:** ~$3
-per unique non-Basic LCSC part (ES8388; build B adds **Card1**).
-
-**Approximate SMT parts total: ~$2 (build A) / ~$2 (build B), plus ~$3–$6 in
-extended-part fees** — ES8388 always, **Card1** on build B, and **C10/C11**
-unless you downsize them (see *Capacitors*). Resistors and 0402 ceramics are
-fractions of a cent each and aren't itemised below.
-
-### Modules & connectors
+The full SMT list isn't reproduced here — it's commodity 0402 passives and
+diodes, and the authoritative version is the KiCad project itself
+(`hardware/kicad/Rotary_phone_SMD4/`; export BOM + CPL with the JLCPCB Tools
+plugin). Only the parts worth knowing about by name are listed below.
 
 | Qty | Component | JLC (LCSC) | Notes |
 |-----|-----------|------------|-------|
-| 1 | ES8388 | [C365736 (~$1)](https://www.lcsc.com/product-detail/C365736.html) | Extended |
-| 1 | **Card1** TF-01A | [C91145 (~$0.20)](https://www.lcsc.com/product-detail/C91145.html) | Build B; Extended |
+| 1 | **U2** ES8388 audio codec | [C365736 (~$1)](https://www.lcsc.com/product-detail/C365736.html) | **Extended.** The board's whole audio path — both phone lines' earpiece/mic and the monitor header run through it |
+| 1 | **Card1** microSD socket, TF-01A | [C91145 (~$0.20)](https://www.lcsc.com/product-detail/C91145.html) | **Extended.** Build **B** only |
+| 8 | **D4**–**D11** tip/ring bridge, M7 (1N4007) | [C18199088 (~$0.02)](https://www.lcsc.com/product-detail/C18199088.html) | Basic. 4 per line; all four cathodes of both bridges meet at `/P6K`, where **D12** clamps |
+| 1 | **D1** SS14 (diode-OR, DC jack) | [C2480 (~$0.05)](https://www.lcsc.com/product-detail/C2480.html) | Basic. Cathode → +5 V |
 
-### Diodes
+Everything else — I²C pull-ups, SHK dividers, codec decoupling, SLIC
+coupling caps — is Basic-library 0402 parts costing fractions of a cent.
+**Budget ~$2 in SMT parts plus ~$3 per unique Extended part** (ES8388
+always; **Card1** on build B).
 
-| Qty | Component | JLC (LCSC) | Notes |
-|-----|-----------|------------|-------|
-| 1 | **D1** SS14 (diode-OR, DC jack) | [C2480 (~$0.05)](https://www.lcsc.com/product-detail/C2480.html) | Basic; cathode → +5 V |
-| 1–2 | PD diode(s), 1N4148W | [C81598 (~$0.01)](https://www.lcsc.com/product-detail/C81598.html) | Basic; 1 per populated SLIC |
-| 4–8 | Tip/ring bridge, M7 (1N4007) | [C18199088 (~$0.02)](https://www.lcsc.com/product-detail/C18199088.html) | Basic; 4 per populated SLIC |
+### C10/C11 — the monitor header's coupling caps
 
-### Resistors (0402)
+These AC-couple the ES8388's second output pair (`LOUT2`/`ROUT2`, which the
+firmware mirrors from the earpiece volume) to **J7**, each through a 47 kΩ
+bleed to GND. They were 100 µF 1206 — an Extended part sized for driving
+16–32 Ω headphones directly.
 
-| Qty | Component | JLC (LCSC) | Notes |
-|-----|-----------|------------|-------|
-| 2–4 | 10 kΩ, SHK divider + microSD DAT pull-ups | [C25744](https://www.lcsc.com/product-detail/C25744.html) | 1–2 per SHK divider, 2 for microSD (build B) |
-| 1–2 | 15 kΩ, SHK divider | [C25756](https://www.lcsc.com/product-detail/C25756.html) | 1 per populated SLIC |
-| 2 | 4.7 kΩ, I²C pull-ups (SDA/SCL) | [C25900](https://www.lcsc.com/product-detail/C25900.html) | Always populated |
-| 1 | 10 Ω, ES8388 AVDD → HPVDD (optional) | [C25077](https://www.lcsc.com/product-detail/C25077.html) | Optional |
+**As built they're a 5 mm-pitch through-hole footprint, left unpopulated**
+(decided 2026-09-30), which keeps J7 available later without paying the
+Extended fee or committing to a value now. **Fit 1 µF** to listen to or
+scope the header: against the 47 kΩ bleed that's a ~3 Hz corner, far below
+the 300–3400 Hz phone band, and a non-polarized film or ceramic part has no
+orientation to get wrong. Only headphone drive needs 47–100 µF, and a 6.3 mm
+electrolytic fits the same 5 mm pitch with its 2.5 mm leads splayed out.
 
-### Capacitors
+**Polarity, if an electrolytic is ever fitted: + toward the ES8388**
+(`LOUT2`/`ROUT2`, U2 pins 14/15), − toward J7. The codec's outputs idle at
+VMID ≈ AVDD/2 ≈ 1.65 V, while the J7 side is held at 0 V by the bleed
+resistor, so the codec side is always the positive one.
 
-| Qty | Component | JLC (LCSC) | Notes |
-|-----|-----------|------------|-------|
-| 3 | 1 µF 0402, ES8388 VREF/ADCVREF/VMID | [C52923](https://www.lcsc.com/product-detail/C52923.html) | Always populated |
-| 5 | 100 nF 0402, ES8388 DVDD/PVDD/AVDD/HPVDD | [C1525](https://www.lcsc.com/product-detail/C1525.html) | Always populated |
-| 1 | 10 µF 0603, ES8388 AVDD bulk | [C15525](https://www.lcsc.com/product-detail/C15525.html) | Always populated |
-| 1–2 | 10 nF 0402, SLIC VIN coupling | [C15195](https://www.lcsc.com/product-detail/C15195.html) | 1 per populated SLIC |
-| 1–2 | 100 nF 0402, SLIC VOUT coupling | [C1525](https://www.lcsc.com/product-detail/C1525.html) | 1 per populated SLIC |
-| 1–2 | 100 nF 0402, SLIC +5 V bypass | [C1525](https://www.lcsc.com/product-detail/C1525.html) | 1 per populated SLIC |
-| 2 | **C10/C11** 100 µF 1206, LOUT2/ROUT2 → **J7** monitor header | [C13585 (~$0.10)](https://www.lcsc.com/product-detail/C13585.html) | **Extended** — downsize to 1 µF 0402 unless you drive headphones from J7, see below |
-
-**C10/C11 can almost certainly be 1 µF 0402 instead.** They AC-couple the
-ES8388's second output pair (`LOUT2`/`ROUT2`, which the firmware just
-mirrors from the earpiece volume) to **J7**, the 3-pin monitor header, each
-with a 47 kΩ bleed to GND. 100 µF is sized for driving 16–32 Ω headphones
-directly — into 32 Ω, 1 µF would put the high-pass corner near 5 kHz and
-gut the audio. But into anything high-impedance — a scope probe, a line
-input, a powered speaker — the 47 kΩ bleed dominates and **1 µF already
-gives a ~3 Hz corner** (~19 Hz into a 10 kΩ line input), far below the
-300–3400 Hz phone band. So unless you plan to plug headphones straight into
-J7, swap to the 1 µF 0402 already on the reel: it drops an Extended part
-(~$3 of the JLC fee) and two 1206 footprints. Keep ≥47 µF only for the
-headphone case.
-
-**As built, C10/C11 are a 5 mm-pitch through-hole footprint, left
-unpopulated** (decided 2026-09-30). That keeps J7 available to whoever wants
-it later without paying the Extended-part fee or committing to a value now.
-**Fit 1 µF** when you want to listen to or scope that header — film or
-ceramic, non-polarized, nothing to get backwards, and a ~3 Hz corner against
-the 47 kΩ bleed. A 6.3 mm electrolytic also fits with its 2.5 mm leads
-splayed out to 5 mm, if someone later wants the 47–100 µF needed to drive
-headphones directly.
-
-Unpopulated, **J7 is dead** — the bleed resistors tie it to ground and no
-signal reaches it. That's the intended state, not a fault.
-
-**470 µF SLIC bulk caps are hand-solder only** — THT electrolytic, not a JLC
-SMT part; see the hand-solder capacitors table above.
+**Unpopulated, J7 is dead** — the bleeds tie it to ground and no signal
+reaches it. Intended, not a fault.
 
 ### JLC order checklist
 
 | | Step |
 |---|------|
 | | Generate Gerber + BOM + CPL (JLCPCB Tools) |
-| | DNP all hand-solder refs (carrier module, DC jack, jumper header, SLICs, RJ12, TVS, 470 µF bulk) on the JLC BOM |
+| | DNP every hand-solder ref (**U1**, **U3**/**U4**, **J1**, **J3**–**J5**, **J7**–**J9**, **D12**, **C16**/**C17**, **H1**–**H4**) and **C10**/**C11** |
 | | Extended: **C365736** (ES8388); build B adds **C91145** (Card1) |
 | | Confirm build A vs. build B stuffing before generating CPL — line 1's SLIC support parts and **Card1** are mutually exclusive |
 
