@@ -38,13 +38,19 @@ in the main board's reel.
 
 Skip this whole table on a board built without Bluetooth.
 
+**Check the LDO's input rating against your DC supply.** The XC6206's
+maximum input is around 6 V, and the board's +5 V rail sits only a diode drop
+below whatever the DC jack is fed — so a 6 V brick leaves little margin. Fine
+on USB or a 5 V supply; confirm against the datasheet if you run the jack at
+the top of the recommended 5.5–6 V range.
+
 **DigiKey subtotal: ~$0.17** — everything else here is stock 0402 passives
 and a sub-$0.10 LDO, so the Bluetooth option lands at **~$15 all in**.
 
 | Qty | Ref | Part number | Description | DigiKey | AliExpress | Amazon |
 |-----|-----|-------------|-------------|---------|------------|--------|
 | 1 | **J2** | `SSK01-MPH-254-A8` | 8-pin male header, 2.54 mm — the companion link (power, both audio directions, UART, MFB) | [DigiKey](https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/SSK01-MPH-254-A8/28772164) $0.17 | | |
-| 1 | **U5** | `XC6206P332MR` | 3.3 V LDO, SOT-23 — dedicated BM64 rail off +5 V, keeps the module off the DevKit's regulator (LCSC `C5446`) | | | |
+| 1 | **U5** | `XC6206P332MR-G` | 3.3 V LDO, SOT-23-3L — dedicated BM64 rail off +5 V, keeps the module off the DevKit's regulator. **LCSC `C5446`, a JLC Basic part at ~$0.14** (verified 2026-09-30), so no Extended fee | | | |
 | 2 | **C25, C26** | — | 1 µF 0402 ceramic, ≥6.3 V — LDO input and output | | | |
 | 1 | **C23** | — | 1 µF 0402 ceramic, ≥6.3 V — AOHPL → Line0Vin coupling | | | |
 | 1 | **C22** | — | 1 µF 0402 ceramic — Line0Vout → MIC_P1 coupling | | | |

@@ -275,6 +275,12 @@ an existing board simply **remove the 15 kΩ** (≈3.1–3.2 V; the 10 kΩ stays
 in series as current protection). Both are safe: SHK can't exceed its own
 ~3.3 V internal pull-up, under the ESP32's 3.6 V absolute maximum.
 
+**Which parts to lift:** the 15 kΩ pull-downs are **R14** (line 0) and
+**R12** (line 1). The 10 kΩ series resistors — **R15** (line 0) and **R13**
+(line 1) — stay put. Removing both 15 kΩ resistors is **confirmed working on
+real hardware** (2026-09-27): a board where line 1 had never registered a
+handset lift read both lines correctly afterwards, with no other change.
+
 **Mounting:** the AG1171 is a through-hole SIL module — hand-soldered even
 on this SMD board.
 
