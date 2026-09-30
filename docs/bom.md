@@ -52,7 +52,7 @@ linked in
 [`../archive/hardware/BOM-bluetooth.md`](../archive/hardware/BOM-bluetooth.md)
 covers every header on this board.
 
-### Base board — every build · **~$18.99**
+### Base board — every build · **~$19.12**
 
 | | Qty | Component | DigiKey | AliExpress | Notes |
 |---|-----|-----------|---------|------------|-------|
@@ -60,60 +60,125 @@ covers every header on this board.
 | | 1 | **U4** AG1171 SLIC (line 0, @ **J9**) | [DigiKey](https://www.digikey.com/en/products/detail/silvertel/AG1171/21187236) $8.50 | [AliExpress](https://www.aliexpress.us/item/3256804758849823.html) $3.79 | 14-SIP. DigiKey lead time 16 weeks — buy a spare |
 | | 1 | **C16** 470 µF 16 V radial | [DigiKey](https://www.digikey.com/en/products/detail/rubycon/16YXJ470M8X11-5/3134104) $0.42 | | **16YXJ470M8X11.5**, **U4** +VPWR bulk |
 | | 1 | **J9** RJ12 horizontal, 6p2c | [DigiKey](https://www.digikey.com/en/products/detail/amphenol-cs-fci/87180-062LF/1001369) $1.07 | [AliExpress](https://www.aliexpress.us/item/3256810043215346.html) $3.38 / 10 pcs | **87180-062LF**. AliExpress: pick the **322** variant. Alt **54601-006** — [DigiKey](https://www.digikey.com/en/products/detail/amphenol-icc/54601-006/1158894) |
+| | 1 | **J5** 2×4 (8-pin) 2.54 mm header | [DigiKey](https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/SSK03-MPH-254-B4/28772142) $0.13 | | **SSK03-MPH-254-B4**. Fitted on every build at this price — a second line needs it and so does Bluetooth. Two 1×4 strips cut from existing stock do the same job |
 
-### Add: second phone line · **+~$10.12**
-
-Mutually exclusive with microSD — the microSD build leaves **J5** open and
-needs none of this.
+### Add: second phone line · **+~$9.99**
 
 | | Qty | Component | DigiKey | AliExpress | Notes |
 |---|-----|-----------|---------|------------|-------|
 | | 1 | **U3** AG1171 SLIC (line 1, @ **J8**) | same as **U4** | same as **U4** | |
 | | 1 | **C17** 470 µF 16 V radial | same as **C16** | | **U3** +VPWR bulk |
 | | 1 | **J8** RJ12 horizontal, 6p2c | same as **J9** | same as **J9** | |
-| | 1 | **J5** 2×4 (8-pin) 2.54 mm header | [DigiKey](https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/SSK03-MPH-254-B4/28772142) $0.13 | | **SSK03-MPH-254-B4** |
-| | 4 | **J5** jumper shunts, 2.54 mm | | | One per bridged pair (1-2, 3-4, 5-6, 7-8) |
+| | 4 | **J5** jumper shunts, 2.54 mm | | | Bridge all four pairs (1-2, 3-4, 5-6, 7-8) |
+
+**A second line rules out microSD.** Line 1's SLIC and the microSD socket
+share GPIO18–21, and **J5** is the switch between them: bridge all four
+pairs for line 1, or leave them all open for microSD — never a mix. The
+firmware enforces it. Put a card in with the board configured for two lines
+and it **powers line 1 down** and raises a banner in the web UI until you
+remove the card or switch the board to single-line + microSD in Settings →
+Hardware.
+
+Losing microSD costs recording space, not function — recordings fall back to
+internal flash, ~4 MB by default.
 
 ### Add: Bluetooth companion · **+~$14.97**
 
 | | Qty | Component | DigiKey | AliExpress | Notes |
 |---|-----|-----------|---------|------------|-------|
 | | 1 | **J2** 8-pin male header, 2.54 mm | [DigiKey](https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/SSK01-MPH-254-A8/28772164) $0.17 | | **SSK01-MPH-254-A8**, the companion link |
-| | 1 | Carrier board + BM64 module | ~$14.80 | | Second PCB, **not yet fabricated** — see [`BOM-bluetooth.md`](../archive/hardware/BOM-bluetooth.md) |
-| | 1 | **J5** 2×4 header | as above, $0.13 | | Only if not already fitted for a 2nd line — the carrier's programming header mates here |
+| | 1 | Carrier PCB | — | | **Not yet fabricated.** Its own KiCad project, `Bluetooth/Bluetooth_board/` |
+| | 1 | **BM64** module + carrier parts | ~$14.80 | | See [`BOM-bluetooth.md`](../archive/hardware/BOM-bluetooth.md) |
 
-### Optional · **+~$2.00**
+Three things to know before committing to this option:
+
+- **It needs a second PCB fabricated.** The carrier is its own board and
+  hasn't been ordered yet.
+- **The BM64 is surface-mount** — a 43-pad module with no leads to reach
+  with an iron. Building the carrier yourself means a **reflow oven or
+  hotplate**, or paying for assembly.
+- **It uses J5.** The carrier's programming header mates with the
+  line-1/microSD jumper header for one-time EEPROM setup — which is why the
+  base board fits **J5** whether or not it has a second line.
+
+### Optional: DC jack and power supply
 
 | | Qty | Component | DigiKey | AliExpress | Notes |
 |---|-----|-----------|---------|------------|-------|
-| | 1 | **J1** DC barrel jack, 5.5 × 2.1 mm | [DigiKey](https://www.digikey.com/en/products/detail/mpd-memory-protection-devices/EJ508A/2439547) $1.25 | [AliExpress](https://www.aliexpress.us/item/3256802445218613.html) $2.70 / 10 | Alternate 5 V input, diode-ORed with USB-C; a 5.5–6 V brick covers the diode drop. Skip it if you always power over USB. **The AliExpress jack is verified to fit**; the EJ508A's pin pattern hasn't been checked against the `Barrel_Jack_PTH_Slot` footprint |
-| | 1 | **D12** line TVS | [DigiKey](https://www.digikey.com/en/products/detail/littelfuse-inc/P6KE82A/688097) $0.75 | [AliExpress](https://www.aliexpress.us/item/3256809218310441.html) $2.70 / 20 | **P6KE82A**, 70 V standoff / 113 V clamp / 600 W — the part Silvertel names. **One per board, not per line.** Recommended; see below. **Package is DO-204AC (DO-15), not DO-41** — check against the board's `D_DO-41_..._P10.16mm` pads (the span is generous; the 0.8 mm lead may want a bigger drill) |
+| | 1 | **J1** DC barrel jack, 5.5 × 2.1 mm | [DigiKey](https://www.digikey.com/en/products/detail/mpd-memory-protection-devices/EJ508A/2439547) $1.25 | [AliExpress](https://www.aliexpress.us/item/3256802445218613.html) $2.70 / 10 | **EJ508A**. The AliExpress jack is **verified to fit**; the EJ508A's pin pattern hasn't been checked against the `Barrel_Jack_PTH_Slot` footprint |
+| | 1 | **D12** line TVS | [DigiKey](https://www.digikey.com/en/products/detail/littelfuse-inc/P6KE82A/688097) $0.75 | [AliExpress](https://www.aliexpress.us/item/3256809218310441.html) $2.70 / 20 | **P6KE82A**, 70 V standoff / 113 V clamp / 600 W. **One per board, not per line.** Recommended — see below. **Package is DO-204AC (DO-15), not DO-41**: check against the board's `D_DO-41_..._P10.16mm` pads (the span is generous; the 0.8 mm lead may want a bigger drill) |
 
-**Fully loaded** (dual line + Bluetooth + both optional parts): **~$46.08**.
+**Either input works, and both want ~2 A.** The two 5 V sources are
+diode-ORed onto one rail, so use whichever is convenient:
 
-**AliExpress saves most on the SLICs** — $3.79 against $8.50, so ~$9.40 on a
-two-line board — and its 16 MB carrier costs less than DigiKey's 8 MB one.
-The trade is longer shipping and no returns.
+- **USB-C** into the DevKit's own port — from a **2 A** charger or port.
+- **DC jack** — a **2 A**, 5.5 × 2.1 mm centre-positive supply. It arrives
+  through the OR diode, so a **5.5–6 V** brick covers the ~0.4 V drop better
+  than a bare 5 V one.
+
+2 A sizes the worst case, not the average: each AG1171 draws roughly 240 mA
+running and considerably more while ringing, with the ESP32's WiFi bursts on
+top. One idle line is happy on far less — but a two-line board ringing both
+phones mid-transmit is what browns out an undersized supply, and a brownout
+during a ring looks exactly like a mysterious reboot.
+
+**Fit the jack if** the board lives somewhere permanent, or you'd rather not
+tie up a USB port. **Skip it** if it will always hang off a laptop or
+charger.
 
 ### Is the line TVS optional?
 
-**Optional, but recommended.** Nothing in normal operation depends on it:
-it clamps at 113 V, well above anything this board produces (48 V loop feed,
-~60 Vrms ring, ~90 V peak). It earns its place the day something goes
-wrong, and there are two realistic ways for that to happen:
+**Optional, but recommended.** Nothing in normal operation depends on it: it
+clamps at 113 V, well above anything this board produces (48 V loop feed,
+~60 Vrms ring, ~90 V peak). It earns its place the day something goes wrong,
+and there are two realistic ways for that:
 
-- **Someone plugs a board jack into a real phone line.** The RJ12 jacks here
-  look exactly like wall jacks, and this board is its own exchange — it
-  expects to *drive* tip/ring, not to meet a live telco line with its own
-  ring voltage on it. That's an easy mistake for a guest, a housemate, or
-  future-you in a hurry.
+- **Someone plugs a board jack into a real phone line.** The RJ12 jacks look
+  exactly like wall jacks, and this board is its own exchange — it expects to
+  *drive* tip/ring, not to meet a live telco line with its own ring voltage
+  on it. That's an easy mistake for a guest, a housemate, or future-you in a
+  hurry.
 - **Surges from outside wiring.** Lightning-induced transients and ESD get
   onto house and outside-plant cabling and arrive down the phone cord.
 
-If every phone sits in the same room on a short cord, and the jacks can
-never reach house or telco wiring, you can leave it off. Otherwise populate
-it: **$0.75 protecting an $8.50 SLIC** with a 16-week re-order time is
-cheap insurance, and the failure it prevents is a dead board, not a glitch.
+If every phone sits in the same room on a short cord and the jacks can never
+reach house or telco wiring, leave it off. Otherwise populate it: **$0.75
+protecting an $8.50 SLIC** with a 16-week re-order time is cheap insurance,
+and the failure it prevents is a dead board, not a glitch.
+
+### Optional: the spare headers
+
+Neither is needed for any feature — both are footprints brought out for
+people who want to hack on the board. Generic 2.54 mm pin headers.
+
+| Ref | What it is | What it's for |
+|-----|-----------|---------------|
+| **J7** | 1×3 audio monitor out | The codec's second output pair, mirroring the earpiece volume. Scope it, feed a powered speaker, or listen in on a call without picking up a handset. **Dead until C10/C11 are populated** — see below |
+| **J3**, **J4** | 1×2 each, on GPIO16 and GPIO17 | The ESP32's spare UART pins — usable as general-purpose I/O (a button or switch input, an LED or relay output) or as a serial console |
+
+**J3/J4 come with two catches.** The Bluetooth companion claims GPIO16/17
+for its own UART, so those two options are mutually exclusive. And on the
+**30-pin clone module** these pins aren't reachable at all once its traces
+are cut — see below.
+
+### MCU module: 32-pin or 30-pin clone
+
+The footprint takes either, but they are not equivalent.
+
+| | **32-pin (recommended)** | **30-pin clone** |
+|--|--|--|
+| Part | Genuine ESP32-C6-DevKitC-1, N16 or N8 | AliExpress clone, ~$3.99 |
+| Fitting | Drops straight in | **Cut two traces on the back, add two solder bridges** |
+| Native USB | Works — flashing and console | Its USB pins land on other nets; console goes to UART instead |
+| **J3**/**J4** spare UART | Available | **Not available** after the trace cuts |
+| Status | Known good | **Untested here** |
+
+The clone saves about $4 and is the cheapest way to 16 MB of flash, but it
+costs native USB, the spare UART header, and a known-good starting point.
+Use the genuine module unless you have a reason not to, and if you do use a
+clone, expect to debug it. The pad swap and the jumpers it needs are written
+up in
+[`../archive/hardware/ANALOG_REDIAL_SMD5.md`](../archive/hardware/ANALOG_REDIAL_SMD5.md).
 
 ### Flash size: 16 MB vs 8 MB
 
