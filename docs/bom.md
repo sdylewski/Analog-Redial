@@ -43,26 +43,43 @@ passives — carries over unchanged from the SMD2 parts list.
 
 ## Hand-solder BOM
 
-| | Qty | Component | DigiKey | AliExpress / JLC | Notes |
-|---|-----|-----------|---------|-------------------|-------|
-| | 1 | MCU carrier: **U1** ESP32-C6-DevKitC-1 (or equivalent ESP32-C6 dev board) | `[TODO: confirm part number/price]` | `[TODO: confirm part number/price]` | Complete dev board — own USB-C, reset button, onboard 3.3 V reg; header/socket-mounted, not soldered flat |
-| | 1 | SLIC: **U4** AG1171 @ **J9** (line 0) | [5061-AG1171-ND ($8.50)](https://www.digikey.com/en/products/detail/silvertel/AG1171/21187236) | | Always populated |
-| | 1 | SLIC: **U3** AG1171 @ **J8** (line 1) | same as **U4** | | Build **A** only |
-|---|-----|-----------|---------|-------------------|-------|
-| | 1 | **J1** DC barrel jack | `[TODO: confirm part number/price]` | `[TODO: confirm part number/price]` | Alternate 5 V input, diode-ORed with USB-C; confirm DevKit's onboard regulator's minimum input headroom before specifying jack voltage (5.5–6 V DC brick recommended if the diode drop matters) |
-| | 1 | Line TVS (line 0, @ **U4**/**J9**) | [BZT03C82-TAP-ND (~$1)](https://www.digikey.com/en/products/detail/vishay-general-semiconductor-diodes-division/BZT03C82-TAP/7464977) | | DO-41 axial; alt **P6KE82** per Silvertel |
-| | 1 | Line TVS (line 1, @ **U3**/**J8**) | same as above | |  |
-| | 1 | **J9** RJ12 horizontal | [609-1055-ND ($0.83)](https://www.digikey.com/en/products/detail/amphenol-icc/87180-062LF/1159085) **87180-062LF** | | Alt **54601-006** [609-54601-006R-ND](https://www.digikey.com/en/products/detail/amphenol-icc/54601-006/1158894) |
-| | 1 | **J8** RJ12 horizontal | same as **J9** | | Build **A** only |
-| | 1 | **J5** 2×4 (8-pin) 2.54 mm jumper header + 4× shunts | `[TODO: confirm part number/price]` | `[TODO: confirm part number/price]` | Bridge all 4 pairs for line 1; leave open for microSD — see `hardware.md` §3 |
+**DigiKey subtotal, priced rows below — build A (dual line): ~$31.11 · build
+B (single + SD): ~$19.99.** Excludes the DC jack (still unpicked) and
+everything JLC assembles. Prices checked 2026-09-30, quantity 1.
 
-| | 1 | 470 µF 16 V radial, line 0 SLIC bulk | [1189-1146-ND ($0.24)](https://www.digikey.com/en/products/detail/rubycon/16YXJ470M8X11-5/3134104) **16YXJ470M8X11.5** | | **U4** +VPWR bulk |
+| | Qty | Component | DigiKey | AliExpress | Notes |
+|---|-----|-----------|---------|------------|-------|
+| | 1 | MCU carrier: **U1** ESP32-C6-DevKitC-1 (or equivalent) | [DigiKey](https://www.digikey.com/en/products/detail/espressif-systems/ESP32-C6-DEVKITC-1-N8/17728861) $9.00 | [AliExpress](https://www.aliexpress.us/item/3256806563223929.html) $7.72 · [AliExpress](https://www.aliexpress.us/item/3256809110312291.html) $3.99 | DigiKey stocks the **N8** (8 MB) only — fine, but see *Flash size* below. AliExpress $7.72 = 32-pin **N16** (16 MB), the known-good shape. $3.99 = 30-pin clone: **needs trace cuts + 2 solder bridges, and is untested here** |
+| | 1 | SLIC: **U4** AG1171 @ **J9** (line 0) | [DigiKey](https://www.digikey.com/en/products/detail/silvertel/AG1171/21187236) $8.50 | [AliExpress](https://www.aliexpress.us/item/3256804758849823.html) $3.79 | Always populated. 14-SIP; DigiKey lead time 16 weeks |
+| | 1 | SLIC: **U3** AG1171 @ **J8** (line 1) | same as **U4** | same as **U4** | Build **A** only |
+| | 1 | **J1** DC barrel jack | `[TODO: confirm part number/price]` | | Alternate 5 V input, diode-ORed with USB-C; confirm the DevKit regulator's input headroom before picking a voltage (5.5–6 V brick if the diode drop matters) |
+| | 1 | Line TVS (line 0, @ **U4**/**J9**) | [DigiKey](https://www.digikey.com/en/products/detail/vishay-general-semiconductor-diodes-division/BZT03C82-TAP/7464977) ~$1.00 | | DO-41 axial; alt **P6KE82** per Silvertel |
+| | 1 | Line TVS (line 1, @ **U3**/**J8**) | same as above | | Build **A** only |
+| | 1 | **J9** RJ12 horizontal, 6p2c | [DigiKey](https://www.digikey.com/en/products/detail/amphenol-cs-fci/87180-062LF/1001369) $1.07 | [AliExpress](https://www.aliexpress.us/item/3256810043215346.html) $3.38 / 10 pcs | **87180-062LF**. AliExpress: pick the **322** variant. Alt **54601-006** — [DigiKey](https://www.digikey.com/en/products/detail/amphenol-icc/54601-006/1158894) |
+| | 1 | **J8** RJ12 horizontal, 6p2c | same as **J9** | same as **J9** | Build **A** only |
+| | 1 | **J5** 2×4 (8-pin) 2.54 mm header + 4× shunts | [DigiKey](https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/SSK03-MPH-254-B4/28772142) $0.13 | | **SSK03-MPH-254-B4**. Only needed for a 2nd line *or* the Bluetooth option (its programming header mates here) — a single-line board with microSD leaves J5 open and can skip it |
+| | 1 | 470 µF 16 V radial, line 0 SLIC bulk | [DigiKey](https://www.digikey.com/en/products/detail/rubycon/16YXJ470M8X11-5/3134104) $0.42 | | **16YXJ470M8X11.5**, **U4** +VPWR bulk (was $0.24 — DigiKey price rose) |
 | | 1 | 470 µF 16 V radial, line 1 SLIC bulk | same as above | | Build **A** only, **U3** +VPWR |
 
-**Upload note:** the DigiKey links above are individual parts, not a
-pre-built cart CSV — this board's carrier/DC-jack/jumper-header parts aren't
-final yet (see `[TODO]` rows), so a bulk-cart export isn't generated until
-those are picked.
+**Buying the three big items from AliExpress instead** (carrier + 2× AG1171
++ RJ12) costs about **$18.68** against **$28.14** at DigiKey, and gets you
+16 MB of flash rather than 8 MB — at the cost of longer shipping and no
+returns. The SLICs are the bulk of the saving.
+
+### Flash size: 16 MB vs 8 MB
+
+**The firmware fits either way** — the app is ~1.5 MB against a 1.75 MB OTA
+slot. What shrinks on an 8 MB part is room for audio. The current 16 MB
+layout (`firmware/partitions.csv`) spends 1.75 MB × 2 on OTA slots, 6 MB on
+recordings (`/assets`) and 2 MB on built-in clips (`/bundled`), and still
+leaves ~4.5 MB unused.
+
+An 8 MB part needs a re-cut: keep both OTA slots (3.5 MB), shrink `bundled`
+to ~1.75 MB (it only holds ~1.55 MB today) and `storage` lands at ~2.5 MB
+instead of 6 MB — so lower the recording cap from its current 4 MB to
+match. Dropping OTA entirely would buy back 1.75 MB for recordings, at the
+cost of web-UI firmware updates. Either is a `partitions.csv` edit, not a
+code change.
 
 ---
 
@@ -70,6 +87,11 @@ those are picked.
 
 Mark all hand-solder refs **DNP** on the JLC BOM. **Extended loading:** ~$3
 per unique non-Basic LCSC part (ES8388; build B adds **Card1**).
+
+**Approximate SMT parts total: ~$2 (build A) / ~$2 (build B), plus ~$3–$6 in
+extended-part fees** — ES8388 always, **Card1** on build B, and **C10/C11**
+unless you downsize them (see *Capacitors*). Resistors and 0402 ceramics are
+fractions of a cent each and aren't itemised below.
 
 ### Modules & connectors
 
@@ -105,6 +127,20 @@ per unique non-Basic LCSC part (ES8388; build B adds **Card1**).
 | 1–2 | 10 nF 0402, SLIC VIN coupling | [C15195](https://www.lcsc.com/product-detail/C15195.html) | 1 per populated SLIC |
 | 1–2 | 100 nF 0402, SLIC VOUT coupling | [C1525](https://www.lcsc.com/product-detail/C1525.html) | 1 per populated SLIC |
 | 1–2 | 100 nF 0402, SLIC +5 V bypass | [C1525](https://www.lcsc.com/product-detail/C1525.html) | 1 per populated SLIC |
+| 2 | **C10/C11** 100 µF 1206, LOUT2/ROUT2 → **J7** monitor header | [C13585 (~$0.10)](https://www.lcsc.com/product-detail/C13585.html) | **Extended** — downsize to 1 µF 0402 unless you drive headphones from J7, see below |
+
+**C10/C11 can almost certainly be 1 µF 0402 instead.** They AC-couple the
+ES8388's second output pair (`LOUT2`/`ROUT2`, which the firmware just
+mirrors from the earpiece volume) to **J7**, the 3-pin monitor header, each
+with a 47 kΩ bleed to GND. 100 µF is sized for driving 16–32 Ω headphones
+directly — into 32 Ω, 1 µF would put the high-pass corner near 5 kHz and
+gut the audio. But into anything high-impedance — a scope probe, a line
+input, a powered speaker — the 47 kΩ bleed dominates and **1 µF already
+gives a ~3 Hz corner** (~19 Hz into a 10 kΩ line input), far below the
+300–3400 Hz phone band. So unless you plan to plug headphones straight into
+J7, swap to the 1 µF 0402 already on the reel: it drops an Extended part
+(~$3 of the JLC fee) and two 1206 footprints. Keep ≥47 µF only for the
+headphone case.
 
 **470 µF SLIC bulk caps are hand-solder only** — THT electrolytic, not a JLC
 SMT part; see the hand-solder capacitors table above.

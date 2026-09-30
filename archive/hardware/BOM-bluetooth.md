@@ -19,6 +19,8 @@ change. Blank cell = no link sourced for that store yet, not "unavailable".
 
 ## Carrier board (`Bluetooth/Bluetooth_board/`)
 
+**DigiKey subtotal: ~$14.80** (the 4-pin programming header isn't sourced yet).
+
 | Qty | Ref | Part number | Description | DigiKey | AliExpress | Amazon |
 |-----|-----|-------------|-------------|---------|------------|--------|
 | 1 | **U5** | `BM64SPKS1MC2-0003AA` | BM64 Bluetooth 5.0 stereo audio module, Class 2, RF shield, 43-SMD | [DigiKey](https://www.digikey.com/en/products/detail/microchip-technology/BM64SPKS1MC2-0003AA/13252265) $14.40 | | |
@@ -35,6 +37,9 @@ in the main board's reel.
 ## Main board (SMD5) — parts added for the Bluetooth option
 
 Skip this whole table on a board built without Bluetooth.
+
+**DigiKey subtotal: ~$0.17** — everything else here is stock 0402 passives
+and a sub-$0.10 LDO, so the Bluetooth option lands at **~$15 all in**.
 
 | Qty | Ref | Part number | Description | DigiKey | AliExpress | Amazon |
 |-----|-----|-------------|-------------|---------|------------|--------|

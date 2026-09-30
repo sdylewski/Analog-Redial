@@ -136,7 +136,7 @@ esp_err_t es8388_init(const es8388_config_t *cfg)
     /* Sequence below follows Espressif's proven es8388_init()/es8388_start()
      * order (esp-adf audio_hal/driver/es8388), adapted for: I2S slave (ESP32
      * is master), 16-bit Philips I2S, all four outputs enabled -- LOUT1/ROUT1
-     * feed the two phone lines' SLICs, LOUT2/ROUT2 feed the J5 debug/monitor
+     * feed the two phone lines' SLICs, LOUT2/ROUT2 feed the J7 debug/monitor
      * header (same left/right mix duplicated onto a second driver pair per
      * the ES8388 datasheet section 9.1, not an independent signal) -- and ADC
      * capturing line 0 (LINPUT1) by default. */
@@ -183,8 +183,8 @@ esp_err_t es8388_init(const es8388_config_t *cfg)
     uint8_t spk_l = board_speaker_volume_get(0, 31);
     uint8_t spk_r = board_speaker_volume_get(1, 31);
     es8388_set_dac_volume(spk_l, spk_r);
-    raw_write(ES8388_REG_LOUT2VOL, spk_l);             /* LOUT2 mirrors LOUT1 (J5 debug header) */
-    raw_write(ES8388_REG_ROUT2VOL, spk_r);             /* ROUT2 mirrors ROUT1 (J5 debug header) */
+    raw_write(ES8388_REG_LOUT2VOL, spk_l);             /* LOUT2 mirrors LOUT1 (J7 monitor header) */
+    raw_write(ES8388_REG_ROUT2VOL, spk_r);             /* ROUT2 mirrors ROUT1 (J7 monitor header) */
 
     raw_write(ES8388_REG_ADCPOWER, 0xFF);              /* hold ADC down while configuring */
     /* MicAmpL=MicAmpR=0dB (chip's own power-on default -- explicit here so
