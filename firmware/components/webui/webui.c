@@ -558,23 +558,37 @@ static const ui_lang_t UI_LANGUAGES[] = {
  * here is a UI gap, not a functional one. "" means UTC (board_timezone_get()'s
  * own convention -- see its callers). Look a zone's string up at
  * github.com/nayarsystems/posix_tz_db if adding one. */
-typedef struct { const char *tz; const char *label; } ui_tz_t;
+/* `iana` lists the IANA zone names a browser is likely to report for this
+ * entry, so the page can offer to set the board to whatever zone the person
+ * viewing it is actually in (see TZ_DETECT_JS). Not exhaustive -- an
+ * unmatched zone just means no offer, and the dropdown still works. */
+typedef struct { const char *tz; const char *label; const char *iana; } ui_tz_t;
 static const ui_tz_t UI_TIMEZONES[] = {
-    { "", "UTC" },
-    { "HST10", "Hawaii (no DST)" },
-    { "AKST9AKDT,M3.2.0,M11.1.0", "US Alaska" },
-    { "PST8PDT,M3.2.0,M11.1.0", "US Pacific" },
-    { "MST7", "US Arizona (no DST)" },
-    { "MST7MDT,M3.2.0,M11.1.0", "US Mountain" },
-    { "CST6CDT,M3.2.0,M11.1.0", "US Central" },
-    { "EST5EDT,M3.2.0,M11.1.0", "US Eastern" },
-    { "GMT0BST,M3.5.0/1,M10.5.0", "UK / Ireland" },
-    { "CET-1CEST,M3.5.0,M10.5.0/3", "Central Europe" },
-    { "EET-2EEST,M3.5.0/3,M10.5.0/4", "Eastern Europe" },
-    { "IST-5:30", "India (no DST)" },
-    { "CST-8", "China (no DST)" },
-    { "JST-9", "Japan (no DST)" },
-    { "AEST-10AEDT,M10.1.0,M4.1.0/3", "Australia Eastern" },
+    { "", "UTC", "UTC,Etc/UTC,Etc/GMT" },
+    { "HST10", "Hawaii (no DST)", "Pacific/Honolulu" },
+    { "AKST9AKDT,M3.2.0,M11.1.0", "US Alaska", "America/Anchorage,America/Juneau,America/Nome" },
+    { "PST8PDT,M3.2.0,M11.1.0", "US Pacific",
+      "America/Los_Angeles,America/Vancouver,America/Tijuana" },
+    { "MST7", "US Arizona (no DST)", "America/Phoenix" },
+    { "MST7MDT,M3.2.0,M11.1.0", "US Mountain", "America/Denver,America/Edmonton,America/Boise" },
+    { "CST6CDT,M3.2.0,M11.1.0", "US Central",
+      "America/Chicago,America/Winnipeg,America/Mexico_City" },
+    { "EST5EDT,M3.2.0,M11.1.0", "US Eastern",
+      "America/New_York,America/Toronto,America/Detroit,America/Montreal" },
+    { "GMT0BST,M3.5.0/1,M10.5.0", "UK / Ireland", "Europe/London,Europe/Dublin,Europe/Lisbon" },
+    { "CET-1CEST,M3.5.0,M10.5.0/3", "Central Europe",
+      "Europe/Paris,Europe/Berlin,Europe/Madrid,Europe/Rome,Europe/Amsterdam,"
+      "Europe/Brussels,Europe/Vienna,Europe/Stockholm,Europe/Oslo,Europe/Copenhagen,"
+      "Europe/Zurich,Europe/Prague,Europe/Warsaw,Europe/Budapest" },
+    { "EET-2EEST,M3.5.0/3,M10.5.0/4", "Eastern Europe",
+      "Europe/Athens,Europe/Helsinki,Europe/Bucharest,Europe/Kyiv,Europe/Kiev,Europe/Riga,"
+      "Europe/Vilnius,Europe/Tallinn,Europe/Sofia" },
+    { "IST-5:30", "India (no DST)", "Asia/Kolkata,Asia/Calcutta,Asia/Colombo" },
+    { "CST-8", "China (no DST)",
+      "Asia/Shanghai,Asia/Hong_Kong,Asia/Macau,Asia/Taipei,Asia/Singapore" },
+    { "JST-9", "Japan (no DST)", "Asia/Tokyo,Asia/Seoul" },
+    { "AEST-10AEDT,M10.1.0,M4.1.0/3", "Australia Eastern",
+      "Australia/Sydney,Australia/Melbourne,Australia/Canberra,Australia/Hobart" },
 };
 #define UI_TIMEZONES_N (sizeof(UI_TIMEZONES) / sizeof(UI_TIMEZONES[0]))
 
@@ -782,6 +796,7 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
         "<noscript><label>%s <input name=\"ssid\" required></label></noscript>"
         "<label>%s <input type=\"password\" name=\"password\" "
         "placeholder=\"%s\"></label>"
+        "<label>%s<select name=\"lang\">%s</select></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">"
         "%s</button></div>"
         "</form></div></main>"
@@ -799,6 +814,23 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
     const char *enter_network = i18n_str("general.wifi.enter_network", "Enter network name");
     const char *rescan = i18n_str("general.wifi.rescan", "Rescan");
     const char *password_label = i18n_str("general.wifi.password_label", "Password");
+
+    /* Language belongs here rather than only in the header: this page is the
+     * first thing a new owner sees, and picking it now means the rest of
+     * setup is already in their language. */
+    char lang_opts[400] = "";
+    {
+        char cur[8];
+        board_language_get(cur, sizeof(cur));
+        int o = 0;
+        for (size_t i = 0; i < UI_LANGUAGES_N && o < (int)sizeof(lang_opts) - 64; i++)
+            o += snprintf(lang_opts + o, sizeof(lang_opts) - o,
+                          "<option value=\"%s\"%s>%s %s</option>",
+                          UI_LANGUAGES[i].code,
+                          strcmp(UI_LANGUAGES[i].code, cur) == 0 ? " selected" : "",
+                          UI_LANGUAGES[i].flag, UI_LANGUAGES[i].name);
+    }
+    const char *lang_label = i18n_str("wifisetup.language", "Language");
     const char *password_placeholder = i18n_str("general.wifi.password_placeholder",
         "leave blank for an open network");
     const char *save_connect = i18n_str("wifisetup.save_connect", "Save & connect");
@@ -813,7 +845,7 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
     snprintf(buf, cap, tmpl,
         setup_title, setup_title, connect_h1, intro,
         network_name_label, scanning, network_name_label, enter_network, rescan,
-        ssid_label, password_label, password_placeholder, save_connect,
+        ssid_label, password_label, password_placeholder, lang_label, lang_opts, save_connect,
         WIFI_SCAN_JS);
 
     httpd_resp_set_type(req, "text/html");
@@ -1380,24 +1412,47 @@ static int append_general_tab(char *buf, size_t cap, int off)
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<form method=\"POST\" action=\"/quiet_hours\" class=\"settings-form\">"
         "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
-        "<label>%s<select name=\"tz\">",
+        "<label>%s<select id=\"tz_select\" name=\"tz\">",
         i18n_str("general.quiethours.title", "Quiet hours"),
         i18n_str("general.current", "Current"), qh_status,
         qh.enabled ? " checked" : "", i18n_str("general.quiethours.enabled", "Enabled"),
         i18n_str("general.quiethours.tz_label", "Timezone"));
     for (size_t i = 0; i < UI_TIMEZONES_N; i++) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<option value=\"%s\"%s>%s</option>",
+            "<option value=\"%s\"%s data-iana=\"%s\">%s</option>",
             UI_TIMEZONES[i].tz, strcmp(UI_TIMEZONES[i].tz, tz) == 0 ? " selected" : "",
-            UI_TIMEZONES[i].label);
+            UI_TIMEZONES[i].iana, UI_TIMEZONES[i].label);
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "</select></label>"
+        "</select>"
+        "<span id=\"tzsuggest\" class=\"hint\"></span></label>"
         "<label>%s <input type=\"time\" name=\"start\" value=\"%02u:%02u\" required></label>"
         "<label>%s <input type=\"time\" name=\"end\" value=\"%02u:%02u\" required></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>"
-        "<p class=\"hint\">%s</p></div>",
+        "<p class=\"hint\">%s</p>"
+        /* The browser already knows which zone the person is sitting in, and
+         * it's the only party here that does -- the board only ever learns
+         * UTC from SNTP. Offer it rather than applying it: silently changing
+         * a saved setting because someone opened the page from a hotel would
+         * be worse than making them click. */
+        "<script>(function(){"
+        "try{"
+        "var want=Intl.DateTimeFormat().resolvedOptions().timeZone;"
+        "var sel=document.getElementById('tz_select');"
+        "var out=document.getElementById('tzsuggest');"
+        "if(!want||!sel||!out)return;"
+        "var hit=null;"
+        "for(var i=0;i<sel.options.length;i++){"
+        "var l=(sel.options[i].dataset.iana||'').split(',');"
+        "if(l.indexOf(want)>=0){hit=sel.options[i];break;}}"
+        "if(!hit||hit.selected)return;"
+        "out.innerHTML=' Your browser says <b>'+want+'</b>. '"
+        "+'<a href=\"#\" id=\"tzuse\">Use '+hit.text+'</a>';"
+        "document.getElementById('tzuse').onclick=function(e){"
+        "e.preventDefault();hit.selected=true;out.textContent=' Set below \\u2014 press Save.';};"
+        "}catch(e){}})();</script>"
+        "</div>",
         i18n_str("general.quiethours.start_label", "Start"), qh.start_hour, qh.start_min,
         i18n_str("general.quiethours.end_label", "End"), qh.end_hour, qh.end_min,
         i18n_str("general.button.save", "Save"),
@@ -4581,6 +4636,15 @@ static esp_err_t wifi_set_handler(httpd_req_t *req)
     char ssid[33] = {0}, pass[65] = {0};
     form_field(body, "ssid", ssid, sizeof(ssid));
     form_field(body, "password", pass, sizeof(pass));
+
+    /* The setup page also offers a language, so the rest of first-run setup
+     * is in the owner's language. Absent on the normal settings form, where
+     * language has its own control -- so only set it when actually sent. */
+    {
+        char lang[8] = {0};
+        form_field(body, "lang", lang, sizeof(lang));
+        if (lang[0]) board_language_set(lang);
+    }
 
     if (!ssid[0]) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "ssid required");
