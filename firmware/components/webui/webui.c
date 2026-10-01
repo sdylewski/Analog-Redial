@@ -22,6 +22,8 @@
 #include "logctl.h"
 #include "audio.h"
 #include "ag1170.h"
+#include "tones.h"
+#include "tone_regions.h"
 #include "aec.h"
 #include "es8388.h"
 #include "sdcard.h"
@@ -1448,29 +1450,48 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         RECORDING_RELOAD_JS);
 
     bool tone_follow_lang = board_tone_follow_language_get();
-    char cur_lang[8];
+    char cur_lang[8], cur_region[8];
     board_language_get(cur_lang, sizeof(cur_lang));
-    char tone_region_hint[420];
-    snprintf(tone_region_hint, sizeof(tone_region_hint),
-        i18n_str("tones.region.hint",
-                 "Checked: dial/ring/busy tones match the language picked in the header up top "
-                 "(e.g. selecting Italian also switches to its distinctive dial cadence) -- "
-                 "current language is \"%s\". Unchecked: always plays standard US tones (350+450 "
-                 "Hz dial, 440+480 Hz ringback, 480+620 Hz busy) no matter what language is "
-                 "selected. Takes effect on the next dial tone -- no reboot."),
-        cur_lang);
+    board_tone_region_get(cur_region, sizeof(cur_region));
+
+    char region_opts[1024] = "";
+    {
+        int o = 0;
+        for (size_t i = 0; i < TONE_REGIONS_N && o < (int)sizeof(region_opts) - 96; i++) {
+            o += snprintf(region_opts + o, sizeof(region_opts) - o,
+                          "<option value=\"%s\"%s>%s</option>",
+                          TONE_REGIONS[i].code,
+                          strcmp(TONE_REGIONS[i].code, cur_region) == 0 ? " selected" : "",
+                          TONE_REGIONS[i].name);
+        }
+    }
+
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"card wide\"><h2>%s</h2>"
         "<form method=\"POST\" action=\"/tone_lang_set\" class=\"settings-form\">"
-        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-        "</form>"
-        "<p class=\"hint\">%s</p></div>",
-        i18n_str("tones.region.title", "Call-progress tones"),
-        tone_follow_lang ? " checked" : "",
-        i18n_str("tones.region.label", "Use phone tones matching language setting"),
+        "<label>%s</label>"
+        "<div class=\"toolbar sub\">"
+        "<select name=\"region\"%s>%s</select>"
+        "<button type=\"submit\" class=\"primary\">%s</button></div>"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s "
+        "onchange=\"var s=this.form.region; s.disabled=this.checked;\"> %s</label>"
+        "<p class=\"hint\">%s</p>"
+        "</form></div>",
+        i18n_str("tones.region.title", "Dial tone region"),
+        i18n_str("tones.region.select_label", "Region"),
+        tone_follow_lang ? " disabled" : "", region_opts,
         i18n_str("general.button.save", "Save"),
-        tone_region_hint);
+        tone_follow_lang ? " checked" : "",
+        i18n_str("tones.region.follow_label", "Follow my UI language instead"),
+        i18n_str("tones.region.hint",
+                 "Dial tone, ringback and busy differ by country &mdash; frequencies and "
+                 "cadence both. Pick the region your phones should sound like; it's independent "
+                 "of the interface language, so Canadian French gets North American tones with a "
+                 "French UI. Takes effect on the next dial tone, no reboot. "
+                 "<b>Follow my UI language</b> derives the region from the language instead, but "
+                 "only where that's unambiguous &mdash; Italian means Italy, Japanese means "
+                 "Japan. English, French and Spanish are ambiguous (US or UK? France or Canada?) "
+                 "and fall back to North America, so pick a region explicitly for those."));
 
     board_offhook_alert_t roh = board_offhook_alert_get();
     char roh_status[48];
@@ -4676,6 +4697,11 @@ static esp_err_t tone_lang_set_handler(httpd_req_t *req)
     char enabled[8] = {0};
     form_field(body, "enabled", enabled, sizeof(enabled));
     board_tone_follow_language_set(enabled[0] == '1');
+    {
+        char region[8] = {0};
+        form_field(body, "region", region, sizeof(region));
+        if (region[0]) board_tone_region_set(region);
+    }
 
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/settings?tab=phone");

@@ -161,6 +161,13 @@ esp_err_t board_language_set(const char *lang);
  * language changed without also changing what a familiar dial tone sounds
  * like. Off means tones.c always uses the US entry (TONE_REGIONS[0])
  * regardless of board_language_get(). */
+/* Dial/ringback/busy tone region, independent of the UI language -- a
+ * region code from TONE_REGIONS[] in tones/tone_regions.h ("us", "gb",
+ * "de", ...). Defaults to "us". Only consulted when
+ * board_tone_follow_language_get() is false. */
+void      board_tone_region_get(char *out, size_t len);
+esp_err_t board_tone_region_set(const char *code);
+
 bool      board_tone_follow_language_get(void); /* defaults to true */
 esp_err_t board_tone_follow_language_set(bool follow);
 

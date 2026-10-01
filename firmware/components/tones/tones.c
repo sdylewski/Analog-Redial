@@ -94,16 +94,26 @@ void tone_osc_fill(tone_osc_t *o, int16_t *out, size_t n)
 
 static const tone_region_t *lookup_region(void)
 {
-    /* TONE_REGIONS[0] is "en"/United States -- forcing that entry (rather
-     * than TONE_REGION_FALLBACK, which is a generic European spec) is what
-     * "off" actually means here: standard US tones, not just "some other
-     * default". See board_tone_follow_language_get()'s doc comment. */
-    if (!board_tone_follow_language_get()) return &TONE_REGIONS[0];
+    char want[8] = {0};
 
-    char lang[8];
-    board_language_get(lang, sizeof(lang));
+    if (board_tone_follow_language_get()) {
+        /* Convenience mode: derive the region from the UI language, but only
+         * where that mapping is unambiguous (see TONE_LANG_DEFAULTS). */
+        char lang[8];
+        board_language_get(lang, sizeof(lang));
+        for (size_t i = 0; i < TONE_LANG_DEFAULTS_N; i++) {
+            if (strcmp(TONE_LANG_DEFAULTS[i].lang, lang) == 0) {
+                strlcpy(want, TONE_LANG_DEFAULTS[i].region, sizeof(want));
+                break;
+            }
+        }
+        if (!want[0]) strlcpy(want, "us", sizeof(want)); /* ambiguous or unknown */
+    } else {
+        board_tone_region_get(want, sizeof(want));
+    }
+
     for (size_t i = 0; i < TONE_REGIONS_N; i++) {
-        if (strcmp(TONE_REGIONS[i].lang, lang) == 0) return &TONE_REGIONS[i];
+        if (strcmp(TONE_REGIONS[i].code, want) == 0) return &TONE_REGIONS[i];
     }
     return &TONE_REGION_FALLBACK;
 }

@@ -309,6 +309,31 @@ bool board_tone_follow_language_get(void)
     return (err == ESP_OK) ? (follow != 0) : true;
 }
 
+void board_tone_region_get(char *out, size_t len)
+{
+    if (!out || !len) return;
+    nvs_handle_t h;
+    out[0] = '\0';
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) == ESP_OK) {
+        size_t n = len;
+        if (nvs_get_str(h, "tone_region", out, &n) != ESP_OK) out[0] = '\0';
+        nvs_close(h);
+    }
+    if (!out[0]) strlcpy(out, "us", len);
+}
+
+esp_err_t board_tone_region_set(const char *code)
+{
+    if (!code || !code[0]) return ESP_ERR_INVALID_ARG;
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_str(h, "tone_region", code);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
+
 esp_err_t board_tone_follow_language_set(bool follow)
 {
     nvs_handle_t h;
