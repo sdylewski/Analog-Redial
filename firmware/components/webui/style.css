@@ -71,7 +71,10 @@ main { padding: 22px; max-width: 1100px; margin: 0 auto; }
 
 .tagline { color: var(--muted); font-size: 14px; margin: -8px 0 18px; }
 
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+@media (min-width: 1100px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.cards .card.wide { grid-column: 1 / -1; }
+hr.sep { border: 0; border-top: 1px solid var(--line, #e2e8f0); margin: 18px 0 14px; }
 /* A card with real form fields (server names, passwords, ...) shouldn't get
  * squeezed into one of several narrow auto-fit columns on a wide screen --
  * span the full row regardless of how many sibling cards there are. */

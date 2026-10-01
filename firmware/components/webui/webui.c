@@ -21,6 +21,7 @@
 #include "audio_convert.h"
 #include "logctl.h"
 #include "audio.h"
+#include "ag1170.h"
 #include "aec.h"
 #include "es8388.h"
 #include "sdcard.h"
@@ -3390,10 +3391,72 @@ static int append_diag_tab(char *buf, size_t cap, int off)
      * usable by hand here). */
     bool tmode = telephony_test_enabled();
     bool loop  = audio_test_loopback();
+    int tl_n = board_hw_config_get().num_lines;
+    char tl_opts[160] = "";
+    {
+        int o = 0;
+        for (int l = 0; l < tl_n && o < (int)sizeof(tl_opts) - 48; l++)
+            o += snprintf(tl_opts + o, sizeof(tl_opts) - o,
+                          "<option value=\"%d\">%s %d</option>", l,
+                          i18n_str("diag.test.line", "Line"), l);
+    }
+
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"card wide\"><h2>%s</h2>"
+
+        /* --- ring --- */
+        "<form method=\"POST\" action=\"/test/ring\" class=\"settings-form\">"
+        "<label>%s</label>"
+        "<p class=\"hint\">%s</p>"
+        "<div class=\"toolbar sub\">"
+        "<select name=\"line\">%s</select>"
+        "<select name=\"secs\"><option value=\"2\">2 s</option>"
+        "<option value=\"4\" selected>4 s</option><option value=\"8\">8 s</option></select>"
+        "<button type=\"submit\">%s</button></div></form>"
+
+        /* --- call-progress tones --- */
+        "<form method=\"POST\" action=\"/test/progress\" class=\"settings-form\">"
+        "<label>%s</label>"
+        "<p class=\"hint\">%s</p>"
+        "<div class=\"toolbar sub\">"
+        "<select name=\"line\">%s</select>"
+        "<select name=\"tone\">"
+        "<option value=\"dial\">%s</option><option value=\"ringback\">%s</option>"
+        "<option value=\"busy\">%s</option><option value=\"reorder\">%s</option>"
+        "<option value=\"off\">%s</option></select>"
+        "<button type=\"submit\">%s</button></div></form>",
+
+        i18n_str("diag.test.title", "Bench tests"),
+
+        i18n_str("diag.test.ring_label", "Ring a phone"),
+        i18n_str("diag.test.ring_hint",
+                 "Rings the bell on a line, as an incoming call would. Confirms the SLIC's "
+                 "ring generator, the bell itself and the wiring in one go. Skipped if that "
+                 "handset is already off-hook. &#9888; Don't touch tip/ring while it rings."),
+        tl_opts, i18n_str("diag.test.ring_button", "Ring"),
+
+        i18n_str("diag.test.progress_label", "Play a call-progress tone"),
+        i18n_str("diag.test.progress_hint",
+                 "Sends dial tone, ringback, busy or reorder down a line so you can listen on "
+                 "the handset. The quickest check that the codec, the SLIC's audio path and "
+                 "the earpiece all work &mdash; and that your tone region sounds right. "
+                 "Pick <i>Stop</i> to silence it."),
+        tl_opts,
+        i18n_str("diag.test.tone_dial", "Dial tone"),
+        i18n_str("diag.test.tone_ringback", "Ringback"),
+        i18n_str("diag.test.tone_busy", "Busy"),
+        i18n_str("diag.test.tone_reorder", "Reorder (fast busy)"),
+        i18n_str("diag.test.tone_off", "Stop"),
+        i18n_str("diag.test.progress_button", "Play"));
+
+    /* Harness-only switches, kept to the bottom: these change how the board
+     * behaves rather than exercising hardware, and normal users never need
+     * them. */
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<hr class=\"sep\">"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span class=\"pill %s\">%s</span></div>"
+        "<p class=\"hint\">%s</p>"
         "<div class=\"toolbar sub\">"
         "<form method=\"POST\" action=\"/test/mode\" style=\"display:inline\">"
         "<input type=\"hidden\" name=\"on\" value=\"1\"><button type=\"submit\">%s</button></form>"
@@ -3402,31 +3465,27 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         "</div>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span class=\"pill %s\">%s</span></div>"
+        "<p class=\"hint\">%s</p>"
         "<div class=\"toolbar sub\">"
         "<form method=\"POST\" action=\"/test/loopback\" style=\"display:inline\">"
         "<input type=\"hidden\" name=\"on\" value=\"1\"><button type=\"submit\">%s</button></form>"
         "<form method=\"POST\" action=\"/test/loopback\" style=\"display:inline\">"
         "<input type=\"hidden\" name=\"on\" value=\"0\"><button type=\"submit\">%s</button></form>"
-        "</div>"
-        "<div class=\"toolbar sub\">"
-        "<form method=\"POST\" action=\"/test/sd\" style=\"display:inline\">"
-        "<button type=\"submit\">%s</button></form>"
-        "</div>"
-        "<p class=\"hint\">%s</p></div>",
-        i18n_str("diag.test.title", "Test mode"),
-        i18n_str("diag.test.injection", "Injection"),
+        "</div></div>",
+        i18n_str("diag.test.injection", "Handset injection"),
         tmode ? "on" : "off", tmode ? "ENABLED" : "off",
+        i18n_str("diag.test.injection_hint",
+                 "Lets the automated test harness fake a handset &mdash; off-hook, hang-up, "
+                 "dialed digits &mdash; with no phone attached. Leave <b>off</b> for normal use."),
         i18n_str("aec.enable", "Enable"), i18n_str("aec.disable", "Disable"),
         i18n_str("diag.test.loopback", "Audio TX&rarr;RX loopback"),
         loop  ? "on" : "off", loop  ? "ENABLED" : "off",
-        i18n_str("aec.enable", "Enable"), i18n_str("aec.disable", "Disable"),
-        i18n_str("diag.test.sd_selftest", "Run microSD self-test"),
-        i18n_str("diag.test.hint",
-                 "Test mode lets the design-verification harness simulate a handset (off-hook, "
-                 "hang-up, dialed digits) without physical dialing. Loopback feeds synthesized "
-                 "TX audio back into the RX detector so a played tone/DTMF is confirmable "
-                 "without a handset. Leave both <b>off</b> for normal use. Full protocol + host "
-                 "runner: <code>firmware/test/</code>."));
+        i18n_str("diag.test.loopback_hint",
+                 "Feeds synthesized TX audio straight back into the RX detector, so the harness "
+                 "can confirm a tone or DTMF digit was produced without a handset. This is a "
+                 "digital loop &mdash; it does <i>not</i> test the codec's analog path. Leave "
+                 "<b>off</b> for normal use. Protocol and host runner: <code>firmware/test/</code>."),
+        i18n_str("aec.enable", "Enable"), i18n_str("aec.disable", "Disable"));
 
     int diag_num_lines = board_hw_config_get().num_lines;
     char diag_line_opts[128] = "";
@@ -4117,6 +4176,8 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * flat 6144 base below was sized for -- 2 lines' worth of mic-record
      * cards (each with its own form + conditional <audio> player row). */
     size_t log_room = (strcmp(tab, "diag") == 0) ? 8200 * 3 + 3000 : 0;
+
+    size_t diag_room = (strcmp(tab, "diag") == 0) ? 5000 : 0; /* bench-test card + its hints */
     /* Storage sizes off the REAL file count, not STORAGE_LIST_MAX's
      * worst case -- this used to just assume up to STORAGE_LIST_MAX files
      * on each backend (a flat ~68KB), which sounded conservative but
@@ -4185,7 +4246,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * and NVS-backed (not a filesystem walk), so sizing for that many
      * outright is cheap and avoids a second listing call just to count. */
     size_t dialcodes_room = (strcmp(tab, "dialcodes") == 0) ? DIALPLAN_MAX_CLIP_ENTRIES * 950 + 6000 : 0;
-    size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room + voip_room + dialcodes_room + phone_room + bt_room
+    size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room + voip_room + dialcodes_room + phone_room + bt_room + diag_room
         + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
@@ -5198,6 +5259,71 @@ static bool read_form_body(httpd_req_t *req, char *body, size_t cap)
 }
 
 /* POST /test/mode  body on=0|1 -- enable/disable telephony injection test mode. */
+/* Ringing is the one bench test that can't just be left running: it puts
+ * ~60 Vrms on the line. One-shot timer stops it rather than blocking the
+ * single httpd worker for the duration. */
+static esp_timer_handle_t s_ring_timer;
+static int s_ring_line;
+
+static void ring_stop_cb(void *arg)
+{
+    (void)arg;
+    ag1170_ring_stop(s_ring_line);
+}
+
+static esp_err_t test_ring_handler(httpd_req_t *req)
+{
+    char body[64], lbuf[8] = {0}, sbuf[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "line", lbuf, sizeof(lbuf));
+    form_field(body, "secs", sbuf, sizeof(sbuf));
+    int line = atoi(lbuf);
+    int secs = sbuf[0] ? atoi(sbuf) : 4;
+    if (line < 0 || line >= AUDIO_NUM_LINES) line = 0;
+    if (secs < 1) secs = 1;
+    if (secs > 15) secs = 15;
+
+    /* Never ring a handset that's already lifted, or one mid-call: the bell
+     * would blast straight into someone's ear. */
+    if (!ag1170_is_offhook(line)) {
+        if (!s_ring_timer) {
+            const esp_timer_create_args_t a = { .callback = ring_stop_cb, .name = "ringstop" };
+            esp_timer_create(&a, &s_ring_timer);
+        }
+        esp_timer_stop(s_ring_timer);
+        s_ring_line = line;
+        ag1170_ring_start(line);
+        esp_timer_start_once(s_ring_timer, (uint64_t)secs * 1000000);
+    }
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+static esp_err_t test_progress_handler(httpd_req_t *req)
+{
+    char body[64], lbuf[8] = {0}, tbuf[16] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "line", lbuf, sizeof(lbuf));
+    form_field(body, "tone", tbuf, sizeof(tbuf));
+    int line = atoi(lbuf);
+    if (line < 0 || line >= AUDIO_NUM_LINES) line = 0;
+    if      (!strcmp(tbuf, "dial"))     audio_tx_tone(line, TONE_DIAL);
+    else if (!strcmp(tbuf, "ringback")) audio_tx_tone(line, TONE_RINGBACK);
+    else if (!strcmp(tbuf, "busy"))     audio_tx_tone(line, TONE_BUSY);
+    else if (!strcmp(tbuf, "reorder"))  audio_tx_tone(line, TONE_REORDER);
+    else                                audio_tx_silence(line);
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 static esp_err_t test_mode_handler(httpd_req_t *req)
 {
     char body[64], on[8] = {0};
@@ -7228,6 +7354,8 @@ esp_err_t webui_start(void)
         { .uri = "/test/inject",            .method = HTTP_POST, .handler = test_inject_handler },
         { .uri = "/test/record",            .method = HTTP_POST, .handler = test_record_handler },
         { .uri = "/test/sd",                .method = HTTP_POST, .handler = test_sd_handler },
+        { .uri = "/test/ring",              .method = HTTP_POST, .handler = test_ring_handler },
+        { .uri = "/test/progress",          .method = HTTP_POST, .handler = test_progress_handler },
         { .uri = "/sd_selftest_ui",         .method = HTTP_POST, .handler = sd_selftest_ui_handler },
         { .uri = "/sd_format",              .method = HTTP_POST, .handler = sd_format_handler },
         { .uri = "/sd_force_format",        .method = HTTP_POST, .handler = sd_force_format_handler },
