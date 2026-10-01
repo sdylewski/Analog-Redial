@@ -1351,8 +1351,9 @@ static int append_general_tab(char *buf, size_t cap, int off)
                  "to the answering machine instead of ringing -- old mechanical ringers are "
                  "loud, and not everyone wants one going off at 2 a.m. Applies even if a line's "
                  "own Answering Machine (Phone Settings tab) is off, since there's nowhere else "
-                 "to send the call. Timezone only affects this window -- recordings and "
-                 "everything else stay in UTC regardless. Start later than end (e.g. "
+                 "to send the call. This window, and every time shown in the web UI, use the "
+                 "timezone set above; recording <i>filenames</i> stay in UTC so they sort "
+                 "correctly and don't shift if you move. Start later than end (e.g. "
                  "21:00-07:00) means the window wraps past midnight. Takes effect on the next "
                  "incoming call -- no reboot."));
     return off;
@@ -3357,8 +3358,8 @@ static int append_selftest_card(char *buf, size_t cap, int off)
             if (hist[i].unix_time) {
                 time_t t = (time_t)hist[i].unix_time;
                 struct tm tmv;
-                gmtime_r(&t, &tmv);
-                strftime(when, sizeof(when), "%Y-%m-%d %H:%M UTC", &tmv);
+                localtime_r(&t, &tmv);
+                strftime(when, sizeof(when), "%Y-%m-%d %H:%M %Z", &tmv);
             } else {
                 snprintf(when, sizeof(when), "%s",
                          i18n_str("diag.selftest.no_clock", "date unknown (clock unsynced)"));
@@ -3746,6 +3747,21 @@ static void wav_duration_str(const char *name, size_t size, char *out, size_t ou
  * error) for anything matching neither shape -- a display nicety for the
  * Recordings page's "Recorded" column, not worth failing the row render
  * over. */
+/* UTC calendar fields -> epoch seconds. newlib has no timegm(), and
+ * mktime() is wrong here because it interprets its input as *local* time --
+ * which would double-apply the timezone offset. Standard days-from-civil
+ * arithmetic, valid across the whole range we care about. */
+static time_t utc_fields_to_epoch(int y, int mo, int d, int h, int mi, int s)
+{
+    y -= (mo <= 2);
+    int era = (y >= 0 ? y : y - 399) / 400;
+    unsigned yoe = (unsigned)(y - era * 400);
+    unsigned doy = (unsigned)((153 * (mo + (mo > 2 ? -3 : 9)) + 2) / 5 + d - 1);
+    unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    long days = (long)era * 146097 + (long)doe - 719468;
+    return (time_t)(days * 86400L + h * 3600L + mi * 60L + s);
+}
+
 static void format_recording_timestamp(const char *name, char *out, size_t len)
 {
     if (len == 0) return;
@@ -3762,7 +3778,19 @@ static void format_recording_timestamp(const char *name, char *out, size_t len)
     }
 
     int y, mo, d, h, mi, s;
-    if (sscanf(p, "%4d%2d%2d_%2d%2d%2dZ", &y, &mo, &d, &h, &mi, &s) == 6) {
+    if (sscanf(p, "%4d%2d%2d_%2d%2d%2dZ", &y, &mo, &d, &h, &mi, &s) != 6) return;
+
+    /* Filenames are UTC on purpose -- unambiguous and sortable, and they
+     * must not shift if the timezone setting changes later. Display is a
+     * different question: show it in the zone the owner actually lives in
+     * (Settings -> General -> Timezone). timegm() turns the parsed UTC
+     * fields back into an epoch without consulting TZ, which is exactly
+     * what mktime() would get wrong here. */
+    time_t epoch = utc_fields_to_epoch(y, mo, d, h, mi, s);
+    struct tm local;
+    if (epoch != (time_t)-1 && localtime_r(&epoch, &local)) {
+        strftime(out, len, "%Y-%m-%d %H:%M %Z", &local);
+    } else {
         snprintf(out, len, "%04d-%02d-%02d %02d:%02d UTC", y, mo, d, h, mi);
     }
 }
