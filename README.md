@@ -33,6 +33,41 @@ phones on the same box call each other. This board is different:
 - **Open, hackable hardware and firmware.** ESP-IDF C source, not a sealed appliance —
   add your own dial codes, tones, dial plans, or recordings.
 
+## What people build with it
+
+### Intercom
+
+![Intercom: two analog phones on one board](docs/assets/use-intercom.svg)
+
+Two phones, one board, nothing else. Houses, classrooms, preschools,
+workshops, a studio and a control room. Dial **321** and the other phone
+rings with a real bell. No account, no cloud, no network — unplug the Wi-Fi
+and it still works.
+
+### VoIP
+
+![VoIP: the board registers with a SIP server over Wi-Fi](docs/assets/use-voip.svg)
+
+Register a line with Asterisk, FreePBX, or any standards-compliant SIP
+server and dial **555 +** a four-digit extension to reach anything that
+server can reach. Needs a server on your network — and if it goes down,
+phone-to-phone calling carries on regardless.
+
+See [`docs/voip-setup.md`](docs/voip-setup.md).
+
+### Bluetooth — the phone becomes a handset for your cell
+
+![Bluetooth: the board pairs with a mobile phone so the analog phone handles cellular calls](docs/assets/use-bluetooth.svg)
+
+Pair a cell phone and the rotary phone becomes its handset. Incoming calls
+ring the bell; lift the handset to answer, hang up to end. Dial **1** + area
+code + number to call out. Caller ID lands in the activity log.
+
+Needs the **SMD5** board and its BM64 companion — designed, not yet
+fabricated. See [`docs/hardware-smd5.md`](docs/hardware-smd5.md).
+
+---
+
 ## Features
 
 - Pulse (rotary) and touch-tone (DTMF) dialing
@@ -85,7 +120,8 @@ Full walkthrough (toolchain install, first-boot Wi-Fi setup, web UI tour):
 
 | Doc | Covers |
 |-----|--------|
-| [`docs/getting-started.md`](docs/getting-started.md) | From-scratch build/flash/setup walkthrough |
+| [`docs/building.md`](docs/building.md) | Assembling a board: hand-solder order, checks, first power-on |
+| [`docs/getting-started.md`](docs/getting-started.md) | Toolchain, flashing, first boot and Wi-Fi setup |
 | [`docs/features.md`](docs/features.md) | Feature list and firmware architecture |
 | [`docs/hardware-smd4.md`](docs/hardware-smd4.md) | Schematic reference, GPIO pin map, power tree |
 | [`docs/hardware-smd5.md`](docs/hardware-smd5.md) | Next-spin board: Bluetooth companion, dedicated LDO, dual MCU footprint — **not yet fabricated** |

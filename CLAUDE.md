@@ -151,6 +151,7 @@ structure) — only links from live files (this one included) need the
 
 - [`README.md`](README.md) — public project overview, build/flash instructions
 - [`docs/features.md`](docs/features.md) — feature list, firmware architecture (components, threading model, VoIP seams)
+- [`docs/building.md`](docs/building.md) — board assembly: hand-solder order, pre-power checks, the SMD4 15k rework
 - [`docs/hardware-smd4.md`](docs/hardware-smd4.md) — SMD4 schematic reference, GPIO pin map, power tree
 - [`docs/hardware-smd5.md`](docs/hardware-smd5.md) — SMD5 board reference (Bluetooth companion, LDO, dual MCU footprint); not yet fabricated
 - [`archive/signal-levels.md`](archive/signal-levels.md) — SLIC/codec levels, SHK dividers

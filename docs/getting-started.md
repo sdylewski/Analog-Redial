@@ -12,6 +12,10 @@ and [`hardware-smd4.md`](hardware-smd4.md).
 
 ---
 
+> **Need to assemble the board first?** See
+> [`building.md`](building.md) — hand-solder order, pre-power checks and
+> first power-on. Come back here once it powers up cleanly.
+
 ## 1. What you need
 
 **Hardware** — an SMD4 or SMD5 board ([`hardware-smd4.md`](hardware-smd4.md)):
@@ -232,6 +236,7 @@ Wi-Fi credentials and reboots into the setup AP (section 6).
 | [`../firmware/README.md`](../firmware/README.md) | Toolchain detail, console command reference, build layout |
 | [`features.md`](features.md) | What's implemented + firmware architecture |
 | [`hardware-smd4.md`](hardware-smd4.md) | SMD4 schematic, pin map, power tree |
+| [`building.md`](building.md) | Assembling a board before you flash it |
 | [`hardware-smd5.md`](hardware-smd5.md) | Next-spin board (Bluetooth, LDO, dual MCU footprint) — not yet fabricated |
 | [`bom.md`](bom.md) | Parts list / shopping checklist |
 | [`voip-setup.md`](voip-setup.md) | Connecting to a SIP server, dial-plan reference |
