@@ -421,3 +421,9 @@ a.button:hover { border-color: var(--accent); color: var(--accent); }
 .code-row .desc { flex: 1; color: var(--text); }
 .code-row .pill { flex: none; }
 .card .note { font-size: 12px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; }
+
+/* Compact reference table inside a settings card (the language->tone-region
+   map). Deliberately plain: it's reference material, not a data table. */
+table.mini { width: 100%; border-collapse: collapse; margin: 8px 0 4px; font-size: 13px; }
+table.mini th { text-align: left; font-weight: 600; color: var(--muted, #64748b); padding: 3px 6px 3px 0; }
+table.mini td { padding: 3px 6px 3px 0; color: var(--muted, #64748b); }

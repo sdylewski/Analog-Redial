@@ -1455,6 +1455,20 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
     board_language_get(cur_lang, sizeof(cur_lang));
     board_tone_region_get(cur_region, sizeof(cur_region));
 
+    /* With "follow my language" on, show the region that's actually in
+     * effect rather than the stored one -- otherwise the dropdown sits on a
+     * stale value and the card looks broken. Same derivation tones.c uses. */
+    const char *effective = cur_region;
+    if (tone_follow_lang) {
+        effective = "us";
+        for (size_t i = 0; i < TONE_LANG_DEFAULTS_N; i++) {
+            if (strcmp(TONE_LANG_DEFAULTS[i].lang, cur_lang) == 0) {
+                effective = TONE_LANG_DEFAULTS[i].region;
+                break;
+            }
+        }
+    }
+
     char region_opts[1024] = "";
     {
         int o = 0;
@@ -1462,37 +1476,60 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
             o += snprintf(region_opts + o, sizeof(region_opts) - o,
                           "<option value=\"%s\"%s>%s</option>",
                           TONE_REGIONS[i].code,
-                          strcmp(TONE_REGIONS[i].code, cur_region) == 0 ? " selected" : "",
+                          strcmp(TONE_REGIONS[i].code, effective) == 0 ? " selected" : "",
                           TONE_REGIONS[i].name);
         }
     }
 
+    /* The language->region map, shown inline: "French" meaning France and
+     * not Canada is exactly the kind of thing nobody should have to guess. */
+    char lang_map[640] = "";
+    {
+        int o = 0;
+        for (size_t i = 0; i < TONE_LANG_DEFAULTS_N && o < (int)sizeof(lang_map) - 80; i++) {
+            const char *rname = TONE_LANG_DEFAULTS[i].region;
+            for (size_t r = 0; r < TONE_REGIONS_N; r++)
+                if (!strcmp(TONE_REGIONS[r].code, TONE_LANG_DEFAULTS[i].region))
+                    rname = TONE_REGIONS[r].name;
+            o += snprintf(lang_map + o, sizeof(lang_map) - o,
+                          "<tr><td>%s</td><td>%s</td></tr>",
+                          TONE_LANG_DEFAULTS[i].lang, rname);
+        }
+    }
+
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\"><h2>%s</h2>"
+        "<div class=\"card\"><h2>%s</h2>"
         "<form method=\"POST\" action=\"/tone_lang_set\" class=\"settings-form\">"
         "<label>%s</label>"
-        "<div class=\"toolbar sub\">"
         "<select name=\"region\"%s>%s</select>"
-        "<button type=\"submit\" class=\"primary\">%s</button></div>"
         "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s "
         "onchange=\"var s=this.form.region; s.disabled=this.checked;\"> %s</label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "<p class=\"hint\">%s</p>"
+        "<details><summary>%s</summary>"
+        "<table class=\"mini\"><tr><th>%s</th><th>%s</th></tr>%s</table>"
+        "<p class=\"hint\">%s</p></details>"
         "</form></div>",
         i18n_str("tones.region.title", "Dial tone region"),
         i18n_str("tones.region.select_label", "Region"),
         tone_follow_lang ? " disabled" : "", region_opts,
-        i18n_str("general.button.save", "Save"),
         tone_follow_lang ? " checked" : "",
-        i18n_str("tones.region.follow_label", "Follow my UI language instead"),
+        i18n_str("tones.region.follow_label", "Follow my UI language"),
+        i18n_str("general.button.save", "Save"),
         i18n_str("tones.region.hint",
-                 "Dial tone, ringback and busy differ by country &mdash; frequencies and "
-                 "cadence both. Pick the region your phones should sound like; it's independent "
-                 "of the interface language, so Canadian French gets North American tones with a "
-                 "French UI. Takes effect on the next dial tone, no reboot. "
-                 "<b>Follow my UI language</b> derives the region from the language instead, but "
-                 "only where that's unambiguous &mdash; Italian means Italy, Japanese means "
-                 "Japan. English, French and Spanish are ambiguous (US or UK? France or Canada?) "
-                 "and fall back to North America, so pick a region explicitly for those."));
+                 "Dial tone, ringback and busy differ by country &mdash; frequencies and cadence "
+                 "both. This is independent of the interface language, so Canadian French gets "
+                 "North American tones with a French UI. Takes effect on the next dial tone, no "
+                 "reboot."),
+        i18n_str("tones.region.map_summary", "What each language maps to"),
+        i18n_str("tones.region.map_lang", "Language"),
+        i18n_str("tones.region.map_region", "Region"),
+        lang_map,
+        i18n_str("tones.region.map_hint",
+                 "Used only while <b>Follow my UI language</b> is ticked. Anything not listed "
+                 "&mdash; English especially, which could mean the US, the UK, Australia or "
+                 "India &mdash; falls back to North America, so untick the box and pick a region "
+                 "if that's not what you want."));
 
     board_offhook_alert_t roh = board_offhook_alert_get();
     char roh_status[48];
