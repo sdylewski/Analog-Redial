@@ -12,6 +12,26 @@ layers:
    each subsystem can be tested with one command from your laptop, and so the
    full sequence can be scripted instead of typed by hand.
 
+## first_setup.py — everything a new board needs, in one command
+
+```bash
+./first_setup.py --host newphone.local --lines 2 --bluetooth --language en
+```
+
+Checks the board answers, runs the hardware checklist, tells the board what
+hardware it has, then generates and uploads the default spoken prompts and
+the digits 0–9. Each step is skippable (`--only prompts`, `--skip-tests`,
+`--no-digits`) and re-running is safe — it's also how you change one thing
+later, like regenerating prompts in another language.
+
+The operator message is assembled from what the board actually is: a
+single-line board isn't told to dial 321, and the Bluetooth sentence only
+appears with `--bluetooth`.
+
+It orchestrates the other tools rather than duplicating them — `gen_prompt.py`
+does the speech and upload, `bringup_checklist.py` does the hardware tests.
+Run those directly when you want one piece on its own.
+
 ## 1. Build and flash
 
 Board type is a compile-time Kconfig choice — GPIO routing is fixed per PCB,
