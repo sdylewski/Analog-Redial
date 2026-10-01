@@ -3778,7 +3778,20 @@ static void format_recording_timestamp(const char *name, char *out, size_t len)
     }
 
     int y, mo, d, h, mi, s;
-    if (sscanf(p, "%4d%2d%2d_%2d%2d%2dZ", &y, &mo, &d, &h, &mi, &s) != 6) return;
+    /* Names written since 2026-10-01 are local wall-clock time and have no
+     * suffix; older ones ended in "Z" and were UTC. Both parse the same --
+     * only the trailing Z tells them apart, and only the old ones need
+     * converting for display. */
+    bool is_utc = false;
+    if (sscanf(p, "%4d%2d%2d_%2d%2d%2d", &y, &mo, &d, &h, &mi, &s) != 6) return;
+    {
+        const char *z = strchr(p, '_');
+        if (z && strlen(z) >= 8 && z[7] == 'Z') is_utc = true;
+    }
+    if (!is_utc) {
+        snprintf(out, len, "%04d-%02d-%02d %02d:%02d", y, mo, d, h, mi);
+        return;
+    }
 
     /* Filenames are UTC on purpose -- unambiguous and sortable, and they
      * must not shift if the timezone setting changes later. Display is a

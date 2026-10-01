@@ -30,6 +30,115 @@ static bool           s_mdns_named;  /* hostname resolved+set since boot */
 static bool           s_provisioning; /* running the setup SoftAP (no creds) */
 static esp_netif_t    *s_sta_netif;   /* for esp_netif_set_hostname() -- DHCP hostname */
 
+/* ---- known networks ----
+ * Up to WIFI_MAX_NETWORKS saved SSID/password pairs in NVS as ssid0..ssidN /
+ * pass0..passN. At connect time we scan and take the *strongest* one that's
+ * in the list, so carrying the board between home and a friend's house just
+ * works. Boards saved before this existed have a single legacy "ssid"/"pass"
+ * pair; migrate_legacy_creds() folds that into slot 0 once. */
+static esp_err_t known_get(int slot, char *ssid, size_t ssid_len, char *pass, size_t pass_len)
+{
+    nvs_handle_t h;
+    if (nvs_open(NVS_NS, NVS_READONLY, &h) != ESP_OK) return ESP_FAIL;
+    char k[12];
+    snprintf(k, sizeof(k), "ssid%d", slot);
+    size_t n = ssid_len;
+    esp_err_t err = nvs_get_str(h, k, ssid, &n);
+    if (err == ESP_OK && pass) {
+        snprintf(k, sizeof(k), "pass%d", slot);
+        n = pass_len;
+        if (nvs_get_str(h, k, pass, &n) != ESP_OK) pass[0] = '\0';
+    }
+    nvs_close(h);
+    return err;
+}
+
+static esp_err_t known_put(int slot, const char *ssid, const char *pass)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    char k[12];
+    snprintf(k, sizeof(k), "ssid%d", slot);
+    err = nvs_set_str(h, k, ssid);
+    if (err == ESP_OK) {
+        snprintf(k, sizeof(k), "pass%d", slot);
+        err = nvs_set_str(h, k, pass ? pass : "");
+    }
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
+
+/* One-time: fold a pre-list "ssid"/"pass" pair into slot 0. */
+static void migrate_legacy_creds(void)
+{
+    char s0[33] = {0};
+    if (known_get(0, s0, sizeof(s0), NULL, 0) == ESP_OK && s0[0]) return; /* already migrated */
+    char ssid[33] = {0}, pass[65] = {0};
+    nvs_handle_t h;
+    if (nvs_open(NVS_NS, NVS_READONLY, &h) != ESP_OK) return;
+    size_t n = sizeof(ssid);
+    bool have = (nvs_get_str(h, "ssid", ssid, &n) == ESP_OK) && ssid[0];
+    if (have) { n = sizeof(pass); if (nvs_get_str(h, "pass", pass, &n) != ESP_OK) pass[0] = '\0'; }
+    nvs_close(h);
+    if (have) {
+        known_put(0, ssid, pass);
+        ESP_LOGI(TAG, "migrated saved network '%s' into the known-networks list", ssid);
+    }
+}
+
+int wifi_known_list(wifi_known_net_t *out, int max)
+{
+    migrate_legacy_creds();
+    int n = 0;
+    for (int i = 0; i < WIFI_MAX_NETWORKS && n < max; i++) {
+        char ssid[33] = {0}, pass[65] = {0};
+        if (known_get(i, ssid, sizeof(ssid), pass, sizeof(pass)) == ESP_OK && ssid[0]) {
+            strlcpy(out[n].ssid, ssid, sizeof(out[n].ssid));
+            out[n].has_password = pass[0] != '\0';
+            out[n].slot = i;
+            n++;
+        }
+    }
+    return n;
+}
+
+esp_err_t wifi_known_add(const char *ssid, const char *pass)
+{
+    if (!ssid || !ssid[0]) return ESP_ERR_INVALID_ARG;
+    migrate_legacy_creds();
+    int free_slot = -1;
+    for (int i = 0; i < WIFI_MAX_NETWORKS; i++) {
+        char s0[33] = {0};
+        if (known_get(i, s0, sizeof(s0), NULL, 0) == ESP_OK && s0[0]) {
+            if (strcmp(s0, ssid) == 0) return known_put(i, ssid, pass); /* update in place */
+        } else if (free_slot < 0) {
+            free_slot = i;
+        }
+    }
+    if (free_slot < 0) return ESP_ERR_NO_MEM; /* list full */
+    return known_put(free_slot, ssid, pass);
+}
+
+esp_err_t wifi_known_remove(const char *ssid)
+{
+    if (!ssid || !ssid[0]) return ESP_ERR_INVALID_ARG;
+    for (int i = 0; i < WIFI_MAX_NETWORKS; i++) {
+        char s0[33] = {0};
+        if (known_get(i, s0, sizeof(s0), NULL, 0) == ESP_OK && strcmp(s0, ssid) == 0) {
+            nvs_handle_t h;
+            if (nvs_open(NVS_NS, NVS_READWRITE, &h) != ESP_OK) return ESP_FAIL;
+            char k[12];
+            snprintf(k, sizeof(k), "ssid%d", i); nvs_erase_key(h, k);
+            snprintf(k, sizeof(k), "pass%d", i); nvs_erase_key(h, k);
+            nvs_commit(h); nvs_close(h);
+            return ESP_OK;
+        }
+    }
+    return ESP_ERR_NOT_FOUND;
+}
+
 static esp_err_t load_creds_from_nvs(char *ssid, size_t ssid_len, char *pass, size_t pass_len)
 {
     nvs_handle_t h;
@@ -68,6 +177,43 @@ static esp_err_t do_connect(const char *ssid, const char *pass)
     return err;
 }
 
+/* Scans, then connects to whichever saved network has the strongest signal
+ * right now. Falls back to the first saved entry if the scan sees none of
+ * them -- a hidden SSID never shows up in a scan but still connects. */
+static esp_err_t connect_best_known(void)
+{
+    wifi_known_net_t known[WIFI_MAX_NETWORKS];
+    int nk = wifi_known_list(known, WIFI_MAX_NETWORKS);
+    if (nk == 0) return ESP_ERR_NOT_FOUND;
+
+    wifi_scan_result_t scan[24];
+    int ns = wifi_scan(scan, (int)(sizeof(scan) / sizeof(scan[0])));
+
+    int best_slot = -1, best_rssi = -127;
+    for (int i = 0; i < ns; i++) {
+        for (int k = 0; k < nk; k++) {
+            if (strcmp(scan[i].ssid, known[k].ssid) == 0 && scan[i].rssi > best_rssi) {
+                best_rssi = scan[i].rssi;
+                best_slot = known[k].slot;
+            }
+        }
+    }
+
+    int slot = (best_slot >= 0) ? best_slot : known[0].slot;
+    char ssid[33] = {0}, pass[65] = {0};
+    if (known_get(slot, ssid, sizeof(ssid), pass, sizeof(pass)) != ESP_OK || !ssid[0])
+        return ESP_ERR_NOT_FOUND;
+
+    if (best_slot >= 0) {
+        ESP_LOGI(TAG, "%d saved network(s); '%s' is the strongest in range (%d dBm)",
+                 nk, ssid, best_rssi);
+    } else {
+        ESP_LOGW(TAG, "%d saved network(s), none seen in the scan -- trying '%s' anyway "
+                      "(it may be hidden)", nk, ssid);
+    }
+    return do_connect(ssid, pass);
+}
+
 static void event_handler(void *arg, esp_event_base_t base, int32_t id, void *data)
 {
     if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
@@ -83,7 +229,17 @@ static void event_handler(void *arg, esp_event_base_t base, int32_t id, void *da
                      d ? d->reason : -1, d ? d->rssi : 0);
         }
         s_connected = false;
-        if (s_ssid[0]) esp_wifi_connect();
+        /* Hammering one SSID is wrong when several are saved: the board may
+         * have moved. Re-scan and re-pick every few failures so it settles on
+         * whichever known network is actually present. */
+        if (s_ssid[0]) {
+            static int fails;
+            if (!s_provisioning && ++fails >= 5) {
+                fails = 0;
+                if (connect_best_known() == ESP_OK) return;
+            }
+            esp_wifi_connect();
+        }
     } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *e = (ip_event_got_ip_t *)data;
         s_ip = e->ip_info.ip;
@@ -208,6 +364,7 @@ esp_err_t wifi_request_setup_ap(void)
 
 esp_err_t wifi_save_credentials(const char *ssid, const char *password)
 {
+    wifi_known_add(ssid, password); /* remember it alongside any others */
     nvs_handle_t h;
     esp_err_t err = nvs_open(NVS_NS, NVS_READWRITE, &h);
     if (err != ESP_OK) return err;
@@ -263,9 +420,15 @@ esp_err_t wifi_init(void)
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
 
     char ssid[33] = {0}, pass[65] = {0};
-    if (load_creds_from_nvs(ssid, sizeof(ssid), pass, sizeof(pass)) != ESP_OK) {
-        strncpy(ssid, CONFIG_WIFI_SSID, sizeof(ssid) - 1);
-        strncpy(pass, CONFIG_WIFI_PASSWORD, sizeof(pass) - 1);
+    migrate_legacy_creds();
+    {
+        wifi_known_net_t probe[WIFI_MAX_NETWORKS];
+        if (wifi_known_list(probe, WIFI_MAX_NETWORKS) == 0) {
+            /* Nothing saved: fall back to any build-time default. */
+            strncpy(ssid, CONFIG_WIFI_SSID, sizeof(ssid) - 1);
+            strncpy(pass, CONFIG_WIFI_PASSWORD, sizeof(pass) - 1);
+            if (ssid[0]) wifi_known_add(ssid, pass);
+        }
     }
     /* Rescue gesture (BOOT held ~3 s) asks for the setup AP even though
      * credentials exist -- see board_boot_button_start(). One-shot: the flag
@@ -277,6 +440,10 @@ esp_err_t wifi_init(void)
         return start_provisioning();
     }
 
+    {   /* Anything in the known-networks list counts as "configured". */
+        wifi_known_net_t probe[WIFI_MAX_NETWORKS];
+        if (wifi_known_list(probe, WIFI_MAX_NETWORKS) > 0) ssid[0] = 'x';
+    }
     if (ssid[0] == '\0') {
         /* Nothing saved anywhere -> bring up the setup AP instead of idling.
          * SNTP/mDNS wait for the real network after the user configures one. */
@@ -368,6 +535,7 @@ void wifi_apply_hostname(void)
 
 esp_err_t wifi_set_credentials(const char *ssid, const char *password)
 {
+    wifi_known_add(ssid, password); /* remember it alongside any others */
     nvs_handle_t h;
     esp_err_t err = nvs_open(NVS_NS, NVS_READWRITE, &h);
     if (err != ESP_OK) return err;

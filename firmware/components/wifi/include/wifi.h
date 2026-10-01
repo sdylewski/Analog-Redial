@@ -39,6 +39,24 @@ esp_err_t wifi_save_credentials(const char *ssid, const char *password);
 /* True while the setup SoftAP is up (no credentials configured). The web UI
  * serves its captive setup page instead of the normal dashboard in this
  * state. */
+
+/* ---- known networks ----
+ * Several saved SSID/password pairs; at connect time the board scans and
+ * joins whichever is strongest, so carrying it between home and somewhere
+ * else just works. Boards saved before this existed migrate their single
+ * pair into slot 0 automatically. */
+#define WIFI_MAX_NETWORKS 5
+
+typedef struct {
+    char ssid[33];
+    bool has_password;
+    int  slot;          /* storage index, for removal */
+} wifi_known_net_t;
+
+int       wifi_known_list(wifi_known_net_t *out, int max);   /* returns count */
+esp_err_t wifi_known_add(const char *ssid, const char *pass); /* adds or updates */
+esp_err_t wifi_known_remove(const char *ssid);
+
 bool wifi_is_provisioning(void);
 
 /* Ask the next boot to come up in the setup SoftAP even though credentials

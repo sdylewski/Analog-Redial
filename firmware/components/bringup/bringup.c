@@ -760,8 +760,8 @@ static void record_name_timestamped(char *out, size_t out_len)
         return;
     }
     struct tm t;
-    gmtime_r(&now, &t);
-    snprintf(out, out_len, "rec_%04d%02d%02d_%02d%02d%02dZ.wav",
+    localtime_r(&now, &t);   /* local wall clock -- see the note on naming below */
+    snprintf(out, out_len, "rec_%04d%02d%02d_%02d%02d%02d.wav",
              t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
              t.tm_hour, t.tm_min, t.tm_sec);
 }
