@@ -2069,17 +2069,16 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
      * submitting normally when visible. */
     bool voip_on = voip_is_enabled();
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\">"
+        "<div class=\"card wide\"><h2>SIP server</h2>"
         "<form method=\"POST\" action=\"/voip_enable\" class=\"settings-form\">"
         "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\" "
         "onchange=\"toggleSection(this,'voip-extra')\"%s> <b>Enable VOIP</b></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
         "</form>"
-        "<p class=\"hint\">Takes effect on reboot, like the server/extension settings below. "
-        "Turning this off doesn't erase anything you've saved -- it just stops the board from "
-        "registering with your SIP server until you turn it back on.</p>"
-        "</div>"
-        "<div id=\"voip-extra\"%s>",
+        "<p class=\"hint\">Takes effect on reboot. Turning this off doesn't erase anything "
+        "you've saved -- it just stops the board registering with your SIP server until you "
+        "turn it back on.</p>"
+        "<div id=\"voip-extra\"%s><hr class=\"sep\">",
         voip_on ? " checked" : "", voip_on ? "" : " hidden");
 
     /* 1. Point this phone at your SIP server -- promoted to the top of the
@@ -2090,7 +2089,6 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
      * visible (not a collapsed <details>), since this is now the main
      * content of the tab, not an afterthought under three other cards. */
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\"><h2>1. Point this phone at your SIP server</h2>"
         "<form method=\"POST\" action=\"/voip_set\" class=\"settings-form\">"
         "<label>SIP server (host or IP) <input name=\"server\" id=\"voip_server_input\" "
         "oninput=\"voipSyncCheckServer()\" value=\"%s\"></label>"
@@ -6387,10 +6385,9 @@ static esp_err_t media_delete_bulk_handler(httpd_req_t *req)
  * by its code -- there's still only one table to keep in sync. */
 typedef struct { char prefix; const char *heading; } guide_cat_t;
 static const guide_cat_t GUIDE_CATS[] = {
-    { '2', "2xx -- calling" },
-    { '3', "Call other phone" },
-    { '8', "8xx -- radio" },
-    { '9', "9xx -- settings" },
+    { '2', "2xx -- messages" },
+    { '3', "3xx -- call the other phone" },
+    { '8', "8xx -- radio &amp; settings" },
 };
 #define GUIDE_CATS_N (sizeof(GUIDE_CATS) / sizeof(GUIDE_CATS[0]))
 
@@ -6429,15 +6426,82 @@ static int append_guide_row(char *buf, size_t cap, int off, const char *code,
  * (dialplan_list()/dialplan_list_clip_entries()) -- that invariant (the
  * guide can't drift out of sync with what dialplan_feed() actually
  * matches) is unchanged, only WHERE it's rendered moved. */
+/* 4xx-ish: clip codes (Settings -> Dial Codes) -- builtins plus anything a
+ * user added. No fixed prefix any more, since codes are freely reassignable
+ * (see dialplan_clip_entry_t), so this is placed by convention where 4xx
+ * used to live. One-shot: calling it twice emits nothing the second time. */
+static bool s_guide_clips_done;
+static int append_guide_clips(char *buf, size_t cap, int off)
+{
+    if (s_guide_clips_done || off <= 0 || (size_t)off >= cap) return off;
+    s_guide_clips_done = true;
+    dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
+    size_t nclips = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
+    if (nclips == 0) return off;
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>Clips</h2>");
+    for (size_t i = 0; i < nclips && (size_t)off < cap; i++)
+        off = append_guide_row(buf, cap, off, clips[i].code, clips[i].desc, true);
+    return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+}
+
+/* 555xxxx is matched directly in dialplan_feed(), not a TABLE entry, so it
+ * isn't in dialplan_list()'s output. One-shot, as above. */
+static bool s_guide_voip_done;
+static int append_guide_voip(char *buf, size_t cap, int off)
+{
+    if (s_guide_voip_done || off <= 0 || (size_t)off >= cap) return off;
+    s_guide_voip_done = true;
+    return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>VoIP</h2>"
+        "<div class=\"code-row\"><span class=\"code\">5-5-5-x-x-x-x</span>"
+        "<span class=\"desc\">7-digit extension</span>"
+        "<span class=\"pill on\">working</span></div></div>");
+}
+
 static int append_dialguide_cards(char *buf, size_t cap, int off,
                                    dialplan_entry_info_t *entries, size_t n)
 {
+    s_guide_clips_done = false;
+    s_guide_voip_done = false;
+
+    /* Cards run in dialling order -- 0, 1, 2xx, 3xx, 4xx, 555, 8xx -- so the
+     * guide reads the way someone would actually work through the keypad,
+     * rather than table order. */
+
+    /* 0 -- operator. Its own card: a single code with no prefix family. */
+    for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
+        if (strcmp(entries[i].code, "0") != 0) continue;
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"card\"><h2>Operator</h2>");
+        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
+                                entries[i].implemented);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    }
+
+    /* 1 -- Bluetooth dial-out. Matched directly in dialplan_feed(), only
+     * while the companion is enabled (dialplan_set_bt_dialout()), so it's
+     * synthetic rather than a TABLE entry. */
+    if (bt_companion_active() && off > 0 && (size_t)off < cap) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"card\"><h2>Bluetooth</h2>"
+            "<div class=\"code-row\"><span class=\"code\">1 - x x x - x x x - x x x x</span>"
+            "<span class=\"desc\">Call out via the paired phone</span>"
+            "<span class=\"pill on\">working</span></div></div>");
+    }
+
+    /* 2xx, 3xx, 8xx -- straight from the dial-plan table. */
     for (size_t g = 0; g < GUIDE_CATS_N && off > 0 && (size_t)off < cap; g++) {
-        /* Skip a category with no live codes (e.g. "Call other phone" on a
-         * single-line build, where the 3xx entries are compiled out). */
+        /* Skip a category with no live codes (e.g. "call the other phone" on
+         * a single-line build, where the 3xx entries are compiled out). */
         size_t in_cat = 0;
         for (size_t i = 0; i < n; i++) if (entries[i].code[0] == GUIDE_CATS[g].prefix) in_cat++;
         if (in_cat == 0) continue;
+
+        /* 4xx clips and 555 VoIP are interleaved here so the whole run stays
+         * in dialling order even though they come from other sources. */
+        if (GUIDE_CATS[g].prefix > '4') off = append_guide_clips(buf, cap, off);
+        if (GUIDE_CATS[g].prefix > '5') off = append_guide_voip(buf, cap, off);
 
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<div class=\"card\"><h2>%s</h2>", GUIDE_CATS[g].heading);
@@ -6449,53 +6513,18 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
     }
 
-    /* Operator ("0") doesn't share a prefix with anything else in GUIDE_CATS,
-     * so it gets its own card, still pulled live from the table. */
-    for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
-        if (strcmp(entries[i].code, "0") != 0) continue;
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"card\"><h2>Operator</h2>");
-        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
-                                entries[i].implemented);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
-    }
-
-    /* Clip codes (Settings -> Dial Codes) -- builtin "silly audio" clips
-     * plus anything a user's added, same live-table guarantee as everything
-     * else here. No fixed prefix card for these any more since codes are
-     * freely reassignable (see dialplan_clip_entry_t). */
-    dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
-    size_t nclips = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
-    if (nclips > 0 && off > 0 && (size_t)off < cap) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<div class=\"card\"><h2>Clips</h2>");
-        for (size_t i = 0; i < nclips && (size_t)off < cap; i++) {
-            off = append_guide_row(buf, cap, off, clips[i].code, clips[i].desc, true);
-        }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
-    }
+    /* If no 8xx category rendered (nothing above 5xx), these still need to
+     * come out -- append_guide_clips()/_voip() are one-shot and no-op after
+     * the first call. */
+    off = append_guide_clips(buf, cap, off);
+    off = append_guide_voip(buf, cap, off);
 
     if (off > 0 && (size_t)off < cap) {
-        /* Synthetic row: 555xxxx is matched directly in dialplan_feed(),
-         * not a TABLE entry, so it isn't in dialplan_list()'s output. */
         off += snprintf(buf + off, cap - off,
-            "<div class=\"card\"><h2>VoIP</h2>"
-            "<div class=\"code-row\"><span class=\"code\">5-5-5-x-x-x-x</span>"
-            "<span class=\"desc\">7-digit extension</span>"
-            "<span class=\"pill on\">working</span></div></div>"
-            "%s"
             "</div>" /* .cards, opened by the caller (index_handler) */
             "<p class=\"hint\">Source of truth: <code>components/dialplan/dialplan.c</code> -- "
             "this list is generated from the same table the phone actually matches against, "
-            "so it can't drift out of sync with real behavior.</p>",
-            /* Also matched directly in dialplan_feed(), only while the
-             * Bluetooth module is enabled (dialplan_set_bt_dialout()). */
-            bt_companion_active()
-                ? "<div class=\"card\"><h2>Bluetooth</h2>"
-                  "<div class=\"code-row\"><span class=\"code\">1-x-x-x-x-x-x-x-x-x-x</span>"
-                  "<span class=\"desc\">Call via the paired phone (line 1)</span>"
-                  "<span class=\"pill on\">working</span></div></div>"
-                : "");
+            "so it can't drift out of sync with real behavior.</p>");
     }
     return off;
 }
