@@ -120,6 +120,42 @@ commands (`sd_test`, `sip_status`, `record`, `capture`, …).
 
 ---
 
+### The bring-up console
+
+The same USB connection you flashed over gives you an interactive console —
+`idf.py monitor`, then type `help`. It works whether or not Wi-Fi is up,
+which makes it the tool of choice when something isn't behaving.
+
+The ones worth knowing on a new board:
+
+| Command | What it does |
+|---------|--------------|
+| `selftest` | Guided hardware bring-up check — start here on a fresh board |
+| `board_info` | Detected board type and pin map |
+| `codec_detect` | Probes the audio codec, and warns if it doesn't match the firmware's board type |
+| `status` | Per-line telephony state |
+| `hookmon [secs]` | Watch the hook switch — lift and drop the handset and see it register |
+| `pulsemon [secs]` | Watch rotary pulses with timing |
+| `tonemon [secs]` | Watch touch-tone digits |
+| `dialtone [line]` / `silence [line]` | Force dial tone on or off, bypassing the dial plan |
+| `ring [line] [secs]` | Ring the bell |
+| `capture [ms]` | Live RX level meter for both lines |
+| `miclevel [secs]` | Handset mic level and clipping check — talk into the handset |
+| `spkamp` / `micamp` | Earpiece drive and mic gain, live |
+| `wifi_status` / `wifi_set <ssid> <pass>` | Check or set Wi-Fi without the web UI |
+| `power` | Low-power idle state |
+| `reboot` | Software restart that keeps the monitor attached |
+| `download` | Reboot into the ROM bootloader for flashing |
+
+A good first sequence on a new board: `selftest`, then `hookmon 20` while
+you lift and replace the handset, then `dialtone 0` and listen.
+
+> **Opening the serial port resets the ESP32-C6.** That's the USB-JTAG
+> hardware, not a bug — so a monitor session that starts mid-call will end
+> that call, and reconnecting drops any Bluetooth link.
+
+---
+
 ## 6. First-boot Wi-Fi setup (no credentials yet)
 
 On first boot there are no Wi-Fi credentials, so the phone brings up **its own
@@ -218,11 +254,26 @@ write/read/verify.
 
 ---
 
-## 9. Resetting Wi-Fi (factory reset)
+## 9. The BOOT button: rescue and factory reset
 
-With the board **powered on and running**, short **GPIO9 (the BOOT strap)**
-to GND (or hold the BOOT button) for **~3 seconds**. It erases the saved
-Wi-Fi credentials and reboots into the setup AP (section 6).
+Two gestures, both with the board **powered on and running** — hold the
+**BOOT button** on the DevKit (GPIO9):
+
+| Hold | What happens | Credentials |
+|------|--------------|-------------|
+| **~3 s, then release** | Reboots into the setup Wi-Fi network so you can reach the full web UI from a phone | **Kept** |
+| **~10 s** | Erases saved Wi-Fi credentials and reboots into setup (section 6) | **Erased** |
+
+The LED changes at the 3-second mark, so you know when to let go.
+
+**The 3-second gesture is the one you want on site.** If the board can't
+join the network it's in front of — a demo at someone else's office, a
+mistyped password, a router that's changed — hold BOOT for three seconds and
+release. It comes back advertising its own open network (`AnalogRedial-XXXX`);
+join that from a phone or laptop and browse to **192.168.4.1** for the normal
+dashboard, settings, dial codes, Bluetooth pairing, everything. A banner
+reminds you you're in rescue mode. It's one-shot — the next ordinary reboot
+rejoins your saved network.
 
 > Do this at **runtime, not at power-on** — GPIO9 held low *during reset*
 > just enters the chip's USB flashing mode.
