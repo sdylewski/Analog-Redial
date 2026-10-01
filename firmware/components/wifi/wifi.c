@@ -147,6 +147,20 @@ static void captive_dns_task(void *arg)
     }
 }
 
+/* Reads and clears the one-shot "come up in the setup AP" flag. */
+static bool take_forced_ap_flag(void)
+{
+    nvs_handle_t h;
+    if (nvs_open(NVS_NS, NVS_READWRITE, &h) != ESP_OK) return false;
+    uint8_t v = 0;
+    bool set = (nvs_get_u8(h, "force_ap", &v) == ESP_OK) && v;
+    if (set) { nvs_erase_key(h, "force_ap"); nvs_commit(h); }
+    nvs_close(h);
+    return set;
+}
+
+static bool s_forced_ap;
+
 static esp_err_t start_provisioning(void)
 {
     s_provisioning = true;
@@ -179,6 +193,18 @@ static esp_err_t start_provisioning(void)
 }
 
 bool wifi_is_provisioning(void) { return s_provisioning; }
+bool wifi_ap_is_forced(void) { return s_forced_ap; }
+
+esp_err_t wifi_request_setup_ap(void)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, "force_ap", 1);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
 
 esp_err_t wifi_save_credentials(const char *ssid, const char *password)
 {
@@ -241,6 +267,16 @@ esp_err_t wifi_init(void)
         strncpy(ssid, CONFIG_WIFI_SSID, sizeof(ssid) - 1);
         strncpy(pass, CONFIG_WIFI_PASSWORD, sizeof(pass) - 1);
     }
+    /* Rescue gesture (BOOT held ~3 s) asks for the setup AP even though
+     * credentials exist -- see board_boot_button_start(). One-shot: the flag
+     * is cleared here, so the next ordinary reboot goes back to the saved
+     * network. Credentials are untouched throughout. */
+    if (take_forced_ap_flag()) {
+        s_forced_ap = true;
+        ESP_LOGW(TAG, "setup AP requested from the BOOT button -- saved credentials kept");
+        return start_provisioning();
+    }
+
     if (ssid[0] == '\0') {
         /* Nothing saved anywhere -> bring up the setup AP instead of idling.
          * SNTP/mDNS wait for the real network after the user configures one. */

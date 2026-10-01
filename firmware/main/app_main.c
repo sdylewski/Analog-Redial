@@ -40,8 +40,20 @@
 
 static const char *TAG = "app";
 
-/* GPIO9 (BOOT) held ~3 s at runtime -> wipe WiFi creds and reboot, so the
- * device comes back up unprovisioned (SoftAP setup). See board.h. */
+/* BOOT held ~3 s then released -> reboot into the setup SoftAP with the
+ * saved credentials intact, so the web UI is reachable from a phone when the
+ * board's usual network isn't. See board.h / wifi_request_setup_ap(). */
+static void on_wifi_rescue(void)
+{
+    ESP_LOGW(TAG, "rescue: rebooting into the setup AP (credentials kept)");
+    board_led_set_state(BOARD_LED_WIFI_CONNECTING);
+    wifi_request_setup_ap();
+    vTaskDelay(pdMS_TO_TICKS(300)); /* let the NVS commit + log flush */
+    esp_restart();
+}
+
+/* BOOT held ~10 s -> wipe WiFi creds and reboot, so the device comes back up
+ * unprovisioned. See board.h. */
 static void on_factory_reset(void)
 {
     ESP_LOGW(TAG, "factory reset: erasing WiFi credentials and rebooting");
@@ -233,9 +245,10 @@ void app_main(void)
      * archive/BLUETOOTH_AUDIO_UPGRADE.md and bt_companion.h. */
     bt_companion_init();
 
-    /* 7. BOOT-strap watcher: hold GPIO9 low ~3 s at runtime to factory-reset
-     * WiFi. Started last so it can't interfere with subsystem bring-up. */
-    board_factory_reset_start(on_factory_reset);
+    /* 7. BOOT-button watcher: ~3 s then release brings up the setup AP with
+     * credentials intact; ~10 s factory-resets WiFi. Started last so it
+     * can't interfere with subsystem bring-up. */
+    board_boot_button_start(on_wifi_rescue, on_factory_reset);
 
     /* microSD/line-1 physical config guard -- see sd_line1_conflict_task()'s
      * own doc comment above. After ag1170_init() so line 1's SLIC (if

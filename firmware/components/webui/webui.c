@@ -625,6 +625,15 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
      * this specific combination gets a loud banner instead of staying
      * silent, and why line 1 has already been powered down by the time
      * anyone sees this (app_main.c's periodic check, not this render). */
+    if (wifi_ap_is_forced()) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"hazard-banner\">%s</div>",
+            i18n_str("hazard.rescue_ap",
+                     "&#128246; Rescue mode: this board is running its own setup Wi-Fi network "
+                     "instead of joining yours, because the BOOT button was held. Everything here "
+                     "works normally. Your saved Wi-Fi is untouched &mdash; reboot "
+                     "(Settings &rarr; Hardware) to rejoin it."));
+    }
     if (board_sd_line1_conflict()) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<div class=\"hazard-banner\">%s</div>",
@@ -907,7 +916,10 @@ static int append_first_boot_banner(char *buf, size_t cap, int off)
 
 static esp_err_t index_handler(httpd_req_t *req)
 {
-    if (wifi_is_provisioning()) return wifi_setup_page(req);
+    /* A forced AP (BOOT-button rescue) already has credentials -- the point
+     * of the gesture is reaching this dashboard, not re-provisioning, so
+     * only the genuinely-unconfigured case gets the setup page. */
+    if (wifi_is_provisioning() && !wifi_ap_is_forced()) return wifi_setup_page(req);
 
     char ip[16];
     wifi_get_ip_str(ip, sizeof(ip));

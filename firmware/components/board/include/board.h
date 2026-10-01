@@ -95,7 +95,7 @@ void board_led_set_state(board_led_state_t state);
  * the serial bootloader), it calls on_hold() once, meant for a WiFi factory
  * reset (erase creds + reboot). Reading the strap as an input after boot is
  * safe. Pass NULL to disable. */
-void board_factory_reset_start(void (*on_hold)(void));
+void board_boot_button_start(void (*on_rescue)(void), void (*on_factory_reset)(void));
 
 /* ---- Board identity ----
  * Lets several boards on one LAN be told apart in the web UI (see the

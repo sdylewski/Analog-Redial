@@ -41,6 +41,17 @@ esp_err_t wifi_save_credentials(const char *ssid, const char *password);
  * state. */
 bool wifi_is_provisioning(void);
 
+/* Ask the next boot to come up in the setup SoftAP even though credentials
+ * are saved -- the BOOT-button rescue gesture. One-shot: consumed at the
+ * next wifi_init(), so an ordinary reboot after that rejoins the saved
+ * network. Credentials are never touched. Caller reboots. */
+esp_err_t wifi_request_setup_ap(void);
+
+/* True when this boot's SoftAP came from wifi_request_setup_ap() rather than
+ * from having no credentials. The web UI serves its full dashboard in that
+ * case -- the point of the gesture is reaching the UI, not re-provisioning. */
+bool wifi_ap_is_forced(void);
+
 /* Re-read the board name (board_hostname()/board_name_get()) and push it to
  * mDNS as the <name>.local hostname + instance name. Call after
  * board_name_set() so the .local address updates without a reboot. No-op-ish

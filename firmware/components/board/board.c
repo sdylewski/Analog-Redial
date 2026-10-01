@@ -1060,48 +1060,72 @@ void board_led_init(void) { }
 void board_led_set_state(board_led_state_t state) { (void)state; }
 #endif
 
-/* ---- BOOT-strap (GPIO9) factory-reset watcher ----
+/* ---- BOOT button (GPIO9) watcher ----
  * GPIO9 is a boot strap: held low AT reset the ROM enters serial-download
  * mode and our app never runs. So this only ever reads it *after* boot -- a
  * runtime hold, not a power-on gesture. Free on both PCBs (not in either pin
- * map). */
-#define FACTORY_RESET_GPIO     GPIO_NUM_9
-#define FACTORY_RESET_HOLD_MS  3000
-#define FACTORY_RESET_POLL_MS  100
+ * map); the button itself lives on the DevKit module.
+ *
+ * Two gestures, so the useful one isn't destructive:
+ *   ~3 s  -> rescue: bring up the setup SoftAP without touching credentials,
+ *            so the web UI is reachable from a phone when the board's normal
+ *            network isn't (a demo on someone else's site, a wrong password,
+ *            a router that's moved on).
+ *   ~10 s -> factory reset: erase WiFi credentials.
+ * Holding through the first threshold fires it once, then keeps counting;
+ * release before 10 s and only the rescue AP happens. */
+#define BOOT_BTN_GPIO        GPIO_NUM_9
+#define BOOT_BTN_RESCUE_MS   3000
+#define BOOT_BTN_RESET_MS    10000
+#define BOOT_BTN_POLL_MS     100
 
-static void (*s_factory_reset_cb)(void);
+static void (*s_boot_rescue_cb)(void);
+static void (*s_boot_reset_cb)(void);
 
-static void factory_reset_task(void *arg)
+static void boot_button_task(void *arg)
 {
     gpio_config_t io = {
-        .pin_bit_mask = 1ULL << FACTORY_RESET_GPIO,
+        .pin_bit_mask = 1ULL << BOOT_BTN_GPIO,
         .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_ENABLE,   /* idle high; short to GND to trigger */
+        .pull_up_en = GPIO_PULLUP_ENABLE,   /* idle high; the button shorts to GND */
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_DISABLE,
     };
     gpio_config(&io);
 
     int held_ms = 0;
+    bool rescue_fired = false;
     while (1) {
-        if (gpio_get_level(FACTORY_RESET_GPIO) == 0) {
-            held_ms += FACTORY_RESET_POLL_MS;
-            if (held_ms >= FACTORY_RESET_HOLD_MS) {
-                ESP_LOGW(TAG, "GPIO%d (BOOT) held %d ms -- factory reset",
-                         FACTORY_RESET_GPIO, held_ms);
-                if (s_factory_reset_cb) s_factory_reset_cb();
-                held_ms = 0; /* if the cb didn't reboot, don't re-fire every tick */
+        if (gpio_get_level(BOOT_BTN_GPIO) == 0) {
+            held_ms += BOOT_BTN_POLL_MS;
+            if (!rescue_fired && held_ms >= BOOT_BTN_RESCUE_MS) {
+                rescue_fired = true;
+                ESP_LOGW(TAG, "BOOT held %d ms -- keep holding to %d ms for a factory reset, "
+                              "or release now for the setup AP", held_ms, BOOT_BTN_RESET_MS);
+                board_led_set_state(BOARD_LED_WIFI_CONNECTING); /* "let go now" */
+            }
+            if (held_ms >= BOOT_BTN_RESET_MS) {
+                ESP_LOGW(TAG, "BOOT held %d ms -- factory reset", held_ms);
+                if (s_boot_reset_cb) s_boot_reset_cb();
+                held_ms = 0; rescue_fired = false; /* if the cb didn't reboot, don't re-fire */
             }
         } else {
+            if (rescue_fired) {
+                /* Released between the two thresholds: the rescue gesture. */
+                ESP_LOGW(TAG, "BOOT released after %d ms -- starting the setup AP", held_ms);
+                if (s_boot_rescue_cb) s_boot_rescue_cb();
+            }
             held_ms = 0;
+            rescue_fired = false;
         }
-        vTaskDelay(pdMS_TO_TICKS(FACTORY_RESET_POLL_MS));
+        vTaskDelay(pdMS_TO_TICKS(BOOT_BTN_POLL_MS));
     }
 }
 
-void board_factory_reset_start(void (*on_hold)(void))
+void board_boot_button_start(void (*on_rescue)(void), void (*on_factory_reset)(void))
 {
-    if (!on_hold) return;
-    s_factory_reset_cb = on_hold;
-    xTaskCreate(factory_reset_task, "factory_rst", 3072, NULL, tskIDLE_PRIORITY + 1, NULL);
+    if (!on_rescue && !on_factory_reset) return;
+    s_boot_rescue_cb = on_rescue;
+    s_boot_reset_cb  = on_factory_reset;
+    xTaskCreate(boot_button_task, "boot_btn", 3072, NULL, tskIDLE_PRIORITY + 1, NULL);
 }
