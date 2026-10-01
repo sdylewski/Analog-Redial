@@ -85,6 +85,8 @@ fabricated. See [`docs/hardware-smd5.md`](docs/hardware-smd5.md).
 - Pulse (rotary) and touch-tone (DTMF) dialing
 - Fully offline two-phone calling — no server, no network needed
 - VoIP/SIP gateway mode (Asterisk/FreePBX or any standards-compliant PBX)
+- **International dial tones** — pick your region in the web UI and dial tone,
+  ringback and busy all switch to that country's frequencies and cadence
 - Custom dial/ringback/busy tones, region-selectable
 - Voicemail-style message recording, downloadable from the web UI
 - Configurable dial plan — add your own dial codes and audio clips at runtime

@@ -505,6 +505,34 @@ that -- size for ~100 mA). Microchip's own MCU-hosted EVB measurements were
 taken at BAT_IN = 3.3 V, so 3.3 V is a supported operating point when it's
 a clean, dedicated rail.
 
+### Planned: a multi-function button (not yet in KiCad)
+
+Decided 2026-10-01. One user-facing button, so the board is usable without
+reaching for the DevKit's BOOT button or a serial console.
+
+- **Wire it to a spare ESP32 GPIO**, not to the BM64's `MFB`. MFB is the
+  module's power button: a human-length press on it is exactly the gesture
+  that triggered the master reset which wiped pairings (see the MFB note in
+  the BM64 table above). A GPIO lets firmware debounce it and decide what a
+  press *means*, then call the existing pairing command.
+- **Candidate pins: GPIO12 or GPIO13** — but only on a board where the
+  MCLK/card-detect jumper work above has freed them, and only on the
+  genuine-module variant, where they're native USB. Check against the pin
+  map before committing; GPIO15 is now MFB.
+- **Gestures**, mirroring what the firmware already does on BOOT:
+  | Press | Action |
+  |-------|--------|
+  | Single click | Start Bluetooth pairing |
+  | ~3 s hold | Rescue Wi-Fi AP (credentials kept) |
+  | ~10 s hold | Factory-reset Wi-Fi |
+- **Mechanically**, a side-mounted tactile switch reachable through the
+  enclosure wall is the obvious form, since the board is 5 mm longer than
+  SMD4 and needs a new case anyway.
+
+Firmware already has the two hold gestures in `board_boot_button_start()`
+(board.c) — a second button would reuse that watcher with its own GPIO and a
+click handler added.
+
 ### SHK divider: change 15 kΩ → 100 kΩ (found 2026-09-27)
 
 SMD5 inherits SMD4's 10 kΩ / 15 kΩ SHK divider, which was sized for a 5 V
