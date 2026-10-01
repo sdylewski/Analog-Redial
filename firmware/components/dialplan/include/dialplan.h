@@ -70,7 +70,7 @@ dialplan_modes_t *dialplan_modes(void);
 void dialplan_apply_mode(int line, dialplan_mode_change_t change);
 
 /* Web-UI convenience: trigger a 9xx mode-setting dial code by its code
- * string (e.g. "931", "921") instead of dialing it, reusing the same TABLE
+ * string (e.g. "931", "821") instead of dialing it, reusing the same TABLE
  * dialplan_feed() matches against so the web UI can't drift from what
  * dialing the code actually does. Returns false if `code` isn't a mode-
  * setting entry. `line` is unused by any current mode (none are per-line)

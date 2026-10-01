@@ -64,6 +64,13 @@ static const entry_t TABLE[] = {
 
     /* 8xx -- internet radio; only 811/812 are configured on the Pi today,
      * 813-819 are documented gaps, not real codes yet */
+    /* 8xx holds the mode/greeting codes that used to be 9xx (921/922/999,
+     * moved 2026-10-01). The whole 9xx block is now reserved: "9" is the
+     * candidate prefix for Bluetooth dial-out, PBX-style, and a code
+     * starting with 9 would be indistinguishable from the start of a phone
+     * number. See archive/BLUETOOTH_AUDIO_UPGRADE.md for why that change
+     * isn't made yet -- variable-length numbers need an inter-digit timeout
+     * a rotary phone can't shortcut. */
     { "811", ACT_RADIO, 1, 0, "KXSF 102.5 SF alt-rock (KFOG successor)", false },
     { "812", ACT_RADIO, 2, 0, "KQED NPR 88.5", false },
 
@@ -72,14 +79,14 @@ static const entry_t TABLE[] = {
      * 931/932 either: Play/Call-only mode was removed as redundant (Play
      * mode already allowed everything Call-only did, just without the
      * restriction) -- the phone just always behaves like Play mode did. */
-    { "921", ACT_SET_MODE, MODE_READBACK_OFF, 0,
+    { "821", ACT_SET_MODE, MODE_READBACK_OFF, 0,
       "Digit readback off, default", true },
-    { "922", ACT_SET_MODE, MODE_READBACK_ON,  0,
+    { "822", ACT_SET_MODE, MODE_READBACK_ON,  0,
       "Digit readback on", true },
     /* Was 212 (see the 2xx block's comment above) -- moved out here so it
      * can't be dialed by accident in place of 211 (Leave a message), the
      * actual mistake this was renumbered to avoid. */
-    { "999", ACT_RECORD_GREETING, 0, 0,
+    { "899", ACT_RECORD_GREETING, 0, 0,
       "Record this line's answering-machine greeting", true },
 };
 #define TABLE_N (sizeof(TABLE) / sizeof(TABLE[0]))

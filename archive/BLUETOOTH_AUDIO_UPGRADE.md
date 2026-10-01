@@ -637,6 +637,34 @@ reboot, `bt_connected` is also derived from the 2 s link-status poll, not
 only from link-up events. Still open: does a pairing survive a full power
 loss (the BM64 writes its EEPROM at a clean power-off -- event 0x1B/03)?
 
+### Future: move dial-out to "9", PBX-style (not done 2026-10-01)
+
+`1` + 10 digits was chosen because it's a *fixed* length: the eleventh digit
+is the signal to dial, so there's no waiting. A `9` prefix reads better --
+it's what every office PBX trained people to expect -- but it gives up that
+property, and a rotary phone has no "send" key to replace it.
+
+What it would take:
+
+- **Fire immediately on unambiguous lengths**: `9` + 11 digits starting with
+  1, or `9` + 10 digits. These can't be anything else.
+- **A short inter-digit timeout (~4 s)** for everything else: 7-digit local
+  numbers, and international `011...` where the length genuinely varies.
+  `dialplan_interdigit_ms()` is currently **15 s**, which would feel broken
+  here, so this needs its own shorter timer rather than reusing that one.
+- **`#` to send immediately** for touch-tone users. Rotary phones can't dial
+  `#` at all, so they'd always wait out the timeout on short numbers.
+
+**The 9xx dial codes have already been moved out of the way** (2026-10-01):
+921/922/999 became 821/822/899, so the whole 9xx block is free. A code
+starting with 9 would otherwise be indistinguishable from the start of a
+phone number.
+
+Open question before building it: is a ~4 s pause on local and international
+numbers acceptable, or is "9 + full 10/11 digits only" the better trade --
+instant dialling, no timeout, at the cost of not accepting 7-digit local
+numbers?
+
 ### Gap found while writing this up: BT "enabled" vs. BT "connected"
 
 `on_offhook()`'s routing check today is `bt_companion_enabled()` alone --

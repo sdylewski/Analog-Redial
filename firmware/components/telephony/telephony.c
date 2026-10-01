@@ -544,11 +544,23 @@ static void start_ring(int line)
 {
     s_line[line].ring_started_us = esp_timer_get_time();
     if (board_quiet_hours_active()) {
-        s_line[line].ring_am_cfg = (board_am_cfg_t){
-            .enabled = true, .rings = 0, .other_line = true,
-            .max_ms = board_am_get(line).max_ms,
-        };
-        return; /* no ag1170_ring_start() -- stay silent */
+        board_am_cfg_t am = board_am_get(line);
+        if (am.enabled) {
+            /* Answering machine is set up: take the call silently, as if the
+             * ring count had already run out. */
+            s_line[line].ring_am_cfg = (board_am_cfg_t){
+                .enabled = true, .rings = 0, .other_line = true, .max_ms = am.max_ms,
+            };
+        } else {
+            /* No answering machine: stay silent and simply never answer. The
+             * caller keeps hearing ringback until they give up, which reads
+             * as "nobody's home" -- deliberately not a busy signal, which
+             * would suggest someone is awake and on the phone. Forcing the
+             * AM on here instead would quietly pile up messages the owner
+             * never set up and may not know to check. */
+            s_line[line].ring_am_cfg = (board_am_cfg_t){ .enabled = false };
+        }
+        return; /* no ag1170_ring_start() -- stay silent either way */
     }
     ag1170_ring_start(line);
     s_line[line].ring_am_cfg = board_am_get(line);

@@ -1209,10 +1209,28 @@ static void mode_set_url(char *out, size_t out_len, const char *code, int line)
  * that set it explicitly. The phone's own dial codes (e.g. 921/922) always
  * set state outright rather than toggling it, so these buttons mirror that
  * instead of offering a single flip. */
+static int append_mode_card_hint(char *buf, size_t cap, int off, const char *title,
+                                 const char *pill_class, const char *state_label,
+                                 const char *opt_a_label, const char *opt_a_code,
+                                 const char *opt_b_label, const char *opt_b_code, int line,
+                                 const char *hint);
+
 static int append_mode_card(char *buf, size_t cap, int off, const char *title,
                              const char *pill_class, const char *state_label,
                              const char *opt_a_label, const char *opt_a_code,
                              const char *opt_b_label, const char *opt_b_code, int line)
+{
+    return append_mode_card_hint(buf, cap, off, title, pill_class, state_label,
+                                 opt_a_label, opt_a_code, opt_b_label, opt_b_code, line, NULL);
+}
+
+/* Same card with an explanatory paragraph under the buttons. NULL hint
+ * renders exactly as before. */
+static int append_mode_card_hint(char *buf, size_t cap, int off, const char *title,
+                                 const char *pill_class, const char *state_label,
+                                 const char *opt_a_label, const char *opt_a_code,
+                                 const char *opt_b_label, const char *opt_b_code, int line,
+                                 const char *hint)
 {
     char url_a[32], url_b[32];
     mode_set_url(url_a, sizeof(url_a), opt_a_code, line);
@@ -1231,7 +1249,9 @@ static int append_mode_card(char *buf, size_t cap, int off, const char *title,
         "</div>",
         title, i18n_str("general.current", "Current"), pill_class, state_label,
         url_a, opt_a_label, url_b, opt_b_label,
-        i18n_str("general.persists_hint", "Persists to flash (NVS) and survives a reboot."));
+        hint ? hint
+             : i18n_str("general.persists_hint",
+                        "Persists to flash (NVS) and survives a reboot."));
 }
 
 static int append_general_tab(char *buf, size_t cap, int off)
@@ -1267,6 +1287,31 @@ static int append_general_tab(char *buf, size_t cap, int off)
     char ssid[33];
     strncpy(ssid, wifi_get_ssid(), sizeof(ssid) - 1);
     ssid[sizeof(ssid) - 1] = '\0';
+
+    /* Saved networks: the board joins whichever of these is strongest, so
+     * taking it somewhere else works once that network has been saved. */
+    char saved_rows[900] = "";
+    {
+        wifi_known_net_t known[WIFI_MAX_NETWORKS];
+        int nk = wifi_known_list(known, WIFI_MAX_NETWORKS);
+        int o = 0;
+        for (int i = 0; i < nk && o < (int)sizeof(saved_rows) - 180; i++) {
+            char esc[66];
+            html_escape(known[i].ssid, esc, sizeof(esc));
+            bool active = strcmp(known[i].ssid, ssid) == 0;
+            o += snprintf(saved_rows + o, sizeof(saved_rows) - o,
+                "<tr><td>%s%s</td><td>%s</td><td>"
+                "<form method=\"POST\" action=\"/wifi_forget\" style=\"display:inline\">"
+                "<input type=\"hidden\" name=\"ssid\" value=\"%s\">"
+                "<button type=\"submit\">%s</button></form></td></tr>",
+                esc, active ? " \xe2\x97\x8f" : "",
+                known[i].has_password ? "\xf0\x9f\x94\x92" : "\xe2\x80\x94",
+                esc, i18n_str("general.wifi.forget", "Forget"));
+        }
+        if (nk == 0)
+            snprintf(saved_rows, sizeof(saved_rows), "<tr><td colspan=\"3\">%s</td></tr>",
+                     i18n_str("general.wifi.none_saved", "No networks saved yet."));
+    }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
@@ -1284,6 +1329,9 @@ static int append_general_tab(char *buf, size_t cap, int off)
         "placeholder=\"%s\"></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>"
+        "<h3 class=\"sub\">%s</h3>"
+        "<table class=\"mini\"><tr><th>%s</th><th></th><th></th></tr>%s</table>"
+        "<p class=\"hint\">%s</p>"
         "<p class=\"hint\">%s</p>"
         "<script>%s</script>"
         "</div>",
@@ -1298,6 +1346,13 @@ static int append_general_tab(char *buf, size_t cap, int off)
         i18n_str("general.wifi.ssid_label", "SSID"), ssid,
         i18n_str("general.wifi.password_label", "Password"),
         i18n_str("general.wifi.password_placeholder", "leave blank for an open network"),
+        i18n_str("general.wifi.saved_title", "Saved networks"),
+        i18n_str("general.wifi.saved_col", "Network"), saved_rows,
+        i18n_str("general.wifi.saved_hint",
+                 "Saving a network adds it here rather than replacing the others. On boot the "
+                 "board scans and joins whichever saved network has the strongest signal, so "
+                 "carrying it somewhere else works as soon as that network is saved once. "
+                 "&#9679; marks the one currently in use; up to 5 are kept."),
         i18n_str("general.wifi.button", "Connect"),
         i18n_str("general.wifi.hint",
                  "Saved to flash (NVS); the device reconnects immediately, no reboot needed."),
@@ -1649,11 +1704,17 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         i18n_str("aec.js.failed", "Measurement failed."));
 
     dialplan_modes_t *m = dialplan_modes();
-    off = append_mode_card(buf, cap, off, i18n_str("general.readback.title", "Digit readback"),
+    off = append_mode_card_hint(buf, cap, off, i18n_str("general.readback.title", "Digit readback"),
         m->readback_digits ? "on" : "off",
         m->readback_digits ? i18n_str("general.readback.on", "On") : i18n_str("general.readback.off", "Off"),
-        i18n_str("general.button.turn_off", "Turn off"), "921",
-        i18n_str("general.button.turn_on", "Turn on"), "922", -1);
+        i18n_str("general.button.turn_off", "Turn off"), "821",
+        i18n_str("general.button.turn_on", "Turn on"), "822", -1,
+        i18n_str("general.readback.hint",
+                 "Echoes each digit back as you dial it. Useful well beyond debugging: a "
+                 "preschool phone where children hear the number they just dialled, or a "
+                 "visually impaired user confirming a digit without a display. Today each "
+                 "digit answers with its own touch-tone pair; <b>spoken digits are planned</b> "
+                 "and need a set of number recordings per language. Persists to flash."));
 
 #if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
@@ -4327,7 +4388,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         ? 6000 + (board_type_mismatch() ? 900 : 0) /* +memory map card, several partition rows,
                                                       * +the mismatch-confirm card if showing */
         : 0;
-    size_t general_room = (strcmp(tab, "general") == 0) ? 3200 : 0; /* +quiet hours card's timezone dropdown */
+    size_t general_room = (strcmp(tab, "general") == 0) ? 3200 + 1400 : 0; /* +saved-network list */ /* +quiet hours card's timezone dropdown */
     size_t phone_room = (strcmp(tab, "phone") == 0) ? 10000 : 0; /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card */
     size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 : 0;
     size_t bt_room = (strcmp(tab, "bluetooth") == 0) ? 2500 : 0; /* "What Bluetooth can do" card */ /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
@@ -5373,6 +5434,24 @@ static void ring_stop_cb(void *arg)
 {
     (void)arg;
     ag1170_ring_stop(s_ring_line);
+}
+
+/* POST /wifi_forget -- drop one saved network. Deliberately does not touch
+ * the live connection: forgetting the network you're currently on shouldn't
+ * knock the board off the air mid-session, it just won't be chosen next
+ * time. */
+static esp_err_t wifi_forget_handler(httpd_req_t *req)
+{
+    char body[128], ssid[33] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "ssid", ssid, sizeof(ssid));
+    if (ssid[0]) wifi_known_remove(ssid);
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
 }
 
 static esp_err_t test_ring_handler(httpd_req_t *req)
@@ -7415,6 +7494,7 @@ esp_err_t webui_start(void)
         { .uri = "/media_delete_bulk", .method = HTTP_POST, .handler = media_delete_bulk_handler },
         { .uri = "/mode_set/*",      .method = HTTP_POST, .handler = mode_set_handler },
         { .uri = "/wifi_set",        .method = HTTP_POST, .handler = wifi_set_handler },
+        { .uri = "/wifi_forget",     .method = HTTP_POST, .handler = wifi_forget_handler },
         { .uri = "/api/wifi_scan",   .method = HTTP_GET,  .handler = wifi_scan_json_handler },
         { .uri = "/ota_upload",      .method = HTTP_POST, .handler = ota_upload_handler },
         { .uri = "/ota_revert",      .method = HTTP_POST, .handler = ota_revert_handler },
