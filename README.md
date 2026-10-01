@@ -44,6 +44,18 @@ workshops, a studio and a control room. Dial **321** and the other phone
 rings with a real bell. No account, no cloud, no network — unplug the Wi-Fi
 and it still works.
 
+### Standalone — a phone that does things
+
+![Standalone: one phone and a microSD card, playing clips and recording messages with no network](docs/assets/use-standalone.svg)
+
+The cheapest build: one SLIC, one jack, no second line, no Wi-Fi. Dial a
+code and something happens — play an audio clip, record a message, leave
+voicemail on the built-in answering machine. Fit a **microSD card** and you
+have hours of storage instead of a few megabytes of flash.
+
+Museum exhibits, art installations, a kids' phone that tells jokes, a
+wedding guestbook that records messages.
+
 ### VoIP
 
 ![VoIP: the board registers with a SIP server over Wi-Fi](docs/assets/use-voip.svg)

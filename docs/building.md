@@ -44,22 +44,16 @@ Pulled from [`bom.md`](bom.md), in the order it's easiest to solder.
 | 7 | **U4** | AG1171 SLIC, line 0 | 14-pin SIL module, sits upright |
 | 8 | **U3** | AG1171 SLIC, line 1 | Second line only |
 | 9 | **J1** | DC barrel jack | Optional; chunky, needs a hot iron and a moment to wet |
-| 10 | **U1** | ESP32-C6 DevKit | Use sockets so you can swap it, see below |
+| 10 | **U1** | ESP32-C6 DevKit | Tallest part, so it goes last |
 
 **SMD5 adds J2**, the 8-pin Bluetooth companion header — fit it before the
 DevKit, and only if you're using the Bluetooth option.
 
-### Socket the DevKit
+### Keeping the DevKit square
 
-Solder **female headers** to the board and plug the DevKit into them rather
-than soldering the module down. It costs a couple of millimetres of height
-and buys you the ability to swap a dead module, reflash one out of circuit,
-or move to a 16 MB module later. The DevKit is the single most expensive
-part on the board and the most likely to need replacing.
-
-To keep the rows aligned while you solder: plug the headers into the DevKit,
-drop the whole assembly into the board, tack one pin at each far corner,
-check it sits square, then solder the rest.
+Tack one pin at each far corner first, check the module sits flat and
+square against the board, then solder the rest. A module soldered in
+crooked is a lot of pins to rework.
 
 ## 4. Choosing your build
 
