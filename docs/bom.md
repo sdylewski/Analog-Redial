@@ -110,7 +110,7 @@ Three things to know before committing to this option:
 | | Qty | Component | DigiKey | AliExpress | Notes |
 |---|-----|-----------|---------|------------|-------|
 | | 1 | **J1** DC barrel jack, 5.5 × 2.1 mm | [DigiKey](https://www.digikey.com/en/products/detail/mpd-memory-protection-devices/EJ508A/2439547) $1.25 | [AliExpress](https://www.aliexpress.us/item/3256802445218613.html) $2.70 / 10 | **EJ508A**. The AliExpress jack is **verified to fit**; the EJ508A's pin pattern hasn't been checked against the `Barrel_Jack_PTH_Slot` footprint |
-| | 1 | **D12** line TVS | [DigiKey](https://www.digikey.com/en/products/detail/littelfuse-inc/P6KE82A/688097) $0.75 | [AliExpress](https://www.aliexpress.us/item/3256809218310441.html) $1.96 / 20 | **P6KE82A**, 70 V standoff / 113 V clamp / 600 W. DigiKey's Littelfuse part was in stock 2026-10-02 (3,891). Avoid the plain **P6KE82** (no "A", e.g. [Taiwan Semi](https://www.digikey.com/en/products/detail/taiwan-semiconductor-corporation/P6KE82/22540671), not stocked): ±10% tolerance, 66.4 V standoff, 73.8 V min breakdown — closer to the ~85 V ring peak. **One per board, not per line.** Recommended — see below. **Package is DO-204AC (DO-15), not DO-41**: check against the board's `D_DO-41_..._P10.16mm` pads (the span is generous; the 0.8 mm lead may want a bigger drill) |
+| | 1 | **D12** line TVS | [DigiKey (Taiwan Semi)](https://www.digikey.com/en/products/detail/taiwan-semiconductor-corporation/P6KE82A/1050320) $0.58 <br> --- <br> [DigiKey (Littelfuse)](https://www.digikey.com/en/products/detail/littelfuse-inc/P6KE82A/688097) $0.75 | [AliExpress](https://www.aliexpress.us/item/3256809218310441.html) $1.96 / 20 | **P6KE82A**, 70 V standoff / 77.9 V min breakdown / 113 V clamp / 600 W, **unidirectional — stripe to `/P6K`**. Both DigiKey parts in stock 2026-10-02 (3,466 / 3,891); any maker's P6KE82**A** is a straight swap. Avoid the plain **P6KE82** (no "A", e.g. [this one](https://www.digikey.com/en/products/detail/taiwan-semiconductor-corporation/P6KE82/22540671)): ±10% tolerance, 73.8 V min breakdown — closer to the ~72 V the lines reach while ringing. **One per board, not per line.** Recommended — see below. **Package is DO-204AC (DO-15), not DO-41**: check against the board's `D_DO-41_..._P10.16mm` pads (the span is generous; the 0.8 mm lead may want a bigger drill) |
 
 **Either input works, and both want ~2 A.** The two 5 V sources are
 diode-ORed onto one rail, so use whichever is convenient:
@@ -146,7 +146,7 @@ and there are two realistic ways for that:
   onto house and outside-plant cabling and arrive down the phone cord.
 
 If every phone sits in the same room on a short cord and the jacks can never
-reach house or telco wiring, leave it off. Otherwise populate it: **$0.75
+reach house or telco wiring, leave it off. Otherwise populate it: **$0.58
 protecting an $8.50 SLIC** with a 16-week re-order time is cheap insurance,
 and the failure it prevents is a dead board, not a glitch.
 

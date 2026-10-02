@@ -234,7 +234,7 @@ so only the corrected circuit is described below.
 | **F/R** (ring cadence), **RM** (ringing mode) | Driven directly as 3.3 V ESP32 GPIO outputs — no level shifting needed, since these are ESP32-driven control inputs on the SLIC, not SLIC-driven signals |
 | **VIN** (needs external drive) | Fed from the codec's DAC output for that line — **LOUT1 → U4 VIN** (line 0), **ROUT1 → U3 VIN** (line 1) — through a coupling capacitor |
 | **VOUT** (SLIC-driven) | Feeds the codec's ADC input for that line — **U4 VOUT → LIN1** (line 0), **U3 VOUT → RIN1** (line 1) — through a coupling capacitor and series resistor |
-| **Tip/Ring** | Through a 4-diode full-wave bridge (M7/1N4007-class) at each RJ12 jack, so either wiring polarity on the line still reaches the SLIC correctly, then a line TVS (BZT03C82 or P6KE82 class, ~82 V clamp) across tip/ring for surge protection |
+| **Tip/Ring** | Straight from the RJ12 jack to the SLIC, with a surge clamp hanging off it — the AG1171 datasheet's own Figure 4 protection circuit. Each line has a 4-diode bridge (M7/1N4007-class, D4–D11) that steers every tip and ring conductor two ways: down to GND (D4–D7) if it goes below ground, and up to a shared `/P6K` bus (D8–D11) if it goes too far positive. **One** unidirectional TVS (**D12**, P6KE82A, cathode on `/P6K`, anode on GND) clamps that bus for both lines — the datasheet's "only one needed per line card". The bridge isn't in series with the line, and it isn't there for wiring polarity |
 
 ```text
 +5V ──► +VPWR (SLIC)      470µF + 100nF locally at each SLIC
@@ -254,7 +254,8 @@ SLIC VOUT ──[coupling cap + series R]──► Codec LIN1/RIN1
 
 Tip/Ring ◄──► RJ12 jack
               │
-              └── [M7 ×4 full-wave bridge] ── [line TVS across tip/ring]
+              ├── [M7 ×2 per conductor] ──► GND      (clamps below ground)
+              └── [M7 ×2 per conductor] ──► /P6K ──[D12 P6KE82A]──► GND   (one TVS, both lines)
 ```
 
 **SHK divider rework (SMD4 as built).** The 15 kΩ pull-down makes the

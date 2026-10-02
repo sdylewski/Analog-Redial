@@ -38,7 +38,7 @@ Pulled from [`bom.md`](bom.md), in the order it's easiest to solder.
 | 1 | **J5** | 2×4 pin header | Lowest profile, do it first |
 | 2 | **J9** | RJ12 jack, line 0 | Snaps in; check it sits flat |
 | 3 | **J8** | RJ12 jack, line 1 | Second line only |
-| 4 | **D12** | P6KE82A TVS | Optional, see [`bom.md`](bom.md); no polarity on a bidirectional TVS, but check yours |
+| 4 | **D12** | P6KE82A TVS | Optional, see [`bom.md`](bom.md). **Polarized** (unidirectional): the body's stripe (cathode) goes at the silkscreen band end — pin 1, the `/P6K` bus, not GND |
 | 5 | **C16** | 470 µF, line 0 | **Polarized** — stripe to the negative pad |
 | 6 | **C17** | 470 µF, line 1 | Second line only, same polarity care |
 | 7 | **U4** | AG1171 SLIC, line 0 | 14-pin SIL module, sits upright |
