@@ -278,3 +278,57 @@ confirms BK3266 chip with HFP v1.7)
   protocol spreadsheet, schematics, footprint library
 - AliExpress listing images (reference schematic, partial AT list, pinout)
 - F-6988 FCC filing datasheet (English, in `../BK-6988/`)
+
+## Reference material gathered (2026-10-01)
+
+Pulled from two GitHub collections of Chinese Bluetooth-audio module docs:
+[bondango/Bluetooth-Audio](https://github.com/bondango/Bluetooth-Audio) (the
+superset) and
+[tomaskovacik/kicad-library](https://github.com/tomaskovacik/kicad-library),
+whose `library/datasheet/F-6988_BK3266/` folder carries **machine-translated
+English** versions of the same manuals. `bondango/China-Blue-tooth-Audio-Devices`
+turned out to be a 16-file subset of the first, with nothing unique.
+
+Everything lives in `reference_docs/`:
+
+| File | What it is |
+|------|------------|
+| `BK3266_module_manual_RGB-LED_ENGLISH.pdf` | **Start here.** Module manual, RGB-LED variant, translated |
+| `BK3266_module_manual_IR-remote_ENGLISH.pdf` | Same manual, IR-remote variant, translated |
+| `BK3266SR_module_manual_ENGLISH.pdf` | BK3266**SR** (transmit+receive) manual, translated |
+| `BK3266SR_serial_protocol_V1.0.0_ENGLISH.xls` | Serial command protocol, translated |
+| `BK3266_module_manual_V1.0_*_HYT.pdf` | The Chinese originals of the two manuals |
+| `SCH_BT_BK3266_V2.0.pdf` | Module schematic, plain BK3266 |
+| `SCH_BT_BK3266SR_V3.0.pdf` | Module schematic, SR variant |
+| `BK3266SR_reference_design_V1.0_HYT.pdf` | Reference design |
+| `BK3266_connection_diagrams_HD.rar` | 14 MB of high-res wiring diagrams: amp pairings (PAM8610, HT8696, HT6872, SGM4812), 5 V / 12 V / Li-ion supply options, and a common-ground noise fix |
+| `BK_family_footprint_AD.PCBLIB` | **Altium** footprint library, BK8002/3254/3260/3266 |
+| `BK3266_AT_command_reference.rar`, `BK3266_serial_debug_assistant.rar` | Command docs and a Windows serial terminal (sscom) |
+
+The vendor's own board name for the BK3266 module is **F-6988** (the
+BK8000L's is F-6188) -- useful when searching, since many listings use the
+board number rather than the chip.
+
+## No KiCad symbol or footprint exists for the BK3266
+
+Checked 2026-10-01: `tomaskovacik/kicad-library` has BK-family *datasheets*
+but no `.kicad_mod`/`.kicad_sym` for any BK part, and nothing else turned up.
+The only footprint data anywhere is `BK_family_footprint_AD.PCBLIB`, which is
+**Altium**.
+
+Three ways forward, cheapest first:
+
+1. **Draw it from the manual.** The module is a through-hole/castellated
+   board with a couple of dozen pads on a regular pitch -- an hour's work in
+   the footprint editor, and the dimensions are in the English manual above.
+   This is the honest answer for a one-off.
+2. **Convert the Altium library.** KiCad can import Altium *boards*, but
+   `.PCBLIB` footprint libraries are not a supported import path in the
+   versions this project uses, so this would mean a third-party converter
+   and then checking every pad by hand anyway.
+3. **Trace the reference schematic.** `SCH_BT_BK3266_V2.0.pdf` gives the
+   pinout for the symbol; the symbol is the easy half either way.
+
+**Note:** `Bluetooth/BK3266_board_v1/` is currently still a copy of the BM64
+carrier -- its schematic and PCB reference `BM64:BM64_MCH` and
+`BM64SPKS1MC2-0003AA`, so no BK3266 part has been placed yet.

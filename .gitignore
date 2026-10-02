@@ -99,6 +99,15 @@ Bluetooth/**/jlcpcb/
 Bluetooth/**/production_files/
 Bluetooth/**/tmp*.rpt
 Bluetooth/**/_restore_backup_*/
+# BK3266 reference material -- vendor manuals, schematics, the Altium
+# footprint library and Windows flashing tools, gathered from third-party
+# collections (see BK3266_RESEARCH.md for where each came from). Same
+# reasoning as datasheets/ and Bluetooth/Docs/ above: large, unlicensed
+# vendor documents, kept on dev machines rather than republished here. The
+# research write-up that indexes them is the one thing that stays tracked.
+Bluetooth/BK3266/**
+!Bluetooth/BK3266/BK3266_RESEARCH.md
+
 # DMS serial captures -- large binary blobs, keep locally only
 *.dmslog8
 
