@@ -294,23 +294,32 @@ connect/disconnect, `S/R` = TX/RX switch. The buttons are **active-high**
 per the schematic (`按键说明：（高电平有效）`), so "pressing" one means a
 momentary pulse to 3.3 V, not to GND.
 
-## Diagnostic header on the daughter board (2×4, unpopulated)
+## Diagnostic header on the daughter board (1×6, unpopulated)
 
-One row all GND, the other row the four signals worth reaching on an
-unverified module. No ESP32 GPIOs used — probe or jumper-wire only.
+Probe and tweezer access to the four signals worth reaching on an
+unverified module. No ESP32 GPIOs used. **No shunts, ever**: the buttons
+are active-high, so a shunt to GND does nothing, and one to 3.3 V holds
+the button down — a 6 s hold powers off or re-pairs.
 
-| Signal | Pin | Why |
-|--------|-----|-----|
-| S/R | 13 | Output: which mode it actually booted/switched into |
-| STAT | 19 | Output: link state, independent of the UART parser |
-| PP/CALL | 6 | Manual answer/hang-up if the UART command bytes misbehave |
-| MODE | 12 | Manual pairing/mode test — and settles the conflict above |
+| Header pin | Signal | Module pin | Note |
+|-----|--------|-----|------|
+| 1 | S/R | 13 | Output — which mode it's in. 1 kΩ in series at the header |
+| 2 | STAT | 19 | Output — link state, independent of the UART parser. 1 kΩ in series |
+| 3 | GND | — | Scope/meter reference |
+| 4 | MODE | 12 | Input — manual pairing/mode test; settles the conflict above |
+| 5 | COM | — | 3.3 V through 10 kΩ, copied from the reference board's `R6` |
+| 6 | PP/CALL | 6 | Input — manual answer/hang-up if the UART commands misbehave |
 
-`LED` (pin 14) gets a local LED + 1 kΩ footprint instead, as in the
-reference design. **Never put a shunt on the S/R or STAT pairs**: with a
-GND row, a shunt shorts that output to ground. On PP/CALL and MODE a shunt
-does nothing useful (active-high), so "press" them with a jumper wire to a
-3.3 V point.
+"Pressing" a button = bridging COM to its neighbour (MODE or PP/CALL) with
+tweezers or a jumper wire; the 10 kΩ makes a probe slip harmless. The
+series 1 kΩ on S/R and STAT does the same for the outputs and doesn't
+affect a meter or scope. Optional: two unpopulated tactile-switch
+footprints, COM → MODE and COM → PP/CALL, as on the reference board.
+
+**LED (pin 14):** the module **sources** current — reference design has
+the LED anode on the pin and the cathode to GND through 1 kΩ (one 1 kΩ
+shared with the S/R LED there). ~1 mA with a green LED. Give it its own
+LED + 1 kΩ on the daughter board rather than a header pin.
 
 Configure after power-up (if using the text AT-command firmware instead of
 the binary SR protocol — see "Two firmware variants" above):
