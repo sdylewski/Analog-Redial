@@ -51,29 +51,29 @@ passives — carries over unchanged from the SMD2 parts list.
 
 Built up by option: everyone needs the base board, then add one table per
 option. DigiKey prices, quantity 1, checked 2026-09-30. Generic 2.54 mm
-headers, shunts and M3 hardware aren't priced — the 120-piece assortment
+headers and M3 hardware aren't priced — the 120-piece assortment
 linked in
 [`../archive/hardware/BOM-bluetooth.md`](../archive/hardware/BOM-bluetooth.md)
 covers every header on this board.
 
 ### Base board — every build · **~$19.12**
 
-| | Qty | Component | DigiKey | AliExpress | Notes |
+| | Qty | Component | DigiKey | AliExpress  | Notes |
 |---|-----|-----------|---------|------------|-------|
-| | 1 | MCU carrier: **U1** ESP32-C6-DevKitC-1 (or equivalent) | [DigiKey](https://www.digikey.com/en/products/detail/espressif-systems/ESP32-C6-DEVKITC-1-N8/17728861) $9.00 | [AliExpress](https://www.aliexpress.us/item/3256806563223929.html) $7.72 · [AliExpress](https://www.aliexpress.us/item/3256809110312291.html) $3.99 | **N16 (16 MB) recommended; N8 (8 MB) acceptable** — the firmware fits either, N8 just leaves less room for recordings and voicemail (see *Flash size*). DigiKey stocks the N8 only. AliExpress $7.72 = 32-pin **N16**, the known-good shape. $3.99 = 30-pin clone: **needs trace cuts + 2 solder bridges, and is untested here** |
+| | 1 | MCU carrier: **U1** ESP32-C6-DevKitC-1 (or equivalent) | [DigiKey 8MB 32pin](https://www.digikey.com/en/products/detail/espressif-systems/ESP32-C6-DEVKITC-1-N8/17728861) $9.00 | [AliExpress 16MB 32pin](https://www.aliexpress.us/item/3256806563223929.html) $7.72 <br> --- <br> [AliExpress 16MB 30 pin](https://www.aliexpress.us/item/3256809110312291.html) $3.99 | **N16 (16 MB) recommended; N8 (8 MB) acceptable** — the firmware fits either, N8 just leaves less room for recordings and voicemail (see *Flash size*). DigiKey stocks the N8 only. AliExpress $7.72 = 32-pin **N16**, the known-good shape. $3.99 = 30-pin clone: **needs trace cuts + 2 solder bridges, and is untested here** |
 | | 1 | **U4** AG1171 SLIC (line 0, @ **J9**) | [DigiKey](https://www.digikey.com/en/products/detail/silvertel/AG1171/21187236) $8.50 | [AliExpress](https://www.aliexpress.us/item/3256804758849823.html) $3.79 | 14-SIP. DigiKey lead time 16 weeks — buy a spare |
-| | 1 | **C16** 470 µF 16 V radial | [DigiKey](https://www.digikey.com/en/products/detail/rubycon/16YXJ470M8X11-5/3134104) $0.42 | | **16YXJ470M8X11.5**, **U4** +VPWR bulk |
+| | 1 | **C16** 470 µF 16 V radial | [DigiKey](https://www.digikey.com/en/products/detail/rubycon/16YXJ470M8X11-5/3134104) $0.42 | [AliExpress](https://www.aliexpress.us/item/2255799897996539.html) $1.99 / 20 pcs | **16YXJ470M8X11.5**, **U4** +VPWR bulk |
 | | 1 | **J9** RJ12 horizontal, 6p2c | [DigiKey](https://www.digikey.com/en/products/detail/amphenol-cs-fci/87180-062LF/1001369) $1.07 | [AliExpress](https://www.aliexpress.us/item/3256810043215346.html) $3.38 / 10 pcs | **87180-062LF**. AliExpress: pick the **322** variant. Alt **54601-006** — [DigiKey](https://www.digikey.com/en/products/detail/amphenol-icc/54601-006/1158894) |
 | | 1 | **J5** 2×4 (8-pin) 2.54 mm header | [DigiKey](https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/SSK03-MPH-254-B4/28772142) $0.13 | | **SSK03-MPH-254-B4**. Fitted on every build at this price — a second line needs it and so does Bluetooth. Two 1×4 strips cut from existing stock do the same job |
 
-### Add: second phone line · **+~$9.99**
+### Add: second phone line · **+~$10.28**
 
 | | Qty | Component | DigiKey | AliExpress | Notes |
 |---|-----|-----------|---------|------------|-------|
 | | 1 | **U3** AG1171 SLIC (line 1, @ **J8**) | same as **U4** | same as **U4** | |
-| | 1 | **C17** 470 µF 16 V radial | same as **C16** | | **U3** +VPWR bulk |
+| | 1 | **C17** 470 µF 16 V radial | same as **C16** | same as **C16** | **U3** +VPWR bulk |
 | | 1 | **J8** RJ12 horizontal, 6p2c | same as **J9** | same as **J9** | |
-| | 4 | **J5** jumper shunts, 2.54 mm | | | Bridge all four pairs (1-2, 3-4, 5-6, 7-8) |
+| | 4 | **J5** jumper shunts, 2.54 mm | [DigiKey](https://www.digikey.com/en/products/detail/sullins-connector-solutions/QPC02SXGN-RC/2618262) $0.29 / 10 pcs | | **QPC02SXGN-RC**. Need 4; 10 cost about the same as 4 ($0.10 each singly). Bridge all four pairs (1-2, 3-4, 5-6, 7-8) |
 
 **A second line rules out microSD.** Line 1's SLIC and the microSD socket
 share GPIO18–21, and **J5** is the switch between them: bridge all four
@@ -110,7 +110,7 @@ Three things to know before committing to this option:
 | | Qty | Component | DigiKey | AliExpress | Notes |
 |---|-----|-----------|---------|------------|-------|
 | | 1 | **J1** DC barrel jack, 5.5 × 2.1 mm | [DigiKey](https://www.digikey.com/en/products/detail/mpd-memory-protection-devices/EJ508A/2439547) $1.25 | [AliExpress](https://www.aliexpress.us/item/3256802445218613.html) $2.70 / 10 | **EJ508A**. The AliExpress jack is **verified to fit**; the EJ508A's pin pattern hasn't been checked against the `Barrel_Jack_PTH_Slot` footprint |
-| | 1 | **D12** line TVS | [DigiKey](https://www.digikey.com/en/products/detail/littelfuse-inc/P6KE82A/688097) $0.75 | [AliExpress](https://www.aliexpress.us/item/3256809218310441.html) $2.70 / 20 | **P6KE82A**, 70 V standoff / 113 V clamp / 600 W. **One per board, not per line.** Recommended — see below. **Package is DO-204AC (DO-15), not DO-41**: check against the board's `D_DO-41_..._P10.16mm` pads (the span is generous; the 0.8 mm lead may want a bigger drill) |
+| | 1 | **D12** line TVS | [DigiKey](https://www.digikey.com/en/products/detail/littelfuse-inc/P6KE82A/688097) $0.75 | [AliExpress](https://www.aliexpress.us/item/3256809218310441.html) $1.96 / 20 | **P6KE82A**, 70 V standoff / 113 V clamp / 600 W. DigiKey's Littelfuse part was in stock 2026-10-02 (3,891). Avoid the plain **P6KE82** (no "A", e.g. [Taiwan Semi](https://www.digikey.com/en/products/detail/taiwan-semiconductor-corporation/P6KE82/22540671), not stocked): ±10% tolerance, 66.4 V standoff, 73.8 V min breakdown — closer to the ~85 V ring peak. **One per board, not per line.** Recommended — see below. **Package is DO-204AC (DO-15), not DO-41**: check against the board's `D_DO-41_..._P10.16mm` pads (the span is generous; the 0.8 mm lead may want a bigger drill) |
 
 **Either input works, and both want ~2 A.** The two 5 V sources are
 diode-ORed onto one rail, so use whichever is convenient:
