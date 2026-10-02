@@ -191,26 +191,129 @@ dial-out path without needing `ATDnumber;`.
 
 ---
 
-## Wiring plan (bench test)
+## Pinout reference (BK3266SR module, 40-pin)
+
+Read directly off the official pin description table in
+`reference_docs/BK3266SR_module_manual_ENGLISH.pdf` (§ IO description) and
+cross-checked against the reference schematic
+(`reference_docs/SCH_BT_BK3266SR_V3.0.pdf`) — not inferred from the Chinese
+silkscreen names alone, which differ from the datasheet's own names in a
+couple of places (the schematic calls pins 27/28 `LINE_L`/`LINE_R`; the
+datasheet calls the same pins `AUX_R`/`AUX_L`). Only the pins that matter
+for this project; the full 40-pin table is in the manual.
+
+**No reset pin exists on this module at all** — unlike the BM64, which has
+an `RST_N` you choose to leave unconnected, BK3266SR's pinout simply has no
+reset signal to route. Same for BM64's `EAN`/`P2_0` programming-mode
+strap — there's no equivalent here either.
+
+| Pin | Name | What it does |
+|-----|------|---------------|
+| 37 | **VBAT** | **Power input, 3.3–4.2 V.** The one real power-in pin — feed the board's +3.3V rail here. *(Pins 38/39 below are chip-internal 3V **outputs**, not inputs — don't confuse them with VBAT.)* |
+| 1, 3, 16, 25 | GND | Digital/power ground |
+| 40 | AGND | Separate analog ground. Datasheet: for single-ended audio output, **must** tie to the power-amp's ground; for differential output, can float. See your note below. |
+| 10 | TX (GPIO0) | UART TX, 3.3V TTL, 9600-8-N-1 |
+| 11 | RX (GPIO1) | UART RX, 3.3V TTL, 9600-8-N-1 |
+| 7 | **WAKEUP (GPIO15)** | **Power on/off.** Long-press (6s) powers off; short-press powers on; powers on by default at boot. This is the module's equivalent of the BM64's MFB — the one control pin that genuinely has to be a GPIO, since nothing can reach the module over UART before it's powered up. |
+| 6 | PP/CALL (GPIO4) | Button: short-press play/pause/answer/hang-up, long-press reject, long-press (6s) re-pair. **Redundant** — the binary UART protocol has direct equivalents (`BT_CMD_ACK`/`HFHUNG`/`NACK`/`REDIAL`, cmds 0x04–0x07, already in this doc above). Leave unrouted. |
+| 12 | MODE (GPIO7) | Button: short-press connect/disconnect toggle. **Redundant** — UART `BT_CMD_CONNECTED`/`DISCONNECTED`/`MATCH` (cmds 0x01–0x03) do the same. Leave unrouted. |
+| 13 | S/R (GPIO6) | **Transmit/receive mode *indicator* — an output, do NOT tie it to GND.** The reference schematic's own note: `S/R：发射模式输出高，接收模式输出低` ("outputs high in transmit mode, low in receive mode"), and the reference design drives a green LED from it through 1 kΩ. *Transmit* = broadcast a line-in source out over BT (a "wireless speaker transmitter dongle" feature this project doesn't want); *receive* = normal BT audio/HFP sink (what we want). **The module boots in transmit mode** (`上电开机，默认发射模式`), so firmware has to switch it — UART `BT_CMD_RECMODE` (0x25). Whether that sticks across a power cycle is unknown (bench test); S/R is how you check. The English manual's line for this pin is a garbled translation ("Power-on mode launch mode / short press transmit/receive mode switch") — an earlier version of this doc read it as a boot strap and said to ground it, which would short an output that drives high at boot. |
+| 19 | STAT (GPIO10) | Connection status: high when linked, low when not. **Redundant** — the UART link already reports this asynchronously (status bytes 0x64–0x7D, this doc's event table above), the same pattern `bt_companion.c` already uses for the BM64. Leave unrouted. |
+| 27 | AUX_R | Transmit-mode audio input, right. Not used — this project is receive-only (see S/R above). |
+| 28 | AUX_L | Transmit-mode audio input, left. Not used. |
+| 29 | MICN | Mic input, differential negative. **Phone line → BT audio out** goes here (together with pin 30) — this is the SLIC output path, same role as BM64's mic input. |
+| 30 | MICP | Mic input, differential positive. |
+| 31 | VMIC | Mic bias voltage (for a raw electret capsule). Not needed here — we're feeding it line-level audio from the SLIC, not a bare mic element. |
+| 32 | AUDIOLN | Speaker/DAC output, left negative. **BT → phone line audio in** goes here (together with pin 33) — this is the path to Line0Vin. |
+| 33 | AUDIOLP | Speaker/DAC output, left positive. |
+| 34, 35 | AUDIORP, AUDIORN | Same as 32/33, right channel — spare, this project only needs one (mono) channel. |
+| 38 | VCC3YS | **3V output** (not an input — see VBAT above) |
+| 39 | VDD3IO | **3V output**, gated off when the module is shut down |
+| 36 | VBUS | USB 5V charging input — "Unused" per the datasheet for this application |
+| 17, 18, 20, 21, 22–24, 26 | NC, SD_CMD, SD_DAT, SD_CLK, duplicate S/R & MODE pins, GPIO2/3 | **Unused.** The SD pins are exactly what you guessed — a standalone-MP3-player-from-microSD mode that exists on other BK3266 family members but is listed "Unused" on this SR variant. 22/23 are just the same S/R/MODE signals as 12/13, broken out a second time on different pads — not separate functions. |
+
+**AGND tied to the shared ground:** reasonable call for a first spin, and
+not really a corner-cut — the datasheet's own guidance for single-ended
+output is "must tie to the power amp's ground to suppress noise," which on
+a one-ground-plane daughter board *is* what you're doing, just without a
+separate star point back to the main board. If it turns out noisy, the
+datasheet's fallback for the differential case is "can float" — so the
+other direction to try before adding a second ground pin in the next spin
+is leaving AGND **unconnected** rather than tied, if tying it ever measures
+worse than floating it.
+
+## Wiring plan: daughter-board header (mirrors the BM64 carrier's 8-pin J12)
 
 ```
-ESP32-C6                  BK3266 module
-─────────                 ─────────────
-UART TX  ───────────────► RX  (pin 11, GPIO1)
-UART RX  ◄─────────────── TX  (pin 10, GPIO0)
-3.3V     ───────────────► VCC3YS (pin 38)
-GND      ───────────────► GND (pin 1/16/25)
+Header pin   Net                                    BK3266SR pin
+──────────   ───                                     ────────────
+1            +3.3V                              ───► VBAT (37)
+2            Audio in  (BT → phone line)         ◄── AUDIOLP (33)*
+3            Audio out (phone line → BT)         ───► MICP (30)*
+4            UART TX                             ◄── TX (10)
+5            UART RX                             ───► RX (11)
+6            GND                                 ───► GND (1/3/16/25), AGND (40)
+7            WAKEUP (power on/off)               ───► WAKEUP (7)
+8            spare
 
-                          BK3266 module          SLIC (AG1171)
-                          ─────────────          ────────────
-                          AUDIOLP (pin 33) ──┐
-                              1uF cap        ├──► Line0Vin
-                              1K resistor    ┘
-                          
-                          MICP (pin 29) ◄──── 1uF cap ◄── SLIC Vout
+* Differential pins (AUDIOLP/AUDIOLN, MICP/MICN) — only one leg needs to
+  reach the header; terminate the complementary leg (AUDIOLN / MICN)
+  locally on the daughter board, same trick BM64's carrier doesn't need
+  but is standard practice for converting a differential pin pair to a
+  single wire. Needs a bench check: confirm the module doesn't need to be
+  told (via EEPROM/ToolKit, not the SR binary protocol — that command set
+  has no DAC/MIC single-ended switch in it) to treat these as
+  single-ended before this works cleanly; some BK3266 firmware variants
+  have a software DACSINGLE/MICSINGLE switch for this (see "Two firmware
+  variants" above), the SR binary protocol doesn't expose it as a runtime
+  command.
 ```
 
-Configure after power-up:
+**GPIO15 is reused directly** — same dedicated MFB-style pin SMD5 already
+carved out for the BM64's MFB (`BOARD_BT_MFB_PIN`/`BOARD_BT_MFB_DEDICATED`
+in `board_pins_smd4.h`), since both modules need exactly one power/wake
+GPIO and nothing else.
+
+**Net result: same control-pin count as BM64.** BM64 needs MFB (GPIO) +
+UART for everything else. BK3266SR needs WAKEUP (GPIO) + UART for
+everything else too — PP/CALL, MODE, STAT all have direct UART equivalents
+already in this doc's command tables above, and receive mode is selected
+with UART `BT_CMD_RECMODE` (0x25) after boot. S/R is an output (see the
+pin table) — leave it off the main header, and don't tie it to anything.
+The header has a spare 8th pin, same as BM64's J12.
+
+**MICN:** 1 µF to GND **on the daughter board**, same as the BM64 carrier's
+`MIC_N1` (C24) — an AC ground, not a hard tie, since the input is
+internally biased. Keeps it off the header.
+
+**Pin-description conflicts to resolve on the bench:** the reference
+schematic's Chinese notes and the English manual's table disagree on which
+button does what. Schematic: `MODE` = short-press TX/RX switch, `WAKEUP` =
+short-press disconnect/reconnect, 6 s press power off. Manual: `MODE` =
+connect/disconnect, `S/R` = TX/RX switch. The buttons are **active-high**
+per the schematic (`按键说明：（高电平有效）`), so "pressing" one means a
+momentary pulse to 3.3 V, not to GND.
+
+## Diagnostic header on the daughter board (2×4, unpopulated)
+
+One row all GND, the other row the four signals worth reaching on an
+unverified module. No ESP32 GPIOs used — probe or jumper-wire only.
+
+| Signal | Pin | Why |
+|--------|-----|-----|
+| S/R | 13 | Output: which mode it actually booted/switched into |
+| STAT | 19 | Output: link state, independent of the UART parser |
+| PP/CALL | 6 | Manual answer/hang-up if the UART command bytes misbehave |
+| MODE | 12 | Manual pairing/mode test — and settles the conflict above |
+
+`LED` (pin 14) gets a local LED + 1 kΩ footprint instead, as in the
+reference design. **Never put a shunt on the S/R or STAT pairs**: with a
+GND row, a shunt shorts that output to ground. On PP/CALL and MODE a shunt
+does nothing useful (active-high), so "press" them with a jumper wire to a
+3.3 V point.
+
+Configure after power-up (if using the text AT-command firmware instead of
+the binary SR protocol — see "Two firmware variants" above):
 ```
 COM+DACSINGLE    (switch DAC to single-ended)
 COM+MICSINGLE    (switch MIC to single-ended)
