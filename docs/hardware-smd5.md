@@ -11,7 +11,12 @@ analog-phone-line gateway carrying one or two POTS lines through Silvertel
 AG1171 SLICs and an Everest ES8388 stereo codec, plus an optional Bluetooth
 companion.
 
-KiCad project: `hardware/kicad/Analog Redial 5/`.
+KiCad project: `hardware/kicad/Analog Redial 5/`. Its custom symbols and
+footprints (SLICs, RJ12 jacks, ESP32-C6 modules, BM64) are maintained
+separately and shared across boards:
+[sdylewski/MajorHack-Kicad-Libraries](https://github.com/sdylewski/MajorHack-Kicad-Libraries) —
+grab that too if you want to open the schematic for editing, not just view
+or order it.
 
 ## What's new against SMD4
 

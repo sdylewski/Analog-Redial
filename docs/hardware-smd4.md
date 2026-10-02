@@ -5,7 +5,12 @@ analog-phone-line gateway carrying one or two POTS lines through Silvertel
 AG1171 SLICs and an Everest ES8388 stereo codec. This document describes the
 board as it is today — it is not a changelog against earlier spins.
 
-KiCad project: `hardware/kicad/Rotary_phone_SMD4/`.
+KiCad project: `hardware/kicad/Rotary_phone_SMD4/`. The custom symbols and
+footprints it uses (SLICs, RJ12 jacks, ESP32-C6 modules, WM8731) are
+maintained separately and shared across boards:
+[sdylewski/MajorHack-Kicad-Libraries](https://github.com/sdylewski/MajorHack-Kicad-Libraries) —
+grab that too if you want to open the schematic for editing, not just view
+or order it.
 
 **No Bluetooth on this board.** The BM64 companion needs a dedicated 3.3 V
 rail, a GPIO for its MFB pin and an 8-pin board-to-board header, none of
