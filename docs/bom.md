@@ -217,6 +217,52 @@ regenerated — see `CLAUDE.md`'s build-directory rules.
 
 ---
 
+## JLCPCB order cost by quantity
+
+What the bare board plus SMT assembly costs per board, to add to the
+hand-solder BOM above. **Assembly includes the SMT parts themselves** (the
+ES8388 and all the passives), so don't count them again.
+
+Quoted for SMD5 (`Analog Redial 5`), 2026-10-02: green, 1.6 mm, lead-free
+HASL, top-side assembly only. The 160-board order is 20 panels of 8, so
+JLC quotes it as qty 20.
+
+| | **5 boards** | **30 boards** | **160 boards** (20 panels × 8) |
+|---|---:|---:|---:|
+| PCB | $8.10 | $23.20 | $106.20 |
+| Assembly (incl. SMT parts) | $26.92 (Economic) | $68.79 (Economic) | $296.12 (Standard) |
+| **Merchandise** | **$35.02** | **$91.99** | **$402.32** |
+| Shipping (JLC cart estimate) | $30.86 | $40.46 | $89.90 |
+| Sales tax, 8.625% (San Francisco) | $3.02 | $7.93 | $34.70 |
+| Import tariff, ~47.5% of merchandise | $16.63 | $43.70 | $191.10 |
+| **Delivered total** | **$85.53** | **$184.08** | **$718.02** |
+| **Per board** | **$17.11** | **$6.14** | **$4.49** |
+| Per board + base hand-solder BOM (~$19.12) | **~$36** | **~$25** | **~$24** |
+
+**Small orders are mostly fixed costs.** At 5 boards, $19.97 of the $35.02
+is per-order fees that don't scale: $4.00 engineering, $8.24 assembly
+setup, $1.55 stencil, and $6.18 for the Extended-part (ES8388) loading
+fee. The SMT parts themselves are only $8.81, about $1.76 a board. At 160
+boards they're $196.63, about $1.23 a board.
+
+**How the shipping and tariff lines were worked out:**
+
+- **Shipping is by weight, not a percentage of the order.** The cart
+  estimates were $30.86 for 0.47 kg, $40.46 for 2.14 kg, and $89.90 for
+  6.70 kg. Two real orders came in under the estimate: $28.51 (UPS, 5
+  SMD4 boards) and $35.23 (DHL, 10 SMD5 boards plus 20 bare Bluetooth
+  boards).
+- **The tariff is ~47.5% of merchandise, by observation.** JLC ships DDP
+  and bills US import duty up front. Two invoices came to 47.2% (Sept
+  2026, $16.63 on $35.21) and 47.7% (Oct 2026, $28.23 on $59.13). The
+  rates printed on the invoices (60%, 35.02%) are applied to a customs
+  value, not to the merchandise total. This rate moves with trade policy,
+  so check a current invoice before relying on it.
+- **Sales tax depends on where you live.** 8.625% is San Francisco's rate,
+  charged on merchandise only. Swap in your own.
+
+---
+
 ## SMT parts (JLCPCB-assembled)
 
 The full SMT list isn't reproduced here — it's commodity 0402 passives and
