@@ -301,25 +301,49 @@ unverified module. No ESP32 GPIOs used. **No shunts, ever**: the buttons
 are active-high, so a shunt to GND does nothing, and one to 3.3 V holds
 the button down — a 6 s hold powers off or re-pairs.
 
-| Header pin | Signal | Module pin | Note |
-|-----|--------|-----|------|
-| 1 | S/R | 13 | Output — which mode it's in. 1 kΩ in series at the header |
-| 2 | STAT | 19 | Output — link state, independent of the UART parser. 1 kΩ in series |
-| 3 | GND | — | Scope/meter reference |
-| 4 | MODE | 12 | Input — manual pairing/mode test; settles the conflict above |
-| 5 | COM | — | 3.3 V through 10 kΩ, copied from the reference board's `R6` |
-| 6 | PP/CALL | 6 | Input — manual answer/hang-up if the UART commands misbehave |
+"Series" = the part sits in the trace between the module pin and the
+header pin. "To GND / to 3.3 V" = a part from that net to a rail.
+
+| Header pin | Signal | Module pin | Series part | To GND / to 3.3 V | Notes |
+|---|---|---|---|---|---|
+| **1** | S/R | 13 | **1 kΩ** | none | Module output (high = transmit mode, low = receive) — the module drives it, so no pull-up/down. The 1 kΩ protects it from a slipped probe. |
+| **2** | STAT | 19 | **1 kΩ** | none | Module output (high = linked), same as S/R. Independent of the UART parser. |
+| **3** | GND | — | — | is GND | Scope/meter reference. |
+| **4** | MODE | 12 | none (direct) | none* | Module button input. Press = bridge header 4 to header 5. Manual pairing/mode test; settles the MODE/WAKEUP conflict above. |
+| **5** | COM | — | — | **10 kΩ from 3.3 V** | One end of the 10 kΩ on 3.3 V (VBAT net), the other on header 5 — the current-limited "button" supply, copied from the reference board's `R6`. |
+| **6** | PP/CALL | 6 | none (direct) | none* | Module button input. Press = bridge header 6 to header 5. Manual answer/hang-up if the UART commands misbehave. |
+
+\* The reference design has no external pull-down on its button pins, so
+they're presumably pulled down inside the module. If MODE or PP/CALL
+triggers on its own during bring-up, fit a **100 kΩ to GND** on that pin —
+put an unpopulated 0402 footprint on each, it costs nothing.
+
+Not on the header, but on the same daughter board:
+
+| Net | Parts |
+|---|---|
+| LED (module pin 14) | Pin 14 → LED anode → LED cathode → **1 kΩ** → GND. The module **sources** the current, ~1 mA with a green LED. (Reference design shares one 1 kΩ between this LED and an S/R LED.) |
+| Optional buttons | Unpopulated tactile switch COM (header 5) → MODE (header 4), and COM → PP/CALL (header 6), as on the reference board. |
+
+```
+Module pin 13 (S/R)  ──[1k]──────────────── H1
+Module pin 19 (STAT) ──[1k]──────────────── H2
+GND ──────────────────────────────────────── H3
+Module pin 12 (MODE) ─────────────────┬──── H4
+                                  [100k DNP]
+                                      GND
+3.3V ──[10k]──────────────────────────────── H5   (COM)
+Module pin 6 (PP/CALL) ───────────────┬──── H6
+                                  [100k DNP]
+                                      GND
+
+Module pin 14 (LED) ──►|── [1k] ── GND     (LED, not on header)
+```
 
 "Pressing" a button = bridging COM to its neighbour (MODE or PP/CALL) with
 tweezers or a jumper wire; the 10 kΩ makes a probe slip harmless. The
 series 1 kΩ on S/R and STAT does the same for the outputs and doesn't
-affect a meter or scope. Optional: two unpopulated tactile-switch
-footprints, COM → MODE and COM → PP/CALL, as on the reference board.
-
-**LED (pin 14):** the module **sources** current — reference design has
-the LED anode on the pin and the cathode to GND through 1 kΩ (one 1 kΩ
-shared with the S/R LED there). ~1 mA with a green LED. Give it its own
-LED + 1 kΩ on the daughter board rather than a header pin.
+affect a meter or scope.
 
 Configure after power-up (if using the text AT-command firmware instead of
 the binary SR protocol — see "Two firmware variants" above):
