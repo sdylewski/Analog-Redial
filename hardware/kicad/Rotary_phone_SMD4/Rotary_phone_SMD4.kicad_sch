@@ -4826,7 +4826,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Custom_Symbol_Library:AG1171_SIL"
+		(symbol "Custom:AG1171_SIL"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -17235,7 +17235,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Custom_Symbol_Library:AG1171_SIL")
+		(lib_id "Custom:AG1171_SIL")
 		(at 308.61 160.02 180)
 		(unit 1)
 		(body_style 1)
@@ -21997,7 +21997,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Custom_Symbol_Library:AG1171_SIL")
+		(lib_id "Custom:AG1171_SIL")
 		(at 307.34 87.63 180)
 		(unit 1)
 		(body_style 1)
