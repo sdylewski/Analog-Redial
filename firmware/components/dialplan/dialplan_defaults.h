@@ -22,7 +22,6 @@ typedef struct {
 } clip_default_t;
 
 static const clip_default_t CLIP_DEFAULTS[] = {
-    { "402", "burp.wav",            "Burp" },
     { "412", "dialup.mp3",          "Dial up modem" },
     /* 412 used to be "Banana Boat" -- repurposed (Wikimedia Commons,
      * "Dial_up_connection.ogg", public domain) once its own source audio
@@ -38,8 +37,11 @@ static const clip_default_t CLIP_DEFAULTS[] = {
      * table too, not just fresh ones.
      * 401/403/404 (Ring of Fire / That's Amore, Crocodile Rock / Crocfa,
      * Martians) retired for the same reason -- same still_default handling
-     * drops them from already-provisioned boards' persisted tables, leaving
-     * burp (402) and the dial-up modem sound (412) as the only out-of-box
-     * novelty clips. */
+     * drops them from already-provisioned boards' persisted tables.
+     * 402 (Burp) retired from the defaults 2026-10-02: its audio is a
+     * personal clip that isn't shipped, so a new board would have had a
+     * dead code. Boards that already have 402 keep it (seeding runs once;
+     * nothing removes retired codes) -- it just becomes deletable. That
+     * leaves the dial-up modem sound (412) as the one out-of-box clip. */
 };
 #define CLIP_DEFAULTS_N (sizeof(CLIP_DEFAULTS) / sizeof(CLIP_DEFAULTS[0]))

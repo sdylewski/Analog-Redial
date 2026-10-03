@@ -1,13 +1,20 @@
 # firmware/assets/ — bundled audio (baked in at build/flash time)
 
-Every WAV file here gets baked into a **read-only-in-spirit `bundled` SPIFFS
-partition** at build time and flashed alongside the firmware image (see
-`spiffs_create_partition_image` in `firmware/main/CMakeLists.txt`, and the
-`bundled` entry in `firmware/partitions.csv`). It's a *separate* partition
+The files listed in `BUNDLED_AUDIO` in `firmware/main/CMakeLists.txt` —
+**`operator.wav`, `am_greeting.wav` and `dialup.mp3`, nothing else** — get
+baked into a **read-only-in-spirit `bundled` SPIFFS partition** at build time
+and flashed alongside the firmware image (see the `bundled` entry in
+`firmware/partitions.csv`). Anything else you keep in this directory
+(personal clips, draft translations in `i18n/`) stays on your disk and is
+**not** built into boards. It's a *separate* partition
 from `storage` (recordings + anything uploaded over HTTP at runtime), so:
 
-- A normal `idf.py flash` re-bakes and reflashes this directory's contents,
-  but **never touches recordings** in `storage`.
+- A normal `idf.py flash` re-bakes and reflashes those files, but **never
+  touches recordings** or uploaded clips in `storage`. It *does* replace the
+  whole `bundled` partition, so clips an older build baked in are gone after
+  the next flash unless copied out first: run
+  `bringup/keep_bundled_audio.py --host <board>` before reflashing an older
+  board (it copies them into `storage`, where they keep working).
 - Uploading a same-named file to `storage` (curl / `gen_prompt.py` /
   the web UI's Storage files section) **overrides** a bundled default of the
   same name, without a rebuild — `storage.c` checks `storage` first, falls
@@ -25,15 +32,10 @@ recorded by dialling 899). Replace the wording from Settings -> Phone
 Settings -> Answering machine -> Default greeting (text-to-speech), which
 uploads a same-named file that overrides this one.
 
-Two 4xx "novelty clip" defaults remain, out of the box:
-
-**`burp.wav`** (402, "Burp") — sourced from `pi_rotary_phone/Audio_files/`
-(personal library, not a copyrighted-song original redistributed elsewhere)
-and trimmed to 20s at 8kHz mono. (401/403/404 -- Ring of Fire / That's
-Amore, Crocodile Rock / Crocfa, Martians -- and 411/413/414 -- Banana
-Phone/Split, Lime in the Coconut -- were all retired: the former traded
-away for a smaller default set ahead of public release, the latter because
-no source audio for them ever existed in `Audio_files/`.)
+One 4xx "novelty clip" default remains, out of the box. (402 Burp,
+401/403/404 Ring of Fire / Crocodile Rock / Martians, and 411/413/414 were
+all retired from the defaults -- personal or copyrighted audio, or no
+source audio at all. Boards provisioned earlier keep those codes.)
 
 **`dialup.mp3`** (412, "Dial up modem") — public domain
 (Wikimedia Commons, `Dial_up_connection.ogg`), full length (~39s) rather
@@ -60,7 +62,7 @@ cd firmware/bringup
 ./gen_prompt.py --from your_song.mp3 --name your_song.mp3 --out-dir ../assets
 ```
 
-Everything except `operator.wav` in this directory is gitignored — see
+Everything except the three shipped files is gitignored — see
 `.gitignore` — so your personal clips never get committed. Well-known
 filenames the firmware looks for: `operator.wav` (dial 0, fixed) and
 whatever `dialplan_defaults.h`'s `CLIP_DEFAULTS` currently points each 4xx
@@ -70,5 +72,7 @@ assign a *new* dial code to a clip instead of replacing an existing one,
 upload the file (as above or via Settings → Storage) then add the code
 under Settings → Dial Codes — no firmware rebuild needed for that part.
 
-Once you've added files here, they're included automatically the next time
-you run `idf.py flash` — no extra command.
+Files you add here are **not** built in automatically any more. Upload
+them to a board instead (Settings → Storage, or `gen_prompt.py --upload`),
+or, to ship one with every build, add it to `BUNDLED_AUDIO` in
+`firmware/main/CMakeLists.txt`.

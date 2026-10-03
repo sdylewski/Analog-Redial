@@ -124,7 +124,7 @@ void app_main(void)
      * already brought NVS up. */
     board_timezone_init();
 
-    ESP_LOGI(TAG, "Rotary Phone Gateway (ESP32-C6) starting");
+    ESP_LOGI(TAG, "Analog Redial (ESP32-C6) starting");
 
     /* Detect a firmware/physical-board mismatch (e.g. SMD4 firmware on a
      * hand-soldered SMD2 unit) before touching any board-specific GPIO --
