@@ -1715,6 +1715,28 @@ static int cmd_wifi_status(int argc, char **argv)
     return 0;
 }
 
+static int cmd_wifi_list(int argc, char **argv)
+{
+    wifi_known_net_t nets[WIFI_MAX_NETWORKS];
+    int n = wifi_known_list(nets, WIFI_MAX_NETWORKS);
+    if (n == 0) { printf("no saved networks\n"); return 0; }
+    for (int i = 0; i < n; i++) {
+        printf("  '%s'%s%s\n", nets[i].ssid, nets[i].has_password ? "" : "  (open)",
+               strcmp(nets[i].ssid, wifi_get_ssid()) == 0 ? "  <- current" : "");
+    }
+    return 0;
+}
+
+static int cmd_wifi_forget(int argc, char **argv)
+{
+    if (argc < 2) { printf("usage: wifi_forget <ssid>  (see wifi_list)\n"); return 1; }
+    esp_err_t err = wifi_known_remove(argv[1]);
+    printf("wifi_forget '%s': %s\n", argv[1],
+           err == ESP_OK ? "removed" : err == ESP_ERR_NOT_FOUND ? "not a saved network"
+                                                                 : esp_err_to_name(err));
+    return err == ESP_OK ? 0 : 1;
+}
+
 /* ---------- logging ---------- */
 static int cmd_log_level(int argc, char **argv)
 {
@@ -2362,6 +2384,8 @@ void bringup_console_start(void)
     register_cmd("reset", "Force line(s) out of a stuck tone/reorder state: reset [line]", cmd_reset);
     register_cmd("wifi_set", "Save WiFi credentials + reconnect: wifi_set <ssid> <password>", cmd_wifi_set);
     register_cmd("wifi_status", "WiFi connection status", cmd_wifi_status);
+    register_cmd("wifi_list", "List saved WiFi networks", cmd_wifi_list);
+    register_cmd("wifi_forget", "Remove a saved WiFi network: wifi_forget <ssid>", cmd_wifi_forget);
     register_cmd("log_level", "Get/set global log level: log_level [none|error|warn|info|debug|verbose]", cmd_log_level);
     register_cmd("testmode", "Enable/disable telephony injection test mode: testmode <0|1>", cmd_testmode);
     register_cmd("tinject", "Inject handset events (test mode): tinject <offhook|onhook|digit|dial> [line] [d]", cmd_tinject);
