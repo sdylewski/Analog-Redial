@@ -98,15 +98,22 @@ callee.
 
 ## More spoken-prompt variables
 
-Prompt text already expands `{{boardname}}` (case-insensitive) when
-`gen_prompt.py --sync` fetches it -- `expand_prompt_vars()` in `webui.c`.
-Candidates to add the same way: `{{time}}`, `{{day}}`, `{{date}}`,
-`{{messages}}` (answering-machine count).
+Prompt text expands `{{boardname}}` (case-insensitive) **once, when the audio
+is generated**: `gen_prompt.py --sync` fetches the text with the variable
+already filled in (`expand_prompt_vars()` in `webui.c`), synthesizes it, and
+uploads an ordinary WAV. The board never assembles speech itself. Keep any
+new variable to that same rule -- something that's fixed at generation time
+(board name, a line's extension, the owner's name).
 
-These differ from `{{boardname}}` in one way that matters: audio is generated
-once on a host and stored as a WAV, so anything that changes over time can't
-be baked in. Those would need on-device assembly at play time -- e.g.
-pre-generated number/day-of-week word clips concatenated by the player, the
-way the operator readback already speaks digits. Also worth adding: mark a
-prompt "pending" again when the board is renamed, since its audio still says
-the old name.
+Easy additions under that rule: `{{extension}}` (this line's VoIP number),
+`{{lines}}` (how many phones are connected).
+
+> **Big caveat -- not planned:** values that change after generation
+> (`{{time}}`, `{{day}}`, `{{messages}}`) would need the board to stitch
+> speech together at play time from pre-recorded word clips ("you have" +
+> "three" + "messages"). That always sounds choppy next to a sentence
+> synthesized in one go, so it isn't worth doing until there's a way to
+> produce natural-sounding speech on the fly. Revisit only if that changes.
+
+Also worth adding: mark a prompt "pending" again when the board is renamed,
+since its audio still says the old name.

@@ -438,7 +438,8 @@ def main() -> None:
     p.add_argument("--rate", type=int, default=DEFAULT_RATE,
                     help=f"Output sample rate in Hz -- must match the device's audio_sample_rate() "
                          f"(default: {DEFAULT_RATE})")
-    p.add_argument("--out-dir", default=".", help="Where to save the WAV locally (default: cwd)")
+    p.add_argument("--out-dir", default=str(Path(__file__).resolve().parents[2] / "voice_prompts"),
+                    help="Where to save the WAV locally (default: the repo's voice_prompts/)")
     p.add_argument("--max-seconds", type=float, default=None,
                     help="Trim to at most this many seconds (from the start) -- storage is capped "
                          "at 4MB total on the device, so multi-minute source files need this")

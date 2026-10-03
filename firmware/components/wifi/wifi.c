@@ -625,29 +625,32 @@ void wifi_apply_hostname(void)
      * our own query. mdns_query_a() returns ESP_OK only when something
      * resolved -- NOT_FOUND (free) or any error ends the search. */
     bool bumped = false;
+    int suffix = 0;
     for (int n = 1; n <= 9; n++) {
         esp_ip4_addr_t addr;
         if (mdns_query_a(host, 800, &addr) != ESP_OK) break;
         ESP_LOGW(TAG, "mDNS: '%s.local' already answered by " IPSTR " -- trying another",
                  host, IP2STR(&addr));
         snprintf(host, sizeof(host), "%s%d", base, n);
+        suffix = n;
         bumped = true;
     }
 
     mdns_hostname_set(host);
-    if (bumped && !board_name_is_set()) {
-        /* First boot, default name clashed: persist the picked one so the
-         * address stays stable across reboots even while the other board is
-         * up, and so the displayed name matches the .local address. */
-        board_name_set(host);
-        mdns_instance_name_set(host);
-        ESP_LOGW(TAG, "auto-named this board '%s' (reachable as %s.local) to avoid a "
-                      "clash on the network -- rename it in Settings if you like",
-                 host, host);
-    } else if (bumped) {
-        mdns_instance_name_set(name);
-        ESP_LOGW(TAG, "board name '%s' clashes on the network -- reachable as %s.local; "
-                      "pick a unique name in Settings", name, host);
+    if (bumped) {
+        /* Keep one name everywhere: the board name, the .local address and
+         * the router's client list all become e.g. "phone1". Persisting it
+         * also keeps the address stable across reboots while the other
+         * device stays up. */
+        /* name + digit, not host: keeps a name like "Kitchen" readable while
+         * still sanitizing to exactly this hostname ("kitchen1"). */
+        char renamed[40];
+        snprintf(renamed, sizeof(renamed), "%.30s%d", name, suffix);
+        board_name_set(renamed);
+        esp_netif_set_hostname(s_sta_netif, host);
+        mdns_instance_name_set(renamed);
+        ESP_LOGW(TAG, "'%s.local' is taken on this network -- renamed this board '%s' "
+                      "(reachable as %s.local)", base, host, host);
     } else {
         mdns_instance_name_set(name);
         ESP_LOGI(TAG, "mDNS: '%s' reachable as %s.local", name, host);

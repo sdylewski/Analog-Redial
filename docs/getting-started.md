@@ -198,8 +198,10 @@ board is reachable at **`phone.local`**. The confirmation page shows the
 address in large text, so you know where to go once it reboots.
 
 **More than one board?** Before claiming a name, the board checks whether
-anything on the network already answers to it; if so, it uses `phone1.local`,
-`phone2.local`, and so on. The same check applies to a name you choose.
+anything on the network already answers to it. If so, it renames itself
+`phone1` (then `phone2`, and so on) — the board name in the web UI, its
+`.local` address and the name in your router's device list all match. The
+same check applies to a name you choose: `kitchen` becomes `kitchen1`.
 
 **`.local` addresses aren't reliable on every network.** If it doesn't load
 within a minute, open your Wi-Fi router's admin page and look at its list of

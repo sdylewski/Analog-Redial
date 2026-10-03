@@ -115,3 +115,6 @@ Bluetooth/BK3266/**
 .env
 *.pem
 credentials.json
+
+# Generated spoken prompts (firmware/bringup/gen_prompt.py)
+voice_prompts/*.wav
