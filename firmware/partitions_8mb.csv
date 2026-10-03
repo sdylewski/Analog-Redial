@@ -1,0 +1,14 @@
+# Name,   Type, SubType, Offset,  Size,   Flags
+# 8 MB flash (ESP32-C6-DevKitC-1-N8). Same layout as partitions.csv except
+# `storage`, which shrinks from 6 MB to 2.375 MB -- both OTA slots and the
+# 2 MB `bundled` audio stay exactly as on 16 MB boards. Selected by
+# sdkconfig.8mb.defaults; see partitions.csv for what each entry is for.
+nvs,      data, nvs,     ,        0x6000,
+otadata,  data, ota,     ,        0x2000,
+phy_init, data, phy,     ,        0x1000,
+ota_0,    app,  ota_0,   ,        0x1C0000,
+ota_1,    app,  ota_1,   ,        0x1C0000,
+# Recordings + uploaded prompts/clips, /assets. 0x800000 total - 0x3A0000
+# (everything above) - 0x200000 (bundled) = 0x260000.
+storage,  data, spiffs,  ,        0x260000,
+bundled,  data, spiffs,  ,        0x200000,

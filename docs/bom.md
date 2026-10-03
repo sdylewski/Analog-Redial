@@ -186,34 +186,37 @@ up in
 
 ### Flash size: 16 MB vs 8 MB
 
-**The firmware fits either way** — the app is ~1.5 MB against a 1.75 MB OTA
-slot. What shrinks on an 8 MB part is room for audio. The current 16 MB
-layout (`firmware/partitions.csv`) spends 1.75 MB × 2 on OTA slots, 6 MB on
-recordings (`/assets`) and 2 MB on built-in clips (`/bundled`), and still
-leaves ~4.5 MB unused.
+**The firmware fits either way** — the app is ~1.6 MB against a 1.75 MB OTA
+slot. What shrinks on an 8 MB part is room for recordings:
 
-**What to change for an 8 MB part** — three files, no code:
+| | 16 MB (`partitions.csv`) | 8 MB (`partitions_8mb.csv`) |
+|---|---|---|
+| Two firmware-update (OTA) slots | 1.75 MB each | 1.75 MB each |
+| Built-in audio (`/bundled`) | 2 MB | 2 MB |
+| Recordings, prompts, greetings (`/assets`) | 6 MB, recordings capped at 4 MB | **2.375 MB, recordings capped at 1.5 MB** |
+| Unused | ~4.5 MB | none |
 
-| File | From | To |
-|------|------|-----|
-| `firmware/partitions.csv` — `storage` | `0x600000` (6 MB) | **`0x2A0000`** (2.625 MB) |
-| `firmware/partitions.csv` — `bundled` | `0x200000` (2 MB) | **`0x1C0000`** (1.75 MB) |
-| `firmware/sdkconfig.defaults` (and `sdkconfig.smd5*.defaults`) | `CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y` / `="16MB"` | **`..._8MB=y`** / **`="8MB"`** |
-| `CONFIG_STORAGE_RECORDING_CAP_BYTES` (`components/storage/Kconfig`, default) | `4194304` (4 MB) | **`2097152`** (2 MB) |
+With a microSD card fitted, recordings go to the card and the internal cap
+doesn't matter; the difference only shows on a board without one.
 
-That budget: 0x20000 for bootloader/tables/NVS, 1.75 MB × 2 OTA slots
-(0x3A0000), leaving 4.375 MB to split between `bundled` and `storage`.
-`bundled` holds ~1.55 MB today, so 1.75 MB keeps a little headroom; the rest
-goes to recordings.
+**Nothing to edit by hand.** `firmware/bringup/flash_board.py` reads the
+flash size off the chip and builds the right image:
 
-**Want more recording room?** Drop to a single app partition (no `ota_1`)
-and `storage` grows to ~4.25 MB — at the cost of web-UI firmware updates,
-which write to the inactive slot. USB flashing is unaffected either way.
+```bash
+cd firmware/bringup
+./flash_board.py          # detects board and flash size, asks before flashing
+```
 
-After editing, rebuild from scratch (`idf.py fullclean build`): a
-`sdkconfig.*.defaults` change does nothing to an already-generated
-`sdkconfig`, so a non-default board's build directory has to be deleted and
-regenerated — see `CLAUDE.md`'s build-directory rules.
+It uses `build.<board>_8mb/`, made from `sdkconfig.defaults` + the board's
+`sdkconfig.<board>.defaults` + `sdkconfig.8mb.defaults`. To do the same by
+hand:
+
+```bash
+idf.py -B build.smd4_8mb -D SDKCONFIG="build.smd4_8mb/sdkconfig" \
+  -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.smd4.defaults;sdkconfig.8mb.defaults" \
+  set-target esp32c6
+idf.py -B build.smd4_8mb -D SDKCONFIG="build.smd4_8mb/sdkconfig" -p <port> flash
+```
 
 ---
 

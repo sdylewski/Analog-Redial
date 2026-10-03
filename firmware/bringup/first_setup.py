@@ -258,7 +258,10 @@ def step_console(run: Run, con) -> dict:
     if "board" not in info:
         run.record("console", "FAIL", f"board_info didn't answer as expected: {lines[:3]}")
         return {}
-    run.record("console", "PASS", f"firmware built for {info['board']}")
+    pcb = info.get("pcb", info["board"])
+    rec = info.get("pcb_recorded", "-")
+    note = f" (but this board last confirmed as {rec} -- wrong firmware?)" if rec not in ("-", pcb) else ""
+    run.record("console", "WARN" if note else "PASS", f"firmware built for {pcb}{note}")
     return info
 
 
@@ -473,8 +476,8 @@ def main() -> int:
 
     port = None
     if not args.no_serial:
-        from phone_serial import find_ports
-        ports = [p for p in find_ports() if "usbmodem" in p or "ttyACM" in p]
+        from phone_serial import find_board_ports
+        ports = find_board_ports()
         port = args.port or (ports[0] if len(ports) == 1 else None)
         if not port and not args.port and len(ports) > 1:
             print("Several boards plugged in -- pass --port. Serial steps skipped.")

@@ -12,6 +12,26 @@ layers:
    each subsystem can be tested with one command from your laptop, and so the
    full sequence can be scripted instead of typed by hand.
 
+## flash_board.py — detect the board, build the right image, flash it
+
+```bash
+./flash_board.py                 # detect, show the plan, ask, flash
+./flash_board.py --setup --host telephono.local   # then run first_setup.py
+./flash_board.py --dry-run       # detect only
+```
+
+- **Board type:** `--board`, else read from the firmware already on the
+  board (`board_info` reports the PCB it was built for and the type the
+  board last confirmed booting as), else it asks. A board running firmware
+  from before 2026-10-02 only says "smd", so pass `--board` once.
+- **Flash size:** read off the chip with esptool — no firmware needed.
+- **Build directory:** `build/` for SMD4 on 16 MB (the tracked sdkconfig),
+  `build.<board>/` for other boards, `build.<board>_8mb/` for 8 MB parts
+  (`partitions_8mb.csv`). Created with the right defaults chain and an
+  explicit `SDKCONFIG` path if it doesn't exist yet.
+- After flashing it checks `board_info` again and warns if the board last
+  confirmed as a different PCB.
+
 ## first_setup.py — bring up and provision a board, one gated step at a time
 
 Run it from an ESP-IDF shell (`. ~/esp/esp-idf/export.sh`), with the board on

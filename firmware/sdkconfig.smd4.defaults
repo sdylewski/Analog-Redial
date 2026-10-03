@@ -1,0 +1,10 @@
+# Layered on top of sdkconfig.defaults for an SMD4 build directory other
+# than the default build/ (whose sdkconfig is the tracked one). Needed
+# because Kconfig's default board is THT, and a sdkconfig generated from
+# sdkconfig.defaults alone misses the 16 MB and native-USB console
+# settings -- see sdkconfig.smd2.defaults for the full story.
+CONFIG_BOARD_TYPE_SMD4=y
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y

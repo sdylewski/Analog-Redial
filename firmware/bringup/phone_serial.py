@@ -41,6 +41,12 @@ def find_ports() -> list[str]:
     return sorted(set(ports))
 
 
+def find_board_ports() -> list[str]:
+    """Native-USB boards only, one entry per board: macOS lists each one
+    twice (cu.* and tty.*), and cu.* is the one to use."""
+    return sorted(set(glob.glob("/dev/cu.usbmodem*") + glob.glob("/dev/ttyACM*")))
+
+
 def pick_port(explicit: str | None) -> str:
     if explicit:
         return explicit
@@ -63,14 +69,12 @@ class PhoneConsole:
     _ser: "serial.Serial | None" = field(default=None, init=False, repr=False)
 
     def __enter__(self) -> "PhoneConsole":
-        # Hold DTR/RTS low across open(): on the C6's native USB port that
-        # line pair is the reset/boot-mode request, and toggling it on open
-        # can reboot the board under us.
-        self._ser = serial.Serial()
-        self._ser.port, self._ser.baudrate, self._ser.timeout = self.port, self.baud, 0.2
-        self._ser.dtr = False
-        self._ser.rts = False
-        self._ser.open()
+        # Leave DTR and RTS at pyserial's defaults (both asserted). On the
+        # C6's native USB port, RTS asserted with DTR released is the chip
+        # reset request -- forcing both low on open drops DTR first and
+        # resets the board (seen as rst:0x15 USB_UART_HPSYS). Both asserted
+        # resets nothing.
+        self._ser = serial.Serial(self.port, self.baud, timeout=0.2)
         time.sleep(0.3)
         self._ser.reset_input_buffer()
         return self

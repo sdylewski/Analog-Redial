@@ -46,6 +46,12 @@ follow this exactly:
 | SMD4 (current, default) | `build/` | `sdkconfig.defaults` only — its `sdkconfig` is the one tracked in git |
 | SMD2 | `build.smd2/` | `sdkconfig.defaults;sdkconfig.smd2.defaults` |
 | THT | (no build.tht/ convention established yet — ask before inventing one) | `sdkconfig.defaults` only, `CONFIG_BOARD_TYPE_THT` |
+| Any SMD board, 8 MB module | `build.<type>_8mb/` | `sdkconfig.defaults;sdkconfig.<type>.defaults;sdkconfig.8mb.defaults` (`partitions_8mb.csv`) |
+
+`firmware/bringup/flash_board.py` picks and creates these automatically
+(board type from the running firmware's `board_info`, flash size from
+esptool). `sdkconfig.smd4.defaults` exists for SMD4 build dirs other than
+`build/` — Kconfig's default board is THT.
 
 **Creating or regenerating a non-default board's build directory**, always
 with an explicit `SDKCONFIG` path:

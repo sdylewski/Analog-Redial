@@ -251,34 +251,41 @@ bool sdcard_get_info(sdcard_info_t *out)
 }
 
 #define SELFTEST_BYTES (128 * 1024)
+#define SELFTEST_CHUNK (4 * 1024)
 
-esp_err_t sdcard_selftest(float *write_kbps, float *read_kbps)
+esp_err_t sdcard_selftest(float *write_kbps_out, float *read_kbps_out)
 {
-    if (write_kbps) *write_kbps = 0;
-    if (read_kbps) *read_kbps = 0;
+    /* Measure into locals so the summary line shows real numbers even when
+     * the caller (e.g. the sd_test console command) passes NULL. */
+    float wk = 0, rk = 0;
+    float *write_kbps = &wk, *read_kbps = &rk;
+    if (write_kbps_out) *write_kbps_out = 0;
+    if (read_kbps_out) *read_kbps_out = 0;
     if (!s_card) { printf("SD: not mounted\n"); return ESP_ERR_INVALID_STATE; }
     const char *path = SD_MOUNT "/_sdtest.bin";
 
-    /* One buffer only, reused for the read-back -- comparing against the
-     * formula directly instead of keeping a second full-size buffer around
-     * for memcmp() halves peak heap use (was 2x SELFTEST_BYTES at once).
-     * Found needing this 2026-09-22: a single-line SMD4 board with WiFi/
-     * webserver/telephony all running genuinely didn't have 256KB
-     * contiguous free, and the self-test failed with "out of memory" even
-     * though the SD card itself was fine (mounted, correct size, healthy
-     * FAT) -- see project convention on this class of bug (don't malloc()
-     * large one-shot buffers on this chip; player.c streams for the same
-     * reason). */
-    uint8_t *buf = malloc(SELFTEST_BYTES);
+    /* Streamed through one small buffer. A single SELFTEST_BYTES buffer
+     * (first 256 KB, then 128 KB) failed with "out of memory" twice on a
+     * healthy card -- 2026-09-22 on SMD4, 2026-10-02 on SMD2 with the setup
+     * AP up -- because this chip rarely has that much contiguous heap with
+     * Wi-Fi, the web server and telephony running. Same convention as
+     * player.c: don't malloc large one-shot buffers here. The pattern is
+     * computed from the absolute file offset, so chunking changes nothing
+     * about what's checked: repeating-but-not-constant, which catches a
+     * stuck bit or torn write that all-zero/all-0xFF data could hide. */
+    uint8_t *buf = malloc(SELFTEST_CHUNK);
     if (!buf) { printf("SD: out of memory for self-test buffer\n"); return ESP_FAIL; }
-    /* A repeating-but-not-constant pattern -- catches a stuck-bit or
-     * torn-write failure a run of all-zero/all-0xFF bytes could hide. */
-    for (size_t i = 0; i < SELFTEST_BYTES; i++) buf[i] = (uint8_t)(i * 31 + 7);
 
     int64_t t0 = esp_timer_get_time();
     FILE *f = fopen(path, "wb");
     if (!f) { printf("SD: open-for-write failed\n"); free(buf); return ESP_FAIL; }
-    size_t wrote = fwrite(buf, 1, SELFTEST_BYTES, f);
+    size_t wrote = 0;
+    for (size_t off = 0; off < SELFTEST_BYTES; off += SELFTEST_CHUNK) {
+        for (size_t k = 0; k < SELFTEST_CHUNK; k++) buf[k] = (uint8_t)((off + k) * 31 + 7);
+        size_t n = fwrite(buf, 1, SELFTEST_CHUNK, f);
+        wrote += n;
+        if (n != SELFTEST_CHUNK) break;
+    }
     fclose(f);
     int64_t t1 = esp_timer_get_time();
     if (wrote != SELFTEST_BYTES) {
@@ -292,26 +299,30 @@ esp_err_t sdcard_selftest(float *write_kbps, float *read_kbps)
     int64_t t2 = esp_timer_get_time();
     f = fopen(path, "rb");
     if (!f) { printf("SD: open-for-read failed\n"); unlink(path); free(buf); return ESP_FAIL; }
-    size_t got = fread(buf, 1, SELFTEST_BYTES, f);
+    size_t got = 0;
+    bool match = true;
+    for (size_t off = 0; off < SELFTEST_BYTES; off += SELFTEST_CHUNK) {
+        size_t n = fread(buf, 1, SELFTEST_CHUNK, f);
+        got += n;
+        for (size_t k = 0; k < n && match; k++) {
+            if (buf[k] != (uint8_t)((off + k) * 31 + 7)) match = false;
+        }
+        if (n != SELFTEST_CHUNK) break;
+    }
     fclose(f);
     int64_t t3 = esp_timer_get_time();
     unlink(path);
+    free(buf);
     if (read_kbps) *read_kbps = (float)got / 1024.0f / ((float)(t3 - t2) / 1000000.0f);
 
-    bool match = (got == SELFTEST_BYTES);
-    if (match) {
-        for (size_t i = 0; i < SELFTEST_BYTES; i++) {
-            if (buf[i] != (uint8_t)(i * 31 + 7)) { match = false; break; }
-        }
-    }
-    free(buf);
-    if (!match) {
+    if (got != SELFTEST_BYTES || !match) {
         printf("SD: readback mismatch (%u/%u bytes, content %s)\n", (unsigned)got, SELFTEST_BYTES,
                (got == SELFTEST_BYTES) ? "differs" : "short");
         return ESP_FAIL;
     }
-    printf("SD: write+read+verify OK (%.0f KB/s write, %.0f KB/s read)\n",
-           write_kbps ? *write_kbps : 0, read_kbps ? *read_kbps : 0);
+    printf("SD: write+read+verify OK (%.0f KB/s write, %.0f KB/s read)\n", wk, rk);
+    if (write_kbps_out) *write_kbps_out = wk;
+    if (read_kbps_out) *read_kbps_out = rk;
     return ESP_OK;
 }
 

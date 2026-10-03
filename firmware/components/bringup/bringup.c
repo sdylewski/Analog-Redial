@@ -47,6 +47,12 @@ static const char *TAG = "bringup";
 static int cmd_board_info(int argc, char **argv)
 {
     printf("board: %s\n", board_type_name(board_current_type()));
+    /* Exact PCB, and what this physical board last confirmed booting as --
+     * flash_board.py reads these to pick the right build before reflashing. */
+    char recorded[16];
+    board_type_recorded(recorded, sizeof(recorded));
+    printf("pcb: %s\n", board_pcb_variant_name());
+    printf("pcb_recorded: %s\n", recorded[0] ? recorded : "-");
     printf("lines: %d\n", BOARD_NUM_LINES);
     printf("i2c: SDA=%d SCL=%d\n", BOARD_I2C_SDA, BOARD_I2C_SCL);
     return 0;
