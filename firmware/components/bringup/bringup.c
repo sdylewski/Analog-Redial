@@ -16,6 +16,7 @@
 #include "idle_power.h"
 #include "esp_pm.h"
 #include "wifi.h"
+#include "esp_wifi_types.h"   /* WIFI_AUTH_* for wifi_scan's output */
 #include "storage.h"
 #include "sdcard.h"
 #include "player.h"
@@ -1733,6 +1734,21 @@ static int cmd_wifi_list(int argc, char **argv)
     return 0;
 }
 
+static const char *auth_name(uint8_t m)
+{
+    switch (m) {
+    case WIFI_AUTH_OPEN:            return "open";
+    case WIFI_AUTH_WEP:             return "WEP";
+    case WIFI_AUTH_WPA_PSK:         return "WPA";
+    case WIFI_AUTH_WPA2_PSK:        return "WPA2";
+    case WIFI_AUTH_WPA_WPA2_PSK:    return "WPA/2";
+    case WIFI_AUTH_WPA3_PSK:        return "WPA3";
+    case WIFI_AUTH_WPA2_WPA3_PSK:   return "WPA2/3";
+    case WIFI_AUTH_WPA2_ENTERPRISE: return "ENT";
+    default:                        return "other";
+    }
+}
+
 static int cmd_wifi_scan(int argc, char **argv)
 {
     wifi_scan_result_t *r = calloc(32, sizeof(*r));
@@ -1746,7 +1762,7 @@ static int cmd_wifi_scan(int argc, char **argv)
         printf("%d network(s) in %d ms%s\n", n, ms,
                wifi_is_provisioning() ? " (setup AP is up)" : "");
         for (int i = 0; i < n; i++)
-            printf("  %4d dBm  %s%s\n", r[i].rssi, r[i].ssid, r[i].secured ? "" : "  (open)");
+            printf("  %4d dBm  %-6s %s\n", r[i].rssi, auth_name(r[i].authmode), r[i].ssid);
     }
     free(r);
     return n < 0;

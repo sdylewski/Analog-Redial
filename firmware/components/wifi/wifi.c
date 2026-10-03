@@ -149,7 +149,8 @@ esp_err_t wifi_known_remove(const char *ssid)
  *      what keeps a missing network from eating minutes of retries. (So a
  *      hidden SSID, which never appears in a scan, is never tried either.)
  *   2. The network we were last on goes first, then the rest strongest
- *      first. Each gets CONNECT_ATTEMPTS tries.
+ *      first. Each gets CONNECT_ATTEMPTS tries, with a growing pause
+ *      between them (RETRY_BACKOFF_MS).
  *   3. None connected: bring up the setup AP, and rescan every
  *      FALLBACK_RESCAN_MS. When a saved network reappears (e.g. the router
  *      booted slower than we did after a power cut), connect and drop the AP.
@@ -163,6 +164,7 @@ esp_err_t wifi_known_remove(const char *ssid)
  * a scan from the handler overflowed it once already. */
 #define CONNECT_ATTEMPTS     3
 #define CONNECT_TIMEOUT_MS   15000
+#define RETRY_BACKOFF_MS     2000   /* wait 2 s before try 2, 4 s before try 3 */
 #define FALLBACK_RESCAN_MS   60000
 
 #define EV_GOT_IP  BIT0
@@ -182,6 +184,13 @@ static void apply_sta_config(const char *ssid, const char *pass)
     strncpy((char *)wc.sta.ssid, ssid, sizeof(wc.sta.ssid) - 1);
     strncpy((char *)wc.sta.password, pass, sizeof(wc.sta.password) - 1);
     wc.sta.threshold.authmode = strlen(pass) ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
+    /* WPA3: allow both SAE password-element methods. A zeroed config means
+     * "unspecified", which doesn't cover routers that require hash-to-
+     * element (H2E) -- those fail authentication with reason 202 even with
+     * the right password. PMF "capable" lets WPA2/WPA3 transition networks
+     * use WPA3. */
+    wc.sta.sae_pwe_h2e = WPA3_SAE_PWE_BOTH;
+    wc.sta.pmf_cfg.capable = true;
     esp_wifi_set_config(WIFI_IF_STA, &wc);
     strncpy(s_ssid, ssid, sizeof(s_ssid) - 1);
 }
@@ -253,6 +262,16 @@ static void manager_task(void *arg)
             char ssid[33] = {0}, pass[65] = {0};
             if (known_get(cand[i].slot, ssid, sizeof(ssid), pass, sizeof(pass)) != ESP_OK) continue;
             for (int a = 1; a <= CONNECT_ATTEMPTS && !connected; a++) {
+                if (a > 1) {
+                    /* Back off before retrying. A rejected attempt fails in
+                     * ~0.3 s, and routers often refuse an immediate retry:
+                     * on 2026-10-02 the SMD2 burned all three tries in one
+                     * second with AUTH_FAIL (202), then joined the same
+                     * network with the same password on the next pass. */
+                    xEventGroupWaitBits(s_ev, EV_KICK, pdFALSE, pdFALSE,
+                                        pdMS_TO_TICKS(RETRY_BACKOFF_MS * (a - 1)));
+                    if (xEventGroupGetBits(s_ev) & EV_KICK) break;
+                }
                 connected = try_connect(ssid, pass, a);
                 if (xEventGroupGetBits(s_ev) & EV_KICK) break;
             }
@@ -744,6 +763,7 @@ int wifi_scan(wifi_scan_result_t *out, int max)
                 if (recs[i].rssi > out[j].rssi) {
                     out[j].rssi = recs[i].rssi;
                     out[j].secured = recs[i].authmode != WIFI_AUTH_OPEN;
+                    out[j].authmode = recs[i].authmode;
                 }
                 break;
             }
@@ -754,6 +774,7 @@ int wifi_scan(wifi_scan_result_t *out, int max)
         out[n].ssid[sizeof(out[n].ssid) - 1] = '\0';
         out[n].rssi = recs[i].rssi;
         out[n].secured = recs[i].authmode != WIFI_AUTH_OPEN;
+        out[n].authmode = recs[i].authmode;
         n++;
     }
     free(recs);

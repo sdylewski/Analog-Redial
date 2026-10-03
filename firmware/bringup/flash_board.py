@@ -58,7 +58,7 @@ def read_board_info(port: str, boot_wait: float = 3) -> dict:
     from phone_serial import PhoneConsole
     try:
         with PhoneConsole(port) as con:
-            if not (con.is_alive(boot_wait) or con.wait_for_boot(timeout_s=boot_wait)):
+            if not con.is_alive(boot_wait):
                 return {}
             info = {}
             for line in con.send("board_info", timeout_s=5):
@@ -143,7 +143,7 @@ def main() -> int:
             print("  console didn't answer (asleep in low-power idle?) -- resetting it")
             subprocess.run([sys.executable, "-m", "esptool", "--chip", "esp32c6", "-p", port,
                             "--after", "hard_reset", "chip_id"], capture_output=True)
-            time.sleep(2)
+            time.sleep(6)   # boot + USB re-enumeration
             info = read_board_info(port, boot_wait=20)
         board, why = detect_board(info)
         if board:
@@ -195,7 +195,7 @@ def main() -> int:
         return 1
 
     print("Waiting for the board to boot...")
-    time.sleep(2)
+    time.sleep(6)
     info = read_board_info(port, boot_wait=20)
     pcb = info.get("pcb", "")
     if pcb != BOARDS[board][1]:

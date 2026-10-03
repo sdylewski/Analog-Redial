@@ -74,7 +74,18 @@ class PhoneConsole:
         # reset request -- forcing both low on open drops DTR first and
         # resets the board (seen as rst:0x15 USB_UART_HPSYS). Both asserted
         # resets nothing.
-        self._ser = serial.Serial(self.port, self.baud, timeout=0.2)
+        # Retry for a while: right after a reset the C6's native USB port
+        # disappears and re-enumerates, so the device node can be missing
+        # or not ready for a few seconds.
+        deadline = time.time() + 10
+        while True:
+            try:
+                self._ser = serial.Serial(self.port, self.baud, timeout=0.2)
+                break
+            except (serial.SerialException, OSError):
+                if time.time() > deadline:
+                    raise
+                time.sleep(0.5)
         time.sleep(0.3)
         self._ser.reset_input_buffer()
         return self
@@ -113,15 +124,22 @@ class PhoneConsole:
         return lines
 
     def is_alive(self, timeout_s: float = 2.0) -> bool:
-        """True if the REPL answers an empty line with a prompt."""
+        """True if the REPL answers an empty line with a prompt. Sends a
+        newline every second: one sent while the board is still booting is
+        simply lost, and a single try made a just-reset board look dead."""
         assert self._ser is not None
         self._ser.reset_input_buffer()
-        self._ser.write(b"\n")
         deadline = time.time() + timeout_s
+        next_nl = 0.0
         buf = ""
         while time.time() < deadline:
+            if time.time() >= next_nl:
+                self._ser.write(b"\n")
+                next_nl = time.time() + 1.0
             buf += self._ser.read(256).decode("utf-8", errors="replace")
             if PROMPT_RE.search(_clean(buf)):
+                time.sleep(0.2)                      # let extra prompts arrive,
+                self._ser.reset_input_buffer()       # then drop them
                 return True
         return False
 

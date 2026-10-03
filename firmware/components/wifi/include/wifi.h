@@ -91,6 +91,7 @@ typedef struct {
     char    ssid[33];
     int8_t  rssi;
     bool    secured;
+    uint8_t authmode;   /* wifi_auth_mode_t: open, WPA2, WPA3, ... */
 } wifi_scan_result_t;
 
 /* Blocking active scan for nearby SSIDs (roughly 0.5-3 s). Works both while
