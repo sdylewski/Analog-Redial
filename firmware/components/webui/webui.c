@@ -835,18 +835,21 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
         "leave blank for an open network");
     const char *save_connect = i18n_str("wifisetup.save_connect", "Save & connect");
 
-    size_t cap = strlen(tmpl) + strlen(WIFI_SCAN_JS)
-               + strlen(setup_title) * 2 + strlen(connect_h1) + strlen(intro)
-               + strlen(network_name_label) * 2 + strlen(scanning) + strlen(enter_network)
-               + strlen(rescan) + strlen(ssid_label) + strlen(password_label) * 2
-               + strlen(password_placeholder) + strlen(save_connect) + 32;
-    char *buf = malloc(cap);
+    /* Measure the finished page, then allocate exactly that. The size used
+     * to be a hand-kept sum of every argument's length; the language
+     * selector was added without being counted, the page came out ~450
+     * bytes short, and the cut fell on the closing <script> -- so the
+     * network list sat at "Scanning..." forever and no scan was ever
+     * requested. Measuring can't drift out of date that way. */
+#define SETUP_PAGE_ARGS setup_title, setup_title, connect_h1, intro, \
+        network_name_label, scanning, network_name_label, enter_network, rescan, \
+        ssid_label, password_label, password_placeholder, lang_label, lang_opts, save_connect, \
+        WIFI_SCAN_JS
+    int len = snprintf(NULL, 0, tmpl, SETUP_PAGE_ARGS);
+    char *buf = (len > 0) ? malloc((size_t)len + 1) : NULL;
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
-    snprintf(buf, cap, tmpl,
-        setup_title, setup_title, connect_h1, intro,
-        network_name_label, scanning, network_name_label, enter_network, rescan,
-        ssid_label, password_label, password_placeholder, lang_label, lang_opts, save_connect,
-        WIFI_SCAN_JS);
+    snprintf(buf, (size_t)len + 1, tmpl, SETUP_PAGE_ARGS);
+#undef SETUP_PAGE_ARGS
 
     httpd_resp_set_type(req, "text/html");
     httpd_resp_sendstr(req, buf);
@@ -4600,7 +4603,11 @@ static bool form_field(const char *body, const char *key, char *out, size_t out_
 static esp_err_t wifi_scan_json_handler(httpd_req_t *req)
 {
     wifi_scan_result_t results[WIFI_SCAN_MAX];
+    int64_t t0 = esp_timer_get_time();
     int n = wifi_scan(results, WIFI_SCAN_MAX);
+    ESP_LOGI(TAG, "/api/wifi_scan: %d network(s) in %d ms%s", n,
+             (int)((esp_timer_get_time() - t0) / 1000),
+             wifi_is_provisioning() ? " (setup AP up)" : "");
 
     cJSON *root = cJSON_CreateObject();
     cJSON *arr = cJSON_AddArrayToObject(root, "networks");

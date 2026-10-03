@@ -1733,6 +1733,25 @@ static int cmd_wifi_list(int argc, char **argv)
     return 0;
 }
 
+static int cmd_wifi_scan(int argc, char **argv)
+{
+    wifi_scan_result_t *r = calloc(32, sizeof(*r));
+    if (!r) { printf("out of memory\n"); return 1; }
+    int64_t t0 = esp_timer_get_time();
+    int n = wifi_scan(r, 32);
+    int ms = (int)((esp_timer_get_time() - t0) / 1000);
+    if (n < 0) {
+        printf("scan failed (%d ms) -- see the wifi_app warning above\n", ms);
+    } else {
+        printf("%d network(s) in %d ms%s\n", n, ms,
+               wifi_is_provisioning() ? " (setup AP is up)" : "");
+        for (int i = 0; i < n; i++)
+            printf("  %4d dBm  %s%s\n", r[i].rssi, r[i].ssid, r[i].secured ? "" : "  (open)");
+    }
+    free(r);
+    return n < 0;
+}
+
 static int cmd_wifi_forget(int argc, char **argv)
 {
     if (argc < 2) { printf("usage: wifi_forget <ssid>  (see wifi_list)\n"); return 1; }
@@ -2391,6 +2410,7 @@ void bringup_console_start(void)
     register_cmd("wifi_set", "Save WiFi credentials + reconnect: wifi_set <ssid> <password>", cmd_wifi_set);
     register_cmd("wifi_status", "WiFi connection status", cmd_wifi_status);
     register_cmd("wifi_list", "List saved WiFi networks", cmd_wifi_list);
+    register_cmd("wifi_scan", "Scan for nearby WiFi networks", cmd_wifi_scan);
     register_cmd("wifi_forget", "Remove a saved WiFi network: wifi_forget <ssid>", cmd_wifi_forget);
     register_cmd("log_level", "Get/set global log level: log_level [none|error|warn|info|debug|verbose]", cmd_log_level);
     register_cmd("testmode", "Enable/disable telephony injection test mode: testmode <0|1>", cmd_testmode);
