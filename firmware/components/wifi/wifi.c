@@ -214,6 +214,33 @@ static esp_err_t connect_best_known(void)
     return do_connect(ssid, pass);
 }
 
+/* Re-picking a network scans (blocking, ~2-3 s) and keeps ~1.2 KB of
+ * arrays on the stack -- far too much for the system event task, whose
+ * whole stack is CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE (2304 bytes).
+ * Doing it inline in event_handler overflowed that stack (a "Stack
+ * protection fault" in sys_evt) after five failed connects. So the handler
+ * only wakes this task, which does the work on a stack of its own. */
+static TaskHandle_t s_repick_task;
+
+static void repick_task(void *arg)
+{
+    for (;;) {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        if (connect_best_known() != ESP_OK) esp_wifi_connect();
+    }
+}
+
+static void request_repick(void)
+{
+    if (!s_repick_task &&
+        xTaskCreate(repick_task, "wifi_repick", 4096, NULL, 3, &s_repick_task) != pdPASS) {
+        s_repick_task = NULL;
+        esp_wifi_connect();          /* no task: at least keep retrying */
+        return;
+    }
+    xTaskNotifyGive(s_repick_task);
+}
+
 static void event_handler(void *arg, esp_event_base_t base, int32_t id, void *data)
 {
     if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
@@ -236,7 +263,8 @@ static void event_handler(void *arg, esp_event_base_t base, int32_t id, void *da
             static int fails;
             if (!s_provisioning && ++fails >= 5) {
                 fails = 0;
-                if (connect_best_known() == ESP_OK) return;
+                request_repick();
+                return;
             }
             esp_wifi_connect();
         }
