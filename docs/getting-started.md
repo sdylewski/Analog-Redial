@@ -191,30 +191,24 @@ Wi-Fi network** for setup:
 
 Alternatively, from the serial console: `wifi_set "<ssid>" "<password>"`.
 
-### Its default name — a word, not "phone"
+### Its address: `phone.local`
 
-Every unnamed board defaults to one of ten short words
-(`red`/`blue`/`green`/`gold`/`teal`/`coral`/`plum`/`amber`/`slate`/`rose`),
-picked once from the chip's own MAC address rather than typed by anyone —
-so it's stable across reboots without needing a name set first, and it's
-something a person can actually remember and spell back, unlike a generic
-name or a MAC-address fragment. Reachable as **`<word>.local`** — e.g.
-`coral.local`.
+The setup page has an optional **Board name** field. Leave it blank and the
+board is reachable at **`phone.local`**. The confirmation page shows the
+address in large text, so you know where to go once it reboots.
 
-**Two boards can pick the same word.** Before claiming `coral.local`, the
-board checks whether anything on the network already answers to it; if so,
-it falls back to `coral1.local`, `coral2.local`, and so on. This is the same
-mechanism that protects a renamed board's address too — the check happens
-every time a board is about to claim any name, not just a default one.
+**More than one board?** Before claiming a name, the board checks whether
+anything on the network already answers to it; if so, it uses `phone1.local`,
+`phone2.local`, and so on. The same check applies to a name you choose.
 
 **`.local` addresses aren't reliable on every network.** If it doesn't load
 within a minute, open your Wi-Fi router's admin page and look at its list of
-connected devices instead — the board shows up there under the same word,
+connected devices instead — the board shows up there under the same name,
 and opening its IP address directly works every time, `.local` or not.
 
 > **Multiple phones on one network?** Give each a unique **Board name** under
 > Settings → General — it becomes the new `<name>.local` address and labels
-> the UI, replacing the default word.
+> the UI, replacing the default `phone`.
 
 ---
 

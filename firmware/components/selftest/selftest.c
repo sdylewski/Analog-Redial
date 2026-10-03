@@ -309,6 +309,54 @@ esp_err_t selftest_stimulus(const char *id)
     return ESP_OK;
 }
 
+/* ---- background runner (web UI) ---------------------------------------- */
+
+static volatile bool s_busy;
+static char s_job_id[SELFTEST_ID_MAX];
+static int s_job_timeout_ms;
+static bool s_job_stimulus;
+
+static void bg_task(void *arg)
+{
+    if (s_job_stimulus) selftest_stimulus(s_job_id);
+    else selftest_run_action(s_job_id, s_job_timeout_ms);
+    s_busy = false;
+    vTaskDelete(NULL);
+}
+
+static esp_err_t start_bg(const char *id, int timeout_ms, bool stimulus)
+{
+    if (s_busy) return ESP_ERR_INVALID_STATE;
+    selftest_check_t *c = find_check(id);
+    if (!c) return ESP_ERR_NOT_FOUND;
+    if (c->result == SELFTEST_SKIP) return ESP_ERR_INVALID_STATE;
+    strlcpy(s_job_id, id, sizeof(s_job_id));
+    s_job_timeout_ms = timeout_ms;
+    s_job_stimulus = stimulus;
+    if (!stimulus) set_result(c, SELFTEST_PENDING, "watching for %ds...", timeout_ms / 1000);
+    s_busy = true;
+    if (xTaskCreate(bg_task, "selftest_bg", 4096, NULL, 5, NULL) != pdPASS) {
+        s_busy = false;
+        return ESP_ERR_NO_MEM;
+    }
+    return ESP_OK;
+}
+
+esp_err_t selftest_run_action_async(const char *id, int timeout_ms)
+{
+    return start_bg(id, timeout_ms, false);
+}
+
+esp_err_t selftest_stimulus_async(const char *id)
+{
+    return start_bg(id, 0, true);
+}
+
+bool selftest_busy(void)
+{
+    return s_busy;
+}
+
 esp_err_t selftest_answer(const char *id, bool ok)
 {
     selftest_check_t *c = find_check(id);

@@ -225,35 +225,6 @@ void board_hardware_str(char *out, size_t len)
              board_pcb_variant_name());
 }
 
-/* Default board name, picked once per chip rather than a generic "phone"
- * every board shares -- the generic default meant a second board on the
- * same network bumped to "phone1", "phone2", ... (wifi_apply_hostname()'s
- * mDNS collision check, still in force below this), which is accurate but
- * forgettable: the setup page has to tell someone "go to phone2.local" in
- * fine print, and that's the one piece of text they need to actually read
- * and remember. A short, distinct word reads from across a room and is
- * one most people can spell on the first try -- deliberately NOT numbers,
- * phonetic-alphabet words, or anything that sounds like a command.
- *
- * Picked deterministically from the station MAC's last byte, not randomly
- * at boot -- has to be the same word every boot before a name is ever set,
- * or the mDNS address would move around on its own. Two boards can still
- * land on the same word (1-in-10 odds on any given pair); when that
- * happens the existing collision logic in wifi_apply_hostname() bumps the
- * second one to e.g. "coral1" exactly as it would have with "phone1". */
-static const char *const DEFAULT_NAME_WORDS[] = {
-    "red", "blue", "green", "gold", "teal",
-    "coral", "plum", "amber", "slate", "rose",
-};
-#define DEFAULT_NAME_WORDS_N (sizeof(DEFAULT_NAME_WORDS) / sizeof(DEFAULT_NAME_WORDS[0]))
-
-static const char *default_board_name(void)
-{
-    uint8_t mac[6] = {0};
-    if (esp_read_mac(mac, ESP_MAC_WIFI_STA) != ESP_OK) return CONFIG_MDNS_HOSTNAME;
-    return DEFAULT_NAME_WORDS[mac[5] % DEFAULT_NAME_WORDS_N];
-}
-
 void board_name_get(char *out, size_t len)
 {
     if (len == 0) return;
@@ -265,8 +236,7 @@ void board_name_get(char *out, size_t len)
         nvs_close(h);
         if (err == ESP_OK && out[0]) return;
     }
-    /* Unset / first boot: fall back to this chip's default word (above). */
-    strncpy(out, default_board_name(), len - 1);
+    strncpy(out, CONFIG_MDNS_HOSTNAME, len - 1);
     out[len - 1] = '\0';
 }
 
@@ -916,10 +886,7 @@ void board_hostname(char *out, size_t len)
     while (o > 0 && out[o - 1] == '-') o--; /* trim trailing '-' */
     out[o] = '\0';
     if (out[0] == '\0') {
-        /* Only reachable if a user-set name sanitizes to nothing (e.g. all
-         * emoji) -- board_name_get() already returned a clean word for the
-         * unset case, which can't land here. */
-        strncpy(out, default_board_name(), len - 1);
+        strncpy(out, CONFIG_MDNS_HOSTNAME, len - 1);
         out[len - 1] = '\0';
     }
 }

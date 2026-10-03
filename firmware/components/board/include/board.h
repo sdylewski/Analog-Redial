@@ -126,7 +126,7 @@ void board_serial_str(char *out, size_t len);
  * Combines chip model/revision, the detected codec, and the built-for PCB. */
 void board_hardware_str(char *out, size_t len);
 
-/* Persisted, user-facing board name (NVS). Defaults to a per-chip word (board.c's DEFAULT_NAME_WORDS)
+/* Persisted, user-facing board name (NVS). Defaults to CONFIG_MDNS_HOSTNAME ("phone")
  * on first boot / if unset. board_name_set() rejects empty names. */
 void      board_name_get(char *out, size_t len);
 esp_err_t board_name_set(const char *name);

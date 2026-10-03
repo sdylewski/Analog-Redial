@@ -104,6 +104,13 @@ selftest_result_t selftest_run_action(const char *id, int timeout_ms);
  * is the human's own action (lifting a handset to hear dial tone). */
 esp_err_t selftest_stimulus(const char *id);
 
+/* Same two steps on a background task, returning immediately -- the web UI
+ * has a single httpd worker, so blocking it for 15s hung every page.
+ * ESP_ERR_INVALID_STATE if one is already running. */
+esp_err_t selftest_run_action_async(const char *id, int timeout_ms);
+esp_err_t selftest_stimulus_async(const char *id);
+bool selftest_busy(void);
+
 /* Records a human verdict for an ACTION or CONFIRM check. */
 esp_err_t selftest_answer(const char *id, bool ok);
 

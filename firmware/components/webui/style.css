@@ -255,8 +255,21 @@ button.danger:hover { border-color: var(--red); }
 .check { display: flex !important; align-items: center; gap: 8px; }
 .check input { width: auto; margin: 0; }
 .checks { display: flex; flex-direction: column; gap: 8px; }
-.hint, .muted { color: var(--muted); font-size: 13px; }
+.hint, .muted { color: var(--muted); font-size: 14px; line-height: 1.5; }
 .hint code, code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+/* A hint split into a short always-visible lead plus collapsed detail
+ * (append_hint() in webui.c) instead of one long paragraph. .hint-lead is
+ * a notch larger/clearer than .hint -- it's meant to stand alone, not read
+ * as a truncated fragment. Native <details>/<summary>: no JS, works on
+ * touch (no hover needed), keyboard-accessible for free. */
+.hint-lead { color: var(--text); font-size: 14px; line-height: 1.5; margin: 0 0 2px; }
+details.hint-detail { margin: 0; }
+details.hint-detail > summary { cursor: pointer; color: var(--accent); font-size: 13px;
+  list-style: none; margin-bottom: 4px; }
+details.hint-detail > summary::-webkit-details-marker { display: none; }
+details.hint-detail > summary::before { content: "more detail \25be"; }
+details.hint-detail[open] > summary::before { content: "less detail \25b4"; }
+details.hint-detail > .hint { margin: 0; }
 .msg { font-size: 13px; color: var(--muted); }
 .msg.err { color: var(--red); }
 .msg.ok { color: var(--green); }

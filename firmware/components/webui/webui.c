@@ -132,6 +132,8 @@ static int append_storage_table(char *buf, size_t cap, int off,
  * defined earlier in the file, right after append_log_panel()) can call it. */
 static void html_escape(const char *in, char *out, size_t outsz);
 static void js_escape(const char *in, char *out, size_t outsz);
+/* Defined right after html_escape -- forward-declared for the same reason. */
+static int append_hint(char *buf, size_t cap, int off, const char *lead, const char *detail);
 /* Defined with the Dial Codes & Prompts tab; also used by the answering
  * machine card's default-greeting text. */
 static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_name,
@@ -467,6 +469,26 @@ static void html_escape(const char *in, char *out, size_t outsz)
         }
     }
     out[o] = '\0';
+}
+
+/* A card's explanatory text as a short always-visible lead line plus a
+ * collapsed <details> for the rest, instead of one long <p class="hint">
+ * paragraph -- the fine print was hard to read and cluttered the page
+ * (see style.css's .hint-lead/.hint-detail). `detail` empty/NULL just
+ * renders `lead` as a plain hint, so an already-short hint doesn't get a
+ * pointless "more detail" toggle with nothing behind it. Both arguments
+ * are trusted static English text (i18n_str() defaults or literals), not
+ * escaped -- same assumption every other hint in this file already makes. */
+static int append_hint(char *buf, size_t cap, int off, const char *lead, const char *detail)
+{
+    if (!detail || !detail[0]) {
+        return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<p class=\"hint\">%s</p>", lead);
+    }
+    return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint-lead\">%s</p>"
+        "<details class=\"hint-detail\"><summary></summary><p class=\"hint\">%s</p></details>",
+        lead, detail);
 }
 
 /* Escapes for a single-quoted JS string literal embedded directly in an
@@ -867,14 +889,11 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
     const char *lang_label = i18n_str("wifisetup.language", "Language");
     const char *password_placeholder = i18n_str("general.wifi.password_placeholder",
         "leave blank for an open network");
-    /* Optional: skip it and the board picks one of ten short words (see
-     * board.c's DEFAULT_NAME_WORDS) from its own MAC, so there's always
-     * something short and memorable to type into a browser either way --
-     * this field is for someone who'd rather choose their own up front
-     * than rename it later from Settings. */
+    /* Optional: blank keeps "phone" (phone1, phone2... if another board
+     * already answers to it -- wifi_apply_hostname()'s mDNS check). */
     const char *name_label = i18n_str("wifisetup.name_label", "Board name (optional)");
     const char *name_placeholder = i18n_str("wifisetup.name_placeholder",
-        "leave blank for a random word, e.g. \"coral\"");
+        "leave blank for \"phone\"");
     const char *save_connect = i18n_str("wifisetup.save_connect", "Save & connect");
 
     /* Measure the finished page, then allocate exactly that. The size used
@@ -929,7 +948,7 @@ static bool first_boot_banner_needed(void)
 
 /* First-boot setup banner, shown on the Status page only while there's
  * still something a human hasn't reviewed: the board name (board_name_get()
- * returns a per-chip default word, board.c's DEFAULT_NAME_WORDS, until board_name_set()
+ * returns CONFIG_MDNS_HOSTNAME until board_name_set()
  * is called at least once) and/or, on SMD boards, the line2/microSD
  * hardware config (board_hw_config_is_set() -- see board.h). Hardware
  * already WORKS out of the box via board_hw_config_autodetect()'s guess
@@ -1474,8 +1493,23 @@ static int append_general_tab(char *buf, size_t cap, int off)
         "<label>%s <input type=\"time\" name=\"start\" value=\"%02u:%02u\" required></label>"
         "<label>%s <input type=\"time\" name=\"end\" value=\"%02u:%02u\" required></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-        "</form>"
-        "<p class=\"hint\">%s</p>"
+        "</form>",
+        i18n_str("general.quiethours.start_label", "Start"), qh.start_hour, qh.start_min,
+        i18n_str("general.quiethours.end_label", "End"), qh.end_hour, qh.end_min,
+        i18n_str("general.button.save", "Save"));
+    off = append_hint(buf, cap, off,
+        i18n_str("general.quiethours.hint_lead",
+                 "While enabled, incoming calls on either line during this window go to the "
+                 "answering machine instead of ringing -- even if that line's own Answering "
+                 "Machine is off, since there's nowhere else to send the call."),
+        i18n_str("general.quiethours.hint_detail",
+                 "Old mechanical ringers are loud, and not everyone wants one going off at "
+                 "2 a.m. This window, and every time shown in the web UI, use the timezone "
+                 "set above; recording <i>filenames</i> stay in UTC so they sort correctly "
+                 "and don't shift if you move. Start later than end (e.g. 21:00-07:00) means "
+                 "the window wraps past midnight. Takes effect on the next incoming call -- "
+                 "no reboot."));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         /* The browser already knows which zone the person is sitting in, and
          * it's the only party here that does -- the board only ever learns
          * UTC from SNTP. Offer it rather than applying it: silently changing
@@ -1497,20 +1531,7 @@ static int append_general_tab(char *buf, size_t cap, int off)
         "document.getElementById('tzuse').onclick=function(e){"
         "e.preventDefault();hit.selected=true;out.textContent=' Set below \\u2014 press Save.';};"
         "}catch(e){}})();</script>"
-        "</div>",
-        i18n_str("general.quiethours.start_label", "Start"), qh.start_hour, qh.start_min,
-        i18n_str("general.quiethours.end_label", "End"), qh.end_hour, qh.end_min,
-        i18n_str("general.button.save", "Save"),
-        i18n_str("general.quiethours.hint",
-                 "While enabled, incoming calls on either line during this window go straight "
-                 "to the answering machine instead of ringing -- old mechanical ringers are "
-                 "loud, and not everyone wants one going off at 2 a.m. Applies even if a line's "
-                 "own Answering Machine (Phone Settings tab) is off, since there's nowhere else "
-                 "to send the call. This window, and every time shown in the web UI, use the "
-                 "timezone set above; recording <i>filenames</i> stay in UTC so they sort "
-                 "correctly and don't shift if you move. Start later than end (e.g. "
-                 "21:00-07:00) means the window wraps past midnight. Takes effect on the next "
-                 "incoming call -- no reboot."));
+        "</div>");
     return off;
 }
 
@@ -1610,18 +1631,23 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         "<h3>%s</h3>", i18n_str("am.default_title", "Default greeting"));
     off = append_prompt_field(buf, cap, off, AM_DEFAULT_GREETING_NAME,
                               "Leave a message after the beep.");
+    off = append_hint(buf, cap, off,
+        i18n_str("am.hint_lead",
+                 "Each line plays its own recorded greeting if it has one, otherwise the "
+                 "default greeting above. To record a line's own greeting, pick up that "
+                 "line's phone and dial 8-9-9."),
+        i18n_str("am.hint_detail",
+                 "The default is built in (\"Leave a message after the beep\") until you "
+                 "generate your own wording with text-to-speech above. To record a line's "
+                 "own greeting: pick up that line's phone, dial 8-9-9, speak after the beep, "
+                 "and hang up (or pause ~8s) to save -- it replaces the previous one. After "
+                 "the configured rings, the line auto-answers, plays the greeting then a "
+                 "beep, then records the caller -- capped at the length above or ~8s of "
+                 "silence, whichever comes first. Picking up the handset at any point takes "
+                 "the call live instead."));
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">%s</p></div>"
+        "</div>"
         "<script>%s</script>",
-        i18n_str("am.hint",
-                 "Each line plays its own recorded greeting if it has one, otherwise the default "
-                 "greeting above: built in (\"Leave a message after the beep\") until you "
-                 "generate your own wording with text-to-speech. To record a line's own greeting, "
-                 "pick up that line's phone, dial 8-9-9, speak after the beep, and hang up (or "
-                 "pause ~8s) to save -- it replaces the previous one. After the "
-                 "configured rings, the line auto-answers, plays the greeting then a beep, then "
-                 "records the caller -- capped at the length above or ~8s of silence, whichever "
-                 "comes first. Picking up the handset at any point takes the call live instead."),
         RECORDING_RELOAD_JS);
 
     bool tone_follow_lang = board_tone_follow_language_get();
@@ -1721,15 +1747,18 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         "<label>%s "
         "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-        "</form>"
-        "<p class=\"hint\">%s</p></div>",
+        "</form>",
         i18n_str("general.offhook.title", "Off-hook alert"),
         i18n_str("general.current", "Current"), roh_status,
         roh.enabled ? " checked" : "", i18n_str("general.offhook.enabled", "Enabled"),
         i18n_str("general.offhook.seconds_label", "Seconds on dial tone before the alert"),
         (unsigned)roh.seconds, BOARD_OFFHOOK_ALERT_MIN_S, BOARD_OFFHOOK_ALERT_MAX_S,
-        i18n_str("general.button.save", "Save"),
-        i18n_str("general.offhook.hint",
+        i18n_str("general.button.save", "Save"));
+    off = append_hint(buf, cap, off,
+        i18n_str("general.offhook.hint_lead",
+                 "Plays the standard \"receiver off-hook\" alert if dial tone sits untouched "
+                 "too long."),
+        i18n_str("general.offhook.hint_detail",
                  "A handset left off the hook sits on dial tone forever, and the line is "
                  "unreachable the whole time (callers get busy) with nothing to draw attention "
                  "to it. This plays the loud, warbling \"receiver off-hook\" alert real phone "
@@ -1738,6 +1767,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "it. The clock restarts on every return to dial tone, so only a genuinely "
                  "forgotten handset ever reaches it. Takes effect on the next dial tone -- no "
                  "reboot."));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("aec.title", "Echo cancellation"));
@@ -1772,8 +1802,20 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
             l, i18n_str("aec.disable", "Disable"),
             delay_label, (unsigned)ms, l, l, measure_line, l);
     }
+    off = append_hint(buf, cap, off,
+        i18n_str("aec.hint_lead",
+                 "Enable/Disable is for testing -- leave off for normal use unless echo "
+                 "has been measured and calibrated below."),
+        i18n_str("aec.hint_detail",
+                 "An uncalibrated or wrongly-delayed canceller can make echo worse, not "
+                 "better. To calibrate: pick up the handset (off-hook), make sure it's not "
+                 "in a call, then click Measure -- it plays a short burst out the earpiece "
+                 "and listens on the same line's own mic to find its local echo delay, the "
+                 "number the canceller needs to align against. Takes about 2 seconds (3 "
+                 "quick measurements averaged for reliability). Applying saves it and "
+                 "takes effect immediately, no reboot."));
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">%s</p></div>"
+        "</div>"
         "<script>"
         "var AEC_I18N={measuring:'%s',noEcho:'%s',tries:'%s',delayFmt:'%s',consistent:'%s',"
         "apply:'%s',failed:'%s'};"
@@ -1805,15 +1847,6 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         ".catch(function(){btn.disabled=false;out.textContent=AEC_I18N.failed;});"
         "}"
         "</script>",
-        i18n_str("aec.hint",
-                 "Enable/Disable is for testing -- leave off for normal use unless a real echo "
-                 "has actually been measured and calibrated below (an uncalibrated or "
-                 "wrongly-delayed canceller can make echo worse, not better). To calibrate: pick "
-                 "up the handset (off-hook) and make sure it's NOT in a call, then click Measure "
-                 "-- plays a short burst out the earpiece and listens on the same line's own mic "
-                 "to find its local echo delay, the number the canceller needs to align against. "
-                 "Takes about 2 seconds (3 quick measurements averaged for reliability). "
-                 "Applying saves it and takes effect immediately, no reboot."),
         i18n_str("aec.js.measuring", "Measuring..."),
         i18n_str("aec.js.no_echo", "No echo detected in"),
         i18n_str("aec.js.tries", "tries -- off-hook and not in a call?"),
@@ -2801,21 +2834,23 @@ static int append_record_tab(char *buf, size_t cap, int off,
                                 entries[i].implemented);
     }
     uint32_t max_ms = board_record_max_ms_get(120000);
+    off = append_hint(buf, cap, off,
+        i18n_str("record.hint_lead",
+                 "Dial 211 to record a message; saved as an 8 kHz mono WAV."),
+        i18n_str("record.hint_detail",
+                 "If the prompt below is generated, it plays first, then a beep, then "
+                 "recording starts. Speak, then hang up (or pause ~8 s / hit the max length "
+                 "below, at which point recording just stops silently -- no warning beeps). "
+                 "Mention the time limit in the prompt text below if callers should know it up "
+                 "front. The message is saved in "
+                 "<a href=\"/recordings\">Recordings</a> / <a href=\"/settings?tab=storage\">"
+                 "Settings &rarr; Storage</a>."));
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">%s</p>"
         "<form method=\"POST\" action=\"/record_max_ms\" class=\"settings-form\">"
         "<label>%s "
         "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%u\" max=\"%u\" required></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>",
-        i18n_str("record.hint",
-                 "Dial 211: if the prompt below is generated, it plays first, then a beep, then "
-                 "recording starts. Speak, then hang up (or pause ~8 s / hit the max length "
-                 "below, at which point recording just stops silently -- no warning beeps). "
-                 "Mention the time limit in the prompt text below if callers should know it up "
-                 "front. The message is saved as an 8 kHz mono WAV in "
-                 "<a href=\"/recordings\">Recordings</a> / <a href=\"/settings?tab=storage\">"
-                 "Settings &rarr; Storage</a>."),
         i18n_str("record.max_length_label", "Max recording length (seconds)"),
         (unsigned)(max_ms / 1000),
         (unsigned)(BOARD_RECORD_MAX_MS_MIN / 1000), (unsigned)(BOARD_RECORD_MAX_MS_MAX / 1000),
@@ -2880,9 +2915,7 @@ static int append_firmware_card(char *buf, size_t cap, int off)
         "<label>%s <input type=\"file\" name=\"file\" accept=\".bin\" required></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>"
-        "%s"
-        "<p class=\"hint\">%s</p>"
-        "</div>",
+        "%s",
         i18n_str("firmware.title", "Firmware"),
         i18n_str("firmware.version_label", "Version"), app->version,
         i18n_str("firmware.built_label", "Built"), built,
@@ -2892,16 +2925,20 @@ static int append_firmware_card(char *buf, size_t cap, int off)
                  "this same board type -- there's no way to check that before writing it."),
         i18n_str("firmware.file_label", "Firmware file (.bin, from idf.py build)"),
         i18n_str("firmware.button", "Upload and reboot"),
-        revert_form,
-        i18n_str("firmware.hint",
-                 "Pushes the exact file <code>idf.py build</code> already produces "
+        revert_form);
+    off = append_hint(buf, cap, off,
+        i18n_str("firmware.hint_lead",
+                 "Uploads a build output and reboots into it -- no USB cable needed."),
+        i18n_str("firmware.hint_detail",
+                 "Pushes the exact file <code>idf.py build</code> produces "
                  "(<code>build/rotary_phone_gateway.bin</code>) -- the same one you'd otherwise "
                  "flash over USB. Writes to the inactive slot while this one keeps running, then "
                  "reboots into it. If the new image crashes or hangs before finishing boot, it "
-                 "automatically reverts to this version on the next boot -- no USB cable needed "
-                 "to recover. USB flashing (<code>idf.py flash</code>) still works exactly as "
-                 "before; this is an additional option, not a replacement, and is still how you "
-                 "flash a board for the very first time."));
+                 "automatically reverts to this version on the next boot. USB flashing "
+                 "(<code>idf.py flash</code>) still works exactly as before; this is an "
+                 "additional option, not a replacement, and is still how you flash a board for "
+                 "the very first time."));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
     return off;
 }
 
@@ -2969,8 +3006,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s / %s</span></div>"
         "%s"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
-        "<span>%s / %s%s</span></div>"
-        "<p class=\"hint\">%s</p></div>",
+        "<span>%s / %s%s</span></div>",
         i18n_str("hardware.title", "Hardware"),
         i18n_str("hardware.type", "Type"), hw,
         i18n_str("hardware.codec_detected", "Codec (detected)"), board_codec_name(detected),
@@ -2981,8 +3017,12 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         fmt_bytes(ram_used, ru, sizeof(ru)), fmt_bytes(ram_free, rf, sizeof(rf)), sd_row,
         i18n_str("hardware.storage", "Storage used / free"),
         fmt_bytes(st_used, su, sizeof(su)), fmt_bytes(st_free, sf, sizeof(sf)),
-        storage_using_sd() ? " (SD)" : "",
-        i18n_str("hardware.hint",
+        storage_using_sd() ? " (SD)" : "");
+    off = append_hint(buf, cap, off,
+        i18n_str("hardware.hint_lead",
+                 "Type and Serial are fixed per board; Storage is whichever backend is "
+                 "primary."),
+        i18n_str("hardware.hint_detail",
                  "Type is fixed at build time (<code>CONFIG_BOARD_TYPE_*</code>) since GPIO "
                  "routing is per-PCB; the detected codec is probed live on the I2C bus and warns "
                  "in the log if it disagrees. Serial is the factory MAC -- unique per chip, "
@@ -2991,6 +3031,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                  "<a href=\"/settings?tab=storage\">Settings &rarr; Storage</a> for both listed "
                  "separately. RAM is live internal heap. Uptime/WiFi are on the <a href=\"/\">"
                  "Status</a> page."));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
     if (board_type_mismatch()) {
         char recorded[16];
@@ -3169,8 +3210,25 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "<form method=\"POST\" action=\"/wifi_reprovision\" class=\"settings-form\" "
         "onsubmit=\"return confirm('%s')\">"
         "<div class=\"toolbar sub\"><button type=\"submit\">%s\xe2\x80\xa6</button></div>"
-        "</form>"
-        "<p class=\"hint\">%s Setup network: <code>%s</code>.</p>"
+        "</form>",
+        i18n_str("reset.title", "Reset"),
+        i18n_str("reset.wifi.confirm",
+                 "Clear the saved WiFi network and reboot into setup mode? "
+                 "Every other setting stays as-is."),
+        i18n_str("reset.wifi.button", "Re-provision WiFi"));
+    off = append_hint(buf, cap, off,
+        i18n_str("reset.wifi.hint_lead",
+                 "Clears the saved WiFi network only and reboots into its own open setup "
+                 "network."),
+        i18n_str("reset.wifi.hint_detail",
+                 "Everything else (board name, dial codes, VoIP, recordings) is untouched. Use "
+                 "this when moving the board to a different WiFi network. Forgot to click this "
+                 "before moving the board, and can't reach this page anymore? Hold the "
+                 "<b>BOOT</b> button on the ESP32 module for 3&nbsp;seconds <em>while it's "
+                 "already running</em> (not during power-on, which instead puts the chip in USB "
+                 "flashing mode) -- does the exact same thing, no web UI needed."));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">Setup network: <code>%s</code>.</p>"
         "<form method=\"POST\" action=\"/factory_reset\" class=\"settings-form\" "
         "onsubmit=\"return confirm('%s')\">"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"danger\">"
@@ -3178,20 +3236,6 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "</form>"
         "<p class=\"hint\">%s</p>"
         "</div>",
-        i18n_str("reset.title", "Reset"),
-        i18n_str("reset.wifi.confirm",
-                 "Clear the saved WiFi network and reboot into setup mode? "
-                 "Every other setting stays as-is."),
-        i18n_str("reset.wifi.button", "Re-provision WiFi"),
-        i18n_str("reset.wifi.hint",
-                 "Clears the saved WiFi network only and reboots into setup mode (its own "
-                 "open setup network) -- everything else (board name, dial "
-                 "codes, VoIP, recordings) is untouched. Use this when moving the board to a "
-                 "different WiFi network. Forgot to click this before moving the board, and can't "
-                 "reach this page anymore? Hold the <b>BOOT</b> button on the ESP32 module for "
-                 "3&nbsp;seconds <em>while it's already running</em> (not during power-on, which "
-                 "instead puts the chip in USB flashing mode) -- does the exact same thing, no web "
-                 "UI needed."),
         setup_ap_esc,
         i18n_str("reset.factory.confirm",
                  "Reset ALL settings to factory defaults and reboot? This clears WiFi, board "
@@ -3451,8 +3495,7 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
         "</select></label>"
         "<button type=\"submit\">%s</button>"
         "</form>"
-        "<p class=\"hint\">%s %s</p>"
-        "<p class=\"hint\">%s</p></div>",
+        "<p class=\"hint\">%s %s</p>",
         i18n_str("hwconfig.variant_label", "GPIO18-21 wired to"),
         cfg.num_lines > 1 ? " selected" : "",
         i18n_str("hwconfig.2line", "A second phone line (jumpers + 2nd AG1171 populated)"),
@@ -3476,14 +3519,17 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
             ? i18n_str("hwconfig.hint_confirmed", "-- please double-check before changing it")
             : i18n_str("hwconfig.hint_unconfirmed",
                        "-- the setting above was pre-filled from onboard evidence and should "
-                       "already work, but please confirm it matches what you actually built"),
-        i18n_str("hwconfig.bt_hint",
-                 "The Bluetooth setting is about whether the hardware is physically present, "
-                 "which is separate from switching the feature on in Settings -> Bluetooth. "
+                       "already work, but please confirm it matches what you actually built"));
+    off = append_hint(buf, cap, off,
+        i18n_str("hwconfig.bt_hint_lead",
+                 "Bluetooth here means the module is physically fitted -- turn the feature on "
+                 "in Settings &rarr; Bluetooth."),
+        i18n_str("hwconfig.bt_hint_detail",
                  "The companion's audio is always line 0 and its UART is always GPIO16/17, so "
                  "it works alongside either choice above. On SMD4 its control pins share line "
                  "1's (GPIO18-20), so on a 2-line board pull J5's four shunts, wire the module "
                  "to J5, and choose \"Neither\" above -- line 1 stays stuffed but disconnected."));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
     return off;
 }
@@ -3518,6 +3564,14 @@ static int append_selftest_card(char *buf, size_t cap, int off)
                  "audio while never seeing the hook. Results are stored on this board, so a "
                  "later failure can be compared against a run that passed."),
         i18n_str("diag.selftest.start", "Run automatic checks"));
+
+    if (selftest_busy()) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<p class=\"hint-lead\">%s</p>"
+            "<script>setTimeout(function(){location.reload();},1500);</script>",
+            i18n_str("diag.selftest.busy",
+                     "Step in progress -- this page refreshes on its own until it finishes."));
+    }
 
     if (rep->n > 0) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
@@ -3722,19 +3776,20 @@ static int append_diag_tab(char *buf, size_t cap, int off)
             player_row);
     }
     if (diag_num_lines > 0) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<p class=\"hint\">%s</p></div>",
-            i18n_str("diag.mic.hint",
-                     "Pick up that line's handset (off-hook) BEFORE submitting -- the mic path "
-                     "isn't routed on-hook, same requirement as the Echo Cancellation Measure "
-                     "button above, so this just silently records digital silence otherwise (a "
-                     "flat, all-zero file, not a crash or error -- easy to mistake for the test "
-                     "not working when it's really just an on-hook capture). Records straight "
-                     "from that line's mic (through the AEC/uplink audio path, same source VoIP "
-                     "would encode) to a WAV, blocking the page for the duration -- speak into "
-                     "the handset while it's running. Play it back above to check it sounds "
-                     "right (level, clarity, no clipping). Each run overwrites "
-                     "that line's previous test recording."));
+        off = append_hint(buf, cap, off,
+            i18n_str("diag.mic.hint_lead",
+                     "Pick up that line's handset (off-hook) BEFORE submitting -- otherwise "
+                     "it silently records digital silence, not an error."),
+            i18n_str("diag.mic.hint_detail",
+                     "The mic path isn't routed on-hook, same requirement as the Echo "
+                     "Cancellation Measure button above -- an on-hook run produces a flat, "
+                     "all-zero file with no crash or error, easy to mistake for the test not "
+                     "working. Records straight from that line's mic (through the AEC/uplink "
+                     "audio path, same source VoIP would encode) to a WAV, blocking the page "
+                     "for the duration -- speak into the handset while it's running. Play it "
+                     "back above to check it sounds right (level, clarity, no clipping). Each "
+                     "run overwrites that line's previous test recording."));
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
     }
 
     /* Test mode + audio loopback + SD self-test (DVT harness controls; also
@@ -4251,8 +4306,7 @@ static int append_sdcard_info_card(char *buf, size_t cap, int off)
         "<form method=\"POST\" action=\"/sd_format\" style=\"display:inline\" "
         "onsubmit=\"return confirm('%s')\">"
         "<button type=\"submit\" class=\"danger\">%s</button></form>"
-        "</div>"
-        "<p class=\"hint\">%s</p></div>",
+        "</div>",
         i18n_str("storage.sd_info_title", "microSD card"),
         i18n_str("storage.sd_product", "Product name"), info.name[0] ? info.name : "(blank)",
         i18n_str("storage.sd_manufacturer", "Manufacturer"), mfg_str,
@@ -4264,8 +4318,12 @@ static int append_sdcard_info_card(char *buf, size_t cap, int off)
         i18n_str("storage.sd_format_confirm",
                  "Format the microSD card? This permanently erases EVERYTHING on it -- "
                  "recordings, uploads, all of it. This cannot be undone."),
-        i18n_str("storage.sd_format_button", "Format card"),
-        i18n_str("storage.sd_info_hint",
+        i18n_str("storage.sd_format_button", "Format card"));
+    off = append_hint(buf, cap, off,
+        i18n_str("storage.sd_info_hint_lead",
+                 "Card identity comes from its CID register; self-test checks read/write "
+                 "health and speed."),
+        i18n_str("storage.sd_info_hint_detail",
                  "Product name and manufacturer come from the card's own CID register -- not a "
                  "marketing name, just whatever the manufacturer programmed there. Type (SDSC/"
                  "SDHC/SDXC) is capacity-based per the SD Association's own tiers. Bus is always "
@@ -4274,6 +4332,7 @@ static int append_sdcard_info_card(char *buf, size_t cap, int off)
                  "directions -- SD cards have no portable SMART-style health check, so a card "
                  "that's failing or unusually slow tends to show up here as a mismatch or a low "
                  "throughput number instead."));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
     return off;
 }
 
@@ -4296,30 +4355,37 @@ static int append_storage_section(char *buf, size_t cap, int off)
     wifi_get_ip_str(ip, sizeof(ip));
     bool sd = storage_sd_present();
 
-    /* storage.hint carries its own %s (the board's IP, for the curl
+    /* storage.hint_detail carries its own %s (the board's IP, for the curl
      * example) -- render into its own buffer first, same two-step pattern
      * used elsewhere in this file for a translated string with a
      * placeholder of its own. */
-    char storage_hint[500];
-    snprintf(storage_hint, sizeof(storage_hint),
-        i18n_str("storage.hint",
-                 "Recordings, uploaded prompt/clip WAVs, anything else. Upload with "
-                 "<code>curl -X POST --data-binary @file.wav http://%s/media/&lt;name&gt;</code> "
-                 "or <code>firmware/bringup/gen_prompt.py</code>. <code>operator.wav</code> and "
-                 "<code>clip_*.wav</code> are never auto-deleted to make room for recordings -- "
-                 "only explicit deletes (below) remove them. Prompt/clip uploads always go to "
-                 "internal flash (so pulling the card mid-use can't take dial tone or the "
-                 "operator message with it) -- only 211 recordings prefer the card."),
+    char storage_hint_detail[700];
+    int hd_off = snprintf(storage_hint_detail, sizeof(storage_hint_detail),
+        i18n_str("storage.hint_detail",
+                 "Upload with <code>curl -X POST --data-binary @file.wav "
+                 "http://%s/media/&lt;name&gt;</code> or <code>firmware/bringup/gen_prompt.py"
+                 "</code>. <code>operator.wav</code> and <code>clip_*.wav</code> are never "
+                 "auto-deleted to make room for recordings -- only explicit deletes (below) "
+                 "remove them. Prompt/clip uploads always go to internal flash (so pulling the "
+                 "card mid-use can't take dial tone or the operator message with it) -- only "
+                 "211 recordings prefer the card."),
         ip);
+    if (sd && (size_t)hd_off < sizeof(storage_hint_detail)) {
+        snprintf(storage_hint_detail + hd_off, sizeof(storage_hint_detail) - hd_off, "%s",
+            i18n_str("storage.sd_present_hint",
+                     " A microSD card is present and takes priority for new recordings -- "
+                     "internal flash is never evicted to make room on the card, and stays "
+                     "listed below in its own section so anything saved before the card was "
+                     "inserted is still reachable."));
+    }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div id=\"storage\" class=\"card wide\" style=\"margin-top:16px\"><h2>%s</h2>"
-        "<p class=\"hint\">%s%s</p></div>",
-        i18n_str("storage.title", "Storage"), storage_hint,
-        sd ? i18n_str("storage.sd_present_hint",
-                 " A microSD card is present and takes priority for new recordings -- internal "
-                 "flash is never evicted to make room on the card, and stays listed below in "
-                 "its own section so anything saved before the card was inserted is still "
-                 "reachable.") : "");
+        "<div id=\"storage\" class=\"card wide\" style=\"margin-top:16px\"><h2>%s</h2>",
+        i18n_str("storage.title", "Storage"));
+    off = append_hint(buf, cap, off,
+        i18n_str("storage.hint_lead",
+                 "Recordings, uploaded prompt/clip WAVs, anything else."),
+        storage_hint_detail);
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
     /* Configured for SD but nothing's mounted right now -- either a card
      * was never inserted, the last mount attempt failed (bad format, wiring,
@@ -4743,7 +4809,7 @@ static esp_err_t wifi_set_handler(httpd_req_t *req)
     /* Optional board name from the setup page -- see wifi_setup_page()'s
      * comment on this field. Applied before the confirmation page below
      * reads the current name, so it reflects whatever was actually chosen
-     * (typed name, or the per-chip default word if left blank) rather than
+     * (typed name, or "phone" if left blank) rather than
      * needing a second reboot to catch up. Absent on the normal Settings
      * WiFi form, which has its own Board name field already -- so, like
      * lang above, only act on it when it was actually sent. */
@@ -4785,23 +4851,6 @@ static esp_err_t wifi_set_handler(httpd_req_t *req)
         char host[64];
         board_hostname(host, sizeof(host));
 
-        /* If this is still one of the auto-assigned default words (true for
-         * almost every first-time setup -- see board.c's DEFAULT_NAME_WORDS),
-         * color the big address to match. Pure decoration -- a renamed
-         * board just gets the neutral border below instead. Kept as a
-         * lookup by the word itself, not shared state with board.c, so
-         * this can't get out of sync with anything that matters. */
-        static const struct { const char *word, *hex; } COLORS[] = {
-            { "red",   "#e5484d" }, { "blue",  "#0ea5e9" }, { "green", "#22c55e" },
-            { "gold",  "#eab308" }, { "teal",  "#14b8a6" }, { "coral", "#ff6f61" },
-            { "plum",  "#8e4585" }, { "amber", "#f59e0b" }, { "slate", "#64748b" },
-            { "rose",  "#fb7185" },
-        };
-        const char *accent = "var(--border)";
-        for (size_t i = 0; i < sizeof(COLORS) / sizeof(COLORS[0]); i++) {
-            if (strcmp(host, COLORS[i].word) == 0) { accent = COLORS[i].hex; break; }
-        }
-
         static const char *const tmpl =
             "<!doctype html><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
@@ -4809,12 +4858,12 @@ static esp_err_t wifi_set_handler(httpd_req_t *req)
             "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">"
             "<link rel=\"stylesheet\" href=\"/static/style.css\">"
             "<main class=\"auth-page\"><div class=\"auth-card\" "
-            "style=\"max-width:480px;border-left:6px solid %s\">"
+            "style=\"max-width:480px;border-left:6px solid var(--accent)\">"
             "<h1>Saved \xe2\x80\x94 connecting\xe2\x80\xa6</h1>"
             "<p>The phone is rebooting to join your network. Reconnect your phone/laptop "
             "to your normal WiFi (this setup network will disappear), then go to:</p>"
             "<p style=\"font-size:40px;font-weight:700;text-align:center;margin:24px 0;"
-            "color:%s;word-break:break-all\">%s.local</p>"
+            "color:var(--accent);word-break:break-all\">%s.local</p>"
             "<p class=\"hint\">Takes a few seconds. Didn't load within a minute? "
             ".local addresses don't work reliably on every network -- open your WiFi "
             "router's admin page and look for <code>%s</code> in its device list instead "
@@ -4827,10 +4876,10 @@ static esp_err_t wifi_set_handler(httpd_req_t *req)
          * this silently truncated the WiFi setup page once already (the
          * missing bytes were the <script> at the end -- see that page's own
          * comment). host can be up to 63 bytes and appears 4 times. */
-        int plen = snprintf(NULL, 0, tmpl, accent, accent, host, host, host, host);
+        int plen = snprintf(NULL, 0, tmpl, host, host, host, host);
         char *page = (plen > 0) ? malloc((size_t)plen + 1) : NULL;
         if (!page) { httpd_resp_send_500(req); return ESP_FAIL; }
-        snprintf(page, (size_t)plen + 1, tmpl, accent, accent, host, host, host, host);
+        snprintf(page, (size_t)plen + 1, tmpl, host, host, host, host);
         httpd_resp_set_type(req, "text/html");
         httpd_resp_sendstr(req, page);
         free(page);
@@ -5420,8 +5469,6 @@ static bool selftest_form_id(httpd_req_t *req, char *out, size_t out_len, char *
     return out[0] != '\0';
 }
 
-/* Blocks up to 15s waiting for the physical event (a hook change), which is
- * within httpd's socket timeout. */
 static esp_err_t selftest_action_handler(httpd_req_t *req)
 {
     char body[WIFI_FORM_MAX_BODY], id[SELFTEST_ID_MAX] = {0};
@@ -5429,7 +5476,7 @@ static esp_err_t selftest_action_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "missing id");
         return ESP_OK;
     }
-    selftest_run_action(id, 15000);
+    selftest_run_action_async(id, 15000);
     redirect_to_referer_or(req, "/settings?tab=diag");
     return ESP_OK;
 }
@@ -5441,7 +5488,7 @@ static esp_err_t selftest_stimulus_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "missing id");
         return ESP_OK;
     }
-    selftest_stimulus(id);
+    selftest_stimulus_async(id);
     redirect_to_referer_or(req, "/settings?tab=diag");
     return ESP_OK;
 }
