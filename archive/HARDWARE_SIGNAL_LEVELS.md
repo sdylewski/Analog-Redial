@@ -8,7 +8,7 @@ This note is derived from the **local datasheet copies** in `datasheets/` (text 
 
 ## 1. WM8731 (codec)
 
-Pin-by-pin functional guide (KiCad **U1** symbol, gateway wiring): **`hardware/WM8731.md`**.
+Pin-by-pin functional guide (KiCad **U1** symbol, gateway wiring): **`hardware/through-hole-wm8731/WM8731.md`**.
 
 ### Supplies (WM8731, not the “L” variant)
 

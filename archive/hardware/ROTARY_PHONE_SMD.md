@@ -36,7 +36,7 @@ cost and board area vs 0805 with no assembly downside.
 Firmware pin map: `firmware/components/board/include/board_pins_smd.h`
 
 Related: [`HARDWARE_SIGNAL_LEVELS.md`](../HARDWARE_SIGNAL_LEVELS.md),
-[`FEATURES.md`](../FEATURES.md). Codec reference (legacy): [`WM8731.md`](WM8731.md).
+[`FEATURES.md`](../FEATURES.md). Codec reference (legacy): [`WM8731.md`](through-hole-wm8731/WM8731.md).
 ES8388 datasheet (local): [`datasheets/ES8388.pdf`](../datasheets/ES8388.pdf)
 
 Datasheet (local): [`datasheets/esp32-c6-wroom-1_wroom-1u_datasheet_en.pdf`](../datasheets/esp32-c6-wroom-1_wroom-1u_datasheet_en.pdf)  
@@ -1406,7 +1406,7 @@ USB1 ── GPIO 12/13
 **Superseded** by **ES8388** on this board (~**$1 + $3** JLC vs ~**$12 + $3** for WM8731).
 Kept for THT gateway comparison and if you ever revert the schematic.
 
-Full pin guide: [`WM8731.md`](WM8731.md)
+Full pin guide: [`WM8731.md`](through-hole-wm8731/WM8731.md)
 
 ### WM8731 vs ES8388 (quick compare)
 

@@ -16,7 +16,7 @@ The ESP32 build is **not** a line-by-line port: Pi used USB dongles + baresip + 
 | Codec | **WM8731** @ I²C 0x1A | **ES8388** @ I²C 0x10 |
 | SLIC | **AG1170** ×2 | **AG1171** ×1–2 |
 | Pin map | `board_pins.h` | `board_pins_smd.h` |
-| BOM | [`hardware/BOM-through-hole.md`](hardware/BOM-through-hole.md) | [`hardware/BOM-smd.md`](hardware/BOM-smd.md) |
+| BOM | [`hardware/through-hole-wm8731/BOM-through-hole.md`](hardware/through-hole-wm8731/BOM-through-hole.md) | [`hardware/BOM-smd.md`](hardware/BOM-smd.md) |
 
 Both carry **two phone lines** as codec **Left / Right** (stereo interleaved in firmware). SMD build B can trade line 2 for **microSD** (GPIO 18–21 XOR).
 
@@ -26,7 +26,7 @@ Both carry **two phone lines** as codec **Left / Right** (stereo interleaved in 
 | Ring | **RM** + **F/R** toggle (~20 Hz) |
 | Net | Wi-Fi → SIP (planned) |
 
-See `hardware/WM8731.md` / `hardware/ROTARY_PHONE_SMD.md` and `HARDWARE_SIGNAL_LEVELS.md`.
+See `hardware/through-hole-wm8731/WM8731.md` / `hardware/ROTARY_PHONE_SMD.md` and `HARDWARE_SIGNAL_LEVELS.md`.
 
 ---
 

@@ -143,7 +143,7 @@ dev-journal detail. Everything else lives under **[`archive/`](archive/)** —
 dev-journal docs (`archive/ECHO_DEBUGGING.md`, `archive/ESP32_PORT_PLAN.md`,
 `archive/PROJECT_UPDATE_PLAN.md`, `archive/MCU_VS_PI_ZERO_STACK.md`,
 `archive/VOIP_SETUP.md`), and superseded/pre-SMD4 hardware docs
-(`archive/hardware/ROTARY_PHONE_SMD*.md`, `BOM*.md`, `WM8731.md`). These are
+(`archive/hardware/ROTARY_PHONE_SMD*.md`, `BOM*.md`, and the through-hole/WM8731 board's own docs under `archive/hardware/through-hole-wm8731/`). These are
 **your working notes, not part of the public doc set** — useful for you when
 picking up this project again, not linked from the public README. When
 adding new engineering-journal-style content (debug sessions, open
