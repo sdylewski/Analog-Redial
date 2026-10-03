@@ -16,7 +16,7 @@ softphone + a web framework.
 | MCU | ESP32-C6-DevKit |
 | Codec | ES8388 @ I²C 0x10 |
 | SLIC | AG1171 ×1–2 |
-| Pin map | `board_pins_smd.h` |
+| Pin map | `board_pins_smd4.h` (SMD2 uses `board_pins_smd.h` instead) |
 
 Two phone lines as codec **Left / Right** (stereo interleaved in firmware).
 A single-line build can trade line 2 for **microSD** (GPIO 18–21 shared).
@@ -47,20 +47,22 @@ implemented later
 | **Dial codes** (Settings → Dial Codes) | ✅ | One mutable code↔filename table covers both builtin "silly audio" clips and anything a user adds — both the dial code AND the audio file are independently editable/uploadable at runtime, no rebuild |
 | **Call the other phone (inter-line, fully offline)** | ✅ | Local bridge between lines — no server, no network required |
 | **Busy when other line off-hook** | ✅ | State machine |
-| **Audio clip playback** | ✅ | Browser upload (Settings → Dial Codes / Operator) converts any common WAV (any sample rate/bit-depth/channel count) to 8kHz mono automatically. Optional MP3 upload support (off by default — real RAM cost). No clip WAVs ship by default (copyright) |
+| **Audio clip playback** | ✅ | Browser upload (Settings → Dial Codes / Operator) converts any common WAV (any sample rate/bit-depth/channel count) to 8kHz mono automatically. Optional MP3 upload support (off by default — real RAM cost). One novelty clip (a public-domain dial-up modem sound, code 412) ships by default; everything else is left for the builder to add, since most source audio is personal or copyrighted |
 | **Record to web archive (211)** | ✅ | 8 kHz mono WAV, timestamped filename (UTC), downloadable/playable from `/recordings` |
 | **Voice effects** (pitch/Dalek) | 🟡 | Simple on-device pitch shift; Dalek = ring-mod |
 | **Internet radio (8xx)** | 🟡 | HTTP/Shoutcast stream → I²S |
-| **Operator help / TTS (dial 0)** | ✅ | No on-device TTS; `operator.wav` ships pre-rendered by default |
-| **Language** | ✅ | One language for the whole phone, set at setup time — no in-use switching |
+| **Operator help / TTS (dial 0)** | ✅ | No on-device TTS; `operator.wav` ships pre-rendered by default. Text-to-speech generation (`gen_prompt.py`, host-side) can re-render it, the record-message prompt, and the answering machine's default greeting from edited text |
+| **Answering machine** (dial 899 to record a greeting) | ✅ | Per line: rings N times, plays that line's own greeting (or the shared default if none is recorded), then records the caller. Needs VOIP or a second line to actually be reachable |
+| **Bluetooth (BM64 companion)** | 🟡 | UART bridge + analog audio handoff implemented; hardware is SMD5-only and not yet fabricated, or a hand-wired SMD4 — see `hardware-smd5.md` §9. Flagged "experimental, not mainstream yet" in the web UI |
+| **Language** | ✅ | One language for the whole phone, set at setup time — no in-use switching. UI string translations are plumbed in (`i18n_str()`) but only English ships; the language picker greys out any language without a translation file on the board |
 | **Digit readback on/off** | ✅ | Explicit setting |
 | **Wrong-number handling** | ✅ | Unmatched 3+ digit → prompt + dial tone |
 | **VoIP outbound (555-xxxx)** | ✅ | Embedded SIP UA + RTP/G.711; digest auth |
 | **VoIP inbound** | ✅ | Inbound INVITE rings the line; answer on off-hook |
 | **VoIP setup (Settings → VOIP)** | ✅ | Web form (server/extension/user/password per line), plus a downloadable Asterisk server-script generator |
 | **Web UI (status/log/recordings)** | ✅ | `esp_http_server`; settings page with WiFi/mode tabs |
-| **WiFi provisioning (first boot / factory reset)** | ✅ | No creds → open SoftAP + captive setup page; BOOT-button hold wipes creds |
-| **Event log** | 🟡 | Ring-buffer log + optional HTTP/JSON |
+| **WiFi provisioning (first boot / factory reset)** | ✅ | No creds, or none in range after 3 tries each → open SoftAP (named after the board once it has one) + captive setup page; BOOT-button hold (3 s) forces it without touching saved creds, (10 s) wipes them. Remembers several networks and reconnects to whichever is strongest |
+| **Event log** | ✅ | Two tiers: a short activity feed (calls, recordings, dial errors) on the Status page, and the full ring-buffer debug log under Settings → Diagnostics |
 
 ---
 
@@ -112,6 +114,17 @@ split so the **telephony logic never talks to registers directly** and the
 | `dialplan` | Data-driven table of codes/services + mode flags |
 | `voip` | Clean API (`register/dial/answer/hangup` + event callbacks); embedded SIP/RTP |
 | `bringup` | `esp_console` commands to validate hardware step-by-step |
+
+The diagram above is the signal path specifically — the telephony/audio/VoIP
+chain this section is about. Everything around it that makes the device
+usable is its own set of components too, not pictured since they don't sit
+on that signal path: `webui` (HTTP server, all settings pages), `wifi`
+(station/AP mode, the multi-network connection manager, mDNS), `storage` /
+`sdcard` (internal flash + microSD, both behind one API), `prompts` / `i18n`
+(text-to-speech prompt tracking, UI string translation), `bt_companion`
+(BM64 UART bridge), `idle_power` (Wi-Fi/CPU power saving), and
+`activity`/`logbuf`/`logctl` (the Status page's activity feed, the full
+debug log, and runtime log-level control).
 
 ### Threading model (FreeRTOS tasks)
 

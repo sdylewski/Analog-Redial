@@ -121,7 +121,7 @@ never detected.
 
 Leave **R15** and **R13**, the 10 kΩ series resistors, in place. Removing
 both 15 kΩ resistors is confirmed on real hardware. Full explanation in
-[`hardware-smd4.md`](hardware-smd4.md) §5.
+[`hardware-smd4.md`](hardware-smd4.md) §7.
 
 **SMD5 fixes this in the design** (10 kΩ / 100 kΩ), so no rework there.
 
@@ -132,6 +132,6 @@ both 15 kΩ resistors is confirmed on real hardware. Full explanation in
 | Doc | What's in it |
 |-----|--------------|
 | [`bom.md`](bom.md) | What to buy, with prices and links |
-| [`hardware-smd4.md`](hardware-smd4.md) | Schematic reference, pin map, power tree |
+| [`hardware-smd4.md`](hardware-smd4.md) | Schematic, layout, power tree |
 | [`hardware-smd5.md`](hardware-smd5.md) | The next spin: Bluetooth, LDO, dual MCU footprint |
 | [`getting-started.md`](getting-started.md) | Toolchain, flashing, first boot |

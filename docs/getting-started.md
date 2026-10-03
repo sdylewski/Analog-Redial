@@ -63,7 +63,7 @@ toolchain walkthrough (including Windows).
 ## 3. Get the code
 
 ```bash
-git clone <this-repo-url> analog-redial
+git clone https://github.com/sdylewski/Analog-Redial.git analog-redial
 cd analog-redial/firmware
 ```
 
@@ -71,7 +71,26 @@ All firmware lives under `firmware/`. You run `idf.py` from there.
 
 ---
 
-## 4. Configure the build (`idf.py menuconfig`)
+## 4. Configure, build and flash
+
+**Easiest path — `flash_board.py`.** It figures out the board type (from
+whatever's already flashed, or asks you once) and the flash size (reads the
+chip directly), picks or creates the matching build directory, and flashes:
+
+```bash
+cd firmware/bringup
+. ~/esp/esp-idf/export.sh
+./flash_board.py --board smd4 --yes      # first flash on a given board: say which board
+./flash_board.py --yes                   # later flashes: detects it from the running firmware
+```
+
+Add `--setup --host <name-or-ip>` to run `first_setup.py` right after (sets
+line count, uploads the default prompts) — see
+[`../firmware/bringup/README.md`](../firmware/bringup/README.md) for the
+full reference on both scripts, including the 8 MB flash layout and the
+hardware bring-up checklist.
+
+**Manual path, if you'd rather drive `idf.py` yourself:**
 
 ```bash
 idf.py menuconfig
@@ -97,11 +116,7 @@ runtime — see below.)
 > repo's committed default is the **2-line, no-SD** build. Your local
 > `menuconfig` edits change `sdkconfig` for your board; that's expected.
 
----
-
-## 5. Build, flash, and watch it boot
-
-Plug the board in over USB, then:
+Then, with the board plugged in over USB:
 
 ```bash
 idf.py build
@@ -112,6 +127,10 @@ idf.py -p <PORT> flash monitor
 `/dev/ttyUSBX` or `/dev/ttyACMX` (Linux), `COMx` (Windows). If `-p` is omitted,
 idf.py tries to auto-detect. `monitor` shows the live log; quit with
 **Ctrl-]**.
+
+---
+
+## 5. Watch it boot
 
 You should see the subsystems come up (`board`, `audio`, codec, SLIC,
 `telephony`, …) ending in **"All subsystems up. Lift a handset to get dial
@@ -143,6 +162,7 @@ The ones worth knowing on a new board:
 | `miclevel [secs]` | Handset mic level and clipping check — talk into the handset |
 | `spkamp` / `micamp` | Earpiece drive and mic gain, live |
 | `wifi_status` / `wifi_set <ssid> <pass>` | Check or set Wi-Fi without the web UI |
+| `wifi_list` / `wifi_forget <ssid>` | List or remove saved networks |
 | `power` | Low-power idle state |
 | `reboot` | Software restart that keeps the monitor attached |
 | `download` | Reboot into the ROM bootloader for flashing |
@@ -204,12 +224,15 @@ Once connected, the log prints the device's IP and its mDNS name (default
 
 **Audio clips & prompts.** Two ways to get WAVs onto the phone:
 
-- **Bundled at build time** — anything you drop in `firmware/assets/` gets
-  baked into a dedicated `bundled` flash partition and reflashed with every
-  `idf.py flash`, without ever touching recordings in the writable `storage`
-  partition. Only `operator.wav` ships by default (original project text, not
-  copyrighted); everything else is gitignored on purpose — add your own, from
-  audio you own the rights to:
+- **Bundled at build time** — a short, explicit list in `firmware/main/
+  CMakeLists.txt` (`BUNDLED_AUDIO`) gets baked into a dedicated `bundled`
+  flash partition and reflashed with every `idf.py flash`, without ever
+  touching recordings in the writable `storage` partition. Three files ship
+  by default: `operator.wav`, the answering machine's default greeting
+  (`am_greeting.wav`), and a public-domain dial-up modem sound
+  (`dialup.mp3`). Anything else you drop in `firmware/assets/` stays on your
+  disk and is **not** built in unless you add it to that list — add your own
+  clips, from audio you own the rights to:
 
   ```bash
   cd firmware/bringup
@@ -217,7 +240,9 @@ Once connected, the log prints the device's IP and its mDNS name (default
   ./gen_prompt.py --from song.mp3 --name clip_401.wav --out-dir ../assets  # one file
   ```
 
-  See [`../firmware/assets/README.md`](../firmware/assets/README.md) for the
+  Files added this way have to either be uploaded to a board at runtime (see
+  below) or added to `BUNDLED_AUDIO` to ship with every build. See
+  [`../firmware/assets/README.md`](../firmware/assets/README.md) for the
   full mechanism and override rules.
 
 - **Uploaded at runtime** — `gen_prompt.py --upload phone.local` (or the web
@@ -287,8 +312,9 @@ rejoins your saved network.
 | Doc | For |
 |-----|-----|
 | [`../firmware/README.md`](../firmware/README.md) | Toolchain detail, console command reference, build layout |
+| [`../firmware/bringup/README.md`](../firmware/bringup/README.md) | `flash_board.py`/`first_setup.py` reference, 8 MB flash layout, hardware checklist |
 | [`features.md`](features.md) | What's implemented + firmware architecture |
-| [`hardware-smd4.md`](hardware-smd4.md) | SMD4 schematic, pin map, power tree |
+| [`hardware-smd4.md`](hardware-smd4.md) | SMD4 schematic, layout, power tree |
 | [`building.md`](building.md) | Assembling a board before you flash it |
 | [`hardware-smd5.md`](hardware-smd5.md) | Next-spin board (Bluetooth, LDO, dual MCU footprint) — not yet fabricated |
 | [`bom.md`](bom.md) | Parts list / shopping checklist |

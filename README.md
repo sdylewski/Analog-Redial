@@ -119,7 +119,7 @@ Full design reference: [`docs/hardware-smd4.md`](docs/hardware-smd4.md). Parts l
 ## Quick start
 
 ```bash
-git clone <this-repo-url> analog-redial
+git clone https://github.com/sdylewski/Analog-Redial.git analog-redial
 cd analog-redial/firmware
 idf.py set-target esp32c6
 idf.py build flash monitor
