@@ -35,9 +35,9 @@ RJ11-2 ──► AG1170 #2 ── VIN/VOUT ──► Codec **R** (DAC out / ADC 
                         GPIO ◄──────── hook / ring / dial (per line)
 ```
 
-**Codec:** One **WM8731** gives **2× DAC + 2× ADC** on one I2S link — enough for **two full-duplex** analog lines. Configure WM8731 ADC mux for **line-in** on both channels (shared mux setting). The **mono MICIN** is a separate path; it does **not** mean you lose a line channel — for two SLICs you use **LLINEIN + RLINEIN** and **LOUT + ROUT** only (see **`HARDWARE_SIGNAL_LEVELS.md`**).
+**Codec:** One **WM8731** gives **2× DAC + 2× ADC** on one I2S link — enough for **two full-duplex** analog lines. Configure WM8731 ADC mux for **line-in** on both channels (shared mux setting). The **mono MICIN** is a separate path; it does **not** mean you lose a line channel — for two SLICs you use **LLINEIN + RLINEIN** and **LOUT + ROUT** only (see **`hardware/through-hole-wm8731/SIGNAL_LEVELS.md`**).
 
-**Datasheets (local copies)** in `datasheets/`: **`WM8731_Wolfson_audio_CODEC.pdf`**, **`AG1170_Silvertel_datasheet.pdf`**, and (optional sibling) **`AG1171_Silvertel_datasheet.pdf`**. Searchable text dumps: `*_extracted.txt`. **Supplies, SHK levels, and I2S logic:** see **`HARDWARE_SIGNAL_LEVELS.md`**.
+**Datasheets (local copies)** in `datasheets/`: **`WM8731_Wolfson_audio_CODEC.pdf`**, **`AG1170_Silvertel_datasheet.pdf`**, and (optional sibling) **`AG1171_Silvertel_datasheet.pdf`**. Searchable text dumps: `*_extracted.txt`. **Supplies, SHK levels, and I2S logic:** see **`hardware/through-hole-wm8731/SIGNAL_LEVELS.md`**.
 
 ---
 

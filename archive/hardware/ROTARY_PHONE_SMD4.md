@@ -153,6 +153,6 @@ spin:** 15 kΩ → 100 kΩ. See `docs/hardware-smd4.md`'s rework note.
 - [`ROTARY_PHONE_SMD3.md`](ROTARY_PHONE_SMD3.md) — the design this board
   carries over unchanged; pin map, J5 mechanism, GPIO constraints,
   firmware TODO all live there.
-- [`ROTARY_PHONE_SMD.md`](ROTARY_PHONE_SMD.md) — SMD2, further back.
-- [`HARDWARE_SIGNAL_LEVELS.md`](../HARDWARE_SIGNAL_LEVELS.md) — SLIC
+- [`smd2.md`](smd2.md) — SMD2, further back (archived: only 3 built, superseded).
+- [`smd2.md`'s signal-level rework section](smd2.md#signal-level-rework-history-dtmf-clipping-aec-timing) — SLIC
   levels, SHK dividers.

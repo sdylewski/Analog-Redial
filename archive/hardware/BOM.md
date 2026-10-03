@@ -8,10 +8,10 @@ Each line-item BOM uses the same columns: leading empty cell (your checkbox), **
 
 | Sub-project | Board | KiCad project | BOM |
 |-------------|-------|---------------|-----|
-| **SMD** (production) | ESP32-C6-WROOM-1 + **ES8388** + **AG1171** | [`kicad/Rotary_phone_SMD2/`](kicad/Rotary_phone_SMD2/) | [**BOM-smd.md**](BOM-smd.md) |
+| **SMD2** (archived — only 3 built, superseded by SMD4) | ESP32-C6-WROOM-1 + **ES8388** + **AG1171** | [`hardware/kicad/Rotary_phone_SMD2/`](../../hardware/kicad/Rotary_phone_SMD2/) | [**smd2.md**](smd2.md) |
 | **Through-hole / hand-solder** (reference) | ESP32-C6-DevKitM-1 + **WM8731** + **AG1170 or AG1171** | [`hardware/kicad/Old/rotary_phone_gateway/`](../../hardware/kicad/Old/rotary_phone_gateway/) | [**BOM-through-hole.md**](through-hole-wm8731/BOM-through-hole.md) |
 
-**Design references:** [`ROTARY_PHONE_SMD.md`](ROTARY_PHONE_SMD.md) (SMD) · [`WM8731.md`](through-hole-wm8731/WM8731.md) (through-hole codec wiring)
+**Design references:** [`smd2.md`](smd2.md) (SMD2, archived) · [`WM8731.md`](through-hole-wm8731/WM8731.md) (through-hole codec wiring)
 
 **Firmware board types:** see [`../ESP32_PORT_PLAN.md`](../ESP32_PORT_PLAN.md) — one codebase, Kconfig switch for SMD vs through-hole pin map and codec driver.
 
@@ -47,3 +47,4 @@ Through-hole gateway is always **2 lines**, no microSD on PCB.
 | Date | Notes |
 |------|-------|
 | 2026-06 | Split into `BOM-smd.md` and `BOM-through-hole.md`; this file is the index |
+| 2026-10 | `BOM-smd.md` merged into [`smd2.md`](smd2.md) (archived whole-board reference, only 3 ever built) |

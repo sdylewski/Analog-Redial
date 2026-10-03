@@ -117,4 +117,4 @@ of these two very different implementations is actually needed.
 - `firmware/components/bringup/bringup.c` — `cmd_echopulse`, `cmd_capture`,
   `cmd_echosweep`, `cmd_micamp`, `cmd_spkamp`
 - `firmware/bringup/README.md` — full console command reference
-- `HARDWARE_SIGNAL_LEVELS.md` — SLIC levels, SHK dividers
+- `hardware/smd2.md` — SLIC levels, SHK dividers, the DTMF-clipping rework

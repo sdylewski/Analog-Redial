@@ -13,8 +13,9 @@ scattered through `archive/hardware/`).
 | [`WM8731.md`](WM8731.md) | Pin-by-pin reference for the WM8731 codec itself |
 | [`BOM-through-hole.md`](BOM-through-hole.md) | Parts list for the through-hole board |
 | [`BRINGUP.md`](BRINGUP.md) | Hand-typed console bring-up walkthrough, including the WM8731-only commands (`wm8731_init`, `wm8731_dump`, `wm8731_bypass`) |
+| [`SIGNAL_LEVELS.md`](SIGNAL_LEVELS.md) | Power/logic/audio level reference (WM8731 + AG1170) |
 
 KiCad project: `hardware/kicad/Old/rotary_phone_gateway/`. Design doc for the
-board as a whole (schematic-level, not just the codec): `../ROTARY_PHONE_SMD.md`'s
+board as a whole (schematic-level, not just the codec): `../smd2.md`'s
 "THT reference board" column, and `../BOM.md`, the index that still covers
 both board lineages.

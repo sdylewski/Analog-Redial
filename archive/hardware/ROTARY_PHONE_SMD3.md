@@ -3,7 +3,7 @@
 Design reference for the **third** SMD spin. This doc only covers what's
 **different from SMD2** — everything else (ES8388 pin table, AG1171 SLIC
 wiring, GND/audio path, JLC assembly notes) still applies from
-[`ROTARY_PHONE_SMD.md`](ROTARY_PHONE_SMD.md) unless noted here.
+[`smd2.md`](smd2.md) unless noted here (archived: only 3 SMD2 boards were ever built).
 
 KiCad project: `hardware/kicad/Rotary_phone_SMD3/`.
 
@@ -40,7 +40,7 @@ to the same net without isolation means current can flow backward between
 them — worst case, back up the USB cable into whatever's on the other end,
 or into the DC jack's supply if it doesn't tolerate being back-fed.
 Standard fix: a Schottky diode (same class as `D1` `SS14` already used
-elsewhere in this project — see [ROTARY_PHONE_SMD.md USB-C section](ROTARY_PHONE_SMD.md#usb-c-receptacle-usb1))
+elsewhere in this project — see [smd2.md's USB-C section](smd2.md#usb-c-receptacle-usb1))
 in series between the DC jack and the +5V net, cathode toward +5V. This
 diode-ORs the two sources: whichever is present (or higher) wins, neither
 can push current into the other.
@@ -70,7 +70,7 @@ Pi's 40-pin header) is preserved in git history on this file.
 ## Carried-forward SMD2 fixes
 
 Both of these were found on the hand-soldered SMD2 board and bodge-fixed
-there (see [`ROTARY_PHONE_SMD.md`'s "Signal flow" section](ROTARY_PHONE_SMD.md#signal-flow-audio-path)
+there (see [`smd2.md`'s "Signal flow" section](smd2.md#signal-flow-audio-path)
 for full root-cause detail). **Both confirmed correctly wired in the
 SMD3 schematic** (traced through the actual netlist 2026-08-30, not just
 eyeballed):
@@ -259,8 +259,7 @@ file, since almost nothing lines up:
 
 ## See also
 
-- [`ROTARY_PHONE_SMD.md`](ROTARY_PHONE_SMD.md) — SMD2, still the reference
-  for everything not called out as different above (ES8388 pin table,
-  AG1171 SLIC/RJ12 wiring, GND plane, JLC assembly notes).
-- [`HARDWARE_SIGNAL_LEVELS.md`](../HARDWARE_SIGNAL_LEVELS.md) — SLIC
-  levels, SHK dividers.
+- [`smd2.md`](smd2.md) — SMD2 (archived), still the reference for
+  everything not called out as different above (ES8388 pin table,
+  AG1171 SLIC/RJ12 wiring, GND plane, JLC assembly notes), plus the
+  DTMF-clipping rework and AEC timing measurements.

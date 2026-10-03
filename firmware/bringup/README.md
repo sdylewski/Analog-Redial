@@ -160,7 +160,7 @@ an audio analyzer on the line.
   ADC channels, both digitize simultaneously every I2S frame. (Originally
   Line 1's rx was wired into LIN2, sharing Line 0's left channel via a mux,
   with RIN1/RIN2 dead/grounded — bodge-fixed by moving Line 1's rx to RIN1;
-  see `hardware/ROTARY_PHONE_SMD.md` and the comment in
+  see `archive/hardware/smd2.md` and the comment in
   `firmware/components/es8388/include/es8388.h`.) `capture` and `loopback`
   see both lines' incoming audio at once.
 - **TX (playback):** LOUT1 = Line 0, ROUT1 = Line 1, and both play back
