@@ -562,6 +562,38 @@ static const ui_lang_t UI_LANGUAGES[] = {
 };
 #define UI_LANGUAGES_N (sizeof(UI_LANGUAGES) / sizeof(UI_LANGUAGES[0]))
 
+/* A language only does anything once its string table is on this board
+ * (i18n_<code>.json in storage -- see i18n.h; upload_i18n.py puts it
+ * there). English is built in. */
+static bool ui_language_available(const char *code)
+{
+    if (strcmp(code, "en") == 0) return true;
+    char name[24];
+    snprintf(name, sizeof(name), "i18n_%s.json", code);
+    uint8_t probe;
+    size_t got;
+    return storage_read(name, &probe, sizeof(probe), &got) == ESP_OK;
+}
+
+/* <option>s for a language picker. Languages with no string table on this
+ * board are shown but disabled (greyed out), so it's clear they exist but
+ * would change nothing -- except the one currently selected, which stays
+ * enabled so the form still submits a valid value. */
+static int append_language_options(char *out, size_t cap, int off, const char *cur)
+{
+    for (size_t i = 0; i < UI_LANGUAGES_N; i++) {
+        bool selected = strcmp(UI_LANGUAGES[i].code, cur) == 0;
+        bool available = ui_language_available(UI_LANGUAGES[i].code);
+        off += snprintf(out + off, ((size_t)off < cap) ? cap - off : 0,
+            "<option value=\"%s\"%s%s>%s %s%s</option>",
+            UI_LANGUAGES[i].code, selected ? " selected" : "",
+            (available || selected) ? "" : " disabled",
+            UI_LANGUAGES[i].flag, UI_LANGUAGES[i].name,
+            available ? "" : " \xe2\x80\x94 not translated yet");
+    }
+    return off;
+}
+
 /* Curated POSIX TZ strings for the Quiet Hours card's timezone dropdown --
  * same "short, deliberately incomplete" philosophy as UI_LANGUAGES above:
  * board_timezone_set() (and the still-live /timezone_set endpoint) accept
@@ -640,12 +672,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<form method=\"POST\" action=\"/language_set\" class=\"langpick\">"
         "<select name=\"lang\" onchange=\"this.form.submit()\" title=\"Language\">");
-    for (size_t i = 0; i < UI_LANGUAGES_N; i++) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<option value=\"%s\"%s>%s %s</option>",
-            UI_LANGUAGES[i].code, strcmp(UI_LANGUAGES[i].code, cur_lang) == 0 ? " selected" : "",
-            UI_LANGUAGES[i].flag, UI_LANGUAGES[i].name);
-    }
+    off = append_language_options(buf, cap, off, cur_lang);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</select></form></nav>");
 
     /* Shown on every page (this function is every page's shared head) --
@@ -829,17 +856,11 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
     /* Language belongs here rather than only in the header: this page is the
      * first thing a new owner sees, and picking it now means the rest of
      * setup is already in their language. */
-    char lang_opts[400] = "";
+    char lang_opts[800] = "";
     {
         char cur[8];
         board_language_get(cur, sizeof(cur));
-        int o = 0;
-        for (size_t i = 0; i < UI_LANGUAGES_N && o < (int)sizeof(lang_opts) - 64; i++)
-            o += snprintf(lang_opts + o, sizeof(lang_opts) - o,
-                          "<option value=\"%s\"%s>%s %s</option>",
-                          UI_LANGUAGES[i].code,
-                          strcmp(UI_LANGUAGES[i].code, cur) == 0 ? " selected" : "",
-                          UI_LANGUAGES[i].flag, UI_LANGUAGES[i].name);
+        append_language_options(lang_opts, sizeof(lang_opts), 0, cur);
     }
     const char *lang_label = i18n_str("wifisetup.language", "Language");
     const char *password_placeholder = i18n_str("general.wifi.password_placeholder",

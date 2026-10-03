@@ -49,6 +49,10 @@ passives — carries over unchanged from the SMD2 parts list.
 
 ## Hand-solder BOM
 
+**Shortcut: [DigiKey parts list for a two-line board](https://www.digikey.com/en/mylists/list/WF3K3HFAQY)**
+(build **A** below), ready to add to a cart. For a single-line board, leave
+out the parts in *Add: second phone line*.
+
 Built up by option: everyone needs the base board, then add one table per
 option. DigiKey prices, quantity 1, checked 2026-09-30. Generic 2.54 mm
 headers and M3 hardware aren't priced — the 120-piece assortment
