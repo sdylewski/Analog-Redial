@@ -11,6 +11,9 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
 
 STEPS = [
     ("MCU / console", "test_mcu.py", []),
@@ -34,7 +37,7 @@ def main() -> int:
         print(f"\n{'=' * 60}\n{i}/{len(STEPS)}: {label}\n{'=' * 60}")
         if not args.yes and i > 1:
             input("Press Enter to run this step (Ctrl+C to stop)... ")
-        rc = subprocess.call([sys.executable, script, *common, *extra])
+        rc = subprocess.call([sys.executable, str(HERE / script), *common, *extra])
         if rc != 0:
             print(f"\nSTOP: '{label}' failed (exit {rc}). Fix this block before continuing.")
             return rc

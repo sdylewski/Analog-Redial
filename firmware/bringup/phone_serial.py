@@ -7,6 +7,7 @@ and command/response framing. Requires pyserial (see requirements.txt).
 
 from __future__ import annotations
 import glob
+import re
 import sys
 import time
 from dataclasses import dataclass, field
@@ -18,7 +19,17 @@ except ImportError:
     raise
 
 DEFAULT_BAUD = 115200
-PROMPT = "phone>"
+# The REPL prompt is the board's own name, lower-cased, plus ">" (bringup.c
+# builds it from board_name_get(), e.g. "telephono>"), so match any
+# name-shaped word followed by ">" at the start of a line rather than one
+# fixed string.
+PROMPT_RE = re.compile(r"(?:^|\n)[A-Za-z0-9_.-]+> ?")
+PROMPT_LINE_RE = re.compile(r"[A-Za-z0-9_.-]+> ?(.*)")
+ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+
+
+def _clean(text: str) -> str:
+    return ANSI_RE.sub("", text).replace("\r", "")
 
 PORT_GLOBS = ["/dev/cu.usbserial*", "/dev/cu.usbmodem*", "/dev/tty.usb*", "/dev/ttyUSB*", "/dev/ttyACM*"]
 
@@ -52,8 +63,15 @@ class PhoneConsole:
     _ser: "serial.Serial | None" = field(default=None, init=False, repr=False)
 
     def __enter__(self) -> "PhoneConsole":
-        self._ser = serial.Serial(self.port, self.baud, timeout=0.2)
-        time.sleep(0.3)  # let the console settle after DTR/RTS toggling on open
+        # Hold DTR/RTS low across open(): on the C6's native USB port that
+        # line pair is the reset/boot-mode request, and toggling it on open
+        # can reboot the board under us.
+        self._ser = serial.Serial()
+        self._ser.port, self._ser.baudrate, self._ser.timeout = self.port, self.baud, 0.2
+        self._ser.dtr = False
+        self._ser.rts = False
+        self._ser.open()
+        time.sleep(0.3)
         self._ser.reset_input_buffer()
         return self
 
@@ -74,13 +92,34 @@ class PhoneConsole:
             if not chunk:
                 continue
             buf += chunk
-            if PROMPT in buf:
+            # The echoed command line comes back too; only a prompt after
+            # the command's output counts as "done".
+            after = _clean(buf).split(command, 1)[-1]
+            if PROMPT_RE.search(after):
                 break
-        for line in buf.splitlines():
-            stripped = line.strip("\r")
-            if stripped and stripped != command and PROMPT not in stripped:
-                lines.append(stripped)
+        lines: list[str] = []
+        for line in _clean(buf).splitlines():
+            stripped = line.strip()
+            if not stripped or stripped == command:
+                continue
+            echo = PROMPT_LINE_RE.fullmatch(stripped)   # "name>" or "name> <command>"
+            if echo and echo.group(1) in ("", command):
+                continue
+            lines.append(stripped)
         return lines
+
+    def is_alive(self, timeout_s: float = 2.0) -> bool:
+        """True if the REPL answers an empty line with a prompt."""
+        assert self._ser is not None
+        self._ser.reset_input_buffer()
+        self._ser.write(b"\n")
+        deadline = time.time() + timeout_s
+        buf = ""
+        while time.time() < deadline:
+            buf += self._ser.read(256).decode("utf-8", errors="replace")
+            if PROMPT_RE.search(_clean(buf)):
+                return True
+        return False
 
     def wait_for_boot(self, timeout_s: float = 15.0) -> bool:
         """Read until the first console prompt appears (board just reset/powered up)."""
@@ -90,7 +129,7 @@ class PhoneConsole:
         while time.time() < deadline:
             chunk = self._ser.read(256).decode("utf-8", errors="replace")
             buf += chunk
-            if PROMPT in buf:
+            if PROMPT_RE.search(_clean(buf)):
                 return True
         return False
 

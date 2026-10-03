@@ -12,25 +12,42 @@ layers:
    each subsystem can be tested with one command from your laptop, and so the
    full sequence can be scripted instead of typed by hand.
 
-## first_setup.py — everything a new board needs, in one command
+## first_setup.py — bring up and provision a board, one gated step at a time
+
+Run it from an ESP-IDF shell (`. ~/esp/esp-idf/export.sh`), with the board on
+USB and, for the HTTP steps, on Wi-Fi. Close any `idf.py monitor` first — it
+holds the serial port.
 
 ```bash
-./first_setup.py --host newphone.local --lines 2 --bluetooth --language en
+./first_setup.py --host telephono.local                 # the usual run
+./first_setup.py --host telephono.local --lines 2 --language de
+./first_setup.py --chip-info --only chip                # chip, flash size, MAC only
+./first_setup.py --host telephono.local --only audio verify
 ```
 
-Checks the board answers, runs the hardware checklist, tells the board what
-hardware it has, then generates and uploads the default spoken prompts and
-the digits 0–9. Each step is skippable (`--only prompts`, `--skip-tests`,
-`--no-digits`) and re-running is safe — it's also how you change one thing
-later, like regenerating prompts in another language.
+Each step runs only if the steps it depends on passed, and the run ends with
+a PASS / WARN / FAIL / SKIP table:
+
+| Step | What it does | Gates |
+|------|--------------|-------|
+| `chip` | *(opt-in, `--chip-info`)* esptool reads chip, flash size, MAC — no firmware needed; warns if flash isn't 16 MB | — |
+| `console` | serial REPL answers; reads the board type the firmware was built for | `codec`, `microsd` test, `tests` |
+| `codec` | ES8388 / WM8731 found on I²C | `tests` |
+| `network` | board answers `/api/status` at `--host` | everything below |
+| `hardware` | sets lines / microSD / Bluetooth — only when you pass `--lines` or `--bluetooth` | — |
+| `microsd` | skipped on 2-line boards (shared pins); WARN if no card is in use; otherwise `sd_test` write/read/verify over serial | — |
+| `audio` | generates and uploads `operator.wav`, `record_prompt.wav` (dial 211), `am_greeting_l<N>.wav` per line ("Leave a message after the beep"), and with `--digits`, `digit_0..9.wav` | `verify` |
+| `verify` | reads every uploaded file back and checks it's a WAV | — |
+| `tests` | *(opt-in, `--tests`)* the interactive `bringup_checklist.py` | — |
 
 The operator message is assembled from what the board actually is: a
 single-line board isn't told to dial 321, and the Bluetooth sentence only
-appears with `--bluetooth`.
+appears when Bluetooth is fitted. Prompts go to internal flash, so they don't
+depend on a card.
 
-It orchestrates the other tools rather than duplicating them — `gen_prompt.py`
-does the speech and upload, `bringup_checklist.py` does the hardware tests.
-Run those directly when you want one piece on its own.
+HTTP goes through `curl`: on macOS, Python's sockets to a LAN address are
+blocked unless the terminal has Local Network permission. Speech is
+generated locally by `gen_prompt.py`.
 
 ## 1. Build and flash
 

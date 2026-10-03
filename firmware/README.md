@@ -129,7 +129,7 @@ Typical names: `/dev/cu.usbmodem101` or `/dev/cu.usbmodem1101`. Unplug/replug
 and run `ls` again if unsure which device appeared.
 
 The DevKit’s built-in **USB Serial/JTAG** is the default console for this
-firmware (`phone>` prompt). The PCB’s UART headers (J4/J5, GPIO16/17) are an
+firmware (the prompt is the board's name, e.g. `telephono>`). The PCB’s UART headers (J4/J5, GPIO16/17) are an
 alternate if you wire them.
 
 ### 6. Verify with a smoke test (optional)
@@ -232,7 +232,7 @@ passed through to the target instead. Use:
 
 ## Bring-up checklist (serial console)
 
-After boot you get a `phone>` prompt. The full telephony stack is already
+After boot you get a prompt named after the board (e.g. `telephono>`). The full telephony stack is already
 running concurrently. Type `help` for the full list. Recommended order:
 
 | Step | Command | Pass criteria |
