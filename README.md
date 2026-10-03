@@ -90,13 +90,27 @@ fabricated. See [`docs/hardware-smd5.md`](docs/hardware-smd5.md).
 - Custom dial/ringback/busy tones, region-selectable
 - Voicemail-style message recording, downloadable from the web UI
 - Configurable dial plan — add your own dial codes and audio clips at runtime
-- Web UI for status, recordings, and Wi-Fi/VoIP provisioning, with mDNS
-  `<name>.local` discovery
+- **Web interface for easy interactions and configuration** — line status,
+  recent activity, the dial guide, recordings, and every setting, at
+  `phone.local` (see below)
 - Optional microSD storage (single-line build only)
 - Open ESP-IDF firmware
 
 See [`docs/features.md`](docs/features.md) for the full feature list and
 firmware architecture.
+
+### Web interface
+
+![Status page: line state, recent activity, and the dial guide](docs/pics/status.png)
+
+| | |
+|---|---|
+| ![Settings, General tab](docs/pics/settings-general.png) | ![Settings, Dial Codes & Prompts tab](docs/pics/settings-dialcodes.png) |
+| **General** — board name, Wi-Fi, quiet hours | **Dial Codes & Prompts** — your own codes and audio |
+
+More pages are in [`docs/pics/`](docs/pics/) (`settings-<tab>.png`,
+`recordings.png`). They're regenerated from a live board with
+`firmware/bringup/screenshot_webui.py <board-ip>`.
 
 ---
 

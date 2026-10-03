@@ -154,6 +154,13 @@ that require a human to listen or lift a handset say so explicitly and print
 `Manual check required` at the end — these can't be fully automated without
 an audio analyzer on the line.
 
+## Web UI screenshots for the docs
+
+`screenshot_webui.py <board-ip>` (macOS, needs Google Chrome) saves every
+page to `docs/pics/` as `status.png`, `recordings.png` and
+`settings-<tab>.png`, overwriting the previous set. It replaces the board's
+Wi-Fi name and setup password with placeholders before capturing.
+
 ## Audio path on SMD2 (ES8388)
 
 - **RX (mic/line-in):** LIN1 = Line 0, RIN1 = Line 1 — independent left/right
