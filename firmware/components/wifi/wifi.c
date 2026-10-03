@@ -11,6 +11,7 @@
 #include "nvs.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/event_groups.h"
 #include "lwip/sockets.h"
 #include <string.h>
 #include <stdio.h>
@@ -139,141 +140,172 @@ esp_err_t wifi_known_remove(const char *ssid)
     return ESP_ERR_NOT_FOUND;
 }
 
-static esp_err_t load_creds_from_nvs(char *ssid, size_t ssid_len, char *pass, size_t pass_len)
-{
-    nvs_handle_t h;
-    esp_err_t err = nvs_open(NVS_NS, NVS_READONLY, &h);
-    if (err != ESP_OK) return err;
-    size_t n = ssid_len;
-    err = nvs_get_str(h, "ssid", ssid, &n);
-    if (err != ESP_OK) { nvs_close(h); return err; }
-    n = pass_len;
-    err = nvs_get_str(h, "pass", pass, &n);
-    nvs_close(h);
-    return err;
-}
+/* ---- connection manager ----
+ * One task owns every connect decision; the event handler only reports what
+ * happened. Policy:
+ *
+ *   1. Scan. Candidates are saved networks that show up in the scan right
+ *      now -- a network that isn't on the air isn't tried at all, which is
+ *      what keeps a missing network from eating minutes of retries. (So a
+ *      hidden SSID, which never appears in a scan, is never tried either.)
+ *   2. The network we were last on goes first, then the rest strongest
+ *      first. Each gets CONNECT_ATTEMPTS tries.
+ *   3. None connected: bring up the setup AP, and rescan every
+ *      FALLBACK_RESCAN_MS. When a saved network reappears (e.g. the router
+ *      booted slower than we did after a power cut), connect and drop the AP.
+ *      Rescans are skipped while someone is joined to the AP, because a scan
+ *      briefly takes the radio off the AP's channel.
+ *   4. Connected: wait for the link to drop, then start over at 1 -- which
+ *      tries the same network first again.
+ *
+ * Everything here runs on the manager's own stack. The system event task's
+ * stack is only CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE (2304 bytes); doing
+ * a scan from the handler overflowed it once already. */
+#define CONNECT_ATTEMPTS     3
+#define CONNECT_TIMEOUT_MS   15000
+#define FALLBACK_RESCAN_MS   60000
 
-static esp_err_t do_connect(const char *ssid, const char *pass)
+#define EV_GOT_IP  BIT0
+#define EV_DISC    BIT1
+#define EV_KICK    BIT2   /* re-plan now: credentials changed */
+
+static EventGroupHandle_t s_ev;
+static TaskHandle_t       s_mgr_task;
+
+static void ap_up(const char *why);   /* defined with the SoftAP below */
+static void ap_down(void);
+static int  ap_client_count(void);
+
+static void apply_sta_config(const char *ssid, const char *pass)
 {
     wifi_config_t wc = { 0 };
     strncpy((char *)wc.sta.ssid, ssid, sizeof(wc.sta.ssid) - 1);
     strncpy((char *)wc.sta.password, pass, sizeof(wc.sta.password) - 1);
     wc.sta.threshold.authmode = strlen(pass) ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
+    esp_wifi_set_config(WIFI_IF_STA, &wc);
     strncpy(s_ssid, ssid, sizeof(s_ssid) - 1);
-    ESP_LOGI(TAG, "connecting to '%s'", ssid);
-    board_led_set_state(BOARD_LED_WIFI_CONNECTING);
-
-    esp_err_t err = esp_wifi_connect();
-    if (err == ESP_ERR_WIFI_CONN) {
-        /* A previous attempt (e.g. with different credentials) is still
-         * mid-handshake -- not a real failure. The config above is already
-         * saved and applied; WIFI_EVENT_STA_DISCONNECTED's handler retries
-         * with it automatically once the in-flight attempt ends. */
-        ESP_LOGI(TAG, "previous connection attempt still in progress; will "
-                      "retry with these credentials once it ends");
-        return ESP_OK;
-    }
-    return err;
 }
 
-/* Scans, then connects to whichever saved network has the strongest signal
- * right now. Falls back to the first saved entry if the scan sees none of
- * them -- a hidden SSID never shows up in a scan but still connects. */
-static esp_err_t connect_best_known(void)
+/* One attempt. True once we have an IP. */
+static bool try_connect(const char *ssid, const char *pass, int attempt)
+{
+    xEventGroupClearBits(s_ev, EV_GOT_IP | EV_DISC);
+    apply_sta_config(ssid, pass);
+    ESP_LOGI(TAG, "connecting to '%s' (try %d of %d)", ssid, attempt, CONNECT_ATTEMPTS);
+    board_led_set_state(BOARD_LED_WIFI_CONNECTING);
+    if (esp_wifi_connect() != ESP_OK) return false;
+
+    EventBits_t b = xEventGroupWaitBits(s_ev, EV_GOT_IP | EV_DISC | EV_KICK, pdFALSE, pdFALSE,
+                                        pdMS_TO_TICKS(CONNECT_TIMEOUT_MS));
+    if (b & EV_GOT_IP) return true;
+    if (!(b & (EV_DISC | EV_KICK))) {
+        ESP_LOGW(TAG, "'%s': no answer in %d s", ssid, CONNECT_TIMEOUT_MS / 1000);
+        esp_wifi_disconnect();
+        /* Let the resulting disconnect event land now, so it can't be
+         * mistaken for the next attempt failing. */
+        xEventGroupWaitBits(s_ev, EV_DISC, pdTRUE, pdFALSE, pdMS_TO_TICKS(2000));
+    }
+    return false;
+}
+
+typedef struct { int slot; int8_t rssi; } candidate_t;
+
+/* Saved networks that are on the air now: the current one first, then by
+ * signal strength (wifi_scan() returns strongest first). */
+static int build_candidates(candidate_t *out, int max)
 {
     wifi_known_net_t known[WIFI_MAX_NETWORKS];
     int nk = wifi_known_list(known, WIFI_MAX_NETWORKS);
-    if (nk == 0) return ESP_ERR_NOT_FOUND;
+    if (nk == 0) return 0;
 
-    wifi_scan_result_t scan[24];
-    int ns = wifi_scan(scan, (int)(sizeof(scan) / sizeof(scan[0])));
+    wifi_scan_result_t *scan = calloc(32, sizeof(*scan));
+    if (!scan) return 0;
+    int ns = wifi_scan(scan, 32);
 
-    int best_slot = -1, best_rssi = -127;
-    for (int i = 0; i < ns; i++) {
+    int n = 0;
+    for (int i = 0; i < ns && n < max; i++) {
         for (int k = 0; k < nk; k++) {
-            if (strcmp(scan[i].ssid, known[k].ssid) == 0 && scan[i].rssi > best_rssi) {
-                best_rssi = scan[i].rssi;
-                best_slot = known[k].slot;
+            if (strcmp(scan[i].ssid, known[k].ssid) != 0) continue;
+            candidate_t c = { known[k].slot, scan[i].rssi };
+            if (s_ssid[0] && strcmp(known[k].ssid, s_ssid) == 0) {
+                memmove(&out[1], &out[0], n * sizeof(*out));   /* current one first */
+                out[0] = c;
+            } else {
+                out[n] = c;
             }
+            n++;
         }
     }
-
-    int slot = (best_slot >= 0) ? best_slot : known[0].slot;
-    char ssid[33] = {0}, pass[65] = {0};
-    if (known_get(slot, ssid, sizeof(ssid), pass, sizeof(pass)) != ESP_OK || !ssid[0])
-        return ESP_ERR_NOT_FOUND;
-
-    if (best_slot >= 0) {
-        ESP_LOGI(TAG, "%d saved network(s); '%s' is the strongest in range (%d dBm)",
-                 nk, ssid, best_rssi);
-    } else {
-        ESP_LOGW(TAG, "%d saved network(s), none seen in the scan -- trying '%s' anyway "
-                      "(it may be hidden)", nk, ssid);
-    }
-    return do_connect(ssid, pass);
+    free(scan);
+    ESP_LOGI(TAG, "%d of %d saved network(s) in range", n, nk);
+    return n;
 }
 
-/* Re-picking a network scans (blocking, ~2-3 s) and keeps ~1.2 KB of
- * arrays on the stack -- far too much for the system event task, whose
- * whole stack is CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE (2304 bytes).
- * Doing it inline in event_handler overflowed that stack (a "Stack
- * protection fault" in sys_evt) after five failed connects. So the handler
- * only wakes this task, which does the work on a stack of its own. */
-static TaskHandle_t s_repick_task;
-
-static void repick_task(void *arg)
+static void manager_task(void *arg)
 {
     for (;;) {
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        if (connect_best_known() != ESP_OK) esp_wifi_connect();
+        xEventGroupClearBits(s_ev, EV_KICK);
+        candidate_t cand[WIFI_MAX_NETWORKS];
+        int n = build_candidates(cand, WIFI_MAX_NETWORKS);
+
+        bool connected = false;
+        for (int i = 0; i < n && !connected; i++) {
+            char ssid[33] = {0}, pass[65] = {0};
+            if (known_get(cand[i].slot, ssid, sizeof(ssid), pass, sizeof(pass)) != ESP_OK) continue;
+            for (int a = 1; a <= CONNECT_ATTEMPTS && !connected; a++) {
+                connected = try_connect(ssid, pass, a);
+                if (xEventGroupGetBits(s_ev) & EV_KICK) break;
+            }
+            if (xEventGroupGetBits(s_ev) & EV_KICK) break;
+        }
+        if (xEventGroupGetBits(s_ev) & EV_KICK) continue;
+
+        if (connected) {
+            ap_down();
+            /* Stay here until the link drops or someone changes the saved
+             * networks, then go back round -- current network first. */
+            EventBits_t b = xEventGroupWaitBits(s_ev, EV_DISC | EV_KICK, pdFALSE, pdFALSE,
+                                                portMAX_DELAY);
+            if (b & EV_KICK) esp_wifi_disconnect();
+            continue;
+        }
+
+        ap_up(n ? "couldn't join any saved network" : "no saved network in range");
+        /* Wait, then look again -- unless someone is using the setup AP. */
+        do {
+            xEventGroupWaitBits(s_ev, EV_KICK, pdFALSE, pdFALSE, pdMS_TO_TICKS(FALLBACK_RESCAN_MS));
+        } while (!(xEventGroupGetBits(s_ev) & EV_KICK) && ap_client_count() > 0);
     }
 }
 
-static void request_repick(void)
+/* Re-plan now (credentials changed). */
+static void manager_kick(void)
 {
-    if (!s_repick_task &&
-        xTaskCreate(repick_task, "wifi_repick", 4096, NULL, 3, &s_repick_task) != pdPASS) {
-        s_repick_task = NULL;
-        esp_wifi_connect();          /* no task: at least keep retrying */
-        return;
-    }
-    xTaskNotifyGive(s_repick_task);
+    if (s_ev) xEventGroupSetBits(s_ev, EV_KICK);
 }
 
 static void event_handler(void *arg, esp_event_base_t base, int32_t id, void *data)
 {
-    if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
-        if (s_ssid[0]) esp_wifi_connect();
-    } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
+    if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
         /* The reason code is what tells a flaky link (beacon timeout, 200+,
          * e.g. radio interference) apart from the AP deliberately kicking us
-         * (auth/assoc codes) -- without it, "disconnected, retrying" alone
-         * can't distinguish them. See wifi_err_reason_t in esp_wifi_types.h. */
+         * (auth/assoc codes) -- see wifi_err_reason_t in esp_wifi_types.h. */
+        const wifi_event_sta_disconnected_t *d = (const wifi_event_sta_disconnected_t *)data;
         if (s_connected) {
-            const wifi_event_sta_disconnected_t *d = (const wifi_event_sta_disconnected_t *)data;
-            ESP_LOGW(TAG, "WiFi disconnected (reason %d, RSSI %d dBm), retrying",
+            ESP_LOGW(TAG, "WiFi disconnected (reason %d, RSSI %d dBm)",
                      d ? d->reason : -1, d ? d->rssi : 0);
+        } else if (d) {
+            ESP_LOGI(TAG, "'%s' didn't connect (reason %d)", s_ssid, d->reason);
         }
         s_connected = false;
-        /* Hammering one SSID is wrong when several are saved: the board may
-         * have moved. Re-scan and re-pick every few failures so it settles on
-         * whichever known network is actually present. */
-        if (s_ssid[0]) {
-            static int fails;
-            if (!s_provisioning && ++fails >= 5) {
-                fails = 0;
-                request_repick();
-                return;
-            }
-            esp_wifi_connect();
-        }
+        if (s_ev) xEventGroupSetBits(s_ev, EV_DISC);
     } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *e = (ip_event_got_ip_t *)data;
         s_ip = e->ip_info.ip;
         s_connected = true;
         board_led_set_state(BOARD_LED_OK);
-        ESP_LOGI(TAG, "connected, IP=" IPSTR, IP2STR(&s_ip));
+        ESP_LOGI(TAG, "connected to '%s', IP=" IPSTR, s_ssid, IP2STR(&s_ip));
+        if (s_ev) xEventGroupSetBits(s_ev, EV_GOT_IP);
         /* Now that the LAN is reachable, claim our mDNS name (with a collision
          * check that needs connectivity). Once per boot; reconnects skip it. */
         if (!s_mdns_named) {
@@ -345,14 +377,19 @@ static bool take_forced_ap_flag(void)
 
 static bool s_forced_ap;
 
-static esp_err_t start_provisioning(void)
+static esp_netif_t *s_ap_netif;
+static bool         s_dns_started;
+
+/* Brings up the open setup AP alongside the station (AP+STA, so scans keep
+ * working for both the setup page's dropdown and the manager's rescans). */
+static void ap_up(const char *why)
 {
+    if (s_provisioning) return;
     s_provisioning = true;
-    esp_netif_create_default_wifi_ap();
+    if (!s_ap_netif) s_ap_netif = esp_netif_create_default_wifi_ap();
 
     uint8_t mac[6] = {0};
     esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
-
     wifi_config_t ap = { 0 };
     int n = snprintf((char *)ap.ap.ssid, sizeof(ap.ap.ssid),
                      "AnalogRedial-%02X%02X", mac[4], mac[5]);
@@ -361,19 +398,34 @@ static esp_err_t start_provisioning(void)
     ap.ap.max_connection = 4;
     ap.ap.authmode = WIFI_AUTH_OPEN; /* open network: easiest to join for setup */
 
-    /* AP+STA, not AP-only: the STA side never connects to anything here, but
-     * its presence is what lets wifi_scan() list nearby networks for the
-     * setup page's dropdown while the SoftAP is up. */
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap));
-    ESP_ERROR_CHECK(esp_wifi_start());
+    esp_wifi_set_mode(WIFI_MODE_APSTA);
+    esp_wifi_set_config(WIFI_IF_AP, &ap);
+    esp_wifi_start();                 /* no-op if the station already started it */
 
     board_led_set_state(BOARD_LED_WIFI_CONNECTING); /* "needs setup" */
-    xTaskCreate(captive_dns_task, "captdns", 3072, NULL, 4, NULL);
+    if (!s_dns_started) {
+        s_dns_started = true;
+        xTaskCreate(captive_dns_task, "captdns", 3072, NULL, 4, NULL);
+    }
+    ESP_LOGW(TAG, "%s -- started setup AP '%s' (open). Join it, then a setup page opens "
+                  "(or browse to http://192.168.4.1)", why, (char *)ap.ap.ssid);
+}
 
-    ESP_LOGW(TAG, "no WiFi credentials -- started setup AP '%s' (open). Join it, then "
-                  "a setup page opens (or browse to http://192.168.4.1)", (char *)ap.ap.ssid);
-    return ESP_OK;
+/* Back to station-only once a saved network has connected. The BOOT-button
+ * rescue AP stays up regardless -- that's the point of asking for it. */
+static void ap_down(void)
+{
+    if (!s_provisioning || s_forced_ap) return;
+    esp_wifi_set_mode(WIFI_MODE_STA);
+    s_provisioning = false;
+    ESP_LOGI(TAG, "on a saved network -- setup AP closed");
+}
+
+static int ap_client_count(void)
+{
+    if (!s_provisioning) return 0;
+    wifi_sta_list_t list;
+    return esp_wifi_ap_get_sta_list(&list) == ESP_OK ? list.num : 0;
 }
 
 bool wifi_is_provisioning(void) { return s_provisioning; }
@@ -447,16 +499,13 @@ esp_err_t wifi_init(void)
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
 
-    char ssid[33] = {0}, pass[65] = {0};
     migrate_legacy_creds();
-    {
-        wifi_known_net_t probe[WIFI_MAX_NETWORKS];
-        if (wifi_known_list(probe, WIFI_MAX_NETWORKS) == 0) {
-            /* Nothing saved: fall back to any build-time default. */
-            strncpy(ssid, CONFIG_WIFI_SSID, sizeof(ssid) - 1);
-            strncpy(pass, CONFIG_WIFI_PASSWORD, sizeof(pass) - 1);
-            if (ssid[0]) wifi_known_add(ssid, pass);
-        }
+    wifi_known_net_t probe[WIFI_MAX_NETWORKS];
+    int nk = wifi_known_list(probe, WIFI_MAX_NETWORKS);
+    if (nk == 0 && CONFIG_WIFI_SSID[0]) {
+        /* Nothing saved: fall back to any build-time default. */
+        wifi_known_add(CONFIG_WIFI_SSID, CONFIG_WIFI_PASSWORD);
+        nk = 1;
     }
     /* Rescue gesture (BOOT held ~3 s) asks for the setup AP even though
      * credentials exist -- see board_boot_button_start(). One-shot: the flag
@@ -464,18 +513,15 @@ esp_err_t wifi_init(void)
      * network. Credentials are untouched throughout. */
     if (take_forced_ap_flag()) {
         s_forced_ap = true;
-        ESP_LOGW(TAG, "setup AP requested from the BOOT button -- saved credentials kept");
-        return start_provisioning();
+        ap_up("setup AP requested from the BOOT button (saved networks kept)");
+        return ESP_OK;
     }
-
-    {   /* Anything in the known-networks list counts as "configured". */
-        wifi_known_net_t probe[WIFI_MAX_NETWORKS];
-        if (wifi_known_list(probe, WIFI_MAX_NETWORKS) > 0) ssid[0] = 'x';
-    }
-    if (ssid[0] == '\0') {
-        /* Nothing saved anywhere -> bring up the setup AP instead of idling.
-         * SNTP/mDNS wait for the real network after the user configures one. */
-        return start_provisioning();
+    if (nk == 0) {
+        /* Nothing saved anywhere -> the setup AP instead of idling. SNTP and
+         * mDNS wait for the real network after the user configures one (the
+         * setup page reboots into station mode). */
+        ap_up("no WiFi credentials");
+        return ESP_OK;
     }
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
@@ -506,7 +552,12 @@ esp_err_t wifi_init(void)
                  esp_err_to_name(err));
     }
 
-    return do_connect(ssid, pass);
+    s_ev = xEventGroupCreate();
+    if (!s_ev || xTaskCreate(manager_task, "wifi_mgr", 4096, NULL, 3, &s_mgr_task) != pdPASS) {
+        ESP_LOGE(TAG, "couldn't start the WiFi connection manager");
+        return ESP_ERR_NO_MEM;
+    }
+    return ESP_OK;
 }
 
 void wifi_apply_hostname(void)
@@ -573,8 +624,11 @@ esp_err_t wifi_set_credentials(const char *ssid, const char *password)
     nvs_close(h);
     if (err != ESP_OK) return err;
 
-    s_connected = false;
-    return do_connect(ssid, password);
+    /* Make it the "current" network so the manager tries it first. */
+    strncpy(s_ssid, ssid, sizeof(s_ssid) - 1);
+    s_ssid[sizeof(s_ssid) - 1] = '\0';
+    manager_kick();
+    return ESP_OK;
 }
 
 esp_err_t wifi_clear_credentials(void)
