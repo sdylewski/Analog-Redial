@@ -5,8 +5,10 @@
 # project was originally tested against (Ring of Fire, Banana Boat, ...) are
 # copyrighted and don't belong in a public repo or a build anyone can
 # download. Generate your own from your own media library; only the
-# synthesized (not copyrighted) operator prompt ships as a real default.
+# synthesized (not copyrighted) prompts ship as real defaults: the operator
+# message and the answering machine's default greeting.
 *
 !.gitignore
 !README.md
 !operator.wav
+!am_greeting.wav
