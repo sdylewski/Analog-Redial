@@ -67,6 +67,12 @@ typedef enum {
  * web UI's playback, not a phone-side confirm loop). Not present is a
  * normal, working state: auto_answer() (telephony.c) falls straight through
  * to the beep, same fallback as 211's own missing-prompt case. */
+/* Shared default answering-machine greeting, used by any line without its
+ * own recording. Built into the firmware (firmware/assets/, "Leave a
+ * message after the beep.") and overridden by a same-named upload -- e.g.
+ * text-to-speech generated from the web UI's greeting text. */
+#define AM_DEFAULT_GREETING_NAME "am_greeting.wav"
+
 void telephony_am_greeting_name(char *out, size_t len, int line);
 
 esp_err_t telephony_start(void);

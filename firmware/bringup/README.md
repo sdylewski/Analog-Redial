@@ -56,7 +56,7 @@ a PASS / WARN / FAIL / SKIP table:
 | `network` | board answers `/api/status` at `--host` | everything below |
 | `hardware` | sets lines / microSD / Bluetooth — only when you pass `--lines` or `--bluetooth` | — |
 | `microsd` | skipped on 2-line boards (shared pins); WARN if no card is in use; otherwise `sd_test` write/read/verify over serial | — |
-| `audio` | generates and uploads `operator.wav`, `record_prompt.wav` (dial 211), `am_greeting_l<N>.wav` per line ("Leave a message after the beep"), and with `--digits`, `digit_0..9.wav` | `verify` |
+| `audio` | generates and uploads `operator.wav`, `record_prompt.wav` (dial 211), `am_greeting.wav`, the answering machine's default greeting ("Leave a message after the beep"; a line's own recording via 899 still wins), and with `--digits`, `digit_0..9.wav` | `verify` |
 | `verify` | reads every uploaded file back and checks it's a WAV | — |
 | `tests` | *(opt-in, `--tests`)* the interactive `bringup_checklist.py` | — |
 

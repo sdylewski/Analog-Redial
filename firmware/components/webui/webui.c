@@ -132,6 +132,10 @@ static int append_storage_table(char *buf, size_t cap, int off,
  * defined earlier in the file, right after append_log_panel()) can call it. */
 static void html_escape(const char *in, char *out, size_t outsz);
 static void js_escape(const char *in, char *out, size_t outsz);
+/* Defined with the Dial Codes & Prompts tab; also used by the answering
+ * machine card's default-greeting text. */
+static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_name,
+                                const char *default_text);
 
 /* firmware/assets/ ships README.md and .gitignore alongside actual clips
  * (see that directory's own README) -- filter those out of "pick a clip to
@@ -502,6 +506,13 @@ static size_t clamp_send_len(int off, size_t cap)
 {
     if (off <= 0) return 0;
     size_t len = (size_t)off;
+    if (len >= cap) {
+        /* The page was cut off -- whatever came last (often a <script>) is
+         * missing. Not visible in the browser, so say so here: this is how
+         * the setup page's network list silently broke (2026-10-02). */
+        ESP_LOGE(TAG, "page truncated: needed %u bytes, buffer %u -- raise its room",
+                 (unsigned)len + 1, (unsigned)cap);
+    }
     return (len < cap) ? len : (cap ? cap - 1 : 0);
 }
 
@@ -1540,24 +1551,43 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
             "</form>",
             save_line);
         if (have_greeting) {
+            /* This line's own recording wins; deleting it falls back to the
+             * shared default greeting below. */
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+                "<span><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></span></div>"
+                "<form method=\"POST\" action=\"/media_delete/%s\" class=\"settings-form\" "
+                "onsubmit=\"return confirm('%s')\">"
+                "<input type=\"hidden\" name=\"return_to\" value=\"/settings?tab=phone\">"
+                "<div class=\"toolbar sub\"><button type=\"submit\">%s</button></div></form>",
+                i18n_str("am.greeting_own", "Greeting: your recording"), greeting, greeting,
+                i18n_str("am.use_default_confirm",
+                         "Delete this line's recorded greeting and use the default one?"),
+                i18n_str("am.use_default", "Use the default greeting instead"));
+        } else {
             off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
                 "<div class=\"statusrow\"><span class=\"label\">%s</span>"
                 "<span><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></span></div>",
-                i18n_str("am.greeting", "Greeting"), greeting);
-        } else {
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-                "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>",
-                i18n_str("am.greeting", "Greeting"), i18n_str("am.not_recorded", "not recorded yet"));
+                i18n_str("am.greeting_default", "Greeting: default"), AM_DEFAULT_GREETING_NAME);
         }
     }
+
+    /* The shared default greeting's text, for text-to-speech -- same
+     * mechanism as the Operator and Record prompts. Until generated, the
+     * one built into the firmware plays. */
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<h3>%s</h3>", i18n_str("am.default_title", "Default greeting"));
+    off = append_prompt_field(buf, cap, off, AM_DEFAULT_GREETING_NAME,
+                              "Leave a message after the beep.");
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<p class=\"hint\">%s</p></div>"
         "<script>%s</script>",
         i18n_str("am.hint",
-                 "Record each line's greeting from that line's own phone: pick up, dial 9-9-9, "
-                 "speak after the beep, hang up (or pause ~8s) to save -- overwrites the previous "
-                 "greeting directly. Play it back above to check it; re-record any time the same "
-                 "way. With no greeting recorded, callers just hear the beep. After the "
+                 "Each line plays its own recorded greeting if it has one, otherwise the default "
+                 "greeting above: built in (\"Leave a message after the beep\") until you "
+                 "generate your own wording with text-to-speech. To record a line's own greeting, "
+                 "pick up that line's phone, dial 8-9-9, speak after the beep, and hang up (or "
+                 "pause ~8s) to save -- it replaces the previous one. After the "
                  "configured rings, the line auto-answers, plays the greeting then a beep, then "
                  "records the caller -- capped at the length above or ~8s of silence, whichever "
                  "comes first. Picking up the handset at any point takes the call live instead."),
@@ -2543,6 +2573,24 @@ static int append_bt_config_card(char *buf, size_t cap, int off,
 static int append_bluetooth_tab(char *buf, size_t cap, int off)
 {
     bool bt_on = bt_companion_enabled();
+
+    /* Not mainstream yet -- say so before anything else on the tab. */
+#if CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
+    const char *bt_status = i18n_str("bt.experimental_v5",
+        "This is a V5 (SMD5) board, which has the header for the BM64 Bluetooth companion "
+        "board -- but V5 hasn't been built and tested yet, so treat Bluetooth as "
+        "experimental.");
+#else
+    const char *bt_status = i18n_str("bt.experimental_v4",
+        "Bluetooth needs a <b>V5 (SMD5) board</b> with the BM64 companion board -- and V5 "
+        "hasn't been built and tested yet. On a V4 (SMD4) or older board it means serious "
+        "hand modification: wiring the BM64 module's power, both audio directions and its "
+        "UART to this board, plus a spare GPIO for its power button. Fine for "
+        "experimenting, not something to plan a build around yet.");
+#endif
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card wide\"><h2>%s</h2><p class=\"warn-text\">%s</p></div>",
+        i18n_str("bt.experimental_title", "Experimental: not mainstream yet"), bt_status);
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card wide\"><h2>%s</h2>"
         "<form method=\"POST\" action=\"/bt_enable_set\" class=\"settings-form\">"
@@ -3567,6 +3615,97 @@ static int append_diag_tab(char *buf, size_t cap, int off)
                  "over the serial console (<code>log_level debug</code>). WiFi/PHY noise stays "
                  "at warn so it doesn't bury the app's own debug output."));
 
+    /* Tone generator and mic record test sit right after Logging so the
+     * three small cards share one row (the self-test card above and the
+     * test-mode card below are full width). */
+    int diag_num_lines = board_hw_config_get().num_lines;
+    char diag_line_opts[128] = "";
+    {
+        int o = 0;
+        for (int l = 0; l < diag_num_lines; l++) {
+            o += snprintf(diag_line_opts + o, sizeof(diag_line_opts) - o,
+                           "<option value=\"%d\">Line %d</option>", l, l);
+        }
+    }
+
+    /* Tone generator: same audio_tx_burst() the off-hook alert and AEC
+     * echo-probe/sweep bring-up commands already use (see bringup.c's
+     * `tone` console command, the same feature, console-only until now) --
+     * a real, distinct tone out the earpiece confirms the DAC/amp path end
+     * to end, which the loopback test below deliberately doesn't (that stays inside
+     * the chip, digital TX->RX, never touches the codec at all). */
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<form method=\"POST\" action=\"/test/tone\" class=\"settings-form\">"
+        "<label>%s <select name=\"line\">%s</select></label>"
+        "<label>%s <input type=\"number\" name=\"hz\" value=\"1000\" min=\"20\" max=\"20000\" required></label>"
+        "<label>%s <input type=\"number\" name=\"ms\" value=\"1000\" min=\"50\" max=\"5000\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form>"
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("diag.tone.title", "Tone generator"),
+        i18n_str("status.line.title_bare", "Line"), diag_line_opts,
+        i18n_str("diag.tone.hz_label", "Frequency (Hz)"),
+        i18n_str("diag.tone.ms_label", "Duration (ms, max 5000)"),
+        i18n_str("diag.tone.button", "Play"),
+        i18n_str("diag.tone.hint",
+                 "Plays a single-frequency tone out the selected line's earpiece, straight "
+                 "through the real DAC/amp path (not the digital loopback test below) -- pick up "
+                 "that line's handset first to hear it. Same underlying call as the bring-up "
+                 "console's <code>tone</code> command."));
+
+    /* Mic record test: captures raw uplink PCM (audio_rx_read(), the exact
+     * path AEC/VoIP uplink also reads from) straight to a WAV via the same
+     * write-header-now-patch-sizes-later pattern used elsewhere in this
+     * file (convert_and_write()/build_wav_header() above) -- an actual
+     * listen-back test of the mic path end to end, not just a live level
+     * number, which wouldn't tell you if what's picked up actually sounds
+     * right (muffled, clipping, wrong gain). Fixed filename per line
+     * (overwrites on each run, like the AM greeting) so this doesn't pile
+     * up recordings under a real user-facing name. */
+    for (int l = 0; l < diag_num_lines; l++) {
+        char fname[32];
+        snprintf(fname, sizeof(fname), "diag_mic_test_l%d.wav", l);
+        uint8_t probe; size_t got;
+        bool have = (storage_read(fname, &probe, sizeof(probe), &got) == ESP_OK);
+        char player_row[220] = "";
+        if (have) {
+            snprintf(player_row, sizeof(player_row),
+                "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+                "<span><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></span></div>",
+                i18n_str("diag.mic.last", "Last recording"), fname);
+        }
+        char line_h3[24];
+        snprintf(line_h3, sizeof(line_h3), i18n_str("status.line.title", "Line %d"), l);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "%s<h3>%s</h3>"
+            "<form method=\"POST\" action=\"/test/mic_record\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<label>%s <input type=\"number\" name=\"secs\" value=\"3\" min=\"1\" max=\"8\" required></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+            "</form>%s",
+            (l == 0) ? "<div class=\"card\"><h2>Mic record test</h2>" : "",
+            line_h3, l,
+            i18n_str("diag.mic.secs_label", "Seconds to record"),
+            i18n_str("diag.mic.button", "Record"),
+            player_row);
+    }
+    if (diag_num_lines > 0) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<p class=\"hint\">%s</p></div>",
+            i18n_str("diag.mic.hint",
+                     "Pick up that line's handset (off-hook) BEFORE submitting -- the mic path "
+                     "isn't routed on-hook, same requirement as the Echo Cancellation Measure "
+                     "button above, so this just silently records digital silence otherwise (a "
+                     "flat, all-zero file, not a crash or error -- easy to mistake for the test "
+                     "not working when it's really just an on-hook capture). Records straight "
+                     "from that line's mic (through the AEC/uplink audio path, same source VoIP "
+                     "would encode) to a WAV, blocking the page for the duration -- speak into "
+                     "the handset while it's running. Play it back above to check it sounds "
+                     "right (level, clarity, no clipping). Each run overwrites "
+                     "that line's previous test recording."));
+    }
+
     /* Test mode + audio loopback + SD self-test (DVT harness controls; also
      * usable by hand here). */
     bool tmode = telephony_test_enabled();
@@ -3666,94 +3805,6 @@ static int append_diag_tab(char *buf, size_t cap, int off)
                  "digital loop &mdash; it does <i>not</i> test the codec's analog path. Leave "
                  "<b>off</b> for normal use. Protocol and host runner: <code>firmware/test/</code>."),
         i18n_str("aec.enable", "Enable"), i18n_str("aec.disable", "Disable"));
-
-    int diag_num_lines = board_hw_config_get().num_lines;
-    char diag_line_opts[128] = "";
-    {
-        int o = 0;
-        for (int l = 0; l < diag_num_lines; l++) {
-            o += snprintf(diag_line_opts + o, sizeof(diag_line_opts) - o,
-                           "<option value=\"%d\">Line %d</option>", l, l);
-        }
-    }
-
-    /* Tone generator: same audio_tx_burst() the off-hook alert and AEC
-     * echo-probe/sweep bring-up commands already use (see bringup.c's
-     * `tone` console command, the same feature, console-only until now) --
-     * a real, distinct tone out the earpiece confirms the DAC/amp path end
-     * to end, which loopback above deliberately doesn't (that stays inside
-     * the chip, digital TX->RX, never touches the codec at all). */
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>%s</h2>"
-        "<form method=\"POST\" action=\"/test/tone\" class=\"settings-form\">"
-        "<label>%s <select name=\"line\">%s</select></label>"
-        "<label>%s <input type=\"number\" name=\"hz\" value=\"1000\" min=\"20\" max=\"20000\" required></label>"
-        "<label>%s <input type=\"number\" name=\"ms\" value=\"1000\" min=\"50\" max=\"5000\" required></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-        "</form>"
-        "<p class=\"hint\">%s</p></div>",
-        i18n_str("diag.tone.title", "Tone generator"),
-        i18n_str("status.line.title_bare", "Line"), diag_line_opts,
-        i18n_str("diag.tone.hz_label", "Frequency (Hz)"),
-        i18n_str("diag.tone.ms_label", "Duration (ms, max 5000)"),
-        i18n_str("diag.tone.button", "Play"),
-        i18n_str("diag.tone.hint",
-                 "Plays a single-frequency tone out the selected line's earpiece, straight "
-                 "through the real DAC/amp path (not the digital loopback above) -- pick up "
-                 "that line's handset first to hear it. Same underlying call as the bring-up "
-                 "console's <code>tone</code> command."));
-
-    /* Mic record test: captures raw uplink PCM (audio_rx_read(), the exact
-     * path AEC/VoIP uplink also reads from) straight to a WAV via the same
-     * write-header-now-patch-sizes-later pattern used elsewhere in this
-     * file (convert_and_write()/build_wav_header() above) -- an actual
-     * listen-back test of the mic path end to end, not just a live level
-     * number, which wouldn't tell you if what's picked up actually sounds
-     * right (muffled, clipping, wrong gain). Fixed filename per line
-     * (overwrites on each run, like the AM greeting) so this doesn't pile
-     * up recordings under a real user-facing name. */
-    for (int l = 0; l < diag_num_lines; l++) {
-        char fname[32];
-        snprintf(fname, sizeof(fname), "diag_mic_test_l%d.wav", l);
-        uint8_t probe; size_t got;
-        bool have = (storage_read(fname, &probe, sizeof(probe), &got) == ESP_OK);
-        char player_row[220] = "";
-        if (have) {
-            snprintf(player_row, sizeof(player_row),
-                "<div class=\"statusrow\"><span class=\"label\">%s</span>"
-                "<span><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></span></div>",
-                i18n_str("diag.mic.last", "Last recording"), fname);
-        }
-        char line_h3[24];
-        snprintf(line_h3, sizeof(line_h3), i18n_str("status.line.title", "Line %d"), l);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "%s<h3>%s</h3>"
-            "<form method=\"POST\" action=\"/test/mic_record\" class=\"settings-form\">"
-            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
-            "<label>%s <input type=\"number\" name=\"secs\" value=\"3\" min=\"1\" max=\"8\" required></label>"
-            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-            "</form>%s",
-            (l == 0) ? "<div class=\"card\"><h2>Mic record test</h2>" : "",
-            line_h3, l,
-            i18n_str("diag.mic.secs_label", "Seconds to record"),
-            i18n_str("diag.mic.button", "Record"),
-            player_row);
-    }
-    if (diag_num_lines > 0) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<p class=\"hint\">%s</p></div>",
-            i18n_str("diag.mic.hint",
-                     "Pick up that line's handset (off-hook) BEFORE submitting -- the mic path "
-                     "isn't routed on-hook, same requirement as the Echo Cancellation Measure "
-                     "button above, so this just silently records digital silence otherwise (a "
-                     "flat, all-zero file, not a crash or error -- easy to mistake for the test "
-                     "not working when it's really just an on-hook capture). Records straight "
-                     "from that line's mic (through the AEC/uplink audio path, same source VoIP "
-                     "would encode) to a WAV, blocking the page for the duration -- speak into "
-                     "the handset while it's running. Play it back above to check it sounds "
-                     "right (level, clarity, no clipping). Each run overwrites "
-                     "that line's previous test recording."));
-    }
 
     /* Full debug log -- moved here from the Status page (which now only
      * shows the much shorter activity panel, see append_activity_panel())
@@ -4449,9 +4500,9 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
                                                       * +the mismatch-confirm card if showing */
         : 0;
     size_t general_room = (strcmp(tab, "general") == 0) ? 3200 + 1400 : 0; /* +saved-network list */ /* +quiet hours card's timezone dropdown */
-    size_t phone_room = (strcmp(tab, "phone") == 0) ? 10000 : 0; /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card */
+    size_t phone_room = (strcmp(tab, "phone") == 0) ? 12500 : 0; /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card, AM greeting text-to-speech field (~2.2 KB) */
     size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 : 0;
-    size_t bt_room = (strcmp(tab, "bluetooth") == 0) ? 2500 : 0; /* "What Bluetooth can do" card */ /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
+    size_t bt_room = (strcmp(tab, "bluetooth") == 0) ? 3300 : 0; /* +experimental notice */ /* "What Bluetooth can do" card */ /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
     /* This tab's `n*220` share (n = ALL dialplan entries, not just clips)
      * was never actually enough for it: each dial-code row is TWO forms
      * (recode + description) plus an audio player -- measured at up to
@@ -6379,6 +6430,7 @@ static esp_err_t media_delete_handler(httpd_req_t *req)
 
     const char *loc = "/settings?tab=storage";
     if (strcmp(return_to, "/recordings") == 0) loc = "/recordings";
+    else if (strcmp(return_to, "/settings?tab=phone") == 0) loc = "/settings?tab=phone";
 
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", loc);
@@ -6455,6 +6507,7 @@ static esp_err_t media_delete_bulk_handler(httpd_req_t *req)
 
     const char *loc = "/settings?tab=storage";
     if (strcmp(return_to, "/recordings") == 0) loc = "/recordings";
+    else if (strcmp(return_to, "/settings?tab=phone") == 0) loc = "/settings?tab=phone";
 
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", loc);

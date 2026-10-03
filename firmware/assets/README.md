@@ -18,6 +18,13 @@ from `storage` (recordings + anything uploaded over HTTP at runtime), so:
 **`operator.wav`** — synthesized from `pi_rotary_phone/operator_help_en.txt`
 (original project text, not copyrighted). Dial `0` to hear it.
 
+**`am_greeting.wav`** — the answering machine's default greeting, "Leave a
+message after the beep.", generated with `bringup/gen_prompt.py`. Plays on
+any line that has no recorded greeting of its own (`am_greeting_l<N>.wav`,
+recorded by dialling 899). Replace the wording from Settings -> Phone
+Settings -> Answering machine -> Default greeting (text-to-speech), which
+uploads a same-named file that overrides this one.
+
 Two 4xx "novelty clip" defaults remain, out of the box:
 
 **`burp.wav`** (402, "Burp") — sourced from `pi_rotary_phone/Audio_files/`

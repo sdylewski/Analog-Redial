@@ -15,7 +15,7 @@ a PASS / WARN / FAIL / SKIP summary:
   audio      generate and upload the default prompts:
                operator.wav          dial 0
                record_prompt.wav     dial 211, before the beep
-               am_greeting_l<N>.wav  answering machine, per line
+               am_greeting.wav       answering machine's default greeting
                digit_0..9.wav        (opt-in, --digits)
   verify     read every uploaded file back from the board
   tests      (opt-in, --tests) the interactive hardware checklist
@@ -385,7 +385,9 @@ def step_audio(run: Run, host: str, args, status: dict) -> list[str]:
         ("operator.wav", operator_text(args.language, nlines, bt), True),
         ("record_prompt.wav", p["record"], True),
     ]
-    clips += [(f"am_greeting_l{i}.wav", p["greeting"], False) for i in range(nlines)]
+    # The shared default greeting, not per-line am_greeting_l<N>.wav -- those
+    # are each line's own recording (dial 899) and override this one.
+    clips.append(("am_greeting.wav", p["greeting"], True))
     if args.digits:
         clips += [(f"digit_{i}.wav", w, False) for i, w in enumerate(p["digits"])]
 
@@ -531,7 +533,7 @@ def main() -> int:
                 run.record("audio", "SKIP", "board not reachable over HTTP")
         if run.wanted("verify"):
             if online:
-                names = uploaded or (["operator.wav", "record_prompt.wav", "am_greeting_l0.wav"]
+                names = uploaded or (["operator.wav", "record_prompt.wav", "am_greeting.wav"]
                                      if not run.wanted("audio") else [])
                 step_verify(run, args.host, names)
             else:

@@ -731,13 +731,16 @@ static void auto_answer(int line)
                  peer == PEER_VOIP ? "VoIP" : "other line");
     s_line[rec_line].rec_purpose = REC_VOICEMAIL;
     s_line[rec_line].am_bargein = false;
+    /* This line's own recording (dial 899) first, then the shared default
+     * (text-to-speech if generated, else the one built into the firmware),
+     * then just the beep -- same fallback 211 uses when RECORD_PROMPT_NAME
+     * doesn't exist. */
     char greeting[STORAGE_MAX_NAME];
     telephony_am_greeting_name(greeting, sizeof(greeting), line);
-    if (player_play(rec_line, greeting, clip_done_cb, NULL) == ESP_OK) {
+    if (player_play(rec_line, greeting, clip_done_cb, NULL) == ESP_OK ||
+        player_play(rec_line, AM_DEFAULT_GREETING_NAME, clip_done_cb, NULL) == ESP_OK) {
         s_line[rec_line].state = TEL_PLAYING_RECORD_PROMPT;
     } else {
-        /* No greeting recorded yet -- straight to beep, same fallback 211
-         * uses when RECORD_PROMPT_NAME doesn't exist. */
         start_record_beep(rec_line);
     }
 }
