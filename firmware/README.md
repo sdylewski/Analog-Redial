@@ -307,6 +307,10 @@ firmware/
 - First boot with nothing saved: the device starts its own **SoftAP**
   (`AnalogRedial-XXXX`, open) — join it and a setup page opens (captive portal),
   or browse to `http://192.168.4.1`.
+- No saved network in range (or none will connect after 3 tries each): the
+  same setup network comes up, named after the board once it has a name
+  (`Analog Redial - <name>`), and the board keeps rescanning every minute to
+  rejoin a saved network when one appears.
 
 **Factory-resetting WiFi (GPIO9 / BOOT strap)**
 

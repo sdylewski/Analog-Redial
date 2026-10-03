@@ -3079,13 +3079,16 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
 
     off = append_firmware_card(buf, cap, off);
 
+    char setup_ap[33], setup_ap_esc[100];
+    wifi_setup_ap_name(setup_ap, sizeof(setup_ap));
+    html_escape(setup_ap, setup_ap_esc, sizeof(setup_ap_esc));
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>"
         "<form method=\"POST\" action=\"/wifi_reprovision\" class=\"settings-form\" "
         "onsubmit=\"return confirm('%s')\">"
         "<div class=\"toolbar sub\"><button type=\"submit\">%s\xe2\x80\xa6</button></div>"
         "</form>"
-        "<p class=\"hint\">%s</p>"
+        "<p class=\"hint\">%s Setup network: <code>%s</code>.</p>"
         "<form method=\"POST\" action=\"/factory_reset\" class=\"settings-form\" "
         "onsubmit=\"return confirm('%s')\">"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"danger\">"
@@ -3099,14 +3102,15 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                  "Every other setting stays as-is."),
         i18n_str("reset.wifi.button", "Re-provision WiFi"),
         i18n_str("reset.wifi.hint",
-                 "Clears the saved WiFi network only and reboots into setup mode (the "
-                 "<code>AnalogRedial-XXXX</code> network) -- everything else (board name, dial "
+                 "Clears the saved WiFi network only and reboots into setup mode (its own "
+                 "open setup network) -- everything else (board name, dial "
                  "codes, VoIP, recordings) is untouched. Use this when moving the board to a "
                  "different WiFi network. Forgot to click this before moving the board, and can't "
                  "reach this page anymore? Hold the <b>BOOT</b> button on the ESP32 module for "
                  "3&nbsp;seconds <em>while it's already running</em> (not during power-on, which "
                  "instead puts the chip in USB flashing mode) -- does the exact same thing, no web "
                  "UI needed."),
+        setup_ap_esc,
         i18n_str("reset.factory.confirm",
                  "Reset ALL settings to factory defaults and reboot? This clears WiFi, board "
                  "name, dial codes, VoIP, and every other saved setting. Uploaded audio and "
@@ -4766,9 +4770,13 @@ static esp_err_t wifi_reprovision_handler(httpd_req_t *req)
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "wifi_clear_credentials failed: %s", esp_err_to_name(err));
     }
-    return send_reboot_page(req, "WiFi cleared \xe2\x80\x94 rebooting\xe2\x80\xa6",
+    char ap[33], ap_esc[100], body[260];
+    wifi_setup_ap_name(ap, sizeof(ap));
+    html_escape(ap, ap_esc, sizeof(ap_esc));
+    snprintf(body, sizeof(body),
         "<p class=\"hint\">Every other setting is untouched. In a few seconds, look for "
-        "the <code>AnalogRedial-XXXX</code> setup network to reconnect it.</p>");
+        "the <code>%s</code> setup network to reconnect it.</p>", ap_esc);
+    return send_reboot_page(req, "WiFi cleared \xe2\x80\x94 rebooting\xe2\x80\xa6", body);
 }
 
 /* POST /factory_reset -- erases the ENTIRE NVS partition (WiFi, board
@@ -4785,10 +4793,15 @@ static esp_err_t factory_reset_handler(httpd_req_t *req)
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "nvs_flash_erase failed: %s", esp_err_to_name(err));
     }
-    return send_reboot_page(req, "Factory reset \xe2\x80\x94 rebooting\xe2\x80\xa6",
+    /* NVS is erased, so this is now the brand-new-board name with the real
+     * XXXX -- exactly what will come up after the reboot. */
+    char ap[33], body[400];
+    wifi_setup_ap_name(ap, sizeof(ap));
+    snprintf(body, sizeof(body),
         "<p class=\"hint\">All settings are erased -- WiFi, board name, dial codes, VoIP, "
         "everything. Uploaded audio and recordings are untouched. In a few seconds, look "
-        "for the <code>AnalogRedial-XXXX</code> setup network.</p>");
+        "for the <code>%s</code> setup network.</p>", ap);
+    return send_reboot_page(req, "Factory reset \xe2\x80\x94 rebooting\xe2\x80\xa6", body);
 }
 
 /* POST /board_name -- form body name=.... Persists the name (board_name_set)

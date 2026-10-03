@@ -136,6 +136,15 @@ def main() -> int:
         print(f"Board: {board} (from --board)")
     else:
         info = read_board_info(port)
+        if not info:
+            # A board idle for 5+ min may be in low-power idle (light sleep),
+            # where the native-USB console doesn't answer. Reset it -- it's
+            # about to be reflashed anyway -- and ask again after boot.
+            print("  console didn't answer (asleep in low-power idle?) -- resetting it")
+            subprocess.run([sys.executable, "-m", "esptool", "--chip", "esp32c6", "-p", port,
+                            "--after", "hard_reset", "chip_id"], capture_output=True)
+            time.sleep(2)
+            info = read_board_info(port, boot_wait=20)
         board, why = detect_board(info)
         if board:
             print(f"Board: {board} -- {why}")

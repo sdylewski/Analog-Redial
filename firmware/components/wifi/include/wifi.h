@@ -57,6 +57,12 @@ int       wifi_known_list(wifi_known_net_t *out, int max);   /* returns count */
 esp_err_t wifi_known_add(const char *ssid, const char *pass); /* adds or updates */
 esp_err_t wifi_known_remove(const char *ssid);
 
+/* Name of the open setup network: "Analog Redial - <board name>" once the
+ * board has a name (cut to Wi-Fi's 32-byte SSID limit), otherwise
+ * "AnalogRedial-XXXX" from the MAC, for a brand-new board. Pass at least
+ * 33 bytes. */
+void wifi_setup_ap_name(char *out, size_t len);
+
 bool wifi_is_provisioning(void);
 
 /* Ask the next boot to come up in the setup SoftAP even though credentials

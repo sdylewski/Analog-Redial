@@ -388,11 +388,11 @@ static void ap_up(const char *why)
     s_provisioning = true;
     if (!s_ap_netif) s_ap_netif = esp_netif_create_default_wifi_ap();
 
-    uint8_t mac[6] = {0};
-    esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
+    char ssid[33];
+    wifi_setup_ap_name(ssid, sizeof(ssid));
     wifi_config_t ap = { 0 };
-    int n = snprintf((char *)ap.ap.ssid, sizeof(ap.ap.ssid),
-                     "AnalogRedial-%02X%02X", mac[4], mac[5]);
+    size_t n = strlen(ssid);
+    memcpy(ap.ap.ssid, ssid, n);           /* SSIDs aren't NUL-terminated */
     ap.ap.ssid_len = (uint8_t)n;
     ap.ap.channel = 1;
     ap.ap.max_connection = 4;
@@ -408,7 +408,7 @@ static void ap_up(const char *why)
         xTaskCreate(captive_dns_task, "captdns", 3072, NULL, 4, NULL);
     }
     ESP_LOGW(TAG, "%s -- started setup AP '%s' (open). Join it, then a setup page opens "
-                  "(or browse to http://192.168.4.1)", why, (char *)ap.ap.ssid);
+                  "(or browse to http://192.168.4.1)", why, ssid);
 }
 
 /* Back to station-only once a saved network has connected. The BOOT-button
@@ -426,6 +426,29 @@ static int ap_client_count(void)
     if (!s_provisioning) return 0;
     wifi_sta_list_t list;
     return esp_wifi_ap_get_sta_list(&list) == ESP_OK ? list.num : 0;
+}
+
+void wifi_setup_ap_name(char *out, size_t len)
+{
+    if (len == 0) return;
+    if (board_name_is_set()) {
+        char name[32];
+        board_name_get(name, sizeof(name));
+        snprintf(out, len, "Analog Redial - %s", name);
+        if (len > 32) out[32] = '\0';     /* 32-byte SSID limit */
+        /* If that cut through a UTF-8 character, drop the partial one. */
+        size_t n = strlen(out), i = n;
+        while (i > 0 && ((uint8_t)out[i - 1] & 0xC0) == 0x80) i--;   /* continuation bytes */
+        if (i > 0) {
+            uint8_t lead = (uint8_t)out[i - 1];
+            size_t want = lead < 0x80 ? 1 : lead >= 0xF0 ? 4 : lead >= 0xE0 ? 3 : 2;
+            if (n - (i - 1) < want) out[i - 1] = '\0';
+        }
+        return;
+    }
+    uint8_t mac[6] = {0};
+    esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
+    snprintf(out, len, "AnalogRedial-%02X%02X", mac[4], mac[5]);
 }
 
 bool wifi_is_provisioning(void) { return s_provisioning; }

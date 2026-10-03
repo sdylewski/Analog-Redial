@@ -247,7 +247,8 @@ def step_console(run: Run, con) -> dict:
     run.header("console", "serial console")
     if con is None:
         run.record("console", "FAIL", "no prompt from the board -- flashed? right port? "
-                   "close any idf.py monitor first")
+                   "close any idf.py monitor first. Idle 5+ min? It may be asleep in "
+                   "low-power idle: press the board's RESET button and retry")
         return {}
     lines = con.send("board_info")
     info = {}

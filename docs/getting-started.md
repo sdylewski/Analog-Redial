@@ -269,7 +269,9 @@ The LED changes at the 3-second mark, so you know when to let go.
 **The 3-second gesture is the one you want on site.** If the board can't
 join the network it's in front of — a demo at someone else's office, a
 mistyped password, a router that's changed — hold BOOT for three seconds and
-release. It comes back advertising its own open network (`AnalogRedial-XXXX`);
+release. It comes back advertising its own open network, named after the
+board (`Analog Redial - telephono` for a board called *telephono*, or
+`AnalogRedial-XXXX` if it hasn't been named yet);
 join that from a phone or laptop and browse to **192.168.4.1** for the normal
 dashboard, settings, dial codes, Bluetooth pairing, everything. A banner
 reminds you you're in rescue mode. It's one-shot — the next ordinary reboot
