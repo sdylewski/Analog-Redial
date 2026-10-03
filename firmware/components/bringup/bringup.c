@@ -2162,6 +2162,7 @@ static int cmd_bm64_cmd(int argc, char **argv)
  * safe on a real 2-line or microSD-equipped board -- refuses unless this
  * board's runtime config says single-line, no SD, matching the same guard
  * ag1170.c/sdcard.c use before touching these same shared pads. */
+#ifdef BOARD_BT_MFB_PIN   /* SMD4/SMD5 pin maps only -- SMD2/THT have none */
 static int cmd_bm64_pin(int argc, char **argv)
 {
     if (argc < 3) {
@@ -2216,6 +2217,7 @@ static int cmd_bm64_pin(int argc, char **argv)
     printf("bm64_pin: %s (GPIO%d) set %s\n", argv[1], pin, level ? "HIGH" : "LOW");
     return 0;
 }
+#endif
 
 static int cmd_bt_enable(int argc, char **argv)
 {
@@ -2384,7 +2386,9 @@ void bringup_console_start(void)
     register_cmd("bm64_pair", "Start BT pairing (discoverable mode): bm64_pair -- bt_companion must be enabled and link up", cmd_bm64_pair);
     register_cmd("bm64_mmi", "Send a raw MMI action code: bm64_mmi <hex, e.g. 51> -- bt_companion must be ENABLED (opposite of bm64_test/addr/snoop)", cmd_bm64_mmi);
     register_cmd("bm64_cmd", "Send a real command-set command with hex param bytes (e.g. 23 00 01 03 0F 0F 00 for Set_Overall_Gain): bm64_cmd <hex opcode> [params...] -- bt_companion must be ENABLED, log_level debug to see the reply", cmd_bm64_cmd);
+#ifdef BOARD_BT_MFB_PIN
     register_cmd("bm64_pin", "Bit-bang BM64's MFB/RST_N/P2_0 over GPIO18-20 (bench-wired only): bm64_pin <mfb|rst|p20> <0|1> -- single-line, no-microSD boards only", cmd_bm64_pin);
+#endif
 
     /* esp_console_new_repl_*() above probes the terminal with a "device
      * status request" escape sequence (ESC[5n) and waits up to 500ms for the
