@@ -64,7 +64,7 @@ esp_err_t   board_type_confirm(void);
 
 typedef enum {
     BOARD_LED_BOOTING,         /* fast blink -- subsystems still coming up */
-    BOARD_LED_OK,               /* solid off -- everything initialized cleanly */
+    BOARD_LED_OK,               /* solid green for LED_OK_HOLD_MS (30s), then off -- everything initialized cleanly */
     BOARD_LED_ERROR,            /* slow blink -- a subsystem failed to init but
                                   * the device kept running (see app_main.c) */
     BOARD_LED_WIFI_CONNECTING,  /* slow PWM breathe -- WiFi connect in progress */
@@ -126,7 +126,7 @@ void board_serial_str(char *out, size_t len);
  * Combines chip model/revision, the detected codec, and the built-for PCB. */
 void board_hardware_str(char *out, size_t len);
 
-/* Persisted, user-facing board name (NVS). Defaults to CONFIG_MDNS_HOSTNAME
+/* Persisted, user-facing board name (NVS). Defaults to a per-chip word (board.c's DEFAULT_NAME_WORDS)
  * on first boot / if unset. board_name_set() rejects empty names. */
 void      board_name_get(char *out, size_t len);
 esp_err_t board_name_set(const char *name);

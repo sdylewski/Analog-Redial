@@ -194,13 +194,31 @@ def main() -> int:
               "unplug and re-plug USB.")
         return 1
 
-    print("Waiting for the board to boot...")
+    # A board whose "storage" partition isn't already a valid SPIFFS
+    # filesystem (a genuinely new board's first-ever flash, or one that
+    # last ran a different flash layout) reformats it on this boot before
+    # the console comes up -- storage.c's format_if_mount_failed=true.
+    # That's a real sector-erase pass over a multi-MB partition, not just a
+    # slow boot, and can run well past what a reflash of an already-
+    # initialized board needs. Poll instead of one fixed wait, so a fast
+    # boot returns immediately and a formatting one still gets caught.
+    print("Waiting for the board to boot (a first-ever flash reformats "
+          "storage first, which can take up to a minute)...")
     time.sleep(6)
-    info = read_board_info(port, boot_wait=20)
+    info = {}
+    deadline = time.time() + 90
+    while time.time() < deadline:
+        info = read_board_info(port, boot_wait=10)
+        if info.get("pcb"):
+            break
+        print("  still waiting...")
     pcb = info.get("pcb", "")
     if pcb != BOARDS[board][1]:
         print(f"WARN: board_info after flashing says pcb='{pcb or '?'}', "
               f"expected {BOARDS[board][1]}")
+        if not info:
+            print("  (no response at all -- check the board booted; "
+                  "`idf.py -B " + bdir + " -p " + port + " monitor` shows why)")
     else:
         print(f"OK: running {pcb} firmware")
     recorded = info.get("pcb_recorded", "-")

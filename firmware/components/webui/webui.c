@@ -834,6 +834,8 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
         "<noscript><label>%s <input name=\"ssid\" required></label></noscript>"
         "<label>%s <input type=\"password\" name=\"password\" "
         "placeholder=\"%s\"></label>"
+        "<label>%s <input name=\"name\" maxlength=\"31\" autocomplete=\"off\" "
+        "placeholder=\"%s\"></label>"
         "<label>%s<select name=\"lang\">%s</select></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">"
         "%s</button></div>"
@@ -865,6 +867,14 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
     const char *lang_label = i18n_str("wifisetup.language", "Language");
     const char *password_placeholder = i18n_str("general.wifi.password_placeholder",
         "leave blank for an open network");
+    /* Optional: skip it and the board picks one of ten short words (see
+     * board.c's DEFAULT_NAME_WORDS) from its own MAC, so there's always
+     * something short and memorable to type into a browser either way --
+     * this field is for someone who'd rather choose their own up front
+     * than rename it later from Settings. */
+    const char *name_label = i18n_str("wifisetup.name_label", "Board name (optional)");
+    const char *name_placeholder = i18n_str("wifisetup.name_placeholder",
+        "leave blank for a random word, e.g. \"coral\"");
     const char *save_connect = i18n_str("wifisetup.save_connect", "Save & connect");
 
     /* Measure the finished page, then allocate exactly that. The size used
@@ -875,8 +885,8 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
      * requested. Measuring can't drift out of date that way. */
 #define SETUP_PAGE_ARGS setup_title, setup_title, connect_h1, intro, \
         network_name_label, scanning, network_name_label, enter_network, rescan, \
-        ssid_label, password_label, password_placeholder, lang_label, lang_opts, save_connect, \
-        WIFI_SCAN_JS
+        ssid_label, password_label, password_placeholder, name_label, name_placeholder, \
+        lang_label, lang_opts, save_connect, WIFI_SCAN_JS
     int len = snprintf(NULL, 0, tmpl, SETUP_PAGE_ARGS);
     char *buf = (len > 0) ? malloc((size_t)len + 1) : NULL;
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
@@ -919,7 +929,7 @@ static bool first_boot_banner_needed(void)
 
 /* First-boot setup banner, shown on the Status page only while there's
  * still something a human hasn't reviewed: the board name (board_name_get()
- * returns the generic CONFIG_MDNS_HOSTNAME default until board_name_set()
+ * returns a per-chip default word, board.c's DEFAULT_NAME_WORDS, until board_name_set()
  * is called at least once) and/or, on SMD boards, the line2/microSD
  * hardware config (board_hw_config_is_set() -- see board.h). Hardware
  * already WORKS out of the box via board_hw_config_autodetect()'s guess
@@ -4703,7 +4713,8 @@ static esp_err_t wifi_scan_json_handler(httpd_req_t *req)
 /* POST /wifi_set -- form body ssid=...&password=.... Blank password means
  * an open network (matches do_connect()'s own authmode choice in wifi.c),
  * not "keep the old one". */
-#define WIFI_FORM_MAX_BODY 256
+#define WIFI_FORM_MAX_BODY 384  /* was 256; +name field (31 bytes raw, more once
+                                        * URL-encoded) needs a little headroom */
 
 static esp_err_t wifi_set_handler(httpd_req_t *req)
 {
@@ -4727,6 +4738,23 @@ static esp_err_t wifi_set_handler(httpd_req_t *req)
         char lang[8] = {0};
         form_field(body, "lang", lang, sizeof(lang));
         if (lang[0]) board_language_set(lang);
+    }
+
+    /* Optional board name from the setup page -- see wifi_setup_page()'s
+     * comment on this field. Applied before the confirmation page below
+     * reads the current name, so it reflects whatever was actually chosen
+     * (typed name, or the per-chip default word if left blank) rather than
+     * needing a second reboot to catch up. Absent on the normal Settings
+     * WiFi form, which has its own Board name field already -- so, like
+     * lang above, only act on it when it was actually sent. */
+    {
+        char name[32] = {0};
+        form_field(body, "name", name, sizeof(name));
+        if (name[0]) {
+            esp_err_t nerr = board_name_set(name);
+            if (nerr != ESP_OK) ESP_LOGW(TAG, "wifi setup: board_name_set failed: %s",
+                                         esp_err_to_name(nerr));
+        }
     }
 
     if (!ssid[0]) {
@@ -4756,31 +4784,56 @@ static esp_err_t wifi_set_handler(httpd_req_t *req)
          * not just a MAC address in that list). */
         char host[64];
         board_hostname(host, sizeof(host));
-        char page[1500];
-        snprintf(page, sizeof(page),
+
+        /* If this is still one of the auto-assigned default words (true for
+         * almost every first-time setup -- see board.c's DEFAULT_NAME_WORDS),
+         * color the big address to match. Pure decoration -- a renamed
+         * board just gets the neutral border below instead. Kept as a
+         * lookup by the word itself, not shared state with board.c, so
+         * this can't get out of sync with anything that matters. */
+        static const struct { const char *word, *hex; } COLORS[] = {
+            { "red",   "#e5484d" }, { "blue",  "#0ea5e9" }, { "green", "#22c55e" },
+            { "gold",  "#eab308" }, { "teal",  "#14b8a6" }, { "coral", "#ff6f61" },
+            { "plum",  "#8e4585" }, { "amber", "#f59e0b" }, { "slate", "#64748b" },
+            { "rose",  "#fb7185" },
+        };
+        const char *accent = "var(--border)";
+        for (size_t i = 0; i < sizeof(COLORS) / sizeof(COLORS[0]); i++) {
+            if (strcmp(host, COLORS[i].word) == 0) { accent = COLORS[i].hex; break; }
+        }
+
+        static const char *const tmpl =
             "<!doctype html><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
             "<link rel=\"icon\" href=\"/favicon.ico\" sizes=\"any\">"
             "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">"
             "<link rel=\"stylesheet\" href=\"/static/style.css\">"
-            "<main class=\"auth-page\"><div class=\"auth-card\">"
+            "<main class=\"auth-page\"><div class=\"auth-card\" "
+            "style=\"max-width:480px;border-left:6px solid %s\">"
             "<h1>Saved \xe2\x80\x94 connecting\xe2\x80\xa6</h1>"
-            "<p class=\"hint\">The phone is rebooting to join your network. This setup "
-            "network will disappear -- reconnect your phone/laptop to your normal WiFi, "
-            "then browse to:</p>"
-            "<p class=\"hint\"><code>http://%s.local</code></p>"
-            "<p class=\"hint\">.local addresses don't work reliably on every network -- if "
-            "that doesn't load within a minute or two, don't wait it out: open your WiFi "
-            "router's admin page and look at its list of connected devices instead. This "
-            "board will show up there as <code>%s</code> (or <code>%s1</code>, <code>%s2</code> "
-            "etc. if another board already answered to that name) -- open its IP address "
-            "directly. This works every time, .local or not, so it's worth trying first if "
-            "you have more than one of these boards. Rename this board once you're in, under "
-            "Settings \xe2\x86\x92 General, so both its .local address and its router listing "
-            "stay easy to tell apart from any others.</p></div></main>",
-            host, host, host, host);
+            "<p>The phone is rebooting to join your network. Reconnect your phone/laptop "
+            "to your normal WiFi (this setup network will disappear), then go to:</p>"
+            "<p style=\"font-size:40px;font-weight:700;text-align:center;margin:24px 0;"
+            "color:%s;word-break:break-all\">%s.local</p>"
+            "<p class=\"hint\">Takes a few seconds. Didn't load within a minute? "
+            ".local addresses don't work reliably on every network -- open your WiFi "
+            "router's admin page and look for <code>%s</code> in its device list instead "
+            "(or <code>%s1</code>, <code>%s2</code> etc. if another board already answered "
+            "to that name) and open its IP address directly. This works every time, .local "
+            "or not -- worth trying first if you have more than one of these boards. Rename "
+            "this board once you're in, under Settings \xe2\x86\x92 General, so it stays "
+            "easy to tell apart from any others.</p></div></main>";
+        /* Measured, not guessed -- a hand-picked buffer size for a page like
+         * this silently truncated the WiFi setup page once already (the
+         * missing bytes were the <script> at the end -- see that page's own
+         * comment). host can be up to 63 bytes and appears 4 times. */
+        int plen = snprintf(NULL, 0, tmpl, accent, accent, host, host, host, host);
+        char *page = (plen > 0) ? malloc((size_t)plen + 1) : NULL;
+        if (!page) { httpd_resp_send_500(req); return ESP_FAIL; }
+        snprintf(page, (size_t)plen + 1, tmpl, accent, accent, host, host, host, host);
         httpd_resp_set_type(req, "text/html");
         httpd_resp_sendstr(req, page);
+        free(page);
         xTaskCreate(reboot_task, "reboot", 2048, NULL, tskIDLE_PRIORITY + 1, NULL);
         return ESP_OK;
     }

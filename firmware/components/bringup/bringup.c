@@ -1700,10 +1700,11 @@ static int cmd_wifi_set(int argc, char **argv)
     }
     printf("\n");
     if (wifi_is_connected()) {
-        char ip[16];
+        char ip[16], host[64];
         wifi_get_ip_str(ip, sizeof(ip));
+        board_hostname(host, sizeof(host));
         printf("connected! IP=%s -- try http://%s/ or http://%s.local/ from a browser "
-               "on the same network.\n", ip, ip, CONFIG_MDNS_HOSTNAME);
+               "on the same network.\n", ip, ip, host);
         return 0;
     }
     printf("not connected after 40s. Credentials are saved, so it'll keep retrying in the "

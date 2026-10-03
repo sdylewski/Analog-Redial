@@ -249,6 +249,9 @@ UI's Bluetooth tab marks the feature "experimental, not mainstream yet" for
 exactly that reason. Fitting this on SMD4 instead means serious hand-wiring,
 not a drop-in option.
 
+The status LED shows pairing/connection state once this is fitted and
+working — see [`getting-started.md`'s LED reference](getting-started.md#7-status-led-reference).
+
 | J2 pin | Net | Carrier side | Notes |
 |--------|-----|--------------|-------|
 | 1 | `+3V3_BM` | BM64 `BAT_IN` | From **U5**, a dedicated XC6206 LDO off +5 V — not the DevKit's 3.3 V rail |

@@ -185,20 +185,70 @@ Wi-Fi network** for setup:
    last MAC digits, shown in the log).
 2. A **setup page** should pop up automatically (captive portal). If not,
    browse to **`http://192.168.4.1`**.
-3. Enter your home Wi-Fi name + password and submit. The device saves them and
-   reboots onto your network.
+3. Enter your home Wi-Fi name + password and submit. The page shows a large
+   address to go to once it reboots — see below for what that address is
+   and why it's not always the same one.
 
 Alternatively, from the serial console: `wifi_set "<ssid>" "<password>"`.
 
-Once connected, the log prints the device's IP and its mDNS name (default
-**`phone.local`**). Open **`http://phone.local/`** (or the IP) in a browser.
+### Its default name — a word, not "phone"
+
+Every unnamed board defaults to one of ten short words
+(`red`/`blue`/`green`/`gold`/`teal`/`coral`/`plum`/`amber`/`slate`/`rose`),
+picked once from the chip's own MAC address rather than typed by anyone —
+so it's stable across reboots without needing a name set first, and it's
+something a person can actually remember and spell back, unlike a generic
+name or a MAC-address fragment. Reachable as **`<word>.local`** — e.g.
+`coral.local`.
+
+**Two boards can pick the same word.** Before claiming `coral.local`, the
+board checks whether anything on the network already answers to it; if so,
+it falls back to `coral1.local`, `coral2.local`, and so on. This is the same
+mechanism that protects a renamed board's address too — the check happens
+every time a board is about to claim any name, not just a default one.
+
+**`.local` addresses aren't reliable on every network.** If it doesn't load
+within a minute, open your Wi-Fi router's admin page and look at its list of
+connected devices instead — the board shows up there under the same word,
+and opening its IP address directly works every time, `.local` or not.
 
 > **Multiple phones on one network?** Give each a unique **Board name** under
-> Settings → General; it becomes the `<name>.local` address and labels the UI.
+> Settings → General — it becomes the new `<name>.local` address and labels
+> the UI, replacing the default word.
 
 ---
 
-## 7. The web UI
+## 7. Status LED reference
+
+One onboard RGB LED (the ESP32-C6-DevKitC-1 module's own, GPIO8) reports
+what the board is doing, so you don't need a monitor session open just to
+tell "still booting" from "stuck." Deliberately dim — it's a status light,
+not a room light.
+
+| Color + pattern | Meaning |
+|---|---|
+| **Red, fast blink** (~100 ms) | Booting — subsystems still coming up |
+| **Red, slow blink** (~500 ms) | A subsystem failed to init, but the board kept running anyway |
+| **Green, slow blink** (~500 ms) | Trying to join Wi-Fi, **or** sitting in setup mode with no network to join — these look identical. If it's been blinking green for more than a few seconds right after boot, it's probably setup mode: see [§6](#6-first-boot-wi-fi-setup-no-credentials-yet) |
+| **Green, solid** (30 s, then off) | Just connected to Wi-Fi successfully |
+| **Off** | Idle and working normally — Wi-Fi connected, nothing else going on |
+| **Yellow (red+green), fast blink** (~300 ms) | Writing a new firmware image (web UI firmware upload) — don't power off |
+| **Blue, slow blink** (~500 ms) | Bluetooth companion is discoverable, waiting to pair (SMD5 only) |
+| **Blue, solid** (5 s, then reverts) | Bluetooth just paired/connected |
+
+**SMD2 has a single-color LED** (plain red, not RGB) on a different GPIO —
+same blink timing for booting/error/Wi-Fi, but it has no separate pattern
+for firmware updates or Bluetooth, so those briefly look identical to
+"booting" there.
+
+**The chip's own ROM bootloader runs before any of this firmware exists to
+light anything.** If the board is stuck in USB download mode (e.g. after a
+failed flash), the LED won't tell you — a boot log over `idf.py monitor` or
+`esptool ... flash_id` is the way to check that state, not the LED.
+
+---
+
+## 8. The web UI
 
 - **Status** — live line state, Wi-Fi, uptime, heap, storage, a recent-
   activity panel (calls, recordings, dial errors), and the dial guide: the
@@ -220,7 +270,7 @@ Once connected, the log prints the device's IP and its mDNS name (default
 
 ---
 
-## 8. Optional setup
+## 9. Optional setup
 
 **Audio clips & prompts.** Two ways to get WAVs onto the phone:
 
@@ -279,7 +329,7 @@ write/read/verify.
 
 ---
 
-## 9. The BOOT button: rescue and factory reset
+## 10. The BOOT button: rescue and factory reset
 
 Two gestures, both with the board **powered on and running** — hold the
 **BOOT button** on the DevKit (GPIO9):

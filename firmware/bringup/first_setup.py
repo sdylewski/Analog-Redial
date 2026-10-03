@@ -54,6 +54,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -284,7 +285,13 @@ def step_network(run: Run, host: str | None) -> dict:
     if not host:
         run.record("network", "SKIP", "no --host given")
         return {}
+    # A board formatting its storage partition for the first time (a new
+    # board's first-ever flash) can take up to a minute to get that far --
+    # see flash_board.py's matching comment. Retry rather than fail once.
+    deadline = time.time() + 75
     code, body = curl(host, "/api/status", timeout=10)
+    while not ok_status(code) and time.time() < deadline:
+        code, body = curl(host, "/api/status", timeout=10)
     if not ok_status(code):
         run.record("network", "FAIL", f"no answer from {host} -- is it on Wi-Fi? Try its IP "
                    "instead of .local, or hold BOOT ~3 s for the rescue Wi-Fi")
