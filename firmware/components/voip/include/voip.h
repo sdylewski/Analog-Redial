@@ -113,7 +113,8 @@ const char *voip_pass(int line);
  * (see that script's --help and webui.c's append_prompt_field()). Formerly
  * doubled as the auto-provisioning companion service's shared password too
  * (see git history) -- that flow is gone, but the secret itself is still a
- * real, independent feature, so it stays. "" means not configured. Unlike
+ * real, independent feature, so it stays. voip_init() generates a random
+ * 10-character default on first boot, so it is never empty after that. Unlike
  * voip_set_config(), takes effect immediately -- nothing caches this at
  * boot, so no reboot is needed after saving. */
 const char *voip_setup_password(void);

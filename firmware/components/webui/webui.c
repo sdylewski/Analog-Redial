@@ -134,6 +134,7 @@ static void html_escape(const char *in, char *out, size_t outsz);
 static void js_escape(const char *in, char *out, size_t outsz);
 /* Defined right after html_escape -- forward-declared for the same reason. */
 static int append_hint(char *buf, size_t cap, int off, const char *lead, const char *detail);
+static int append_setup_password_card(char *buf, size_t cap, int off);
 /* Defined with the Dial Codes & Prompts tab; also used by the answering
  * machine card's default-greeting text. */
 static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_name,
@@ -1380,6 +1381,8 @@ static int append_general_tab(char *buf, size_t cap, int off)
         i18n_str("general.boardname.button", "Save name"),
         boardname_hint);
 
+    off = append_setup_password_card(buf, cap, off);
+
     char ssid[33];
     strncpy(ssid, wifi_get_ssid(), sizeof(ssid) - 1);
     ssid[sizeof(ssid) - 1] = '\0';
@@ -1961,7 +1964,8 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
         "<label>Spoken prompt text"
         "<textarea name=\"text\" maxlength=\"%d\" rows=\"8\" placeholder="
         "\"Leave blank for no spoken prompt\">%s</textarea>"
-        "<span class=\"fieldhint\">%s</span>"
+        "<span class=\"fieldhint\">%s Type <code>{{boardname}}</code> to say this "
+        "board's name.</span>"
         "</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\">Save text</button></div>"
         "</form>",
@@ -1970,7 +1974,7 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
     /* A ready-to-paste --sync command for just this one clip (--only), with
      * the real secret filled in -- at the user's request, plaintext rather
      * than the usual masked-bullets treatment (compare the Setup password
-     * card's own password field above). That's a deliberate exception, not
+     * card on the General tab). That's a deliberate exception, not
      * an oversight: this secret already has no confidentiality left to
      * protect once you can load this settings page at all, since that same
      * card lets that same visitor read/replace it (masked only against
@@ -1995,37 +1999,38 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
             "<p class=\"hint\">Generate + upload with "
             "<code>firmware/bringup/gen_prompt.py --sync HOST --secret ...</code> "
             "(local text-to-speech, no server dependency) -- set a setup password "
-            "above first to get an exact, ready-to-paste command here.</p>");
+            "under Settings &rarr; General to get an exact, ready-to-paste command here.</p>");
     }
     return off;
 }
 
-/* Moved here (from the VOIP tab) since this secret has nothing to do with
- * placing calls -- it only gates the prompt-generation tooling every card on
- * this tab uses (append_prompt_field()'s ready-to-paste gen_prompt.py
- * command, and GET /api/prompt_requests for off-LAN callers). Living next to
- * the fields it actually affects beats living next to SIP settings it has
- * nothing to do with. */
+/* General tab. Gates the prompt-generation tooling (append_prompt_field()'s
+ * ready-to-paste gen_prompt.py command, GET /api/prompt_requests off-LAN).
+ * Shown pre-filled: the same value is printed in plain text in every
+ * prompt field's command anyway. */
 static int append_setup_password_card(char *buf, size_t cap, int off)
 {
-    bool setup_pw_set = voip_setup_password()[0] != '\0';
+    char epw[80 * 6];
+    html_escape(voip_setup_password(), epw, sizeof(epw));
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card wide\"><h2>Setup password</h2>"
-        "<p class=\"hint\">Not needed to make or receive calls. This is a shared secret that "
-        "lets a host-side script fetch this board's tracked prompt text and push back the "
-        "generated audio -- set it once here, then run "
-        "<code>firmware/bringup/gen_prompt.py --sync HOST --secret ...</code> from the repo "
-        "root (each prompt-text field below shows a ready-to-paste copy of that command once "
-        "this is set). It also doubles as the credential for "
-        "<code>GET /api/prompt_requests?secret=...</code>, the endpoint that script calls -- "
-        "only enforced for callers off this board's own LAN (e.g. over a VPN); same-subnet "
-        "callers aren't gated, since anyone on the LAN can already read this page.</p>"
+        "<div class=\"card\"><h2>Setup password</h2>");
+    off = append_hint(buf, cap, off,
+        "Used by the generate-audio commands on the Dial Codes and Phone tabs. Each board "
+        "gets its own random one; change it only if you want to.",
+        "Not needed to make or receive calls. It lets "
+        "<code>firmware/bringup/gen_prompt.py --sync HOST --secret ...</code> fetch this "
+        "board's prompt text and push back the generated audio -- every prompt-text field "
+        "shows a ready-to-paste copy of that command with this password filled in. It is "
+        "also the credential for <code>GET /api/prompt_requests?secret=...</code>, enforced "
+        "only for callers off this board's own LAN (e.g. over a VPN); anyone on the LAN can "
+        "already read this page.");
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<form method=\"POST\" action=\"/voip_setup_password\" class=\"settings-form\">"
-        "<label>Setup password"
+        "<label>Password"
         "<div class=\"pw-field\">"
-        "<input type=\"password\" id=\"setup_pw_input\" name=\"password\" placeholder=\"%s\" "
-        "oninput=\"this.nextElementSibling.disabled=!this.value\">"
-        "<button type=\"button\" class=\"pw-toggle\" disabled aria-label=\"Show password\" "
+        "<input type=\"password\" id=\"setup_pw_input\" name=\"password\" value=\"%s\" "
+        "autocomplete=\"off\">"
+        "<button type=\"button\" class=\"pw-toggle\" aria-label=\"Show password\" "
         "onclick=\"var i=document.getElementById('setup_pw_input');var show=i.type==='password';"
         "i.type=show?'text':'password';this.classList.toggle('is-visible',show);"
         "this.setAttribute('aria-label',show?'Hide password':'Show password');\">"
@@ -2039,20 +2044,15 @@ static int append_setup_password_card(char *buf, size_t cap, int off)
         "<line x1=\"1\" y1=\"1\" x2=\"23\" y2=\"23\"/></svg>"
         "</button>"
         "</div>"
-        "<span class=\"fieldhint\">%s</span>"
         "</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\">Save</button></div>"
         "</form></div>",
-        setup_pw_set ? "\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2" : "not set",
-        setup_pw_set ? "Already set on this board -- leave blank to keep it, or type a new one to replace it."
-                     : "Not set yet.");
+        epw);
     return off;
 }
 
 static int append_dialcodes_tab(char *buf, size_t cap, int off)
 {
-    off = append_setup_password_card(buf, cap, off);
-
     dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
     size_t nclips = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
 
@@ -4596,7 +4596,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         ? 6000 + (board_type_mismatch() ? 900 : 0) /* +memory map card, several partition rows,
                                                       * +the mismatch-confirm card if showing */
         : 0;
-    size_t general_room = (strcmp(tab, "general") == 0) ? 3200 + 1400 : 0; /* +saved-network list */ /* +quiet hours card's timezone dropdown */
+    size_t general_room = (strcmp(tab, "general") == 0) ? 3200 + 1400 + 2600 : 0; /* +setup password card */ /* +saved-network list */ /* +quiet hours card's timezone dropdown */
     size_t phone_room = (strcmp(tab, "phone") == 0) ? 12500 : 0; /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card, AM greeting text-to-speech field (~2.2 KB) */
     size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 : 0;
     size_t bt_room = (strcmp(tab, "bluetooth") == 0) ? 3300 : 0; /* +experimental notice */ /* "What Bluetooth can do" card */ /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
@@ -4616,49 +4616,60 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     size_t dialcodes_room = (strcmp(tab, "dialcodes") == 0) ? DIALPLAN_MAX_CLIP_ENTRIES * 950 + 6000 : 0;
     size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room + voip_room + dialcodes_room + phone_room + bt_room + diag_room
         + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
-    char *buf = malloc(cap);
-    if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
+    /* The per-tab room estimates above are guesses; every append below
+     * keeps adding its would-be length even once the buffer is full, so on
+     * overflow `off` is the exact size needed -- re-render once at that size
+     * instead of sending a cut-off page. */
+    char *buf = NULL;
+    int off = 0;
+    for (int attempt = 0; attempt < 2; attempt++) {
+        buf = malloc(cap);
+        if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
-    int off = append_page_head(buf, cap, 0, i18n_str("nav.settings", "Settings"), "/settings", false);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "</header><main class=\"settings-main\">");
-    off = append_settings_tabs(buf, cap, off, tab);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<script>%s</script><div class=\"cards\">", FEATURE_TOGGLE_JS);
+        off = append_page_head(buf, cap, 0, i18n_str("nav.settings", "Settings"), "/settings", false);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "</header><main class=\"settings-main\">");
+        off = append_settings_tabs(buf, cap, off, tab);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<script>%s</script><div class=\"cards\">", FEATURE_TOGGLE_JS);
 
-    if (strcmp(tab, "general") == 0) off = append_general_tab(buf, cap, off);
-    else if (strcmp(tab, "phone") == 0) off = append_phone_settings_tab(buf, cap, off);
-    /* Dial Codes & Prompts: the editable clip table, plus Operator help and
-     * Record-message -- each just one card (prompt text + audio upload),
-     * structurally the same thing as a Dial Codes row -- stacked below it.
-     * Used to be three separate tabs. */
-    else if (strcmp(tab, "dialcodes") == 0) {
-        off = append_dialcodes_tab(buf, cap, off);
-        off = append_operator_tab(buf, cap, off, entries, n);
-        off = append_record_tab(buf, cap, off, entries, n);
-    }
-    else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off, checked, result, created, createresult);
-    else if (strcmp(tab, "bluetooth") == 0) off = append_bluetooth_tab(buf, cap, off);
-    else if (strcmp(tab, "diag") == 0) off = append_diag_tab(buf, cap, off);
-    /* Storage: the full SD+internal file manager, kept separate from
-     * Hardware -- see SETTINGS_TABS's comment for why (its per-file
-     * WAV-duration parsing is the slowest single thing in Settings, and
-     * bundling it with anything else means paying that cost on every visit
-     * to the other tab too). */
-    else if (strcmp(tab, "storage") == 0) off = append_storage_section(buf, cap, off);
-    /* Hardware: stats + the SMD line2/microSD config card -- everything
-     * else that landed here (Answering Machine, Speaker, Echo, idle-power)
-     * is cheap NVS-backed config, not file I/O. */
-    else {
-        off = append_hw_config_tab(buf, cap, off);
-        off = append_hardware_tab(buf, cap, off);
-        off = append_memory_map_card(buf, cap, off);
-    }
+        if (strcmp(tab, "general") == 0) off = append_general_tab(buf, cap, off);
+        else if (strcmp(tab, "phone") == 0) off = append_phone_settings_tab(buf, cap, off);
+        /* Dial Codes & Prompts: the editable clip table, plus Operator help and
+         * Record-message -- each just one card (prompt text + audio upload),
+         * structurally the same thing as a Dial Codes row -- stacked below it.
+         * Used to be three separate tabs. */
+        else if (strcmp(tab, "dialcodes") == 0) {
+            off = append_dialcodes_tab(buf, cap, off);
+            off = append_operator_tab(buf, cap, off, entries, n);
+            off = append_record_tab(buf, cap, off, entries, n);
+        }
+        else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off, checked, result, created, createresult);
+        else if (strcmp(tab, "bluetooth") == 0) off = append_bluetooth_tab(buf, cap, off);
+        else if (strcmp(tab, "diag") == 0) off = append_diag_tab(buf, cap, off);
+        /* Storage: the full SD+internal file manager, kept separate from
+         * Hardware -- see SETTINGS_TABS's comment for why (its per-file
+         * WAV-duration parsing is the slowest single thing in Settings, and
+         * bundling it with anything else means paying that cost on every visit
+         * to the other tab too). */
+        else if (strcmp(tab, "storage") == 0) off = append_storage_section(buf, cap, off);
+        /* Hardware: stats + the SMD line2/microSD config card -- everything
+         * else that landed here (Answering Machine, Speaker, Echo, idle-power)
+         * is cheap NVS-backed config, not file I/O. */
+        else {
+            off = append_hw_config_tab(buf, cap, off);
+            off = append_hardware_tab(buf, cap, off);
+            off = append_memory_map_card(buf, cap, off);
+        }
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>" /* .cards */);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>" /* .cards */);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</main></body></html>");
 
-    if (off > 0 && (size_t)off < cap) {
-        off += snprintf(buf + off, cap - off, "</main></body></html>");
+        if (off <= 0 || (size_t)off < cap || attempt == 1) break;
+        ESP_LOGW(TAG, "settings tab '%s' needed %d bytes, estimated %u -- re-rendering",
+                 tab, off, (unsigned)cap);
+        free(buf);
+        cap = (size_t)off + 256;
     }
 
     httpd_resp_set_type(req, "text/html");
@@ -5629,7 +5640,7 @@ static esp_err_t voip_setup_password_handler(httpd_req_t *req)
     if (password[0]) voip_set_setup_password(password);
 
     httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=voip");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -7599,10 +7610,36 @@ static bool peer_on_lan(httpd_req_t *req)
     return (peer_ip & ip_info.netmask.addr) == (ip_info.ip.addr & ip_info.netmask.addr);
 }
 
+/* Expands {{boardname}} (case-insensitive, spaces inside the braces
+ * allowed) in spoken-prompt text. Unknown {{...}} tokens are left as-is. */
+static void expand_prompt_vars(const char *in, char *out, size_t len)
+{
+    char name[32];
+    board_name_get(name, sizeof(name));
+    size_t o = 0;
+    while (*in && o + 1 < len) {
+        if (in[0] == '{' && in[1] == '{') {
+            const char *p = in + 2;
+            while (*p == ' ') p++;
+            if (strncasecmp(p, "boardname", 9) == 0) {
+                const char *q = p + 9;
+                while (*q == ' ') q++;
+                if (q[0] == '}' && q[1] == '}') {
+                    for (const char *n = name; *n && o + 1 < len; n++) out[o++] = *n;
+                    in = q + 2;
+                    continue;
+                }
+            }
+        }
+        out[o++] = *in++;
+    }
+    out[o] = '\0';
+}
+
 /* GET /api/prompt_requests?secret=... -- lets a host-side script (gen_prompt.py
  * --sync) fetch the list of tracked prompts without needing any other
  * credential on the board. Uses the shared setup password
- * (voip_setup_password(), Settings -> Dial Codes & Prompts) -- same "per board, shared with
+ * (voip_setup_password(), Settings -> General) -- same "per board, shared with
  * tools you trust" security model, at the user's request. Skipped entirely
  * for same-subnet callers (peer_on_lan()) -- everything else on this UI
  * already trusts the LAN unconditionally, so gating just this one endpoint
@@ -7616,7 +7653,7 @@ static esp_err_t prompt_requests_json_handler(httpd_req_t *req)
         const char *want = voip_setup_password();
         if (!want[0]) {
             httpd_resp_send_err(req, HTTPD_403_FORBIDDEN,
-                                 "set a setup password first (Settings -> Dial Codes & Prompts) "
+                                 "set a setup password first (Settings -> General) "
                                  "-- only needed for off-LAN access, e.g. over a VPN");
             return ESP_OK;
         }
@@ -7646,7 +7683,9 @@ static esp_err_t prompt_requests_json_handler(httpd_req_t *req)
     for (size_t i = 0; i < n; i++) {
         cJSON *e = cJSON_CreateObject();
         cJSON_AddStringToObject(e, "name", list[i].name);
-        cJSON_AddStringToObject(e, "text", list[i].text);
+        char expanded[PROMPT_TEXT_MAX + 64];
+        expand_prompt_vars(list[i].text, expanded, sizeof(expanded));
+        cJSON_AddStringToObject(e, "text", expanded);
         cJSON_AddBoolToObject(e, "pending", strcmp(list[i].text, list[i].generated_text) != 0);
         cJSON_AddItemToArray(arr, e);
     }

@@ -951,6 +951,16 @@ esp_err_t voip_init(voip_event_cb cb, void *ctx)
     s_ctx = ctx;
     for (int i = 0; i < NLINES; i++) reset_call(&s_l[i]);
     load_config();
+    if (!s_setup_pass[0]) {
+        /* Per-board default so every board's prompt-sync secret differs. No
+         * 0/O/1/l/I -- it gets read off a screen and retyped. */
+        static const char ALPHABET[] = "abcdefghjkmnpqrstuvwxyz23456789";
+        char pw[11];
+        for (int i = 0; i < 10; i++) pw[i] = ALPHABET[esp_random() % (sizeof(ALPHABET) - 1)];
+        pw[10] = '\0';
+        voip_set_setup_password(pw);
+        ESP_LOGI(TAG, "generated a default setup password");
+    }
     ESP_LOGI(TAG, "VoIP UA init (server '%s', users '%s'/'%s')",
              s_server, s_l[0].user, s_l[1].user);
     /* 8 KB: the send_*() helpers each put a 1600-byte SIP datagram on the

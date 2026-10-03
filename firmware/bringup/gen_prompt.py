@@ -43,9 +43,8 @@ Two ways to use this:
      generated (Settings -> Operator/Record/Dial Codes -> "Spoken prompt
      text" on each page, POST /prompt_text_set) via GET /api/prompt_requests,
      synthesize everything that's pending, and upload each result back.
-     --secret is the same setup password as the VOIP auto-provisioner
-     (Settings -> VOIP) -- one shared secret per board, not a new one to
-     manage. The board skips checking it entirely for callers on the same
+     --secret is the board's setup password (Settings -> General; each
+     board generates its own random one on first boot). The board skips checking it entirely for callers on the same
      LAN subnet it's on (its own security model, not something this script
      enforces) -- so --secret is only actually required when this runs
      somewhere else on the network than the board, e.g. over a VPN into a
@@ -389,8 +388,8 @@ def fetch_prompt_requests(host: str, secret: str | None) -> list[dict]:
         if e.code in (401, 403):
             raise SystemExit(
                 f"{host} rejected this request ({e.code}) -- if this script isn't running on "
-                "the same LAN subnet as the board, pass --secret (Settings -> VOIP's setup "
-                "password on the board)."
+                "the same LAN subnet as the board, pass --secret (the setup password "
+                "under Settings -> General on the board)."
             ) from e
         raise
 
@@ -455,8 +454,8 @@ def main() -> None:
                          "(GET /api/prompt_requests), generate + upload audio for each. --secret is "
                          "only needed if this isn't running on the board's own LAN subnet. Ignores "
                          "text/--from/--name/--upload/--max-seconds.")
-    p.add_argument("--secret", help="Setup password for --sync (Settings -> VOIP on the board -- "
-                                     "same shared secret as the auto-provisioner). Not needed when "
+    p.add_argument("--secret", help="Setup password for --sync (Settings -> General on the "
+                                     "board). Not needed when "
                                      "running --sync from the same LAN subnet as the board -- only "
                                      "for a board reachable over a different network (VPN, remote "
                                      "setup, etc).")

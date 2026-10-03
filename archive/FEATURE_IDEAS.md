@@ -95,3 +95,18 @@ callee.
   here mainly because call recording has real two-party-consent legal
   implications depending on jurisdiction, worth thinking through before
   building, not just a technical question.
+
+## More spoken-prompt variables
+
+Prompt text already expands `{{boardname}}` (case-insensitive) when
+`gen_prompt.py --sync` fetches it -- `expand_prompt_vars()` in `webui.c`.
+Candidates to add the same way: `{{time}}`, `{{day}}`, `{{date}}`,
+`{{messages}}` (answering-machine count).
+
+These differ from `{{boardname}}` in one way that matters: audio is generated
+once on a host and stored as a WAV, so anything that changes over time can't
+be baked in. Those would need on-device assembly at play time -- e.g.
+pre-generated number/day-of-week word clips concatenated by the player, the
+way the operator readback already speaks digits. Also worth adding: mark a
+prompt "pending" again when the board is renamed, since its audio still says
+the old name.
