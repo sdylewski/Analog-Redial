@@ -16,13 +16,15 @@ why, and what else still exists in this tree.
 | SLIC | AG1171 ×1–2 |
 | Pin map | `board_pins_smd4.h`, selected by `CONFIG_BOARD_TYPE_SMD4` |
 
-The firmware tree also still supports **`CONFIG_BOARD_TYPE_THT`** (the
-original through-hole reference board: ESP32-C6-DevKitM-1 + WM8731 + AG1170
-×2, `board_pins.h`) and **`CONFIG_BOARD_TYPE_SMD2`** (the first hand-soldered
-SMD spin, `board_pins_smd.h`) — both real, working Kconfig choices in this
-codebase, just not part of the public-facing story since the project
-standardized on SMD4. Don't remove them without asking; they're what the
-earliest bring-up/bench testing ran on.
+The firmware tree also still supports **`CONFIG_BOARD_TYPE_SMD2`** (the
+first hand-soldered SMD spin, `board_pins_smd.h`) — a real, working Kconfig
+choice, just not part of the public-facing story since the project
+standardized on SMD4. Don't remove it without asking.
+
+The original through-hole board (WM8731 codec, `CONFIG_BOARD_TYPE_THT`) was
+**removed from the firmware on 2026-10-03** at the user's request — driver,
+pin map and Kconfig choice all gone. Last commit that still builds it:
+`2fdde5e`. Its docs remain under `archive/hardware/through-hole-wm8731/`.
 
 **SMD5 ("Analog Redial 5")** is an in-progress next-generation board (not
 yet fabricated) — `hardware/kicad/Analog Redial 5/`, dev notes at
@@ -34,7 +36,7 @@ a re-route is still planned (MFB onto its own GPIO via an expanded BM64
 header, EEPROM programming through J5 instead), so treat that doc's pinout
 as a draft. Firmware reuses SMD4's pin map for it today.
 
-## Building/flashing for a specific board type (SMD2 vs SMD4 vs THT)
+## Building/flashing for a specific board type (SMD2 vs SMD4 vs SMD5)
 
 Each board type is a separate build directory with its own `sdkconfig`, not
 just a Kconfig toggle flipped in place — mixing these up has actually
@@ -45,13 +47,12 @@ follow this exactly:
 |--|--|--|
 | SMD4 (current, default) | `build/` | `sdkconfig.defaults` only — its `sdkconfig` is the one tracked in git |
 | SMD2 | `build.smd2/` | `sdkconfig.defaults;sdkconfig.smd2.defaults` |
-| THT | (no build.tht/ convention established yet — ask before inventing one) | `sdkconfig.defaults` only, `CONFIG_BOARD_TYPE_THT` |
 | Any SMD board, 8 MB module | `build.<type>_8mb/` | `sdkconfig.defaults;sdkconfig.<type>.defaults;sdkconfig.8mb.defaults` (`partitions_8mb.csv`) |
 
 `firmware/bringup/flash_board.py` picks and creates these automatically
 (board type from the running firmware's `board_info`, flash size from
 esptool). `sdkconfig.smd4.defaults` exists for SMD4 build dirs other than
-`build/` — Kconfig's default board is THT.
+`build/` (it carries the 16 MB / native-USB settings `sdkconfig.defaults` lacks).
 
 **Creating or regenerating a non-default board's build directory**, always
 with an explicit `SDKCONFIG` path:
@@ -168,7 +169,7 @@ structure) — only links from live files (this one included) need the
 
 ## Firmware architecture (summary)
 
-ESP-IDF (FreeRTOS) C, split into components so telephony logic never touches registers directly and VoIP can be added without touching the state machine: `board` → `wm8731`/`ag1170` (hardware — component dir names predate the SMD4/ES8388 switch, still accurate to what's actually in each dir) → `audio`/`tones`/`dtmf` → `telephony` (per-line FSM, dial collector, dialplan) → `voip` (SIP/RTP). See `docs/features.md` §3 for the full diagram.
+ESP-IDF (FreeRTOS) C, split into components so telephony logic never touches registers directly and VoIP can be added without touching the state machine: `board` → `es8388`/`ag1170` (hardware — `ag1170` drives the AG1171; the dir name predates it) → `audio`/`tones`/`dtmf` → `telephony` (per-line FSM, dial collector, dialplan) → `voip` (SIP/RTP). See `docs/features.md` §3 for the full diagram.
 
 ## SMD phone-line (tip/ring) PCB clearance rules
 
@@ -211,5 +212,5 @@ This is engineering guidance, not telecom safety certification.
 ## Status
 
 - Hardware: SMD4 is the current design — schematic unchanged from SMD3, re-routed as a 2-layer PCB. ERC/DRC-reviewed; not yet fabricated/bench-tested.
-- Firmware: core telephony is mature and tested on earlier SMD-family hardware (hand-soldered SMD2, ES8388 + AG1171) and on THT + WM8731, selected via board Kconfig (`CONFIG_BOARD_TYPE_THT`/`_SMD2`); runtime `codec_detect` warns on board/firmware mismatch.
+- Firmware: core telephony is mature and tested on earlier SMD-family hardware (hand-soldered SMD2 and SMD4, ES8388 + AG1171), selected via board Kconfig (`CONFIG_BOARD_TYPE_SMD2`/`_SMD4`/`_SMD5`); runtime `codec_detect` warns if the ES8388 doesn't answer.
 - Pi parity: align dial plan and pulse FSM with `pi_rotary_phone` v1.0 before VoIP milestone.

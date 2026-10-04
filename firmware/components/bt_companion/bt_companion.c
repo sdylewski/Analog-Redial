@@ -1143,7 +1143,7 @@ static void mfb_after_tx(void)
  * when this board's runtime config is single-line with no microSD
  * (ag1170/sdcard don't have them claimed). No-op (with a log line) on a
  * 2-line or has-microSD config, and compiled out entirely on boards whose
- * pin map doesn't define these macros (SMD2, THT).
+ * pin map doesn't define these macros (SMD2).
  *
  * Root cause of a full night of "MFB won't reliably hold high" debugging
  * that looked exactly like a wiring/connection fault (see

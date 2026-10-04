@@ -4,7 +4,7 @@
  * Consumes AG1170 hook/pulse events and DTMF digits, drives call-progress
  * tones, ringing, local inter-line bridging, and (via the voip seam) SIP calls.
  *
- * Start it after audio_init(), wm8731_init(), ag1170_init(), dialplan_init(),
+ * Start it after audio_init(), es8388_init(), ag1170_init(), dialplan_init(),
  * voip_init(). telephony_start() registers the AG1170 callback and DTMF taps
  * and spawns the FSM task.
  */

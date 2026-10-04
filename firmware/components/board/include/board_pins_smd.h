@@ -83,7 +83,7 @@
 #define BOARD_UART_TX     GPIO_NUM_16
 #define BOARD_UART_RX     GPIO_NUM_17
 
-/* Status LED (D2 via R6 220R), active-high. SMD only -- no LED on THT. */
+/* Status LED (D2 via R6 220R), active-high. */
 #define BOARD_STATUS_LED  GPIO_NUM_11
 
 typedef struct {

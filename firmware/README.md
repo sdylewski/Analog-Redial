@@ -8,16 +8,14 @@ embedded SIP/RTP path for VoIP.
 Current production board is **SMD4**, ESP32-C6-DevKitC-1 + **ES8388** codec
 + AG1171 SLIC(s) (`board_pins_smd4.h`) — see
 [`../docs/hardware-smd4.md`](../docs/hardware-smd4.md). The original
-through-hole reference board (ESP32-C6-DevKitM-1 + **WM8731** codec +
-AG1170 SLICs, `board_pins.h`) still builds and works
-(`CONFIG_BOARD_TYPE_THT`) but is no longer the one to build from scratch —
-its own docs live under
+through-hole reference board (WM8731 codec) is no longer supported by this
+firmware; its docs are archived under
 [`archive/hardware/through-hole-wm8731/`](../archive/hardware/through-hole-wm8731/).
 
 See [`../docs/features.md`](../docs/features.md) for the feature list and
 architecture. GPIO maps live in `components/board/include/`
-(`board_pins_smd4.h`, `board_pins_smd.h` for SMD2, `board_pins.h` for the
-through-hole board) — match `CONFIG_BOARD_*` to your actual board; see
+(`board_pins_smd4.h`, `board_pins_smd.h` for SMD2; `board_pins.h` picks one)
+— match `CONFIG_BOARD_*` to your actual board; see
 [`archive/ESP32_PORT_PLAN.md`](../archive/ESP32_PORT_PLAN.md) and
 [`docs/bom.md`](../docs/bom.md).
 
@@ -173,7 +171,7 @@ idf.py -p /dev/cu.usbmodemXXXX flash monitor
 
 Replace `/dev/cu.usbmodemXXXX` with your port from step 5 above.
 
-### Building for a different board type (SMD2/SMD4/SMD5/SMD5-cheap/THT)
+### Building for a different board type (SMD2/SMD4/SMD5/SMD5-cheap)
 
 The default `build/` directory (and its tracked `sdkconfig`) targets SMD4.
 Every other board type gets its own build directory and its own
@@ -186,7 +184,6 @@ Every other board type gets its own build directory and its own
 | SMD2 | `build.smd2/` | `CONFIG_BOARD_TYPE_SMD2` |
 | SMD5, real MCU module | `build.smd5/` | `CONFIG_BOARD_TYPE_SMD5` |
 | SMD5, AliExpress clone module | `build.smd5_cheap/` | `CONFIG_BOARD_TYPE_SMD5_CHEAP` |
-| Through-hole (legacy) | `build/` with `CONFIG_BOARD_TYPE_THT` | (no separate build dir convention yet — this isn't the default build/'s own type any more, so treat `build/` as borrowed when using it for THT) |
 
 Create (or regenerate) a non-default board's build directory with an
 **explicit `-D SDKCONFIG=`** — leaving it out can silently make `idf.py`
@@ -249,10 +246,7 @@ list.
 For a board-agnostic, scripted bring-up (SMD2/SMD4/SMD5), see
 [`firmware/bringup/README.md`](bringup/README.md)'s `flash_board.py --setup`
 and `bringup_checklist.py` — they drive this same console over serial, one
-step per subsystem, without typing each command by hand. The original
-hand-typed walkthrough for the through-hole/WM8731 board (its console has a
-few WM8731-only commands this list doesn't) is archived at
-[`archive/hardware/through-hole-wm8731/BRINGUP.md`](../archive/hardware/through-hole-wm8731/BRINGUP.md).
+step per subsystem, without typing each command by hand.
 
 ### Console command reference
 
@@ -260,10 +254,9 @@ few WM8731-only commands this list doesn't) is archived at
 |---------|-------------|
 | `board_info` | Board type, line count, I2C pins |
 | `i2c_scan` | Probe the I²C bus for the codec |
-| `codec_detect` | Probe both known codec addresses; warn on board-type mismatch |
-| `codec_init` | Initialize the codec (ES8388 on SMD, WM8731 on THT) |
-| `codec_dump` | Print shadowed codec registers |
-| `codec_bypass <0\|1>` | Analog line-in → line-out bypass (WM8731 only) |
+| `codec_detect` | Check the ES8388 answers on I²C |
+| `codec_init` | Initialize the ES8388 codec |
+| `codec_dump` | Print codec registers (written vs. read back) |
 | `tone <hz> <ms> <line>` | Arbitrary test tone on a line |
 | `dialtone\|ringback\|busy [line]` | Call-progress tones |
 | `silence [line]` | Stop audio on a line |
@@ -285,8 +278,7 @@ firmware/
 ├── main/app_main.c         # boot + wire-up + console
 └── components/
     ├── board/      # GPIO map (board_pins.h) + I2C bus init + codec auto-detect
-    ├── wm8731/     # codec I2C driver (THT board)
-    ├── es8388/     # codec I2C driver (SMD boards)
+    ├── es8388/     # codec I2C driver
     ├── audio/      # I2S engine, routing, RX taps (VoIP seam)
     ├── tones/      # dual-tone + call-progress synth
     ├── dtmf/       # DTMF gen + Goertzel detect
@@ -381,5 +373,5 @@ name are cleared.
   help text for the real cost (not flash — the RAM/stack minimp3 needs).
 - Audio runs at **48 kHz stereo** so the codec sees a clean 12.288 MHz MCLK
   (256fs). VoIP will resample to 8 kHz G.711 in the `voip` component.
-- `PD` drive polarity is set in `board_pins.h` (`BOARD_PD_LEVEL_RUN`). Verify
-  against the actual transistor stage on your PCB before ringing.
+- The SLIC's `PD` pin is driven through a diode: GPIO low = power-down,
+  released (input) = run (`set_pd_run()` in `ag1170.c`).

@@ -1,5 +1,5 @@
 /*
- * app_main.c — ESP32-C6 Rotary Phone Gateway entry point.
+ * app_main.c — Analog Redial (ESP32-C6) entry point.
  *
  * Boots all subsystems in dependency order, then drops into a serial console
  * that is BOTH the bring-up test harness and the live inspection tool. The
@@ -10,11 +10,7 @@
  */
 #include "board.h"
 #include "board_config.h"
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
 #include "es8388.h"
-#else
-#include "wm8731.h"
-#endif
 #include "audio.h"
 #include "aec.h"
 #include "prompts.h"
@@ -156,15 +152,9 @@ void app_main(void)
     }
 
     /* 3. Codec config over I2C. Non-fatal if the PCB/codec isn't present yet. */
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     es8388_config_t ccfg = ES8388_DEFAULT_CONFIG();
     ccfg.sample_rate_hz = audio_sample_rate() ? audio_sample_rate() : 48000;
     err = es8388_init(&ccfg);
-#else
-    wm8731_config_t ccfg = WM8731_DEFAULT_CONFIG();
-    ccfg.sample_rate_hz = audio_sample_rate() ? audio_sample_rate() : 48000;
-    err = wm8731_init(&ccfg);
-#endif
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "codec init failed: %s (use 'i2c_scan'/'codec_init' "
                       "from the console once hardware is connected)",

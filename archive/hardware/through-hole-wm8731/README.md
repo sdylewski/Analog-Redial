@@ -2,11 +2,13 @@
 
 Everything specific to the original through-hole reference board
 (ESP32-C6-DevKitM-1 + **WM8731** codec + AG1170 SLICs) in one place, out of
-the way of the current SMD4/ES8388 docs. The board itself still builds and
-runs — `CONFIG_BOARD_TYPE_THT` in `firmware/`, pin map
-`board_pins.h`, codec driver `firmware/components/wm8731/` — this is just
-its *documentation*, consolidated here on 2026-10-04 (was three files
-scattered through `archive/hardware/`).
+the way of the current SMD4/ES8388 docs.
+
+**Firmware support was removed on 2026-10-03.** The last commit that still
+builds this board is `2fdde5e` (`CONFIG_BOARD_TYPE_THT`, pin map
+`components/board/include/board_pins_tht.h`, codec driver
+`components/wm8731/`). To rebuild it: `git checkout 2fdde5e -- firmware`
+in a scratch branch, or `git show 2fdde5e:<path>` for individual files.
 
 | File | What it is |
 |------|------------|

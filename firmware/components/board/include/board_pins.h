@@ -1,8 +1,7 @@
 /*
  * board_pins.h — board-type wrapper for the ESP32-C6 gateway.
  *
- * The firmware builds the same code for the through-hole gateway and the
- * SMD variants. This header selects the correct pin map at compile time.
+ * Selects the SMD board's pin map at compile time.
  */
 #pragma once
 
@@ -17,5 +16,5 @@
  * GPIO12/13 (native USB), which nothing in this pin map currently uses. */
 #include "board_pins_smd4.h"
 #else
-#include "board_pins_tht.h"
+#error "Unknown CONFIG_BOARD_TYPE_* -- pick a board in menuconfig"
 #endif

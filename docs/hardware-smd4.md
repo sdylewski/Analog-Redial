@@ -6,7 +6,7 @@ AG1171 SLICs and an Everest ES8388 stereo codec. This document describes the
 board as it is today — it is not a changelog against earlier spins.
 
 KiCad project: `hardware/kicad/Rotary_phone_SMD4/`. The custom symbols and
-footprints it uses (SLICs, RJ12 jacks, ESP32-C6 modules, WM8731) are
+footprints it uses (SLICs, RJ12 jacks, ESP32-C6 modules) are
 maintained separately and shared across boards:
 [sdylewski/MajorHack-Kicad-Libraries](https://github.com/sdylewski/MajorHack-Kicad-Libraries) —
 grab that too if you want to open the schematic for editing, not just view

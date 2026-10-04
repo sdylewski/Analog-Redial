@@ -123,7 +123,7 @@ PROMPTS = {
 }
 
 # Same I2C addresses board.c's codec_detect checks.
-CODECS = {0x10: "ES8388", 0x11: "ES8388", 0x1A: "WM8731", 0x1B: "WM8731"}
+CODECS = {0x10: "ES8388", 0x11: "ES8388"}
 
 
 # ---------------------------------------------------------------- results

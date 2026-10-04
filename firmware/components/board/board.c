@@ -74,7 +74,7 @@ esp_err_t board_i2c_init(void)
         return err;
     }
     ESP_LOGI(TAG, "I2C bus up (SDA=%d SCL=%d, board=%s)", BOARD_I2C_SDA,
-             BOARD_I2C_SCL, board_type_name(board_current_type()));
+             BOARD_I2C_SCL, board_pcb_variant_name());
     return ESP_OK;
 }
 
@@ -84,7 +84,6 @@ i2c_master_bus_handle_t board_i2c_bus(void)
 }
 
 #define BOARD_ES8388_ADDR 0x10
-#define BOARD_WM8731_PROBE_ADDR 0x1A
 
 void board_detect_codec(void)
 {
@@ -92,35 +91,13 @@ void board_detect_codec(void)
         ESP_LOGW(TAG, "board_detect_codec: I2C bus not available");
         return;
     }
-    bool es8388_present = i2c_master_probe(s_bus, BOARD_ES8388_ADDR, 50) == ESP_OK;
-    bool wm8731_present = i2c_master_probe(s_bus, BOARD_WM8731_PROBE_ADDR, 50) == ESP_OK;
-    board_type_t built_for = board_current_type();
-
-    if (es8388_present && !wm8731_present) {
+    if (i2c_master_probe(s_bus, BOARD_ES8388_ADDR, 50) == ESP_OK) {
         s_detected_codec = BOARD_CODEC_ES8388;
-        ESP_LOGI(TAG, "codec detect: ES8388 @ 0x10 (SMD board)");
-        if (built_for != BOARD_TYPE_SMD) {
-            ESP_LOGW(TAG, "firmware built for '%s' but an SMD/ES8388 codec is on "
-                          "the bus -- rebuild with CONFIG_BOARD_TYPE_SMD2/_SMD4/_SMD5/"
-                          "_SMD5_CHEAP=y (whichever matches your board)",
-                     board_type_name(built_for));
-        }
-    } else if (wm8731_present && !es8388_present) {
-        s_detected_codec = BOARD_CODEC_WM8731;
-        ESP_LOGI(TAG, "codec detect: WM8731 @ 0x1A (THT board)");
-        if (built_for != BOARD_TYPE_THT) {
-            ESP_LOGW(TAG, "firmware built for '%s' but a THT/WM8731 codec is on "
-                          "the bus -- rebuild with CONFIG_BOARD_TYPE_THT=y",
-                     board_type_name(built_for));
-        }
-    } else if (es8388_present && wm8731_present) {
-        s_detected_codec = BOARD_CODEC_CONFLICT;
-        ESP_LOGW(TAG, "codec detect: both 0x10 and 0x11/0x1A ACKed -- unexpected, "
-                      "check for I2C bus contention or an address conflict");
+        ESP_LOGI(TAG, "codec detect: ES8388 @ 0x10");
     } else {
         s_detected_codec = BOARD_CODEC_NONE;
-        ESP_LOGW(TAG, "codec detect: no codec found on I2C bus (built for '%s')",
-                 board_type_name(built_for));
+        ESP_LOGW(TAG, "codec detect: no ES8388 answering at 0x10 (built for %s)",
+                 board_pcb_variant_name());
     }
 }
 
@@ -130,8 +107,6 @@ const char *board_codec_name(board_codec_t c)
 {
     switch (c) {
         case BOARD_CODEC_ES8388:   return "ES8388";
-        case BOARD_CODEC_WM8731:   return "WM8731";
-        case BOARD_CODEC_CONFLICT: return "conflict (two codecs?)";
         default:                    return "none detected";
     }
 }
@@ -213,13 +188,8 @@ void board_hardware_str(char *out, size_t len)
     const char *chip =
         (info.model == CHIP_ESP32C6) ? "ESP32-C6" :
         (info.model == CHIP_ESP32C3) ? "ESP32-C3" : "ESP32";
-    /* Prefer the physically detected codec; fall back to the built-for PCB's
-     * codec if the probe hasn't run or found nothing (e.g. bench with no
-     * codec attached). */
-    const char *codec =
-        (s_detected_codec == BOARD_CODEC_ES8388) ? "ES8388" :
-        (s_detected_codec == BOARD_CODEC_WM8731) ? "WM8731" :
-        (board_current_type() == BOARD_TYPE_SMD) ? "ES8388?" : "WM8731?";
+    /* "?" = the probe hasn't run or found nothing (e.g. bench, no codec). */
+    const char *codec = (s_detected_codec == BOARD_CODEC_ES8388) ? "ES8388" : "ES8388?";
     snprintf(out, len, "%s rev%d.%d \xc2\xb7 %s (%s)",
              chip, info.revision / 100, info.revision % 100, codec,
              board_pcb_variant_name());
@@ -663,12 +633,6 @@ esp_err_t board_record_max_ms_set(uint32_t ms)
 
 board_hw_config_t board_hw_config_get(void)
 {
-    /* THT has no GPIO-sharing tradeoff at all (see board_pins_tht.h) --
-     * always 2 lines, no microSD, not a runtime question there. */
-    if (board_current_type() != BOARD_TYPE_SMD) {
-        return (board_hw_config_t){ .num_lines = 2, .has_microsd = false,
-                                    .has_bt_module = false };
-    }
     /* safe fallback if nothing saved yet */
     board_hw_config_t cfg = { .num_lines = 1, .has_microsd = false, .has_bt_module = false };
     nvs_handle_t h;
@@ -707,7 +671,6 @@ static bool hw_config_value_written(void)
 
 bool board_hw_config_is_set(void)
 {
-    if (board_current_type() != BOARD_TYPE_SMD) return true; /* nothing to configure */
     nvs_handle_t h;
     if (nvs_open(HW_CONFIG_NVS_NS, NVS_READONLY, &h) != ESP_OK) return false;
     uint8_t confirmed = 0;
@@ -778,7 +741,6 @@ static bool                s_have_cached_gpio_evidence;
 board_hw_evidence_t board_hw_detect_evidence(void)
 {
     board_hw_evidence_t ev = { .valid = false };
-    if (board_current_type() != BOARD_TYPE_SMD) return ev;
 
     /* GPIO18-21 are only safe to read as plain inputs if NO driver has
      * claimed them yet -- once a config value has been written
@@ -830,7 +792,6 @@ bool board_sd_line1_conflict(void)
 
 void board_hw_config_autodetect(void)
 {
-    if (board_current_type() != BOARD_TYPE_SMD) return;
     if (hw_config_value_written()) return; /* already guessed once, or human-confirmed */
 
     board_hw_config_t cfg = { .num_lines = 1, .has_microsd = false }; /* fallback if evidence is ambiguous */

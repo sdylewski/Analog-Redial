@@ -941,10 +941,7 @@ static esp_err_t catchall_handler(httpd_req_t *req)
  * form fields on it. */
 static bool first_boot_banner_needed(void)
 {
-    bool name_done = board_name_is_set();
-    bool hw_applicable = (board_current_type() == BOARD_TYPE_SMD);
-    bool hw_done = board_hw_config_is_set();
-    return !(name_done && (!hw_applicable || hw_done));
+    return !(board_name_is_set() && board_hw_config_is_set());
 }
 
 /* First-boot setup banner, shown on the Status page only while there's
@@ -960,7 +957,6 @@ static int append_first_boot_banner(char *buf, size_t cap, int off)
 {
     if (!first_boot_banner_needed()) return off;
     bool name_done = board_name_is_set();
-    bool hw_applicable = (board_current_type() == BOARD_TYPE_SMD);
     bool hw_done = board_hw_config_is_set();
 
     char name[32];
@@ -985,7 +981,7 @@ static int append_first_boot_banner(char *buf, size_t cap, int off)
             name, i18n_str("firstboot.name.button", "Confirm name"));
     }
 
-    if (hw_applicable && !hw_done) {
+    if (!hw_done) {
         board_hw_config_t cfg = board_hw_config_get();
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<form method=\"POST\" action=\"/board_hw_set\" class=\"settings-form\">"
@@ -1871,7 +1867,6 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "digit answers with its own touch-tone pair; <b>spoken digits are planned</b> "
                  "and need a set of number recordings per language. Persists to flash."));
 
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("speaker.title", "Speaker (earpiece) volume"));
     for (int l = 0; l < num_lines; l++) {
@@ -1904,7 +1899,6 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "yet) -- click Save once you land on a level you like. 100% is the codec's 0dB "
                  "reference point, 200% is max. Same register the bring-up <code>spkamp</code> "
                  "console command tunes."));
-#endif
     return off;
 }
 
@@ -3430,13 +3424,9 @@ static int append_memory_map_card(char *buf, size_t cap, int off)
     return off;
 }
 
-/* SMD2-only: the "line 2 or microSD" GPIO18-21 config card. THT has no such
- * tradeoff (dedicated pins for both lines, no SD at all), so this whole card
- * is skipped there -- board_hw_config_get() already hardcodes (2, false) for
- * THT and there's nothing for a human to confirm. */
+/* The "line 2 or microSD" GPIO18-21 config card. */
 static int append_hw_config_tab(char *buf, size_t cap, int off)
 {
-    if (board_current_type() != BOARD_TYPE_SMD) return off;
 
     board_hw_config_t cfg = board_hw_config_get();
     bool confirmed = board_hw_config_is_set();
@@ -6076,9 +6066,7 @@ static esp_err_t sd_force_format_handler(httpd_req_t *req)
 /* ---- Speaker (earpiece) volume: live tuning + persistence ----
  * Webui counterpart to the bring-up `spkamp` console command -- same
  * ES8388 LOUT1VOL/ROUT1VOL convention (0=mute, 33=0dB, 1dB/step), same
- * per-line NVS persistence (board_speaker_volume_get/set). ES8388/SMD2
- * only: LOUT1VOL/ROUT1VOL doesn't exist on the THT board's WM8731. */
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
+ * per-line NVS persistence (board_speaker_volume_get/set). */
 /* Sets one line's channel while preserving the other's current value --
  * es8388_set_dac_volume() always writes both at once, and this endpoint is
  * only ever asked to change one. */
@@ -6137,7 +6125,6 @@ static esp_err_t speaker_volume_handler(httpd_req_t *req)
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
-#endif /* CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP */
 
 /* ---- AEC calibration wizard ----
  * Webui counterpart to the bring-up `echoprobe` console command, for a
@@ -7869,10 +7856,8 @@ esp_err_t webui_start(void)
         { .uri = "/sd_selftest_ui",         .method = HTTP_POST, .handler = sd_selftest_ui_handler },
         { .uri = "/sd_format",              .method = HTTP_POST, .handler = sd_format_handler },
         { .uri = "/sd_force_format",        .method = HTTP_POST, .handler = sd_force_format_handler },
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
         { .uri = "/speaker_volume_live",    .method = HTTP_POST, .handler = speaker_volume_live_handler },
         { .uri = "/speaker_volume",         .method = HTTP_POST, .handler = speaker_volume_handler },
-#endif
         { .uri = "/aec_measure",            .method = HTTP_POST, .handler = aec_measure_handler },
         { .uri = "/aec_delay_apply",        .method = HTTP_POST, .handler = aec_delay_apply_handler },
         { .uri = "/aec_enable",             .method = HTTP_POST, .handler = aec_enable_handler },

@@ -1,5 +1,5 @@
 /*
- * audio.h — I2S engine + per-line audio routing for the WM8731.
+ * audio.h — I2S engine + per-line audio routing for the ES8388.
  *
  * The codec runs as an I2S slave at a fixed rate (default 48 kHz, 16-bit,
  * stereo). LEFT channel = Line 0, RIGHT channel = Line 1.

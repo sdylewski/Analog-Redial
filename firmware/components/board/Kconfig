@@ -2,12 +2,10 @@ menu "Board configuration"
 
 choice
     prompt "Target board type"
-    default BOARD_TYPE_THT
+    default BOARD_TYPE_SMD4
     help
-        Select the pin map and codec configuration for the hardware variant.
-
-config BOARD_TYPE_THT
-    bool "Through-hole gateway (WM8731)"
+        Select the pin map for the hardware variant. All supported boards
+        use the ES8388 codec.
 
 config BOARD_TYPE_SMD2
     bool "SMD2 gateway (ES8388, ESP32-C6-WROOM-1 pin map)"

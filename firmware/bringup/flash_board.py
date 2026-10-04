@@ -79,7 +79,7 @@ def detect_board(info: dict) -> tuple[str | None, str]:
     if pcb in PCB_TO_BOARD:
         return PCB_TO_BOARD[pcb], f"the firmware on it was built for {pcb}"
     if info.get("board") == "tht":
-        return None, "it's running through-hole (THT) firmware"
+        return None, "it's running through-hole (THT) firmware, which is no longer supported"
     if info.get("board") == "smd":
         return None, "its firmware is too old to say which SMD board"
     return None, "no firmware answered on the console"

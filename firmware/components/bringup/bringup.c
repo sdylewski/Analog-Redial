@@ -2,11 +2,7 @@
 #include "board.h"
 #include "board_pins.h"
 #include "board_config.h"
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
 #include "es8388.h"
-#else
-#include "wm8731.h"
-#endif
 #include "audio.h"
 #include "aec.h"
 #include "ag1170.h"
@@ -47,7 +43,7 @@ static const char *TAG = "bringup";
 /* ---------- i2c_scan ---------- */
 static int cmd_board_info(int argc, char **argv)
 {
-    printf("board: %s\n", board_type_name(board_current_type()));
+    printf("board: smd\n"); /* kept for older bringup scripts that require the key */
     /* Exact PCB, and what this physical board last confirmed booting as --
      * flash_board.py reads these to pick the right build before reflashing. */
     char recorded[16];
@@ -87,25 +83,18 @@ static int cmd_codec_detect(int argc, char **argv)
     return 0;
 }
 
-/* ---------- codec_init / dump / bypass (ES8388 on SMD, WM8731 on THT) ---------- */
+/* ---------- codec_init / dump (ES8388) ---------- */
 static int cmd_codec_init(int argc, char **argv)
 {
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     es8388_config_t c = ES8388_DEFAULT_CONFIG();
     c.sample_rate_hz = audio_sample_rate() ? audio_sample_rate() : 48000;
     esp_err_t err = es8388_init(&c);
-#else
-    wm8731_config_t c = WM8731_DEFAULT_CONFIG();
-    c.sample_rate_hz = audio_sample_rate() ? audio_sample_rate() : 48000;
-    esp_err_t err = wm8731_init(&c);
-#endif
     printf("codec_init: %s\n", esp_err_to_name(err));
     return err == ESP_OK ? 0 : 1;
 }
 
 static int cmd_codec_dump(int argc, char **argv)
 {
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     static const struct { uint8_t reg; const char *name; } regs[] = {
         { ES8388_REG_CONTROL1, "CONTROL1" }, { ES8388_REG_CONTROL2, "CONTROL2" },
         { ES8388_REG_CHIPPOWER, "CHIPPOWER" }, { ES8388_REG_ADCPOWER, "ADCPOWER" },
@@ -134,37 +123,12 @@ static int cmd_codec_dump(int argc, char **argv)
                    (actual != shadow) ? "   <-- MISMATCH" : "");
         }
     }
-#else
-    const char *names[] = {
-        "LLINEIN", "RLINEIN", "LHPOUT", "RHPOUT", "ANALOG", "DIGITAL",
-        "POWER", "IFACE", "SAMPLING", "ACTIVE"
-    };
-    printf("WM8731 shadow registers (write-only device):\n");
-    for (int i = 0; i < 10; i++) {
-        printf("  R%-2d %-9s = 0x%03X\n", i, names[i], wm8731_shadow(i));
-    }
-#endif
     return 0;
-}
-
-static int cmd_codec_bypass(int argc, char **argv)
-{
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
-    printf("analog bypass: not supported on ES8388 in this driver -- use "
-           "'loopback' for a DSP-side (I2S) loopback instead\n");
-    return 1;
-#else
-    bool on = (argc > 1 && atoi(argv[1]) != 0);
-    printf("analog bypass %s: %s\n", on ? "ON" : "OFF",
-           esp_err_to_name(wm8731_set_bypass(on)));
-    return 0;
-#endif
 }
 
 /* ---------- micamp (ES8388 ADC PGA gain, live tuning) ---------- */
 static int cmd_micamp(int argc, char **argv)
 {
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     if (argc < 3) {
         printf("usage: micamp <left 0-8> <right 0-8>   (0=0dB ... 8=+24dB, 3dB/step)\n"
                "current ADCCONTROL1 (0x09) = 0x%02X\n", es8388_shadow(ES8388_REG_ADCCONTROL1));
@@ -183,10 +147,6 @@ static int cmd_micamp(int argc, char **argv)
     }
     printf("MicAmpL=+%ddB  MicAmpR=+%ddB  (ADCCONTROL1=0x%02X)\n", l * 3, r * 3, val);
     return 0;
-#else
-    printf("micamp: SMD2/ES8388 only\n");
-    return 1;
-#endif
 }
 
 /* ---------- spkamp (ES8388 LOUT1/ROUT1 earpiece drive level, live tuning) ----------
@@ -199,7 +159,6 @@ static int cmd_micamp(int argc, char **argv)
  * one). */
 static int cmd_spkamp(int argc, char **argv)
 {
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     if (argc < 3) {
         printf("usage: spkamp <left 0-33> <right 0-33>   (0=-45dB, 30=0dB, 33=+4.5dB, 1.5dB/step)\n"
                "current LOUT1VOL/ROUT1VOL = 0x%02X / 0x%02X\n",
@@ -234,10 +193,6 @@ static int cmd_spkamp(int argc, char **argv)
     board_speaker_volume_set(1, (uint8_t)r);
     printf("LOUT1VOL=%d ROUT1VOL=%d (0dB at 30, 1.5dB/step, saved as default)\n", l, r);
     return 0;
-#else
-    printf("spkamp: SMD2/ES8388 only\n");
-    return 1;
-#endif
 }
 
 /* ---------- spkhiz: force a line's LOUT/ROUT driver to high-Z ----------
@@ -260,7 +215,6 @@ static uint8_t s_spkhiz_mask; /* which DACPOWER output-enable bits WE cleared (0
 
 static int cmd_spkhiz(int argc, char **argv)
 {
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     if (argc < 3) {
         printf("usage: spkhiz <line 0|1> <0|1>   (1 = force that line's codec output to "
                "high-Z -- LOUT1/ROUT1 disabled + VROI=40k -- so a companion signal on the "
@@ -295,10 +249,6 @@ static int cmd_spkhiz(int argc, char **argv)
            hiz ? "HIGH-Z" : "normal drive", dacpower,
            s_spkhiz_mask ? "40k" : "1.5k (default)");
     return 0;
-#else
-    printf("spkhiz: SMD2/ES8388 only\n");
-    return 1;
-#endif
 }
 
 /* ---------- tone ---------- */
@@ -549,9 +499,7 @@ static int cmd_download(int argc, char **argv)
         ag1170_ring_stop(l);
         ag1170_set_power(l, false);
     }
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     es8388_set_dac_mute(true);
-#endif
     printf("entering download mode -- flash now; power-cycle the board when done\n");
     fflush(stdout);
     vTaskDelay(pdMS_TO_TICKS(200));
@@ -624,11 +572,8 @@ static int cmd_miclevel(int argc, char **argv)
         printf("usage: miclevel [secs 1-60, default 5] [line, default 0]\n");
         return 1;
     }
-    float pga_db = 0;
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
     uint8_t a1 = es8388_shadow(ES8388_REG_ADCCONTROL1);
-    pga_db = 3.0f * (float)((line == 0) ? (a1 >> 4) : (a1 & 0x0F));
-#endif
+    float pga_db = 3.0f * (float)((line == 0) ? (a1 >> 4) : (a1 & 0x0F));
     if (!ag1170_is_offhook(line)) {
         printf("note: line %d is on-hook -- pick up the handset or you'll only see the idle floor\n", line);
     }
@@ -2226,7 +2171,7 @@ static int cmd_bm64_cmd(int argc, char **argv)
  * safe on a real 2-line or microSD-equipped board -- refuses unless this
  * board's runtime config says single-line, no SD, matching the same guard
  * ag1170.c/sdcard.c use before touching these same shared pads. */
-#ifdef BOARD_BT_MFB_PIN   /* SMD4/SMD5 pin maps only -- SMD2/THT have none */
+#ifdef BOARD_BT_MFB_PIN   /* SMD4/SMD5 pin maps only -- SMD2 has none */
 static int cmd_bm64_pin(int argc, char **argv)
 {
     if (argc < 3) {
@@ -2374,9 +2319,8 @@ void bringup_console_start(void)
     register_cmd("board_info", "Print detected board type and pin map", cmd_board_info);
     register_cmd("i2c_scan", "Scan I2C bus for the codec", cmd_i2c_scan);
     register_cmd("codec_detect", "Probe both known codec addresses, warn on board-type mismatch", cmd_codec_detect);
-    register_cmd("codec_init", "Initialize the codec (ES8388 on SMD, WM8731 on THT)", cmd_codec_init);
+    register_cmd("codec_init", "Initialize the ES8388 codec", cmd_codec_init);
     register_cmd("codec_dump", "Dump codec shadow registers", cmd_codec_dump);
-    register_cmd("codec_bypass", "Analog bypass on/off (WM8731 only): codec_bypass <0|1>", cmd_codec_bypass);
     register_cmd("micamp", "ES8388 ADC PGA gain (SMD2): micamp <left 0-8> <right 0-8>, 3dB/step", cmd_micamp);
     register_cmd("spkamp", "ES8388 earpiece drive level: spkamp <left 0-33> <right 0-33>, 1.5dB/step, 30=0dB", cmd_spkamp);
     register_cmd("spkhiz", "Force a line's codec output to high-Z (for BT companion loading tests): spkhiz <line 0|1> <0|1>", cmd_spkhiz);

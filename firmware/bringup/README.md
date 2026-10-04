@@ -1,8 +1,7 @@
 # Bring-up guide
 
-Hardware bring-up for the ESP32-C6 rotary phone gateway, covering both the
-through-hole board (WM8731 codec) and the SMD boards (ES8388 codec). Two
-layers:
+Hardware bring-up for Analog Redial boards (SMD2/SMD4/SMD5, ES8388 codec).
+Two layers:
 
 1. **On-target console** (`firmware/components/bringup`) — a serial REPL
    built into the firmware itself, with one command per subsystem
@@ -52,7 +51,7 @@ a PASS / WARN / FAIL / SKIP table:
 |------|--------------|-------|
 | `chip` | *(opt-in, `--chip-info`)* esptool reads chip, flash size, MAC — no firmware needed; warns if flash isn't 16 MB | — |
 | `console` | serial REPL answers; reads the board type the firmware was built for | `codec`, `microsd` test, `tests` |
-| `codec` | ES8388 / WM8731 found on I²C | `tests` |
+| `codec` | ES8388 found on I²C | `tests` |
 | `network` | board answers `/api/status` at `--host` | everything below |
 | `hardware` | sets lines / microSD / Bluetooth — only when you pass `--lines` or `--bluetooth` | — |
 | `microsd` | skipped on 2-line boards (shared pins); WARN if no card is in use; otherwise `sd_test` write/read/verify over serial | — |
@@ -78,11 +77,7 @@ so this can't be selected at runtime. Pick the one matching your board:
 cd firmware
 idf.py set-target esp32c6
 
-# SMD boards (SMD2, SMD3 once routed) -- ES8388 codec:
 idf.py -D "CONFIG_BOARD_TYPE_SMD2=y" build flash monitor
-
-# Through-hole gateway -- WM8731 codec:
-idf.py -D "CONFIG_BOARD_TYPE_THT=y" build flash monitor
 ```
 
 **SMD boards also need two more Kconfig settings**, both easy to miss since they're
@@ -102,13 +97,9 @@ it via `idf.py menuconfig` (writes directly to `sdkconfig`, survives `set-target
 it didn't. Press `/` in menuconfig to jump straight to a config symbol by name instead
 of hunting through the menu tree.
 
-At boot the firmware also runs a **runtime sanity check**: it probes the I2C
-bus for both known codec addresses (ES8388 @ 0x10, WM8731 @ 0x1A) and logs a
-warning if what it finds doesn't match the Kconfig board type you built for
-(e.g. you flashed a THT build onto an SMD board). It can't switch the pinout
-for you — the GPIOs really are wired differently per board — but it will
-tell you loudly if you flashed the wrong one. Run it manually any time with
-the `codec_detect` console command.
+At boot the firmware also checks that the ES8388 answers at 0x10 on I²C and
+logs a warning if it doesn't. Run it manually any time with the
+`codec_detect` console command.
 
 ## 2. Install the host-side script dependencies
 
@@ -201,9 +192,7 @@ hookmon <secs>
 status
 ```
 
-`codec_bypass <0|1>` also exists but only does anything on the WM8731 (THT)
-board — the ES8388 driver doesn't implement an analog bypass path yet; use
-`loopback` (a DSP/I2S loopback) instead.
+For an audio pass-through test use `loopback` (a DSP/I2S loopback).
 
 `echopulse <line> <on|off> [period_ms]` — periodic timestamped test tone
 for characterizing hybrid/line echo on real hardware (oscilloscope or ear,

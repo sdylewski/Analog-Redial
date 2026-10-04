@@ -23,16 +23,12 @@ void board_early_pin_init(void);
 /* Handle to the shared I2C master bus, or NULL if not initialized. */
 i2c_master_bus_handle_t board_i2c_bus(void);
 
-/* Probes the I2C bus for both known codec addresses (ES8388 @ 0x10, WM8731 @
- * 0x1A) and logs a warning if neither ACKs, or if the codec that answered
- * doesn't match the board type this firmware was built for (CONFIG_BOARD_TYPE_*).
- * This is a sanity check, not a substitute for selecting the right Kconfig
- * board type at build time — GPIO pin routing is fixed per PCB and can't be
- * switched at runtime. Safe to call before or after board_i2c_init(). */
+/* Probes the I2C bus for the ES8388 (0x10) and logs a warning if it doesn't
+ * answer. Safe to call before or after board_i2c_init(). */
 void board_detect_codec(void);
 
 /* ---- PCB type mismatch guard ----
- * CONFIG_BOARD_TYPE_SMD2/_SMD4/_THT is fixed at compile time and drives
+ * CONFIG_BOARD_TYPE_SMD2/_SMD4/_SMD5 is fixed at compile time and drives
  * GPIO pin routing that differs between variants -- notably, SMD2 and
  * SMD4 disagree on which of the shared GPIO18-21 pads is SD's CS vs. MISO
  * (board_pins_smd.h vs. board_pins_smd4.h). Flashing the wrong variant's
@@ -52,7 +48,7 @@ void board_detect_codec(void);
  * mismatch can be reflected in the boot LED state immediately. */
 void        board_type_check(void);
 bool        board_type_mismatch(void);
-/* What was recorded on a previous boot ("SMD2"/"SMD4"/"through-hole"), ""
+/* What was recorded on a previous boot ("SMD2"/"SMD4"/"SMD5"), ""
  * if nothing recorded yet -- for the hazard banner/Hardware tab to show
  * expected-vs-actual. Compare against board_pcb_variant_name() (running
  * binary's own compile-time type, board_config.h) for the other half. */
@@ -78,8 +74,7 @@ typedef enum {
 } board_led_state_t;
 
 /* Configures the status LED (SMD only -- GPIO11 on SMD2, the DevKitC-1
- * module's own onboard addressable RGB on SMD4/GPIO8; no-op on THT, which
- * has neither) and starts it blinking fast (BOARD_LED_BOOTING). Call once,
+ * module's own onboard addressable RGB on SMD4/GPIO8) and starts it blinking fast (BOARD_LED_BOOTING). Call once,
  * early in app_main(), before other subsystem init so there's visible boot
  * feedback even if something later hangs. Note this can only ever reflect
  * APPLICATION state -- the chip's own ROM bootloader (e.g. stuck in USB
@@ -107,9 +102,7 @@ void board_boot_button_start(void (*on_rescue)(void), void (*on_factory_reset)(v
 
 typedef enum {
     BOARD_CODEC_NONE = 0,  /* nothing ACKed on the I2C bus yet / at all */
-    BOARD_CODEC_ES8388,    /* 0x10  -> SMD board */
-    BOARD_CODEC_WM8731,    /* 0x1A  -> through-hole board */
-    BOARD_CODEC_CONFLICT,  /* both answered -- bus contention (see detect log) */
+    BOARD_CODEC_ES8388,    /* 0x10 */
 } board_codec_t;
 
 /* Result of the last board_detect_codec() probe (BOARD_CODEC_NONE before it

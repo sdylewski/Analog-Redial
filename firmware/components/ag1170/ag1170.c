@@ -71,10 +71,8 @@ void ag1170_set_event_cb(ag1170_event_cb cb, void *ctx)
 
 static void set_pd_run(gpio_num_t pd, bool run)
 {
-#if CONFIG_BOARD_TYPE_SMD2 || CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
-    /* SMD board: PD is driven through a diode (1N4148W, cathode at the PD
-     * pin), not a transistor -- see hardware/ROTARY_PHONE_SMD.md, "AG1171
-     * SLIC & RJ12": GPIO low pulls PD low through the diode (power-down);
+    /* PD is driven through a diode (1N4148W, cathode at the PD pin), not a
+     * transistor: GPIO low pulls PD low through the diode (power-down);
      * high-Z lets the AG1171's own internal pull-up hold PD open (run).
      * Driving the GPIO high instead of releasing it isn't guaranteed
      * equivalent -- it depends on exactly where that internal pull-up sits
@@ -85,12 +83,6 @@ static void set_pd_run(gpio_num_t pd, bool run)
         gpio_set_direction(pd, GPIO_MODE_OUTPUT);
         gpio_set_level(pd, 0);
     }
-#else
-    /* THT board: PD drives an open-collector transistor (BC846) -- GPIO low
-     * = "run" (transistor off, PD left open), GPIO high = powerdown. See
-     * board_pins_tht.h. */
-    gpio_set_level(pd, run ? BOARD_PD_LEVEL_RUN : BOARD_PD_LEVEL_POWERDOWN);
-#endif
 }
 
 esp_err_t ag1170_set_power(int line, bool run)
@@ -337,7 +329,7 @@ static void config_line_gpio(int line)
     gpio_config(&in_cfg);
 
     /* PD is not in this mask -- set_pd_run() configures its direction
-     * itself (push-pull on THT, direction-toggled input/output on SMD). */
+     * itself (direction-toggled input/output). */
     gpio_config_t out_cfg = {
         .pin_bit_mask = (1ULL << p.fr) | (1ULL << p.rm),
         .mode = GPIO_MODE_OUTPUT,

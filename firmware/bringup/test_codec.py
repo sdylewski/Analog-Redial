@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Bring-up: audio codec (ES8388 on SMD boards, WM8731 on the through-hole board).
+"""Bring-up: the ES8388 audio codec.
 
-Scans the I2C bus, cross-checks the detected codec against the board type the
-firmware was built for, initializes it, and dumps its shadow registers so you
-can eyeball that init actually wrote something sane.
+Scans the I2C bus, checks the codec answers, initializes it, and dumps its
+registers so you can eyeball that init actually wrote something sane.
 """
 
 from __future__ import annotations
@@ -49,8 +48,7 @@ def main() -> int:
             print("\nFAIL: codec_init did not report ESP_OK")
             return 1
 
-        print("\nPASS: codec found and initialized. Check the codec_detect line above for a "
-              "board-type mismatch warning (wrong Kconfig build for this PCB).")
+        print("\nPASS: codec found and initialized.")
         return 0
 
 

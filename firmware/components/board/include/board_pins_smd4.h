@@ -30,7 +30,7 @@
  * BOARD_STATUS_LED is deliberately not defined; board.c's LED code is
  * gated on CONFIG_BOARD_TYPE_SMD2 specifically (not the general "is this
  * an SMD board" check) for exactly this reason, so it correctly no-ops on
- * this board same as it does on THT.
+ * this board.
  *
  * The PCB supports the same two build options on GPIO 18-21 as SMD2
  * (mutually exclusive, runtime-selected via board_hw_config_get(), not a

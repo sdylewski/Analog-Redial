@@ -653,7 +653,7 @@ esp_err_t audio_init(const audio_config_t *cfg)
             .invert_flags = { .mclk_inv = false, .bclk_inv = false, .ws_inv = false },
         },
     };
-    /* MCLK = 256 * fs (= 12.288 MHz at 48 kHz), which the WM8731 R8 table expects. */
+    /* MCLK = 256 * fs (= 12.288 MHz at 48 kHz). */
     std_cfg.clk_cfg.mclk_multiple = I2S_MCLK_MULTIPLE_256;
 
     if ((err = i2s_channel_init_std_mode(s_tx, &std_cfg)) != ESP_OK ||
