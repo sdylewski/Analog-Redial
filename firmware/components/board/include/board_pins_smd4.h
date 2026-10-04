@@ -1,5 +1,5 @@
 /*
- * board_pins_smd4.h — Pin map for Rotary_phone_SMD3 / SMD4 (ESP32-C6-DevKitC-1
+ * board_pins_smd4.h — Pin map for Analog Redial v3 / v4 (ESP32-C6-DevKitC-1
  * + ES8388). SMD4 is a from-scratch 2-layer re-route of SMD3's unchanged
  * schematic (same nets, same pin assignments, same components) -- this one
  * header covers both spins.

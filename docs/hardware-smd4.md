@@ -5,7 +5,7 @@ analog-phone-line gateway carrying one or two POTS lines through Silvertel
 AG1171 SLICs and an Everest ES8388 stereo codec. This document describes the
 board as it is today — it is not a changelog against earlier spins.
 
-KiCad project: `hardware/kicad/Rotary_phone_SMD4/`. The custom symbols and
+KiCad project: `hardware/kicad/Analog Redial v4/`. The custom symbols and
 footprints it uses (SLICs, RJ12 jacks, ESP32-C6 modules) are
 maintained separately and shared across boards:
 [sdylewski/MajorHack-Kicad-Libraries](https://github.com/sdylewski/MajorHack-Kicad-Libraries) —
@@ -267,4 +267,4 @@ modifying the layout:
 | [`hardware-smd5.md`](hardware-smd5.md) | The next spin: Bluetooth, LDO, dual MCU footprint |
 | [`getting-started.md`](getting-started.md) | Toolchain, flashing, first boot |
 | [`../archive/signal-levels.md`](../archive/signal-levels.md) | Audio/logic levels reference |
-| `hardware/kicad/Rotary_phone_SMD4/` | The KiCad project itself — the real source of truth for anything not covered above |
+| `hardware/kicad/Analog Redial v4/` | The KiCad project itself — the real source of truth for anything not covered above |

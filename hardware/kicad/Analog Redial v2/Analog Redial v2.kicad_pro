@@ -76,7 +76,76 @@
           "width": 0.0
         }
       ],
-      "drc_exclusions": [],
+      "drc_exclusions": [
+        [
+          "courtyards_overlap|101705000|100495000|18f4d573-7b25-43b8-a468-1b2954354a4b|aef286be-1dbc-4088-99c7-d61a57f23292",
+          ""
+        ],
+        [
+          "courtyards_overlap|82285000|90345000|006640f7-4ea3-4ddb-83aa-5dedce14842a|a985bd5f-37a9-446b-ae95-860e0d0a59ba",
+          ""
+        ],
+        [
+          "courtyards_overlap|82285000|92835000|2e60a82d-6ec7-47fa-9bf8-2c3660fc2c62|a985bd5f-37a9-446b-ae95-860e0d0a59ba",
+          ""
+        ],
+        [
+          "courtyards_overlap|82285000|95325000|841eac6f-3807-449f-b200-4c1927f96b0d|a985bd5f-37a9-446b-ae95-860e0d0a59ba",
+          ""
+        ],
+        [
+          "courtyards_overlap|82285000|97835000|4913da90-6a40-4ba0-9292-ff16fb5c4a3e|a985bd5f-37a9-446b-ae95-860e0d0a59ba",
+          ""
+        ],
+        [
+          "courtyards_overlap|97595000|99695000|a985bd5f-37a9-446b-ae95-860e0d0a59ba|ca58843f-f6a1-48d8-8ec6-eda9b470fece",
+          ""
+        ],
+        [
+          "courtyards_overlap|99405000|100495000|18f4d573-7b25-43b8-a468-1b2954354a4b|ca58843f-f6a1-48d8-8ec6-eda9b470fece",
+          ""
+        ],
+        [
+          "courtyards_overlap|99895000|99695000|a985bd5f-37a9-446b-ae95-860e0d0a59ba|aef286be-1dbc-4088-99c7-d61a57f23292",
+          ""
+        ],
+        [
+          "silk_overlap|116882466|96524211|8386177e-3e78-4e24-ba43-a158675d2460|eeb6925d-484f-4908-b3c1-c8ed7286b14e",
+          ""
+        ],
+        [
+          "silk_overlap|82370000|91423641|0c6a7bf9-1c86-4cad-952c-da039a1aa1de|8386177e-3e78-4e24-ba43-a158675d2460",
+          ""
+        ],
+        [
+          "silk_overlap|82370000|93913641|3894fb01-0ecd-418e-aca2-4cb591c69cdc|8386177e-3e78-4e24-ba43-a158675d2460",
+          ""
+        ],
+        [
+          "silk_overlap|82370000|96403641|34bbb0b1-df63-4157-959c-c35a0d0ffa92|8386177e-3e78-4e24-ba43-a158675d2460",
+          ""
+        ],
+        [
+          "silk_overlap|82370000|98913641|1a6ed774-06b5-41f1-b679-b82dff50eebc|8386177e-3e78-4e24-ba43-a158675d2460",
+          ""
+        ],
+        [
+          "silk_overlap|83130000|91423641|4b153190-3ba1-4b30-9e12-d1a568f3c391|8386177e-3e78-4e24-ba43-a158675d2460",
+          ""
+        ],
+        [
+          "silk_overlap|83130000|93913641|0085ac7a-6fe2-4eb2-a04a-7894de5a1fce|8386177e-3e78-4e24-ba43-a158675d2460",
+          ""
+        ],
+        [
+          "silk_overlap|83130000|96403641|8386177e-3e78-4e24-ba43-a158675d2460|84490ec4-e9ea-4bb7-b523-9c9c4c087412",
+          ""
+        ],
+        [
+          "silk_overlap|83130000|98913641|62193d0a-0c9c-42b3-b8c3-f43c67ff4731|8386177e-3e78-4e24-ba43-a158675d2460",
+          ""
+        ]
+      ],
       "meta": {
         "version": 2
       },
@@ -508,7 +577,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "Rotary_phone_SMD3.kicad_pro",
+    "filename": "Analog Redial v2.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -536,29 +605,20 @@
         "bus_width": 12,
         "clearance": 0.8,
         "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.2,
         "line_style": 0,
         "microvia_diameter": 0.3,
         "microvia_drill": 0.1,
         "name": "PhoneLine",
         "pcb_color": "rgba(255, 128, 0, 0.302)",
-        "priority": 1,
+        "priority": 10,
         "schematic_color": "rgba(255, 128, 0, 0.302)",
         "track_width": 0.4,
         "tuning_profile": "",
         "via_diameter": 0.6,
         "via_drill": 0.3,
         "wire_width": 6
-      },
-      {
-        "bus_width": 48,
-        "line_style": 0,
-        "name": "Power",
-        "pcb_color": "rgba(0, 0, 0, 0.000)",
-        "priority": 0,
-        "schematic_color": "rgb(255, 15, 243)",
-        "tuning_profile": "",
-        "wire_width": 24
       }
     ],
     "meta": {
@@ -590,34 +650,6 @@
       {
         "netclass": "PhoneLine",
         "pattern": "Net-(D11-K)"
-      },
-      {
-        "netclass": "PhoneLine",
-        "pattern": "/Line2Tip"
-      },
-      {
-        "netclass": "PhoneLine",
-        "pattern": "/Line2Ring"
-      },
-      {
-        "netclass": "PhoneLine",
-        "pattern": "/P6K"
-      },
-      {
-        "netclass": "PhoneLine",
-        "pattern": "/Line1Tip"
-      },
-      {
-        "netclass": "PhoneLine",
-        "pattern": "/Line1Ring"
-      },
-      {
-        "netclass": "Power",
-        "pattern": "+5V"
-      },
-      {
-        "netclass": "Power",
-        "pattern": "GND"
       }
     ]
   },
@@ -877,18 +909,18 @@
     "subpart_id_separator": 0,
     "top_level_sheets": [
       {
-        "filename": "Rotary_phone_SMD3.kicad_sch",
-        "name": "Rotary_phone_SMD3",
+        "filename": "Analog Redial v2.kicad_sch",
+        "name": "Analog Redial v2",
         "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
       }
     ],
-    "used_designators": "",
+    "used_designators": "J1,R20-21",
     "variants": []
   },
   "sheets": [
     [
       "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "Rotary_phone_SMD3"
+      "Analog Redial v2"
     ]
   ],
   "text_variables": {},

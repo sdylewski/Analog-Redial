@@ -5,11 +5,11 @@ Design reference for the **fourth** SMD spin. This doc only covers what's
 jumper mechanism, ESP32-C6 GPIO constraints, PD diode wiring, ES8388/AG1171
 wiring, DC-jack diode-OR, JLC assembly notes) still applies unchanged from
 [`ROTARY_PHONE_SMD3.md`](ROTARY_PHONE_SMD3.md). **Confirmed via diff**: the
-schematic (`Rotary_phone_SMD4.kicad_sch`) is electrically identical to
+schematic (`Analog Redial v4.kicad_sch`) is electrically identical to
 SMD3's — same nets, same pin assignments, same components. SMD4 is a
 from-scratch **2-layer** re-route of that exact design, not a new circuit.
 
-KiCad project: `hardware/kicad/Rotary_phone_SMD4/`.
+KiCad project: `hardware/kicad/Analog Redial v4/`.
 
 ## Status
 
@@ -57,7 +57,7 @@ context for eyeballing the copper pour yourself, not a reported defect.
 ## Review findings (2026-08-31)
 
 Ran `kicad-cli sch erc` and `kicad-cli pcb drc` against
-`hardware/kicad/Rotary_phone_SMD4/`.
+`hardware/kicad/Analog Redial v4/`.
 
 **Schematic (ERC):**
 - Same 8 PD/EN "not driven" flags as SMD3, same false-positive reasons

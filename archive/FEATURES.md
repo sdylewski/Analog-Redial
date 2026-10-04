@@ -10,7 +10,7 @@ The ESP32 build is **not** a line-by-line port: Pi used USB dongles + baresip + 
 
 ## 1. Hardware — two board types, one firmware tree
 
-| | **Through-hole** (`rotary_phone_gateway`) | **SMD** (`Rotary_phone_SMD2`) |
+| | **Through-hole** (`rotary_phone_gateway`) | **SMD** (`Analog Redial v2`) |
 |--|-------------------------------------------|-------------------------------|
 | MCU | ESP32-C6-DevKitM-1 | ESP32-C6-WROOM-1 |
 | Codec | **WM8731** @ I²C 0x1A | **ES8388** @ I²C 0x10 |

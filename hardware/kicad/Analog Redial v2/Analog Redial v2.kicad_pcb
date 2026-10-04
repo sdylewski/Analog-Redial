@@ -319,7 +319,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/7b63913a-bf70-44da-8eed-48828d8b40df")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -628,7 +628,7 @@
 		(property ki_fp_filters "SOT?23?5*")
 		(path "/e1579fb8-ea99-46d3-9a93-14c3e7332803")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1013,7 +1013,7 @@
 		(property ki_fp_filters "6P6C* RJ12* RJ18* RJ25*")
 		(path "/03ea3391-074b-47a6-9b1a-8634e3a0e7fd")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -1430,7 +1430,7 @@
 		)
 		(path "/2075aaf5-778e-4a94-9ae6-df876524e94e")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1675,7 +1675,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/0ce54ee0-95ba-411d-95a5-226d88c872d3")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1989,7 +1989,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/1d890e27-ab20-483b-885b-3091a9acf2c5")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2264,7 +2264,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/2c1948e5-31c9-4961-981f-9f57ee431fba")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2517,7 +2517,7 @@
 		)
 		(path "/8c1b88bc-cbc5-4137-80bb-fd6d34dcc843")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -3139,7 +3139,7 @@
 		(property ki_fp_filters "PinHeader_1x02_P2.54mm*")
 		(path "/da404725-4982-4a92-a9c0-84d889e602a4")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3534,7 +3534,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/f67541d5-c5d4-4902-8521-fc5e11ba4420")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3848,7 +3848,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/f4c11c48-5659-408f-8944-29d1ccd49eb2")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -4110,7 +4110,7 @@
 		(property ki_fp_filters "PinHeader_1x02_P2.54mm*")
 		(path "/f9952c95-61f3-45b8-ad21-0adceb8a8438")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -4453,7 +4453,7 @@
 		(property ki_fp_filters "CP_*")
 		(path "/60f9e6f7-c205-47df-9e77-f5c1b4fbbc20")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -6089,7 +6089,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/d98b6627-2730-4192-8e34-9718dc01802e")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -6484,7 +6484,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/d3ad6fb9-4215-498d-a3ae-02ade4a7f443")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -6759,7 +6759,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/ffc73c0b-621a-4b70-a0b8-7d6cbb47aa8c")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -7065,7 +7065,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/3710ff5c-ee04-4e6b-93aa-84453322abbe")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -7376,7 +7376,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/513c744b-a333-4715-b3bf-313b0bf36799")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -7715,7 +7715,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/7cc60a38-4569-4546-8d43-83621d671ae7")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -8029,7 +8029,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/7ab13316-b3d3-4ded-acbe-e3afbba8b055")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -8317,7 +8317,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/a35942c5-9208-45cc-9257-359b669f69fe")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -8630,7 +8630,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/10353985-f074-4897-ab80-e89861766f80")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -8919,7 +8919,7 @@
 		)
 		(path "/76773e66-b63c-4d75-96a5-62d86cfbc031")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -9350,7 +9350,7 @@
 		(property ki_fp_filters "SOT?23*")
 		(path "/470112d8-3ba7-4fd6-88b7-6903df398f2f")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -9842,7 +9842,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/913bed6d-d980-48e5-90bc-a8d493ace125")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -10104,7 +10104,7 @@
 		(property ki_fp_filters "PinHeader_1x03_P2.54mm*")
 		(path "/84e9cdb5-c77c-498f-82b4-ce9d6b2433aa")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -10483,7 +10483,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/f8dbed83-15e6-487d-8e22-fa5a0709e54e")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -10774,7 +10774,7 @@
 		)
 		(path "/c4d7cba2-96d5-43c3-9ff2-e70cf6cc8f28")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11274,7 +11274,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/76845938-39a1-4b0c-ab04-b0235ab4067d")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11562,7 +11562,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/70e8774d-0ed5-4ae0-888b-e592907b9875")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11849,7 +11849,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/7fb1281f-3204-4bd7-9a45-defab231af4a")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -12136,7 +12136,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/54f7cc55-de30-4198-8d79-2b3d89899e12")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -12398,7 +12398,7 @@
 		(property ki_fp_filters "CP_*")
 		(path "/1968976a-6f95-4bab-b369-99dceed72461")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -14060,7 +14060,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/f30f280f-d127-455c-8fd9-85d6f96a2148")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -14348,7 +14348,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/bcdb0775-1968-47db-a7e2-f2b0d0ce32f2")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -14622,7 +14622,7 @@
 		(property ki_fp_filters "*QFN*4x4mm*P0.45mm*EP2.6*x2.6*")
 		(path "/3cda255d-9002-4cd9-b9c1-6477bd514fa0")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -15440,7 +15440,7 @@
 		)
 		(path "/ae3a377c-1dd9-42b3-a792-8194ac335ba9")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -15554,7 +15554,7 @@
 		)
 		(path "/3cdda427-d062-4ba5-ad19-451f1b79d791")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -16053,7 +16053,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/0c39c459-a9d9-4358-85ed-95d398a8ce5e")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -16368,7 +16368,7 @@
 		)
 		(path "/1bbec28e-bd27-4618-ae8b-7d7bbbaf748f")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -16683,7 +16683,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/036c48fb-0eed-45ba-bfda-bbb4b786c854")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -16892,7 +16892,7 @@
 		)
 		(path "/79338274-bbd1-423c-ac63-b179e648f302")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -17113,7 +17113,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/bc85833e-36e7-410f-ba86-f64df6076f01")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -17451,7 +17451,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/f5b56530-4a66-4365-80a9-0e588cbb3fef")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -17739,7 +17739,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/ce15793d-993d-49c5-b96f-d7f0c3fb60b1")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -18027,7 +18027,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/ee2e966d-82d3-4d19-a19c-d0183483d923")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -18291,7 +18291,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/a83a244c-5d03-4c1f-9961-232b03545fde")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -18617,7 +18617,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/14f6d9b3-e876-4ba2-8396-9c692301e33c")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -18931,7 +18931,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/00eab9ce-dd27-4156-943b-0e70b41b2579")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -19184,7 +19184,7 @@
 		)
 		(path "/d7d3bb3b-9d06-4447-93b1-c9bec5acc14f")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -19858,7 +19858,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/acb8f65f-3c63-44f4-bb0f-3ed1fe0140d2")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -20121,7 +20121,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/2590b823-d51a-4e8e-a118-4feb8f49f1e8")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -20510,7 +20510,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/cd26d387-0f07-44d8-9ca9-dc561c88363c")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -20784,7 +20784,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/5dfc7f17-7909-4704-894c-57a80d1bea36")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21072,7 +21072,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/0e85aac4-4eb5-4c46-b249-3c3eea63452e")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21385,7 +21385,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/ad3e75c9-1fc4-40e8-a40d-665c60e3ba66")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21542,7 +21542,7 @@
 		)
 		(path "/159f88a0-c715-4483-9ba1-a8a8e7705f60")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21813,7 +21813,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/0f75dc9b-acf8-4e04-8715-74392b0a4085")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -22077,7 +22077,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/1f91cade-aac8-4ff7-8f87-0ddda807b0d6")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -22406,7 +22406,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/82de3028-e7f5-4956-8825-71522a1e1659")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -22763,7 +22763,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/21cce9a6-5a8c-4ae2-9d04-e5a479832175")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -23027,7 +23027,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/b1206b1c-c985-4471-bdbd-dab484532be8")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -23340,7 +23340,7 @@
 		(property ki_fp_filters "PinHeader_1x02_P2.54mm*")
 		(path "/d05358fd-1ddf-4bff-8101-656dbebef06f")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -23696,7 +23696,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/fefae242-a384-4ae3-8aaa-70c24d36dbe3")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -23947,7 +23947,7 @@
 		(property ki_fp_filters "ESP32-C6-WROOM-1*")
 		(path "/5de439b4-de9d-4c47-ae4b-5793f072a063")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -24709,7 +24709,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/bb0996c9-fec6-4bf1-8e6c-3184b850a61f")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -25073,7 +25073,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/415395a8-18e9-4ec7-a4f9-1335d6f857bb")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -25361,7 +25361,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/fd8ba056-6a76-44ee-ac71-8caee390eeac")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -25623,7 +25623,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/851ad751-ed03-479e-b91e-e4378e46804c")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -26018,7 +26018,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/c775f442-cad8-4a58-bd47-c468a75eb459")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -26331,7 +26331,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/948d5e2a-4e2c-47cf-a75d-6975885d7fba")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -26618,7 +26618,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/c3cfb1f8-63a8-4f84-a28f-8982a688f65a")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -26931,7 +26931,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/d442e985-4aec-428f-823f-c259fa7bcdea")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -27185,7 +27185,7 @@
 		(property ki_fp_filters "6P6C* RJ12* RJ18* RJ25*")
 		(path "/26cdede6-29b8-4e18-b9ce-33b4b89a2105")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -27758,7 +27758,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/3ec628b2-d340-4e4c-a1ce-a35c608fbd9d")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -28073,7 +28073,7 @@
 		)
 		(path "/f69f7809-f1e2-4163-bb92-36b219e0bc25")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -28388,7 +28388,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/a5bbc804-1774-4b8e-9029-b8938c826c7d")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD2.kicad_sch")
+		(sheetfile "Analog Redial v2.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line

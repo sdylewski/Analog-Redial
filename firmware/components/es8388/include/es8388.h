@@ -5,7 +5,7 @@
  * only handles the I2C control-register side (init, routing, volume, power).
  * I2S data streaming lives in the `audio` component.
  *
- * Board mapping (Rotary_phone_SMD2, U4): DAC LOUT1 = Line 0 tx, ROUT1 = Line 1
+ * Board mapping (Analog Redial v2, U4): DAC LOUT1 = Line 0 tx, ROUT1 = Line 1
  * tx — both play back simultaneously. LOUT2/ROUT2 are not a separate signal:
  * per the ES8388 datasheet, the left mixer output always drives both LOUT1
  * and LOUT2, and the right mixer drives both ROUT1 and ROUT2. On this board

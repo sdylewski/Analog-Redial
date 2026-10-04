@@ -9,7 +9,7 @@ the SMD2-specific sections of `HARDWARE_SIGNAL_LEVELS.md` (a real DTMF-
 clipping investigation with "a ton of rework" -- the resistor-divider
 story below is exactly that).
 
-KiCad project: `hardware/kicad/Rotary_phone_SMD2/`. Current firmware still
+KiCad project: `hardware/kicad/Analog Redial v2/`. Current firmware still
 builds for this board (`CONFIG_BOARD_TYPE_SMD2`, `build.smd2/`) -- see
 `CLAUDE.md`'s board-type build table -- this doc is the *hardware*
 reference, not a statement that the board itself is unsupported.
@@ -44,7 +44,7 @@ production layout; the KiCad project is a work in progress.
 
 | Feature | THT reference board | SMD board (this doc) |
 |---------|---------------------|----------------------|
-| KiCad project | `hardware/kicad/rotary_phone_gateway/` | `hardware/kicad/Rotary_phone_SMD2/` |
+| KiCad project | `hardware/kicad/rotary_phone_gateway/` | `hardware/kicad/Analog Redial v2/` |
 | MCU | ESP32-C6-DevKitM-1 (headers) | **ESP32-C6-WROOM-1** module (soldered) |
 | SLIC | 2× AG1170 | 1× or 2× **AG1171** (SIL, hand-solder) |
 | Passives | Through-hole | **0402 SMD** (JLC assembly) — see [KiCad symbols & footprints](#kicad-symbols--footprints-passives--support) |
@@ -87,7 +87,7 @@ Text extract: [`datasheets/ESP32-C6-WROOM-1_datasheet_extracted.txt`](../datashe
 
 ### Designator map (schematic)
 
-Matches **`Rotary_phone_SMD2.kicad_sch`** / **`Rotary_phone_SMD2.kicad_pcb`** (re-annotated).
+Matches **`Analog Redial v2.kicad_sch`** / **`Analog Redial v2.kicad_pcb`** (re-annotated).
 Functional names in older sections (e.g. `C_LDO_IN`) are replaced by **actual refs** below.
 **Update PCB from schematic** after annotation changes.
 
@@ -1193,7 +1193,7 @@ part number**, not per board.
 In KiCad BOM, set **DNP** on hand-solder refs for the JLC order (or use a separate
 `bom-jlc.csv` without those lines).
 
-**DigiKey hand-solder BOM:** [`hardware/kicad/Rotary_phone_SMD2/bom-digikey-hand-solder.csv`](kicad/Rotary_phone_SMD2/bom-digikey-hand-solder.csv) — upload at [DigiKey myLists](https://www.digikey.com/en/mylists/) → *Upload from spreadsheet*. Map **Quantity**, **DigiKey Part Number** (or **Manufacturer Part Number**), and **Customer Reference**. Rows with blank DigiKey # (**AG1171**, optional **ES8388**) must be ordered elsewhere. Delete build-B DNP rows (U6, J7, line-2 passives) or build-A-only rows depending on your stuffing option.
+**DigiKey hand-solder BOM:** [`hardware/kicad/Analog Redial v2/bom-digikey-hand-solder.csv`](../../hardware/kicad/Analog%20Redial%20v2/bom-digikey-hand-solder.csv) — upload at [DigiKey myLists](https://www.digikey.com/en/mylists/) → *Upload from spreadsheet*. Map **Quantity**, **DigiKey Part Number** (or **Manufacturer Part Number**), and **Customer Reference**. Rows with blank DigiKey # (**AG1171**, optional **ES8388**) must be ordered elsewhere. Delete build-B DNP rows (U6, J7, line-2 passives) or build-A-only rows depending on your stuffing option.
 
 **Release BOM (SMD):** [see the BOM section below](#bom--smd-board-rotary_phone_smd2) · **Index:** [`hardware/BOM.md`](BOM.md)
 
@@ -1368,7 +1368,7 @@ Package_TO_SOT_SMD
 
 **ESP32 footprint:** `PCM_Espressif` is **not** in stock KiCad — it comes from Espressif’s
 PCM add-on. This project vendors the official footprint at
-`hardware/kicad/Rotary_phone_SMD2/Scott.pretty/ESP32-C6-WROOM-1.kicad_mod` so you do
+`hardware/kicad/Analog Redial v2/Scott.pretty/ESP32-C6-WROOM-1.kicad_mod` so you do
 not need a separate install. Optional: install
 [espressif-kicad-addon.zip](https://github.com/espressif/kicad-libraries/releases/latest/download/espressif-kicad-addon.zip)
 via KiCad **Plugin and Content Manager → Install from file** for 3D models and other modules.
@@ -1432,7 +1432,7 @@ board — verify `BOARD_PD_LEVEL_RUN` / `BOARD_PD_LEVEL_POWERDOWN` when porting.
 #### Layout TODO (next spin)
 
 - [ ] Change the **0 Ω** resistors (**R7–R10**) to **jumpers** if there is room (same XOR routing function, easier rework).
-- [ ] Check **tip/ring** clearances are **≥ 0.8 mm** (phone line can see **~100 V** peak — `Rotary_phone_SMD2.kicad_dru`, **`PhoneLine`** net class).
+- [ ] Check **tip/ring** clearances are **≥ 0.8 mm** (phone line can see **~100 V** peak — `Analog Redial v2.kicad_dru`, **`PhoneLine`** net class).
 - [ ] Use **1.0 mm** tip/ring traces where possible (RJ12 → bridge → TVS → AG1171).
 - [ ] Add a **RESET** header/button (EN → GND, momentary), same style as **J2**. First SMD2 bring-up had no way to power-cycle the MCU without unplugging USB — with native USB and no UART bridge chip there's no DTR/RTS auto-reset circuit either, so **J2** (boot strap) is useless without a way to toggle EN alongside it.
 - [ ] Add **test points on D+/D-** at the **U2** side of **U3** (post-ESD-chip) — hard to probe 0402/QFN pads directly with a scope when native USB won't enumerate and you need to check for PHY activity.
@@ -1501,9 +1501,9 @@ GPIO23 ── SCL   ── pin 24
 
 ---
 
-## BOM — SMD board (`Rotary_phone_SMD2`)
+## BOM — SMD board (`Analog Redial v2`)
 
-**KiCad:** [`hardware/kicad/Rotary_phone_SMD2/`](../../hardware/kicad/Rotary_phone_SMD2/) · **Design:** [see the design reference above](#rotary-phone-gateway--smd-board) · **DigiKey CSV/cart export:** not committed to the repo (see note above about the missing 2026-07-02 export)
+**KiCad:** [`hardware/kicad/Analog Redial v2/`](../../hardware/kicad/Analog%20Redial%20v2/) · **Design:** [see the design reference above](#rotary-phone-gateway--smd-board) · **DigiKey CSV/cart export:** not committed to the repo (see note above about the missing 2026-07-02 export)
 
 Most builders order **JLCPCB** for SMT passives, then fill in the hand-solder table below. **DigiKey** links/prices match [`2026-07-02T230626.csv`](2026-07-02T230626.csv) where listed.
 
@@ -1570,7 +1570,7 @@ Firmware: `CONFIG_BOARD_NUM_LINES` 2 (A) or 1 (B); `CONFIG_BOARD_MICROSD` 0 (A) 
 | | 1 | **C20** 470 µF 16 V radial | [1189-1146-ND ($0.24)](https://www.digikey.com/en/products/detail/rubycon/16YXJ470M8X11-5/3134104) **16YXJ470M8X11.5** | | **U5** +VPWR bulk |
 | | 1 | **C21** 470 µF 16 V radial | same as **C20** | | Build **A**; **U6** +VPWR |
 
-Upload [`bom-digikey-hand-solder.csv`](kicad/Rotary_phone_SMD2/bom-digikey-hand-solder.csv) to [DigiKey myLists](https://www.digikey.com/en/mylists/) for bulk DigiKey ordering.
+Upload [`bom-digikey-hand-solder.csv`](../../hardware/kicad/Analog%20Redial%20v2/bom-digikey-hand-solder.csv) to [DigiKey myLists](https://www.digikey.com/en/mylists/) for bulk DigiKey ordering.
 
 **Typical hand-solder kit (DigiKey, build A):** ~$20–25 per board (+ WROOM, USBLC6, TVS, headers — not in cart CSV), excluding shipping.
 

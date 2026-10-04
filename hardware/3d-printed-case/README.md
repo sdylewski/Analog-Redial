@@ -11,7 +11,7 @@ placeholder for when they are. Contributions welcome.
   - USB-C (power/programming)
   - DC barrel jack (alternate power input)
   - microSD card slot access (single-line build only)
-- **Mounting:** standoff/screw pattern TBD once a specific enclosure design is started — check hole positions against the actual KiCad board outline in [`../kicad/Rotary_phone_SMD4/`](../kicad/Rotary_phone_SMD4/) before finalizing.
+- **Mounting:** standoff/screw pattern TBD once a specific enclosure design is started — check hole positions against the actual KiCad board outline in [`../kicad/Analog Redial v4/`](../kicad/Analog%20Redial%20v4/) before finalizing.
 - Consider ventilation/access for the BOOT (GPIO9) and reset controls if they need to be reachable without opening the case.
 
 ## Status

@@ -10,7 +10,7 @@
 > pull-down (R17), the JP3/JP2 MCLK/card-detect solder jumpers, and the
 > 100 kΩ SHK divider. Not in it: the multi-function button.
 
-KiCad project: `hardware/kicad/Analog Redial 5/`. These are working notes
+KiCad project: `hardware/kicad/Analog Redial v5/`. These are working notes
 per [`CLAUDE.md`](../../CLAUDE.md)'s public-vs-internal-docs split, not a
 public build guide. Nothing here is proven until boards come back and get
 bench-tested.
@@ -29,7 +29,7 @@ SMD4 — see [`ROTARY_PHONE_SMD4.md`](ROTARY_PHONE_SMD4.md) and
 ## The module swap: what actually changes
 
 Both module types are electrically the same chip (ESP32-C6), so the
-schematic itself (`Analog Redial 5.kicad_sch`) only needs **one** symbol
+schematic itself (`Analog Redial v5.kicad_sch`) only needs **one** symbol
 (`PCM_Espressif:ESP32-C6-DevKitC-1`, ref `U1`) using the real module's
 standard pad numbering. The clone module's PCB routes some of its own chip
 pins to *different physical pad positions* than the real module does — the
@@ -440,7 +440,7 @@ and which BM64 suffix to buy): [`BOM-bluetooth.md`](BOM-bluetooth.md).
 
 ### BM64 connection table (2026-09-28 review of the 6-pin J12 draft -- historical; J2 table above is current)
 
-Pulled from `kicad-cli sch export netlist` of `Analog Redial 5.kicad_sch`
+Pulled from `kicad-cli sch export netlist` of `Analog Redial v5.kicad_sch`
 and `Bluetooth/Bluetooth_board/Bluetooth_board.kicad_sch` -- "Now" is what
 the schematics say today, "Change" is the recommendation.
 

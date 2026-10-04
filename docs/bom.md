@@ -1,7 +1,7 @@
 # Bill of Materials — SMD4 / SMD5
 
 Shopping / build checklist (design reference: [`hardware-smd4.md`](hardware-smd4.md);
-KiCad: `hardware/kicad/Rotary_phone_SMD4/`).
+KiCad: `hardware/kicad/Analog Redial v4/`).
 
 The parts are the same for both spins. The options that only exist on
 **SMD5** — the Bluetooth companion, the 30-pin clone module — are marked
@@ -274,7 +274,7 @@ boards they're $196.63, about $1.23 a board.
 
 The full SMT list isn't reproduced here — it's commodity 0402 passives and
 diodes, and the authoritative version is the KiCad project itself
-(`hardware/kicad/Rotary_phone_SMD4/`; export BOM + CPL with the JLCPCB Tools
+(`hardware/kicad/Analog Redial v4/`; export BOM + CPL with the JLCPCB Tools
 plugin). Only the parts worth knowing about by name are listed below.
 
 | Qty | Component | JLC (LCSC) | Notes |

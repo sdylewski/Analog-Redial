@@ -18,7 +18,7 @@ For deeper detail see [`README.md`](README.md), [`FEATURES.md`](FEATURES.md),
 
 | Board | MCU | Codec | SLIC | Notes |
 |-------|-----|-------|------|-------|
-| **SMD** (`Rotary_phone_SMD2`) | ESP32-C6-WROOM-1 | ES8388 | AG1171 ×1–2 | Production PCB; 1 or 2 phone lines, optional microSD |
+| **SMD** (`Analog Redial v2`) | ESP32-C6-WROOM-1 | ES8388 | AG1171 ×1–2 | Production PCB; 1 or 2 phone lines, optional microSD |
 | **Through-hole** (`rotary_phone_gateway`) | ESP32-C6-DevKitM-1 | WM8731 | AG1170 ×2 | Reference/breadboard build |
 
 Plus: a rotary or touch-tone **telephone** on tip/ring, a **USB-C cable**, and

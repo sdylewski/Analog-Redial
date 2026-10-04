@@ -10,7 +10,7 @@ Maps the working **Pi** stack ([`pi_rotary_phone`](../pi_rotary_phone), `telepho
 
 | Kconfig target | PCB | Codec | SLIC | Pin map header |
 |----------------|-----|-------|------|----------------|
-| **SMD + ES8388** | `Rotary_phone_SMD2` | ES8388 @ I²C **0x10** | AG1171 ×1–2 | `board_pins_smd.h` |
+| **SMD + ES8388** | `Analog Redial v2` | ES8388 @ I²C **0x10** | AG1171 ×1–2 | `board_pins_smd.h` |
 | **Through-hole + WM8731** | `rotary_phone_gateway` | WM8731 @ I²C **0x1A** | AG1170 ×2 | `board_pins.h` |
 
 **Goal:** `menuconfig` → **Board type** selects pin map + codec backend; telephony/dialplan/voip stay shared.

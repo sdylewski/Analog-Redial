@@ -933,335 +933,6 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Custom:AG1171_SIL"
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "U4"
-				(at 5.842 -3.048 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify right)
-				)
-			)
-			(property "Value" "AG1171"
-				(at -3.302 -3.302 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" "Custom:AG1171_SIL"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Datasheet" "https://silvertel.com/images/datasheets/Ag1170-datasheet-SLIC-module-onboard-ringing.pdf"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "AG1171_SIL_0_1"
-				(rectangle
-					(start -11.43 2.54)
-					(end 7.62 -8.89)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-			)
-			(symbol "AG1171_SIL_1_1"
-				(pin bidirectional line
-					(at -10.16 -11.43 90)
-					(length 2.54)
-					(name "Ring"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin bidirectional line
-					(at -7.62 -11.43 90)
-					(length 2.54)
-					(name "Tip"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at -5.08 -11.43 90)
-					(length 2.54)
-					(name "F/R"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at -2.54 -11.43 90)
-					(length 2.54)
-					(name "RM"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin output line
-					(at 0 -11.43 90)
-					(length 2.54)
-					(name "SHK"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "5"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin no_connect line
-					(at 2.54 -11.43 90)
-					(length 2.54)
-					(name "ZT1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "6"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin no_connect line
-					(at 5.08 -11.43 90)
-					(length 2.54)
-					(name "ZT2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "7"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin no_connect line
-					(at 5.08 5.08 270)
-					(length 2.54)
-					(name "ZB"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "8"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at 2.54 5.08 270)
-					(length 2.54)
-					(name "Vin"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "9"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin output line
-					(at 0 5.08 270)
-					(length 2.54)
-					(name "Vout"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "10"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at -2.54 5.08 270)
-					(length 2.54)
-					(name "VA"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "11"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin bidirectional line
-					(at -5.08 5.08 270)
-					(length 2.54)
-					(name "GND"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "12"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at -7.62 5.08 270)
-					(length 2.54)
-					(name "Vpwr"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "13"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at -10.16 5.08 270)
-					(length 2.54)
-					(name "PD"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "14"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
 		(symbol "Device:C"
 			(pin_numbers
 				(hide yes)
@@ -2278,257 +1949,6 @@
 						)
 					)
 					(number "13"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
-		(symbol "Jumper:SolderJumper_3_Bridged12"
-			(pin_names
-				(offset 0)
-				(hide yes)
-			)
-			(exclude_from_sim no)
-			(in_bom no)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "JP"
-				(at -2.54 -2.54 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" "SolderJumper_3_Bridged12"
-				(at 0 2.794 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Datasheet" ""
-				(at 0 -15.24 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" "3-pole Solder Jumper, pins 1+2 closed/bridged"
-				(at 0 -12.7 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_keywords" "Solder Jumper SPDT"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_fp_filters" "SolderJumper*Bridged12*"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "SolderJumper_3_Bridged12_0_1"
-				(polyline
-					(pts
-						(xy -2.54 0) (xy -2.032 0)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.016 1.016) (xy -1.016 -1.016)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -1.016 0.508)
-					(end -0.508 -0.508)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
-				(arc
-					(start -1.016 -1.016)
-					(mid -2.0276 0)
-					(end -1.016 1.016)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
-				(rectangle
-					(start -0.508 1.016)
-					(end 0.508 -1.016)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 -1.27) (xy 0 -1.016)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start 1.016 1.016)
-					(mid 2.0276 0)
-					(end 1.016 -1.016)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
-				(polyline
-					(pts
-						(xy 1.016 1.016) (xy 1.016 -1.016)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 2.54 0) (xy 2.032 0)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-			)
-			(symbol "SolderJumper_3_Bridged12_1_1"
-				(pin passive line
-					(at -5.08 0 0)
-					(length 2.54)
-					(name "A"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 0 -3.81 90)
-					(length 2.54)
-					(name "C"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 5.08 0 180)
-					(length 2.54)
-					(name "B"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "3"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -4256,440 +3676,6 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "PCM_SL_Pin_Headers:PINHD_1x8_Male"
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "J"
-				(at 0 13.97 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" "PINHD_1x8_Male"
-				(at 0 11.43 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical"
-				(at -1.27 16.51 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Datasheet" ""
-				(at 0 15.24 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -8"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_keywords" "Pin Header"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_fp_filters" "PinHeader_1x08_P2.54mm*"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "PINHD_1x8_Male_0_1"
-				(rectangle
-					(start -1.27 10.16)
-					(end 1.27 -10.16)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type background)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 8.89) (xy 0 8.89)
-					)
-					(stroke
-						(width 0.3)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 8.89) (xy 0 8.89)
-					)
-					(stroke
-						(width 0.5)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 6.35) (xy 0 6.35)
-					)
-					(stroke
-						(width 0.3)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 6.35) (xy 0 6.35)
-					)
-					(stroke
-						(width 0.5)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 3.81) (xy 0 3.81)
-					)
-					(stroke
-						(width 0.3)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 3.81) (xy 0 3.81)
-					)
-					(stroke
-						(width 0.5)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 1.27) (xy 0 1.27)
-					)
-					(stroke
-						(width 0.3)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 1.27) (xy 0 1.27)
-					)
-					(stroke
-						(width 0.5)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 -1.27) (xy 0 -1.27)
-					)
-					(stroke
-						(width 0.3)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 -1.27) (xy 0 -1.27)
-					)
-					(stroke
-						(width 0.5)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 -3.81) (xy 0 -3.81)
-					)
-					(stroke
-						(width 0.3)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 -3.81) (xy 0 -3.81)
-					)
-					(stroke
-						(width 0.5)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 -6.35) (xy 0 -6.35)
-					)
-					(stroke
-						(width 0.3)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 -6.35) (xy 0 -6.35)
-					)
-					(stroke
-						(width 0.5)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 -8.89) (xy 0 -8.89)
-					)
-					(stroke
-						(width 0.3)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.27 -8.89) (xy 0 -8.89)
-					)
-					(stroke
-						(width 0.5)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-			)
-			(symbol "PINHD_1x8_Male_1_1"
-				(pin passive line
-					(at -3.81 8.89 0)
-					(length 2.54)
-					(name ""
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -3.81 6.35 0)
-					(length 2.54)
-					(name ""
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -3.81 3.81 0)
-					(length 2.54)
-					(name ""
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -3.81 1.27 0)
-					(length 2.54)
-					(name ""
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -3.81 -1.27 0)
-					(length 2.54)
-					(name ""
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "5"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -3.81 -3.81 0)
-					(length 2.54)
-					(name ""
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "6"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -3.81 -6.35 0)
-					(length 2.54)
-					(name ""
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "7"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -3.81 -8.89 0)
-					(length 2.54)
-					(name ""
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "8"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
 		(symbol "PCM_SL_Pin_Headers:PINHD_2x4_Male"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -5840,17 +4826,25 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Regulator_Linear:XC6206PxxxMR"
-			(pin_names
-				(offset 0.254)
-			)
+		(symbol "Custom_Symbol_Library:AG1171_SIL"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
 			(in_pos_files yes)
 			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "U"
-				(at -3.81 3.175 0)
+			(property "Reference" "U4"
+				(at 5.842 -3.048 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify right)
+				)
+			)
+			(property "Value" "AG1171"
+				(at -3.302 -3.302 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
@@ -5859,30 +4853,7 @@
 					)
 				)
 			)
-			(property "Value" "XC6206PxxxMR"
-				(at 0 3.175 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left)
-				)
-			)
-			(property "Footprint" "Package_TO_SOT_SMD:SOT-23-3"
-				(at 0 5.715 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-						(italic yes)
-					)
-				)
-			)
-			(property "Datasheet" "https://www.torexsemi.com/file/xc6206/XC6206.pdf"
+			(property "Footprint" "Custom:AG1171_SIL"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -5893,7 +4864,7 @@
 					)
 				)
 			)
-			(property "Description" "Positive 60-250mA Low Dropout Regulator, Fixed Output, SOT-23"
+			(property "Datasheet" "https://silvertel.com/images/datasheets/Ag1170-datasheet-SLIC-module-onboard-ringing.pdf"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -5904,7 +4875,7 @@
 					)
 				)
 			)
-			(property "ki_keywords" "Torex LDO Voltage Regulator Fixed Positive"
+			(property "Description" ""
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -5915,35 +4886,24 @@
 					)
 				)
 			)
-			(property "ki_fp_filters" "SOT?23?3*"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "XC6206PxxxMR_0_1"
+			(symbol "AG1171_SIL_0_1"
 				(rectangle
-					(start -5.08 1.905)
-					(end 5.08 -5.08)
+					(start -11.43 2.54)
+					(end 7.62 -8.89)
 					(stroke
-						(width 0.254)
+						(width 0)
 						(type default)
 					)
 					(fill
-						(type background)
+						(type none)
 					)
 				)
 			)
-			(symbol "XC6206PxxxMR_1_1"
-				(pin power_in line
-					(at 0 -7.62 90)
+			(symbol "AG1171_SIL_1_1"
+				(pin bidirectional line
+					(at -10.16 -11.43 90)
 					(length 2.54)
-					(name "GND"
+					(name "Ring"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -5958,10 +4918,10 @@
 						)
 					)
 				)
-				(pin power_out line
-					(at 7.62 0 180)
+				(pin bidirectional line
+					(at -7.62 -11.43 90)
 					(length 2.54)
-					(name "VO"
+					(name "Tip"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -5976,10 +4936,10 @@
 						)
 					)
 				)
-				(pin power_in line
-					(at -7.62 0 0)
+				(pin input line
+					(at -5.08 -11.43 90)
 					(length 2.54)
-					(name "VI"
+					(name "F/R"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -5987,6 +4947,204 @@
 						)
 					)
 					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -2.54 -11.43 90)
+					(length 2.54)
+					(name "RM"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin output line
+					(at 0 -11.43 90)
+					(length 2.54)
+					(name "SHK"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin no_connect line
+					(at 2.54 -11.43 90)
+					(length 2.54)
+					(name "ZT1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin no_connect line
+					(at 5.08 -11.43 90)
+					(length 2.54)
+					(name "ZT2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin no_connect line
+					(at 5.08 5.08 270)
+					(length 2.54)
+					(name "ZB"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 2.54 5.08 270)
+					(length 2.54)
+					(name "Vin"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "9"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin output line
+					(at 0 5.08 270)
+					(length 2.54)
+					(name "Vout"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "10"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -2.54 5.08 270)
+					(length 2.54)
+					(name "VA"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "11"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at -5.08 5.08 270)
+					(length 2.54)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "12"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -7.62 5.08 270)
+					(length 2.54)
+					(name "Vpwr"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "13"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -10.16 5.08 270)
+					(length 2.54)
+					(name "PD"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "14"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -6402,16 +5560,6 @@
 		)
 		(uuid "01298dbb-c960-4251-bbea-79c9b32e53c5")
 	)
-	(text "pin 5&6 matching cap mic inputs"
-		(exclude_from_sim no)
-		(at 176.276 67.564 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "0b590132-f9db-44a7-8260-19055dc33f81")
-	)
 	(text "LED on GPIO8"
 		(exclude_from_sim no)
 		(at 66.548 105.918 0)
@@ -6422,9 +5570,19 @@
 		)
 		(uuid "10f14602-86f5-414e-9d77-c0077e4fbeae")
 	)
+	(text "NC D-"
+		(exclude_from_sim no)
+		(at 128.778 119.38 0)
+		(effects
+			(font
+				(size 0.762 0.762)
+			)
+		)
+		(uuid "151aa795-e62a-44fa-875b-f31de7895099")
+	)
 	(text "Stuff either Line 2\nOR\nRemove 4x 0R to use uSD"
 		(exclude_from_sim no)
-		(at 177.8 106.172 0)
+		(at 183.388 103.632 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6462,6 +5620,16 @@
 		)
 		(uuid "43267b58-7eb0-45e5-9b45-4db6dd9a72a5")
 	)
+	(text "Pull up to VCC in SW for switches/IO"
+		(exclude_from_sim no)
+		(at 137.16 72.136 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "4c698390-b938-4d27-9ec5-3326de672c42")
+	)
 	(text "CE Gnd = i2c addr 0x10"
 		(exclude_from_sim no)
 		(at 191.008 141.478 0)
@@ -6474,7 +5642,7 @@
 	)
 	(text "Remove jumpers\nfor uSD use"
 		(exclude_from_sim no)
-		(at 148.844 114.554 0)
+		(at 148.082 124.714 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6482,17 +5650,7 @@
 		)
 		(uuid "548f1516-fa16-4b84-9442-f7eabf862d91")
 	)
-	(text "CF Card\n"
-		(exclude_from_sim no)
-		(at 105.918 159.512 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "55c43c54-8453-46ed-bf27-cbf0efdd8059")
-	)
-	(text "Line 1:  \nRight"
+	(text "Line 2:  \nRight"
 		(exclude_from_sim no)
 		(at 329.946 83.82 0)
 		(effects
@@ -6502,6 +5660,16 @@
 			)
 		)
 		(uuid "5dfd5714-8419-4fd6-bf9b-d9438d61d206")
+	)
+	(text "NC Jtag"
+		(exclude_from_sim no)
+		(at 128.778 93.472 0)
+		(effects
+			(font
+				(size 0.762 0.762)
+			)
+		)
+		(uuid "6d66a969-3a6f-498b-8440-25b3be202c27")
 	)
 	(text "I2C pull-ups"
 		(exclude_from_sim no)
@@ -6523,25 +5691,15 @@
 		)
 		(uuid "70ef72f9-5e1f-4ddc-b4fa-a1b8bd4d868e")
 	)
-	(text "UART to \nbluetooth board"
+	(text "Use as UART header\nor 2x GPIO"
 		(exclude_from_sim no)
-		(at 134.366 89.662 0)
+		(at 135.89 67.564 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 		)
 		(uuid "816309af-ed01-42b9-954b-a1debd197a71")
-	)
-	(text "Pull up to VCC in SW for switches/IO"
-		(exclude_from_sim no)
-		(at 139.7 138.684 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "92b63665-c621-4686-806f-d18268a084d8")
 	)
 	(text "CH 2 out is a \ncopy of CH 1"
 		(exclude_from_sim no)
@@ -6553,16 +5711,6 @@
 		)
 		(uuid "9bb299ba-0006-45b0-8924-b4360a57f6bb")
 	)
-	(text "Bluetooth BM64 header\n"
-		(exclude_from_sim no)
-		(at 146.558 62.484 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "9fa4e1dc-069c-4a36-9660-4d1e4bfd021e")
-	)
 	(text "Diode\n1N4148 or BAS16"
 		(exclude_from_sim no)
 		(at 331.978 168.656 0)
@@ -6573,7 +5721,7 @@
 		)
 		(uuid "a7c57c55-4441-4f2b-84fe-6fbffa15ba9c")
 	)
-	(text "Line 0:  Left"
+	(text "Line 1:  Left"
 		(exclude_from_sim no)
 		(at 331.47 154.686 0)
 		(effects
@@ -6604,6 +5752,16 @@
 		)
 		(uuid "d1cb4b63-0649-466a-a30c-d5ebd2417498")
 	)
+	(text "NC D+"
+		(exclude_from_sim no)
+		(at 128.778 117.094 0)
+		(effects
+			(font
+				(size 0.762 0.762)
+			)
+		)
+		(uuid "d72e6df7-8892-4d20-ba9f-234eb6f1e103")
+	)
 	(text "Headphone header for debug"
 		(exclude_from_sim no)
 		(at 250.698 183.134 0)
@@ -6614,9 +5772,9 @@
 		)
 		(uuid "e5cf3b43-7c25-4a24-8574-670a30483b67")
 	)
-	(text "Changes for SMD4:\ncapacitor silkscreen needs to show capacitance value and line\nsilkscreen note to add jumpbers for 2nd AG1171\nsilkscreen note to only use uSD OR SLIC #2\nincrease capacitor clearance and update footprint clearance to AG1171 board\nNew esp32-c6 wide version option. (big change)\n	add cuttable jumpers to select correct pinout for wide/cheap esp32-c6\n\nchange SHK voltage divider so it's closer to 3.3V output (currently it's measuring 1.8V)\n	by swapping the 15k for 100k to gnd.\n\nadd 8-pin header for bluetooth module.\nadd pull-down 100k to MFB line, connected to GPIO15\nAdd 3.3V regulator for optional bluetooth module\n\n"
+	(text "Fixes:\n470 uF capacitors are 8mm/3.5 pitch\nadd reset jumper\nFix cross-wired usb D+/D-\nConnect redundant usb-c wires so cables work in both directions\nIn/out audio lines were swapped!\nChange Line0/1 in/out to mic for better readability\nMove Ch2 mic from Lin2 to Rin1 to fix error\n\nTodo: \ncleaner routing for USB D+/D- ?\nTest use of single P6KE82"
 		(exclude_from_sim no)
-		(at 198.628 61.214 0)
+		(at 243.84 41.402 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6662,7 +5820,7 @@
 		(uuid "23a103e8-946d-4507-8314-e23f06d54e9e")
 	)
 	(junction
-		(at 118.11 157.48)
+		(at 109.22 161.29)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "24a0ece0-8e86-419b-8f73-2afd6c3850f9")
@@ -6692,7 +5850,7 @@
 		(uuid "4565882c-8c35-4f16-aaea-446a733fea14")
 	)
 	(junction
-		(at 120.65 193.04)
+		(at 111.76 196.85)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "46cfbcd8-c719-412a-8e5d-97eb3992b429")
@@ -6776,18 +5934,6 @@
 		(uuid "882327bc-20de-435a-a9b5-34f64795c493")
 	)
 	(junction
-		(at 143.51 93.98)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "8908fed6-04b4-48fc-a49d-083793587631")
-	)
-	(junction
-		(at 101.6 62.23)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "8b185d75-7b7c-4ce2-b501-a39e937f2505")
-	)
-	(junction
 		(at 223.52 90.17)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -6860,22 +6006,10 @@
 		(uuid "c48b8682-ba6e-4059-8a4c-2704bda6699c")
 	)
 	(junction
-		(at 111.76 54.61)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "c6a4ed6e-5625-4943-9b9d-44d5d779b813")
-	)
-	(junction
 		(at 245.11 165.1)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "cadf45f5-09b5-4460-b35b-95b7cac19d20")
-	)
-	(junction
-		(at 90.17 54.61)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "d8c6b544-bb4b-49f6-b7db-82fa3a260d62")
 	)
 	(junction
 		(at 223.52 158.75)
@@ -6884,7 +6018,7 @@
 		(uuid "da0f127c-5e9f-497b-a87d-714b9d7d13aa")
 	)
 	(junction
-		(at 82.55 162.56)
+		(at 73.66 166.37)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "e2397372-27bf-4e33-b468-d5e579bec393")
@@ -6902,7 +6036,7 @@
 		(uuid "f9b1db31-970e-4e05-9344-211441d4c068")
 	)
 	(junction
-		(at 143.51 167.64)
+		(at 134.62 171.45)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "fc368bf8-0952-46c9-8b83-2e48858ae878")
@@ -6919,7 +6053,7 @@
 	)
 	(wire
 		(pts
-			(xy 135.89 182.88) (xy 135.89 193.04)
+			(xy 127 186.69) (xy 127 196.85)
 		)
 		(stroke
 			(width 0)
@@ -6946,26 +6080,6 @@
 			(type default)
 		)
 		(uuid "061f6645-5f33-4ebe-8e41-2a0ba3487ab9")
-	)
-	(wire
-		(pts
-			(xy 146.05 80.01) (xy 146.05 71.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "06b04c8b-a26e-47a3-9816-34962ff604ca")
-	)
-	(wire
-		(pts
-			(xy 96.52 175.26) (xy 97.79 175.26)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "075bf44c-769c-4912-bd3d-b65bec68c665")
 	)
 	(wire
 		(pts
@@ -7039,16 +6153,6 @@
 	)
 	(wire
 		(pts
-			(xy 90.17 54.61) (xy 93.98 54.61)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0ebf631e-0622-4256-b128-7cf650786813")
-	)
-	(wire
-		(pts
 			(xy 247.65 119.38) (xy 247.65 110.49)
 		)
 		(stroke
@@ -7059,6 +6163,16 @@
 	)
 	(wire
 		(pts
+			(xy 43.18 106.68) (xy 43.18 116.84)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0f9bbe67-6d15-4d63-9895-cd60583046de")
+	)
+	(wire
+		(pts
 			(xy 191.77 137.16) (xy 205.74 137.16)
 		)
 		(stroke
@@ -7066,36 +6180,6 @@
 			(type default)
 		)
 		(uuid "12da8c73-3d77-4cfa-9247-55d7205c69d4")
-	)
-	(wire
-		(pts
-			(xy 147.32 88.9) (xy 147.32 85.09)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "14b588d6-2743-4b1f-905b-4411ff34009f")
-	)
-	(wire
-		(pts
-			(xy 63.5 116.84) (xy 63.5 121.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "14b5b198-35d7-4133-bd5a-3dc058f9e57a")
-	)
-	(wire
-		(pts
-			(xy 138.43 91.44) (xy 125.73 91.44)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1568f878-445d-49cb-97a5-5f54106da51f")
 	)
 	(wire
 		(pts
@@ -7119,7 +6203,7 @@
 	)
 	(wire
 		(pts
-			(xy 143.51 167.64) (xy 143.51 163.83)
+			(xy 134.62 171.45) (xy 134.62 167.64)
 		)
 		(stroke
 			(width 0)
@@ -7169,16 +6253,6 @@
 	)
 	(wire
 		(pts
-			(xy 143.51 71.12) (xy 143.51 93.98)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "22b62f79-1757-45f4-8352-d849363efcb4")
-	)
-	(wire
-		(pts
 			(xy 341.63 120.65) (xy 339.09 120.65)
 		)
 		(stroke
@@ -7219,7 +6293,7 @@
 	)
 	(wire
 		(pts
-			(xy 118.11 157.48) (xy 120.65 157.48)
+			(xy 109.22 161.29) (xy 111.76 161.29)
 		)
 		(stroke
 			(width 0)
@@ -7259,6 +6333,16 @@
 	)
 	(wire
 		(pts
+			(xy 132.08 88.9) (xy 125.73 88.9)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "31543270-c115-4bf9-b3cd-e93900e6107c")
+	)
+	(wire
+		(pts
 			(xy 205.74 149.86) (xy 205.74 152.4)
 		)
 		(stroke
@@ -7279,26 +6363,6 @@
 	)
 	(wire
 		(pts
-			(xy 54.61 118.11) (xy 58.42 118.11)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "34d4fe2b-2700-414f-a59b-dd0204968213")
-	)
-	(wire
-		(pts
-			(xy 138.43 130.81) (xy 138.43 119.38)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "360bc14c-7e32-4fd4-af6b-31dcfd56cc2b")
-	)
-	(wire
-		(pts
 			(xy 125.73 104.14) (xy 143.51 104.14)
 		)
 		(stroke
@@ -7309,13 +6373,13 @@
 	)
 	(wire
 		(pts
-			(xy 55.88 110.49) (xy 58.42 110.49)
+			(xy 132.08 80.01) (xy 132.08 88.9)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "3769f6a1-d154-484d-8488-c6c2d1cc9fe9")
+		(uuid "375ee507-b7be-478a-a86b-3ab7eae53481")
 	)
 	(wire
 		(pts
@@ -7339,16 +6403,6 @@
 	)
 	(wire
 		(pts
-			(xy 111.76 62.23) (xy 101.6 62.23)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3c132c64-aca5-4a39-b1a9-605a98c6d6e9")
-	)
-	(wire
-		(pts
 			(xy 318.77 148.59) (xy 325.12 148.59)
 		)
 		(stroke
@@ -7369,16 +6423,6 @@
 	)
 	(wire
 		(pts
-			(xy 138.43 71.12) (xy 138.43 91.44)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "44db2eb6-9431-442c-8c31-60e6cc7ec1c8")
-	)
-	(wire
-		(pts
 			(xy 223.52 157.48) (xy 223.52 158.75)
 		)
 		(stroke
@@ -7396,16 +6440,6 @@
 			(type default)
 		)
 		(uuid "457ee25b-75c2-48fe-928a-ac7b358ab317")
-	)
-	(wire
-		(pts
-			(xy 49.53 121.92) (xy 53.34 121.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "45f59902-febd-417d-8e86-401fd9c887b3")
 	)
 	(wire
 		(pts
@@ -7439,16 +6473,6 @@
 	)
 	(wire
 		(pts
-			(xy 140.97 71.12) (xy 140.97 88.9)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "49b1c8ae-ceae-45ba-960a-4077b16a26e7")
-	)
-	(wire
-		(pts
 			(xy 250.19 127) (xy 250.19 124.46)
 		)
 		(stroke
@@ -7459,23 +6483,13 @@
 	)
 	(wire
 		(pts
-			(xy 80.01 162.56) (xy 82.55 162.56)
+			(xy 71.12 166.37) (xy 73.66 166.37)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "51ca3280-12be-43b3-8ed7-c9839af7c396")
-	)
-	(wire
-		(pts
-			(xy 151.13 73.66) (xy 158.75 73.66)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "54744c17-04b3-4442-a82d-3235d7391255")
 	)
 	(wire
 		(pts
@@ -7529,16 +6543,6 @@
 	)
 	(wire
 		(pts
-			(xy 151.13 71.12) (xy 151.13 73.66)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "601f6150-2dec-4c26-ad0c-ccec515d8cbd")
-	)
-	(wire
-		(pts
 			(xy 238.76 127) (xy 248.92 127)
 		)
 		(stroke
@@ -7579,16 +6583,6 @@
 	)
 	(wire
 		(pts
-			(xy 125.73 93.98) (xy 143.51 93.98)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "66f56e2d-1243-4503-9e7d-ef68b390760b")
-	)
-	(wire
-		(pts
 			(xy 189.23 152.4) (xy 189.23 144.78)
 		)
 		(stroke
@@ -7596,6 +6590,16 @@
 			(type default)
 		)
 		(uuid "67630189-7f79-4c72-90d9-ae900df3671c")
+	)
+	(wire
+		(pts
+			(xy 138.43 91.44) (xy 138.43 80.01)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "67a97ba1-627e-4187-a509-455afc3d0cc4")
 	)
 	(wire
 		(pts
@@ -7619,7 +6623,7 @@
 	)
 	(wire
 		(pts
-			(xy 135.89 193.04) (xy 120.65 193.04)
+			(xy 127 196.85) (xy 111.76 196.85)
 		)
 		(stroke
 			(width 0)
@@ -7636,16 +6640,6 @@
 			(type default)
 		)
 		(uuid "6d57793d-710e-4224-befe-27195d0eeab0")
-	)
-	(wire
-		(pts
-			(xy 135.89 175.26) (xy 135.89 177.8)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6e060bf7-8181-4a31-92d5-aa2028962bde")
 	)
 	(wire
 		(pts
@@ -7779,16 +6773,6 @@
 	)
 	(wire
 		(pts
-			(xy 63.5 116.84) (xy 74.93 116.84)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "846ae2e3-ed6f-4ea8-925e-7ab64977529e")
-	)
-	(wire
-		(pts
 			(xy 325.12 76.2) (xy 336.55 76.2)
 		)
 		(stroke
@@ -7826,6 +6810,16 @@
 			(type default)
 		)
 		(uuid "88e909bd-16f0-43f9-a616-af9518dd9791")
+	)
+	(wire
+		(pts
+			(xy 43.18 116.84) (xy 74.93 116.84)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "890cf2de-fbbd-41cf-bed8-8f789a8a632d")
 	)
 	(wire
 		(pts
@@ -7869,7 +6863,7 @@
 	)
 	(wire
 		(pts
-			(xy 80.01 172.72) (xy 97.79 172.72)
+			(xy 71.12 176.53) (xy 88.9 176.53)
 		)
 		(stroke
 			(width 0)
@@ -7879,7 +6873,7 @@
 	)
 	(wire
 		(pts
-			(xy 82.55 161.29) (xy 82.55 162.56)
+			(xy 73.66 165.1) (xy 73.66 166.37)
 		)
 		(stroke
 			(width 0)
@@ -7939,6 +6933,16 @@
 	)
 	(wire
 		(pts
+			(xy 125.73 91.44) (xy 138.43 91.44)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "910497d7-df82-4ceb-b045-31fb7eff7af8")
+	)
+	(wire
+		(pts
 			(xy 336.55 69.85) (xy 336.55 68.58)
 		)
 		(stroke
@@ -7989,53 +6993,13 @@
 	)
 	(wire
 		(pts
-			(xy 148.59 77.47) (xy 148.59 71.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "94bf116f-a596-40e9-b4a3-6da8e2535100")
-	)
-	(wire
-		(pts
-			(xy 125.73 119.38) (xy 138.43 119.38)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "94c8e828-dc12-48cc-a2ae-09efead04c6b")
-	)
-	(wire
-		(pts
-			(xy 111.76 54.61) (xy 116.84 54.61)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "983f9641-cec1-41cf-a18d-074f71c13556")
-	)
-	(wire
-		(pts
-			(xy 135.89 167.64) (xy 143.51 167.64)
+			(xy 127 171.45) (xy 134.62 171.45)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "9aa6b551-1d26-4f64-b698-c362147a51a7")
-	)
-	(wire
-		(pts
-			(xy 109.22 54.61) (xy 111.76 54.61)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9b11cb0c-4f15-4ac0-a2f8-3fa0faa6f925")
 	)
 	(wire
 		(pts
@@ -8129,7 +7093,7 @@
 	)
 	(wire
 		(pts
-			(xy 143.51 167.64) (xy 143.51 170.18)
+			(xy 134.62 171.45) (xy 134.62 173.99)
 		)
 		(stroke
 			(width 0)
@@ -8159,17 +7123,7 @@
 	)
 	(wire
 		(pts
-			(xy 63.5 114.3) (xy 74.93 114.3)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "aabbf796-6e13-4a36-9d5a-f6968cda2e56")
-	)
-	(wire
-		(pts
-			(xy 118.11 193.04) (xy 120.65 193.04)
+			(xy 109.22 196.85) (xy 111.76 196.85)
 		)
 		(stroke
 			(width 0)
@@ -8179,17 +7133,7 @@
 	)
 	(wire
 		(pts
-			(xy 153.67 77.47) (xy 148.59 77.47)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b2c2da2f-3616-46c3-90b0-789cfb81c659")
-	)
-	(wire
-		(pts
-			(xy 82.55 170.18) (xy 97.79 170.18)
+			(xy 73.66 173.99) (xy 88.9 173.99)
 		)
 		(stroke
 			(width 0)
@@ -8229,27 +7173,7 @@
 	)
 	(wire
 		(pts
-			(xy 90.17 62.23) (xy 101.6 62.23)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b6dcc461-de42-4526-b543-1f19b1de0216")
-	)
-	(wire
-		(pts
-			(xy 144.78 116.84) (xy 144.78 130.81)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b71e7ce5-eb23-40fe-a482-e05f52111580")
-	)
-	(wire
-		(pts
-			(xy 80.01 165.1) (xy 80.01 162.56)
+			(xy 71.12 168.91) (xy 71.12 166.37)
 		)
 		(stroke
 			(width 0)
@@ -8266,16 +7190,6 @@
 			(type default)
 		)
 		(uuid "bab848be-43ca-46dc-8728-703bdf4d3872")
-	)
-	(wire
-		(pts
-			(xy 111.76 59.69) (xy 111.76 62.23)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "bf66bbc0-9abd-448d-88a5-34eeaacec67c")
 	)
 	(wire
 		(pts
@@ -8306,16 +7220,6 @@
 			(type default)
 		)
 		(uuid "c8fdf9fb-8b69-4143-b39f-47c9ddb88aba")
-	)
-	(wire
-		(pts
-			(xy 140.97 88.9) (xy 125.73 88.9)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c9811df5-7ed8-46bb-9df2-8a60cc0722d8")
 	)
 	(wire
 		(pts
@@ -8419,16 +7323,6 @@
 	)
 	(wire
 		(pts
-			(xy 49.53 114.3) (xy 53.34 114.3)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d2807786-486d-4713-9b5d-75cfa39b7fea")
-	)
-	(wire
-		(pts
 			(xy 52.07 76.2) (xy 58.42 76.2)
 		)
 		(stroke
@@ -8529,16 +7423,6 @@
 	)
 	(wire
 		(pts
-			(xy 125.73 116.84) (xy 144.78 116.84)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e685e5d8-69d8-429a-a4c0-0bb1267297d4")
-	)
-	(wire
-		(pts
 			(xy 220.98 111.76) (xy 220.98 102.87)
 		)
 		(stroke
@@ -8546,16 +7430,6 @@
 			(type default)
 		)
 		(uuid "e83906ba-0c7b-4111-b890-92587386a12f")
-	)
-	(wire
-		(pts
-			(xy 147.32 80.01) (xy 146.05 80.01)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "eb7bbba1-1b1c-4f81-84d3-eb1a24a54de5")
 	)
 	(wire
 		(pts
@@ -8589,16 +7463,6 @@
 	)
 	(wire
 		(pts
-			(xy 165.1 73.66) (xy 163.83 73.66)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f07a3eea-dbba-4663-84c6-b51c988f9a57")
-	)
-	(wire
-		(pts
 			(xy 255.27 160.02) (xy 255.27 137.16)
 		)
 		(stroke
@@ -8606,16 +7470,6 @@
 			(type default)
 		)
 		(uuid "f1c72aca-1c98-42ca-a4ae-06761134d680")
-	)
-	(wire
-		(pts
-			(xy 90.17 59.69) (xy 90.17 62.23)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f3443c0a-a230-4404-92ca-04dbeb4ebc01")
 	)
 	(wire
 		(pts
@@ -8728,7 +7582,7 @@
 		(uuid "0cb800de-861f-4dc2-b145-84dbd45ba077")
 	)
 	(label "SD_MOSI"
-		(at 97.79 180.34 180)
+		(at 88.9 184.15 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -8777,16 +7631,6 @@
 		)
 		(uuid "19de224c-3117-44f0-b0f7-c91e4a81e766")
 	)
-	(label "Line0Vout"
-		(at 299.72 167.64 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "23317527-9247-43ba-b1c3-109f394606d8")
-	)
 	(label "I2S_LRCK"
 		(at 74.93 104.14 180)
 		(effects
@@ -8797,18 +7641,8 @@
 		)
 		(uuid "30f0f24f-ac6a-4ff3-b825-684be1881c4b")
 	)
-	(label "GPIO13"
-		(at 49.53 121.92 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "311d6079-be96-4685-ac09-21065842ef23")
-	)
 	(label "SD_CLK"
-		(at 97.79 182.88 180)
+		(at 88.9 186.69 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -8816,26 +7650,6 @@
 			(justify right bottom)
 		)
 		(uuid "345dc62c-9e39-44f7-95fd-7f6cf43c231c")
-	)
-	(label "MFB"
-		(at 140.97 93.98 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "39cadeb3-89af-4696-bf3d-25af91327e57")
-	)
-	(label "Line0Vin"
-		(at 172.72 73.66 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "3bc64bb1-7dd2-40be-9601-e128ec48a594")
 	)
 	(label "Line1_SHK"
 		(at 307.34 59.69 180)
@@ -8846,16 +7660,6 @@
 			(justify right bottom)
 		)
 		(uuid "3cd5dab0-546d-4448-9e70-fd62554c51a9")
-	)
-	(label "Line0Vout"
-		(at 147.32 88.9 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "3f9b849f-f8ab-4ee0-af14-0a837026d078")
 	)
 	(label "Line1_SHK"
 		(at 153.67 106.68 0)
@@ -8887,23 +7691,13 @@
 		)
 		(uuid "4897bb18-bcf3-4e38-95e2-f5da99d28dbd")
 	)
-	(label "GPIO12"
-		(at 135.89 119.38 180)
+	(label "Xtra1"
+		(at 49.53 116.84 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify right bottom)
-		)
-		(uuid "4ad6cbe6-9489-430c-829a-27b1208a2164")
-	)
-	(label "I2S_MCLK"
-		(at 55.88 110.49 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
+			(justify left bottom)
 		)
 		(uuid "4da7d0bf-e298-452a-ae10-eade7cca07e2")
 	)
@@ -8957,18 +7751,8 @@
 		)
 		(uuid "632fd41e-7332-48d1-a861-38ac60520567")
 	)
-	(label "Line0Vin"
-		(at 299.72 168.91 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "6330a4c8-f5b5-4440-912c-027b62d8ccda")
-	)
 	(label "SD_MISO"
-		(at 97.79 167.64 180)
+		(at 88.9 171.45 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9067,16 +7851,6 @@
 		)
 		(uuid "7f62b06a-0414-4a2a-85fb-d7f4e0bccb70")
 	)
-	(label "SD_CD"
-		(at 54.61 118.11 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "84708fae-e81d-4151-90fc-5c5f78308e41")
-	)
 	(label "Line1_PD"
 		(at 327.66 95.25 0)
 		(effects
@@ -9148,7 +7922,7 @@
 		(uuid "a089dbd6-59c8-441a-ad18-078ab990c355")
 	)
 	(label "SD_CS"
-		(at 96.52 175.26 180)
+		(at 88.9 179.07 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9197,16 +7971,6 @@
 		)
 		(uuid "bba69f92-d7ad-4ebe-9095-8c6bbd5fcc54")
 	)
-	(label "SD_CD"
-		(at 135.89 175.26 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "c3ee6a06-3062-44ef-8889-6a17b620477a")
-	)
 	(label "Line1Tip"
 		(at 316.23 133.35 0)
 		(effects
@@ -9247,16 +8011,6 @@
 		)
 		(uuid "da83a148-dc35-43e3-8fa9-67a57a2e1b26")
 	)
-	(label "GPIO13"
-		(at 140.97 116.84 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "db6b1f65-f149-458e-930c-5aafaabe15e2")
-	)
 	(label "Line1Ring"
 		(at 339.09 148.59 0)
 		(effects
@@ -9267,15 +8021,15 @@
 		)
 		(uuid "e1f4a33a-ca96-47f8-91a1-4ac5ed08bced")
 	)
-	(label "GPIO12"
-		(at 49.53 114.3 180)
+	(label "I2S_MCLK"
+		(at 74.93 114.3 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right bottom)
 		)
-		(uuid "e286bb07-2492-4366-84a2-80753f5e5636")
+		(uuid "ebf23ca4-108e-4263-a870-a2f7c140db35")
 	)
 	(label "I2C_SDA"
 		(at 125.73 99.06 0)
@@ -9316,83 +8070,6 @@
 			(justify left bottom)
 		)
 		(uuid "ffabff1e-cc2a-4082-b36b-2abd1b9f9baa")
-	)
-	(symbol
-		(lib_id "power:+3.3V")
-		(at 135.89 71.12 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "00356f86-8575-419b-8ac8-0b24431c2859")
-		(property "Reference" "#PWR051"
-			(at 139.7 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3.3V_BM"
-			(at 131.826 67.31 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 135.89 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 135.89 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"+3.3V\""
-			(at 135.89 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "d4c34586-124c-4111-a27c-46c63f3c5cae")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "#PWR051")
-					(unit 1)
-				)
-			)
-		)
 	)
 	(symbol
 		(lib_id "PCM_SparkFun-Capacitor:C_Small")
@@ -9583,39 +8260,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 226.06 96.52 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 226.06 96.52 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 226.06 96.52 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "3c2e1577-870c-4c3a-99ec-87a25031b490")
 		)
@@ -9623,7 +8267,7 @@
 			(uuid "91ac3cf4-764e-4d59-b4de-39dbbcbbbd22")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C8")
 					(unit 1)
@@ -9653,7 +8297,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "SM4007PL"
+		(property "Value" "1N4007"
 			(at 338.074 131.826 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9664,7 +8308,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_SMD:Nexperia_CFP3_SOD-123W"
+		(property "Footprint" "JLCImport:1N4007W_C18199088"
 			(at 336.55 137.16 0)
 			(hide yes)
 			(show_name no)
@@ -9785,39 +8429,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 336.55 137.16 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 336.55 137.16 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 336.55 137.16 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "088d4ace-712d-43b4-b029-4733b2288020")
 		)
@@ -9825,7 +8436,7 @@
 			(uuid "7fcad106-2834-4fb8-b74b-45d168d2f92c")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D10")
 					(unit 1)
@@ -9988,39 +8599,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 364.49 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 364.49 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 364.49 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "3"
 			(uuid "e95e2d51-0ec7-4dfb-9657-f24f0c5cce97")
 		)
@@ -10040,7 +8618,7 @@
 			(uuid "e76b443c-b5ab-428e-a486-5524bbc2ffd4")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J8")
 					(unit 1)
@@ -10118,7 +8696,7 @@
 			(uuid "ca3d15be-b4dc-4152-ad81-a0442d41e06e")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR028")
 					(unit 1)
@@ -10292,39 +8870,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 191.77 132.08 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 191.77 132.08 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 191.77 132.08 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "9bdff209-ed76-44a0-b4f2-503812ac944e")
 		)
@@ -10332,7 +8877,7 @@
 			(uuid "63df2463-1583-4d9f-a4b2-f314bddbf8eb")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R4")
 					(unit 1)
@@ -10529,39 +9074,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 215.9 110.49 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 215.9 110.49 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 215.9 110.49 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "7e7854c2-27d6-481d-b3d5-4df22fdd3714")
 		)
@@ -10569,7 +9081,7 @@
 			(uuid "136cb534-2642-4bae-847e-6f0dcf90db52")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C6")
 					(unit 1)
@@ -10598,7 +9110,7 @@
 				)
 			)
 		)
-		(property "Value" "10k"
+		(property "Value" "8.2k"
 			(at 251.46 107.95 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10740,39 +9252,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 254 106.68 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 254 106.68 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 254 106.68 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "d2e3cb44-0941-486f-ac4f-a786c4f25869")
 		)
@@ -10780,7 +9259,7 @@
 			(uuid "8e53b2be-ae31-4854-bcd3-1608981c5402")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R8")
 					(unit 1)
@@ -10977,39 +9456,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 189.23 154.94 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 189.23 154.94 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 189.23 154.94 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "5f146de9-28a9-4282-98d8-cf378b0c9041")
 		)
@@ -11017,7 +9463,7 @@
 			(uuid "c6edc907-8689-408d-bc58-8d3062683e65")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C2")
 					(unit 1)
@@ -11095,7 +9541,7 @@
 			(uuid "2a8b096c-290e-4f07-b11c-8f1b7d7d8189")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR02")
 					(unit 1)
@@ -11257,39 +9703,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 314.96 106.68 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 314.96 106.68 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 314.96 106.68 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "aa10d55d-2a8e-4c13-80a8-46d579acdc30")
 		)
@@ -11297,7 +9710,7 @@
 			(uuid "70edcda2-9e45-4a86-9ec8-cbec9fcf84d2")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C18")
 					(unit 1)
@@ -11375,7 +9788,7 @@
 			(uuid "ac9755ad-faca-4fbf-9f9b-a0ab1d60d84e")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR033")
 					(unit 1)
@@ -11385,7 +9798,7 @@
 	)
 	(symbol
 		(lib_id "PCM_SL_Mechanical:MountingHole_M3")
-		(at 41.91 168.91 0)
+		(at 184.15 44.45 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -11396,7 +9809,7 @@
 		(fields_autoplaced yes)
 		(uuid "159f88a0-c715-4483-9ba1-a8a8e7705f60")
 		(property "Reference" "H2"
-			(at 45.72 167.6399 0)
+			(at 187.96 43.1799 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11407,7 +9820,7 @@
 			)
 		)
 		(property "Value" "MountingHole_M3"
-			(at 45.72 170.1799 0)
+			(at 187.96 45.7199 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11418,7 +9831,7 @@
 			)
 		)
 		(property "Footprint" "MountingHole:MountingHole_3.2mm_M3"
-			(at 41.91 172.72 0)
+			(at 184.15 48.26 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11429,7 +9842,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 41.91 168.91 0)
+			(at 184.15 44.45 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11440,40 +9853,7 @@
 			)
 		)
 		(property "Description" "3.2mm Diameter Mounting Hole (M3)"
-			(at 41.91 168.91 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 41.91 168.91 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 41.91 168.91 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 41.91 168.91 0)
+			(at 184.15 44.45 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11484,7 +9864,7 @@
 			)
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "H2")
 					(unit 1)
@@ -11646,39 +10026,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 308.61 106.68 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 308.61 106.68 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 308.61 106.68 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "54743098-c4c4-427e-b94d-a1598d12107c")
 		)
@@ -11686,93 +10033,9 @@
 			(uuid "87997731-1a76-4de9-89b9-9499be39d875")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C16")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Regulator_Linear:XC6206PxxxMR")
-		(at 101.6 54.61 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "1b8346c4-c21c-4902-9e09-862c60af1e52")
-		(property "Reference" "U5"
-			(at 101.6 48.26 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "XC6206P332MR"
-			(at 101.6 50.8 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-23-3"
-			(at 101.6 48.895 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-					(italic yes)
-				)
-			)
-		)
-		(property "Datasheet" "https://www.torexsemi.com/file/xc6206/XC6206.pdf"
-			(at 101.6 54.61 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Positive 60-250mA Low Dropout Regulator, Fixed Output, SOT-23"
-			(at 101.6 54.61 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "d1cc09ff-ac36-4832-94f6-2954ad04cf41")
-		)
-		(pin "2"
-			(uuid "e13ce094-79b9-4ae7-9193-c6888bc48b88")
-		)
-		(pin "3"
-			(uuid "f5178188-8d9e-44d6-a36b-7435adb8150e")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "U5")
 					(unit 1)
 				)
 			)
@@ -11985,39 +10248,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 323.85 165.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 323.85 165.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 323.85 165.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "04ec53da-3be5-4c57-bba4-a2b2bf0e7319")
 		)
@@ -12025,211 +10255,9 @@
 			(uuid "0ff523f8-8220-4cde-8df1-04705304f4a7")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D3")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "PCM_SL_Pin_Headers:PINHD_1x2_Male")
-		(at 137.16 134.62 270)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "1c91d790-0f2e-450b-8451-70e939a818fc")
-		(property "Reference" "J4"
-			(at 138.176 136.398 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "PINHD_1x2_Male"
-			(at 136.906 134.62 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
-			(at 133.35 135.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 144.78 134.62 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -2"
-			(at 137.16 134.62 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Availability" ""
-			(at 137.16 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Check_prices" ""
-			(at 137.16 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MF" ""
-			(at 137.16 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MP" ""
-			(at 137.16 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" ""
-			(at 137.16 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Package" ""
-			(at 137.16 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Price" ""
-			(at 137.16 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "SnapEDA_Link" ""
-			(at 137.16 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 137.16 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 137.16 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 137.16 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "bd016a2c-9462-40d6-951b-46380d62f065")
-		)
-		(pin "2"
-			(uuid "1e359a8c-a859-4a1e-825e-795fd30d737b")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "J4")
 					(unit 1)
 				)
 			)
@@ -12304,7 +10332,7 @@
 			(uuid "bb0226bc-9207-4e95-96d4-06131865e0f1")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR03")
 					(unit 1)
@@ -12501,39 +10529,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 233.68 107.95 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 233.68 107.95 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 233.68 107.95 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "347ecb6e-38dd-483b-96e3-6ee715707652")
 		)
@@ -12541,7 +10536,7 @@
 			(uuid "0fa11baf-9ef5-4ff4-8719-1745c2b824a3")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C9")
 					(unit 1)
@@ -12571,7 +10566,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "SM4007PL"
+		(property "Value" "1N4007"
 			(at 341.376 77.724 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12582,7 +10577,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Diode_SMD:Nexperia_CFP3_SOD-123W"
+		(property "Footprint" "JLCImport:1N4007W_C18199088"
 			(at 336.55 72.39 0)
 			(hide yes)
 			(show_name no)
@@ -12703,39 +10698,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 336.55 72.39 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 336.55 72.39 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 336.55 72.39 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "6d7080ce-1759-4850-b9bb-d8cee98ad053")
 		)
@@ -12743,7 +10705,7 @@
 			(uuid "366e675d-f962-4aa8-a9cb-543628518eb6")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D9")
 					(unit 1)
@@ -12753,7 +10715,7 @@
 	)
 	(symbol
 		(lib_id "PCM_SL_Mechanical:MountingHole_M3")
-		(at 41.91 184.15 0)
+		(at 184.15 59.69 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12764,7 +10726,7 @@
 		(fields_autoplaced yes)
 		(uuid "2075aaf5-778e-4a94-9ae6-df876524e94e")
 		(property "Reference" "H4"
-			(at 45.72 182.8799 0)
+			(at 187.96 58.4199 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12775,7 +10737,7 @@
 			)
 		)
 		(property "Value" "MountingHole_M3"
-			(at 45.72 185.4199 0)
+			(at 187.96 60.9599 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12786,7 +10748,7 @@
 			)
 		)
 		(property "Footprint" "MountingHole:MountingHole_3.2mm_M3"
-			(at 41.91 187.96 0)
+			(at 184.15 63.5 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12797,7 +10759,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 41.91 184.15 0)
+			(at 184.15 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12808,40 +10770,7 @@
 			)
 		)
 		(property "Description" "3.2mm Diameter Mounting Hole (M3)"
-			(at 41.91 184.15 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 41.91 184.15 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 41.91 184.15 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 41.91 184.15 0)
+			(at 184.15 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12852,7 +10781,7 @@
 			)
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "H4")
 					(unit 1)
@@ -13014,39 +10943,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 250.19 175.26 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 250.19 175.26 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 250.19 175.26 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "59322d62-ae68-498c-ba8b-10afba45236b")
 		)
@@ -13057,7 +10953,7 @@
 			(uuid "845b2f38-3901-45ac-862f-c47453f610fa")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J7")
 					(unit 1)
@@ -13220,39 +11116,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 367.03 139.7 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 367.03 139.7 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 367.03 139.7 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "3"
 			(uuid "7cc4817d-2d80-4898-a6d1-8004aac3e4ca")
 		)
@@ -13272,7 +11135,7 @@
 			(uuid "3f2e800a-630b-4150-bc19-5e7f052c6bf9")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J9")
 					(unit 1)
@@ -13350,7 +11213,7 @@
 			(uuid "7a5aa028-5a73-4420-bfac-747062b4119c")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR034")
 					(unit 1)
@@ -13434,39 +11297,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 44.45 73.66 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 44.45 73.66 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 44.45 73.66 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "GNDBREAK"
 			(uuid "af5473d5-4980-4dd4-baaf-0cf1aa421cac")
 		)
@@ -13477,7 +11307,7 @@
 			(uuid "f8a01821-d5e2-4d95-9ea2-ce486322193d")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J1")
 					(unit 1)
@@ -13555,7 +11385,7 @@
 			(uuid "fd79cedf-3e7c-46ab-a339-6cdd3dfb03f9")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR019")
 					(unit 1)
@@ -13716,39 +11546,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 285.75 172.72 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 285.75 172.72 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 285.75 172.72 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "83837c37-82bd-4774-a4e5-e39e10d27547")
 		)
@@ -13756,87 +11553,9 @@
 			(uuid "0350c5f0-a0d2-47b6-a20f-37fd83a393bb")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C12")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 135.89 130.81 180)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "2c3d26b7-2ad9-4aeb-bb1c-92b5a4a01a73")
-		(property "Reference" "#PWR016"
-			(at 135.89 124.46 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 134.62 127 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" ""
-			(at 135.89 130.81 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 135.89 130.81 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 135.89 130.81 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "c1d5c488-83d8-4622-8dee-71cc522d69d6")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "#PWR016")
 					(unit 1)
 				)
 			)
@@ -14005,39 +11724,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 252.73 165.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 252.73 165.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 252.73 165.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "5570f01b-7432-4779-8fa3-264dec8b375b")
 		)
@@ -14045,7 +11731,7 @@
 			(uuid "07253248-8ae7-4618-9854-ceb2c347faa4")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R7")
 					(unit 1)
@@ -14054,8 +11740,8 @@
 		)
 	)
 	(symbol
-		(lib_id "PCM_SparkFun-Resistor:R")
-		(at 147.32 93.98 0)
+		(lib_id "PCM_SL_Pin_Headers:PINHD_1x2_Male")
+		(at 44.45 102.87 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -14063,31 +11749,31 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "32c1ff03-3aa6-489c-82ad-c2f017379a97")
-		(property "Reference" "R17"
-			(at 144.272 91.44 0)
+		(uuid "2fb60c66-5355-41f4-9959-4199e1006e54")
+		(property "Reference" "J2"
+			(at 43.434 101.092 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
-		(property "Value" "100k"
-			(at 149.352 91.186 0)
+		(property "Value" "PINHD_1x2_Male"
+			(at 44.704 102.87 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 147.32 98.552 0)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+			(at 48.26 101.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14097,8 +11783,8 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
-			(at 146.05 102.87 0)
+		(property "Datasheet" ""
+			(at 36.83 102.87 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14108,19 +11794,8 @@
 				)
 			)
 		)
-		(property "Description" "Resistor"
-			(at 147.32 105.41 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "PROD_ID" "RES-07856"
-			(at 147.32 100.838 0)
+		(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -2"
+			(at 44.45 102.87 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14131,7 +11806,7 @@
 			)
 		)
 		(property "Availability" ""
-			(at 147.32 93.98 90)
+			(at 44.45 102.87 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14142,7 +11817,7 @@
 			)
 		)
 		(property "Check_prices" ""
-			(at 147.32 93.98 90)
+			(at 44.45 102.87 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14153,7 +11828,7 @@
 			)
 		)
 		(property "MF" ""
-			(at 147.32 93.98 90)
+			(at 44.45 102.87 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14164,7 +11839,7 @@
 			)
 		)
 		(property "MP" ""
-			(at 147.32 93.98 90)
+			(at 44.45 102.87 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14175,7 +11850,7 @@
 			)
 		)
 		(property "MPN" ""
-			(at 147.32 93.98 90)
+			(at 44.45 102.87 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14186,7 +11861,7 @@
 			)
 		)
 		(property "Package" ""
-			(at 147.32 93.98 90)
+			(at 44.45 102.87 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14197,7 +11872,7 @@
 			)
 		)
 		(property "Price" ""
-			(at 147.32 93.98 90)
+			(at 44.45 102.87 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14208,40 +11883,7 @@
 			)
 		)
 		(property "SnapEDA_Link" ""
-			(at 147.32 93.98 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 147.32 93.98 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 147.32 93.98 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 147.32 93.98 90)
+			(at 44.45 102.87 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14252,15 +11894,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "4c303a85-7e2b-4348-9e83-9adc22e05118")
+			(uuid "4ec0ecb3-ad23-4e05-b359-c2bee756913d")
 		)
 		(pin "2"
-			(uuid "95b0457c-a855-4c12-95ff-9e7a6897aefc")
+			(uuid "6deee38d-afdb-4129-848d-a4386062a2b6")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "R17")
+					(reference "J2")
 					(unit 1)
 				)
 			)
@@ -14288,7 +11930,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "47uF"
+		(property "Value" "100uF"
 			(at 257.302 155.956 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14299,7 +11941,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D4.7mm_W2.5mm_P5.00mm"
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
 			(at 254.3048 151.13 0)
 			(hide yes)
 			(show_name no)
@@ -14455,39 +12097,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 255.27 162.56 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 255.27 162.56 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 255.27 162.56 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "f6e919ec-2e97-4b96-bdea-f7d85aaa64f3")
 		)
@@ -14495,246 +12104,9 @@
 			(uuid "579a4903-c019-489a-86ca-6b56d9d80e0f")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C11")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "PCM_SparkFun-Capacitor:C_Small")
-		(at 111.76 57.15 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "3b03dd01-b0bb-4a30-8a9b-fc1fc550525f")
-		(property "Reference" "C25"
-			(at 114.3 63.246 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "1uF"
-			(at 114.554 58.928 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 112.7252 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
-			(at 113.03 73.66 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Unpolarized capacitor"
-			(at 111.76 76.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "PROD_ID" "CAP-00000"
-			(at 111.76 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage" "1kV"
-			(at 114.3 58.4262 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Tolerance" "100%"
-			(at 114.3 60.9662 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Availability" ""
-			(at 111.76 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Check_prices" ""
-			(at 111.76 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MF" ""
-			(at 111.76 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MP" ""
-			(at 111.76 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" ""
-			(at 111.76 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Package" ""
-			(at 111.76 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Price" ""
-			(at 111.76 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "SnapEDA_Link" ""
-			(at 111.76 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 111.76 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 111.76 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 111.76 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "ad9d3864-df15-4a29-9ab7-429f43dd2c9e")
-		)
-		(pin "1"
-			(uuid "c083950e-cac4-4a41-8344-a25dce74b9e8")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "C25")
 					(unit 1)
 				)
 			)
@@ -14810,7 +12182,7 @@
 			(uuid "cdbef7d1-5d49-4eda-b705-2acd7e715062")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR023")
 					(unit 1)
@@ -14972,39 +12344,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 223.52 134.62 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 223.52 134.62 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 223.52 134.62 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "14"
 			(uuid "be53c94d-2186-4b21-aabe-868723c67372")
 		)
@@ -15093,7 +12432,7 @@
 			(uuid "3213937b-50ce-4128-9212-2ed2f810075c")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "U2")
 					(unit 1)
@@ -15290,39 +12629,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 214.63 102.87 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 214.63 102.87 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 214.63 102.87 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "659e5f92-eb02-4d49-816f-b5187904af1e")
 		)
@@ -15330,86 +12636,9 @@
 			(uuid "b56a7cfb-d51d-4ab5-8c5a-b516b2d962f0")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C5")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+3.3V")
-		(at 116.84 54.61 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "40734d67-aaad-4d0d-a793-e27a36e22ee6")
-		(property "Reference" "#PWR053"
-			(at 116.84 58.42 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3.3V_BM"
-			(at 117.602 49.53 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 116.84 54.61 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 116.84 54.61 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"+3.3V\""
-			(at 116.84 54.61 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "bb8c03e0-7161-42e7-9d43-f581426d5f4f")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "#PWR053")
 					(unit 1)
 				)
 			)
@@ -15604,39 +12833,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 205.74 154.94 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 205.74 154.94 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 205.74 154.94 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "27311730-722b-489e-ade7-d45808bad452")
 		)
@@ -15644,7 +12840,7 @@
 			(uuid "2077aeee-3c27-469b-8dce-82914265b803")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C4")
 					(unit 1)
@@ -15662,9 +12858,10 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
+		(fields_autoplaced yes)
 		(uuid "4622ac59-1cdd-4ebb-8737-edb0fc8f9e67")
 		(property "Reference" "J5"
-			(at 148.336 96.52 0)
+			(at 148.59 95.25 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15674,7 +12871,7 @@
 			)
 		)
 		(property "Value" "PINHD_2x4_Male"
-			(at 148.336 98.552 0)
+			(at 148.59 97.79 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15716,39 +12913,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 148.59 105.41 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 148.59 105.41 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 148.59 105.41 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "6"
 			(uuid "7affd608-9e34-454e-b89a-013a3564261b")
 		)
@@ -15774,7 +12938,7 @@
 			(uuid "dcecd4dc-ee25-420e-b756-0ab54d4493d6")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J5")
 					(unit 1)
@@ -15853,7 +13017,7 @@
 			(uuid "b192ab9e-b3e4-4a72-b990-898f3fec0dfe")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR038")
 					(unit 1)
@@ -15883,7 +13047,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "SM4007PL"
+		(property "Value" "1N4007"
 			(at 338.074 59.436 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15894,7 +13058,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_SMD:Nexperia_CFP3_SOD-123W"
+		(property "Footprint" "JLCImport:1N4007W_C18199088"
 			(at 336.55 64.77 0)
 			(hide yes)
 			(show_name no)
@@ -16015,39 +13179,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 336.55 64.77 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 336.55 64.77 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 336.55 64.77 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "e12622d0-8e4d-498d-af04-3967bde2d08b")
 		)
@@ -16055,246 +13186,9 @@
 			(uuid "1138ba88-45fa-483f-99d7-c599f1b33379")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D8")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "PCM_SparkFun-Capacitor:C_Small")
-		(at 153.67 80.01 180)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "5199f37a-1150-4a0d-8b29-752bcff97070")
-		(property "Reference" "C24"
-			(at 156.464 78.232 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "1uF"
-			(at 150.876 78.232 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 152.7048 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
-			(at 152.4 63.5 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Unpolarized capacitor"
-			(at 153.67 60.96 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "PROD_ID" "CAP-00000"
-			(at 153.67 66.04 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage" "1kV"
-			(at 151.13 78.7338 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Tolerance" "100%"
-			(at 151.13 76.1938 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Availability" ""
-			(at 153.67 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Check_prices" ""
-			(at 153.67 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MF" ""
-			(at 153.67 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MP" ""
-			(at 153.67 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" ""
-			(at 153.67 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Package" ""
-			(at 153.67 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Price" ""
-			(at 153.67 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "SnapEDA_Link" ""
-			(at 153.67 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 153.67 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 153.67 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 153.67 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "446971dc-330a-483d-8186-d4ee253eaae6")
-		)
-		(pin "1"
-			(uuid "0b3395bb-7ffd-465d-af05-c93004cb9cdd")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "C24")
 					(unit 1)
 				)
 			)
@@ -16370,7 +13264,7 @@
 			(uuid "910860d6-35be-485e-89c3-5534538126f8")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR024")
 					(unit 1)
@@ -16541,39 +13435,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 308.61 144.78 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 308.61 144.78 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 308.61 144.78 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "9b21e317-de07-4a23-9f22-457861c92563")
 		)
@@ -16581,7 +13442,7 @@
 			(uuid "f83afe22-5e5e-49bb-9429-7f9a9f5b6ef6")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R15")
 					(unit 1)
@@ -16612,7 +13473,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 132.08 112.522 0)
+			(at 132.08 113.03 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -16659,7 +13520,7 @@
 			(uuid "b1e1c2e6-c121-4eca-8484-a777c3c04c08")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR011")
 					(unit 1)
@@ -16737,7 +13598,7 @@
 			(uuid "198b3e52-80b4-4c75-aa80-d8a5eb82a947")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR022")
 					(unit 1)
@@ -16766,7 +13627,7 @@
 				)
 			)
 		)
-		(property "Value" "10k"
+		(property "Value" "8.2k"
 			(at 251.46 119.38 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16908,39 +13769,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 254 118.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 254 118.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 254 118.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "5c4c776d-7885-44a0-bda6-e827827d74a9")
 		)
@@ -16948,7 +13776,7 @@
 			(uuid "9e1f4df5-9e8b-423d-a3c7-cdfb9bec7a5a")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R9")
 					(unit 1)
@@ -17026,7 +13854,7 @@
 			(uuid "e8168b2e-1562-40d7-b677-5b52d85e0d98")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR020")
 					(unit 1)
@@ -17188,39 +14016,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 316.23 179.07 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 316.23 179.07 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 316.23 179.07 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "a031a300-dbd7-41e7-adc9-329f6ffb3c01")
 		)
@@ -17228,7 +14023,7 @@
 			(uuid "1c9fbf77-33c9-449c-9650-2716ab5e6800")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C19")
 					(unit 1)
@@ -17399,39 +14194,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 257.81 110.49 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 257.81 110.49 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 257.81 110.49 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "e0d41547-ba51-448c-82f0-1feb660ea8c8")
 		)
@@ -17439,7 +14201,7 @@
 			(uuid "8115f048-264e-4ea7-9223-2d964b4b026d")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R10")
 					(unit 1)
@@ -17601,39 +14363,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 309.88 179.07 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 309.88 179.07 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 309.88 179.07 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "15eee123-f2dd-41bd-b8c5-9c348af1245c")
 		)
@@ -17641,7 +14370,7 @@
 			(uuid "6f6668a0-4f81-44a5-9896-074f4a7bf94f")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C17")
 					(unit 1)
@@ -17650,8 +14379,8 @@
 		)
 	)
 	(symbol
-		(lib_id "PCM_SparkFun-Capacitor:C_Small")
-		(at 161.29 73.66 270)
+		(lib_id "PCM_SL_Pin_Headers:PINHD_1x2_Male")
+		(at 139.7 76.2 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -17659,31 +14388,31 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "63ae3873-8066-45ff-a1d3-76750bfcf126")
-		(property "Reference" "C23"
-			(at 154.94 76.454 90)
+		(uuid "64a602b9-1d59-4900-8f43-e3e6d631cd8e")
+		(property "Reference" "J4"
+			(at 138.684 74.422 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
-		(property "Value" "1uF"
-			(at 159.512 76.454 90)
+		(property "Value" "PINHD_1x2_Male"
+			(at 139.954 76.2 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 149.86 74.6252 0)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+			(at 143.51 74.93 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17693,8 +14422,8 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
-			(at 144.78 74.93 0)
+		(property "Datasheet" ""
+			(at 132.08 76.2 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17704,8 +14433,8 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor"
-			(at 142.24 73.66 0)
+		(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -2"
+			(at 139.7 76.2 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17713,45 +14442,10 @@
 				(font
 					(size 1.27 1.27)
 				)
-			)
-		)
-		(property "PROD_ID" "CAP-00000"
-			(at 147.32 73.66 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage" "1kV"
-			(at 160.0138 76.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Tolerance" "100%"
-			(at 157.4738 76.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
 			)
 		)
 		(property "Availability" ""
-			(at 161.29 73.66 90)
+			(at 139.7 76.2 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17762,7 +14456,7 @@
 			)
 		)
 		(property "Check_prices" ""
-			(at 161.29 73.66 90)
+			(at 139.7 76.2 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17773,7 +14467,7 @@
 			)
 		)
 		(property "MF" ""
-			(at 161.29 73.66 90)
+			(at 139.7 76.2 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17784,7 +14478,7 @@
 			)
 		)
 		(property "MP" ""
-			(at 161.29 73.66 90)
+			(at 139.7 76.2 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17795,7 +14489,7 @@
 			)
 		)
 		(property "MPN" ""
-			(at 161.29 73.66 90)
+			(at 139.7 76.2 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17806,7 +14500,7 @@
 			)
 		)
 		(property "Package" ""
-			(at 161.29 73.66 90)
+			(at 139.7 76.2 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17817,7 +14511,7 @@
 			)
 		)
 		(property "Price" ""
-			(at 161.29 73.66 90)
+			(at 139.7 76.2 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17828,7 +14522,7 @@
 			)
 		)
 		(property "SnapEDA_Link" ""
-			(at 161.29 73.66 90)
+			(at 139.7 76.2 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17837,50 +14531,17 @@
 					(size 1.27 1.27)
 				)
 			)
-		)
-		(property "IMax" ""
-			(at 161.29 73.66 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 161.29 73.66 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 161.29 73.66 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "0fc4f122-028e-4499-87ad-4363f04adefd")
 		)
 		(pin "1"
-			(uuid "0346aade-669c-47c5-9c61-5c535061f1ae")
+			(uuid "06e5ba71-3650-461b-abb6-cc02a29bda4c")
+		)
+		(pin "2"
+			(uuid "f85f95ea-59be-43ce-a39f-bda8d8af9d72")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "C23")
+					(reference "J4")
 					(unit 1)
 				)
 			)
@@ -17956,7 +14617,7 @@
 			(uuid "d205ae9c-6662-4e14-bc59-ee67091a32ac")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR018")
 					(unit 1)
@@ -17966,7 +14627,7 @@
 	)
 	(symbol
 		(lib_id "power:+3.3V")
-		(at 143.51 163.83 0)
+		(at 134.62 167.64 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -17977,7 +14638,7 @@
 		(fields_autoplaced yes)
 		(uuid "65feae6a-b8b8-4d03-b088-cf499a5f1b6b")
 		(property "Reference" "#PWR014"
-			(at 143.51 167.64 0)
+			(at 134.62 171.45 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17988,7 +14649,7 @@
 			)
 		)
 		(property "Value" "+3.3V"
-			(at 143.51 158.75 0)
+			(at 134.62 162.56 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17998,7 +14659,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 143.51 163.83 0)
+			(at 134.62 167.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18009,7 +14670,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 143.51 163.83 0)
+			(at 134.62 167.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18020,7 +14681,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3.3V\""
-			(at 143.51 163.83 0)
+			(at 134.62 167.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18034,7 +14695,7 @@
 			(uuid "a887edb5-5a9d-428a-aedb-c0b0b2d83403")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR014")
 					(unit 1)
@@ -18043,210 +14704,8 @@
 		)
 	)
 	(symbol
-		(lib_id "PCM_SL_Pin_Headers:PINHD_1x2_Male")
-		(at 143.51 134.62 270)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "67c94a9b-ee9d-4c57-b358-c67b363dd6d9")
-		(property "Reference" "J3"
-			(at 144.526 136.398 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "PINHD_1x2_Male"
-			(at 159.004 134.874 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
-			(at 139.7 135.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 151.13 134.62 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -2"
-			(at 143.51 134.62 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Availability" ""
-			(at 143.51 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Check_prices" ""
-			(at 143.51 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MF" ""
-			(at 143.51 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MP" ""
-			(at 143.51 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" ""
-			(at 143.51 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Package" ""
-			(at 143.51 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Price" ""
-			(at 143.51 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "SnapEDA_Link" ""
-			(at 143.51 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 143.51 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 143.51 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 143.51 134.62 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "b7fd1083-4428-4d25-9952-7ec92e149081")
-		)
-		(pin "2"
-			(uuid "3e4bfac7-a44b-4e8e-bed1-a0474380cb07")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "J3")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:+3.3V")
-		(at 82.55 161.29 0)
+		(at 73.66 165.1 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -18257,7 +14716,7 @@
 		(fields_autoplaced yes)
 		(uuid "6ffaedde-a409-47a4-80a5-450d8d69122d")
 		(property "Reference" "#PWR06"
-			(at 82.55 165.1 0)
+			(at 73.66 168.91 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18268,7 +14727,7 @@
 			)
 		)
 		(property "Value" "+3.3V"
-			(at 82.55 156.21 0)
+			(at 73.66 160.02 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18278,7 +14737,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 82.55 161.29 0)
+			(at 73.66 165.1 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18289,7 +14748,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 82.55 161.29 0)
+			(at 73.66 165.1 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18300,7 +14759,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3.3V\""
-			(at 82.55 161.29 0)
+			(at 73.66 165.1 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18314,7 +14773,7 @@
 			(uuid "0640e6f6-afc8-4ece-894a-5f6b13876043")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR06")
 					(unit 1)
@@ -18474,39 +14933,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 256.54 132.08 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 256.54 132.08 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 256.54 132.08 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "d0fcc999-d1e4-45e6-9810-954037262e8a")
 		)
@@ -18514,7 +14940,7 @@
 			(uuid "772d6f15-1404-48f3-abfe-4e2d23559428")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C21")
 					(unit 1)
@@ -18711,39 +15137,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 226.06 90.17 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 226.06 90.17 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 226.06 90.17 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "d28f8ace-e75b-4987-a11f-efb8c26bfe3e")
 		)
@@ -18751,7 +15144,7 @@
 			(uuid "8e50d301-5c77-4462-9c0b-973807b037a2")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C7")
 					(unit 1)
@@ -18761,7 +15154,7 @@
 	)
 	(symbol
 		(lib_id "PCM_SL_Mechanical:MountingHole_M3")
-		(at 41.91 176.53 0)
+		(at 184.15 52.07 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -18772,7 +15165,7 @@
 		(fields_autoplaced yes)
 		(uuid "79338274-bbd1-423c-ac63-b179e648f302")
 		(property "Reference" "H3"
-			(at 45.72 175.2599 0)
+			(at 187.96 50.7999 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18783,7 +15176,7 @@
 			)
 		)
 		(property "Value" "MountingHole_M3"
-			(at 45.72 177.7999 0)
+			(at 187.96 53.3399 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18794,7 +15187,7 @@
 			)
 		)
 		(property "Footprint" "MountingHole:MountingHole_3.2mm_M3"
-			(at 41.91 180.34 0)
+			(at 184.15 55.88 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18805,7 +15198,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 41.91 176.53 0)
+			(at 184.15 52.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18816,40 +15209,7 @@
 			)
 		)
 		(property "Description" "3.2mm Diameter Mounting Hole (M3)"
-			(at 41.91 176.53 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 41.91 176.53 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 41.91 176.53 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 41.91 176.53 0)
+			(at 184.15 52.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18860,7 +15220,7 @@
 			)
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "H3")
 					(unit 1)
@@ -18870,7 +15230,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 118.11 157.48 180)
+		(at 109.22 161.29 180)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -18881,7 +15241,7 @@
 		(fields_autoplaced yes)
 		(uuid "7a4c46d3-5078-42c6-bff2-b0089963d90a")
 		(property "Reference" "#PWR08"
-			(at 118.11 151.13 0)
+			(at 109.22 154.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18892,7 +15252,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 118.11 152.4 0)
+			(at 109.22 156.21 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18902,7 +15262,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 118.11 157.48 0)
+			(at 109.22 161.29 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18913,7 +15273,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 118.11 157.48 0)
+			(at 109.22 161.29 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18924,7 +15284,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 118.11 157.48 0)
+			(at 109.22 161.29 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18938,7 +15298,7 @@
 			(uuid "045af098-f860-4539-b537-a4ba8dcce75e")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR08")
 					(unit 1)
@@ -19111,8 +15471,56 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 187.96 130.81 90)
+		(pin "1"
+			(uuid "db2fa209-fec1-448a-bfa7-eb65165c615f")
+		)
+		(pin "2"
+			(uuid "31fd3356-80c3-462e-a0bb-b3addaa35f76")
+		)
+		(instances
+			(project "Analog Redial v3"
+				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+					(reference "R3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "PCM_SL_Pin_Headers:PINHD_1x2_Male")
+		(at 133.35 76.2 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "7cdaab88-a810-4488-bfb3-f03d12e970f9")
+		(property "Reference" "J3"
+			(at 132.334 74.422 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "PINHD_1x2_Male"
+			(at 117.856 75.946 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+			(at 137.16 74.93 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19122,8 +15530,8 @@
 				)
 			)
 		)
-		(property "Iq" ""
-			(at 187.96 130.81 90)
+		(property "Datasheet" ""
+			(at 125.73 76.2 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19133,8 +15541,96 @@
 				)
 			)
 		)
-		(property "VMax" ""
-			(at 187.96 130.81 90)
+		(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -2"
+			(at 133.35 76.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Availability" ""
+			(at 133.35 76.2 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Check_prices" ""
+			(at 133.35 76.2 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MF" ""
+			(at 133.35 76.2 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MP" ""
+			(at 133.35 76.2 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" ""
+			(at 133.35 76.2 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Package" ""
+			(at 133.35 76.2 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Price" ""
+			(at 133.35 76.2 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "SnapEDA_Link" ""
+			(at 133.35 76.2 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19145,15 +15641,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "db2fa209-fec1-448a-bfa7-eb65165c615f")
+			(uuid "1594465a-c35d-40ed-88b3-768c110af94f")
 		)
 		(pin "2"
-			(uuid "31fd3356-80c3-462e-a0bb-b3addaa35f76")
+			(uuid "a4ce2afd-1b7c-4139-abb4-b962c8a617a8")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "R3")
+					(reference "J3")
 					(unit 1)
 				)
 			)
@@ -19171,7 +15667,7 @@
 		(dnp no)
 		(uuid "7fb1281f-3204-4bd7-9a45-defab231af4a")
 		(property "Reference" "R12"
-			(at 303.276 53.594 0)
+			(at 305.308 50.292 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19180,7 +15676,7 @@
 				)
 			)
 		)
-		(property "Value" "100k"
+		(property "Value" "15k"
 			(at 305.308 54.102 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19322,39 +15818,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 307.34 53.34 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 307.34 53.34 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 307.34 53.34 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "ec87ee46-03f5-4b09-84d7-9b4b43ab0ffe")
 		)
@@ -19362,7 +15825,7 @@
 			(uuid "9a8e5d1e-f3a3-4900-a62f-4818a22ed990")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R12")
 					(unit 1)
@@ -19440,7 +15903,7 @@
 			(uuid "73b1e64d-f95e-4c8c-8b36-0fadd2cce235")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR035")
 					(unit 1)
@@ -19518,86 +15981,9 @@
 			(uuid "02f33eea-280d-4ace-b06f-96dc0779eb1e")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR041")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+5V")
-		(at 90.17 54.61 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "885f3f0c-0079-4351-bd23-003e089b5a1b")
-		(property "Reference" "#PWR042"
-			(at 90.17 58.42 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+5V"
-			(at 90.17 50.8 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 90.17 54.61 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 90.17 54.61 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"+5V\""
-			(at 90.17 54.61 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "ac11acad-3d88-45d0-a783-fb19743f6613")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "#PWR042")
 					(unit 1)
 				)
 			)
@@ -19635,7 +16021,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Custom:ESP32-C6-DevKitC-dual"
+		(property "Footprint" "PCM_Espressif:ESP32-C6-DevKitC-1"
 			(at 100.33 129.54 0)
 			(hide yes)
 			(show_name no)
@@ -19658,39 +16044,6 @@
 			)
 		)
 		(property "Description" "ESP32-C6-DevKitC-1"
-			(at 100.33 104.14 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 100.33 104.14 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 100.33 104.14 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
 			(at 100.33 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -19798,7 +16151,7 @@
 			(uuid "36de2f2f-7ccd-489d-81fa-b98f6ce02164")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "U1")
 					(unit 1)
@@ -19807,7 +16160,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Custom:AG1171_SIL")
+		(lib_id "Custom_Symbol_Library:AG1171_SIL")
 		(at 308.61 160.02 180)
 		(unit 1)
 		(body_style 1)
@@ -19960,39 +16313,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 308.61 160.02 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 308.61 160.02 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 308.61 160.02 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "4"
 			(uuid "31239d44-67cd-426d-83b6-52036a16dfe4")
 		)
@@ -20036,7 +16356,7 @@
 			(uuid "0d2b4399-655c-4c40-b060-52153cb4a234")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "U4")
 					(unit 1)
@@ -20113,7 +16433,7 @@
 			(uuid "41c42c59-4347-4c0d-9176-76ae99c1ece3")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR07")
 					(unit 1)
@@ -20123,7 +16443,7 @@
 	)
 	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R")
-		(at 82.55 166.37 90)
+		(at 73.66 170.18 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -20134,7 +16454,7 @@
 		(fields_autoplaced yes)
 		(uuid "913bed6d-d980-48e5-90bc-a8d493ace125")
 		(property "Reference" "R2"
-			(at 85.09 165.0999 90)
+			(at 76.2 168.9099 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20145,7 +16465,7 @@
 			)
 		)
 		(property "Value" "10k"
-			(at 85.09 167.6399 90)
+			(at 76.2 171.4499 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20156,7 +16476,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 87.122 166.37 0)
+			(at 78.232 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20167,7 +16487,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
-			(at 91.44 167.64 0)
+			(at 82.55 171.45 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20178,7 +16498,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 93.98 166.37 0)
+			(at 85.09 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20189,7 +16509,7 @@
 			)
 		)
 		(property "PROD_ID" "RES-07856"
-			(at 89.408 166.37 0)
+			(at 80.518 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20200,7 +16520,7 @@
 			)
 		)
 		(property "Availability" ""
-			(at 82.55 166.37 90)
+			(at 73.66 170.18 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20211,7 +16531,7 @@
 			)
 		)
 		(property "Check_prices" ""
-			(at 82.55 166.37 90)
+			(at 73.66 170.18 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20222,7 +16542,7 @@
 			)
 		)
 		(property "MF" ""
-			(at 82.55 166.37 90)
+			(at 73.66 170.18 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20233,7 +16553,7 @@
 			)
 		)
 		(property "MP" ""
-			(at 82.55 166.37 90)
+			(at 73.66 170.18 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20244,7 +16564,7 @@
 			)
 		)
 		(property "MPN" ""
-			(at 82.55 166.37 90)
+			(at 73.66 170.18 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20255,7 +16575,7 @@
 			)
 		)
 		(property "Package" ""
-			(at 82.55 166.37 90)
+			(at 73.66 170.18 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20266,7 +16586,7 @@
 			)
 		)
 		(property "Price" ""
-			(at 82.55 166.37 90)
+			(at 73.66 170.18 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20277,40 +16597,7 @@
 			)
 		)
 		(property "SnapEDA_Link" ""
-			(at 82.55 166.37 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 82.55 166.37 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 82.55 166.37 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 82.55 166.37 90)
+			(at 73.66 170.18 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20327,7 +16614,7 @@
 			(uuid "4e54218f-afb9-4d4c-ab33-ad0c0b887a75")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R2")
 					(unit 1)
@@ -20406,246 +16693,9 @@
 			(uuid "1888d23c-9ce7-4776-ab6b-a81281c8f6dc")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR026")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "PCM_SparkFun-Capacitor:C_Small")
-		(at 147.32 82.55 180)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "929ff469-0d43-4ee9-b540-364b780e6c93")
-		(property "Reference" "C22"
-			(at 146.05 84.328 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "1uF"
-			(at 144.526 80.772 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 146.3548 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
-			(at 146.05 66.04 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Unpolarized capacitor"
-			(at 147.32 63.5 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "PROD_ID" "CAP-00000"
-			(at 147.32 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage" "1kV"
-			(at 144.78 81.2738 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Tolerance" "100%"
-			(at 144.78 78.7338 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Availability" ""
-			(at 147.32 82.55 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Check_prices" ""
-			(at 147.32 82.55 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MF" ""
-			(at 147.32 82.55 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MP" ""
-			(at 147.32 82.55 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" ""
-			(at 147.32 82.55 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Package" ""
-			(at 147.32 82.55 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Price" ""
-			(at 147.32 82.55 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "SnapEDA_Link" ""
-			(at 147.32 82.55 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 147.32 82.55 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 147.32 82.55 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 147.32 82.55 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "01f080cd-7428-4483-8daf-cd9b0e933590")
-		)
-		(pin "1"
-			(uuid "61e6e980-e867-4983-9fed-54fe9ca108f9")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "C22")
 					(unit 1)
 				)
 			)
@@ -20840,39 +16890,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 198.12 154.94 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 198.12 154.94 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 198.12 154.94 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "37798d80-ccb9-4078-b7ef-a10264f403fb")
 		)
@@ -20880,7 +16897,7 @@
 			(uuid "9fa89578-5ea9-4c56-ae6e-704b4b447a77")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C3")
 					(unit 1)
@@ -20959,7 +16976,7 @@
 			(uuid "1c2e1e8e-8a6b-4120-b80b-28033805f85a")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR039")
 					(unit 1)
@@ -20969,7 +16986,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 142.24 130.81 180)
+		(at 140.97 80.01 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -20977,9 +16994,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "96a5eb29-41d6-46c5-a8fd-1d02a7badd39")
-		(property "Reference" "#PWR013"
-			(at 142.24 124.46 0)
+		(uuid "990a9c06-901e-4634-a730-cada45f17d4f")
+		(property "Reference" "#PWR016"
+			(at 140.97 86.36 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20990,7 +17007,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 140.97 127 0)
+			(at 142.24 83.82 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21001,7 +17018,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 142.24 130.81 0)
+			(at 140.97 80.01 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21012,7 +17029,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 142.24 130.81 0)
+			(at 140.97 80.01 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21023,7 +17040,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 142.24 130.81 0)
+			(at 140.97 80.01 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21034,249 +17051,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "81e99c60-e947-499d-a3ed-b0df9aa7757d")
+			(uuid "5e3cad88-e455-4f8d-a7b0-e7cca55dcc02")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "#PWR013")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "PCM_SparkFun-Capacitor:C_Small")
-		(at 90.17 57.15 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "991ca5ef-b3b4-4bf2-8416-9e1ca22f5af3")
-		(property "Reference" "C26"
-			(at 86.614 59.944 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "1uF"
-			(at 92.964 58.928 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 91.1352 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
-			(at 91.44 73.66 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Unpolarized capacitor"
-			(at 90.17 76.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "PROD_ID" "CAP-00000"
-			(at 90.17 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage" "1kV"
-			(at 92.71 58.4262 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Tolerance" "100%"
-			(at 92.71 60.9662 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Availability" ""
-			(at 90.17 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Check_prices" ""
-			(at 90.17 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MF" ""
-			(at 90.17 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MP" ""
-			(at 90.17 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" ""
-			(at 90.17 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Package" ""
-			(at 90.17 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Price" ""
-			(at 90.17 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "SnapEDA_Link" ""
-			(at 90.17 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 90.17 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 90.17 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 90.17 57.15 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "173d8965-8250-4a72-8842-8657f4957172")
-		)
-		(pin "1"
-			(uuid "17fa18e5-8ef9-4e8b-8d7a-958fa69b41d6")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "C26")
+					(reference "#PWR016")
 					(unit 1)
 				)
 			)
@@ -21445,39 +17225,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 257.81 121.92 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 257.81 121.92 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 257.81 121.92 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "0cdae123-4935-4db8-8d03-8e22cc99dddf")
 		)
@@ -21485,7 +17232,7 @@
 			(uuid "a196c2e5-bbef-43c8-9085-40e6d4e62083")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R11")
 					(unit 1)
@@ -21645,39 +17392,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 256.54 127 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 256.54 127 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 256.54 127 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "fed54f2c-4b19-425e-8eed-2d5d80fa8a10")
 		)
@@ -21685,7 +17399,7 @@
 			(uuid "2c17b48f-dcf3-44c5-b0cf-fd4c61ed449b")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C20")
 					(unit 1)
@@ -21763,91 +17477,9 @@
 			(uuid "4cc18dc4-3e4f-4fdb-a822-b2c9cf6fd2c4")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR05")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Jumper:SolderJumper_3_Bridged12")
-		(at 58.42 114.3 180)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "a0a34f83-79c2-4d89-9643-58209d57915f")
-		(property "Reference" "JP3"
-			(at 60.706 112.014 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" ""
-			(at 54.61 115.57 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "PCM_SparkFun-Jumper:Jumper_3_NC-1_Trace_NoSilk"
-			(at 58.42 114.3 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 58.42 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "3-pole Solder Jumper, pins 1+2 closed/bridged"
-			(at 58.42 101.6 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "307ec4d0-1f88-4875-97e6-36ccf13543fc")
-		)
-		(pin "3"
-			(uuid "e3bc2430-18dc-4f17-8449-b9637cd043b5")
-		)
-		(pin "2"
-			(uuid "bedfaf61-612a-4929-b6be-67062b8154cf")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "JP3")
 					(unit 1)
 				)
 			)
@@ -22006,39 +17638,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 59.69 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 59.69 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 59.69 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "ed6d2939-c6f7-4581-822d-fddfe646a3ff")
 		)
@@ -22046,7 +17645,7 @@
 			(uuid "5619fa07-82c4-442e-9072-1b7cfd9c3e63")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D1")
 					(unit 1)
@@ -22077,7 +17676,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "SM4007PL"
+		(property "Value" "1N4007"
 			(at 327.66 73.6599 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22088,7 +17687,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_SMD:Nexperia_CFP3_SOD-123W"
+		(property "Footprint" "JLCImport:1N4007W_C18199088"
 			(at 325.12 72.39 0)
 			(hide yes)
 			(show_name no)
@@ -22209,39 +17808,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 325.12 72.39 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 325.12 72.39 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 325.12 72.39 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "39c30863-2e4d-4d73-85a4-e08d335551d5")
 		)
@@ -22249,7 +17815,7 @@
 			(uuid "a354574b-9c2f-4da5-a13b-40612366b722")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D5")
 					(unit 1)
@@ -22279,7 +17845,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "SM4007PL"
+		(property "Value" "1N4007"
 			(at 342.392 150.114 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22290,7 +17856,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Diode_SMD:Nexperia_CFP3_SOD-123W"
+		(property "Footprint" "JLCImport:1N4007W_C18199088"
 			(at 336.55 144.78 0)
 			(hide yes)
 			(show_name no)
@@ -22411,39 +17977,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 336.55 144.78 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 336.55 144.78 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 336.55 144.78 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "973f1578-8965-4ad1-ad9f-fda945cf4887")
 		)
@@ -22451,87 +17984,9 @@
 			(uuid "ce75d2fe-2b3a-42c3-8637-30789d8aa917")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D11")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 153.67 71.12 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "aa2182af-0840-4c8b-a034-7e5f64b88ffa")
-		(property "Reference" "#PWR050"
-			(at 160.02 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 156.718 70.358 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" ""
-			(at 153.67 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 153.67 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 153.67 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "490f4214-87c2-4e8c-b387-eb385ed96250")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "#PWR050")
 					(unit 1)
 				)
 			)
@@ -22700,39 +18155,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 247.65 165.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 247.65 165.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 247.65 165.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "bd4e916b-54fa-48bc-b753-69a07e9647a0")
 		)
@@ -22740,7 +18162,7 @@
 			(uuid "0662e921-2a22-4385-ba35-7cea9766ea4a")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R6")
 					(unit 1)
@@ -22819,7 +18241,7 @@
 			(uuid "d1d8484c-cf2a-4a63-97e8-9265200f2d70")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR032")
 					(unit 1)
@@ -22829,7 +18251,7 @@
 	)
 	(symbol
 		(lib_id "PCM_SparkFun-Capacitor:C_Small")
-		(at 143.51 172.72 0)
+		(at 134.62 176.53 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -22839,7 +18261,7 @@
 		(dnp no)
 		(uuid "acb8f65f-3c63-44f4-bb0f-3ed1fe0140d2")
 		(property "Reference" "C1"
-			(at 146.812 170.942 0)
+			(at 137.922 174.752 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -22849,7 +18271,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 147.574 167.64 0)
+			(at 138.684 171.45 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -22859,7 +18281,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 144.4752 184.15 0)
+			(at 135.5852 187.96 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22870,7 +18292,7 @@
 			)
 		)
 		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
-			(at 144.78 189.23 0)
+			(at 135.89 193.04 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22881,7 +18303,7 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor"
-			(at 143.51 191.77 0)
+			(at 134.62 195.58 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22892,7 +18314,7 @@
 			)
 		)
 		(property "PROD_ID" "CAP-00000"
-			(at 143.51 186.69 0)
+			(at 134.62 190.5 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22903,7 +18325,7 @@
 			)
 		)
 		(property "Voltage" "1kV"
-			(at 149.86 173.482 90)
+			(at 140.97 177.292 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22914,7 +18336,7 @@
 			)
 		)
 		(property "Tolerance" "100%"
-			(at 147.32 174.752 90)
+			(at 138.43 178.562 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22925,7 +18347,7 @@
 			)
 		)
 		(property "Availability" ""
-			(at 143.51 172.72 0)
+			(at 134.62 176.53 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22936,7 +18358,7 @@
 			)
 		)
 		(property "Check_prices" ""
-			(at 143.51 172.72 0)
+			(at 134.62 176.53 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22947,7 +18369,7 @@
 			)
 		)
 		(property "MF" ""
-			(at 143.51 172.72 0)
+			(at 134.62 176.53 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22958,7 +18380,7 @@
 			)
 		)
 		(property "MP" ""
-			(at 143.51 172.72 0)
+			(at 134.62 176.53 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22969,7 +18391,7 @@
 			)
 		)
 		(property "MPN" ""
-			(at 143.51 172.72 0)
+			(at 134.62 176.53 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22980,7 +18402,7 @@
 			)
 		)
 		(property "Package" ""
-			(at 143.51 172.72 0)
+			(at 134.62 176.53 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22991,7 +18413,7 @@
 			)
 		)
 		(property "Price" ""
-			(at 143.51 172.72 0)
+			(at 134.62 176.53 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23002,40 +18424,7 @@
 			)
 		)
 		(property "SnapEDA_Link" ""
-			(at 143.51 172.72 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 143.51 172.72 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 143.51 172.72 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 143.51 172.72 0)
+			(at 134.62 176.53 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23052,7 +18441,7 @@
 			(uuid "dcaefe53-e638-40d5-acb0-915749d3399c")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C1")
 					(unit 1)
@@ -23062,7 +18451,7 @@
 	)
 	(symbol
 		(lib_id "PCM_SL_Mechanical:MountingHole_M3")
-		(at 41.91 161.29 0)
+		(at 184.15 36.83 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -23073,7 +18462,7 @@
 		(fields_autoplaced yes)
 		(uuid "ae3a377c-1dd9-42b3-a792-8194ac335ba9")
 		(property "Reference" "H1"
-			(at 45.72 160.0199 0)
+			(at 187.96 35.5599 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -23084,7 +18473,7 @@
 			)
 		)
 		(property "Value" "MountingHole_M3"
-			(at 45.72 162.5599 0)
+			(at 187.96 38.0999 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -23095,7 +18484,7 @@
 			)
 		)
 		(property "Footprint" "MountingHole:MountingHole_3.2mm_M3"
-			(at 41.91 165.1 0)
+			(at 184.15 40.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23106,7 +18495,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 41.91 161.29 0)
+			(at 184.15 36.83 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23117,40 +18506,7 @@
 			)
 		)
 		(property "Description" "3.2mm Diameter Mounting Hole (M3)"
-			(at 41.91 161.29 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 41.91 161.29 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 41.91 161.29 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 41.91 161.29 0)
+			(at 184.15 36.83 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23161,87 +18517,9 @@
 			)
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "H1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 151.13 93.98 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "aee61575-9196-440d-b911-d6ee56476322")
-		(property "Reference" "#PWR055"
-			(at 157.48 93.98 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 154.178 93.98 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" ""
-			(at 151.13 93.98 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 151.13 93.98 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 151.13 93.98 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "d4b8d02d-50b1-4f34-864f-5a742f2f785e")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "#PWR055")
 					(unit 1)
 				)
 			)
@@ -23316,7 +18594,7 @@
 			(uuid "6a6acb34-f9a6-47c3-9acd-c36784f17ca5")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR036")
 					(unit 1)
@@ -23347,7 +18625,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "SM4007PL"
+		(property "Value" "1N4007"
 			(at 327.66 138.4299 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23358,7 +18636,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Diode_SMD:Nexperia_CFP3_SOD-123W"
+		(property "Footprint" "JLCImport:1N4007W_C18199088"
 			(at 325.12 137.16 0)
 			(hide yes)
 			(show_name no)
@@ -23479,8 +18757,34 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 325.12 137.16 90)
+		(pin "1"
+			(uuid "4f2da7d7-c417-4ef5-982c-f6f5f1f0804a")
+		)
+		(pin "2"
+			(uuid "d9b08285-2e33-4264-9994-b0f69e24ac0f")
+		)
+		(instances
+			(project "Analog Redial v3"
+				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+					(reference "D6")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 45.72 106.68 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "b46f1cc2-525d-49d6-8d3b-e92a5cb19862")
+		(property "Reference" "#PWR01"
+			(at 45.72 113.03 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23490,8 +18794,19 @@
 				)
 			)
 		)
-		(property "Iq" ""
-			(at 325.12 137.16 90)
+		(property "Value" "GND"
+			(at 46.99 110.49 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" ""
+			(at 45.72 106.68 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23501,8 +18816,19 @@
 				)
 			)
 		)
-		(property "VMax" ""
-			(at 325.12 137.16 90)
+		(property "Datasheet" ""
+			(at 45.72 106.68 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 45.72 106.68 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23513,15 +18839,90 @@
 			)
 		)
 		(pin "1"
-			(uuid "4f2da7d7-c417-4ef5-982c-f6f5f1f0804a")
-		)
-		(pin "2"
-			(uuid "d9b08285-2e33-4264-9994-b0f69e24ac0f")
+			(uuid "bfbd4aec-cc0a-458f-88df-5ee7b00abe98")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "D6")
+					(reference "#PWR01")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 134.62 80.01 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "b6d534d0-3cd4-4569-beb9-b6a3a7c8d062")
+		(property "Reference" "#PWR013"
+			(at 134.62 86.36 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 135.89 83.82 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" ""
+			(at 134.62 80.01 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 134.62 80.01 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 134.62 80.01 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "1a83c0a0-d946-4f55-a016-d6b7baa218f1")
+		)
+		(instances
+			(project "Analog Redial v3"
+				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+					(reference "#PWR013")
 					(unit 1)
 				)
 			)
@@ -23679,39 +19080,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 342.9 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 342.9 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 342.9 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "f2ab6178-49b7-4ddf-b80b-d32b5a880ba4")
 		)
@@ -23719,221 +19087,9 @@
 			(uuid "fb6dac72-3dec-4d7d-b545-6b29ea582903")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D12")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "PCM_SparkFun-Resistor:R")
-		(at 168.91 73.66 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "b7e6f530-a0fb-4bcd-b32a-a163823b95a9")
-		(property "Reference" "R16"
-			(at 168.91 80.01 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "1k"
-			(at 168.91 77.47 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 168.91 78.232 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
-			(at 167.64 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Resistor"
-			(at 168.91 85.09 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "PROD_ID" "RES-07856"
-			(at 168.91 80.518 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Availability" ""
-			(at 168.91 73.66 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Check_prices" ""
-			(at 168.91 73.66 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MF" ""
-			(at 168.91 73.66 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MP" ""
-			(at 168.91 73.66 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" ""
-			(at 168.91 73.66 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Package" ""
-			(at 168.91 73.66 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Price" ""
-			(at 168.91 73.66 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "SnapEDA_Link" ""
-			(at 168.91 73.66 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 168.91 73.66 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 168.91 73.66 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 168.91 73.66 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "7056661e-96d4-4de7-a46d-c7acf3d1550f")
-		)
-		(pin "2"
-			(uuid "c02595cf-d3fb-4517-ac46-5f50bacc018c")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "R16")
 					(unit 1)
 				)
 			)
@@ -24008,7 +19164,7 @@
 			(uuid "7417d4db-44c0-4aac-8bb9-973b3be4a0ad")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR040")
 					(unit 1)
@@ -24039,7 +19195,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "SM4007PL"
+		(property "Value" "1N4007"
 			(at 327.66 66.0399 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24050,7 +19206,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Diode_SMD:Nexperia_CFP3_SOD-123W"
+		(property "Footprint" "JLCImport:1N4007W_C18199088"
 			(at 325.12 64.77 0)
 			(hide yes)
 			(show_name no)
@@ -24171,39 +19327,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 325.12 64.77 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 325.12 64.77 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 325.12 64.77 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "610da791-0b74-4e1e-ae91-b84287e83865")
 		)
@@ -24211,7 +19334,7 @@
 			(uuid "ca30bfbd-b0b3-4946-8c0c-74049a6f92a8")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D4")
 					(unit 1)
@@ -24289,7 +19412,7 @@
 			(uuid "6e6a7198-3555-4b06-99c1-cde5930d437b")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR021")
 					(unit 1)
@@ -24320,7 +19443,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "SM4007PL"
+		(property "Value" "1N4007"
 			(at 327.66 146.0499 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24331,7 +19454,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_SMD:Nexperia_CFP3_SOD-123W"
+		(property "Footprint" "JLCImport:1N4007W_C18199088"
 			(at 325.12 144.78 0)
 			(hide yes)
 			(show_name no)
@@ -24452,39 +19575,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 325.12 144.78 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 325.12 144.78 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 325.12 144.78 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "f910a420-24f7-4a35-8e09-9d2c84ee648e")
 		)
@@ -24492,7 +19582,7 @@
 			(uuid "e6fdba37-de0b-4497-a5f4-cfb344f2a57f")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D7")
 					(unit 1)
@@ -24570,7 +19660,7 @@
 			(uuid "abf5f776-a70c-46a6-8a9d-0cd40afb546c")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR031")
 					(unit 1)
@@ -24590,7 +19680,7 @@
 		(dnp no)
 		(uuid "c3cfb1f8-63a8-4f84-a28f-8982a688f65a")
 		(property "Reference" "R14"
-			(at 306.578 129.794 0)
+			(at 306.578 130.302 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -24599,7 +19689,7 @@
 				)
 			)
 		)
-		(property "Value" "100k"
+		(property "Value" "15k"
 			(at 306.578 134.112 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24741,39 +19831,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 308.61 133.35 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 308.61 133.35 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 308.61 133.35 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "93e637cd-8d5a-4a99-a58d-074877c7b9ac")
 		)
@@ -24781,7 +19838,7 @@
 			(uuid "6665b8db-cb7b-48c8-9d04-8f6b0fe156cc")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R14")
 					(unit 1)
@@ -24791,7 +19848,7 @@
 	)
 	(symbol
 		(lib_id "JLCImport:TF-01A")
-		(at 116.84 175.26 0)
+		(at 107.95 179.07 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -24802,7 +19859,7 @@
 		(fields_autoplaced yes)
 		(uuid "c4d7cba2-96d5-43c3-9ff2-e70cf6cc8f28")
 		(property "Reference" "Card1"
-			(at 122.7933 160.02 0)
+			(at 113.9033 163.83 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -24813,7 +19870,7 @@
 			)
 		)
 		(property "Value" "TF-01A"
-			(at 122.7933 162.56 0)
+			(at 113.9033 166.37 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -24824,7 +19881,7 @@
 			)
 		)
 		(property "Footprint" "JLCImport:TF-01A"
-			(at 116.84 175.26 0)
+			(at 107.95 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24835,7 +19892,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.lcsc.com/datasheet/lcsc_datasheet_1811082127_Korean-Hroparts-Elec-TF-01A_C91145.pdf"
-			(at 116.84 175.26 0)
+			(at 107.95 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24846,7 +19903,7 @@
 			)
 		)
 		(property "Description" "1.85mm Connector and Ejector MicroSD Card (TF Card) Push-Push With Locating Pins SMD SD Card / Memory Card Connector ROHS"
-			(at 116.84 175.26 0)
+			(at 107.95 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24857,7 +19914,7 @@
 			)
 		)
 		(property "LCSC" "C91145"
-			(at 116.84 175.26 0)
+			(at 107.95 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24868,7 +19925,7 @@
 			)
 		)
 		(property "Manufacturer" "Korean Hroparts Elec"
-			(at 116.84 175.26 0)
+			(at 107.95 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24879,7 +19936,7 @@
 			)
 		)
 		(property "Manufacturer Part" "TF-01A"
-			(at 116.84 175.26 0)
+			(at 107.95 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24890,7 +19947,7 @@
 			)
 		)
 		(property "Availability" ""
-			(at 116.84 175.26 0)
+			(at 107.95 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24901,7 +19958,7 @@
 			)
 		)
 		(property "Check_prices" ""
-			(at 116.84 175.26 0)
+			(at 107.95 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24912,7 +19969,7 @@
 			)
 		)
 		(property "MF" ""
-			(at 116.84 175.26 0)
+			(at 107.95 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24923,7 +19980,7 @@
 			)
 		)
 		(property "MP" ""
-			(at 116.84 175.26 0)
+			(at 107.95 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24934,7 +19991,7 @@
 			)
 		)
 		(property "MPN" ""
-			(at 116.84 175.26 0)
+			(at 107.95 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24945,7 +20002,7 @@
 			)
 		)
 		(property "Package" ""
-			(at 116.84 175.26 0)
+			(at 107.95 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24956,7 +20013,7 @@
 			)
 		)
 		(property "Price" ""
-			(at 116.84 175.26 0)
+			(at 107.95 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24967,40 +20024,7 @@
 			)
 		)
 		(property "SnapEDA_Link" ""
-			(at 116.84 175.26 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 116.84 175.26 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 116.84 175.26 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 116.84 175.26 0)
+			(at 107.95 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25050,7 +20074,7 @@
 			(uuid "b04eef7d-62ea-4558-9c7b-6017d3e54483")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "Card1")
 					(unit 1)
@@ -25129,7 +20153,7 @@
 			(uuid "23cd5ada-f580-4f66-96e3-842eeeab4136")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR030")
 					(unit 1)
@@ -25206,7 +20230,7 @@
 			(uuid "691c3959-927d-436e-bb23-49f5caeeb822")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR017")
 					(unit 1)
@@ -25366,39 +20390,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 293.37 96.52 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 293.37 96.52 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 293.37 96.52 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "10d28a56-24c3-49d5-a9a7-f00cd8915e93")
 		)
@@ -25406,7 +20397,7 @@
 			(uuid "e4163e2f-9f3e-4e26-b4e7-0e6fee493553")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C15")
 					(unit 1)
@@ -25415,85 +20406,7 @@
 		)
 	)
 	(symbol
-		(lib_id "power:GND")
-		(at 101.6 62.23 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "cd7a11e0-fb3b-4187-ae11-4f8fa979d407")
-		(property "Reference" "#PWR054"
-			(at 101.6 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 102.87 66.04 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" ""
-			(at 101.6 62.23 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 101.6 62.23 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 101.6 62.23 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "d3fd1bc2-4c9f-4f2b-9d15-52025db79298")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "#PWR054")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Custom:AG1171_SIL")
+		(lib_id "Custom_Symbol_Library:AG1171_SIL")
 		(at 307.34 87.63 180)
 		(unit 1)
 		(body_style 1)
@@ -25646,39 +20559,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 307.34 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 307.34 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 307.34 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "4"
 			(uuid "32d79cb0-134d-4353-8e17-58724cc3b77b")
 		)
@@ -25722,7 +20602,7 @@
 			(uuid "34e3c80e-5dcf-45cb-9d2e-33fdb1dbce1e")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "U3")
 					(unit 1)
@@ -25732,7 +20612,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 143.51 175.26 0)
+		(at 134.62 179.07 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -25743,7 +20623,7 @@
 		(fields_autoplaced yes)
 		(uuid "d80e79d2-a857-465e-b717-3cd5179397fc")
 		(property "Reference" "#PWR015"
-			(at 143.51 181.61 0)
+			(at 134.62 185.42 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25754,7 +20634,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 143.51 180.34 0)
+			(at 134.62 184.15 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -25764,7 +20644,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 143.51 175.26 0)
+			(at 134.62 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25775,7 +20655,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 143.51 175.26 0)
+			(at 134.62 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25786,7 +20666,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 143.51 175.26 0)
+			(at 134.62 179.07 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25800,7 +20680,7 @@
 			(uuid "f7ab10b8-0fa7-456d-bda5-aa2225f6be3f")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR015")
 					(unit 1)
@@ -25877,7 +20757,7 @@
 			(uuid "75524c85-d401-4d49-a041-9cef6de724aa")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR027")
 					(unit 1)
@@ -25955,108 +20835,9 @@
 			(uuid "98557700-6d12-4428-b321-22739fd4017b")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR025")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "PCM_SL_Pin_Headers:PINHD_1x8_Male")
-		(at 144.78 67.31 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "dc565b3d-074d-4207-89c1-b39ef6108d54")
-		(property "Reference" "J2"
-			(at 137.668 64.516 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "PINHD_1x8_Male"
-			(at 153.924 64.516 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical"
-			(at 128.27 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 129.54 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -8"
-			(at 144.78 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "fca6ceb5-9a4b-4103-a5b9-639175750688")
-		)
-		(pin "2"
-			(uuid "690b377a-d72e-472a-956b-776463744324")
-		)
-		(pin "8"
-			(uuid "72245b25-cecd-4788-a2c6-92247a2f1e8a")
-		)
-		(pin "7"
-			(uuid "d53eb21c-03b5-4d54-a89c-fec7f5260c4c")
-		)
-		(pin "6"
-			(uuid "180068dc-57fd-493e-82b2-dd87b66821ac")
-		)
-		(pin "5"
-			(uuid "fb74a0d8-30a8-4f43-83dd-682c5f3d8b8d")
-		)
-		(pin "4"
-			(uuid "2fdfff9e-66ef-4873-89c3-8dcf0b03c1b0")
-		)
-		(pin "3"
-			(uuid "f2a21f1e-cbf8-4d44-a110-641c934cd694")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "J2")
 					(unit 1)
 				)
 			)
@@ -26131,7 +20912,7 @@
 			(uuid "a0954398-2dd5-4fa5-ac38-b7b7f20d12af")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR037")
 					(unit 1)
@@ -26209,7 +20990,7 @@
 			(uuid "4edd260f-eb75-4e99-bc4c-397248b09102")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR010")
 					(unit 1)
@@ -26239,7 +21020,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "47uF"
+		(property "Value" "100uF"
 			(at 243.586 155.956 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -26250,7 +21031,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D4.7mm_W2.5mm_P5.00mm"
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
 			(at 244.1448 151.13 0)
 			(hide yes)
 			(show_name no)
@@ -26406,39 +21187,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 245.11 162.56 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 245.11 162.56 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 245.11 162.56 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "9b401a71-03a8-4b52-9b2d-f79418efab35")
 		)
@@ -26446,7 +21194,7 @@
 			(uuid "5b7e3bf9-681a-4313-91de-49722998d51c")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C10")
 					(unit 1)
@@ -26620,39 +21368,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 226.06 104.14 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 226.06 104.14 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 226.06 104.14 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "894afecd-eb46-463b-88b8-5e672acd1242")
 		)
@@ -26660,87 +21375,9 @@
 			(uuid "5f6bd111-89e1-4f2b-b780-84c709bf266b")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R5")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 153.67 82.55 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "f19ce521-4776-44d6-8b1a-c113671024d8")
-		(property "Reference" "#PWR052"
-			(at 153.67 88.9 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 159.004 84.328 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" ""
-			(at 153.67 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 153.67 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 153.67 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "29bf9281-8a21-470f-9adc-dc0b30eeed09")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "#PWR052")
 					(unit 1)
 				)
 			)
@@ -26909,39 +21546,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 307.34 64.77 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 307.34 64.77 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 307.34 64.77 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "b11a6b6c-c3e4-4e06-a699-80827e0a7bf9")
 		)
@@ -26949,7 +21553,7 @@
 			(uuid "b245b240-7a0a-43ec-a2e4-4da3b29b7453")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R13")
 					(unit 1)
@@ -27164,39 +21768,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 322.58 95.25 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 322.58 95.25 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 322.58 95.25 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "101c454c-1aa5-4e75-9123-ad73cdb924b2")
 		)
@@ -27204,7 +21775,7 @@
 			(uuid "a92c5a78-6224-492b-93f0-d1268d8e004f")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D2")
 					(unit 1)
@@ -27214,7 +21785,7 @@
 	)
 	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R")
-		(at 80.01 168.91 270)
+		(at 71.12 172.72 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -27224,7 +21795,7 @@
 		(dnp no)
 		(uuid "f8dbed83-15e6-487d-8e22-fa5a0709e54e")
 		(property "Reference" "R1"
-			(at 74.93 167.386 90)
+			(at 66.04 171.196 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -27235,7 +21806,7 @@
 			)
 		)
 		(property "Value" "10k"
-			(at 74.93 169.926 90)
+			(at 66.04 173.736 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -27246,7 +21817,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 75.438 168.91 0)
+			(at 66.548 172.72 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27257,7 +21828,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
-			(at 71.12 167.64 0)
+			(at 62.23 171.45 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27268,7 +21839,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 68.58 168.91 0)
+			(at 59.69 172.72 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27279,7 +21850,7 @@
 			)
 		)
 		(property "PROD_ID" "RES-07856"
-			(at 73.152 168.91 0)
+			(at 64.262 172.72 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27290,7 +21861,7 @@
 			)
 		)
 		(property "Availability" ""
-			(at 80.01 168.91 90)
+			(at 71.12 172.72 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27301,7 +21872,7 @@
 			)
 		)
 		(property "Check_prices" ""
-			(at 80.01 168.91 90)
+			(at 71.12 172.72 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27312,7 +21883,7 @@
 			)
 		)
 		(property "MF" ""
-			(at 80.01 168.91 90)
+			(at 71.12 172.72 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27323,7 +21894,7 @@
 			)
 		)
 		(property "MP" ""
-			(at 80.01 168.91 90)
+			(at 71.12 172.72 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27334,7 +21905,7 @@
 			)
 		)
 		(property "MPN" ""
-			(at 80.01 168.91 90)
+			(at 71.12 172.72 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27345,7 +21916,7 @@
 			)
 		)
 		(property "Package" ""
-			(at 80.01 168.91 90)
+			(at 71.12 172.72 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27356,7 +21927,7 @@
 			)
 		)
 		(property "Price" ""
-			(at 80.01 168.91 90)
+			(at 71.12 172.72 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27367,40 +21938,7 @@
 			)
 		)
 		(property "SnapEDA_Link" ""
-			(at 80.01 168.91 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "IMax" ""
-			(at 80.01 168.91 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 80.01 168.91 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 80.01 168.91 90)
+			(at 71.12 172.72 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27417,91 +21955,9 @@
 			(uuid "374c7904-68a5-4ebf-b9e9-a09b90691adc")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Jumper:SolderJumper_3_Bridged12")
-		(at 58.42 121.92 180)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "fab1e8e0-f23a-4adf-ae35-43b0da7c9d93")
-		(property "Reference" "JP2"
-			(at 60.706 119.634 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" ""
-			(at 54.61 123.19 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "PCM_SparkFun-Jumper:Jumper_3_NC-1_Trace_NoSilk"
-			(at 58.42 121.92 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 58.42 106.68 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "3-pole Solder Jumper, pins 1+2 closed/bridged"
-			(at 58.42 109.22 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "a690577d-3820-40da-bfc9-b447072aed36")
-		)
-		(pin "3"
-			(uuid "f7304acb-d6cf-4ded-8363-8878f2ee030e")
-		)
-		(pin "2"
-			(uuid "61954da0-3768-4494-b7b9-c4c57a25a7cb")
-		)
-		(instances
-			(project "Analog Redial 5"
-				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-					(reference "JP2")
 					(unit 1)
 				)
 			)
@@ -27577,7 +22033,7 @@
 			(uuid "d5d75065-0487-416a-9faa-507ce0d46e38")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR029")
 					(unit 1)
@@ -27654,7 +22110,7 @@
 			(uuid "fdc49d1d-75e7-4ba4-8be5-0b35537409b2")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR04")
 					(unit 1)
@@ -27732,7 +22188,7 @@
 			(uuid "51d4310e-a54e-447c-afba-ebba8aeb07b9")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR012")
 					(unit 1)
@@ -27742,7 +22198,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 120.65 193.04 0)
+		(at 111.76 196.85 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -27750,9 +22206,10 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
+		(fields_autoplaced yes)
 		(uuid "feb2cc4a-a782-4da5-b023-4b0b09ba78a3")
 		(property "Reference" "#PWR09"
-			(at 120.65 199.39 0)
+			(at 111.76 203.2 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27763,7 +22220,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 123.952 195.326 0)
+			(at 111.76 201.93 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -27773,7 +22230,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 120.65 193.04 0)
+			(at 111.76 196.85 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27784,7 +22241,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 120.65 193.04 0)
+			(at 111.76 196.85 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27795,7 +22252,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 120.65 193.04 0)
+			(at 111.76 196.85 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27809,7 +22266,7 @@
 			(uuid "257288d7-b47c-408e-8cad-4de9eb42c1e8")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR09")
 					(unit 1)
@@ -27970,39 +22427,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 293.37 85.09 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 293.37 85.09 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 293.37 85.09 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "2d4b101a-1952-4c32-a409-118e7e67b4f0")
 		)
@@ -28010,7 +22434,7 @@
 			(uuid "c27d63bd-5b19-46f3-9f7c-c6a052daad4b")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C14")
 					(unit 1)
@@ -28028,9 +22452,10 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
+		(fields_autoplaced yes)
 		(uuid "ffc73c0b-621a-4b70-a0b8-7d6cbb47aa8c")
 		(property "Reference" "C13"
-			(at 280.162 163.068 0)
+			(at 292.1 162.5599 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -28041,7 +22466,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 279.4 165.862 0)
+			(at 292.1 165.0999 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -28172,39 +22597,6 @@
 				)
 			)
 		)
-		(property "IMax" ""
-			(at 288.29 163.83 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Iq" ""
-			(at 288.29 163.83 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "VMax" ""
-			(at 288.29 163.83 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "1"
 			(uuid "5ebc2836-30b9-4418-ba03-d9545fe75e95")
 		)
@@ -28212,7 +22604,7 @@
 			(uuid "46d19abd-846c-4a65-85fe-13c3fa0caf30")
 		)
 		(instances
-			(project "Analog Redial 5"
+			(project "Analog Redial v3"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C13")
 					(unit 1)

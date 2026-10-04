@@ -10,7 +10,7 @@ why, and what else still exists in this tree.
 
 | | SMD4 (current) |
 |--|--|
-| Board | `hardware/kicad/Rotary_phone_SMD4/` |
+| Board | `hardware/kicad/Analog Redial v4/` |
 | MCU | ESP32-C6-DevKitC-1 |
 | Codec | ES8388 @ I²C 0x10 |
 | SLIC | AG1171 ×1–2 |
@@ -28,7 +28,7 @@ pin map and Kconfig choice all gone. Last commit that still builds it:
 
 **SMD5 ("Analog Redial 5")** is the next-generation board — **sent to fab
 (early October 2026) together with the BM64 carrier and a BK3266 test board,
-not yet tested** — `hardware/kicad/Analog Redial 5/`, dev notes at
+not yet tested** — `hardware/kicad/Analog Redial v5/`, dev notes at
 [`archive/hardware/ANALOG_REDIAL_SMD5.md`](archive/hardware/ANALOG_REDIAL_SMD5.md).
 Headline changes: a dual-compatible MCU footprint (real ESP32-C6-DevKitC-1 or
 a cheaper clone, selected by solder jumpers JP2/JP3), and an 8-pin J2 header
@@ -175,7 +175,7 @@ ESP-IDF (FreeRTOS) C, split into components so telephony logic never touches reg
 
 ## SMD phone-line (tip/ring) PCB clearance rules
 
-Applies to: `hardware/kicad/Rotary_phone_SMD4/**`, `docs/hardware-smd4.md`.
+Applies to: `hardware/kicad/Analog Redial v4/**`, `docs/hardware-smd4.md`.
 
 Subscriber-loop copper on this board can see **~48 V DC** off-hook feed, **~60 Vrms** ringing (**72 V** SLIC battery during ring per AG1171), and **~90 V** peaks (matches **P6KE82**-class TVS). Design spacing for **100 V peak** tip–ring.
 
@@ -187,12 +187,12 @@ Subscriber-loop copper on this board can see **~48 V DC** off-hook feed, **~60 V
 | Phone line ↔ GND / +3.3 V / +5 V / logic | 0.6 mm | **0.8 mm** |
 | Line 0 phone copper ↔ Line 1 phone copper | 0.6 mm | **1.0 mm** if parallel runs are long |
 
-Global fab minimum stays **0.15 mm**; phone-line spacing comes from the `PhoneLine` net class and `Rotary_phone_SMD4.kicad_dru`.
+Global fab minimum stays **0.15 mm**; phone-line spacing comes from the `PhoneLine` net class and `Analog Redial v4.kicad_dru`.
 
 **KiCad setup:**
 - Net class `PhoneLine` — clearance 0.8 mm, default track 0.4 mm (1.0 mm at RJ12/SLIC if space allows).
 - Nets: check the current netlist (`kicad-cli sch export netlist` or the KiCad GUI) rather than trusting a hardcoded list here — auto-generated net names (`Net-(D#-K)` style) can shift between spins/re-annotations. Re-annotate to `Line0_Tip` etc. when convenient.
-- DRC: `hardware/kicad/Rotary_phone_SMD4/Rotary_phone_SMD4.kicad_dru`
+- DRC: `hardware/kicad/Analog Redial v4/Analog Redial v4.kicad_dru`
 
 **Layout:**
 - Keep tip/ring paths short and clustered (RJ12 → bridge diodes → TVS → AG1171 only).

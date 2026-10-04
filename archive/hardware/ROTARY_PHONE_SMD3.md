@@ -5,13 +5,13 @@ Design reference for the **third** SMD spin. This doc only covers what's
 wiring, GND/audio path, JLC assembly notes) still applies from
 [`smd2.md`](smd2.md) unless noted here (archived: only 3 SMD2 boards were ever built).
 
-KiCad project: `hardware/kicad/Rotary_phone_SMD3/`.
+KiCad project: `hardware/kicad/Old/Analog Redial v3/`.
 
 ## Status
 
 Schematic wired and pin-mapped; layout in progress (traces being
 permuted/re-routed for board geometry as of 2026-08-30). ERC/DRC reviewed
-against `hardware/kicad/Rotary_phone_SMD3/` on that date — see
+against `hardware/kicad/Old/Analog Redial v3/` on that date — see
 [Review findings](#review-findings-2026-08-30) for what came out of that
 pass. This doc tracks decisions as they're made, not a finished design.
 

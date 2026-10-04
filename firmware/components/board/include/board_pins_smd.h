@@ -1,7 +1,7 @@
 /*
- * board_pins_smd.h — Pin map for Rotary_phone_SMD2 (ESP32-C6-WROOM-1 + ES8388).
+ * board_pins_smd.h — Pin map for Analog Redial v2 (ESP32-C6-WROOM-1 + ES8388).
  *
- * Verified against hardware/kicad/Rotary_phone_SMD2/Rotary_phone_SMD2.kicad_sch
+ * Verified against hardware/kicad/Analog Redial v2/Analog Redial v2.kicad_sch
  * (U2 = ESP32-C6-WROOM-1, U4 = ES8388, U5/U6 = AG1171 SLICs).
  *
  * The PCB supports two build options on GPIO 18–21 (mutually exclusive):
