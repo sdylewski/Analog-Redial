@@ -21,6 +21,7 @@
 
 #include "esp_err.h"
 #include "tones.h"
+#include "voice_fx.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -53,6 +54,12 @@ void audio_tx_dtmf(int line, char key, uint32_t ms);     /* one digit burst then
 void audio_tx_burst(int line, float f1, float f2, float amp, uint32_t ms);
 void audio_tx_bridge(int line, int from_line, bool enable); /* hear `from_line` */
 void audio_tx_external(int line, bool enable);           /* play from audio_ext_write() */
+
+/* Voice effect for a line in a call: changes what its earpiece hears from the
+ * bridge/VoIP peer and what its uplink sends to VoIP. For a local call set it
+ * on both lines (each shapes the other's voice). VOICE_FX_NONE turns it off. */
+esp_err_t  audio_set_voice_fx(int line, voice_fx_t fx);
+voice_fx_t audio_voice_fx(int line);
 
 /* Substitutes this line's own current TX output (tone/player/external --
  * whatever audio_tx_*() last selected) for its mic input on the uplink side

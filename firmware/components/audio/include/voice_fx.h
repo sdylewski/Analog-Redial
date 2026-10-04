@@ -1,0 +1,36 @@
+/*
+ * voice_fx.h -- in-call voice effects, applied per line by audio.c.
+ *
+ * All fixed-point (the C6 has no FPU). Only the pitch effects add delay:
+ * about half their 30 ms window, ~15 ms. The rest are sample-by-sample.
+ */
+#pragma once
+
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum {
+    VOICE_FX_NONE = 0,
+    VOICE_FX_DALEK,      /* 30 Hz ring modulation */
+    VOICE_FX_CHIPMUNK,   /* pitch up 1.5x */
+    VOICE_FX_DEEP,       /* pitch down 0.7x */
+    VOICE_FX_8BIT,       /* bit-crush + 4 kHz sample-and-hold */
+} voice_fx_t;
+
+typedef struct voice_fx_state voice_fx_state_t;
+
+/* One state per audio stream (each keeps its own delay line). NULL on OOM. */
+voice_fx_state_t *voice_fx_create(uint32_t sample_rate);
+
+/* In place. Switching effect resets the state, so there's no stale tail. */
+void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *buf, size_t n);
+
+const char *voice_fx_name(voice_fx_t fx);
+
+#ifdef __cplusplus
+}
+#endif

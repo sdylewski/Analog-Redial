@@ -60,7 +60,7 @@ static const entry_t TABLE[] = {
     { "321", ACT_CALL_LINE, -1, FX_NORMAL, "Call other phone (normal voice)", true },
     { "322", ACT_CALL_LINE, -1, FX_HIGH,   "Call other phone (chipmunk)", true },
     { "323", ACT_CALL_LINE, -1, FX_LOW,    "Call other phone (low pitch)", true },
-    { "324", ACT_CALL_LINE, -1, FX_DALEK,  "Call other phone (robot)", true },
+    { "324", ACT_CALL_LINE, -1, FX_DALEK,  "Call other phone (Dalek)", true },
 
     /* 8xx -- internet radio; only 811/812 are configured on the Pi today,
      * 813-819 are documented gaps, not real codes yet */

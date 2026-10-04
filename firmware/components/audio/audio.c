@@ -49,10 +49,16 @@ typedef struct {
     int32_t         dec_ref_acc, dec_near_acc; /* 48k->8k decimation accumulators */
     uint32_t        dec_n;
     volatile bool   inject_uplink; /* see audio_set_uplink_inject() */
+    /* Voice effect (audio_set_voice_fx()): fx_down shapes what this line's
+     * earpiece hears from a bridge/VoIP peer; fx_up/fx_up8 shape the uplink
+     * VoIP reads (48 kHz raw or 8 kHz echo-cancelled). Allocated on first use. */
+    voice_fx_t        fx;
+    voice_fx_state_t *fx_down, *fx_up, *fx_up8;
 } line_t;
 
 static line_t s_line[AUDIO_NUM_LINES];
 static int16_t *s_rx_mono[AUDIO_NUM_LINES]; /* last RX frame, for bridge */
+static int16_t *s_fx_tmp[AUDIO_NUM_LINES];  /* uplink copy for the voice effect */
 
 static i2s_chan_handle_t s_tx, s_rx;
 static uint32_t s_sr = 48000;
@@ -153,6 +159,36 @@ void audio_tx_bridge(int line, int from_line, bool enable)
         s_line[line].src = SRC_SILENCE;
     }
     portEXIT_CRITICAL(&s_mux);
+}
+
+esp_err_t audio_set_voice_fx(int line, voice_fx_t fx)
+{
+    if (line < 0 || line >= AUDIO_NUM_LINES) return ESP_ERR_INVALID_ARG;
+    line_t *l = &s_line[line];
+    if (fx != VOICE_FX_NONE && !l->fx_down) {
+        voice_fx_state_t *down = voice_fx_create(s_sr);
+        voice_fx_state_t *up   = voice_fx_create(s_sr);
+        voice_fx_state_t *up8  = voice_fx_create(8000);
+        if (!down || !up || !up8) {
+            /* voice_fx states are never freed once in use, so a partial
+             * allocation can't be handed out; leak them (tiny, OOM path). */
+            return ESP_ERR_NO_MEM;
+        }
+        portENTER_CRITICAL(&s_mux);
+        l->fx_down = down;
+        l->fx_up = up;
+        l->fx_up8 = up8;
+        portEXIT_CRITICAL(&s_mux);
+    }
+    portENTER_CRITICAL(&s_mux);
+    l->fx = fx;
+    portEXIT_CRITICAL(&s_mux);
+    return ESP_OK;
+}
+
+voice_fx_t audio_voice_fx(int line)
+{
+    return (line >= 0 && line < AUDIO_NUM_LINES) ? s_line[line].fx : VOICE_FX_NONE;
 }
 
 void audio_tx_external(int line, bool enable)
@@ -416,6 +452,7 @@ static void fill_tx_line(int line, int16_t *out, size_t n)
             int from = snap.bridge_from;
             if (from >= 0 && from < AUDIO_NUM_LINES && s_rx_mono[from]) {
                 memcpy(out, s_rx_mono[from], n * sizeof(int16_t));
+                voice_fx_process(snap.fx_down, snap.fx, out, n);
             } else {
                 memset(out, 0, n * sizeof(int16_t));
             }
@@ -428,6 +465,7 @@ static void fill_tx_line(int line, int16_t *out, size_t n)
                       / sizeof(int16_t);
             }
             for (size_t i = got; i < n; i++) out[i] = 0; /* underrun -> silence */
+            voice_fx_process(snap.fx_down, snap.fx, out, n);
             break;
         }
         case SRC_SILENCE:
@@ -553,7 +591,16 @@ static void audio_task(void *arg)
                 s_line[line].diag_tap(line, src, rxn, s_line[line].diag_ctx);
             }
             if (rxn && s_line[line].rx) {
-                xStreamBufferSend(s_line[line].rx, src, rxn * sizeof(int16_t), 0);
+                /* Taps above keep the raw mic (DTMF detection must still
+                 * hear the '0' that turns an effect off); only the uplink
+                 * VoIP reads gets the effect. */
+                const int16_t *up = src;
+                if (s_line[line].fx != VOICE_FX_NONE && s_line[line].fx_up && s_fx_tmp[line]) {
+                    memcpy(s_fx_tmp[line], src, rxn * sizeof(int16_t));
+                    voice_fx_process(s_line[line].fx_up, s_line[line].fx, s_fx_tmp[line], rxn);
+                    up = s_fx_tmp[line];
+                }
+                xStreamBufferSend(s_line[line].rx, up, rxn * sizeof(int16_t), 0);
             }
             /* Echo cancellation. Both signals are taken from HERE on purpose:
              * `tx` is the frame about to be handed to I2S (what will actually
@@ -581,6 +628,7 @@ static void audio_task(void *arg)
                 }
                 if (m) {
                     aec_process(line, ref8, near8, near8, m); /* in-place */
+                    voice_fx_process(s_line[line].fx_up8, s_line[line].fx, near8, m);
                     xStreamBufferSend(s_line[line].aec_out, near8, m * sizeof(int16_t), 0);
                 }
             }
@@ -613,6 +661,7 @@ esp_err_t audio_init(const audio_config_t *cfg)
         /* 8 kHz, so an eighth the byte count of `rx` for the same time span. */
         s_line[i].aec_out = xStreamBufferCreate(AUDIO_AEC_BLOCK * 8 * sizeof(int16_t), 1);
         s_rx_mono[i]  = calloc(s_frame, sizeof(int16_t));
+        s_fx_tmp[i]   = calloc(s_frame, sizeof(int16_t));
         if (!s_line[i].ext || !s_line[i].rx || !s_line[i].aec_out || !s_rx_mono[i]) {
             ESP_LOGE(TAG, "line %d buffer alloc failed", i);
             return ESP_ERR_NO_MEM;

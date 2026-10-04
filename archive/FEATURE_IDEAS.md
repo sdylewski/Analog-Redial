@@ -44,40 +44,22 @@ the beep. Not fixable after the fact on a 2-wire analog line; it's the same
 tradeoff real telco features (flash-hook transfer, `*72`, etc.) have always
 had.
 
-## Voice effects
+## Voice effects -- BUILT 2026-10-04
 
-The groundwork for this partially already exists but isn't wired up:
-`voice_effect_t` (`dialplan.h`) already has `FX_NORMAL`/`FX_HIGH`/`FX_LOW`/
-`FX_DALEK`, and dial codes 321-324 already map to "call other phone"
-(normal/chipmunk/low pitch/robot) via `ACT_CALL_LINE` in `dialplan.c`.
-`start_local_call()` stores the chosen effect in `s_line[caller].call_fx` --
-but nothing in the audio pipeline actually reads `call_fx` and applies a
-DSP effect yet. It's a stub: the dial codes and the field exist, the
-synthesis doesn't.
+Done: `components/audio/voice_fx.c`. During any call, a touch-tone (or
+rotary-dialled) 5/6/7/8 sets Dalek / chipmunk / deep / 8-bit, 0 turns it off,
+and both phones hear it whoever presses (`in_call_key()` in `telephony.c`).
+321-324 now really apply their effect when the call connects. Dalek and 8-bit
+add no delay; chipmunk/deep use a 30 ms delay-line pitch shifter (~15 ms).
 
-Two different techniques, by effect:
-
-- **`FX_DALEK` (robot)** -- ring modulation: multiply the voice signal by a
-  low-frequency carrier (~30-50 Hz sine). This is literally how the original
-  *Doctor Who* Dalek voice was made. Computationally trivial (one multiply
-  per sample, no FFT) -- an easy fit for the ESP32-C6 alongside everything
-  else it's already doing (telephony FSM, WiFi, codec I2S).
-- **`FX_HIGH`/`FX_LOW` (chipmunk / deep voice)** -- true pitch shift
-  (changing pitch without changing tempo) needs more than naive resampling,
-  which couples pitch and tempo together (that's the classic "chipmunk
-  record played too fast" effect -- cheap, but the call would also run at
-  the wrong speed for a real two-way conversation). Two options:
-  - Cheapest: accept the tempo coupling. Might be fine for a short novelty
-    "call the other line" gag, less fine for an actual conversation.
-  - Better: a small-window granular/overlap-add pitch shifter (PSOLA-style,
-    or the classic Bernsee FFT pitch-shift algorithm) run on narrowband
-    telephone-rate audio. More CPU than ring-mod, but plausible on this
-    chip -- would want actual profiling before committing.
-
-Natural home for either: a new small component (e.g. `components/voice_fx/`)
-following the same tap/inject pattern the tone generator and DTMF detector
-already use, applied to the calling line's uplink before it reaches the
-callee.
+Still open here:
+- VoIP: a key pressed by the far end isn't detected (only local phones'
+  digits are), and keys pressed on this end also reach the far end as tones
+  -- so an automated phone menu on a VoIP call will see them, and pressing 5
+  for a menu option will also turn on Dalek. A `*` prefix would avoid that if
+  it turns out to matter.
+- More effects that add no delay: tremolo, a "radio" band-pass with
+  crackle, overdrive.
 
 ## Other ideas that fall out of having mid-call DTMF codes
 

@@ -1031,6 +1031,7 @@ static esp_err_t index_handler(httpd_req_t *req)
     size_t n = dialplan_list(entries, 40);
     size_t cap = 8192 + n * 220 + 1800 /* append_first_boot_banner(), while unconfirmed */
         + 300 /* dial guide's Bluetooth dial-out card */
+        + 1400 /* dial guide's "During a call" card */
         + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
@@ -6781,6 +6782,21 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
      * the first call. */
     off = append_guide_clips(buf, cap, off);
     off = append_guide_voip(buf, cap, off);
+
+    /* Not dial-plan codes: in_call_key() in telephony.c. */
+    if (off > 0 && (size_t)off < cap) {
+        static const struct { const char *key, *desc; } IN_CALL[] = {
+            { "5", "Dalek voice" }, { "6", "Chipmunk voice" }, { "7", "Deep voice" },
+            { "8", "8-bit voice" }, { "0", "Normal voice" },
+        };
+        off += snprintf(buf + off, cap - off,
+            "<div class=\"card\"><h2>During a call</h2>");
+        for (size_t i = 0; i < sizeof(IN_CALL) / sizeof(IN_CALL[0]); i++)
+            off = append_guide_row(buf, cap, off, IN_CALL[i].key, IN_CALL[i].desc, true);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<p class=\"hint\">Press or dial during a call. Both phones hear the change, "
+            "whoever presses it.</p></div>");
+    }
 
     if (off > 0 && (size_t)off < cap) {
         off += snprintf(buf + off, cap - off,

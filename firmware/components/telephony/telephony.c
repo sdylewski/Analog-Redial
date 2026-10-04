@@ -590,6 +590,49 @@ static void start_local_call(int caller, int target, voice_effect_t fx)
     activity_log("Line %d called line %d", caller, target);
 }
 
+/* Same effect for everyone in the call: both lines of a local bridge (each
+ * shapes the other's voice), or this line alone for VoIP, where it covers both
+ * directions -- the far end's voice in this earpiece, and this mic's uplink. */
+static void set_call_voice_fx(int line, voice_fx_t fx)
+{
+    int peer = s_line[line].peer;
+    if (audio_set_voice_fx(line, fx) != ESP_OK) {
+        ESP_LOGW(TAG, "line %d: not enough memory for a voice effect", line);
+        return;
+    }
+    if (peer >= 0 && peer < NLINES) audio_set_voice_fx(peer, fx);
+    activity_log("Line %d: voice effect %s", line, voice_fx_name(fx));
+}
+
+static voice_fx_t voice_fx_for(voice_effect_t e)
+{
+    switch (e) {
+    case FX_HIGH:  return VOICE_FX_CHIPMUNK;
+    case FX_LOW:   return VOICE_FX_DEEP;
+    case FX_DALEK: return VOICE_FX_DALEK;
+    default:       return VOICE_FX_NONE;
+    }
+}
+
+/* A key pressed (or dialled, on a rotary phone) during a call. Set, not
+ * toggle: the tone also reaches the other phone and can echo back into its
+ * own detector, and a second "set Dalek" is harmless where a toggle would
+ * flip it straight back off. */
+static void in_call_key(int line, char ch)
+{
+    voice_fx_t fx;
+    switch (ch) {
+    case '5': fx = VOICE_FX_DALEK;    break;
+    case '6': fx = VOICE_FX_CHIPMUNK; break;
+    case '7': fx = VOICE_FX_DEEP;     break;
+    case '8': fx = VOICE_FX_8BIT;     break;
+    case '0': fx = VOICE_FX_NONE;     break;
+    default:  return;
+    }
+    if (audio_voice_fx(line) == fx) return;
+    set_call_voice_fx(line, fx);
+}
+
 static void connect_bridge(int a, int b)
 {
     audio_tx_bridge(a, b, true);
@@ -599,12 +642,22 @@ static void connect_bridge(int a, int b)
     s_line[a].peer = b;
     s_line[b].peer = a;
     ESP_LOGI(TAG, "bridge %d <-> %d", a, b);
+    /* 322-324 picked an effect when dialling; whichever side dialled holds it. */
+    voice_effect_t fx = s_line[a].call_fx != FX_NORMAL ? s_line[a].call_fx : s_line[b].call_fx;
+    if (fx != FX_NORMAL) set_call_voice_fx(a, voice_fx_for(fx));
 }
 
 /* tear down whatever `line` is doing; notify peer appropriately */
 static void end_call(int line)
 {
     int peer = s_line[line].peer;
+
+    audio_set_voice_fx(line, VOICE_FX_NONE);
+    s_line[line].call_fx = FX_NORMAL;
+    if (peer >= 0 && peer < NLINES) {
+        audio_set_voice_fx(peer, VOICE_FX_NONE);
+        s_line[peer].call_fx = FX_NORMAL;
+    }
 
     /* Hanging up the handset during a Bluetooth call ends that call on the
      * phone, as with any headset. Only for a real call -- passthrough with
@@ -857,6 +910,10 @@ static void process_digit(int line, char ch)
     if (s_monitor_suppress) return; /* pulsemon/tonemon active: don't feed the dial plan */
 
     tel_state_t st = s_line[line].state;
+    if (st == TEL_INCALL) {
+        in_call_key(line, ch);
+        return;
+    }
     if (st != TEL_DIALTONE && st != TEL_DIALING) {
         return; /* ignore digits unless we're expecting them */
     }
