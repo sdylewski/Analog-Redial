@@ -61,8 +61,6 @@ That is **2× DAC + 2× ADC** at **telephone bandwidth**, which is exactly what 
 
 **Conclusion:** **One WM8731** is enough for a **two-line** box. You do **not** need a second WM8731 unless you want **more than two** analog line interfaces, redundant codecs, or a different architecture (e.g. separate I2S buses per chip without stereo mapping).
 
-**Pin budget for the host** (GPIO / peripheral pads only, not analog coupling components): see **`MCU_VS_PI_ZERO_STACK.md`** → section **Pin requirements (GPIO count)**.
-
 ### Analog line levels (WM8731 ↔ AG1170 VIN / VOUT)
 
 - **ADC full-scale (line in):** **1.0 × (AVDD / 3.3) Vrms** → **~1.0 Vrms** at **AVDD = 3.3 V**. Above that risks **overload / clipping**; full scale **tracks AVDD**.

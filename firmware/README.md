@@ -15,8 +15,7 @@ firmware; its docs are archived under
 See [`../docs/features.md`](../docs/features.md) for the feature list and
 architecture. GPIO maps live in `components/board/include/`
 (`board_pins_smd4.h`, `board_pins_smd.h` for SMD2; `board_pins.h` picks one)
-— match `CONFIG_BOARD_*` to your actual board; see
-[`archive/ESP32_PORT_PLAN.md`](../archive/ESP32_PORT_PLAN.md) and
+— match `CONFIG_BOARD_*` to your actual board; parts are in
 [`docs/bom.md`](../docs/bom.md).
 
 ## Requirements

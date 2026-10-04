@@ -192,8 +192,8 @@ server.
   — the Pi side: baresip setup, troubleshooting steps (registration,
   incoming-call event flow, ALSA device quirks), Linphone/softphone
   configuration.
-- [`GETTING_STARTED.md`](GETTING_STARTED.md) — the ESP32 web UI walkthrough,
-  including the Settings → VOIP tab.
+- [`docs/getting-started.md`](../docs/getting-started.md) and
+  [`docs/voip-setup.md`](../docs/voip-setup.md) — the web UI and the Settings → VOIP tab.
 - `firmware/components/voip/voip.c` — the embedded SIP UA implementation
   (scope, what's supported) if you're debugging registration/call issues
   from the ESP32 side specifically.

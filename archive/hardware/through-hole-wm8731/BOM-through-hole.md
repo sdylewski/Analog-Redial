@@ -86,7 +86,7 @@ Put link and price in the same **DigiKey** / **AliExpress** cell (example: `[par
 
 ## Firmware
 
-Targets this board today (`board_pins.h`, **WM8731**). SMD board: [`../../ESP32_PORT_PLAN.md`](../../ESP32_PORT_PLAN.md).
+Firmware support for this board was removed; the last commit that builds it is `2fdde5e`.
 
 ---
 

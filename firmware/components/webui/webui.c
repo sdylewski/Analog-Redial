@@ -1261,8 +1261,7 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
 
 /* Tab set mirrors the Pi's settings.html (General / Operator / VOIP /
  * Inter-phone / Record message / Hardware) so the shape previews where each
- * section will land, even though most of them are still placeholders here --
- * radio and VoIP aren't wired up on the ESP32 yet (see archive/ESP32_PORT_PLAN.md).
+ * section will land.
  * "Record & callback" (212-215) was part of this set too until it was
  * archived -- see docs/features.md "Archived features". Server-rendered via
  * ?tab=, not client JS: every other page in this component is a plain

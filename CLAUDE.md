@@ -140,9 +140,8 @@ before chasing something else.
 This repo is public on GitHub. `README.md` and everything under `docs/` are
 written for someone building a board from scratch — SMD4 only, no
 dev-journal detail. Everything else lives under **[`archive/`](archive/)** —
-dev-journal docs (`archive/ECHO_DEBUGGING.md`, `archive/ESP32_PORT_PLAN.md`,
-`archive/PROJECT_UPDATE_PLAN.md`, `archive/MCU_VS_PI_ZERO_STACK.md`,
-`archive/VOIP_SETUP.md`), and superseded/pre-SMD4 hardware docs
+dev-journal docs (`archive/ECHO_DEBUGGING.md`, `archive/BLUETOOTH_AUDIO_UPGRADE.md`,
+`archive/ANSWERING_MACHINE.md`, `archive/POWER_SAVING.md`, `archive/VOIP_SETUP.md`), and superseded/pre-SMD4 hardware docs
 (`archive/hardware/smd2.md` — the SMD2 board whole: design, BOM, DTMF-clipping rework, only 3 ever built; `archive/hardware/smd4.md`, `smd5.md`, `BOM*.md`, and the through-hole/WM8731 board's own docs under `archive/hardware/through-hole-wm8731/`). These are
 **your working notes, not part of the public doc set** — useful for you when
 picking up this project again, not linked from the public README. When
@@ -163,7 +162,6 @@ structure) — only links from live files (this one included) need the
 - [`archive/signal-levels.md`](archive/signal-levels.md) — SLIC/codec levels, SHK dividers
 - [`docs/voip-setup.md`](docs/voip-setup.md) — SIP server setup, dial-plan reference
 - [`firmware/README.md`](firmware/README.md) — ESP-IDF toolchain setup, build/flash
-- [`archive/ESP32_PORT_PLAN.md`](archive/ESP32_PORT_PLAN.md) *(internal)* — Pi v1.0 → ESP32 scope, phases, dual-board plan
 - Dial plan source of truth: `firmware/components/dialplan/` (the web UI's
   dial guide is generated from the same table). The sibling `pi_rotary_phone`
   repo is a frozen reference for the user's one Raspberry Pi unit — don't

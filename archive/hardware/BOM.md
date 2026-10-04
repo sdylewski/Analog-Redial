@@ -14,7 +14,7 @@ Each line-item BOM uses the same columns: leading empty cell (your checkbox), **
 
 **Design references:** [`smd2.md`](smd2.md) (SMD2, archived) · [`WM8731.md`](through-hole-wm8731/WM8731.md) (through-hole codec wiring)
 
-**Firmware board types:** see [`../ESP32_PORT_PLAN.md`](../ESP32_PORT_PLAN.md) — one codebase, Kconfig switch for SMD vs through-hole pin map and codec driver.
+**Firmware board types:** one codebase, `CONFIG_BOARD_TYPE_*` selects the pin map — see [`firmware/README.md`](../../firmware/README.md).
 
 ---
 
