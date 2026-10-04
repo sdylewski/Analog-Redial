@@ -1,14 +1,67 @@
+/* "Avocado Kitchen": light by default, dark when the device prefers it.
+ * The header's theme button sets data-theme on <html> to override either way
+ * (saved per browser in localStorage). Components use only these tokens. */
 :root {
-  --bg: #262219;
-  --panel: #312c23;
-  --panel2: #3b352a;
-  --text: #f0e7d3;
-  --muted: #b3a68d;
-  --accent: #e0ab4a;
-  --green: #a7b964;
-  --red: #e2654f;
-  --amber: #e6b94a;
-  --border: #4b4335;
+  --bg: #f3ead6;
+  --panel: #fffaf0;
+  --panel2: #f1e7d0;
+  --text: #2a251d;
+  --muted: #66593f;
+  --accent: #56661f;
+  --green: #4a6a12;
+  --red: #a83b26;
+  --amber: #8a5a05;
+  --border: #d6c7a1;
+  --accent-bg: rgba(86,102,31,.12);
+  --green-bg: rgba(74,106,18,.14);
+  --amber-bg: rgba(138,90,5,.14);
+  --red-bg: rgba(168,59,38,.12);
+  --muted-bg: rgba(102,89,63,.12);
+  --line-soft: rgba(214,199,161,.7);
+  --on-red: #fffaf0;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #13110d;
+    --panel: #1f1c16;
+    --panel2: #2a261e;
+    --text: #f6eedc;
+    --muted: #bdb196;
+    --accent: #eab54c;
+    --green: #b8cf6a;
+    --red: #f07560;
+    --amber: #f3c556;
+    --border: #3d372a;
+    --accent-bg: rgba(234,181,76,.14);
+    --green-bg: rgba(184,207,106,.16);
+    --amber-bg: rgba(243,197,86,.16);
+    --red-bg: rgba(240,117,96,.14);
+    --muted-bg: rgba(189,177,150,.14);
+    --line-soft: rgba(61,55,42,.7);
+    --on-red: #1f1a12;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #13110d;
+  --panel: #1f1c16;
+  --panel2: #2a261e;
+  --text: #f6eedc;
+  --muted: #bdb196;
+  --accent: #eab54c;
+  --green: #b8cf6a;
+  --red: #f07560;
+  --amber: #f3c556;
+  --border: #3d372a;
+  --accent-bg: rgba(234,181,76,.14);
+  --green-bg: rgba(184,207,106,.16);
+  --amber-bg: rgba(243,197,86,.16);
+  --red-bg: rgba(240,117,96,.14);
+  --muted-bg: rgba(189,177,150,.14);
+  --line-soft: rgba(61,55,42,.7);
+  --on-red: #1f1a12;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -17,18 +70,11 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  color-scheme: dark;
   font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* This page is always dark (no light-mode variant), but nothing before this
- * declared that -- so a plain <a> with no more specific rule matching it
- * (nav a/.button/etc. all set their own color; a bare link inside a <p
- * class="hint">, like the Hardware card's "Status" link, didn't) fell back
- * to the browser's default link color, which assumes a light page and skews
- * purple/dark-blue -- exactly the low-contrast text on this dark background.
- * color-scheme above fixes native form controls (checkboxes, dropdowns,
- * scrollbars); this fixes links specifically. */
+/* Bare links (e.g. inside a hint) would otherwise get the browser's default
+ * link color. */
 a { color: var(--accent); }
 a:visited { color: var(--accent); }
 
@@ -73,7 +119,7 @@ main { padding: 22px; max-width: 1100px; margin: 0 auto; }
 
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
 @media (min-width: 1100px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-hr.sep { border: 0; border-top: 1px solid var(--line, #e2e8f0); margin: 18px 0 14px; }
+hr.sep { border: 0; border-top: 1px solid var(--border); margin: 18px 0 14px; }
 /* A card with real form fields (server names, passwords, ...) shouldn't get
  * squeezed into one of several narrow auto-fit columns on a wide screen --
  * span the full row regardless of how many sibling cards there are. */
@@ -96,7 +142,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line, #e2e8f0); margin: 18px 0 1
 /* First-boot setup banner (index_handler): same card, just visually called
  * out with the accent color so it reads as "please look at this once,"
  * distinct from the plain status cards around it. */
-.card.firstboot { border-color: var(--accent); background: rgba(224,171,74,.06); }
+.card.firstboot { border-color: var(--accent); background: var(--accent-bg); }
 
 .statusrow { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; }
 .statusrow .label { color: var(--muted); }
@@ -116,10 +162,10 @@ hr.sep { border: 0; border-top: 1px solid var(--line, #e2e8f0); margin: 18px 0 1
   font-weight: 700;
   font-size: 13px;
 }
-.pill.on { background: rgba(167,185,100,.18); color: var(--green); }
-.pill.off { background: rgba(179,166,141,.15); color: var(--muted); }
-.pill.busy { background: rgba(230,185,74,.18); color: var(--amber); }
-.pill.amber { background: rgba(230,185,74,.18); color: var(--amber); }
+.pill.on { background: var(--green-bg); color: var(--green); }
+.pill.off { background: var(--muted-bg); color: var(--muted); }
+.pill.busy { background: var(--amber-bg); color: var(--amber); }
+.pill.amber { background: var(--amber-bg); color: var(--amber); }
 
 .bignum { font-size: 30px; font-weight: 800; letter-spacing: .12em; min-height: 38px; }
 
@@ -130,7 +176,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line, #e2e8f0); margin: 18px 0 1
 .logpanel h2 { margin: 0; padding: 12px 16px; font-size: 13px; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .logpanel h2 button { padding: 4px 10px; font-size: 11px; text-transform: none; font-weight: 600; }
 .logbody { max-height: 420px; overflow-y: auto; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; }
-.logline { display: flex; gap: 10px; padding: 4px 16px; border-bottom: 1px solid rgba(75,67,53,.5); }
+.logline { display: flex; gap: 10px; padding: 4px 16px; border-bottom: 1px solid var(--line-soft); }
 .logline:hover { background: var(--panel2); }
 .logline .t { color: var(--muted); white-space: nowrap; }
 .logline .k { color: var(--accent); width: 54px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -273,7 +319,7 @@ details.hint-detail > .hint { margin: 0; }
 .msg { font-size: 13px; color: var(--muted); }
 .msg.err { color: var(--red); }
 .msg.ok { color: var(--green); }
-button.primary { background: rgba(224,171,74,.15); border-color: var(--accent); color: var(--accent); }
+button.primary { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 button:disabled:hover { border-color: var(--border); }
 .mode-list { display: flex; flex-direction: column; gap: 14px; }
@@ -307,14 +353,14 @@ button:disabled:hover { border-color: var(--border); }
 .hazard-banner {
   display: flex; align-items: center; gap: 10px;
   padding: 12px 16px; margin: 12px 0;
-  border-radius: 10px; background: var(--red); color: #1f1a12;
+  border-radius: 10px; background: var(--red); color: var(--on-red);
   font-weight: 700; font-size: 15px;
 }
 .hazard-banner a { color: inherit; text-decoration: underline; }
 .health-unknown .health-dot { background: var(--muted); }
-.health-ok { border-color: rgba(167, 185, 100, 0.35); }
-.health-warn { border-color: rgba(230, 185, 74, 0.45); }
-.health-bad { border-color: rgba(226, 101, 79, 0.45); }
+.health-ok { border-color: var(--green); }
+.health-warn { border-color: var(--amber); }
+.health-bad { border-color: var(--red); }
 .lang-section-top { margin-top: 8px; }
 .lang-list {
   display: grid;
@@ -428,7 +474,7 @@ a.button:hover { border-color: var(--accent); color: var(--accent); }
 .help-box ol { margin: 8px 0 0; padding-left: 20px; }
 .help-box li { margin: 6px 0; }
 
-.code-row { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(75,67,53,.4); font-size: 13.5px; }
+.code-row { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line-soft); font-size: 13.5px; }
 .code-row:last-child { border-bottom: none; }
 .code-row .code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 700; color: var(--accent); white-space: nowrap; }
 .code-row .desc { flex: 1; color: var(--text); }
@@ -438,8 +484,17 @@ a.button:hover { border-color: var(--accent); color: var(--accent); }
 /* Compact reference table inside a settings card (the language->tone-region
    map). Deliberately plain: it's reference material, not a data table. */
 table.mini { width: 100%; border-collapse: collapse; margin: 8px 0 4px; font-size: 13px; }
-table.mini th { text-align: left; font-weight: 600; color: var(--muted, #64748b); padding: 3px 6px 3px 0; }
-table.mini td { padding: 3px 6px 3px 0; color: var(--muted, #64748b); }
+table.mini th { text-align: left; font-weight: 600; color: var(--muted); padding: 3px 6px 3px 0; }
+table.mini td { padding: 3px 6px 3px 0; color: var(--muted); }
 
 /* Inline "your browser says..." timezone suggestion. */
 #tzsuggest a { font-weight: 600; }
+
+/* Theme switch in the header nav (Auto / Light / Dark). */
+nav .themebtn {
+  margin-left: 14px; vertical-align: middle;
+  background: transparent; color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 2px 8px; font-size: 13px; cursor: pointer;
+}
+nav .themebtn:hover { border-color: var(--accent); }

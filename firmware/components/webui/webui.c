@@ -658,6 +658,26 @@ static const ui_tz_t UI_TIMEZONES[] = {
 };
 #define UI_TIMEZONES_N (sizeof(UI_TIMEZONES) / sizeof(UI_TIMEZONES[0]))
 
+/* Light/dark theme: style.css follows the device (prefers-color-scheme) unless
+ * <html data-theme> says otherwise. This runs in <head>, before the page
+ * draws, so a saved choice never flashes the other theme first; the header
+ * button cycles Auto -> Light -> Dark. */
+static const char THEME_JS[] =
+    "<script>"
+    "try{var t=localStorage.getItem('rd-theme');"
+    "if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}"
+    "function rdLabel(){var b=document.getElementById('themebtn');if(!b)return;"
+    "var c=document.documentElement.getAttribute('data-theme');"
+    "b.textContent=c=='light'?'\u2600 Light':c=='dark'?'\u263e Dark':'\u25d0 Auto';"
+    "b.title=c?'Theme: '+c+' (click to change)':'Theme follows this device (click to change)';}"
+    "function rdTheme(){var r=document.documentElement,c=r.getAttribute('data-theme'),"
+    "n=c=='light'?'dark':c=='dark'?'':'light';"
+    "if(n)r.setAttribute('data-theme',n);else r.removeAttribute('data-theme');"
+    "try{if(n)localStorage.setItem('rd-theme',n);else localStorage.removeItem('rd-theme');}catch(e){}"
+    "rdLabel();}"
+    "document.addEventListener('DOMContentLoaded',rdLabel);"
+    "</script>";
+
 static int append_page_head(char *buf, size_t cap, int off, const char *page_title,
                              const char *active_href, bool auto_refresh)
 {
@@ -672,10 +692,10 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
         "<link rel=\"icon\" href=\"/favicon.ico\" sizes=\"any\">"
         "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">"
-        "<link rel=\"stylesheet\" href=\"/static/style.css\"></head><body>"
+        "<link rel=\"stylesheet\" href=\"/static/style.css\">%s</head><body>"
         "<header><h1>%s <span class=\"dot\">%s</span></h1><nav>",
         name, page_title, auto_refresh ? "<meta http-equiv=\"refresh\" content=\"5\">" : "",
-        name, i18n_str("header.subtitle", "Analog Redial"));
+        THEME_JS, name, i18n_str("header.subtitle", "Analog Redial"));
     for (size_t i = 0; i < NAV_TABS_N; i++) {
         bool active = strcmp(NAV_TABS[i].href, active_href) == 0;
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
@@ -696,7 +716,10 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
         "<form method=\"POST\" action=\"/language_set\" class=\"langpick\">"
         "<select name=\"lang\" onchange=\"this.form.submit()\" title=\"Language\">");
     off = append_language_options(buf, cap, off, cur_lang);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</select></form></nav>");
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "</select></form>"
+        "<button type=\"button\" id=\"themebtn\" class=\"themebtn\" onclick=\"rdTheme()\">"
+        "\xe2\x97\x90 Auto</button></nav>");
 
     /* Shown on every page (this function is every page's shared head) --
      * see board_sd_line1_conflict()'s own doc comment (board.h) for why
@@ -1029,7 +1052,7 @@ static esp_err_t index_handler(httpd_req_t *req)
      * activity entries, see append_activity_panel()). */
     dialplan_entry_info_t entries[40];
     size_t n = dialplan_list(entries, 40);
-    size_t cap = 8192 + n * 220 + 1800 /* append_first_boot_banner(), while unconfirmed */
+    size_t cap = 8192 + 1000 /* page head's theme script */ + n * 220 + 1800 /* append_first_boot_banner(), while unconfirmed */
         + 300 /* dial guide's Bluetooth dial-out card */
         + 1800 /* dial guide's "During a call" card */
         + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
@@ -1176,7 +1199,7 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
      * ~9600) before landing on these numbers from actual measurement
      * instead of another guess -- if this ever needs to change again,
      * measure a rendered row rather than estimating. */
-    size_t cap = 2048 + 1024 + n * 600
+    size_t cap = 2048 + 1024 + 1000 /* page head's theme script */ + n * 600
         + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
     char *buf = malloc(cap);
     if (!buf) { free(entries); httpd_resp_send_500(req); return ESP_FAIL; }
@@ -4636,7 +4659,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * and NVS-backed (not a filesystem walk), so sizing for that many
      * outright is cheap and avoids a second listing call just to count. */
     size_t dialcodes_room = (strcmp(tab, "dialcodes") == 0) ? DIALPLAN_MAX_CLIP_ENTRIES * 950 + 6000 : 0;
-    size_t cap = 6144 + n * 220 + storage_room + log_room + hw_room + general_room + voip_room + dialcodes_room + phone_room + bt_room + diag_room
+    size_t cap = 6144 + 1000 /* page head's theme script */ + n * 220 + storage_room + log_room + hw_room + general_room + voip_room + dialcodes_room + phone_room + bt_room + diag_room
         + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
     /* The per-tab room estimates above are guesses; every append below
      * keeps adding its would-be length even once the buffer is full, so on
