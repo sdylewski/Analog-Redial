@@ -894,7 +894,7 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
      * already answers to it -- wifi_apply_hostname()'s mDNS check). */
     const char *name_label = i18n_str("wifisetup.name_label", "Board name (optional)");
     const char *name_placeholder = i18n_str("wifisetup.name_placeholder",
-        "leave blank for \"phone\"");
+        "leave blank for default");
     const char *save_connect = i18n_str("wifisetup.save_connect", "Save & connect");
 
     /* Measure the finished page, then allocate exactly that. The size used

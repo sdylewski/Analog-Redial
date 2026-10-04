@@ -587,10 +587,9 @@ esp_err_t wifi_init(void)
     err = mdns_init();
     if (err == ESP_OK) {
         s_mdns_ready = true;
-        mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
-        /* Hostname is set later, from the got-IP handler: the collision check
-         * in wifi_apply_hostname() has to query the LAN, which needs an
-         * active connection. */
+        /* Hostname (and the _http service, which mdns refuses to add until a
+         * hostname exists) are set later from the got-IP handler: the
+         * collision check in wifi_apply_hostname() needs the LAN. */
     } else {
         ESP_LOGW(TAG, "mdns_init failed: %s (no .local hostname, IP still works)",
                  esp_err_to_name(err));
@@ -640,6 +639,10 @@ void wifi_apply_hostname(void)
 
     mdns_hostname_set(host);
     strlcpy(s_live_host, host, sizeof(s_live_host));
+    if (!mdns_service_exists("_http", "_tcp", NULL)) {
+        esp_err_t serr = mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
+        if (serr != ESP_OK) ESP_LOGW(TAG, "mDNS _http service: %s", esp_err_to_name(serr));
+    }
     if (bumped) {
         /* One name everywhere for as long as the clash lasts: web UI, .local
          * address and router list all say e.g. "phone1". Deliberately NOT
