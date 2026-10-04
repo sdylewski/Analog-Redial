@@ -614,22 +614,25 @@ static voice_fx_t voice_fx_for(voice_effect_t e)
     }
 }
 
-/* A key pressed (or dialled, on a rotary phone) during a call. Set, not
- * toggle: the tone also reaches the other phone and can echo back into its
- * own detector, and a second "set Dalek" is harmless where a toggle would
- * flip it straight back off. */
+/* A key pressed (or dialled, on a rotary phone) during a call: 1-7 pick an
+ * effect, 0 turns it off. Set, not toggle: the tone also reaches the other
+ * phone and can echo back into its own detector, and a second "set Dalek" is
+ * harmless where a toggle would flip it straight back off. */
 static void in_call_key(int line, char ch)
 {
-    voice_fx_t fx;
-    switch (ch) {
-    case '5': fx = VOICE_FX_DALEK;    break;
-    case '6': fx = VOICE_FX_CHIPMUNK; break;
-    case '7': fx = VOICE_FX_VADER;    break;
-    case '8': fx = VOICE_FX_8BIT;     break;
-    case '9': fx = VOICE_FX_ROBOT;    break;
-    case '0': fx = VOICE_FX_NONE;     break;
-    default:  return;
-    }
+    static const voice_fx_t KEYS[] = {
+        ['0' - '0'] = VOICE_FX_NONE,
+        ['1' - '0'] = VOICE_FX_DALEK,
+        ['2' - '0'] = VOICE_FX_CHIPMUNK,
+        ['3' - '0'] = VOICE_FX_VADER,
+        ['4' - '0'] = VOICE_FX_8BIT,
+        ['5' - '0'] = VOICE_FX_ROBOT,
+        ['6' - '0'] = VOICE_FX_TREMOLO,
+        ['7' - '0'] = VOICE_FX_DISTORTION,
+    };
+    if (!board_voice_fx_enabled_get()) return;
+    if (ch < '0' || ch > '7') return;
+    voice_fx_t fx = KEYS[ch - '0'];
     if (audio_voice_fx(line) == fx) return;
     set_call_voice_fx(line, fx);
 }
@@ -645,7 +648,7 @@ static void connect_bridge(int a, int b)
     ESP_LOGI(TAG, "bridge %d <-> %d", a, b);
     /* 322-324 picked an effect when dialling; whichever side dialled holds it. */
     voice_effect_t fx = s_line[a].call_fx != FX_NORMAL ? s_line[a].call_fx : s_line[b].call_fx;
-    if (fx != FX_NORMAL) set_call_voice_fx(a, voice_fx_for(fx));
+    if (fx != FX_NORMAL && board_voice_fx_enabled_get()) set_call_voice_fx(a, voice_fx_for(fx));
 }
 
 /* tear down whatever `line` is doing; notify peer appropriately */

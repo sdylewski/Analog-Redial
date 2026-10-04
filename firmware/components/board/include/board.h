@@ -166,6 +166,10 @@ esp_err_t board_tone_region_set(const char *code);
 bool      board_tone_follow_language_get(void); /* defaults to true */
 esp_err_t board_tone_follow_language_set(bool follow);
 
+/* In-call voice effects (keys 1-7 during a call, 322-324). On by default. */
+bool      board_voice_fx_enabled_get(void);
+esp_err_t board_voice_fx_enabled_set(bool enabled);
+
 /* ---- Off-hook ("receiver off-hook" / ROH) alert ----
  * A handset left off the hook sits on dial tone forever otherwise: the line
  * is unreachable (callers get busy) with nothing to draw attention to it.

@@ -44,23 +44,20 @@ the beep. Not fixable after the fact on a 2-wire analog line; it's the same
 tradeoff real telco features (flash-hook transfer, `*72`, etc.) have always
 had.
 
-## Voice effects -- BUILT 2026-10-04
+## Voice effects -- BUILT
 
-Done: `components/audio/voice_fx.c`. During any call, a touch-tone (or
-rotary-dialled) 5/6/7/8/9 sets Dalek / chipmunk / Vader / 8-bit / robot, 0
-turns it off, and both phones hear it whoever presses (`in_call_key()` in
-`telephony.c`). 322-324 start a call with chipmunk/Vader/Dalek. Dalek, 8-bit
-and robot add no delay; chipmunk and Vader use a 30 ms delay-line pitch
-shifter (~15 ms).
+`components/audio/voice_fx.c`. During any call, a touch-tone (or
+rotary-dialled) 1-7 sets Dalek / chipmunk / Vader / 8-bit / robot / tremolo /
+distortion and 0 turns it off; both phones hear it whoever presses
+(`in_call_key()` in `telephony.c`). 322-324 start a call with
+chipmunk/Vader/Dalek. Settings -> Phone Settings has an on/off switch.
 
-Still open here:
-- VoIP: a key pressed by the far end isn't detected (only local phones'
-  digits are), and keys pressed on this end also reach the far end as tones
-  -- so an automated phone menu on a VoIP call will see them, and pressing 5
-  for a menu option will also turn on Dalek. A `*` prefix would avoid that if
-  it turns out to matter.
-- More effects that add no delay: tremolo, a "radio" band-pass with
-  crackle. Vader could also get a breathing loop between phrases.
+Still open:
+- If both ends of a VoIP call are Analog Redial boards and *both* press a
+  key, both apply their effect, so each voice gets it twice.
+- A far-end phone that isn't an Analog Redial can't trigger effects (its
+  tones arrive on the downlink, which isn't scanned for digits).
+- Vader could get a breathing loop between phrases.
 
 ## Other ideas that fall out of having mid-call DTMF codes
 

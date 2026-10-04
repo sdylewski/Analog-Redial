@@ -21,6 +21,8 @@ typedef enum {
     VOICE_FX_VADER,      /* pitch down 0.8x, overdrive, short "mask" resonance */
     VOICE_FX_8BIT,       /* bit-crush + 4 kHz sample-and-hold */
     VOICE_FX_ROBOT,      /* metallic comb resonance at ~110 Hz, no delay */
+    VOICE_FX_TREMOLO,    /* 6 Hz amplitude wobble, no delay */
+    VOICE_FX_DISTORTION, /* heavy soft-clipped overdrive, no delay */
 } voice_fx_t;
 
 typedef struct voice_fx_state voice_fx_state_t;

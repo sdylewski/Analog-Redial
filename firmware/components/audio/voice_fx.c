@@ -12,6 +12,8 @@
 #define VADER_MASK_FB_Q15 9830    /* 0.3 */
 #define ROBOT_HZ          110     /* comb delay = one period of this */
 #define ROBOT_FB_Q15      19661   /* 0.6 */
+#define TREMOLO_HZ        6
+#define TREMOLO_DEPTH_Q15 22938   /* 0.7: dips to 30% volume */
 #define CRUSH_RATE_HZ     4000
 #define CRUSH_MASK        0xF800  /* keep the top 5 bits */
 
@@ -19,7 +21,8 @@ struct voice_fx_state {
     uint32_t   sr;
     voice_fx_t last;
 
-    uint32_t ring_phase, ring_step;      /* Q32 turns */
+    uint32_t ring_phase, ring_step;      /* Q32 turns; ring_phase also drives tremolo */
+    uint32_t trem_step;
 
     /* Pitch shifter: a short delay line read by two taps half a window
      * apart, swept at (1 - ratio) samples per sample and crossfaded with
@@ -64,6 +67,7 @@ voice_fx_state_t *voice_fx_create(uint32_t sample_rate)
     s->win_q16 = (int32_t)(win << 16);
     s->half_q16 = s->win_q16 / 2;
     s->ring_step = (uint32_t)(((uint64_t)DALEK_HZ << 32) / sample_rate);
+    s->trem_step = (uint32_t)(((uint64_t)TREMOLO_HZ << 32) / sample_rate);
     s->hold_n = sample_rate / CRUSH_RATE_HZ ? sample_rate / CRUSH_RATE_HZ : 1;
     return s;
 }
@@ -133,13 +137,13 @@ static void comb(voice_fx_state_t *s, uint32_t d, int32_t g_q15, int16_t *x, siz
     }
 }
 
-/* Gentle overdrive: 1.5v - 0.5v^3 on a 2x-driven signal, soft at full scale. */
-static void overdrive(int16_t *x, size_t n)
+/* Soft clip 1.5v - 0.5v^3 on a `drive`-times signal, then `out_q15` level. */
+static void overdrive(int16_t *x, size_t n, int32_t drive, int32_t out_q15)
 {
     for (size_t k = 0; k < n; k++) {
-        int64_t v = sat16((int32_t)x[k] * 2);
+        int64_t v = sat16((int32_t)x[k] * drive);
         int64_t y = (3 * v) / 2 - (v * v * v) / (2LL * 32768 * 32768);
-        x[k] = sat16((int32_t)y);
+        x[k] = sat16((int32_t)((sat16((int32_t)y) * out_q15) >> 15));
     }
 }
 
@@ -165,11 +169,25 @@ void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *x, size_t n)
         break;
     case VOICE_FX_VADER:
         pitch(s, VADER_PITCH_Q16, x, n);
-        overdrive(x, n);
+        overdrive(x, n, 2, 32767);
         comb(s, s->mask_d, VADER_MASK_FB_Q15, x, n);
         break;
     case VOICE_FX_ROBOT:
         comb(s, s->robot_d, ROBOT_FB_Q15, x, n);
+        break;
+    case VOICE_FX_TREMOLO:
+        for (size_t k = 0; k < n; k++) {
+            /* gain = 1 - depth * (1 + sin) / 2 */
+            int32_t lfo = 32768 + s_sine[s->ring_phase >> 24];          /* 0..65535 */
+            int32_t g = 32768 - (int32_t)(((int64_t)TREMOLO_DEPTH_Q15 * lfo) >> 16);
+            x[k] = sat16((x[k] * g) >> 15);
+            s->ring_phase += s->trem_step;
+        }
+        break;
+    case VOICE_FX_DISTORTION:
+        /* 8x into the clipper flattens almost every peak; 0.6x after keeps
+         * the square-ish result from being much louder than the voice. */
+        overdrive(x, n, 8, 19661);
         break;
     case VOICE_FX_8BIT:
         for (size_t k = 0; k < n; k++) {
@@ -194,6 +212,8 @@ const char *voice_fx_name(voice_fx_t fx)
     case VOICE_FX_VADER:    return "Vader";
     case VOICE_FX_8BIT:     return "8-bit";
     case VOICE_FX_ROBOT:    return "robot";
+    case VOICE_FX_TREMOLO:  return "tremolo";
+    case VOICE_FX_DISTORTION: return "distortion";
     default:                return "normal";
     }
 }

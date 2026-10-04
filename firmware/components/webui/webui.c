@@ -1031,7 +1031,7 @@ static esp_err_t index_handler(httpd_req_t *req)
     size_t n = dialplan_list(entries, 40);
     size_t cap = 8192 + n * 220 + 1800 /* append_first_boot_banner(), while unconfirmed */
         + 300 /* dial guide's Bluetooth dial-out card */
-        + 1400 /* dial guide's "During a call" card */
+        + 1800 /* dial guide's "During a call" card */
         + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
@@ -1868,6 +1868,30 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "visually impaired user confirming a digit without a display. Today each "
                  "digit answers with its own touch-tone pair; <b>spoken digits are planned</b> "
                  "and need a set of number recordings per language. Persists to flash."));
+
+    bool fx_on = board_voice_fx_enabled_get();
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<form method=\"POST\" action=\"/voice_fx_enabled\" class=\"settings-form\">"
+        "<input type=\"hidden\" name=\"form\" value=\"1\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form>",
+        i18n_str("voicefx.title", "Voice effects"),
+        fx_on ? " checked" : "",
+        i18n_str("voicefx.enabled", "Enable audio effects during calls"),
+        i18n_str("general.button.save", "Save"));
+    off = append_hint(buf, cap, off,
+        i18n_str("voicefx.hint_lead",
+                 "During a call, press or dial 1 Dalek, 2 chipmunk, 3 Darth Vader, 4 8-bit, "
+                 "5 robot, 6 tremolo, 7 distortion, 0 normal. Both phones hear it."),
+        i18n_str("voicefx.hint_detail",
+                 "Works on calls between this board's two phones and on VoIP calls: the board "
+                 "where the key is pressed changes both voices, so the far end needs nothing "
+                 "special. The key's tone also reaches the other phone as a short beep. On a "
+                 "VoIP call to an automated phone menu, turn this off so menu choices don't "
+                 "change your voice. Also applies to dialling 322-324."));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("speaker.title", "Speaker (earpiece) volume"));
@@ -4595,7 +4619,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
                                                       * +the mismatch-confirm card if showing */
         : 0;
     size_t general_room = (strcmp(tab, "general") == 0) ? 3200 + 1400 + 2600 : 0; /* +setup password card */ /* +saved-network list */ /* +quiet hours card's timezone dropdown */
-    size_t phone_room = (strcmp(tab, "phone") == 0) ? 12500 : 0; /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card, AM greeting text-to-speech field (~2.2 KB) */
+    size_t phone_room = (strcmp(tab, "phone") == 0) ? 12500 + 1800 : 0; /* +voice effects card */ /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card, AM greeting text-to-speech field (~2.2 KB) */
     size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 : 0;
     size_t bt_room = (strcmp(tab, "bluetooth") == 0) ? 3300 : 0; /* +experimental notice */ /* "What Bluetooth can do" card */ /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
     /* This tab's `n*220` share (n = ALL dialplan entries, not just clips)
@@ -5069,6 +5093,22 @@ static esp_err_t language_set_handler(httpd_req_t *req)
  * checkbox submits nothing at all, so a missing `enabled` field means "off"
  * -- it can't be treated as "leave unchanged" the way blank password fields
  * elsewhere in this file are. */
+/* POST /voice_fx_enabled -- form body form=1[&enabled=1]. */
+static esp_err_t voice_fx_enabled_handler(httpd_req_t *req)
+{
+    char body[64] = "", enabled[4] = "";
+    if (req->content_len > 0 && req->content_len < sizeof(body)) {
+        int r = httpd_req_recv(req, body, req->content_len);
+        if (r > 0) body[r] = '\0';
+    }
+    form_field(body, "enabled", enabled, sizeof(enabled));
+    board_voice_fx_enabled_set(enabled[0] == '1');
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=phone");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 static esp_err_t offhook_alert_handler(httpd_req_t *req)
 {
     if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
@@ -6795,10 +6835,11 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
     off = append_guide_voip(buf, cap, off);
 
     /* Not dial-plan codes: in_call_key() in telephony.c. */
-    if (off > 0 && (size_t)off < cap) {
+    if (off > 0 && (size_t)off < cap && board_voice_fx_enabled_get()) {
         static const struct { const char *key, *desc; } IN_CALL[] = {
-            { "5", "Dalek voice" }, { "6", "Chipmunk voice" }, { "7", "Darth Vader voice" },
-            { "8", "8-bit voice" }, { "9", "Robot voice" }, { "0", "Normal voice" },
+            { "1", "Dalek voice" }, { "2", "Chipmunk voice" }, { "3", "Darth Vader voice" },
+            { "4", "8-bit voice" }, { "5", "Robot voice" }, { "6", "Tremolo voice" },
+            { "7", "Distorted voice" }, { "0", "Normal voice" },
         };
         off += snprintf(buf + off, cap - off,
             "<div class=\"card\"><h2>During a call</h2>");
@@ -7846,7 +7887,8 @@ esp_err_t webui_start(void)
         { .uri = "/ota_upload",      .method = HTTP_POST, .handler = ota_upload_handler },
         { .uri = "/ota_revert",      .method = HTTP_POST, .handler = ota_revert_handler },
         { .uri = "/wifi_reprovision", .method = HTTP_POST, .handler = wifi_reprovision_handler },
-        { .uri = "/factory_reset",   .method = HTTP_POST, .handler = factory_reset_handler },        { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
+        { .uri = "/factory_reset",   .method = HTTP_POST, .handler = factory_reset_handler },
+        { .uri = "/voice_fx_enabled", .method = HTTP_POST, .handler = voice_fx_enabled_handler },        { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
         { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },
         { .uri = "/board_hw_set",    .method = HTTP_POST, .handler = board_hw_set_handler },
         { .uri = "/board_type_confirm", .method = HTTP_POST, .handler = board_type_confirm_handler },
