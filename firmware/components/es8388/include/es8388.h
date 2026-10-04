@@ -37,7 +37,7 @@
 #pragma once
 
 /* Fallback earpiece drive level (LOUT1VOL/ROUT1VOL steps; 30 = 0 dB, 1.5 dB/step). */
-#define ES8388_DEFAULT_SPK_VOL 24
+#define ES8388_DEFAULT_SPK_VOL 28
 
 #include "esp_err.h"
 #include <stdbool.h>

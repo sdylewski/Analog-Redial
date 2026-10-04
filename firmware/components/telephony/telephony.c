@@ -281,6 +281,12 @@ static void bt_call_cb(bt_call_state_t state, void *ctx)
 static void enter_idle(int line)
 {
     ESP_LOGD(TAG, "line %d: %s -> IDLE", line, telephony_state_name(s_line[line].state));
+    /* Every hang-up path ends here: never carry an effect into the next call. */
+    if (audio_voice_fx(line) != VOICE_FX_NONE) {
+        ESP_LOGI(TAG, "line %d: clearing voice effect %s", line, voice_fx_name(audio_voice_fx(line)));
+        audio_set_voice_fx(line, VOICE_FX_NONE);
+    }
+    s_line[line].call_fx = FX_NORMAL;
     audio_tx_silence(line);
     s_line[line].state = TEL_IDLE;
     s_line[line].peer = PEER_NONE;
@@ -593,9 +599,28 @@ static void start_local_call(int caller, int target, voice_effect_t fx)
 /* Same effect for everyone in the call: both lines of a local bridge (each
  * shapes the other's voice), or this line alone for VoIP, where it covers both
  * directions -- the far end's voice in this earpiece, and this mic's uplink. */
+/* One serial-monitor line of levels through `line`'s effect since the last
+ * report (what its earpiece heard, then what the far end got). */
+static void log_fx_stats(int line, const char *why)
+{
+    voice_fx_t fx = audio_voice_fx(line);
+    if (fx == VOICE_FX_NONE) return;
+    voice_fx_stats_t d, u;
+    audio_voice_fx_stats(line, true, &d);
+    audio_voice_fx_stats(line, false, &u);
+    ESP_LOGI(TAG, "line %d fx %s (%s): earpiece in/out rms %u/%u peak %d/%d limited %u; "
+             "uplink in/out rms %u/%u peak %d/%d limited %u",
+             line, voice_fx_name(fx), why,
+             (unsigned)d.in_rms, (unsigned)d.out_rms, (int)d.in_peak, (int)d.out_peak, (unsigned)d.limited,
+             (unsigned)u.in_rms, (unsigned)u.out_rms, (int)u.in_peak, (int)u.out_peak, (unsigned)u.limited);
+}
+
 static void set_call_voice_fx(int line, voice_fx_t fx)
 {
     int peer = s_line[line].peer;
+    log_fx_stats(line, "switching");
+    ESP_LOGI(TAG, "line %d: voice effect %s -> %s (peer %d)", line,
+             voice_fx_name(audio_voice_fx(line)), voice_fx_name(fx), peer);
     if (audio_set_voice_fx(line, fx) != ESP_OK) {
         ESP_LOGW(TAG, "line %d: not enough memory for a voice effect", line);
         return;
@@ -633,6 +658,7 @@ static void in_call_key(int line, char ch)
     if (!board_voice_fx_enabled_get()) return;
     if (ch < '0' || ch > '7') return;
     voice_fx_t fx = KEYS[ch - '0'];
+    ESP_LOGI(TAG, "line %d: in-call key '%c' -> %s", line, ch, voice_fx_name(fx));
     if (audio_voice_fx(line) == fx) return;
     set_call_voice_fx(line, fx);
 }
@@ -648,6 +674,8 @@ static void connect_bridge(int a, int b)
     ESP_LOGI(TAG, "bridge %d <-> %d", a, b);
     /* 322-324 picked an effect when dialling; whichever side dialled holds it. */
     voice_effect_t fx = s_line[a].call_fx != FX_NORMAL ? s_line[a].call_fx : s_line[b].call_fx;
+    ESP_LOGI(TAG, "bridge %d <-> %d: dialled effect %d, effects %s", a, b, (int)fx,
+             board_voice_fx_enabled_get() ? "enabled" : "disabled");
     if (fx != FX_NORMAL && board_voice_fx_enabled_get()) set_call_voice_fx(a, voice_fx_for(fx));
 }
 
@@ -656,6 +684,8 @@ static void end_call(int line)
 {
     int peer = s_line[line].peer;
 
+    log_fx_stats(line, "call ended");
+    if (peer >= 0 && peer < NLINES) log_fx_stats(peer, "call ended");
     audio_set_voice_fx(line, VOICE_FX_NONE);
     s_line[line].call_fx = FX_NORMAL;
     if (peer >= 0 && peer < NLINES) {
