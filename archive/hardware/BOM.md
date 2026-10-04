@@ -1,14 +1,15 @@
 # Bill of materials — ESP32 rotary phone
 
-Two hardware sub-projects share one firmware tree. Pick the BOM that matches your board.
+Parts lists for each board. Pick the one that matches yours.
 
 Each line-item BOM uses the same columns: leading empty cell (your checkbox), **Qty**, **Component**, **DigiKey** (link + price in one cell), **AliExpress** (link + price), **Notes**.
 
-**DigiKey cart export:** [`2026-07-02T230626.csv`](2026-07-02T230626.csv) — source for part numbers and unit pricing where updated.
 
 | Sub-project | Board | KiCad project | BOM |
 |-------------|-------|---------------|-----|
-| **SMD2** (archived — only 3 built, superseded by SMD4) | ESP32-C6-WROOM-1 + **ES8388** + **AG1171** | [`hardware/kicad/Analog Redial v2/`](../../hardware/kicad/Analog%20Redial%20v2/) | [**smd2.md**](smd2.md) |
+| **SMD4** (current) | ESP32-C6-DevKitC-1 + **ES8388** + **AG1171** ×1–2 | [`hardware/kicad/Analog Redial v4/`](../../hardware/kicad/Analog%20Redial%20v4/) | [**docs/bom.md**](../../docs/bom.md) |
+| **SMD5** (at the fab) | as SMD4, plus BM64 Bluetooth carrier | [`hardware/kicad/Analog Redial v5/`](../../hardware/kicad/Analog%20Redial%20v5/) | [**docs/bom.md**](../../docs/bom.md) + [**BOM-bluetooth.md**](BOM-bluetooth.md) |
+| **SMD2** (3 built) | ESP32-C6-WROOM-1 + **ES8388** + **AG1171** | [`hardware/kicad/Analog Redial v2/`](../../hardware/kicad/Analog%20Redial%20v2/) | [**smd2.md**](smd2.md) |
 | **Through-hole / hand-solder** (reference) | ESP32-C6-DevKitM-1 + **WM8731** + **AG1170 or AG1171** | [`hardware/kicad/Old/Analog Redial v1/`](../../hardware/kicad/Old/Analog%20Redial%20v1/) | [**BOM-through-hole.md**](through-hole-wm8731/BOM-through-hole.md) |
 
 **Design references:** [`smd2.md`](smd2.md) (SMD2, archived) · [`WM8731.md`](through-hole-wm8731/WM8731.md) (through-hole codec wiring)

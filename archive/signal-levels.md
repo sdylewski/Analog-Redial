@@ -81,4 +81,4 @@ still gets through fine.
 ## See also
 
 - [`../docs/hardware-smd4.md`](../docs/hardware-smd4.md) — schematic-level pin map and coupling values
-- [`bom.md`](bom.md) — part numbers
+- [`docs/bom.md`](../docs/bom.md) — part numbers

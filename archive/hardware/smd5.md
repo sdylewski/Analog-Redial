@@ -9,7 +9,7 @@ KiCad project: `hardware/kicad/Analog Redial v5/`. Working notes per
 [`CLAUDE.md`](../../CLAUDE.md)'s public-vs-internal-docs split; the public
 reference is [`docs/hardware-smd5.md`](../../docs/hardware-smd5.md).
 Everything not listed here is the same as SMD4 — see
-[`ROTARY_PHONE_SMD4.md`](ROTARY_PHONE_SMD4.md) and
+[`smd4.md`](smd4.md) and
 [`docs/hardware-smd4.md`](../../docs/hardware-smd4.md).
 
 ## What's different from SMD4

@@ -29,11 +29,6 @@ designed in on the next spin: see [`hardware-smd5.md`](hardware-smd5.md).
 | Board size | ~100 × 50 mm |
 | Connectors | RJ12 ×1–2 (phone lines), USB-C, DC jack, microSD (optional) |
 
-The schematic is the same circuit across the SMD3/SMD4 spins — SMD4 changes
-only the PCB layout, re-routing the same nets onto 2 copper layers instead of
-4 (see [§7, 2-layer PCB notes](#7-2-layer-pcb-notes)) and adding a microSD
-card-detect connection SMD3 left unwired.
-
 Reference designators below follow the current schematic: **U1** = the
 ESP32-C6-DevKitC-1 carrier, **U3**/**U4** = the two AG1171 SLICs, **J8**/**J9**
 = their RJ12 jacks, **J1** = the DC jack, **D1** = the power diode-OR diode,

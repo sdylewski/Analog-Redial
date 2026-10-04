@@ -5,7 +5,7 @@
  * header covers both spins.
  *
  * Verified against the schematic netlist (kicad-cli sch export netlist),
- * not silkscreen or a guess -- see archive/hardware/ROTARY_PHONE_SMD3.md
+ * not silkscreen or a guess -- see archive/hardware/smd4.md
  * ("Pin map (ESP32-C6-DevKitC-1, U1)", confirmed 2026-08-30) and
  * docs/hardware.md section 3. Genuinely different from board_pins_smd.h
  * (SMD2): moving the MCU carrier from a soldered WROOM-1 module to a
@@ -23,7 +23,7 @@
  *     with F/R and MISO; this board pairs GPIO18 with F/R and MISO, and
  *     GPIO21 with PD and CS -- 18 and 21 are swapped. GPIO19 (SHK/CLK) and
  *     GPIO20 (RM/MOSI) match SMD2. Confirmed against
- *     archive/hardware/ROTARY_PHONE_SMD3.md's J5 jumper table, not carried
+ *     archive/hardware/smd4.md's J5 jumper table, not carried
  *     over from SMD2's header by assumption.
  *
  * No status LED on this board (GPIO11, SMD2's LED pin, is I2S BCLK here) --
@@ -66,7 +66,7 @@
 #if CONFIG_BOARD_TYPE_SMD5_CHEAP
 /* The dual MCU footprint swaps pads 12/13 <-> 19/20 between the real
  * Espressif module and the AliExpress clone (archive/hardware/
- * ANALOG_REDIAL_SMD5.md). The I2S_MCLK and SD_CD nets sit on pads 12/13,
+ * smd5.md). The I2S_MCLK and SD_CD nets sit on pads 12/13,
  * which are GPIO2/3 on the real module but the clone's GPIO12/13 -- the
  * native-USB pins, freed up by board_early_pin_init() before audio starts. */
 #define BOARD_I2S_MCLK    GPIO_NUM_12
@@ -160,7 +160,7 @@
  * unburned is set, so an external 100k pull-down on it is harmless.
  * Because it's dedicated, MFB works on a 2-line/microSD board as well --
  * unlike RST_N/P2_0, which SMD5 only borrows through J5 for one-time
- * EEPROM programming (see archive/hardware/ANALOG_REDIAL_SMD5.md). */
+ * EEPROM programming (see archive/hardware/smd5.md). */
 #define BOARD_BT_MFB_PIN  GPIO_NUM_15
 #define BOARD_BT_MFB_DEDICATED 1
 #else

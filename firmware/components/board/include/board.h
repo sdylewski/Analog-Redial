@@ -297,7 +297,7 @@ esp_err_t board_speaker_volume_set(int line, uint8_t vol);
 /* ---- Line/microSD hardware configuration (SMD2 only) ----
  * The SMD2 PCB's GPIO 18-21 are wired to EITHER a second AG1171 SLIC (line
  * 2) OR a microSD socket, never both -- a BOM/jumper choice made when the
- * board was assembled (see ROTARY_PHONE_SMD.md's "Build options": populate
+ * board was assembled (see archive/hardware/smd2.md's "Build options": populate
  * line 2's 0R jumpers, or the microSD's 0R jumpers, one set only). This used
  * to be a build-time choice (CONFIG_BOARD_NUM_LINES/CONFIG_BOARD_MICROSD),
  * meaning a separate firmware image per board variant. Now runtime,

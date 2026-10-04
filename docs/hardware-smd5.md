@@ -299,7 +299,7 @@ Bridge one side only: both sides together short GPIO2 to a USB data line.
 (`CONFIG_BOARD_TYPE_SMD5_CHEAP` remains for a clone board with the jumpers
 left at the default, which costs native USB.) Full detail, including the
 symptoms of getting it wrong, is in
-[`../archive/hardware/ANALOG_REDIAL_SMD5.md`](../archive/hardware/ANALOG_REDIAL_SMD5.md).
+[`../archive/hardware/smd5.md`](../archive/hardware/smd5.md).
 
 ## 11. Board size & connectors
 
@@ -321,5 +321,5 @@ symptoms of getting it wrong, is in
 | [`hardware-smd4.md`](hardware-smd4.md) | The current, fabricated-and-tested board |
 | [`building.md`](building.md) | Hand-solder order, pre-power checks, first power-on |
 | [`bom.md`](bom.md) | Parts list / shopping checklist |
-| [`../archive/hardware/ANALOG_REDIAL_SMD5.md`](../archive/hardware/ANALOG_REDIAL_SMD5.md) | Dev notes: jumper plan, MCU footprint details, open questions |
+| [`../archive/hardware/smd5.md`](../archive/hardware/smd5.md) | Dev notes: jumper plan, MCU footprint details, open questions |
 | `hardware/kicad/Analog Redial v5/` | The KiCad project itself — the real source of truth for anything not covered above |

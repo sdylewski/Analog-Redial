@@ -11,41 +11,28 @@ config BOARD_TYPE_SMD2
     bool "SMD2 gateway (ES8388, ESP32-C6-WROOM-1 pin map)"
 
 config BOARD_TYPE_SMD4
-    bool "SMD3/SMD4 gateway (ES8388, ESP32-C6-DevKitC-1 pin map)"
+    bool "SMD4 gateway (ES8388, ESP32-C6-DevKitC-1 pin map)"
     help
-        SMD3 and SMD4 share this pin map (SMD4 is a 2-layer re-route of
-        SMD3's unchanged schematic -- see docs/hardware.md and
-        archive/hardware/ROTARY_PHONE_SMD4.md). Genuinely different GPIO
-        assignments from SMD2, not the same map under a different name --
-        SMD3/4 moved the MCU carrier from a soldered WROOM-1 module to an
-        ESP32-C6-DevKitC-1 dev board and remapped I2S and the line-0 SLIC
-        control pins accordingly (confirmed against the schematic netlist,
-        not assumed).
+        Analog Redial v4, the current board -- see docs/hardware-smd4.md
+        and archive/hardware/smd4.md. A different GPIO map from SMD2: the
+        MCU is an ESP32-C6-DevKitC-1 carrier rather than a soldered
+        WROOM-1 module.
 
 config BOARD_TYPE_SMD5
     bool "SMD5 gateway, real Espressif module (ES8388, ESP32-C6-DevKitC-1 pin map, native USB)"
     help
-        Not yet fabricated as of this writing -- see
-        archive/hardware/ANALOG_REDIAL_SMD5.md. Same pin map as SMD4 (identical
-        SLIC/codec wiring); the only reason this is a separate board type
-        from SMD4 is the flash/console story: SMD5's dual MCU-module
-        footprint accepts a real Espressif module here, which keeps native
-        USB working exactly like SMD2/SMD4.
+        Analog Redial v5 -- see archive/hardware/smd5.md. Same pin map as
+        SMD4, plus the BM64 companion's MFB on GPIO15. Use this for either
+        MCU module as long as the JP2/JP3 jumpers match the module.
 
 config BOARD_TYPE_SMD5_CHEAP
     bool "SMD5 gateway, AliExpress clone module (ES8388, ESP32-C6-DevKitC-1 pin map, no native USB)"
     help
-        Same board and pin map as BOARD_TYPE_SMD5 above -- the only
-        difference is which MCU module variant is physically populated in
-        SMD5's dual footprint. The clone module swaps GPIO2/GPIO3 with
-        GPIO12/GPIO13 relative to the real module (silicon-fixed USB
-        peripheral pins on the real module land as ordinary GPIOs on the
-        clone, and vice versa -- see archive/hardware/ANALOG_REDIAL_SMD5.md),
-        so native USB-Serial-JTAG doesn't reach this board's USB connector
-        once assembled. Selects UART0 as the console instead of native USB
-        (see sdkconfig.smd5_cheap.defaults) -- flash and monitor over an
-        external UART adapter on GPIO16/17/EN/GPIO9, or OTA once a build is
-        confirmed good.
+        Only for an SMD5 with the clone module whose JP2/JP3 jumpers were
+        left at the default: MCLK and card-detect then land on the clone's
+        GPIO12/13 (its native USB pins), so this build remaps them, detaches
+        the USB PHY, and puts the console on UART0 (sdkconfig.smd5_cheap
+        .defaults). See archive/hardware/smd5.md.
 
 endchoice
 

@@ -187,7 +187,7 @@ costs native USB, the spare UART header, and a known-good starting point.
 Use the genuine module unless you have a reason not to, and if you do use a
 clone, expect to debug it. The pad swap and the jumpers it needs are written
 up in
-[`../archive/hardware/ANALOG_REDIAL_SMD5.md`](../archive/hardware/ANALOG_REDIAL_SMD5.md).
+[`../archive/hardware/smd5.md`](../archive/hardware/smd5.md).
 
 ### Flash size: 16 MB vs 8 MB
 

@@ -29,7 +29,7 @@ pin map and Kconfig choice all gone. Last commit that still builds it:
 **SMD5 ("Analog Redial 5")** is the next-generation board — **sent to fab
 (early October 2026) together with the BM64 carrier and a BK3266 test board,
 not yet tested** — `hardware/kicad/Analog Redial v5/`, dev notes at
-[`archive/hardware/ANALOG_REDIAL_SMD5.md`](archive/hardware/ANALOG_REDIAL_SMD5.md).
+[`archive/hardware/smd5.md`](archive/hardware/smd5.md).
 Headline changes: a dual-compatible MCU footprint (real ESP32-C6-DevKitC-1 or
 a cheaper clone, selected by solder jumpers JP2/JP3), and an 8-pin J2 header
 for the BM64 Bluetooth companion with MFB on GPIO15. Firmware reuses SMD4's
@@ -143,7 +143,7 @@ dev-journal detail. Everything else lives under **[`archive/`](archive/)** —
 dev-journal docs (`archive/ECHO_DEBUGGING.md`, `archive/ESP32_PORT_PLAN.md`,
 `archive/PROJECT_UPDATE_PLAN.md`, `archive/MCU_VS_PI_ZERO_STACK.md`,
 `archive/VOIP_SETUP.md`), and superseded/pre-SMD4 hardware docs
-(`archive/hardware/smd2.md` — the SMD2 board whole: design, BOM, DTMF-clipping rework, only 3 ever built; `archive/hardware/ROTARY_PHONE_SMD3.md`/`SMD4.md`, `BOM*.md`, and the through-hole/WM8731 board's own docs under `archive/hardware/through-hole-wm8731/`). These are
+(`archive/hardware/smd2.md` — the SMD2 board whole: design, BOM, DTMF-clipping rework, only 3 ever built; `archive/hardware/smd4.md`, `smd5.md`, `BOM*.md`, and the through-hole/WM8731 board's own docs under `archive/hardware/through-hole-wm8731/`). These are
 **your working notes, not part of the public doc set** — useful for you when
 picking up this project again, not linked from the public README. When
 adding new engineering-journal-style content (debug sessions, open

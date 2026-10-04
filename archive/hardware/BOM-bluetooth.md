@@ -5,7 +5,7 @@ carrier board (`Bluetooth/Bluetooth_board/`) plus the parts that exist on
 the main board *only* because of this option. Everything here is optional —
 a board built without Bluetooth needs none of it.
 
-Design reference: [`ANALOG_REDIAL_SMD5.md`](ANALOG_REDIAL_SMD5.md) (J2
+Design reference: [`smd5.md`](smd5.md) (J2
 header pinout, MFB, LDO) and
 [`../BLUETOOTH_AUDIO_UPGRADE.md`](../BLUETOOTH_AUDIO_UPGRADE.md) (why each
 coupling cap and the series resistor are the values they are).
@@ -28,7 +28,7 @@ change. Blank cell = no link sourced for that store yet, not "unavailable".
 | 1 | **J2** | — | 4-pin male header, 2.54 mm — one-time EEPROM programming header (P2_0 / RST_N / MFB), mates to J5 | | | |
 
 **Not in the carrier schematic yet** (recommended in
-`ANALOG_REDIAL_SMD5.md`, add before ordering): **10 µF + 100 nF** decoupling
+`smd5.md`, add before ordering): **10 µF + 100 nF** decoupling
 at the module's `BAT_IN` pin. Both are ordinary 0402/0603 ceramics already
 in the main board's reel.
 

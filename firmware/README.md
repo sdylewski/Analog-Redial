@@ -203,7 +203,7 @@ Then plain `idf.py -B build.smd5 build`/`flash`/`monitor` from then on —
 targets `build/` (SMD4) regardless of which directory you last touched.
 
 SMD5's two Kconfig choices exist because of *which MCU module variant* is
-soldered down (see `archive/hardware/ANALOG_REDIAL_SMD5.md`), not a different
+soldered down (see `archive/hardware/smd5.md`), not a different
 pin map — same SLIC/codec wiring either way. The real module keeps native
 USB working (flash/monitor exactly like SMD2/SMD4); the AliExpress clone
 module's native-USB pins don't reach the board's own USB connector once

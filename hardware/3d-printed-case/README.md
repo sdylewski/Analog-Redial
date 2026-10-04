@@ -5,7 +5,7 @@ placeholder for when they are. Contributions welcome.
 
 ## Constraints for a case design
 
-- **Board size:** ~100 × 50 mm, 2-layer PCB (see [`../ROTARY_PHONE_SMD4.md`](../ROTARY_PHONE_SMD4.md)).
+- **Board size:** ~100 × 50 mm, 2-layer PCB (see [`../../archive/hardware/smd4.md`](../../archive/hardware/smd4.md)).
 - **Connector cutouts needed:**
   - RJ12 phone jack(s) — 1 or 2, depending on build (dual-line vs. single-line + microSD)
   - USB-C (power/programming)

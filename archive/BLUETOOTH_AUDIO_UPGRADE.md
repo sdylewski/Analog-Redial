@@ -277,7 +277,7 @@ shunts and switching back to two lines.
 
 SMD5 plans to avoid this trade by giving MFB its own GPIO and using J5 only
 temporarily for programming -- see
-[`hardware/ANALOG_REDIAL_SMD5.md`](hardware/ANALOG_REDIAL_SMD5.md).
+[`hardware/smd5.md`](hardware/smd5.md).
 
 ### TODO 2026-09-27: protect Vin from the BM64 before wiring another SLIC
 

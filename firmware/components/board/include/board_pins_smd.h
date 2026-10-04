@@ -10,7 +10,7 @@
  *   B) Line 2 DNP, microSD populated    → single-line + SPI SD card
  *
  * Same copper on all boards; stuffing / CONFIG selects behavior.
- * See hardware/ROTARY_PHONE_SMD.md.
+ * See archive/hardware/smd2.md.
  *
  * Firmware "line 0" is wired to the SLIC labeled U6 on the schematic (net
  * labels /Line1_SHK etc.), and "line 1" to U5 (/Line2_SHK etc.) — the
