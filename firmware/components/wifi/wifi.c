@@ -307,7 +307,12 @@ static void manager_kick(void)
 
 static void event_handler(void *arg, esp_event_base_t base, int32_t id, void *data)
 {
-    if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
+    if (base == WIFI_EVENT && id == WIFI_EVENT_STA_CONNECTED) {
+        /* An IPv6 link-local address lets mDNS answer AAAA queries for
+         * <name>.local. Without one, macOS waits ~5 s for an AAAA answer that
+         * never comes before using the IPv4 address. */
+        esp_netif_create_ip6_linklocal(s_sta_netif);
+    } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
         /* The reason code is what tells a flaky link (beacon timeout, 200+,
          * e.g. radio interference) apart from the AP deliberately kicking us
          * (auth/assoc codes) -- see wifi_err_reason_t in esp_wifi_types.h. */
