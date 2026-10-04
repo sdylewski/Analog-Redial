@@ -275,10 +275,34 @@ static void apply_level(int line, uint8_t level)
     es8388_set_dac_volume(l, r);
 }
 
+static selftest_level_report_t s_level_rep[2];
+
+const selftest_level_report_t *selftest_level_report(int line)
+{
+    return (line == 0 || line == 1) ? &s_level_rep[line] : NULL;
+}
+
 static bool level_clean(int line, uint8_t level, tone_purity_t *r, esp_err_t *err)
 {
     apply_level(line, level);
     *err = audio_tone_purity(line, false, r);
+    selftest_level_report_t *rep = &s_level_rep[line];
+    if ((*err == ESP_OK || *err == ESP_ERR_NOT_FOUND) && rep->n < SELFTEST_LEVEL_MAX_POINTS) {
+        rep->pt[rep->n++] = (selftest_level_point_t){
+            .level = level, .distortion_pct = r->distortion_pct, .tone_dbfs = r->tone_dbfs,
+            .peak_dbfs = r->peak_dbfs, .worst_hz = r->top_hz[0], .worst_dbfs = r->top_dbfs[0],
+            .clipped = r->clipped };
+    }
+    if (*err == ESP_OK || *err == ESP_ERR_NOT_FOUND) {
+        ESP_LOGI(TAG, "level check line %d, level %u (%.1f dB): tone %.1f dBFS, peak %.1f dBFS, "
+                      "clipped %lu, distortion %.2f%% (worst %.0f Hz at %.1f dBFS)%s",
+                 line, level, (level - 30) * 1.5, r->tone_dbfs, r->peak_dbfs,
+                 (unsigned long)r->clipped, r->distortion_pct, r->top_hz[0], r->top_dbfs[0],
+                 *err == ESP_ERR_NOT_FOUND ? " -- NO TONE RETURNED" : "");
+    } else {
+        ESP_LOGW(TAG, "level check line %d, level %u: measurement failed (%s)",
+                 line, level, esp_err_to_name(*err));
+    }
     return *err == ESP_OK && r->distortion_pct < LEVEL_CLEAN_PCT;
 }
 
@@ -295,9 +319,14 @@ static selftest_result_t run_level_check(selftest_check_t *c, int line)
     uint8_t saved = board_speaker_volume_get(line, ES8388_DEFAULT_SPK_VOL);
     tone_purity_t cur, t;
     esp_err_t err;
+    memset(&s_level_rep[line], 0, sizeof(s_level_rep[line]));
+    s_level_rep[line].saved_level = saved;
+    ESP_LOGI(TAG, "audio level check, line %d: current level %u, clean means under %.0f%% distortion",
+             line, saved, LEVEL_CLEAN_PCT);
     bool cur_clean = level_clean(line, saved, &cur, &err);
     if (err == ESP_ERR_NOT_FOUND) {
         apply_level(line, saved);
+        s_level_rep[line].valid = true;
         set_result(c, SELFTEST_FAIL, "no test tone came back: line %d unpowered or Vout open", line);
         return SELFTEST_FAIL;
     }
@@ -321,6 +350,10 @@ static selftest_result_t run_level_check(selftest_check_t *c, int line)
     }
     apply_level(line, saved);
     board_speaker_clean_max_set(line, clean_max);
+    s_level_rep[line].clean_max = clean_max;
+    s_level_rep[line].valid = true;
+    ESP_LOGI(TAG, "audio level check, line %d: clean up to level %u; level %u is %s",
+             line, clean_max, saved, cur_clean ? "clean" : "distorted");
 
     if (!clean_max) {
         set_result(c, SELFTEST_FAIL, "distorted at every level (%.0f%% at %u): check the line audio parts",

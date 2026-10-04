@@ -34,6 +34,11 @@ struct voice_fx_state {
     uint32_t hold_n, hold_left;
     int16_t  held;
 
+    /* Diagnostics: window since the last voice_fx_take_stats(). */
+    uint32_t st_n, st_limited;
+    int32_t  st_in_peak, st_out_peak;
+    uint64_t st_in_sq, st_out_sq;
+
     /* Feedback comb (robot, Vader's mask): y[n] = x[n] + g * y[n - D]. */
     int16_t *comb;
     uint32_t comb_mask, cw, robot_d, mask_d;
@@ -151,14 +156,26 @@ static void overdrive(int16_t *x, size_t n, int32_t drive, int32_t out_q15)
  * 1/4 (so 32767 comes out at ~23200). The effects are level-matched to plain
  * speech, but the phone line's audio input starts distorting well before the
  * codec's full scale, so a rare loud peak shouldn't get through at full size. */
-static void limit(int16_t *x, size_t n)
+static uint32_t limit(int16_t *x, size_t n)
 {
+    uint32_t hit = 0;
     for (size_t k = 0; k < n; k++) {
         int32_t v = x[k], a = v < 0 ? -v : v;
         if (a > 20000) {
             a = 20000 + ((a - 20000) >> 2);
             x[k] = (int16_t)(v < 0 ? -a : a);
+            hit++;
         }
+    }
+    return hit;
+}
+
+static void measure(const int16_t *x, size_t n, int32_t *peak, uint64_t *sq)
+{
+    for (size_t k = 0; k < n; k++) {
+        int32_t a = x[k] < 0 ? -x[k] : x[k];
+        if (a > *peak) *peak = a;
+        *sq += (uint64_t)(a * a);
     }
 }
 
@@ -169,6 +186,7 @@ void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *x, size_t n)
         reset(s);
         s->last = fx;
     }
+    measure(x, n, &s->st_in_peak, &s->st_in_sq);
     switch (fx) {
     case VOICE_FX_DALEK:
         for (size_t k = 0; k < n; k++) {
@@ -217,7 +235,27 @@ void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *x, size_t n)
     default:
         break;
     }
-    limit(x, n);
+    s->st_limited += limit(x, n);
+    measure(x, n, &s->st_out_peak, &s->st_out_sq);
+    s->st_n += n;
+}
+
+void voice_fx_take_stats(voice_fx_state_t *s, voice_fx_stats_t *out)
+{
+    memset(out, 0, sizeof(*out));
+    if (!s) return;
+    out->fx = s->last;
+    out->samples = s->st_n;
+    out->in_peak = s->st_in_peak;
+    out->out_peak = s->st_out_peak;
+    out->limited = s->st_limited;
+    if (s->st_n) {
+        out->in_rms = (uint32_t)sqrt((double)s->st_in_sq / s->st_n);
+        out->out_rms = (uint32_t)sqrt((double)s->st_out_sq / s->st_n);
+    }
+    s->st_n = s->st_limited = 0;
+    s->st_in_peak = s->st_out_peak = 0;
+    s->st_in_sq = s->st_out_sq = 0;
 }
 
 const char *voice_fx_name(voice_fx_t fx)

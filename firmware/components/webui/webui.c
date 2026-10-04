@@ -50,6 +50,7 @@
 #include <stdint.h>
 #include <ctype.h>
 #include <strings.h>
+#include <math.h>
 
 static const char *TAG = "webui";
 
@@ -3603,6 +3604,47 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
  * other. Three step kinds render differently -- automatic ones are already
  * judged, ACTION steps ask the operator to do something physical and have
  * firmware verify it, CONFIRM steps can only be judged by ear. */
+/* The audio-level check's full measurement, collapsed under its row: one line
+ * per level tried (highest first), so a distortion problem can be located
+ * instead of just being told "failed". */
+static int append_level_report(char *buf, size_t cap, int off, int line)
+{
+    const selftest_level_report_t *r = selftest_level_report(line);
+    if (!r || !r->valid || r->n == 0) return off;
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<details class=\"hint-detail\"><summary></summary>"
+        "<table class=\"mini\"><thead><tr><th>Level</th><th>dB</th><th>Tone</th><th>Peak</th>"
+        "<th>Distortion</th><th>Worst product</th></tr></thead><tbody>");
+    /* Highest level first. */
+    bool done[SELFTEST_LEVEL_MAX_POINTS] = {0};
+    for (int shown = 0; shown < r->n; shown++) {
+        int best = -1;
+        for (int i = 0; i < r->n; i++)
+            if (!done[i] && (best < 0 || r->pt[i].level > r->pt[best].level)) best = i;
+        done[best] = true;
+        const selftest_level_point_t *p = &r->pt[best];
+        bool clean = p->distortion_pct < 3.0f && p->clipped == 0;
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<tr><td>%u%s</td><td>%.1f</td><td>%.1f dBFS</td><td>%.1f dBFS</td>"
+            "<td><span class=\"pill %s\">%.1f%%</span>%s</td><td>%.0f Hz, %.1f dBFS</td></tr>",
+            p->level, p->level == r->saved_level ? " &larr; current" : "",
+            (p->level - 30) * 1.5, p->tone_dbfs, p->peak_dbfs,
+            clean ? "on" : "off", p->distortion_pct,
+            p->clipped ? " (clipped)" : "", p->worst_hz, p->worst_dbfs);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "</tbody></table><p class=\"hint\">Each row is one half-second test tone (350 + 450 Hz) "
+        "played at that earpiece level and measured as it comes back from the phone-line chip. "
+        "Tone and peak are at the codec's input; they fall 1.5 dB per level, as they should. "
+        "Distortion is the energy at the other frequencies a squashed signal creates "
+        "(difference and sum tones, harmonics, intermodulation) relative to the two tones; "
+        "under 3%% is clean, and the worst product shows where it is. A row that distorts "
+        "while lower ones don't means that level overdrives something after the codec. The "
+        "same steps stream to the serial monitor, and the console command "
+        "<code>tonetest %d</code> repeats one measurement.</p></details>", line);
+    return off;
+}
+
 static int append_selftest_card(char *buf, size_t cap, int off)
 {
     const selftest_report_t *rep = selftest_report();
@@ -3669,6 +3711,7 @@ static int append_selftest_card(char *buf, size_t cap, int off)
                     c->id, c->result == SELFTEST_PENDING && !c->detail[0]
                         ? i18n_str("diag.selftest.measure", "Measure (about 10 s)")
                         : i18n_str("diag.selftest.measure_again", "Measure again"));
+                off = append_level_report(buf, cap, off, c->id[strlen(c->id) - 1] == '1' ? 1 : 0);
             } else if (c->result == SELFTEST_PENDING && c->kind == SELFTEST_ACTION &&
                        strncmp(c->id, "level", 5) != 0) {
                 off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
@@ -3754,10 +3797,15 @@ static int append_flash_help_card(char *buf, size_t cap, int off)
     else snprintf(bdir, sizeof(bdir), "build.%s%s", key, mb8 ? "_8mb" : "");
     bool dflt = !strcmp(bdir, "build");
 
-    char manual[200];
-    if (dflt) snprintf(manual, sizeof(manual), "idf.py -p PORT flash monitor");
-    else snprintf(manual, sizeof(manual),
-                  "idf.py -B %s -D SDKCONFIG=%s/sdkconfig -p PORT flash monitor", bdir, bdir);
+    char manual[200], mon[200];
+    if (dflt) {
+        snprintf(manual, sizeof(manual), "idf.py -p PORT flash monitor");
+        snprintf(mon, sizeof(mon), "idf.py -p PORT monitor");
+    } else {
+        snprintf(manual, sizeof(manual),
+                 "idf.py -B %s -D SDKCONFIG=%s/sdkconfig -p PORT flash monitor", bdir, bdir);
+        snprintf(mon, sizeof(mon), "idf.py -B %s -D SDKCONFIG=%s/sdkconfig -p PORT monitor", bdir, bdir);
+    }
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>"
@@ -3773,12 +3821,15 @@ static int append_flash_help_card(char *buf, size_t cap, int off)
         "./bringup/flash_board.py --board %s</pre>"
         "<button type=\"button\" onclick=\"copyCmd(this)\">Copy</button></div>"
         "<h3>%s</h3><div><pre class=\"cmd\">cd firmware\n. ~/esp/esp-idf/export.sh\n%s</pre>"
+        "<button type=\"button\" onclick=\"copyCmd(this)\">Copy</button></div>"
+        "<h3>%s</h3><div><pre class=\"cmd\">cd firmware\n. ~/esp/esp-idf/export.sh\n%s</pre>"
         "<button type=\"button\" onclick=\"copyCmd(this)\">Copy</button></div>",
         i18n_str("flashhelp.title", "Flashing and serial monitor"),
         i18n_str("flashhelp.lead", "Commands for this board:"), pcb,
         (unsigned)(flash_bytes >> 20),
         i18n_str("flashhelp.easy", "Easiest: build, flash and check in one step"), key,
-        i18n_str("flashhelp.manual", "Or by hand"), manual);
+        i18n_str("flashhelp.manual", "Or by hand"), manual,
+        i18n_str("flashhelp.monitor", "Just the serial log, without flashing"), mon);
     off = append_hint(buf, cap, off,
         i18n_str("flashhelp.hint_lead",
                  "Replace PORT with the board's serial port. Press Ctrl+] to leave the monitor."),
@@ -3787,7 +3838,9 @@ static int append_flash_help_card(char *buf, size_t cap, int off)
                  "Linux, <code>COM3</code> or similar on Windows (the board's USB-C, which is "
                  "the chip's own USB port). Run <code>./bringup/flash_board.py</code> first to "
                  "see the port it finds. The first flash of a new board type creates its build "
-                 "folder, which takes a few minutes. If the monitor shows nothing, press RESET; "
+                 "folder, which takes a few minutes. Only one program can use the serial port at a "
+                 "time: close any other monitor (or a flash in progress) before starting one. "
+                 "If the monitor shows nothing, press RESET; "
                  "a board left idle for several minutes can be asleep. A board stuck in download "
                  "mode needs a USB unplug and replug. To update over Wi-Fi instead, upload "
                  "<code>build/rotary_phone_gateway.bin</code> under Settings &rarr; Hardware "
@@ -3798,12 +3851,62 @@ static int append_flash_help_card(char *buf, size_t cap, int off)
     return off;
 }
 
+/* Live levels through the voice effects, so "too loud" / "distorted" can be
+ * read off instead of guessed. Polls /api/voice_fx once a second. */
+static int append_fx_diag_card(char *buf, size_t cap, int off)
+{
+    int lines = board_hw_config_get().num_lines;
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card wide\"><h2>%s</h2>", i18n_str("fxdiag.title", "Voice effects: live levels"));
+    off = append_hint(buf, cap, off,
+        i18n_str("fxdiag.hint_lead",
+                 "Pick an effect, then talk or call. The numbers show how loud the voice is going "
+                 "into the effect and coming out, in dBFS (0 is the loudest the audio can be)."),
+        i18n_str("fxdiag.hint_detail",
+                 "<b>Hears</b> is what that line's earpiece gets from the other end; <b>sends</b> is "
+                 "what goes out to a VoIP peer. Peak is the loudest instant and rms the average "
+                 "loudness; a healthy effect comes out within about 2 dB of the rms going in, with "
+                 "peaks well under -3 dBFS. <b>Limited</b> counts samples the peak limiter had to "
+                 "bend; a few are normal on loud peaks, a steady stream means the level going in "
+                 "is too hot. To hear your own voice through an effect with no call, set it here "
+                 "and use the console: <code>loopback 0 1</code>, lift the handset and talk "
+                 "(<code>fx</code> and <code>fxstat</code> do the same from the console). An "
+                 "effect set here ends when the line hangs up."));
+    for (int l = 0; l < lines; l++) {
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"statusrow\"><span class=\"label\">Line %d</span><span>"
+            "<select id=\"fxsel%d\" onchange=\"fxSet(%d,this.value)\">"
+            "<option value=\"0\">off</option><option value=\"1\">1 Dalek</option>"
+            "<option value=\"2\">2 chipmunk</option><option value=\"3\">3 Vader</option>"
+            "<option value=\"4\">4 8-bit</option><option value=\"5\">5 robot</option>"
+            "<option value=\"6\">6 tremolo</option><option value=\"7\">7 distortion</option>"
+            "</select></span></div>"
+            "<pre class=\"cmd\" id=\"fxout%d\">waiting for audio...</pre>", l, l, l, l);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<script>"
+        "function fxSet(l,v){fetch('/voice_fx_test',{method:'POST',headers:"
+        "{'Content-Type':'application/x-www-form-urlencoded'},body:'line='+l+'&fx='+v});}"
+        "function fxLine(n,s){return n?(' in '+s.in_pk.toFixed(1)+' pk / '+s.in_rms.toFixed(1)+' rms'"
+        "+'  ->  out '+s.out_pk.toFixed(1)+' pk / '+s.out_rms.toFixed(1)+' rms   limited '+s.lim):' idle';}"
+        "function fxPoll(){fetch('/api/voice_fx').then(function(r){return r.json();}).then(function(d){"
+        "d.forEach(function(x){var sel=document.getElementById('fxsel'+x.line);"
+        "if(sel&&document.activeElement!==sel)sel.value=x.fx;"
+        "document.getElementById('fxout'+x.line).textContent="
+        "(x.fx?x.name:'no effect active')+'\\n  hears:'+fxLine(x.down.n,x.down)+'\\n  sends:'+fxLine(x.up.n,x.up);});"
+        "}).catch(function(){});}"
+        "fxPoll();setInterval(fxPoll,1000);"
+        "</script></div>");
+    return off;
+}
+
 static int append_diag_tab(char *buf, size_t cap, int off)
 {
     static const char *LEVELS[] = { "none", "error", "warn", "info", "debug", "verbose" };
     esp_log_level_t cur = logctl_get_level();
 
     off = append_selftest_card(buf, cap, off);
+    off = append_fx_diag_card(buf, cap, off);
     off = append_flash_help_card(buf, cap, off);
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
@@ -4678,7 +4781,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * cards (each with its own form + conditional <audio> player row). */
     size_t log_room = (strcmp(tab, "diag") == 0) ? 8200 * 3 + 3000 : 0;
 
-    size_t diag_room = (strcmp(tab, "diag") == 0) ? 5000 + 3600 : 0; /* bench-test card + its hints */
+    size_t diag_room = (strcmp(tab, "diag") == 0) ? 5000 + 3600 + 6500 + 4200 : 0; /* bench-test card + its hints */
     /* Storage sizes off the REAL file count, not STORAGE_LIST_MAX's
      * worst case -- this used to just assume up to STORAGE_LIST_MAX files
      * on each backend (a flat ~68KB), which sounded conservative but
@@ -6245,6 +6348,54 @@ static esp_err_t speaker_volume_apply(int line, uint8_t vol)
     uint8_t l = (line == 0) ? vol : es8388_shadow(ES8388_REG_LOUT1VOL);
     uint8_t r = (line == 1) ? vol : es8388_shadow(ES8388_REG_ROUT1VOL);
     return es8388_set_dac_volume(l, r);
+}
+
+/* GET /api/voice_fx -- live levels through each line's voice effect, for the
+ * Diagnostics card. Reading resets the stats window (see voice_fx_take_stats). */
+static esp_err_t voice_fx_json_handler(httpd_req_t *req)
+{
+    char out[900];
+    int o = snprintf(out, sizeof(out), "[");
+    int lines = board_hw_config_get().num_lines;
+    for (int l = 0; l < lines && l < AUDIO_NUM_LINES; l++) {
+        voice_fx_stats_t d, u;
+        audio_voice_fx_stats(l, true, &d);
+        audio_voice_fx_stats(l, false, &u);
+        #define DB(v) ((v) > 0 ? 20.0f * log10f((float)(v) / 32768.0f) : -99.0f)
+        o += snprintf(out + o, sizeof(out) - o,
+            "%s{\"line\":%d,\"fx\":%d,\"name\":\"%s\","
+            "\"down\":{\"n\":%lu,\"in_pk\":%.1f,\"in_rms\":%.1f,\"out_pk\":%.1f,\"out_rms\":%.1f,\"lim\":%lu},"
+            "\"up\":{\"n\":%lu,\"in_pk\":%.1f,\"in_rms\":%.1f,\"out_pk\":%.1f,\"out_rms\":%.1f,\"lim\":%lu}}",
+            l ? "," : "", l, (int)audio_voice_fx(l), voice_fx_name(audio_voice_fx(l)),
+            (unsigned long)d.samples, DB(d.in_peak), DB((int32_t)d.in_rms), DB(d.out_peak),
+            DB((int32_t)d.out_rms), (unsigned long)d.limited,
+            (unsigned long)u.samples, DB(u.in_peak), DB((int32_t)u.in_rms), DB(u.out_peak),
+            DB((int32_t)u.out_rms), (unsigned long)u.limited);
+        #undef DB
+    }
+    snprintf(out + o, sizeof(out) - o, "]");
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, out);
+    return ESP_OK;
+}
+
+/* POST /voice_fx_test -- body line=N&fx=N. Sets a line's effect by hand for
+ * diagnostics (it ends on hang-up like any effect). Used by fetch(). */
+static esp_err_t voice_fx_test_handler(httpd_req_t *req)
+{
+    char body[64], line_s[8] = {0}, fx_s[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "line", line_s, sizeof(line_s));
+    form_field(body, "fx", fx_s, sizeof(fx_s));
+    int line = atoi(line_s), fx = atoi(fx_s);
+    if (line < 0 || line >= AUDIO_NUM_LINES || fx < 0 || fx > VOICE_FX_DISTORTION) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "line 0-1, fx 0-7"); return ESP_OK;
+    }
+    audio_set_voice_fx(line, (voice_fx_t)fx);
+    httpd_resp_sendstr(req, "ok\n");
+    return ESP_OK;
 }
 
 /* POST /speaker_volume_live -- body line=N&vol=N. Applies immediately,
@@ -8042,6 +8193,8 @@ esp_err_t webui_start(void)
         { .uri = "/sd_selftest_ui",         .method = HTTP_POST, .handler = sd_selftest_ui_handler },
         { .uri = "/sd_format",              .method = HTTP_POST, .handler = sd_format_handler },
         { .uri = "/sd_force_format",        .method = HTTP_POST, .handler = sd_force_format_handler },
+        { .uri = "/api/voice_fx",           .method = HTTP_GET,  .handler = voice_fx_json_handler },
+        { .uri = "/voice_fx_test",          .method = HTTP_POST, .handler = voice_fx_test_handler },
         { .uri = "/speaker_volume_live",    .method = HTTP_POST, .handler = speaker_volume_live_handler },
         { .uri = "/speaker_volume",         .method = HTTP_POST, .handler = speaker_volume_handler },
         { .uri = "/aec_measure",            .method = HTTP_POST, .handler = aec_measure_handler },

@@ -260,6 +260,8 @@ step per subsystem, without typing each command by hand.
 | `dialtone\|ringback\|busy [line]` | Call-progress tones |
 | `tonetest [line] [tx]` | Plays a 350 + 450 Hz test tone and measures what the SLIC returns: level, clipping and distortion (clean is under 3%). Add `tx` to measure the digital samples going to the codec instead, to tell firmware problems from analog ones. The same measurement backs the Diagnostics page's "Line audio level" check |
 | `spkamp <l> <r>` | Earpiece drive level, 1.5 dB per step, 30 = 0 dB, default 24; the web slider uses the same numbers. Re-run `tonetest` after changing it |
+| `fx <line> <0-7> [both]` | Set a voice effect by hand (1 Dalek, 2 chipmunk, 3 Vader, 4 8-bit, 5 robot, 6 tremolo, 7 distortion, 0 off). With `loopback <line> 1` you hear your own voice through it, no call needed |
+| `fxstat [secs]` | Live levels through the effects, peak and rms in and out, and how often the peak limiter acted. The same numbers are on the Diagnostics page ("Voice effects: live levels") |
 | `silence [line]` | Stop audio on a line |
 | `loopback [line] [0\|1]` | Mic → own speaker round-trip |
 | `capture [ms]` | RX RMS level meter for both lines |

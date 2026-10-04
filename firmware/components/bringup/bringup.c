@@ -450,6 +450,55 @@ static int cmd_loopback(int argc, char **argv)
     return 0;
 }
 
+/* ---------- fx / fxstat: voice effects, for diagnostics ----------
+ * Effects normally start from a key pressed during a call. `fx` sets one by
+ * hand and `fxstat` shows the levels going in and out of it, so "too loud" or
+ * "distorted" can be seen in numbers. To hear yourself through an effect with
+ * no call: `fx 0 1` then `loopback 0 1`, lift the handset and talk. */
+static const char *FX_NAMES[8] = { "off", "Dalek", "chipmunk", "Vader", "8-bit", "robot",
+                                   "tremolo", "distortion" };
+
+static int cmd_fx(int argc, char **argv)
+{
+    if (argc < 3) {
+        printf("usage: fx <line> <effect> [both]\n  effect: 0 off, 1 Dalek, 2 chipmunk, 3 Vader, "
+               "4 8-bit, 5 robot, 6 tremolo, 7 distortion\n  both = also the other line (a two-phone call)\n"
+               "  hear yourself with no call: fx 0 1 ; loopback 0 1   (hang up or `fx 0 0` to end)\n");
+        return 1;
+    }
+    int line = atoi(argv[1]), fx = atoi(argv[2]);
+    if (line < 0 || line >= AUDIO_NUM_LINES || fx < 0 || fx > 7) { printf("line 0-1, effect 0-7\n"); return 1; }
+    audio_set_voice_fx(line, (voice_fx_t)fx);
+    if (argc > 3 && strcmp(argv[3], "both") == 0) audio_set_voice_fx(1 - line, (voice_fx_t)fx);
+    printf("line %d: effect %s\n", line, FX_NAMES[fx]);
+    return 0;
+}
+
+static float fx_db(int32_t v) { return v > 0 ? 20.0f * log10f((float)v / 32768.0f) : -99.0f; }
+
+static int cmd_fxstat(int argc, char **argv)
+{
+    int secs = (argc > 1) ? atoi(argv[1]) : 10;
+    if (secs < 1 || secs > 120) { printf("usage: fxstat [secs 1-120, default 10]\n"); return 1; }
+    printf("effect levels, dBFS (peak/rms in -> out). 'limited' = samples the peak limiter bent.\n");
+    for (int t = 0; t < secs; t++) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        for (int line = 0; line < AUDIO_NUM_LINES; line++) {
+            for (int down = 1; down >= 0; down--) {
+                voice_fx_stats_t s;
+                audio_voice_fx_stats(line, down, &s);
+                if (s.fx == VOICE_FX_NONE || !s.samples) continue;
+                printf("  line %d %-6s %-10s in %5.1f/%5.1f -> out %5.1f/%5.1f  limited %lu of %lu\n",
+                       line, down ? "hears" : "sends", voice_fx_name(s.fx),
+                       fx_db(s.in_peak), fx_db((int32_t)s.in_rms),
+                       fx_db(s.out_peak), fx_db((int32_t)s.out_rms),
+                       (unsigned long)s.limited, (unsigned long)s.samples);
+            }
+        }
+    }
+    return 0;
+}
+
 /* ---------- reboot ----------
  * A software restart of the ESP32 only -- unlike reopening the serial port
  * (which toggles DTR/RTS and resets the chip), this keeps the monitor
@@ -2401,6 +2450,8 @@ void bringup_console_start(void)
     register_cmd("capture", "RX level meter, both lines simultaneously: capture [ms]", cmd_capture);
     register_cmd("reboot", "Software restart of the ESP32 (keeps the monitor attached)", cmd_reboot);
     register_cmd("download", "Reboot into the ROM bootloader for flashing (quiets audio/SLIC first; power-cycle when done)", cmd_download);
+    register_cmd("fx", "Voice effect for diagnostics: fx <line> <0-7> [both] (see usage)", cmd_fx);
+    register_cmd("fxstat", "Live levels through the voice effects: fxstat [secs]", cmd_fxstat);
     register_cmd("tonetest", "Dial-tone purity as returned by the SLIC (clipping/distortion): tonetest [line]", cmd_tonetest);
     register_cmd("miclevel", "Handset mic level/clipping check while you talk: miclevel [secs] [line]", cmd_miclevel);
     register_cmd("echopulse", "Periodic 1kHz burst for echo/hybrid debugging: echopulse <line> <on|off> [period_ms]", cmd_echopulse);

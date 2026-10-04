@@ -186,6 +186,15 @@ esp_err_t audio_set_voice_fx(int line, voice_fx_t fx)
     return ESP_OK;
 }
 
+void audio_voice_fx_stats(int line, bool downlink, voice_fx_stats_t *out)
+{
+    memset(out, 0, sizeof(*out));
+    if (line < 0 || line >= AUDIO_NUM_LINES) return;
+    voice_fx_state_t *s = downlink ? s_line[line].fx_down : s_line[line].fx_up;
+    voice_fx_take_stats(s, out);
+    out->fx = s_line[line].fx;
+}
+
 voice_fx_t audio_voice_fx(int line)
 {
     return (line >= 0 && line < AUDIO_NUM_LINES) ? s_line[line].fx : VOICE_FX_NONE;

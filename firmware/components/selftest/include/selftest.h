@@ -111,6 +111,24 @@ esp_err_t selftest_run_action_async(const char *id, int timeout_ms);
 esp_err_t selftest_stimulus_async(const char *id);
 bool selftest_busy(void);
 
+/* Everything the audio-level check measured on one line, newest run: one point
+ * per level it tried (the current level first, then the search), for the
+ * Diagnostics page's detail table. */
+#define SELFTEST_LEVEL_MAX_POINTS 14
+typedef struct {
+    uint8_t level;
+    float   distortion_pct, tone_dbfs, peak_dbfs, worst_hz, worst_dbfs;
+    uint32_t clipped;
+} selftest_level_point_t;
+typedef struct {
+    bool    valid;
+    uint8_t saved_level;     /* level in use when the check started */
+    uint8_t clean_max;       /* highest clean level found, 0 = none */
+    int     n;
+    selftest_level_point_t pt[SELFTEST_LEVEL_MAX_POINTS];
+} selftest_level_report_t;
+const selftest_level_report_t *selftest_level_report(int line);
+
 /* Records a human verdict for an ACTION or CONFIRM check. */
 esp_err_t selftest_answer(const char *id, bool ok);
 

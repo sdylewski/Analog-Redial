@@ -77,6 +77,9 @@ esp_err_t audio_tone_purity(int line, bool digital, tone_purity_t *out);
 
 esp_err_t  audio_set_voice_fx(int line, voice_fx_t fx);
 voice_fx_t audio_voice_fx(int line);
+/* Levels through the effect on `line` since the last call (downlink = what its
+ * earpiece hears, otherwise the uplink VoIP reads). Resets the window. */
+void audio_voice_fx_stats(int line, bool downlink, voice_fx_stats_t *out);
 
 /* Substitutes this line's own current TX output (tone/player/external --
  * whatever audio_tx_*() last selected) for its mic input on the uplink side
