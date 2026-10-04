@@ -52,6 +52,17 @@ static int cmd_board_info(int argc, char **argv)
     printf("pcb_recorded: %s\n", recorded[0] ? recorded : "-");
     printf("lines: %d\n", BOARD_NUM_LINES);
     printf("i2c: SDA=%d SCL=%d\n", BOARD_I2C_SDA, BOARD_I2C_SCL);
+    /* Network state, so flash_board.py can say where to go next without
+     * guessing an mDNS name. */
+    char ap[33], host[80], ip[16];
+    wifi_setup_ap_name(ap, sizeof(ap));
+    wifi_live_hostname(host, sizeof(host));
+    wifi_get_ip_str(ip, sizeof(ip));
+    printf("wifi: %s\n", wifi_is_provisioning() ? "setup"
+                         : wifi_is_connected() ? "connected" : "connecting");
+    printf("setup_ap: %s\n", ap);
+    printf("host: %s.local\n", host);
+    printf("ip: %s\n", ip);
     return 0;
 }
 

@@ -14,6 +14,7 @@ idf_component_register(
 # disk; baking the whole directory put those on every board built from it.
 set(BUNDLED_AUDIO
     operator.wav        # dial 0
+    record_prompt.wav   # dial 211, before the beep
     am_greeting.wav     # answering machine's default greeting
     dialup.mp3          # 412, public domain
 )

@@ -11,5 +11,6 @@
 !.gitignore
 !README.md
 !operator.wav
+!record_prompt.wav
 !am_greeting.wav
 !dialup.mp3

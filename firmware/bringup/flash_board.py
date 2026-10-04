@@ -227,13 +227,42 @@ def main() -> int:
               f"right, this is the wrong firmware. If {pcb} is right, confirm it in "
               "Settings -> Hardware.")
 
-    # 5. setup
+    # A board with saved Wi-Fi takes a few seconds to join it; wait for a
+    # definite answer so the summary can say where to go next.
+    deadline = time.time() + 30
+    while info and info.get("wifi") == "connecting" and time.time() < deadline:
+        time.sleep(3)
+        info = read_board_info(port, boot_wait=5) or info
+
+    ok = pcb == BOARDS[board][1]
+    print()
+    print("=" * 64)
+    print(f"{'SUCCESS' if ok else 'FLASHED, BUT CHECK THE WARNINGS ABOVE'}: "
+          f"{board.upper()} firmware on {flash} flash, default audio included.")
+    wifi, ip = info.get("wifi", ""), info.get("ip", "")
+    host = info.get("host", "phone.local")
+    if wifi == "setup":
+        print(f"The board is in Wi-Fi setup mode. Connect to its network "
+              f"'{info.get('setup_ap', '?')}' to finish setup, then open http://{host}/")
+    elif wifi == "connected":
+        print(f"The board joined its saved Wi-Fi: http://{host}/  (or http://{ip}/)")
+    elif wifi:
+        print("The board hasn't joined its saved Wi-Fi yet. If it doesn't, hold BOOT for "
+              "3 s to get its setup network.")
+    print("=" * 64)
+
+    # 5. setup -- HTTP steps need the board on Wi-Fi; use the IP it reported
+    # over USB rather than guessing an mDNS name.
     if args.setup:
         cmd = [sys.executable, str(HERE / "first_setup.py"), "--port", port]
-        if args.host:
-            cmd += ["--host", args.host]
+        setup_host = args.host or (ip if wifi == "connected" else None)
+        if setup_host:
+            cmd += ["--host", setup_host]
+        else:
+            print("Board isn't on Wi-Fi, so first_setup.py runs its USB steps only.")
+            cmd += ["--only", "console", "codec"]
         return subprocess.call(cmd)
-    return 0
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

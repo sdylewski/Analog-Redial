@@ -1,7 +1,8 @@
 # firmware/assets/ — bundled audio (baked in at build/flash time)
 
 The files listed in `BUNDLED_AUDIO` in `firmware/main/CMakeLists.txt` —
-**`operator.wav`, `am_greeting.wav` and `dialup.mp3`, nothing else** — get
+**`operator.wav`, `record_prompt.wav`, `am_greeting.wav` and `dialup.mp3`,
+nothing else** — get
 baked into a **read-only-in-spirit `bundled` SPIFFS partition** at build time
 and flashed alongside the firmware image (see the `bundled` entry in
 `firmware/partitions.csv`). Anything else you keep in this directory
@@ -24,6 +25,10 @@ from `storage` (recordings + anything uploaded over HTTP at runtime), so:
 
 **`operator.wav`** — synthesized from `pi_rotary_phone/operator_help_en.txt`
 (original project text, not copyrighted). Dial `0` to hear it.
+
+**`record_prompt.wav`** — "Record your message after the beep, then hang
+up.", generated with `bringup/gen_prompt.py` from the same English text
+`first_setup.py` uses. Plays before the beep when you dial `211`.
 
 **`am_greeting.wav`** — the answering machine's default greeting, "Leave a
 message after the beep.", generated with `bringup/gen_prompt.py`. Plays on

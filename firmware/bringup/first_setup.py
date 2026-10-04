@@ -21,7 +21,8 @@ a PASS / WARN / FAIL / SKIP summary:
   tests      (opt-in, --tests) the interactive hardware checklist
 
 Serial steps need --port (or exactly one board plugged in); HTTP steps need
---host. Either half can run without the other.
+--host, or a board on USB that has joined Wi-Fi (its IP is read over the
+console). Either half can run without the other.
 
 HTTP goes through `curl`, not Python: on macOS, Python's sockets to a LAN
 address are blocked unless the terminal has Local Network permission, and
@@ -511,8 +512,14 @@ def main() -> int:
         codec_ok = True
         if run.wanted("console"):
             if port:
-                if not step_console(run, con):
+                info = step_console(run, con)
+                if not info:
                     con = None
+                elif not args.host and info.get("wifi") == "connected" and info.get("ip"):
+                    # The board told us its address over USB -- no need to
+                    # guess phone.local (which may be another board).
+                    args.host = info["ip"]
+                    print(f"  using the board's own IP for the HTTP steps: {args.host}")
             else:
                 run.header("console", "serial console")
                 run.record("console", "SKIP", "no serial port")
