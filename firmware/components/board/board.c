@@ -628,6 +628,29 @@ esp_err_t board_speaker_volume_set(int line, uint8_t vol)
     return err;
 }
 
+/* Highest earpiece level the self-test's audio-level check found still clean
+ * on this line (0 = never measured). The web UI's slider marks it. */
+uint8_t board_speaker_clean_max_get(int line)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return 0;
+    uint8_t v;
+    esp_err_t err = nvs_get_u8(h, line == 1 ? "spk_clean1" : "spk_clean0", &v);
+    nvs_close(h);
+    return (err == ESP_OK) ? v : 0;
+}
+
+esp_err_t board_speaker_clean_max_set(int line, uint8_t level)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, line == 1 ? "spk_clean1" : "spk_clean0", level);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
+
 #define RECORD_MAX_MS_NVS_KEY "rec_max_ms"
 
 uint32_t board_record_max_ms_get(uint32_t fallback_ms)

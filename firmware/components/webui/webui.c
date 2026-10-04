@@ -1564,6 +1564,9 @@ static int append_general_tab(char *buf, size_t cap, int off)
  * three not from General (answering machine, echo cancellation, speaker
  * volume) moved from Hardware, which now covers only physical board
  * identity/stats and firmware/reset -- not line behavior. */
+#define SPK_MIN 12   /* slider range, in codec steps (see the speaker card) */
+#define SPK_MAX 33
+
 static int append_phone_settings_tab(char *buf, size_t cap, int off)
 {
     int num_lines = board_hw_config_get().num_lines;
@@ -1844,7 +1847,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         "apply:'%s',failed:'%s'};"
         "function spkLive(line,vol){"
         "document.getElementById('spkpct'+line).textContent="
-        "Math.round(vol*200/63)+'%%';"
+        "'Level '+vol+' ('+((vol-30)*1.5).toFixed(1)+' dB)';"
         "fetch('/speaker_volume_live',{method:'POST',"
         "headers:{'Content-Type':'application/x-www-form-urlencoded'},"
         "body:'line='+line+'&vol='+vol});}"
@@ -1919,35 +1922,47 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         "<div class=\"card\"><h2>%s</h2>", i18n_str("speaker.title", "Speaker (earpiece) volume"));
     for (int l = 0; l < num_lines; l++) {
         uint8_t vol = board_speaker_volume_get(l, ES8388_DEFAULT_SPK_VOL);
-        /* Displayed as a percentage (0-200%, 100% = the register's 0dB
-         * point) rather than the raw 0-63/dB-step register value -- dB
-         * isn't a meaningful unit for most people tuning this by ear. The
-         * underlying value submitted to the backend is still the raw 0-63
-         * register step; only the label is converted (see spkPct() below),
-         * so es8388_set_dac_volume()'s convention doesn't have to change. */
-        unsigned pct = (unsigned)((vol * 200u + 31) / 63u);
+        /* Shown in the same steps as the bring-up `spkamp` command (1.5 dB each,
+         * 30 = the codec's 0 dB point), so a number read off one works in the
+         * other. The bar under the slider is green up to the highest level the
+         * Diagnostics audio-level check found clean on THIS board, amber above. */
         char line_label[32];
         snprintf(line_label, sizeof(line_label), i18n_str("status.line.title", "Line %d"), l);
         char save_line[48];
         snprintf(save_line, sizeof(save_line), i18n_str("speaker.save_line", "Save line %d"), l);
+        unsigned clean = board_speaker_clean_max_get(l);
+        int shown = vol < SPK_MIN ? SPK_MIN : vol > SPK_MAX ? SPK_MAX : vol;
+        char clean_note[160], bar[96] = "";
+        if (clean) {
+            unsigned c = clean < SPK_MIN ? SPK_MIN : clean > SPK_MAX ? SPK_MAX : clean;
+            snprintf(bar, sizeof(bar), "<div class=\"levelbar\"><i style=\"width:%u%%\"></i></div>",
+                     (c - SPK_MIN) * 100u / (SPK_MAX - SPK_MIN));
+            snprintf(clean_note, sizeof(clean_note), i18n_str("speaker.clean_known",
+                     "Clean up to level %u on this board (green); above it the tone may distort."), clean);
+        } else {
+            snprintf(clean_note, sizeof(clean_note), "%s", i18n_str("speaker.clean_unknown",
+                     "Not measured yet: run the Line audio level check on the Diagnostics tab."));
+        }
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<form method=\"POST\" action=\"/speaker_volume\" class=\"settings-form\">"
             "<input type=\"hidden\" name=\"line\" value=\"%d\">"
-            "<label>%s <input type=\"range\" name=\"vol\" min=\"0\" max=\"63\" "
-            "value=\"%u\" oninput=\"spkLive(%d,this.value)\"> "
-            "<span id=\"spkpct%d\">%u%%</span></label>"
+            "<label>%s <input type=\"range\" name=\"vol\" min=\"%d\" max=\"%d\" step=\"1\" "
+            "value=\"%d\" oninput=\"spkLive(%d,this.value)\"> "
+            "<span id=\"spkpct%d\">Level %d (%.1f dB)</span></label>%s"
+            "<span class=\"fieldhint\">%s</span>"
             "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
             "</form>",
-            l, line_label, (unsigned)vol, l, l, pct, save_line);
+            l, line_label, SPK_MIN, SPK_MAX, shown, l, l, shown, (shown - 30) * 1.5, bar,
+            clean_note, save_line);
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<p class=\"hint\">%s</p></div>",
         i18n_str("speaker.hint",
                  "Drag while on a call to hear the change live (applied immediately, not saved "
-                 "yet) -- click Save once you land on a level you like. The default is about 67%: "
-                 "above roughly 70-80% the phone line's audio input starts to distort, which "
-                 "you hear as a harsh dial tone (100% is the codec's 0dB point, 200% is max). "
-                 "Same register the bring-up <code>spkamp</code> console command tunes; "
+                 "yet) -- click Save once you land on a level you like. Each step is 1.5 dB and "
+                 "30 is the codec's 0 dB point. Set it too high and the phone line's audio "
+                 "input distorts, which you hear as a harsh dial tone; the default is 24. "
+                 "Same scale as the bring-up <code>spkamp</code> console command, and "
                  "<code>tonetest</code> measures the distortion at a given level."));
     return off;
 }
@@ -3644,8 +3659,18 @@ static int append_selftest_card(char *buf, size_t cap, int off)
                 "<tr><td>%s</td><td><span class=\"pill %s\">%s</span></td><td>%s",
                 c->title, badge, label, detail);
 
-            /* Controls only where a human still has something to do. */
-            if (c->result == SELFTEST_PENDING && c->kind == SELFTEST_ACTION) {
+            /* The audio-level check stays re-runnable after it has a result:
+             * it's a measurement, not a one-time human gesture. */
+            if (strncmp(c->id, "level", 5) == 0 && c->result != SELFTEST_SKIP && !selftest_busy()) {
+                off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                    "<form method=\"POST\" action=\"/selftest_action\" class=\"settings-form\">"
+                    "<input type=\"hidden\" name=\"id\" value=\"%s\">"
+                    "<div class=\"toolbar sub\"><button type=\"submit\">%s</button></div></form>",
+                    c->id, c->result == SELFTEST_PENDING && !c->detail[0]
+                        ? i18n_str("diag.selftest.measure", "Measure (about 10 s)")
+                        : i18n_str("diag.selftest.measure_again", "Measure again"));
+            } else if (c->result == SELFTEST_PENDING && c->kind == SELFTEST_ACTION &&
+                       strncmp(c->id, "level", 5) != 0) {
                 off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
                     "<form method=\"POST\" action=\"/selftest_action\" class=\"settings-form\">"
                     "<input type=\"hidden\" name=\"id\" value=\"%s\">"
@@ -3712,12 +3737,74 @@ static int append_selftest_card(char *buf, size_t cap, int off)
     return off;
 }
 
+/* "How do I reflash this board" tile: the exact commands for THIS board's type
+ * and flash size (the same build-folder rules as bringup/flash_board.py), so
+ * nobody has to remember that an SMD2 and an 8 MB SMD4 each have their own
+ * build directory and sdkconfig. */
+static int append_flash_help_card(char *buf, size_t cap, int off)
+{
+    const char *pcb = board_pcb_variant_name();
+    const char *key = !strcmp(pcb, "SMD2") ? "smd2" : !strcmp(pcb, "SMD4") ? "smd4"
+                    : !strcmp(pcb, "SMD5") ? "smd5" : "smd5_cheap";
+    uint32_t flash_bytes = 0;
+    esp_flash_get_size(NULL, &flash_bytes);
+    bool mb8 = flash_bytes && flash_bytes <= 8u * 1024 * 1024;
+    char bdir[40];
+    if (!strcmp(key, "smd4") && !mb8) snprintf(bdir, sizeof(bdir), "build");
+    else snprintf(bdir, sizeof(bdir), "build.%s%s", key, mb8 ? "_8mb" : "");
+    bool dflt = !strcmp(bdir, "build");
+
+    char manual[200];
+    if (dflt) snprintf(manual, sizeof(manual), "idf.py -p PORT flash monitor");
+    else snprintf(manual, sizeof(manual),
+                  "idf.py -B %s -D SDKCONFIG=%s/sdkconfig -p PORT flash monitor", bdir, bdir);
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<p class=\"hint-lead\">%s <b>%s</b>, %u MB flash.</p>"
+        "<script>function copyCmd(b){var t=b.parentNode.querySelector('pre').innerText;"
+        "function fb(){var a=document.createElement('textarea');a.value=t;a.style.position='fixed';"
+        "a.style.opacity='0';document.body.appendChild(a);a.select();"
+        "try{document.execCommand('copy');}catch(e){}document.body.removeChild(a);}"
+        "if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).catch(fb);}"
+        "else{fb();}var o=b.textContent;b.textContent='Copied!';"
+        "setTimeout(function(){b.textContent=o;},1500);}</script>"
+        "<h3>%s</h3><div><pre class=\"cmd\">cd firmware\n. ~/esp/esp-idf/export.sh\n"
+        "./bringup/flash_board.py --board %s</pre>"
+        "<button type=\"button\" onclick=\"copyCmd(this)\">Copy</button></div>"
+        "<h3>%s</h3><div><pre class=\"cmd\">cd firmware\n. ~/esp/esp-idf/export.sh\n%s</pre>"
+        "<button type=\"button\" onclick=\"copyCmd(this)\">Copy</button></div>",
+        i18n_str("flashhelp.title", "Flashing and serial monitor"),
+        i18n_str("flashhelp.lead", "Commands for this board:"), pcb,
+        (unsigned)(flash_bytes >> 20),
+        i18n_str("flashhelp.easy", "Easiest: build, flash and check in one step"), key,
+        i18n_str("flashhelp.manual", "Or by hand"), manual);
+    off = append_hint(buf, cap, off,
+        i18n_str("flashhelp.hint_lead",
+                 "Replace PORT with the board's serial port. Press Ctrl+] to leave the monitor."),
+        i18n_str("flashhelp.hint_detail",
+                 "PORT is <code>/dev/cu.usbmodem*</code> on a Mac, <code>/dev/ttyACM0</code> on "
+                 "Linux, <code>COM3</code> or similar on Windows (the board's USB-C, which is "
+                 "the chip's own USB port). Run <code>./bringup/flash_board.py</code> first to "
+                 "see the port it finds. The first flash of a new board type creates its build "
+                 "folder, which takes a few minutes. If the monitor shows nothing, press RESET; "
+                 "a board left idle for several minutes can be asleep. A board stuck in download "
+                 "mode needs a USB unplug and replug. To update over Wi-Fi instead, upload "
+                 "<code>build/rotary_phone_gateway.bin</code> under Settings &rarr; Hardware "
+                 "&rarr; Firmware (best for a board that is already working; flash by USB while "
+                 "you're testing a build, because a build that doesn't boot rolls back to the "
+                 "old image)."));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    return off;
+}
+
 static int append_diag_tab(char *buf, size_t cap, int off)
 {
     static const char *LEVELS[] = { "none", "error", "warn", "info", "debug", "verbose" };
     esp_log_level_t cur = logctl_get_level();
 
     off = append_selftest_card(buf, cap, off);
+    off = append_flash_help_card(buf, cap, off);
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>"
@@ -4591,7 +4678,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * cards (each with its own form + conditional <audio> player row). */
     size_t log_room = (strcmp(tab, "diag") == 0) ? 8200 * 3 + 3000 : 0;
 
-    size_t diag_room = (strcmp(tab, "diag") == 0) ? 5000 : 0; /* bench-test card + its hints */
+    size_t diag_room = (strcmp(tab, "diag") == 0) ? 5000 + 3600 : 0; /* bench-test card + its hints */
     /* Storage sizes off the REAL file count, not STORAGE_LIST_MAX's
      * worst case -- this used to just assume up to STORAGE_LIST_MAX files
      * on each backend (a flat ~68KB), which sounded conservative but
@@ -4643,7 +4730,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
                                                       * +the mismatch-confirm card if showing */
         : 0;
     size_t general_room = (strcmp(tab, "general") == 0) ? 3200 + 1400 + 2600 : 0; /* +setup password card */ /* +saved-network list */ /* +quiet hours card's timezone dropdown */
-    size_t phone_room = (strcmp(tab, "phone") == 0) ? 12500 + 1800 : 0; /* +voice effects card */ /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card, AM greeting text-to-speech field (~2.2 KB) */
+    size_t phone_room = (strcmp(tab, "phone") == 0) ? 12500 + 1800 + 900 : 0; /* +voice effects card */ /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card, AM greeting text-to-speech field (~2.2 KB) */
     size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 : 0;
     size_t bt_room = (strcmp(tab, "bluetooth") == 0) ? 3300 : 0; /* +experimental notice */ /* "What Bluetooth can do" card */ /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
     /* This tab's `n*220` share (n = ALL dialplan entries, not just clips)
@@ -6204,7 +6291,7 @@ static esp_err_t speaker_volume_handler(httpd_req_t *req)
     board_speaker_volume_set(line, (uint8_t)vol);
 
     httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=phone");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }

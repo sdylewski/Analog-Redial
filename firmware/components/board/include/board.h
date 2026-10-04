@@ -293,6 +293,9 @@ esp_err_t board_record_max_ms_set(uint32_t ms);
  * reboot instead of reverting to the compiled boot default every time. */
 uint8_t board_speaker_volume_get(int line, uint8_t fallback);
 esp_err_t board_speaker_volume_set(int line, uint8_t vol);
+/* Highest level found clean by the self-test's audio-level check; 0 = never measured. */
+uint8_t   board_speaker_clean_max_get(int line);
+esp_err_t board_speaker_clean_max_set(int line, uint8_t level);
 
 /* ---- Line/microSD hardware configuration (SMD2 only) ----
  * The SMD2 PCB's GPIO 18-21 are wired to EITHER a second AG1171 SLIC (line

@@ -3,6 +3,7 @@
 #include "board_pins.h"
 #include "ag1170.h"
 #include "es8388.h"
+#include "audio.h"
 #include "bt_companion.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -224,6 +225,15 @@ void selftest_begin(void)
         set_result(r1, SELFTEST_SKIP, "board has one line");
     }
 
+    /* Audio level: measures the test tone coming back from the SLIC at the
+     * current earpiece level, then searches for the highest level that stays
+     * clean. Boards differ (SLIC part spread, supply), so it's per board. */
+    add_check("level0", "Line 0 audio level",
+              "Plays a test tone and measures distortion at the earpiece level.", SELFTEST_ACTION);
+    selftest_check_t *lv1 = add_check("level1", "Line 1 audio level",
+              "Plays a test tone and measures distortion at the earpiece level.", SELFTEST_ACTION);
+    if (lines < 2) set_result(lv1, SELFTEST_SKIP, "board has one line");
+
     selftest_check_t *bl = add_check("btlink", "Bluetooth module link", NULL, SELFTEST_AUTO);
     selftest_check_t *be = add_check("bteeprom", "Bluetooth audio EEPROM", NULL, SELFTEST_AUTO);
     if (board_hw_config_get().has_bt_module) {
@@ -253,11 +263,86 @@ static int line_from_id(const char *id)
     return -1;
 }
 
+/* ---- audio level check ------------------------------------------------- */
+
+#define LEVEL_CLEAN_PCT 3.0f
+
+static void apply_level(int line, uint8_t level)
+{
+    uint8_t l = board_speaker_volume_get(0, ES8388_DEFAULT_SPK_VOL);
+    uint8_t r = board_speaker_volume_get(1, ES8388_DEFAULT_SPK_VOL);
+    if (line == 0) l = level; else r = level;
+    es8388_set_dac_volume(l, r);
+}
+
+static bool level_clean(int line, uint8_t level, tone_purity_t *r, esp_err_t *err)
+{
+    apply_level(line, level);
+    *err = audio_tone_purity(line, false, r);
+    return *err == ESP_OK && r->distortion_pct < LEVEL_CLEAN_PCT;
+}
+
+static selftest_result_t run_level_check(selftest_check_t *c, int line)
+{
+    if (line < 0 || line >= board_hw_config_get().num_lines) {
+        set_result(c, SELFTEST_SKIP, "line not present on this board");
+        return SELFTEST_SKIP;
+    }
+    if (ag1170_is_offhook(line)) {
+        set_result(c, SELFTEST_PENDING, "hang up line %d first, then measure again", line);
+        return SELFTEST_PENDING;
+    }
+    uint8_t saved = board_speaker_volume_get(line, ES8388_DEFAULT_SPK_VOL);
+    tone_purity_t cur, t;
+    esp_err_t err;
+    bool cur_clean = level_clean(line, saved, &cur, &err);
+    if (err == ESP_ERR_NOT_FOUND) {
+        apply_level(line, saved);
+        set_result(c, SELFTEST_FAIL, "no test tone came back: line %d unpowered or Vout open", line);
+        return SELFTEST_FAIL;
+    }
+    if (err != ESP_OK) {
+        apply_level(line, saved);
+        set_result(c, SELFTEST_FAIL, "measurement failed (%s)", esp_err_to_name(err));
+        return SELFTEST_FAIL;
+    }
+
+    /* Highest clean level: coarse steps down from the top, then the two
+     * steps just above the first clean one. */
+    static const uint8_t GRID[] = { 33, 30, 27, 24, 21, 18, 15, 12 };
+    uint8_t clean_max = 0;
+    for (size_t i = 0; i < sizeof(GRID); i++) {
+        if (level_clean(line, GRID[i], &t, &err)) { clean_max = GRID[i]; break; }
+    }
+    if (clean_max && clean_max < 33) {
+        for (uint8_t v = clean_max + 2; v > clean_max; v--) {
+            if (level_clean(line, v, &t, &err)) { clean_max = v; break; }
+        }
+    }
+    apply_level(line, saved);
+    board_speaker_clean_max_set(line, clean_max);
+
+    if (!clean_max) {
+        set_result(c, SELFTEST_FAIL, "distorted at every level (%.0f%% at %u): check the line audio parts",
+                   cur.distortion_pct, saved);
+        return SELFTEST_FAIL;
+    }
+    if (cur_clean) {
+        set_result(c, SELFTEST_PASS, "level %u clean (%.1f%%, tone %.0f dBFS); clean up to %u",
+                   saved, cur.distortion_pct, cur.tone_dbfs, clean_max);
+        return SELFTEST_PASS;
+    }
+    set_result(c, SELFTEST_FAIL, "level %u distorts (%.1f%%); clean up to %u: lower it",
+               saved, cur.distortion_pct, clean_max);
+    return SELFTEST_FAIL;
+}
+
 selftest_result_t selftest_run_action(const char *id, int timeout_ms)
 {
     selftest_check_t *c = find_check(id);
     if (!c) return SELFTEST_FAIL;
     if (c->result == SELFTEST_SKIP) return SELFTEST_SKIP;
+    if (strncmp(id, "level", 5) == 0) return run_level_check(c, line_from_id(id));
 
     int line = line_from_id(id);
     if (line < 0 || line >= board_hw_config_get().num_lines) {
@@ -333,7 +418,10 @@ static esp_err_t start_bg(const char *id, int timeout_ms, bool stimulus)
     strlcpy(s_job_id, id, sizeof(s_job_id));
     s_job_timeout_ms = timeout_ms;
     s_job_stimulus = stimulus;
-    if (!stimulus) set_result(c, SELFTEST_PENDING, "watching for %ds...", timeout_ms / 1000);
+    if (!stimulus) {
+        if (strncmp(id, "level", 5) == 0) set_result(c, SELFTEST_PENDING, "measuring (about 10 s)...");
+        else set_result(c, SELFTEST_PENDING, "watching for %ds...", timeout_ms / 1000);
+    }
     s_busy = true;
     if (xTaskCreate(bg_task, "selftest_bg", 4096, NULL, 5, NULL) != pdPASS) {
         s_busy = false;

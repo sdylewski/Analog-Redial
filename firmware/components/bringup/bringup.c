@@ -650,37 +650,13 @@ static int cmd_miclevel(int argc, char **argv)
     return 0;
 }
 
-/* ---------- tonetest: is the dial tone coming back clean? ----------
- * Plays the dial tone on a line and analyzes what the SLIC returns on its
- * Vout (the same node the handset mic uses), over exactly one second so every
- * frequency below lands on an exact FFT bin. The firmware's own tone is clean
- * (see tones.c), so anything found here was added after the DAC: clipping in
- * the SLIC's input stage, a too-hot codec output, or a bad coupling part.
- * Needs the line powered (SLIC out of power-down); off-hook gives the most
- * realistic loading. */
-#define TT_N 12
-static const float TT_F[TT_N] = { 350, 450,                   /* the tone itself */
-    100, 250, 550, 700, 800, 900, 1050, 1150, 1250, 1350 };   /* distortion products */
-typedef struct {
-    int16_t *buf;
-    uint32_t n, target, clip;
-    int32_t peak;
-    volatile bool done;
-} tonetest_ctx_t;
-
-/* Runs inside the audio task, so it only copies: soft-float DSP here would
- * eat most of each 10 ms frame and the test would cause the glitches it is
- * looking for. The analysis runs afterwards on the console task. */
-static void tonetest_tap(int line, const int16_t *mono, size_t n, void *ctx)
-{
-    tonetest_ctx_t *t = (tonetest_ctx_t *)ctx;
-    size_t room = t->target - t->n;
-    if (n > room) n = room;
-    memcpy(t->buf + t->n, mono, n * sizeof(int16_t));
-    t->n += n;
-    if (t->n >= t->target) t->done = true;
-}
-
+/* ---------- tonetest: is the audio coming back clean? ----------
+ * Plays a 350+450 Hz test burst on a line and analyzes what the SLIC returns
+ * on its Vout (the same node the handset mic uses). The firmware's own tone is
+ * clean, so anything found here was added after the DAC: clipping in the
+ * SLIC's input stage, a too-hot codec output, or a bad coupling part. The
+ * analysis itself lives in audio/tone_purity.c, shared with the web UI's
+ * self-test. */
 static int cmd_tonetest(int argc, char **argv)
 {
     int line = (argc > 1) ? atoi(argv[1]) : 0;
@@ -694,71 +670,26 @@ static int cmd_tonetest(int argc, char **argv)
     if (!digital && !ag1170_is_offhook(line)) {
         printf("note: line %d is on-hook; lifting the handset gives a realistic load\n", line);
     }
-    uint32_t fs = audio_sample_rate();
-    static tonetest_ctx_t t;
-    memset((void *)&t, 0, sizeof(t));
-    t.target = fs / 2;   /* half a second: every test frequency is a multiple of 2 Hz */
-    t.buf = malloc(t.target * sizeof(int16_t));
-    if (!t.buf) { printf("not enough free memory for the capture buffer\n"); return 1; }
+    tone_purity_t r;
+    esp_err_t err = audio_tone_purity(line, digital, &r);
+    if (err == ESP_ERR_NO_MEM) { printf("not enough free memory for the capture buffer\n"); return 1; }
+    if (err == ESP_ERR_TIMEOUT) { printf("capture didn't complete (audio task stalled?)\n"); return 1; }
 
-    audio_tx_tone(line, TONE_DIAL);
-    vTaskDelay(pdMS_TO_TICKS(600));            /* let the line settle */
-    if (digital) audio_add_downlink_tap(line, tonetest_tap, &t);
-    else         audio_add_diag_tap(line, tonetest_tap, &t);
-    for (int i = 0; i < 40 && !t.done; i++) vTaskDelay(pdMS_TO_TICKS(100));
-    if (digital) audio_remove_downlink_tap(line);
-    else         audio_remove_diag_tap(line);
-    audio_tx_silence(line);
-    if (!t.done) { printf("capture didn't complete (audio task stalled?)\n"); free(t.buf); return 1; }
-
-    float amp[TT_N];
-    for (int k = 0; k < TT_N; k++) {
-        float coeff = 2.0f * cosf(2.0f * (float)M_PI * TT_F[k] / (float)fs), q1 = 0, q2 = 0;
-        for (uint32_t i = 0; i < t.n; i++) {
-            float q0 = (float)t.buf[i] / 32768.0f + coeff * q1 - q2;
-            q2 = q1; q1 = q0;
-        }
-        float p = q1 * q1 + q2 * q2 - coeff * q1 * q2;
-        amp[k] = 2.0f * sqrtf(p > 0 ? p : 0) / (float)t.n;     /* peak amplitude, 1.0 = full scale */
-    }
-    for (uint32_t i = 0; i < t.n; i++) {
-        int32_t a = t.buf[i] < 0 ? -t.buf[i] : t.buf[i];
-        if (a > t.peak) t.peak = a;
-        if (a >= 32767) t.clip++;
-    }
-    free(t.buf);
-    t.buf = NULL;
-    float tone = sqrtf(amp[0] * amp[0] + amp[1] * amp[1]);
-    float dist = 0;
-    for (int k = 2; k < TT_N; k++) dist += amp[k] * amp[k];
-    dist = sqrtf(dist);
-
-    printf("Line %d dial tone, %s (%.2f s at %lu Hz):\n", line,
-           digital ? "digital samples going to the codec" : "as returned by the SLIC",
-           (double)t.n / fs, (unsigned long)fs);
-    printf("  peak  %6.1f dBFS   clipped samples: %lu\n", dbfs(t.peak), (unsigned long)t.clip);
-    printf("  350 Hz %7.1f dBFS    450 Hz %7.1f dBFS\n",
-           20.0f * log10f(amp[0] + 1e-9f), 20.0f * log10f(amp[1] + 1e-9f));
+    printf("Line %d test tone, %s (0.50 s capture):\n", line,
+           digital ? "digital samples going to the codec" : "as returned by the SLIC");
+    printf("  peak  %6.1f dBFS   clipped samples: %lu\n", r.peak_dbfs, (unsigned long)r.clipped);
+    printf("  350 Hz %7.1f dBFS    450 Hz %7.1f dBFS\n", r.tone_a_dbfs, r.tone_b_dbfs);
     printf("  strongest distortion products:\n");
-    for (int pass = 0; pass < 3; pass++) {
-        int best = -1;
-        for (int k = 2; k < TT_N; k++) {
-            if (amp[k] < 0) continue;
-            if (best < 0 || amp[k] > amp[best]) best = k;
-        }
-        printf("    %4.0f Hz  %7.1f dBFS\n", TT_F[best], 20.0f * log10f(amp[best] + 1e-9f));
-        amp[best] = -amp[best] - 1.0f;
-    }
-    if (tone < 0.003f) {
+    for (int i = 0; i < 3; i++) printf("    %4.0f Hz  %7.1f dBFS\n", r.top_hz[i], r.top_dbfs[i]);
+    if (err == ESP_ERR_NOT_FOUND) {
         printf("  -> no tone came back: line %d isn't powered or its Vout path is open\n", line);
         return 1;
     }
-    float thd = 100.0f * dist / tone;
-    printf("  distortion (listed products vs. tone): %.2f%%  (%.1f dB)\n", thd, 20.0f * log10f(dist / tone + 1e-9f));
-    if (t.clip > 0)      printf("  -> CLIPPING at the ADC: lower the codec output (spkamp) or check the coupling parts\n");
-    else if (thd > 10.0f) printf("  -> heavily distorted: clipped upstream of the ADC (SLIC input stage or codec output)\n");
-    else if (thd > 3.0f)  printf("  -> audibly impure: try spkamp 24 24, and re-run to see whether it falls\n");
-    else                  printf("  -> clean\n");
+    printf("  distortion (listed products vs. tone): %.2f%%\n", r.distortion_pct);
+    if (r.clipped > 0)             printf("  -> CLIPPING at the ADC: lower the codec output (spkamp)\n");
+    else if (r.distortion_pct > 10) printf("  -> heavily distorted: clipped upstream of the ADC (SLIC input stage or codec output)\n");
+    else if (r.distortion_pct > 3)  printf("  -> audibly impure: lower spkamp a step or two and re-run\n");
+    else                            printf("  -> clean\n");
     return 0;
 }
 

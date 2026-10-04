@@ -258,8 +258,8 @@ step per subsystem, without typing each command by hand.
 | `codec_dump` | Print codec registers (written vs. read back) |
 | `tone <hz> <ms> <line>` | Arbitrary test tone on a line |
 | `dialtone\|ringback\|busy [line]` | Call-progress tones |
-| `tonetest [line] [tx]` | Plays the dial tone and measures what the SLIC returns: level, clipping and distortion (clean is under ~3%). Add `tx` to measure the digital samples going to the codec instead, to tell firmware problems from analog ones |
-| `spkamp <l> <r>` | Earpiece drive level, 1.5 dB/step, 30 = 0 dB, default 21; re-run `tonetest` after changing it |
+| `tonetest [line] [tx]` | Plays a 350 + 450 Hz test tone and measures what the SLIC returns: level, clipping and distortion (clean is under 3%). Add `tx` to measure the digital samples going to the codec instead, to tell firmware problems from analog ones. The same measurement backs the Diagnostics page's "Line audio level" check |
+| `spkamp <l> <r>` | Earpiece drive level, 1.5 dB per step, 30 = 0 dB, default 24; the web slider uses the same numbers. Re-run `tonetest` after changing it |
 | `silence [line]` | Stop audio on a line |
 | `loopback [line] [0\|1]` | Mic → own speaker round-trip |
 | `capture [ms]` | RX RMS level meter for both lines |

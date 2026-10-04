@@ -498,3 +498,14 @@ nav .themebtn {
   padding: 2px 8px; font-size: 13px; cursor: pointer;
 }
 nav .themebtn:hover { border-color: var(--accent); }
+
+/* Earpiece-level slider: green = measured clean on this board, amber above. */
+.levelbar { height: 6px; border-radius: 3px; background: var(--amber); margin: 2px 0 4px; overflow: hidden; }
+.levelbar i { display: block; height: 100%; background: var(--green); }
+
+/* Command blocks (flashing tile). */
+pre.cmd {
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; margin: 4px 0 6px; overflow-x: auto;
+  font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace; white-space: pre;
+}

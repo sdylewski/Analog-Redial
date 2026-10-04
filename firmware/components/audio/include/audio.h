@@ -58,6 +58,23 @@ void audio_tx_external(int line, bool enable);           /* play from audio_ext_
 /* Voice effect for a line in a call: changes what its earpiece hears from the
  * bridge/VoIP peer and what its uplink sends to VoIP. For a local call set it
  * on both lines (each shapes the other's voice). VOICE_FX_NONE turns it off. */
+/* Plays a 350+450 Hz test burst on `line` and analyzes it for clipping and
+ * distortion. digital=false measures what the SLIC returns on its Vout (the
+ * analog path: DAC, SLIC input, SLIC output, ADC); digital=true measures the
+ * samples just before the codec, to tell firmware problems from analog ones.
+ * Blocks ~1.5 s plus ~0.3 s of analysis, so call it from a task other than the
+ * audio or httpd worker. ESP_ERR_NOT_FOUND = no tone came back (result is
+ * still filled in). */
+typedef struct {
+    float peak_dbfs;
+    float tone_dbfs;                 /* average level of the two tones */
+    float tone_a_dbfs, tone_b_dbfs;  /* 350 Hz, 450 Hz */
+    float distortion_pct;            /* listed products vs. the tones */
+    uint32_t clipped;                /* samples at full scale */
+    float top_hz[3], top_dbfs[3];    /* strongest distortion products */
+} tone_purity_t;
+esp_err_t audio_tone_purity(int line, bool digital, tone_purity_t *out);
+
 esp_err_t  audio_set_voice_fx(int line, voice_fx_t fx);
 voice_fx_t audio_voice_fx(int line);
 

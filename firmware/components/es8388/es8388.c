@@ -172,11 +172,13 @@ esp_err_t es8388_init(const es8388_config_t *cfg)
     raw_write(ES8388_REG_RDACVOL, 0x00);               /* 0 dB */
 
     /* LOUT1/ROUT1: per-line earpiece drive level (0/30/1.5dB-step
-     * convention, see es8388_set_dac_volume()). 21 (-13.5 dB) is the compiled
-     * fallback: measured with the console `tonetest` command, the dial tone
-     * comes back from the SLIC at ~2% distortion at 21 but 19-37% at 30 -- the
-     * AG1171's audio input is overdriven by a near-full-scale DAC. (31 was
-     * previously picked by ear, which doesn't show distortion.)
+     * convention, see es8388_set_dac_volume()). 24 (-9 dB) is the compiled
+     * fallback: measured with the console `tonetest` command on an SMD4 the
+     * test tone comes back from the SLIC at ~1% distortion at 24-30 and ~5% at
+     * 33; one earlier session read 19-37% at 30 that never reproduced, so this
+     * is a margin, not a measured limit -- the web UI's audio-level check finds
+     * the real one per board. (31 was previously picked by ear, which doesn't
+     * show distortion.)
      * board_speaker_volume_get() returns whatever was persisted via `spkamp` or
      * the web UI slider, so a level set by hand survives a reboot. */
     uint8_t spk_l = board_speaker_volume_get(0, ES8388_DEFAULT_SPK_VOL);
