@@ -933,6 +933,335 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Custom:AG1171_SIL"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "U4"
+				(at 5.842 -3.048 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify right)
+				)
+			)
+			(property "Value" "AG1171"
+				(at -3.302 -3.302 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "Custom:AG1171_SIL"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://silvertel.com/images/datasheets/Ag1170-datasheet-SLIC-module-onboard-ringing.pdf"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "AG1171_SIL_0_1"
+				(rectangle
+					(start -11.43 2.54)
+					(end 7.62 -8.89)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "AG1171_SIL_1_1"
+				(pin bidirectional line
+					(at -10.16 -11.43 90)
+					(length 2.54)
+					(name "Ring"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at -7.62 -11.43 90)
+					(length 2.54)
+					(name "Tip"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -5.08 -11.43 90)
+					(length 2.54)
+					(name "F/R"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -2.54 -11.43 90)
+					(length 2.54)
+					(name "RM"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin output line
+					(at 0 -11.43 90)
+					(length 2.54)
+					(name "SHK"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin no_connect line
+					(at 2.54 -11.43 90)
+					(length 2.54)
+					(name "ZT1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin no_connect line
+					(at 5.08 -11.43 90)
+					(length 2.54)
+					(name "ZT2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin no_connect line
+					(at 5.08 5.08 270)
+					(length 2.54)
+					(name "ZB"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 2.54 5.08 270)
+					(length 2.54)
+					(name "Vin"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "9"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin output line
+					(at 0 5.08 270)
+					(length 2.54)
+					(name "Vout"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "10"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -2.54 5.08 270)
+					(length 2.54)
+					(name "VA"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "11"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at -5.08 5.08 270)
+					(length 2.54)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "12"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -7.62 5.08 270)
+					(length 2.54)
+					(name "Vpwr"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "13"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -10.16 5.08 270)
+					(length 2.54)
+					(name "PD"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "14"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Device:C"
 			(pin_numbers
 				(hide yes)
@@ -5620,335 +5949,6 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Custom:AG1171_SIL"
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "U4"
-				(at 5.842 -3.048 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify right)
-				)
-			)
-			(property "Value" "AG1171"
-				(at -3.302 -3.302 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" "Custom:AG1171_SIL"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Datasheet" "https://silvertel.com/images/datasheets/Ag1170-datasheet-SLIC-module-onboard-ringing.pdf"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "AG1171_SIL_0_1"
-				(rectangle
-					(start -11.43 2.54)
-					(end 7.62 -8.89)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-			)
-			(symbol "AG1171_SIL_1_1"
-				(pin bidirectional line
-					(at -10.16 -11.43 90)
-					(length 2.54)
-					(name "Ring"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin bidirectional line
-					(at -7.62 -11.43 90)
-					(length 2.54)
-					(name "Tip"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at -5.08 -11.43 90)
-					(length 2.54)
-					(name "F/R"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at -2.54 -11.43 90)
-					(length 2.54)
-					(name "RM"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin output line
-					(at 0 -11.43 90)
-					(length 2.54)
-					(name "SHK"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "5"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin no_connect line
-					(at 2.54 -11.43 90)
-					(length 2.54)
-					(name "ZT1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "6"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin no_connect line
-					(at 5.08 -11.43 90)
-					(length 2.54)
-					(name "ZT2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "7"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin no_connect line
-					(at 5.08 5.08 270)
-					(length 2.54)
-					(name "ZB"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "8"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at 2.54 5.08 270)
-					(length 2.54)
-					(name "Vin"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "9"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin output line
-					(at 0 5.08 270)
-					(length 2.54)
-					(name "Vout"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "10"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at -2.54 5.08 270)
-					(length 2.54)
-					(name "VA"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "11"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin bidirectional line
-					(at -5.08 5.08 270)
-					(length 2.54)
-					(name "GND"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "12"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at -7.62 5.08 270)
-					(length 2.54)
-					(name "Vpwr"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "13"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at -10.16 5.08 270)
-					(length 2.54)
-					(name "PD"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "14"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
 		(symbol "power:+3.3V"
 			(power global)
 			(pin_numbers
@@ -6566,9 +6566,9 @@
 		)
 		(uuid "bb638113-e30d-4efc-ab98-b0084979e2d8")
 	)
-	(text "ERROR:  \nD+ / D- swapped\non previous board.\nNeed to fix!"
+	(text "ERROR:  \nD+ / D- incorrectly swapped\non this board.\nNeed to fix!"
 		(exclude_from_sim no)
-		(at 159.512 44.45 0)
+		(at 157.734 49.784 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9396,7 +9396,7 @@
 			(uuid "91ac3cf4-764e-4d59-b4de-39dbbcbbbd22")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C12")
 					(unit 1)
@@ -9565,7 +9565,7 @@
 			(uuid "7fcad106-2834-4fb8-b74b-45d168d2f92c")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D11")
 					(unit 1)
@@ -9747,7 +9747,7 @@
 			(uuid "e76b443c-b5ab-428e-a486-5524bbc2ffd4")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J6")
 					(unit 1)
@@ -9951,7 +9951,7 @@
 			(uuid "3b878214-5e1a-4c3b-b11e-29cb4a178de5")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C24")
 					(unit 1)
@@ -10129,7 +10129,7 @@
 			(uuid "3a3d9cc0-b231-4d14-9283-0943ec7664bc")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R4")
 					(unit 1)
@@ -10207,7 +10207,7 @@
 			(uuid "393d08e6-c4cb-4676-9e2e-5b84833f9f37")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR044")
 					(unit 1)
@@ -10388,7 +10388,7 @@
 			(uuid "63df2463-1583-4d9f-a4b2-f314bddbf8eb")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R12")
 					(unit 1)
@@ -10466,7 +10466,7 @@
 			(uuid "8c0ca17a-fb37-4094-a322-6c91d49dfa1c")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR02")
 					(unit 1)
@@ -10670,7 +10670,7 @@
 			(uuid "136cb534-2642-4bae-847e-6f0dcf90db52")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C10")
 					(unit 1)
@@ -10874,7 +10874,7 @@
 			(uuid "c6edc907-8689-408d-bc58-8d3062683e65")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C6")
 					(unit 1)
@@ -11043,7 +11043,7 @@
 			(uuid "70edcda2-9e45-4a86-9ec8-cbec9fcf84d2")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C22")
 					(unit 1)
@@ -11121,7 +11121,7 @@
 			(uuid "ac9755ad-faca-4fbf-9f9b-a0ab1d60d84e")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR036")
 					(unit 1)
@@ -11197,7 +11197,7 @@
 			)
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "H2")
 					(unit 1)
@@ -11366,7 +11366,7 @@
 			(uuid "87997731-1a76-4de9-89b9-9499be39d875")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C20")
 					(unit 1)
@@ -11588,7 +11588,7 @@
 			(uuid "0ff523f8-8220-4cde-8df1-04705304f4a7")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D4")
 					(unit 1)
@@ -11792,7 +11792,7 @@
 			(uuid "0fa11baf-9ef5-4ff4-8719-1745c2b824a3")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C13")
 					(unit 1)
@@ -11961,7 +11961,7 @@
 			(uuid "366e675d-f962-4aa8-a9cb-543628518eb6")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D10")
 					(unit 1)
@@ -12037,7 +12037,7 @@
 			)
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "H4")
 					(unit 1)
@@ -12237,7 +12237,7 @@
 			(uuid "8e9687f5-411e-459d-a250-e144d61c00aa")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C2")
 					(unit 1)
@@ -12405,7 +12405,7 @@
 			(uuid "4bee0f1e-4a38-461d-ba26-4a42a5bb4ba7")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D1")
 					(unit 1)
@@ -12587,7 +12587,7 @@
 			(uuid "3f2e800a-630b-4150-bc19-5e7f052c6bf9")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J7")
 					(unit 1)
@@ -12665,7 +12665,7 @@
 			(uuid "7a5aa028-5a73-4420-bfac-747062b4119c")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR037")
 					(unit 1)
@@ -12743,7 +12743,7 @@
 			(uuid "fd79cedf-3e7c-46ab-a339-6cdd3dfb03f9")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR024")
 					(unit 1)
@@ -12911,7 +12911,7 @@
 			(uuid "0350c5f0-a0d2-47b6-a20f-37fd83a393bb")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C16")
 					(unit 1)
@@ -12990,7 +12990,7 @@
 			(uuid "f273dab9-ec29-4001-b3e2-18c10ac694a3")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR016")
 					(unit 1)
@@ -13190,7 +13190,7 @@
 			(uuid "c50293e1-1fac-47ea-b578-547555f54a28")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C3")
 					(unit 1)
@@ -13268,7 +13268,7 @@
 			(uuid "8169fe6d-3c45-4f9f-a2cf-72f9baac0af8")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR06")
 					(unit 1)
@@ -13346,7 +13346,7 @@
 			(uuid "cdbef7d1-5d49-4eda-b705-2acd7e715062")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR028")
 					(unit 1)
@@ -13596,7 +13596,7 @@
 			(uuid "3213937b-50ce-4128-9212-2ed2f810075c")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "U4")
 					(unit 1)
@@ -13675,7 +13675,7 @@
 			(uuid "43279dfa-cfce-4afa-92bf-a5c40451d817")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J8")
 					(unit 1)
@@ -13879,7 +13879,7 @@
 			(uuid "b56a7cfb-d51d-4ab5-8c5a-b516b2d962f0")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C9")
 					(unit 1)
@@ -14083,7 +14083,7 @@
 			(uuid "2077aeee-3c27-469b-8dce-82914265b803")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C8")
 					(unit 1)
@@ -14162,7 +14162,7 @@
 			(uuid "03b3fe81-c121-4007-8ee9-b87b96f463ad")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR09")
 					(unit 1)
@@ -14241,7 +14241,7 @@
 			(uuid "684844c3-0689-48e4-9887-afc8e80cd79f")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR046")
 					(unit 1)
@@ -14426,7 +14426,7 @@
 			(uuid "452e2d7b-9730-4bdf-8ca7-877c0601018c")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "U3")
 					(unit 1)
@@ -14505,7 +14505,7 @@
 			(uuid "b192ab9e-b3e4-4a72-b990-898f3fec0dfe")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR041")
 					(unit 1)
@@ -14674,7 +14674,7 @@
 			(uuid "1138ba88-45fa-483f-99d7-c599f1b33379")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D9")
 					(unit 1)
@@ -14753,7 +14753,7 @@
 			(uuid "272a4b8c-5d89-4ba5-8c49-e46bf3fea7ec")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR011")
 					(unit 1)
@@ -14831,7 +14831,7 @@
 			(uuid "910860d6-35be-485e-89c3-5534538126f8")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR029")
 					(unit 1)
@@ -15009,7 +15009,7 @@
 			(uuid "f83afe22-5e5e-49bb-9429-7f9a9f5b6ef6")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R19")
 					(unit 1)
@@ -15087,7 +15087,7 @@
 			(uuid "198b3e52-80b4-4c75-aa80-d8a5eb82a947")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR027")
 					(unit 1)
@@ -15165,7 +15165,7 @@
 			(uuid "e8168b2e-1562-40d7-b677-5b52d85e0d98")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR025")
 					(unit 1)
@@ -15415,7 +15415,7 @@
 			(uuid "9120388a-2009-4b46-88ee-3efc5eaa3567")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "U2")
 					(unit 1)
@@ -15584,7 +15584,7 @@
 			(uuid "1c9fbf77-33c9-449c-9650-2716ab5e6800")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C23")
 					(unit 1)
@@ -15762,7 +15762,7 @@
 			(uuid "59b80f4f-18c6-4beb-9cbd-c55063039c6d")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R20")
 					(unit 1)
@@ -15931,7 +15931,7 @@
 			(uuid "6f6668a0-4f81-44a5-9896-074f4a7bf94f")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C21")
 					(unit 1)
@@ -16009,7 +16009,7 @@
 			(uuid "d205ae9c-6662-4e14-bc59-ee67091a32ac")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR023")
 					(unit 1)
@@ -16086,7 +16086,7 @@
 			(uuid "ed2f3b64-7635-49c9-a44d-cfd6dfe215fc")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR021")
 					(unit 1)
@@ -16164,7 +16164,7 @@
 			(uuid "a887edb5-5a9d-428a-aedb-c0b0b2d83403")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR018")
 					(unit 1)
@@ -16243,7 +16243,7 @@
 			(uuid "4a265393-3332-48ac-81e3-e914d6acc483")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR014")
 					(unit 1)
@@ -16321,7 +16321,7 @@
 			(uuid "3fbce1ff-5180-4403-b16f-f5ffead85c7e")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR013")
 					(unit 1)
@@ -16399,7 +16399,7 @@
 			(uuid "0640e6f6-afc8-4ece-894a-5f6b13876043")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR05")
 					(unit 1)
@@ -16577,7 +16577,7 @@
 			(uuid "7ec89c16-9af0-4006-bf95-4000202d1278")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R14")
 					(unit 1)
@@ -16814,7 +16814,7 @@
 			(uuid "c2fce15a-fc6b-4b4b-a6ff-73690c8a27e9")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "USB1")
 					(unit 1)
@@ -17018,7 +17018,7 @@
 			(uuid "8e50d301-5c77-4462-9c0b-973807b037a2")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C11")
 					(unit 1)
@@ -17094,7 +17094,7 @@
 			)
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "H1")
 					(unit 1)
@@ -17172,7 +17172,7 @@
 			(uuid "045af098-f860-4539-b537-a4ba8dcce75e")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR010")
 					(unit 1)
@@ -17372,7 +17372,7 @@
 			(uuid "2f82e45e-35bc-4d3a-ac93-5187bd9b8a1f")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C4")
 					(unit 1)
@@ -17551,7 +17551,7 @@
 			(uuid "fa0638d4-bcce-47e5-9eae-34bf34453b40")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R7")
 					(unit 1)
@@ -17731,7 +17731,7 @@
 			(uuid "31fd3356-80c3-462e-a0bb-b3addaa35f76")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R11")
 					(unit 1)
@@ -17909,7 +17909,7 @@
 			(uuid "9a8e5d1e-f3a3-4900-a62f-4818a22ed990")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R16")
 					(unit 1)
@@ -17987,7 +17987,7 @@
 			(uuid "7a5e9b32-1dfd-4f34-8aaf-8cca9debb635")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR08")
 					(unit 1)
@@ -18065,7 +18065,7 @@
 			(uuid "73b1e64d-f95e-4c8c-8b36-0fadd2cce235")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR038")
 					(unit 1)
@@ -18243,7 +18243,7 @@
 			(uuid "a77fdbc6-f456-43b0-9451-641c6d827823")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D2")
 					(unit 1)
@@ -18415,7 +18415,7 @@
 			(uuid "a6dc2678-000d-4f74-9a40-01c236a9fb0d")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J5")
 					(unit 1)
@@ -18582,7 +18582,7 @@
 			(uuid "89a91b3a-b00c-4100-b427-6eaaab6b45c5")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D13")
 					(unit 1)
@@ -18787,7 +18787,7 @@
 			(uuid "0d2b4399-655c-4c40-b060-52153cb4a234")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "U6")
 					(unit 1)
@@ -18968,7 +18968,7 @@
 			(uuid "4e54218f-afb9-4d4c-ab33-ad0c0b887a75")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R3")
 					(unit 1)
@@ -19172,7 +19172,7 @@
 			(uuid "9fa89578-5ea9-4c56-ae6e-704b4b447a77")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C7")
 					(unit 1)
@@ -19251,7 +19251,7 @@
 			(uuid "1c2e1e8e-8a6b-4120-b80b-28033805f85a")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR042")
 					(unit 1)
@@ -19329,7 +19329,7 @@
 			(uuid "b463c79a-4445-4b55-80fa-e2ce3c53a1c9")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR045")
 					(unit 1)
@@ -19407,7 +19407,7 @@
 			(uuid "ffbf27c2-9f4d-44c2-ad95-cf6d64857806")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR01")
 					(unit 1)
@@ -19484,7 +19484,7 @@
 			(uuid "e226274a-68b1-44c0-b75b-b4cdc1908db4")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR032")
 					(unit 1)
@@ -19663,7 +19663,7 @@
 			(uuid "246a1e6a-7776-4bf9-82fc-aff59e806812")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R10")
 					(unit 1)
@@ -19833,7 +19833,7 @@
 			(uuid "a354574b-9c2f-4da5-a13b-40612366b722")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D6")
 					(unit 1)
@@ -20002,7 +20002,7 @@
 			(uuid "ce75d2fe-2b3a-42c3-8637-30789d8aa917")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D12")
 					(unit 1)
@@ -20079,7 +20079,7 @@
 			(uuid "1270cf2b-0169-4d39-a7df-b02b5f7a9658")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR04")
 					(unit 1)
@@ -20158,7 +20158,7 @@
 			(uuid "d1d8484c-cf2a-4a63-97e8-9265200f2d70")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR035")
 					(unit 1)
@@ -20358,7 +20358,7 @@
 			(uuid "dcaefe53-e638-40d5-acb0-915749d3399c")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C5")
 					(unit 1)
@@ -20562,7 +20562,7 @@
 			(uuid "5bc76eab-9cd5-449f-9a1e-c3133f79fc29")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C25")
 					(unit 1)
@@ -20638,7 +20638,7 @@
 			)
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "H3")
 					(unit 1)
@@ -20715,7 +20715,7 @@
 			(uuid "6a6acb34-f9a6-47c3-9acd-c36784f17ca5")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR039")
 					(unit 1)
@@ -20885,7 +20885,7 @@
 			(uuid "d9b08285-2e33-4264-9994-b0f69e24ac0f")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D7")
 					(unit 1)
@@ -20963,7 +20963,7 @@
 			(uuid "d099bbab-5582-403c-9d8e-a69a8faf280a")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR017")
 					(unit 1)
@@ -21041,7 +21041,7 @@
 			(uuid "7417d4db-44c0-4aac-8bb9-973b3be4a0ad")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR043")
 					(unit 1)
@@ -21211,7 +21211,7 @@
 			(uuid "ca30bfbd-b0b3-4946-8c0c-74049a6f92a8")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D5")
 					(unit 1)
@@ -21289,7 +21289,7 @@
 			(uuid "6e6a7198-3555-4b06-99c1-cde5930d437b")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR026")
 					(unit 1)
@@ -21459,7 +21459,7 @@
 			(uuid "e6fdba37-de0b-4497-a5f4-cfb344f2a57f")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D8")
 					(unit 1)
@@ -21638,7 +21638,7 @@
 			(uuid "f1811054-318f-4327-bb31-0eb8779ebd99")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R8")
 					(unit 1)
@@ -21716,7 +21716,7 @@
 			(uuid "abf5f776-a70c-46a6-8a9d-0cd40afb546c")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR034")
 					(unit 1)
@@ -21894,7 +21894,7 @@
 			(uuid "6665b8db-cb7b-48c8-9d04-8f6b0fe156cc")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R18")
 					(unit 1)
@@ -22130,7 +22130,7 @@
 			(uuid "b04eef7d-62ea-4558-9c7b-6017d3e54483")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "Card1")
 					(unit 1)
@@ -22308,7 +22308,7 @@
 			(uuid "7695b88b-b57f-46dc-bc42-ead8e784b29c")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R15")
 					(unit 1)
@@ -22387,7 +22387,7 @@
 			(uuid "23cd5ada-f580-4f66-96e3-842eeeab4136")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR033")
 					(unit 1)
@@ -22464,7 +22464,7 @@
 			(uuid "691c3959-927d-436e-bb23-49f5caeeb822")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR022")
 					(unit 1)
@@ -22542,7 +22542,7 @@
 			(uuid "e65c6dce-3751-41cf-8306-f806b213931e")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR020")
 					(unit 1)
@@ -22709,7 +22709,7 @@
 			(uuid "e4163e2f-9f3e-4e26-b4e7-0e6fee493553")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C19")
 					(unit 1)
@@ -22888,7 +22888,7 @@
 			(uuid "935c8ca5-69dc-4373-ac50-1fcb92337c3d")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R6")
 					(unit 1)
@@ -23057,7 +23057,7 @@
 			(uuid "93b9c173-7a85-46d0-89b4-9e83471122a2")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J4")
 					(unit 1)
@@ -23134,7 +23134,7 @@
 			(uuid "1f335e64-2f21-4b6b-a6db-01efac12bd82")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR015")
 					(unit 1)
@@ -23313,7 +23313,7 @@
 			(uuid "94f61faf-603d-4cc6-be53-e736d6a844a7")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R9")
 					(unit 1)
@@ -23517,7 +23517,7 @@
 			(uuid "8112e35e-c43a-44c6-b133-d7415c88904c")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C15")
 					(unit 1)
@@ -23722,7 +23722,7 @@
 			(uuid "34e3c80e-5dcf-45cb-9d2e-33fdb1dbce1e")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "U5")
 					(unit 1)
@@ -23800,7 +23800,7 @@
 			(uuid "f7ab10b8-0fa7-456d-bda5-aa2225f6be3f")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR019")
 					(unit 1)
@@ -23967,7 +23967,7 @@
 			(uuid "082fffcf-9f37-470a-a3a8-a5757ea23b83")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D14")
 					(unit 1)
@@ -24046,7 +24046,7 @@
 			(uuid "b856ff03-48c0-482e-8747-a0bc77db2a3d")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR031")
 					(unit 1)
@@ -24215,7 +24215,7 @@
 			(uuid "12bbc497-65ae-4055-a8f6-3016ec14e345")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J2")
 					(unit 1)
@@ -24293,7 +24293,7 @@
 			(uuid "98557700-6d12-4428-b321-22739fd4017b")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR030")
 					(unit 1)
@@ -24370,7 +24370,7 @@
 			(uuid "a0954398-2dd5-4fa5-ac38-b7b7f20d12af")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR040")
 					(unit 1)
@@ -24590,7 +24590,7 @@
 			(uuid "387b9246-13ca-4dee-9380-c87d92a1bd49")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "U1")
 					(unit 1)
@@ -24768,7 +24768,7 @@
 			(uuid "eccbce3d-1730-481f-a5c5-b7971d483c13")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R21")
 					(unit 1)
@@ -24847,7 +24847,7 @@
 			(uuid "b8c7c729-5bf5-404b-a920-342b9afc6be6")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR047")
 					(unit 1)
@@ -24924,7 +24924,7 @@
 			(uuid "d28dbaa3-b725-4221-988b-f99f211aa08c")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR03")
 					(unit 1)
@@ -25105,7 +25105,7 @@
 			(uuid "5f6bd111-89e1-4f2b-b780-84c709bf266b")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R13")
 					(unit 1)
@@ -25283,7 +25283,7 @@
 			(uuid "1278062b-81c8-47d5-9573-f1431fd261c5")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R5")
 					(unit 1)
@@ -25483,7 +25483,7 @@
 			(uuid "805642af-1695-41c1-8263-3dd638ccc2cb")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C1")
 					(unit 1)
@@ -25661,7 +25661,7 @@
 			(uuid "b245b240-7a0a-43ec-a2e4-4da3b29b7453")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R17")
 					(unit 1)
@@ -25865,7 +25865,7 @@
 			(uuid "55a4e877-667e-4407-a3db-7e1c665594e0")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C14")
 					(unit 1)
@@ -26087,7 +26087,7 @@
 			(uuid "a92c5a78-6224-492b-93f0-d1268d8e004f")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D3")
 					(unit 1)
@@ -26267,7 +26267,7 @@
 			(uuid "374c7904-68a5-4ebf-b9e9-a09b90691adc")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R2")
 					(unit 1)
@@ -26436,7 +26436,7 @@
 			(uuid "352c0fef-3db3-43e4-80aa-f24e9578b45b")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J3")
 					(unit 1)
@@ -26513,7 +26513,7 @@
 			(uuid "35d0a56f-3460-4ba7-8408-7490dbcc0b52")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR07")
 					(unit 1)
@@ -26694,7 +26694,7 @@
 			(uuid "5d941cb4-d61a-4110-b225-a4e8773815c7")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R1")
 					(unit 1)
@@ -26772,7 +26772,7 @@
 			(uuid "257288d7-b47c-408e-8cad-4de9eb42c1e8")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR012")
 					(unit 1)
@@ -26940,7 +26940,7 @@
 			(uuid "c27d63bd-5b19-46f3-9f7c-c6a052daad4b")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C18")
 					(unit 1)
@@ -27110,7 +27110,7 @@
 			(uuid "46d19abd-846c-4a65-85fe-13c3fa0caf30")
 		)
 		(instances
-			(project "Rotary_phone_SMD2"
+			(project "Analog Redial v2"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C17")
 					(unit 1)

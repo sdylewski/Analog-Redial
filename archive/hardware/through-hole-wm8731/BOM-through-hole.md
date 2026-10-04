@@ -1,8 +1,8 @@
-# BOM — Through-hole board (`rotary_phone_gateway`)
+# BOM — Through-hole board (`Analog Redial v1`)
 
 **Hand-solder / through-hole** PCB: ESP32-C6 + **WM8731** + **AG1170-S5** or **AG1171** ×2 (same SIL footprint). Axial / radial passives unless noted.
 
-**KiCad:** [`hardware/kicad/Old/rotary_phone_gateway/`](../../../hardware/kicad/Old/rotary_phone_gateway/) · **Codec:** [`WM8731.md`](WM8731.md) · **GPIO:** [`../../../firmware/components/board/include/board_pins.h`](../../../firmware/components/board/include/board_pins.h)
+**KiCad:** [`hardware/kicad/Old/Analog Redial v1/`](../../../hardware/kicad/Old/Analog%20Redial%20v1/) · **Codec:** [`WM8731.md`](WM8731.md) · **GPIO:** [`../../../firmware/components/board/include/board_pins.h`](../../../firmware/components/board/include/board_pins.h)
 
 **DigiKey pricing / part numbers:** `2026-07-02T230626.csv` — referenced here historically; this cart export was never actually committed to the repo, so the link below is dead. Prices in this doc are frozen as of that export where listed.
 
@@ -68,7 +68,7 @@ Put link and price in the same **DigiKey** / **AliExpress** cell (example: `[par
 
 | | Qty | Component | DigiKey | AliExpress | Notes |
 |---|-----|-----------|---------|------------|-------|
-| | 1 | PCB `rotary_phone_gateway` | | | Fab from [`gerbers/`](../../../hardware/kicad/Old/rotary_phone_gateway/gerbers/); ~$3–5/board @ qty 5 |
+| | 1 | PCB `Analog Redial v1` | | | Fab from [`gerbers/`](../../../hardware/kicad/Old/Analog%20Redial%20v1/gerbers/); ~$3–5/board @ qty 5 |
 
 ---
 

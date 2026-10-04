@@ -506,7 +506,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "Rotary_phone_SMD.kicad_pro",
+    "filename": "Analog Redial v1.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -686,36 +686,6 @@
           "label": "Description",
           "name": "Description",
           "show": false
-        },
-        {
-          "group_by": false,
-          "label": "IMax",
-          "name": "IMax",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "Tolerance",
-          "name": "Tolerance",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "VMax",
-          "name": "VMax",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "Voltage",
-          "name": "Voltage",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "Iq",
-          "name": "Iq",
-          "show": false
         }
       ],
       "filter_string": "",
@@ -776,18 +746,18 @@
     "subpart_id_separator": 0,
     "top_level_sheets": [
       {
-        "filename": "Rotary_phone_SMD.kicad_sch",
-        "name": "Rotary_phone_SMD",
+        "filename": "Analog Redial v1.kicad_sch",
+        "name": "Analog Redial v1",
         "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
       }
     ],
-    "used_designators": "U6,R11",
+    "used_designators": "",
     "variants": []
   },
   "sheets": [
     [
       "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "Rotary_phone_SMD"
+      "Analog Redial v1"
     ]
   ],
   "text_variables": {},

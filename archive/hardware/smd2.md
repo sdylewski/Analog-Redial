@@ -44,7 +44,7 @@ production layout; the KiCad project is a work in progress.
 
 | Feature | THT reference board | SMD board (this doc) |
 |---------|---------------------|----------------------|
-| KiCad project | `hardware/kicad/rotary_phone_gateway/` | `hardware/kicad/Analog Redial v2/` |
+| KiCad project | `hardware/kicad/Old/Analog Redial v1/` | `hardware/kicad/Analog Redial v2/` |
 | MCU | ESP32-C6-DevKitM-1 (headers) | **ESP32-C6-WROOM-1** module (soldered) |
 | SLIC | 2× AG1170 | 1× or 2× **AG1171** (SIL, hand-solder) |
 | Passives | Through-hole | **0402 SMD** (JLC assembly) — see [KiCad symbols & footprints](#kicad-symbols--footprints-passives--support) |

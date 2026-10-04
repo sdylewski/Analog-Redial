@@ -124,7 +124,7 @@
 			(outputdirectory "gerbers/")
 		)
 	)
-	(footprint "Capacitor_SMD:C_0402_1005Metric"
+	(footprint "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "0dd779b4-85ca-4d37-9290-35acd7f4a4cd")
 		(at 110.5 80.75 90)
@@ -189,7 +189,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/fefae242-a384-4ae3-8aaa-70c24d36dbe3")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -284,7 +284,7 @@
 			)
 		)
 	)
-	(footprint "Diode_SMD:D_SOD-123"
+	(footprint "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "111f30c8-ca53-49d5-9bd0-8ad77b4762e5")
 		(at 120 72.75 90)
@@ -301,7 +301,7 @@
 				)
 			)
 		)
-		(property "Value" "1N4148W"
+		(property "Value" "1N4004"
 			(at 5.08 2.47 90)
 			(layer "F.SilkS")
 			(uuid "572ed6a6-8147-4648-b725-f49aa61383d5")
@@ -375,7 +375,7 @@
 		(property ki_fp_filters "D*DO?41*")
 		(path "/4ba45eed-8c8b-4d00-b8fd-a5fcb8377adf")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -586,7 +586,7 @@
 			)
 		)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "11456bce-ddf6-47b0-9faa-820685da0718")
 		(at 79.67 111.5 180)
@@ -664,7 +664,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/c3cfb1f8-63a8-4f84-a28f-8982a688f65a")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -790,7 +790,7 @@
 			)
 		)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "1536859e-d6bd-49ab-933c-38830f63af29")
 		(at 131.91 106 180)
@@ -868,7 +868,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/d1c4f81a-334e-4703-a7f2-ec3b71458adf")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1060,7 +1060,7 @@
 		(property ki_fp_filters "PinHeader_1x02_P2.54mm*")
 		(path "/f9952c95-61f3-45b8-ad21-0adceb8a8438")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1291,7 +1291,7 @@
 		(property ki_fp_filters "6P6C* RJ12* RJ18* RJ25*")
 		(path "/03ea3391-074b-47a6-9b1a-8634e3a0e7fd")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1649,7 +1649,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:C_0402_1005Metric"
+	(footprint "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "1dd17f14-5b16-428c-90d4-304c968eb16c")
 		(at 71 54.25 -90)
@@ -1714,7 +1714,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/2b56eef3-7953-40be-9ffb-87af44cb0a36")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1809,7 +1809,7 @@
 			)
 		)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "20a72e14-23ec-49e4-b567-b18f49ac251c")
 		(at 145.5 83 180)
@@ -1887,7 +1887,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/21ffe3fb-444c-48a2-85c1-51c4c3ebd156")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2013,7 +2013,7 @@
 			)
 		)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "2443f263-94fc-4627-97ee-55b2e3e875b9")
 		(at 135.42 95)
@@ -2091,7 +2091,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/7049810a-de2a-4e4c-ae95-b3bb10079102")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2217,7 +2217,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:C_0402_1005Metric"
+	(footprint "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "288b9a66-4371-4782-99aa-1a6f6e3f26d4")
 		(at 116 119 -90)
@@ -2282,7 +2282,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/ffc73c0b-621a-4b70-a0b8-7d6cbb47aa8c")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2377,7 +2377,7 @@
 			)
 		)
 	)
-	(footprint "Diode_SMD:D_SOD-123"
+	(footprint "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "2ba21331-bf4d-44ca-93e4-0ac3c96928d0")
 		(at 121.59 127.09 -90)
@@ -2394,7 +2394,7 @@
 				)
 			)
 		)
-		(property "Value" "1N4148W"
+		(property "Value" "1N4004"
 			(at 5.08 2.47 90)
 			(layer "F.SilkS")
 			(uuid "1da4f2cf-1e2f-45e1-9618-274e307d7bae")
@@ -2468,7 +2468,7 @@
 		(property ki_fp_filters "D*DO?41*")
 		(path "/4cf63cf9-db62-495e-a42e-e66cb92cb55c")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2679,7 +2679,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:CP_Elec_8x10.5"
+	(footprint "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "3425e743-a1fa-49b9-bcfe-7acc2695ecfb")
 		(at 68.75 140.5 180)
@@ -2745,7 +2745,7 @@
 		(property ki_fp_filters "CP_*")
 		(path "/d9ea486b-0941-4522-8c1b-10818ef676d1")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -4268,7 +4268,7 @@
 		)
 		(path "/bddb2105-b767-4220-bf86-f366122fc8f4")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -4710,7 +4710,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "MountingHole:MountingHole_3.2mm_M3_Pad_TopBottom"
 		(layer "F.Cu")
 		(uuid "3cc6610e-a07e-4684-b1f9-a2c089a6ad74")
 		(at 145 144)
@@ -4899,7 +4899,7 @@
 		(property ki_fp_filters "PinHeader_1x03_P2.54mm*")
 		(path "/bb9cd70f-ee59-4639-95cb-3faee0b7d199")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -5141,7 +5141,7 @@
 		(property ki_fp_filters "SOT?89*")
 		(path "/b18beb3d-618e-4be2-a8da-c201f96d3ef2")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -5360,7 +5360,7 @@
 			)
 		)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "44c201d1-ff63-4aba-b890-270021ea87ea")
 		(at 129.41 109.5 180)
@@ -5438,7 +5438,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/236d6856-ad09-4cd4-b881-3ab5830b7e4d")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -5666,7 +5666,7 @@
 		(property ki_fp_filters "SOT?23*")
 		(path "/a36a2c7b-f792-492f-8466-6c4e9ae08f92")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -6041,7 +6041,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/e22afe27-de1c-4470-b649-35e8ca82058a")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -6164,7 +6164,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(footprint "Capacitor_SMD:CP_Elec_6.3x7.7"
+	(footprint "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "4fa08de1-e19f-4f02-bdc8-46ba2794190e")
 		(at 82.067621 54.75)
@@ -6229,7 +6229,7 @@
 		(property ki_fp_filters "CP_*")
 		(path "/1968976a-6f95-4bab-b369-99dceed72461")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -7696,7 +7696,7 @@
 			)
 		)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "50817a4d-cbbf-41fe-9e87-63942c9dc851")
 		(at 69 51)
@@ -7774,7 +7774,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/b0a293db-76bf-4d0c-9132-67fc2fb20472")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -7900,7 +7900,7 @@
 			)
 		)
 	)
-	(footprint "Diode_SMD:D_SOD-123"
+	(footprint "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "5be205ab-2a36-47d1-8e3a-22e567f2a0e5")
 		(at 131.09 115.75 -90)
@@ -7917,7 +7917,7 @@
 				)
 			)
 		)
-		(property "Value" "1N4148W"
+		(property "Value" "1N4004"
 			(at 5.08 2.47 90)
 			(layer "F.SilkS")
 			(uuid "555af51b-106a-4748-8072-7863af460cca")
@@ -7991,7 +7991,7 @@
 		(property ki_fp_filters "D*DO?41*")
 		(path "/9bbda18e-00e5-4ba8-baf0-b19ceffdf654")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -8259,7 +8259,7 @@
 		)
 		(path "/15068683-5e0e-40c3-94a5-04a8d7958c62")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -8701,7 +8701,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(footprint "Capacitor_SMD:C_0603_1608Metric"
+	(footprint "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm"
 		(layer "F.Cu")
 		(uuid "662dea28-3458-43ab-b617-2f2c22c37a61")
 		(at 130.5 100.75 90)
@@ -8766,7 +8766,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/f91091ad-5b41-4410-bf01-b46ffdc85966")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -10063,7 +10063,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:C_0402_1005Metric"
+	(footprint "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "66b4ad4f-37dc-42cf-a470-3a82f9c043a7")
 		(at 112.5 115.75 -90)
@@ -10128,7 +10128,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/2c1948e5-31c9-4961-981f-9f57ee431fba")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -10223,7 +10223,7 @@
 			)
 		)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "6c937d32-b619-48aa-ba27-76871cc7198f")
 		(at 68.92 145.5)
@@ -10301,7 +10301,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/43dd4d91-f29b-42c7-98f6-6cfa7cf58b19")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -10416,7 +10416,7 @@
 			)
 		)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "MountingHole:MountingHole_3.2mm_M3_Pad_TopBottom"
 		(layer "F.Cu")
 		(uuid "718d3f26-838f-497b-a3f1-edd5c0656a97")
 		(at 55 144)
@@ -10539,7 +10539,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(footprint "Diode_SMD:D_SOD-123"
+	(footprint "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "86c5b498-1620-447b-9361-fff550159025")
 		(at 125.25 63.33 90)
@@ -10556,7 +10556,7 @@
 				)
 			)
 		)
-		(property "Value" "1N4148W"
+		(property "Value" "1N4004"
 			(at 5.08 2.47 90)
 			(layer "F.SilkS")
 			(uuid "8e45642b-9855-43d0-a625-ecac82b2fd91")
@@ -10630,7 +10630,7 @@
 		(property ki_fp_filters "D*DO?41*")
 		(path "/d4035373-b5e9-4f80-99f3-703a1e53f135")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -10841,7 +10841,7 @@
 			)
 		)
 	)
-	(footprint "Diode_SMD:D_SOD-123"
+	(footprint "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "889e8606-bf6a-47bd-a7a2-9b002ee46ff2")
 		(at 111.625 52.545)
@@ -10858,7 +10858,7 @@
 				)
 			)
 		)
-		(property "Value" "P6KE82A"
+		(property "Value" "D_Zener P6KE82"
 			(at 5.08 2.47 0)
 			(layer "F.SilkS")
 			(uuid "02843fc9-e904-4aca-bc4f-70817c032c07")
@@ -10906,7 +10906,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/851ad751-ed03-479e-b91e-e4378e46804c")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11117,7 +11117,7 @@
 			)
 		)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "MountingHole:MountingHole_3.2mm_M3_Pad_TopBottom"
 		(layer "F.Cu")
 		(uuid "8b4e62c4-8b4e-4b4b-b43c-444beaedef72")
 		(at 55 54)
@@ -11240,7 +11240,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "MountingHole:MountingHole_3.2mm_M3_Pad_TopBottom"
 		(layer "F.Cu")
 		(uuid "8e98c8b0-0176-4632-bfdb-0d64ffb6608b")
 		(at 145 53.75)
@@ -11363,7 +11363,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "922633d2-d88e-4651-988f-27148291c024")
 		(at 61.75 110.5 -90)
@@ -11441,7 +11441,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/c9ea3b08-2f24-4e6b-b851-5b3287a570ef")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11556,7 +11556,7 @@
 			)
 		)
 	)
-	(footprint "Diode_SMD:D_SOD-123"
+	(footprint "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "9313469d-efdc-4395-b901-cd4626968cba")
 		(at 129.75 80.25 90)
@@ -11573,7 +11573,7 @@
 				)
 			)
 		)
-		(property "Value" "1N4148W"
+		(property "Value" "1N4004"
 			(at 5.08 2.47 90)
 			(layer "F.SilkS")
 			(uuid "df621c6d-8ebc-488a-bf61-531628f13a74")
@@ -11647,7 +11647,7 @@
 		(property ki_fp_filters "D*DO?41*")
 		(path "/c161a731-f5c3-4bf9-8eb0-d3dacb129683")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11858,7 +11858,7 @@
 			)
 		)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "938b16ce-2293-4557-8991-3abab24f10a3")
 		(at 76.67 77.5)
@@ -11936,7 +11936,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/f5b56530-4a66-4365-80a9-0e588cbb3fef")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -12062,7 +12062,7 @@
 			)
 		)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "93f6990d-9d2f-4b1e-9bdb-49ed1570dd0c")
 		(at 86.75 74.25 180)
@@ -12140,7 +12140,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/7fb1281f-3204-4bd7-9a45-defab231af4a")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -12266,7 +12266,7 @@
 			)
 		)
 	)
-	(footprint "Diode_SMD:D_SOD-123"
+	(footprint "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "a8b31ad9-e993-400f-b474-389b106db7b2")
 		(at 111.09 143.5)
@@ -12283,7 +12283,7 @@
 				)
 			)
 		)
-		(property "Value" "P6KE82A"
+		(property "Value" "D_Zener P6KE82"
 			(at 5.08 2.47 0)
 			(layer "F.SilkS")
 			(uuid "6faf7240-4973-4245-af35-d85799f853ab")
@@ -12331,7 +12331,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/d98b6627-2730-4192-8e34-9718dc01802e")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -12531,7 +12531,7 @@
 			)
 		)
 	)
-	(footprint "Diode_SMD:D_SOD-123"
+	(footprint "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "a91f2df1-a00b-43a9-aee9-b454779fbfd9")
 		(at 126.59 132.17 -90)
@@ -12548,7 +12548,7 @@
 				)
 			)
 		)
-		(property "Value" "1N4148W"
+		(property "Value" "1N4004"
 			(at 5.08 2.47 90)
 			(layer "F.SilkS")
 			(uuid "3c57b95b-f6c9-46da-bcb6-81147766b69e")
@@ -12622,7 +12622,7 @@
 		(property ki_fp_filters "D*DO?41*")
 		(path "/92548cba-9aa3-43c9-8261-5bf563ea1adb")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -12833,7 +12833,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:C_0402_1005Metric"
+	(footprint "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "a9fa7241-b496-4cb3-ab22-6d5fd9518917")
 		(at 110 89.75 90)
@@ -12937,7 +12937,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/83bb66b2-4fa2-45ea-a5e0-3d3bb799d7a0")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -13032,7 +13032,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:C_0402_1005Metric"
+	(footprint "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "acb18698-7357-4c64-ab7f-54df794a6907")
 		(at 115.5 78.5 -90)
@@ -13097,7 +13097,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/cd26d387-0f07-44d8-9ca9-dc561c88363c")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -13192,7 +13192,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:CP_Elec_6.3x7.7"
+	(footprint "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "b5fda1c0-67cb-4ee0-b6ee-5f2d92ad3ae0")
 		(at 78.067621 140.25)
@@ -13257,7 +13257,7 @@
 		(property ki_fp_filters "CP_*")
 		(path "/60f9e6f7-c205-47df-9e77-f5c1b4fbbc20")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -14724,7 +14724,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:C_0402_1005Metric"
+	(footprint "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "bcf29cd2-4291-4359-b261-2210874f5868")
 		(at 114.25 100.25 180)
@@ -14828,7 +14828,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/b6ba0ac9-97de-49a7-b990-a42d49692b29")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -15092,7 +15092,7 @@
 		(property ki_fp_filters "SSOP?28*")
 		(path "/ef5234eb-6b03-4e9b-a536-0b5f3cdc5c28")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -15611,7 +15611,7 @@
 			)
 		)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "bf2ad256-a11b-4069-9251-421f9f14f25c")
 		(at 72.5 78.5 180)
@@ -15689,7 +15689,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/2212692b-2673-4b11-adfa-97a8caeb7cd3")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -15815,7 +15815,7 @@
 			)
 		)
 	)
-	(footprint "Diode_SMD:D_SOD-123"
+	(footprint "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "c145b5b8-0087-43de-a349-b6c65095f75c")
 		(at 129.75 53.09 -90)
@@ -15832,7 +15832,7 @@
 				)
 			)
 		)
-		(property "Value" "1N4148W"
+		(property "Value" "1N4004"
 			(at 5.08 2.47 90)
 			(layer "F.SilkS")
 			(hide yes)
@@ -15907,7 +15907,7 @@
 		(property ki_fp_filters "D*DO?41*")
 		(path "/115dd669-6ccd-455c-b6af-5569239473fb")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -16107,7 +16107,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:C_0402_1005Metric"
+	(footprint "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "c6678254-be22-4037-ad9f-0fc53c80eab3")
 		(at 125.75 101.75 90)
@@ -16211,7 +16211,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/3a28904e-b808-486d-9b52-3878487aff92")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -16306,7 +16306,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:C_0402_1005Metric"
+	(footprint "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "ccf73078-f3e4-4b24-8226-3833043e519d")
 		(at 72.25 141.5 90)
@@ -16371,7 +16371,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/d19e80bd-0e0b-4bd0-899f-764173aad7fe")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -16523,7 +16523,7 @@
 		(property ki_fp_filters "6P6C* RJ12* RJ18* RJ25*")
 		(path "/26cdede6-29b8-4e18-b9ce-33b4b89a2105")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -16881,7 +16881,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:CP_Elec_8x10.5"
+	(footprint "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "d5f65290-4bda-452b-8ac4-da523b7e080e")
 		(at 66.18238 54.75 180)
@@ -16946,7 +16946,7 @@
 		(property ki_fp_filters "CP_*")
 		(path "/ebb3e136-eff7-4dfe-9d6b-341c28a27b8a")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -18413,7 +18413,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:C_0402_1005Metric"
+	(footprint "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "dc03354c-9dc2-4c15-b145-2b27c8e0d3c0")
 		(at 127.75 88.25 180)
@@ -18517,7 +18517,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/1bfdaec2-f419-49d3-8c56-0b9d8b3fca31")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -18612,7 +18612,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:CP_Elec_8x10.5"
+	(footprint "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "df9c3236-fc4e-4923-b223-9a60c318d413")
 		(at 141.17 91.5 180)
@@ -18716,7 +18716,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/f5efae14-794a-41b8-99b1-c91927b2f1a7")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -18811,7 +18811,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:C_0402_1005Metric"
+	(footprint "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "e1a70fbb-7637-47cd-8322-09a6b8cbe369")
 		(at 76 56.75 90)
@@ -18876,7 +18876,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/14f6d9b3-e876-4ba2-8396-9c692301e33c")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -19024,7 +19024,7 @@
 		)
 		(path "/5de439b4-de9d-4c47-ae4b-5793f072a063")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
@@ -19889,7 +19889,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(footprint "Resistor_SMD:R_0402_1005Metric"
+	(footprint "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "e3dba461-fc27-41db-9b6b-0ff781ef9183")
 		(at 69.67 115.75)
@@ -19967,7 +19967,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/54f7cc55-de30-4198-8d79-2b3d89899e12")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -20093,7 +20093,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:C_0603_1608Metric"
+	(footprint "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm"
 		(layer "F.Cu")
 		(uuid "eaf78753-a210-4b3f-a535-d36b4a2ff6f8")
 		(at 111 96.5 180)
@@ -20158,7 +20158,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/a0e8db57-ada3-42ac-b853-c3c13853998b")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21521,7 +21521,7 @@
 		(property ki_fp_filters "PinHeader_1x02_P2.54mm*")
 		(path "/d05358fd-1ddf-4bff-8101-656dbebef06f")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21695,7 +21695,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:CP_Elec_8x10.5"
+	(footprint "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "f01eb84c-4ac4-42c7-8893-bdf6064ab3c4")
 		(at 141.17 89 180)
@@ -21799,7 +21799,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/b02f1d67-8330-40fa-a1e3-0ee61ee1ebb7")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21894,7 +21894,7 @@
 			)
 		)
 	)
-	(footprint "Diode_SMD:D_SOD-123"
+	(footprint "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "f51d4afb-6bfd-46de-ab8d-f64ae03ba0ec")
 		(at 131.09 142.25 90)
@@ -21911,7 +21911,7 @@
 				)
 			)
 		)
-		(property "Value" "1N4148W"
+		(property "Value" "1N4004"
 			(at 5.08 2.47 90)
 			(layer "F.SilkS")
 			(uuid "334d1fe1-4a2f-49e7-9c57-7f6dfb76f52b")
@@ -21985,7 +21985,7 @@
 		(property ki_fp_filters "D*DO?41*")
 		(path "/6688fd7e-03df-4297-a5cd-339c973899ba")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -22298,7 +22298,7 @@
 		(property ki_fp_filters "SOT?23*")
 		(path "/a209e61a-c0b4-4aa3-9bba-1982bad11bff")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -22615,7 +22615,7 @@
 			)
 		)
 	)
-	(footprint "Capacitor_SMD:C_0402_1005Metric"
+	(footprint "Capacitor_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm"
 		(layer "F.Cu")
 		(uuid "f6b043ae-fbc2-48b5-ab98-f2ccf1f3c462")
 		(at 74.5 141.5 90)
@@ -22680,7 +22680,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/5dfc7f17-7909-4704-894c-57a80d1bea36")
 		(sheetname "/")
-		(sheetfile "Rotary_phone_SMD.kicad_sch")
+		(sheetfile "Analog Redial v1.kicad_sch")
 		(units
 			(unit
 				(name "A")

@@ -7495,7 +7495,7 @@
 			(uuid "e76b443c-b5ab-428e-a486-5524bbc2ffd4")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J2")
 					(unit 1)
@@ -7574,7 +7574,7 @@
 			(uuid "70987cbe-ce66-404e-928a-4ce123ff3534")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR06")
 					(unit 1)
@@ -7652,7 +7652,7 @@
 			(uuid "393d08e6-c4cb-4676-9e2e-5b84833f9f37")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR025")
 					(unit 1)
@@ -7731,7 +7731,7 @@
 			(uuid "8c0ca17a-fb37-4094-a322-6c91d49dfa1c")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR02")
 					(unit 1)
@@ -7835,7 +7835,7 @@
 			(uuid "94ad58ea-6906-4047-bfcf-d95d1c657fe1")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D2")
 					(unit 1)
@@ -7916,7 +7916,7 @@
 			(uuid "70edcda2-9e45-4a86-9ec8-cbec9fcf84d2")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C9")
 					(unit 1)
@@ -8032,7 +8032,7 @@
 			(uuid "f3712af9-cd60-42ad-a8a3-d040ac150b23")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "U5")
 					(unit 1)
@@ -8109,7 +8109,7 @@
 			(uuid "066cdafc-6a79-4c5c-9689-aba30d508974")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR026")
 					(unit 1)
@@ -8190,7 +8190,7 @@
 			(uuid "87997731-1a76-4de9-89b9-9499be39d875")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C7")
 					(unit 1)
@@ -8268,7 +8268,7 @@
 			(uuid "1de6ac15-7ba8-4112-a1d0-8796de6c744d")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR017")
 					(unit 1)
@@ -8382,7 +8382,7 @@
 			(uuid "e3f16a74-9828-47b8-8f90-371ccf8a18d9")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C15")
 					(unit 1)
@@ -8459,7 +8459,7 @@
 			(uuid "d65cb74c-e8a0-409d-be36-08b2910bbe54")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR07")
 					(unit 1)
@@ -8549,7 +8549,7 @@
 			(uuid "431560fa-fb2a-4f07-bc46-b0e5c8669797")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R11")
 					(unit 1)
@@ -8639,7 +8639,7 @@
 			(uuid "38d63143-21bf-4a29-bf4f-fbf3c3c8fb3d")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R9")
 					(unit 1)
@@ -8732,7 +8732,7 @@
 			(uuid "ec7d5293-c60b-4487-8cb8-a6a97bd99ee8")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R1")
 					(unit 1)
@@ -8826,7 +8826,7 @@
 			(uuid "3f2e800a-630b-4150-bc19-5e7f052c6bf9")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J1")
 					(unit 1)
@@ -8904,7 +8904,7 @@
 			(uuid "7a5aa028-5a73-4420-bfac-747062b4119c")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR015")
 					(unit 1)
@@ -8985,7 +8985,7 @@
 			(uuid "0fbdbeff-d768-479b-b897-f6c5567f1f66")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C11")
 					(unit 1)
@@ -9063,7 +9063,7 @@
 			(uuid "680c8738-3946-4270-a121-af3f60353c10")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR030")
 					(unit 1)
@@ -9143,7 +9143,7 @@
 			(uuid "0350c5f0-a0d2-47b6-a20f-37fd83a393bb")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C1")
 					(unit 1)
@@ -9222,7 +9222,7 @@
 			(uuid "ab30e095-d40f-4af5-9054-696e4d7781f9")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR09")
 					(unit 1)
@@ -9300,7 +9300,7 @@
 			(uuid "a92ae402-5baf-4181-b3b4-7498185f8c14")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR032")
 					(unit 1)
@@ -9378,7 +9378,7 @@
 			(uuid "8169fe6d-3c45-4f9f-a2cf-72f9baac0af8")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR03")
 					(unit 1)
@@ -9492,7 +9492,7 @@
 			(uuid "0f4d8189-c84a-48aa-a7d0-67edbcc9c0ad")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C17")
 					(unit 1)
@@ -9571,7 +9571,7 @@
 			(uuid "d281ad9b-6b8e-4212-826d-3c0caafdbcc6")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR010")
 					(unit 1)
@@ -9661,7 +9661,7 @@
 			(uuid "19b53897-9a42-4a02-bb75-2f691ea917f0")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R8")
 					(unit 1)
@@ -9740,7 +9740,7 @@
 			(uuid "b192ab9e-b3e4-4a72-b990-898f3fec0dfe")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR021")
 					(unit 1)
@@ -9844,7 +9844,7 @@
 			(uuid "7aada0cd-ba11-41c5-a5ad-73b6b139cb78")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D5")
 					(unit 1)
@@ -9948,7 +9948,7 @@
 			(uuid "6b5b97b4-70c7-4b0c-ab0b-be6ac8a365e1")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D6")
 					(unit 1)
@@ -10038,7 +10038,7 @@
 			(uuid "f83afe22-5e5e-49bb-9429-7f9a9f5b6ef6")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R6")
 					(unit 1)
@@ -10202,7 +10202,7 @@
 			(uuid "9120388a-2009-4b46-88ee-3efc5eaa3567")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "U1")
 					(unit 1)
@@ -10283,7 +10283,7 @@
 			(uuid "1c9fbf77-33c9-449c-9650-2716ab5e6800")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C10")
 					(unit 1)
@@ -10364,7 +10364,7 @@
 			(uuid "6f6668a0-4f81-44a5-9896-074f4a7bf94f")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C8")
 					(unit 1)
@@ -10441,7 +10441,7 @@
 			(uuid "00e24562-cd46-4dc7-890c-538c6927278a")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR024")
 					(unit 1)
@@ -10545,7 +10545,7 @@
 			(uuid "0ef01c17-8c97-4357-9b46-22c3c2c72343")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D3")
 					(unit 1)
@@ -10635,7 +10635,7 @@
 			(uuid "239694b9-90c4-4cce-97d7-4c23748258f6")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R12")
 					(unit 1)
@@ -10725,7 +10725,7 @@
 			(uuid "9a8e5d1e-f3a3-4900-a62f-4818a22ed990")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R3")
 					(unit 1)
@@ -10803,7 +10803,7 @@
 			(uuid "7a5e9b32-1dfd-4f34-8aaf-8cca9debb635")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR04")
 					(unit 1)
@@ -10881,7 +10881,7 @@
 			(uuid "73b1e64d-f95e-4c8c-8b36-0fadd2cce235")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR016")
 					(unit 1)
@@ -10995,7 +10995,7 @@
 			(uuid "3c418dc3-1c1b-404b-81c9-ff663c2b3fe7")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C16")
 					(unit 1)
@@ -11075,7 +11075,7 @@
 			(uuid "89a91b3a-b00c-4100-b427-6eaaab6b45c5")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D10")
 					(unit 1)
@@ -11179,7 +11179,7 @@
 			(uuid "8be892ce-13b7-4058-bcdd-fccdca4aa3a3")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D9")
 					(unit 1)
@@ -11258,7 +11258,7 @@
 			(uuid "1c2e1e8e-8a6b-4120-b80b-28033805f85a")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR022")
 					(unit 1)
@@ -11362,7 +11362,7 @@
 			(uuid "11614ff1-025b-4e03-8e87-3976af0d050a")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D4")
 					(unit 1)
@@ -11441,7 +11441,7 @@
 			(uuid "1b9731a8-ce40-41d2-a14f-801ef3fcfdc9")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C2")
 					(unit 1)
@@ -11549,7 +11549,7 @@
 			(uuid "c8e30752-2d49-4d02-a098-ed689e6e115a")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "Q2")
 					(unit 1)
@@ -11657,7 +11657,7 @@
 			(uuid "2e7f5cf9-12fd-4721-b062-d099d37b8454")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "Q1")
 					(unit 1)
@@ -11736,7 +11736,7 @@
 			(uuid "d1d8484c-cf2a-4a63-97e8-9265200f2d70")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR014")
 					(unit 1)
@@ -11815,7 +11815,7 @@
 			(uuid "6611f2c3-473f-46c3-9fb9-e5d83f46d04d")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR033")
 					(unit 1)
@@ -11929,7 +11929,7 @@
 			(uuid "949477ab-53a0-4713-b6a1-a63484c226bc")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C19")
 					(unit 1)
@@ -12006,7 +12006,7 @@
 			(uuid "6a6acb34-f9a6-47c3-9acd-c36784f17ca5")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR019")
 					(unit 1)
@@ -12096,7 +12096,7 @@
 			(uuid "8b20258d-3661-4543-a974-26ef2f8cff01")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R7")
 					(unit 1)
@@ -12179,7 +12179,7 @@
 			(uuid "00cf1dc7-5c17-4d34-af24-2a3a8db8bad9")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "U3")
 					(unit 1)
@@ -12257,7 +12257,7 @@
 			(uuid "d099bbab-5582-403c-9d8e-a69a8faf280a")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR028")
 					(unit 1)
@@ -12371,7 +12371,7 @@
 			(uuid "94d5aded-c441-4db4-9fa5-e6c43189c6f5")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C18")
 					(unit 1)
@@ -12450,7 +12450,7 @@
 			(uuid "5a7993e3-7be4-479c-b4a1-78ec17a7fe03")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR031")
 					(unit 1)
@@ -12528,7 +12528,7 @@
 			(uuid "7417d4db-44c0-4aac-8bb9-973b3be4a0ad")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR034")
 					(unit 1)
@@ -12613,7 +12613,7 @@
 			(uuid "13b24d0b-179a-455d-8b75-5737d6f03cac")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J7")
 					(unit 1)
@@ -12729,7 +12729,7 @@
 			(uuid "dc6f7d03-1ef0-4517-ae54-0a3685dbf2a2")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "U4")
 					(unit 1)
@@ -12806,7 +12806,7 @@
 			(uuid "51b8e7db-80b9-4ccb-8b03-d0f39b56cf41")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR011")
 					(unit 1)
@@ -12883,7 +12883,7 @@
 			(uuid "3e5730e6-ce2d-4977-a1fd-8a5c416db8f5")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR023")
 					(unit 1)
@@ -12961,7 +12961,7 @@
 			(uuid "bd30c9d5-6695-4ea9-99dc-4b76b5be5e38")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR018")
 					(unit 1)
@@ -13065,7 +13065,7 @@
 			(uuid "925a950d-4a0b-4983-939b-0567b20aeb58")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D1")
 					(unit 1)
@@ -13155,7 +13155,7 @@
 			(uuid "6665b8db-cb7b-48c8-9d04-8f6b0fe156cc")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R5")
 					(unit 1)
@@ -13234,7 +13234,7 @@
 			(uuid "23cd5ada-f580-4f66-96e3-842eeeab4136")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR013")
 					(unit 1)
@@ -13324,7 +13324,7 @@
 			(uuid "d188ff8c-b8cc-48c1-90de-aef6d45c7f5a")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R10")
 					(unit 1)
@@ -13402,7 +13402,7 @@
 			(uuid "e65c6dce-3751-41cf-8306-f806b213931e")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR029")
 					(unit 1)
@@ -13482,7 +13482,7 @@
 			(uuid "e4163e2f-9f3e-4e26-b4e7-0e6fee493553")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C5")
 					(unit 1)
@@ -13561,7 +13561,7 @@
 			(uuid "24ecb8b9-ccb5-4585-bb15-b825bdee20b7")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR08")
 					(unit 1)
@@ -13642,7 +13642,7 @@
 			(uuid "93b9c173-7a85-46d0-89b4-9e83471122a2")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J4")
 					(unit 1)
@@ -13723,7 +13723,7 @@
 			(uuid "0f1cba8e-4402-44bd-9ada-ded9ab12e08b")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C12")
 					(unit 1)
@@ -13816,7 +13816,7 @@
 			(uuid "168b6eb1-3e9f-4ade-9095-6e24cfc8179c")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R2")
 					(unit 1)
@@ -13920,7 +13920,7 @@
 			(uuid "a3da68b0-39ee-4b97-9777-e1fdf38817a4")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D7")
 					(unit 1)
@@ -14000,7 +14000,7 @@
 			(uuid "082fffcf-9f37-470a-a3a8-a5757ea23b83")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "D8")
 					(unit 1)
@@ -14078,7 +14078,7 @@
 			(uuid "71362321-6b6d-4345-a03f-2b80a81a083c")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR027")
 					(unit 1)
@@ -14159,7 +14159,7 @@
 			(uuid "04d97c51-eec6-4173-b33e-83b2757c9905")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C14")
 					(unit 1)
@@ -14236,7 +14236,7 @@
 			(uuid "a0954398-2dd5-4fa5-ac38-b7b7f20d12af")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR020")
 					(unit 1)
@@ -14316,7 +14316,7 @@
 			(uuid "3bc6e3c8-9d44-4111-90b3-b80674ef9011")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J3")
 					(unit 1)
@@ -14394,7 +14394,7 @@
 			(uuid "3036e96e-4191-45ed-8f41-44f8cdf3f366")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR05")
 					(unit 1)
@@ -14475,7 +14475,7 @@
 			(uuid "f83c715e-eb07-4a58-bce5-59891c15a0ec")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C13")
 					(unit 1)
@@ -14552,7 +14552,7 @@
 			(uuid "d28dbaa3-b725-4221-988b-f99f211aa08c")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR01")
 					(unit 1)
@@ -14808,7 +14808,7 @@
 			(uuid "7346906c-c1b3-451f-9638-dd0ffff7257d")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "U2")
 					(unit 1)
@@ -14898,7 +14898,7 @@
 			(uuid "b245b240-7a0a-43ec-a2e4-4da3b29b7453")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "R4")
 					(unit 1)
@@ -15012,7 +15012,7 @@
 			(uuid "9bc0d3c3-a67a-419b-a81e-aae009fcf91a")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C20")
 					(unit 1)
@@ -15091,7 +15091,7 @@
 			(uuid "23b60fd5-9fc5-44dd-8f83-b4e0a779e11d")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C6")
 					(unit 1)
@@ -15172,7 +15172,7 @@
 			(uuid "352c0fef-3db3-43e4-80aa-f24e9578b45b")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "J5")
 					(unit 1)
@@ -15249,7 +15249,7 @@
 			(uuid "64fe2598-ce63-4909-a4ca-fe4aba16661f")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "#PWR012")
 					(unit 1)
@@ -15329,7 +15329,7 @@
 			(uuid "c27d63bd-5b19-46f3-9f7c-c6a052daad4b")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C4")
 					(unit 1)
@@ -15411,7 +15411,7 @@
 			(uuid "46d19abd-846c-4a65-85fe-13c3fa0caf30")
 		)
 		(instances
-			(project "rotary_phone_gateway"
+			(project "Analog Redial v1"
 				(path "/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 					(reference "C3")
 					(unit 1)
