@@ -123,6 +123,8 @@ void board_hardware_str(char *out, size_t len);
  * on first boot / if unset. board_name_set() rejects empty names. */
 void      board_name_get(char *out, size_t len);
 esp_err_t board_name_set(const char *name);
+/* Forget the saved name, back to the "phone" default. */
+esp_err_t board_name_clear(void);
 
 /* True only if a name has actually been stored (user- or auto-assigned),
  * false when board_name_get() is still falling back to the default. Lets the

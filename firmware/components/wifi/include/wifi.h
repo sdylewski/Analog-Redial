@@ -26,7 +26,7 @@ esp_err_t wifi_init(void);
 /* Save new credentials to NVS and reconnect using them immediately. */
 esp_err_t wifi_set_credentials(const char *ssid, const char *password);
 
-/* Erase saved WiFi credentials from NVS (the GPIO9 factory reset). Does NOT
+/* Erase every saved WiFi network from NVS (the GPIO9 factory reset). Does NOT
  * disconnect or reboot -- the caller decides (app_main reboots so the device
  * comes back up with no creds -> provisioning). */
 esp_err_t wifi_clear_credentials(void);
@@ -79,8 +79,16 @@ bool wifi_ap_is_forced(void);
 /* Re-read the board name (board_hostname()/board_name_get()) and push it to
  * mDNS as the <name>.local hostname + instance name. Call after
  * board_name_set() so the .local address updates without a reboot. No-op-ish
- * if mDNS didn't start. */
+ * if mDNS didn't start. If the name is taken on the network it answers as
+ * <name>1 etc. for this boot only -- nothing is saved. */
 void wifi_apply_hostname(void);
+
+/* The name/hostname the board is actually using right now: the saved board
+ * name, or e.g. "phone1"/"phone1" while "phone" is taken on this network.
+ * For display -- anything that must be stable (VoIP, prompts) should use
+ * board_name_get() instead. */
+void wifi_live_name(char *out, size_t len);
+void wifi_live_hostname(char *out, size_t len);
 
 bool        wifi_is_connected(void);
 int8_t      wifi_rssi(void);                       /* dBm; 0 if not connected */

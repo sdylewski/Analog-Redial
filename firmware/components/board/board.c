@@ -220,6 +220,17 @@ bool board_name_is_set(void)
     return err == ESP_OK && n > 1; /* n counts the NUL, so >1 means non-empty */
 }
 
+esp_err_t board_name_clear(void)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    nvs_erase_key(h, BOARD_NAME_NVS_KEY); /* NOT_FOUND is fine */
+    err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
+
 esp_err_t board_name_set(const char *name)
 {
     if (!name || !name[0]) return ESP_ERR_INVALID_ARG;

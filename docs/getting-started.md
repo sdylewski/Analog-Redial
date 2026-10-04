@@ -198,10 +198,26 @@ board is reachable at **`phone.local`**. The confirmation page shows the
 address in large text, so you know where to go once it reboots.
 
 **More than one board?** Before claiming a name, the board checks whether
-anything on the network already answers to it. If so, it renames itself
-`phone1` (then `phone2`, and so on) — the board name in the web UI, its
-`.local` address and the name in your router's device list all match. The
-same check applies to a name you choose: `kitchen` becomes `kitchen1`.
+anything on the network already answers to it. If so, it uses `phone1` (then
+`phone2`, and so on) — the web UI, its `.local` address and your router's
+device list all show the same name. That numbered name lasts only until the
+next reboot, so a board moved to a network where it's alone goes back to
+`phone`. To keep a name, set one in Settings → General.
+
+### Preparing boards to give away
+
+To set up and check a stack of boards that each come up as `phone.local` for
+whoever receives them:
+
+1. Flash and set up each board on your own network, and run its checks
+   (`first_setup.py --tests`, or the Diagnostics page's bring-up check).
+2. Press **Settings → Hardware → Reset → Prepare to give away** (or add
+   `--giveaway` to the `first_setup.py` command). It forgets your Wi-Fi and
+   the board name, keeps everything else, and reboots into setup mode.
+3. Unplug it once its setup network appears.
+
+The recipient powers it up, joins the setup network, enters their Wi-Fi, and
+opens `phone.local`.
 
 **`.local` addresses aren't reliable on every network.** If it doesn't load
 within a minute, open your Wi-Fi router's admin page and look at its list of

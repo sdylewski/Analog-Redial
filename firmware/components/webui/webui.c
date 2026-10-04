@@ -331,8 +331,8 @@ static cJSON *build_status_json(void)
 
     /* Board identity up top so a script polling every board's /api/status can
      * tell them apart (name), group by hardware, or key on the serial. */
-    char name[32], hw[64], serial[16];
-    board_name_get(name, sizeof(name));
+    char name[40], hw[64], serial[16];
+    wifi_live_name(name, sizeof(name));
     board_hardware_str(hw, sizeof(hw));
     board_serial_str(serial, sizeof(serial));
     cJSON_AddStringToObject(root, "board_name", name);
@@ -664,8 +664,8 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
     /* Board name leads the <title> and the header so a browser tab / glance
      * tells several boards on one LAN apart (that's the whole point of the
      * name). "Analog Redial" drops to a subtitle. */
-    char name[32];
-    board_name_get(name, sizeof(name));
+    char name[40];
+    wifi_live_name(name, sizeof(name));
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<!doctype html><html><head><meta charset=\"utf-8\"><title>%s \xc2\xb7 %s</title>"
         "%s"
@@ -959,8 +959,8 @@ static int append_first_boot_banner(char *buf, size_t cap, int off)
     bool name_done = board_name_is_set();
     bool hw_done = board_hw_config_is_set();
 
-    char name[32];
-    board_name_get(name, sizeof(name));
+    char name[40];
+    wifi_live_name(name, sizeof(name));
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card wide firstboot\"><h2>%s</h2>"
@@ -1349,9 +1349,10 @@ static int append_mode_card_hint(char *buf, size_t cap, int off, const char *tit
 
 static int append_general_tab(char *buf, size_t cap, int off)
 {
-    char name[32], host[64];
-    board_name_get(name, sizeof(name));
-    board_hostname(host, sizeof(host));
+    char raw_name[40], name[40 * 6], host[80];
+    wifi_live_name(raw_name, sizeof(raw_name));
+    html_escape(raw_name, name, sizeof(name));
+    wifi_live_hostname(host, sizeof(host));
     /* This hint's translated text still carries a %s (for the hostname) --
      * render it into its own buffer first, since it can't be both "the
      * format string" and "one argument of the outer format string" in the
@@ -3207,13 +3208,13 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "</form>",
         i18n_str("reset.title", "Reset"),
         i18n_str("reset.wifi.confirm",
-                 "Clear the saved WiFi network and reboot into setup mode? "
+                 "Forget all saved WiFi networks and reboot into setup mode? "
                  "Every other setting stays as-is."),
         i18n_str("reset.wifi.button", "Re-provision WiFi"));
     off = append_hint(buf, cap, off,
         i18n_str("reset.wifi.hint_lead",
-                 "Clears the saved WiFi network only and reboots into its own open setup "
-                 "network."),
+                 "Forgets all saved WiFi networks (nothing else) and reboots into its own "
+                 "open setup network."),
         i18n_str("reset.wifi.hint_detail",
                  "Everything else (board name, dial codes, VoIP, recordings) is untouched. Use "
                  "this when moving the board to a different WiFi network. Forgot to click this "
@@ -3223,6 +3224,26 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                  "flashing mode) -- does the exact same thing, no web UI needed."));
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<p class=\"hint\">Setup network: <code>%s</code>.</p>"
+        "<form method=\"POST\" action=\"/prepare_giveaway\" class=\"settings-form\" "
+        "onsubmit=\"return confirm('%s')\">"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s\xe2\x80\xa6</button></div>"
+        "</form>",
+        setup_ap_esc,
+        i18n_str("reset.giveaway.confirm",
+                 "Forget all saved WiFi networks and the board name, then reboot into setup "
+                 "mode? Hardware settings, prompts, audio and self-test results are kept."),
+        i18n_str("reset.giveaway.button", "Prepare to give away"));
+    off = append_hint(buf, cap, off,
+        i18n_str("reset.giveaway.hint_lead",
+                 "Use after you've checked a board: the next person to power it up gets the "
+                 "setup network and then <code>phone.local</code>."),
+        i18n_str("reset.giveaway.hint_detail",
+                 "Clears every saved WiFi network and the board name. Keeps the hardware "
+                 "settings (lines, microSD, Bluetooth), dial codes, prompts and audio, the "
+                 "setup password, and the self-test history -- everything you set up and "
+                 "verified. After the reboot the board broadcasts its setup network; unplug it "
+                 "and it's ready to hand over."));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<form method=\"POST\" action=\"/factory_reset\" class=\"settings-form\" "
         "onsubmit=\"return confirm('%s')\">"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"danger\">"
@@ -3230,7 +3251,6 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "</form>"
         "<p class=\"hint\">%s</p>"
         "</div>",
-        setup_ap_esc,
         i18n_str("reset.factory.confirm",
                  "Reset ALL settings to factory defaults and reboot? This clears WiFi, board "
                  "name, dial codes, VoIP, and every other saved setting. Uploaded audio and "
@@ -3238,8 +3258,9 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         i18n_str("reset.factory.button", "Reset to factory settings"),
         i18n_str("reset.factory.hint",
                  "Erases every saved setting (WiFi, board name, dial codes, VoIP, idle-power, "
-                 "log level) and reboots to a genuinely out-of-box state -- for handing the "
-                 "board to someone else. Uploaded audio and recordings are files, not settings, "
+                 "log level, hardware settings) and reboots to a genuinely out-of-box state. To "
+                 "hand a checked board to someone, use Prepare to give away above instead -- it "
+                 "keeps what you set up. Uploaded audio and recordings are files, not settings, "
                  "and are <strong>not</strong> deleted -- clear those individually from Settings "
                  "\xe2\x86\x92 Storage first if you want a truly clean board."));
 
@@ -4959,6 +4980,28 @@ static esp_err_t wifi_reprovision_handler(httpd_req_t *req)
         "<p class=\"hint\">Every other setting is untouched. In a few seconds, look for "
         "the <code>%s</code> setup network to reconnect it.</p>", ap_esc);
     return send_reboot_page(req, "WiFi cleared \xe2\x80\x94 rebooting\xe2\x80\xa6", body);
+}
+
+/* POST /prepare_giveaway -- forgets every saved WiFi network and the board
+ * name, then reboots into the setup AP. Everything else stays: it's for a
+ * board that has been set up and checked, about to be handed to someone
+ * whose house will make it plain phone.local. */
+static esp_err_t prepare_giveaway_handler(httpd_req_t *req)
+{
+    ESP_LOGW(TAG, "web UI: prepare to give away -- clearing WiFi + board name");
+    esp_err_t err = wifi_clear_credentials();
+    if (err != ESP_OK) ESP_LOGW(TAG, "wifi_clear_credentials failed: %s", esp_err_to_name(err));
+    err = board_name_clear();
+    if (err != ESP_OK) ESP_LOGW(TAG, "board_name_clear failed: %s", esp_err_to_name(err));
+    char ap[33], ap_esc[100], body[400];
+    wifi_setup_ap_name(ap, sizeof(ap));
+    html_escape(ap, ap_esc, sizeof(ap_esc));
+    snprintf(body, sizeof(body),
+        "<p class=\"hint\">WiFi networks and the board name are cleared. In a few seconds "
+        "it broadcasts the <code>%s</code> setup network -- once you see that, unplug it; "
+        "it's ready to hand over. The new owner joins that network, enters their WiFi, and "
+        "then opens <code>phone.local</code>.</p>", ap_esc);
+    return send_reboot_page(req, "Ready to give away \xe2\x80\x94 rebooting\xe2\x80\xa6", body);
 }
 
 /* POST /factory_reset -- erases the ENTIRE NVS partition (WiFi, board
@@ -7813,6 +7856,7 @@ esp_err_t webui_start(void)
         { .uri = "/ota_revert",      .method = HTTP_POST, .handler = ota_revert_handler },
         { .uri = "/wifi_reprovision", .method = HTTP_POST, .handler = wifi_reprovision_handler },
         { .uri = "/factory_reset",   .method = HTTP_POST, .handler = factory_reset_handler },
+        { .uri = "/prepare_giveaway", .method = HTTP_POST, .handler = prepare_giveaway_handler },
         { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
         { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },
         { .uri = "/board_hw_set",    .method = HTTP_POST, .handler = board_hw_set_handler },

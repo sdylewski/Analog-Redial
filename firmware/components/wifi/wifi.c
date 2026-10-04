@@ -29,6 +29,8 @@ static esp_ip4_addr_t  s_ip;
 static bool           s_mdns_ready;  /* mdns_init() succeeded */
 static bool           s_mdns_named;  /* hostname resolved+set since boot */
 static bool           s_provisioning; /* running the setup SoftAP (no creds) */
+static char           s_live_host[80]; /* mDNS hostname actually claimed, "" before */
+static char           s_live_name[40]; /* name + clash suffix, "" when no clash */
 static esp_netif_t    *s_sta_netif;   /* for esp_netif_set_hostname() -- DHCP hostname */
 
 /* ---- known networks ----
@@ -637,24 +639,35 @@ void wifi_apply_hostname(void)
     }
 
     mdns_hostname_set(host);
+    strlcpy(s_live_host, host, sizeof(s_live_host));
     if (bumped) {
-        /* Keep one name everywhere: the board name, the .local address and
-         * the router's client list all become e.g. "phone1". Persisting it
-         * also keeps the address stable across reboots while the other
-         * device stays up. */
-        /* name + digit, not host: keeps a name like "Kitchen" readable while
-         * still sanitizing to exactly this hostname ("kitchen1"). */
-        char renamed[40];
-        snprintf(renamed, sizeof(renamed), "%.30s%d", name, suffix);
-        board_name_set(renamed);
+        /* One name everywhere for as long as the clash lasts: web UI, .local
+         * address and router list all say e.g. "phone1". Deliberately NOT
+         * saved -- a board prepared next to another one must still come up
+         * as plain "phone" in a house where it's alone. name + digit (not
+         * host) keeps "Kitchen" readable as "Kitchen1". */
+        snprintf(s_live_name, sizeof(s_live_name), "%.30s%d", name, suffix);
         esp_netif_set_hostname(s_sta_netif, host);
-        mdns_instance_name_set(renamed);
-        ESP_LOGW(TAG, "'%s.local' is taken on this network -- renamed this board '%s' "
-                      "(reachable as %s.local)", base, host, host);
+        mdns_instance_name_set(s_live_name);
+        ESP_LOGW(TAG, "'%s.local' is taken on this network -- using '%s' (%s.local) "
+                      "until the next reboot", base, s_live_name, host);
     } else {
+        s_live_name[0] = '\0';
         mdns_instance_name_set(name);
         ESP_LOGI(TAG, "mDNS: '%s' reachable as %s.local", name, host);
     }
+}
+
+void wifi_live_name(char *out, size_t len)
+{
+    if (s_live_name[0]) strlcpy(out, s_live_name, len);
+    else board_name_get(out, len);
+}
+
+void wifi_live_hostname(char *out, size_t len)
+{
+    if (s_live_host[0]) strlcpy(out, s_live_host, len);
+    else board_hostname(out, len);
 }
 
 esp_err_t wifi_set_credentials(const char *ssid, const char *password)
@@ -681,12 +694,19 @@ esp_err_t wifi_clear_credentials(void)
     nvs_handle_t h;
     esp_err_t err = nvs_open(NVS_NS, NVS_READWRITE, &h);
     if (err != ESP_OK) return err;
-    /* NOT_FOUND is fine -- means there was nothing saved to begin with. */
+    /* NOT_FOUND is fine -- means there was nothing saved to begin with. The
+     * saved-networks slots must go too: wifi_init() joins any of them, so
+     * erasing only the legacy pair never actually reached setup mode. */
     nvs_erase_key(h, "ssid");
     nvs_erase_key(h, "pass");
+    for (int i = 0; i < WIFI_MAX_NETWORKS; i++) {
+        char k[12];
+        snprintf(k, sizeof(k), "ssid%d", i); nvs_erase_key(h, k);
+        snprintf(k, sizeof(k), "pass%d", i); nvs_erase_key(h, k);
+    }
     err = nvs_commit(h);
     nvs_close(h);
-    ESP_LOGW(TAG, "WiFi credentials erased from NVS");
+    ESP_LOGW(TAG, "all saved WiFi networks erased from NVS");
     return err;
 }
 

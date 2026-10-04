@@ -43,6 +43,9 @@ Examples
 
   # just redo the prompts
   ./first_setup.py --host telephono.local --only audio verify
+
+  # check a board, then leave it ready to hand to someone (setup mode, phone.local)
+  ./first_setup.py --host 192.168.0.123 --tests --giveaway
 """
 
 from __future__ import annotations
@@ -465,6 +468,9 @@ def main() -> int:
                     help="Also upload spoken digits 0-9 (for digit readback)")
     ap.add_argument("--tests", action="store_true",
                     help="Finish with the interactive hardware checklist")
+    ap.add_argument("--giveaway", action="store_true",
+                    help="if every step passed, finish with Prepare to give away: forget WiFi "
+                         "and the board name and reboot into setup mode")
     ap.add_argument("--engine", help="gen_prompt.py speech engine (piper/espeak/say)")
     ap.add_argument("--voice", help="gen_prompt.py voice")
     args = ap.parse_args()
@@ -500,6 +506,7 @@ def main() -> int:
     if port and serial_steps:
         con = open_console(port)
 
+    online = False
     try:
         codec_ok = True
         if run.wanted("console"):
@@ -562,7 +569,19 @@ def main() -> int:
         if con is not None:
             con.__exit__(None, None, None)
 
-    return run.summary()
+    rc = run.summary()
+    if args.giveaway:
+        if rc != 0 or not online:
+            print("\nNot preparing to give away: fix the failures above first.")
+        else:
+            code, _ = curl(args.host, "/prepare_giveaway", form={"confirm": "1"})
+            if ok_status(code):
+                print("\nPrepared to give away: WiFi and board name cleared, rebooting into "
+                      "setup mode. Unplug it once its setup network appears.")
+            else:
+                print(f"\nPrepare to give away failed (HTTP {code}).")
+                rc = 1
+    return rc
 
 
 if __name__ == "__main__":
