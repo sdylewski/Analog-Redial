@@ -46,7 +46,7 @@ Examples
   ./first_setup.py --host telephono.local --only audio verify
 
   # check a board, then leave it ready to hand to someone (setup mode, phone.local)
-  ./first_setup.py --host 192.168.0.123 --tests --giveaway
+  ./first_setup.py --host 192.168.0.123 --tests --reset-wifi
 """
 
 from __future__ import annotations
@@ -469,9 +469,9 @@ def main() -> int:
                     help="Also upload spoken digits 0-9 (for digit readback)")
     ap.add_argument("--tests", action="store_true",
                     help="Finish with the interactive hardware checklist")
-    ap.add_argument("--giveaway", action="store_true",
-                    help="if every step passed, finish with Prepare to give away: forget WiFi "
-                         "and the board name and reboot into setup mode")
+    ap.add_argument("--reset-wifi", action="store_true",
+                    help="if every step passed, finish with Reset WiFi: forget WiFi and the "
+                         "board name and reboot into setup mode (ready to hand over)")
     ap.add_argument("--engine", help="gen_prompt.py speech engine (piper/espeak/say)")
     ap.add_argument("--voice", help="gen_prompt.py voice")
     args = ap.parse_args()
@@ -577,16 +577,16 @@ def main() -> int:
             con.__exit__(None, None, None)
 
     rc = run.summary()
-    if args.giveaway:
+    if args.reset_wifi:
         if rc != 0 or not online:
-            print("\nNot preparing to give away: fix the failures above first.")
+            print("\nNot resetting WiFi: fix the failures above first.")
         else:
-            code, _ = curl(args.host, "/prepare_giveaway", form={"confirm": "1"})
+            code, _ = curl(args.host, "/wifi_reprovision", form={"confirm": "1"})
             if ok_status(code):
-                print("\nPrepared to give away: WiFi and board name cleared, rebooting into "
+                print("\nWiFi reset: WiFi and board name cleared, rebooting into "
                       "setup mode. Unplug it once its setup network appears.")
             else:
-                print(f"\nPrepare to give away failed (HTTP {code}).")
+                print(f"\nReset WiFi failed (HTTP {code}).")
                 rc = 1
     return rc
 

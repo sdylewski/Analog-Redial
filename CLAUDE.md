@@ -26,15 +26,14 @@ The original through-hole board (WM8731 codec, `CONFIG_BOARD_TYPE_THT`) was
 pin map and Kconfig choice all gone. Last commit that still builds it:
 `2fdde5e`. Its docs remain under `archive/hardware/through-hole-wm8731/`.
 
-**SMD5 ("Analog Redial 5")** is an in-progress next-generation board (not
-yet fabricated) — `hardware/kicad/Analog Redial 5/`, dev notes at
+**SMD5 ("Analog Redial 5")** is the next-generation board — **sent to fab
+(early October 2026) together with the BM64 carrier and a BK3266 test board,
+not yet tested** — `hardware/kicad/Analog Redial 5/`, dev notes at
 [`archive/hardware/ANALOG_REDIAL_SMD5.md`](archive/hardware/ANALOG_REDIAL_SMD5.md).
-Headline change: a dual-compatible MCU footprint accepting either a real
-Espressif ESP32-C6-DevKitC-1 or a cheaper AliExpress clone module, plus a
-new header for the BM64 Bluetooth companion. **Not fabricated or tested** --
-a re-route is still planned (MFB onto its own GPIO via an expanded BM64
-header, EEPROM programming through J5 instead), so treat that doc's pinout
-as a draft. Firmware reuses SMD4's pin map for it today.
+Headline changes: a dual-compatible MCU footprint (real ESP32-C6-DevKitC-1 or
+a cheaper clone, selected by solder jumpers JP2/JP3), and an 8-pin J2 header
+for the BM64 Bluetooth companion with MFB on GPIO15. Firmware reuses SMD4's
+pin map for it.
 
 ## Building/flashing for a specific board type (SMD2 vs SMD4 vs SMD5)
 
@@ -160,12 +159,15 @@ structure) — only links from live files (this one included) need the
 - [`docs/features.md`](docs/features.md) — feature list, firmware architecture (components, threading model, VoIP seams)
 - [`docs/building.md`](docs/building.md) — board assembly: hand-solder order, pre-power checks, the SMD4 15k rework
 - [`docs/hardware-smd4.md`](docs/hardware-smd4.md) — SMD4 schematic reference, GPIO pin map, power tree
-- [`docs/hardware-smd5.md`](docs/hardware-smd5.md) — SMD5 board reference (Bluetooth companion, LDO, dual MCU footprint); not yet fabricated
+- [`docs/hardware-smd5.md`](docs/hardware-smd5.md) — SMD5 board reference (Bluetooth companion, LDO, dual MCU footprint); sent to fab, not yet tested
 - [`archive/signal-levels.md`](archive/signal-levels.md) — SLIC/codec levels, SHK dividers
 - [`docs/voip-setup.md`](docs/voip-setup.md) — SIP server setup, dial-plan reference
 - [`firmware/README.md`](firmware/README.md) — ESP-IDF toolchain setup, build/flash
 - [`archive/ESP32_PORT_PLAN.md`](archive/ESP32_PORT_PLAN.md) *(internal)* — Pi v1.0 → ESP32 scope, phases, dual-board plan
-- Dial plan source of truth: `pi_rotary_phone/docs/DIAL_CODES.md` (sibling repo)
+- Dial plan source of truth: `firmware/components/dialplan/` (the web UI's
+  dial guide is generated from the same table). The sibling `pi_rotary_phone`
+  repo is a frozen reference for the user's one Raspberry Pi unit — don't
+  update it or keep it in parity.
 
 ## Firmware architecture (summary)
 
@@ -211,6 +213,5 @@ This is engineering guidance, not telecom safety certification.
 
 ## Status
 
-- Hardware: SMD4 is the current design — schematic unchanged from SMD3, re-routed as a 2-layer PCB. ERC/DRC-reviewed; not yet fabricated/bench-tested.
+- Hardware: SMD4 is the current design — schematic unchanged from SMD3, re-routed as a 2-layer PCB. Fabricated and in use.
 - Firmware: core telephony is mature and tested on earlier SMD-family hardware (hand-soldered SMD2 and SMD4, ES8388 + AG1171), selected via board Kconfig (`CONFIG_BOARD_TYPE_SMD2`/`_SMD4`/`_SMD5`); runtime `codec_detect` warns if the ES8388 doesn't answer.
-- Pi parity: align dial plan and pulse FSM with `pi_rotary_phone` v1.0 before VoIP milestone.

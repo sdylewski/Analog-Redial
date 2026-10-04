@@ -211,13 +211,14 @@ whoever receives them:
 
 1. Flash and set up each board on your own network, and run its checks
    (`first_setup.py --tests`, or the Diagnostics page's bring-up check).
-2. Press **Settings → Hardware → Reset → Prepare to give away** (or add
-   `--giveaway` to the `first_setup.py` command). It forgets your Wi-Fi and
-   the board name, keeps everything else, and reboots into setup mode.
+2. Press **Settings → Hardware → Reset → Reset WiFi** (or add `--reset-wifi`
+   to the `first_setup.py` command). It forgets the Wi-Fi networks and the
+   board name, keeps everything else, and reboots into setup mode.
 3. Unplug it once its setup network appears.
 
 The recipient powers it up, joins the setup network, enters their Wi-Fi, and
-opens `phone.local`.
+opens `phone.local`. Reset WiFi is also what to use when you move a board to
+a different network yourself.
 
 **`.local` addresses aren't reliable on every network.** If it doesn't load
 within a minute, open your Wi-Fi router's admin page and look at its list of

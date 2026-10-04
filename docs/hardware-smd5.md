@@ -1,7 +1,8 @@
 # Hardware Reference — SMD5 Board
 
-> **SMD5 has not been fabricated or tested.** It is the next spin, and this
-> document describes the design as drawn. For a board you can build today,
+> **SMD5 has been sent to fabrication (October 2026) but not tested yet.** It
+> is the next spin, and this document describes the design as sent to fab.
+> For a board proven on real hardware,
 > see [`hardware-smd4.md`](hardware-smd4.md). Everything below that isn't
 > marked as an SMD5 change carries over from SMD4 unchanged and is proven on
 > real hardware; the SMD5-only parts are not.
@@ -244,9 +245,9 @@ modifying the layout:
 
 **SMD5 addition.** An 8-pin board-to-board header links a BM64 Bluetooth
 Classic audio carrier to the main board. The carrier is a separate PCB
-(`Bluetooth/Bluetooth_board/`) and **has not been fabricated** — the web
-UI's Bluetooth tab marks the feature "experimental, not mainstream yet" for
-exactly that reason. Fitting this on SMD4 instead means serious hand-wiring,
+(`Bluetooth/Bluetooth_board/`), sent to fabrication alongside SMD5 and not
+yet tested — the web UI's Bluetooth tab marks the feature "experimental, not
+mainstream yet" for that reason. Fitting this on SMD4 instead means serious hand-wiring,
 not a drop-in option.
 
 The status LED shows pairing/connection state once this is fitted and
@@ -255,8 +256,8 @@ working — see [`getting-started.md`'s LED reference](getting-started.md#7-stat
 | J2 pin | Net | Carrier side | Notes |
 |--------|-----|--------------|-------|
 | 1 | `+3V3_BM` | BM64 `BAT_IN` | From **U5**, a dedicated XC6206 LDO off +5 V — not the DevKit's 3.3 V rail |
-| 2 | GPIO16 / U0TXD | BM64 `HCI_RXD` | ESP transmits |
-| 3 | GPIO17 / U0RXD | BM64 `HCI_TXD` | ESP receives |
+| 2 | GPIO17 / U0RXD | BM64 `HCI_TXD` | ESP receives |
+| 3 | GPIO16 / U0TXD | BM64 `HCI_RXD` | ESP transmits |
 | 4 | `MFB` (GPIO15) | BM64 `MFB` | Power button / UART wake, 100 kΩ pull-down on the main board |
 | 5 | via **C22** 1 µF ← `Line0Vin`'s SLIC `VOUT` | BM64 `MIC_P1` | Handset mic → Bluetooth |
 | 6 | via **C24** 1 µF ← GND | BM64 `MIC_N1` | AC ground for the differential mic input |
@@ -286,17 +287,21 @@ pad positions 12/13 and 19/20 swap between vendors.
 | 19 | `GPIO12` / USB D− | `GPIO2` |
 | 20 | `GPIO13` / USB D+ | `GPIO3` |
 
-With the genuine module everything is as SMD4. With the clone, MCLK and
-card-detect land on its native-USB pins, so the firmware build must be
-`CONFIG_BOARD_TYPE_SMD5_CHEAP` — it remaps those two and detaches the USB
-PHY at boot. Consequences: no USB console after ~1 s of boot, a seated
-microSD card blocks USB entirely, and the **J3**/**J4** spare-UART header
-becomes unreachable.
+Two 3-pad solder jumpers take care of the only two nets affected:
+**JP3** routes `I2S_MCLK` and **JP2** routes the microSD card-detect to
+either pad 12/13 (genuine module, bridged by default) or pad 19/20 (clone).
+Set correctly, both land on the module's GPIO2/GPIO3, so both variants use
+the normal `CONFIG_BOARD_TYPE_SMD5` build with native USB working.
 
-A planned fix (two solder jumpers selecting pad 12/13 or 19/20 for those two
-nets) would let both variants land on GPIO2/GPIO3 and retire all of that.
-Full detail, including the jumper wiring and the symptoms of getting it
-wrong, is in
+| Jumper | Net | Default (pads 1–2 bridged) | Clone (cut 1–2, bridge 2–3) |
+|--------|-----|---------------------------|------------------------------|
+| **JP3** | `I2S_MCLK` | pad 12 | pad 19 |
+| **JP2** | `SD_CD` | pad 13 | pad 20 |
+
+Bridge one side only: both sides together short GPIO2 to a USB data line.
+(`CONFIG_BOARD_TYPE_SMD5_CHEAP` remains for a clone board with the jumpers
+left at the default, which costs native USB.) Full detail, including the
+symptoms of getting it wrong, is in
 [`../archive/hardware/ANALOG_REDIAL_SMD5.md`](../archive/hardware/ANALOG_REDIAL_SMD5.md).
 
 ## 11. Board size & connectors

@@ -1,18 +1,19 @@
 # Analog Redial 5 board (SMD5) — dev notes
 
-> **Status (2026-09-27): work in progress, not fabricated, not tested.**
-> This is the planned next generation, not a board anyone should build from
-> yet. Nothing below has been validated on real hardware, and the BM64
-> header section describes a planned re-route that isn't in the KiCad files
-> yet. Firmware supports it only because SMD5 shares SMD4's pin map
-> (`board_pins.h`) -- that sharing will need revisiting once MFB moves (see
-> below).
+> **Status (2026-10-04): sent to fab, not yet tested.** Three boards went out
+> together: this main board, the BM64 Bluetooth carrier
+> (`Bluetooth/Bluetooth_board/`), and a BK3266 test board
+> (`Bluetooth/BK3266_board_v1/`) for a first look at that module as a
+> possible BM64 alternative. The fab version includes the re-routes these
+> notes used to list as planned (checked against the schematic netlist
+> 2026-10-04): MFB on GPIO15 via an 8-pin **J2** BM64 header with a 100 kΩ
+> pull-down (R17), the JP3/JP2 MCLK/card-detect solder jumpers, and the
+> 100 kΩ SHK divider. Not in it: the multi-function button.
 
-KiCad project: `hardware/kicad/Analog Redial 5/`. This is a work-in-progress
-board, not yet fabricated as of this writing (2026-09-22) — these are
-working notes per [`CLAUDE.md`](../../CLAUDE.md)'s public-vs-internal-docs
-split, not a public build guide. Nothing here is final until boards come
-back and get bench-tested, same caveat as `ROTARY_PHONE_SMD4.md`.
+KiCad project: `hardware/kicad/Analog Redial 5/`. These are working notes
+per [`CLAUDE.md`](../../CLAUDE.md)'s public-vs-internal-docs split, not a
+public build guide. Nothing here is proven until boards come back and get
+bench-tested.
 
 ## What's different from SMD4
 
@@ -75,9 +76,13 @@ variant.
 jumpers below, don't assign anything to pad positions 12/13/19/20 — one
 module or the other puts live USB D-/D+ signaling there.
 
-### Planned fix: solder-jumper select for MCLK and card-detect
+### Solder-jumper select for MCLK and card-detect (in the fab version)
 
-Decided 2026-09-29, **not yet in KiCad**. Only two nets need a pad in the
+Decided 2026-09-29; **in the board sent to fab** as **JP3** (`I2S_MCLK`:
+pad 1 → footprint pad 12, pad 3 → pad 19) and **JP2** (`SD_CD`: pad 1 → pad
+13, pad 3 → pad 20). With the jumpers moved to the clone side, a clone board
+can run the normal `CONFIG_BOARD_TYPE_SMD5` build with native USB intact;
+`SMD5_CHEAP` is only needed if they're left at the default. Only two nets need a pad in the
 swapped group: `I2S_MCLK` and `SD_CD`. Give each a 3-pad solder jumper
 (symbol `Jumper:SolderJumper_3_Bridged12`, footprint
 `Jumper:SolderJumper-3_P1.3mm_Bridged12_Pad1.0x1.5mm`) so the same net can
@@ -202,7 +207,7 @@ GPIO12/13:
   when `BOARD_SD_CD` is undefined, and microSD is mutually exclusive with
   line 1 via J5 anyway.
 - **UART0 console vs. the BM64.** `sdkconfig.smd5_cheap.defaults` puts the
-  console on UART0 (GPIO16/17) — the same pins as the BM64 UART on J12.
+  console on UART0 (GPIO16/17) — the same pins as the BM64 UART on J2.
   They can't share. With `download` making native USB a workable flashing
   path, "BM64 keeps GPIO16/17, no UART console" is the cheaper answer.
 - **Don't plug a cable into the clone module's own USB-C** while the app
@@ -224,7 +229,7 @@ so far.
 Flagged 2026-09-22, not yet measured: the AliExpress clone module carries a
 smaller onboard 3.3V regulator than the real Espressif module's. This
 board's 3.3V rail has to feed more than just the MCU module itself once the
-BM64 companion and ES8388 codec are both wired in through J12/the
+BM64 companion and ES8388 codec are both wired in through J2/the
 audio path — worth checking, before relying on the clone variant for
 anything beyond bench testing, whether that regulator can actually supply
 everything at once under worst-case load (WiFi TX bursts + codec + BM64
@@ -279,48 +284,40 @@ specific to SMD5. The concrete plan for SMD5:
   don't follow `board_pins.h`'s routing automatically) — worth remembering
   if a 3rd variant ever gets added.
 
-## BM64 Bluetooth companion header (J12)
+## BM64 Bluetooth companion header (J2)
 
-SMD5 adds a 6-pin board-to-board header (`J12`, `PINHD_1x6_Male`,
-`Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical`) for the BM64
-Bluetooth Classic audio companion daughter-board — see
-[`archive/BLUETOOTH_AUDIO_UPGRADE.md`](../BLUETOOTH_AUDIO_UPGRADE.md) for
-why this exists (ESP32-C6 has BLE only, no Classic BT) and
-`firmware/components/bt_companion/` for the UART protocol implementation
-that talks to it (confirmed working against real BM64 hardware 2026-09-21/22
-— see that component's own doc comments for the full protocol writeup).
+As sent to fab: an 8-pin header, `J2` (`PINHD_1x8_Male`), mating with `J1` on
+the BM64 carrier (`Bluetooth/Bluetooth_board/`). Pinout checked against both
+schematic netlists 2026-10-04 -- the two boards agree:
 
-Confirmed directly by the board's designer 2026-09-22 (supersedes an
-earlier, incorrect trace attempt from the schematic text that had pins 2-5
-wrong):
+| J2 pin | Main board | Carrier (J1) |
+|--|--|--|
+| 1 | `+3.3V_BM` from **U5** (XC6206 LDO, its own rail) | BM64 `BAT_IN` |
+| 2 | GPIO17 / U0RXD (ESP receives) | `espUartRx` → BM64 `HCI_TXD` |
+| 3 | GPIO16 / U0TXD (ESP transmits) | `espUartTx` → BM64 `HCI_RXD` |
+| 4 | `MFB` → GPIO15, **R17** 100 kΩ to GND | BM64 `MFB` |
+| 5 | via **C22** ← `Line0Vout` (SLIC U4 pin 10) | BM64 `MIC_P1` |
+| 6 | via **C24** ← GND | BM64 `MIC_N1` |
+| 7 | via **C23** → **R16** 1 kΩ → `Line0Vin` | BM64 `AOHPL` |
+| 8 | GND | GND |
 
-| J12 pin | Net |
-|--|--|
-| 1 | +3.3V |
-| 2 | Line0Vin, via a 10µF series cap (analog audio, network/BM64 → phone line) |
-| 3 | Line0Vout, via a 1µF series cap (analog audio, phone line → BM64) |
-| 4 | BM64 UART TX |
-| 5 | BM64 UART RX |
-| 6 | GND |
+Audio never passes through firmware -- both directions are analog between
+the BM64 and line 0's SLIC; the ESP32 only drives the UART and MFB.
+`bt_companion_line()` (`telephony.c`) always returns line 0, matching this.
 
-So this header carries the **full companion interface**, not just UART:
-power, both audio directions (analog, per `bt_companion.h`'s own doc
-comment — audio never passes through firmware at all), and the UART
-control link (`GPIO16`/`U0TXD` and `GPIO17`/`U0RXD` on the ESP32 side, same
-pins as every other board type's `BOARD_UART_TX`/`BOARD_UART_RX`). Still no
-MFB (module power-on/button) conductor — that's still bench-wired
-separately (fixed pull-up to VCC as of 2026-09-21's bring-up; see the
-planned re-route below). The "Line0" naming is correct: firmware's
-`bt_companion_line()` (`telephony.c`) now always returns line 0, matching
-this header (resolved 2026-09-27 -- it had briefly been line 1).
+The carrier also has a 2-pin `J2` of its own (`P2_0`, `RST_N`) for
+one-time EEPROM programming through the main board's J5 -- see item 2
+below.
+
+(History: the first draft was a 6-pin `J12` with no MFB, which was
+bench-wired separately with a fixed pull-up during 2026-09-21's bring-up.)
 
 **Companion daughter-board**: `Bluetooth/Bluetooth_board/` is the BM64
-module's own carrier board, meant to mate to J12 with a matching female
-header (same 6-pin pinout as above, mirrored).
+module's own carrier board; its `J1` mates with J2 (same 8-pin order).
 
-### Planned re-route (decided 2026-09-27, not yet in KiCad)
+### Re-route (decided 2026-09-27, in the fab version)
 
-1. **MFB gets the 7th J12 pin, on GPIO15** (decided 2026-09-29, done in the
+1. **MFB gets its own J2 pin (4), on GPIO15** (decided 2026-09-29, done in the
    schematic). GPIO15 is the only genuinely spare pin in this map: GPIO8
    drives the DevKit's RGB LED and GPIO9 is the download-mode strap, where
    MFB's pull-down would boot the board into download mode every time.
@@ -331,7 +328,7 @@ header (same 6-pin pinout as above, mirrored).
    SMD5 variants, and because MFB no longer borrows a shared pad it works on
    a 2-line/microSD board; only RST_N/P2_0 (still GPIO19/20, via J5) keep the
    single-line gate.
-2. **EEPROM programming goes through J5, not J12.** The BM64's IBDK mode
+2. **EEPROM programming goes through J5, not J2.** The BM64's IBDK mode
    needs RST_N and P2_0 (plus MFB) driven at reset -- rare, one-time-per-
    module setup. Rather than route those permanently, the Bluetooth board
    gets a *separate* small header that mates to J5 (the line-1/microSD
@@ -441,7 +438,7 @@ header (same 6-pin pinout as above, mirrored).
 Parts to order for this option (module, headers, the LDO and its passives,
 and which BM64 suffix to buy): [`BOM-bluetooth.md`](BOM-bluetooth.md).
 
-### BM64 connection table (from both netlists, 2026-09-28)
+### BM64 connection table (2026-09-28 review of the 6-pin J12 draft -- historical; J2 table above is current)
 
 Pulled from `kicad-cli sch export netlist` of `Analog Redial 5.kicad_sch`
 and `Bluetooth/Bluetooth_board/Bluetooth_board.kicad_sch` -- "Now" is what
@@ -505,7 +502,7 @@ that -- size for ~100 mA). Microchip's own MCU-hosted EVB measurements were
 taken at BAT_IN = 3.3 V, so 3.3 V is a supported operating point when it's
 a clean, dedicated rail.
 
-### Planned: a multi-function button (not yet in KiCad)
+### Planned: a multi-function button (not in the fab version)
 
 Decided 2026-10-01. One user-facing button, so the board is usable without
 reaching for the DevKit's BOOT button or a serial console.
@@ -533,7 +530,7 @@ Firmware already has the two hold gestures in `board_boot_button_start()`
 (board.c) — a second button would reuse that watcher with its own GPIO and a
 click handler added.
 
-### SHK divider: change 15 kΩ → 100 kΩ (found 2026-09-27)
+### SHK divider: change 15 kΩ → 100 kΩ (found 2026-09-27, in the fab version)
 
 SMD5 inherits SMD4's 10 kΩ / 15 kΩ SHK divider, which was sized for a 5 V
 SHK swing. The AG1171's SHK is actually a ~3.3 V output with a 3.3 kΩ
