@@ -171,17 +171,16 @@ esp_err_t es8388_init(const es8388_config_t *cfg)
     raw_write(ES8388_REG_LDACVOL, 0x00);               /* 0 dB */
     raw_write(ES8388_REG_RDACVOL, 0x00);               /* 0 dB */
 
-    /* LOUT1/ROUT1: per-line earpiece drive level. 31 (+1.5dB, see
-     * es8388_set_dac_volume()'s comment for the real 0/30/1.5dB-step
-     * datasheet convention) is the compiled fallback -- confirmed by ear on
-     * real hardware 2026-09-25 as a good default, slightly above the 30/0dB
-     * nominal point without being "a bit loud" like 33 (+4.5dB, the
-     * documented max). board_speaker_volume_get() returns whatever was
-     * persisted via the bring-up `spkamp` command or the webui volume
-     * control, so a level tuned by ear survives a reboot instead of
-     * reverting to the fallback every time. */
-    uint8_t spk_l = board_speaker_volume_get(0, 31);
-    uint8_t spk_r = board_speaker_volume_get(1, 31);
+    /* LOUT1/ROUT1: per-line earpiece drive level (0/30/1.5dB-step
+     * convention, see es8388_set_dac_volume()). 21 (-13.5 dB) is the compiled
+     * fallback: measured with the console `tonetest` command, the dial tone
+     * comes back from the SLIC at ~2% distortion at 21 but 19-37% at 30 -- the
+     * AG1171's audio input is overdriven by a near-full-scale DAC. (31 was
+     * previously picked by ear, which doesn't show distortion.)
+     * board_speaker_volume_get() returns whatever was persisted via `spkamp` or
+     * the web UI slider, so a level set by hand survives a reboot. */
+    uint8_t spk_l = board_speaker_volume_get(0, ES8388_DEFAULT_SPK_VOL);
+    uint8_t spk_r = board_speaker_volume_get(1, ES8388_DEFAULT_SPK_VOL);
     es8388_set_dac_volume(spk_l, spk_r);
     raw_write(ES8388_REG_LOUT2VOL, spk_l);             /* LOUT2 mirrors LOUT1 (J7 monitor header) */
     raw_write(ES8388_REG_ROUT2VOL, spk_r);             /* ROUT2 mirrors ROUT1 (J7 monitor header) */

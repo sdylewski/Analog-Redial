@@ -147,6 +147,21 @@ static void overdrive(int16_t *x, size_t n, int32_t drive, int32_t out_q15)
     }
 }
 
+/* Last stage of every effect: bend anything above 20000 over to a slope of
+ * 1/4 (so 32767 comes out at ~23200). The effects are level-matched to plain
+ * speech, but the phone line's audio input starts distorting well before the
+ * codec's full scale, so a rare loud peak shouldn't get through at full size. */
+static void limit(int16_t *x, size_t n)
+{
+    for (size_t k = 0; k < n; k++) {
+        int32_t v = x[k], a = v < 0 ? -v : v;
+        if (a > 20000) {
+            a = 20000 + ((a - 20000) >> 2);
+            x[k] = (int16_t)(v < 0 ? -a : a);
+        }
+    }
+}
+
 void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *x, size_t n)
 {
     if (!s || fx == VOICE_FX_NONE) return;
@@ -169,7 +184,7 @@ void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *x, size_t n)
         break;
     case VOICE_FX_VADER:
         pitch(s, VADER_PITCH_Q16, x, n);
-        overdrive(x, n, 2, 32767);
+        overdrive(x, n, 2, 22300);   /* 0.68: its drive raises RMS ~3.4 dB over the input */
         comb(s, s->mask_d, VADER_MASK_FB_Q15, x, n);
         break;
     case VOICE_FX_ROBOT:
@@ -185,9 +200,9 @@ void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *x, size_t n)
         }
         break;
     case VOICE_FX_DISTORTION:
-        /* 8x into the clipper flattens almost every peak; 0.6x after keeps
-         * the square-ish result from being much louder than the voice. */
-        overdrive(x, n, 8, 19661);
+        /* 8x into the clipper flattens almost every peak; the output level
+         * below brings the square-ish result back to about the voice's RMS. */
+        overdrive(x, n, 8, 7500);    /* 0.23: an 8x-clipped voice is ~2.6x the input RMS otherwise */
         break;
     case VOICE_FX_8BIT:
         for (size_t k = 0; k < n; k++) {
@@ -202,6 +217,7 @@ void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *x, size_t n)
     default:
         break;
     }
+    limit(x, n);
 }
 
 const char *voice_fx_name(voice_fx_t fx)

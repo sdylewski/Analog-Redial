@@ -1918,7 +1918,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("speaker.title", "Speaker (earpiece) volume"));
     for (int l = 0; l < num_lines; l++) {
-        uint8_t vol = board_speaker_volume_get(l, 0x1E);
+        uint8_t vol = board_speaker_volume_get(l, ES8388_DEFAULT_SPK_VOL);
         /* Displayed as a percentage (0-200%, 100% = the register's 0dB
          * point) rather than the raw 0-63/dB-step register value -- dB
          * isn't a meaningful unit for most people tuning this by ear. The
@@ -1944,9 +1944,11 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         "<p class=\"hint\">%s</p></div>",
         i18n_str("speaker.hint",
                  "Drag while on a call to hear the change live (applied immediately, not saved "
-                 "yet) -- click Save once you land on a level you like. 100% is the codec's 0dB "
-                 "reference point, 200% is max. Same register the bring-up <code>spkamp</code> "
-                 "console command tunes."));
+                 "yet) -- click Save once you land on a level you like. The default is about 67%: "
+                 "above roughly 70-80% the phone line's audio input starts to distort, which "
+                 "you hear as a harsh dial tone (100% is the codec's 0dB point, 200% is max). "
+                 "Same register the bring-up <code>spkamp</code> console command tunes; "
+                 "<code>tonetest</code> measures the distortion at a given level."));
     return off;
 }
 
