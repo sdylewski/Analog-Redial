@@ -64,11 +64,12 @@ covers every header on this board.
 
 | | Qty | Component | DigiKey | AliExpress  | Notes |
 |---|-----|-----------|---------|------------|-------|
-| | 1 | MCU carrier: **U1** ESP32-C6-DevKitC-1 (or equivalent) | [DigiKey 8MB 32pin](https://www.digikey.com/en/products/detail/espressif-systems/ESP32-C6-DEVKITC-1-N8/17728861) $9.00 | [AliExpress 16MB 32pin](https://www.aliexpress.us/item/3256806563223929.html) $7.72 <br> --- <br> [AliExpress 16MB 30 pin](https://www.aliexpress.us/item/3256809110312291.html) $3.99 | **N16 (16 MB) recommended; N8 (8 MB) acceptable** — the firmware fits either, N8 just leaves less room for recordings and voicemail (see *Flash size*). DigiKey stocks the N8 only. AliExpress $7.72 = 32-pin **N16**, the known-good shape. $3.99 = 30-pin clone: **needs trace cuts + 2 solder bridges, and is untested here** |
+| | 1 | MCU carrier: **U1** ESP32-C6-DevKitC-1 (or equivalent) | [DigiKey 8MB 32pin](https://www.digikey.com/en/products/detail/espressif-systems/ESP32-C6-DEVKITC-1-N8/17728861) $9.00 | [AliExpress 16MB 32pin](https://www.aliexpress.us/item/3256806563223929.html) $7.72 <br> --- <br> [AliExpress 16MB 30 pin](https://www.aliexpress.us/item/3256809110312291.html) $3.99 | **N16 (16 MB) recommended; N8 (8 MB) acceptable** — the firmware fits either, N8 just leaves less room for recordings and voicemail (see *Flash size*). DigiKey stocks the N8 only. AliExpress $7.72 = 32-pin **N16**, the known-good shape. <br> $3.99 = 30-pin clone: **needs trace cuts + 2 solder bridges, and is untested here**, but hope to get it working on next board (V5) |
 | | 1 | **U4** AG1171 SLIC (line 0, @ **J9**) | [DigiKey](https://www.digikey.com/en/products/detail/silvertel/AG1171/21187236) $8.50 | [AliExpress](https://www.aliexpress.us/item/3256804758849823.html) $3.79 | 14-SIP. DigiKey lead time 16 weeks — buy a spare |
 | | 1 | **C16** 470 µF 16 V radial | [DigiKey](https://www.digikey.com/en/products/detail/rubycon/16YXJ470M8X11-5/3134104) $0.42 | [AliExpress](https://www.aliexpress.us/item/2255799897996539.html) $1.99 / 20 pcs | **16YXJ470M8X11.5**, **U4** +VPWR bulk |
 | | 1 | **J9** RJ12 horizontal, 6p2c | [DigiKey](https://www.digikey.com/en/products/detail/amphenol-cs-fci/87180-062LF/1001369) $1.07 | [AliExpress](https://www.aliexpress.us/item/3256810043215346.html) $3.38 / 10 pcs | **87180-062LF**. AliExpress: pick the **322** variant. Alt **54601-006** — [DigiKey](https://www.digikey.com/en/products/detail/amphenol-icc/54601-006/1158894) |
 | | 1 | **J5** 2×4 (8-pin) 2.54 mm header | [DigiKey](https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/SSK03-MPH-254-B4/28772142) $0.13 | | **SSK03-MPH-254-B4**. Fitted on every build at this price — a second line needs it and so does Bluetooth. Two 1×4 strips cut from existing stock do the same job |
+| | | Shipping Charge | $5? | $0 |
 
 ### Add: second phone line · **+~$10.28**
 
@@ -90,7 +91,7 @@ Hardware.
 Losing microSD costs recording space, not function — recordings fall back to
 internal flash, ~4 MB by default.
 
-### Add: Bluetooth companion · **+~$14.97**
+### Add: Bluetooth companion · **+~$14.97** (to be supported on V5 board)
 
 | | Qty | Component | DigiKey | AliExpress | Notes |
 |---|-----|-----------|---------|------------|-------|
@@ -325,17 +326,3 @@ reaches it. Intended, not a fault.
 | | Confirm build A vs. build B stuffing before generating CPL — line 1's SLIC support parts and **Card1** are mutually exclusive |
 
 ---
-
-## Open items before ordering
-
-- **ESP32-C6-DevKitC-1 (or equivalent) part number and price** — not yet
-  pinned down; confirm the specific module/vendor and its onboard
-  regulator's minimum 5 V input headroom (affects the DC jack voltage spec)
-  before finalizing this line.
-- **DC jack (J1), DigiKey option** — the AliExpress jack is verified to fit;
-  the **EJ508A** pin pattern hasn't been checked against the
-  `Barrel_Jack_PTH_Slot` footprint. Check before ordering that one.
-- **Line TVS package** — **P6KE82A** is DO-204AC (DO-15) while the board's
-  pads are DO-41. The 10.16 mm lead span has room to spare for the longer
-  body; the open question is only whether the 0.8 mm lead clears the drill.
-  Confirm before ordering.

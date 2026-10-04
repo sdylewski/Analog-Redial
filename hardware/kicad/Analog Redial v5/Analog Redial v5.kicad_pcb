@@ -217,7 +217,7 @@
 		)
 		(path "/2075aaf5-778e-4a94-9ae6-df876524e94e")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -525,7 +525,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/991ca5ef-b3b4-4bf2-8416-9e1ca22f5af3")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -865,7 +865,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/ece1583a-f1f9-4224-b56a-735f627834db")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1221,7 +1221,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/7cc60a38-4569-4546-8d43-83621d671ae7")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1424,7 +1424,7 @@
 		(property ki_fp_filters "BarrelJack*")
 		(path "/282f8d95-f61b-4a5b-8ad1-add912614df0")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1887,7 +1887,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/9ad345dd-c3d2-455a-983e-2b9afd7f4c3a")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2228,7 +2228,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/1d890e27-ab20-483b-885b-3091a9acf2c5")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2530,7 +2530,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/2c1948e5-31c9-4961-981f-9f57ee431fba")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2823,7 +2823,7 @@
 		)
 		(path "/8c1b88bc-cbc5-4137-80bb-fd6d34dcc843")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3385,7 +3385,7 @@
 		(property ki_fp_filters "PinHeader_2x04_P2.54mm*")
 		(path "/4622ac59-1cdd-4ebb-8737-edb0fc8f9e67")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3835,7 +3835,7 @@
 		(property ki_fp_filters "CP_*")
 		(path "/60f9e6f7-c205-47df-9e77-f5c1b4fbbc20")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -5721,7 +5721,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/ffc73c0b-621a-4b70-a0b8-7d6cbb47aa8c")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -6026,7 +6026,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/513c744b-a333-4715-b3bf-313b0bf36799")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -6469,7 +6469,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/2f3c1cec-8732-42ab-b5a3-06cd367b7abe")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -6784,7 +6784,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/f5b56530-4a66-4365-80a9-0e588cbb3fef")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -7073,7 +7073,7 @@
 		(property ki_fp_filters "PinHeader_1x02_P2.54mm*")
 		(path "/67c94a9b-ee9d-4c57-b358-c67b363dd6d9")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -7494,7 +7494,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/10353985-f074-4897-ab80-e89861766f80")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -7808,7 +7808,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/0faf5f36-e173-4700-a17f-a21ef0df393f")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -8160,7 +8160,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/63ae3873-8066-45ff-a1d3-76750bfcf126")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -8449,7 +8449,7 @@
 		(property ki_fp_filters "PinHeader_1x03_P2.54mm*")
 		(path "/2471d44e-c564-4bc8-873e-0e69d6b0e566")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -8855,7 +8855,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/913bed6d-d980-48e5-90bc-a8d493ace125")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -9039,7 +9039,7 @@
 		)
 		(path "/8c178dd8-351e-4f38-ac01-77904d9859fa")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -10859,7 +10859,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/f8dbed83-15e6-487d-8e22-fa5a0709e54e")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11188,7 +11188,7 @@
 		)
 		(path "/c4d7cba2-96d5-43c3-9ff2-e70cf6cc8f28")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11715,7 +11715,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/76845938-39a1-4b0c-ab04-b0235ab4067d")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -12008,7 +12008,7 @@
 		(property ki_fp_filters "6P6C* RJ12* RJ18* RJ25*")
 		(path "/26cdede6-29b8-4e18-b9ce-33b4b89a2105")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -12562,7 +12562,7 @@
 		(property ki_fp_filters "CP_*")
 		(path "/1968976a-6f95-4bab-b369-99dceed72461")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -14498,7 +14498,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/5199f37a-1150-4a0d-8b29-752bcff97070")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -14799,7 +14799,7 @@
 		(property ki_fp_filters "*QFN*4x4mm*P0.45mm*EP2.6*x2.6*")
 		(path "/3cda255d-9002-4cd9-b9c1-6477bd514fa0")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -15646,7 +15646,7 @@
 		)
 		(path "/79338274-bbd1-423c-ac63-b179e648f302")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -15957,7 +15957,7 @@
 		)
 		(path "/1bbec28e-bd27-4618-ae8b-7d7bbbaf748f")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -16319,7 +16319,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/036c48fb-0eed-45ba-bfda-bbb4b786c854")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -16799,7 +16799,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/929ff469-0d43-4ee9-b540-364b780e6c93")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -16985,7 +16985,7 @@
 		)
 		(path "/ae3a377c-1dd9-42b3-a792-8194ac335ba9")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -17247,7 +17247,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/bc85833e-36e7-410f-ba86-f64df6076f01")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -17690,7 +17690,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/54f7cc55-de30-4198-8d79-2b3d89899e12")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -17995,7 +17995,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/a83a244c-5d03-4c1f-9961-232b03545fde")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -18281,7 +18281,7 @@
 		(property ki_fp_filters "PinHeader_1x08_P2.54mm*")
 		(path "/dc565b3d-074d-4207-89c1-b39ef6108d54")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -18724,7 +18724,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/a40ea1f6-18b7-42b9-b73b-b1d13ec3c643")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -19141,7 +19141,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/14f6d9b3-e876-4ba2-8396-9c692301e33c")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -19482,7 +19482,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/00eab9ce-dd27-4156-943b-0e70b41b2579")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -19776,7 +19776,7 @@
 		)
 		(path "/d7d3bb3b-9d06-4447-93b1-c9bec5acc14f")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -20494,7 +20494,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/acb8f65f-3c63-44f4-bb0f-3ed1fe0140d2")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -20795,7 +20795,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/cd26d387-0f07-44d8-9ca9-dc561c88363c")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21096,7 +21096,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/5dfc7f17-7909-4704-894c-57a80d1bea36")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21259,13 +21259,14 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
 		(property ki_fp_filters "SOT?23?3*")
 		(path "/1b8346c4-c21c-4902-9e09-862c60af1e52")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21803,7 +21804,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/9a42825e-2040-4cd8-9f43-12760a195b7b")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -22118,7 +22119,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/c3cfb1f8-63a8-4f84-a28f-8982a688f65a")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -22444,7 +22445,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/32c1ff03-3aa6-489c-82ad-c2f017379a97")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -22758,7 +22759,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/5bb89987-657e-4fe5-b349-feffbb030367")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -22944,7 +22945,7 @@
 		)
 		(path "/159f88a0-c715-4483-9ba1-a8a8e7705f60")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -23242,7 +23243,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/0f75dc9b-acf8-4e04-8715-74392b0a4085")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -23547,7 +23548,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/1f91cade-aac8-4ff7-8f87-0ddda807b0d6")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -23980,7 +23981,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/b1206b1c-c985-4471-bdbd-dab484532be8")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -24410,7 +24411,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/fefae242-a384-4ae3-8aaa-70c24d36dbe3")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -24711,7 +24712,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/727e34b8-0027-4386-aa3a-452504a41c03")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -25016,7 +25017,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/bb0996c9-fec6-4bf1-8e6c-3184b850a61f")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -25437,7 +25438,7 @@
 		(property ki_fp_filters "6P6C* RJ12* RJ18* RJ25*")
 		(path "/03ea3391-074b-47a6-9b1a-8634e3a0e7fd")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -26042,7 +26043,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/415395a8-18e9-4ec7-a4f9-1335d6f857bb")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -26331,7 +26332,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/b778b8a4-863b-46c5-86ff-936ca332d21c")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -26752,7 +26753,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/60f07bef-1c04-4a3f-aa54-2e59335f9289")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -27092,7 +27093,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/36707215-fae5-4bd2-80af-b01241857a11")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -27423,7 +27424,7 @@
 		(property ki_fp_filters "PinHeader_1x02_P2.54mm*")
 		(path "/1c91d790-0f2e-450b-8451-70e939a818fc")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -27844,7 +27845,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/948d5e2a-4e2c-47cf-a75d-6975885d7fba")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -28196,7 +28197,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/3b03dd01-b0bb-4a30-8a9b-fc1fc550525f")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -28510,7 +28511,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/7fb1281f-3204-4bd7-9a45-defab231af4a")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -28824,7 +28825,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/ee2e966d-82d3-4d19-a19c-d0183483d923")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -29165,7 +29166,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/3ec628b2-d340-4e4c-a1ce-a35c608fbd9d")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -29479,7 +29480,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/0e85aac4-4eb5-4c46-b249-3c3eea63452e")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -29833,7 +29834,7 @@
 		)
 		(path "/f69f7809-f1e2-4163-bb92-36b219e0bc25")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -30216,7 +30217,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/b7e6f530-a0fb-4bcd-b32a-a163823b95a9")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -30531,7 +30532,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/ac432900-7f2f-497c-a652-c56a6a2816c0")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -30836,7 +30837,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/a5bbc804-1774-4b8e-9029-b8938c826c7d")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -31119,7 +31120,7 @@
 		(property ki_fp_filters "SolderJumper*Bridged12*")
 		(path "/a0a34f83-79c2-4d89-9643-58209d57915f")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -31258,7 +31259,7 @@
 		(property ki_fp_filters "SolderJumper*Bridged12*")
 		(path "/fab1e8e0-f23a-4adf-ae35-43b0da7c9d93")
 		(sheetname "/")
-		(sheetfile "Analog Redial 5.kicad_sch")
+		(sheetfile "Analog Redial v5.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -32773,7 +32774,7 @@
 			(justify right mirror)
 		)
 	)
-	(gr_text "Analog Redial 5"
+	(gr_text "Analog Redial v5"
 		(at 53.88 86.75 -90)
 		(layer "B.SilkS")
 		(uuid "7f61b3ff-1a39-4425-966c-68dfbf19dc63")
@@ -32785,7 +32786,7 @@
 			(justify left bottom mirror)
 		)
 	)
-	(gr_text "Analog Redial 5"
+	(gr_text "Analog Redial v5"
 		(at 116.08 62.58 0)
 		(layer "B.SilkS")
 		(uuid "f1c34b21-15e2-4228-96f9-ad742eb5dffc")
