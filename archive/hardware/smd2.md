@@ -14,6 +14,27 @@ builds for this board (`CONFIG_BOARD_TYPE_SMD2`, `build.smd2/`) -- see
 `CLAUDE.md`'s board-type build table -- this doc is the *hardware*
 reference, not a statement that the board itself is unsupported.
 
+### Rework checklist for a bare SMD2 board
+
+Every SMD2 needs all of these before it works fully. Each one is detailed
+further down.
+
+1. **USB D+/D− swapped** between U3 (USBLC6) and the WROOM-1: **cut both
+   original traces**, then cross-wire. Without this the board never shows up
+   on USB. See [USB D+/D− swap](#known-bug-smd2-usb-dd-swapped-between-u3-and-the-module).
+2. **SLIC Vin/Vout swapped** at the coupling caps (C16/C17, C18/C19), both
+   lines: cut and cross. Without it no audio reaches the phone line. See
+   [the first KNOWN BUG](#known-bug-smd2-confirmed-on-the-hand-soldered-board-also-present-in-smd3-schematic).
+3. **Line 1 mic:** pull C24 and wire a 100 nF cap from line 1's AG1171
+   Vout to C24's RIN1 pad, or line 1 is never heard during a call.
+4. **DTMF clipping divider** on each SLIC→codec input (final V3 values in
+   [Signal-level rework history](#signal-level-rework-history-dtmf-clipping-aec-timing)).
+5. Confirm U1 (LDO) EN, pin 3, is tied to VIN.
+
+No BOOT (J2) jumper is needed to flash over USB. The chip's built-in USB
+port shows up even with blank flash, and esptool puts it in download mode
+by itself. J2 is only for flashing through the UART pins (J3/J4).
+
 ---
 
 ## Rotary Phone Gateway — SMD board
@@ -189,7 +210,7 @@ reaches tip/ring.
 
 **Bodge fix (no need to desolder the AG1171 SIL module):** cut the trace from each
 coupling cap to the SLIC pin and cross them — audio bandwidth means wire length/routing
-doesn't matter here, unlike the USB D+/D- bodge.
+doesn't matter here, unlike the [USB D+/D- bodge](#known-bug-smd2-usb-dd-swapped-between-u3-and-the-module).
 - Line 0: `C16` pin2 → `U6` pin 10 (was → pin 9); `C17` pin2 → `U6` pin 9 (was → pin 10)
 - Line 1: `C19` pin2 → `U5` pin 10 (was → pin 9); `C18` pin2 → `U5` pin 9 (was → pin 10)
 
@@ -199,6 +220,22 @@ bodge forward again.
 
 **Power (not in audio path):** **USB1** → **+5 V** → **U1** → **+3.3 V** → **U2**, **U4**;
 **+5 V** also feeds **U5/U6** **+VPWR**.
+
+#### KNOWN BUG (SMD2): USB D+/D− swapped between U3 and the module
+
+The PCB routes U3's D+ to the WROOM-1's D− pin (pin 13, GPIO12) and vice
+versa. The board then never appears on USB.
+
+**Bodge fix:** cut **both** traces between U3 and module pins 13/14, then
+run two short wires crossing them over (U3's D+ side to pin 14/GPIO13, D−
+side to pin 13/GPIO12). Keep the wires short and next to each other: this is
+12 Mbit/s USB, unlike the audio bodges, where wire routing doesn't matter.
+
+**If you add the wires but forget to cut the traces,** D+ and D− end up
+shorted together. Symptom (2026-10-03, third board): 3.3 V and EN fine, but
+**both** D+ and D− read about 2.9 V at the module and the Mac shows no USB
+device at all. A healthy board reads D+ ≈ 3 V and D− ≈ 0 V while plugged in.
+Cutting the old traces fixed it immediately.
 
 #### KNOWN BUG (SMD2, fixed via bodge 2026-07-20): only one line's mic capturable at a time
 
