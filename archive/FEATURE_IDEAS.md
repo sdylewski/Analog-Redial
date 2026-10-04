@@ -47,10 +47,11 @@ had.
 ## Voice effects -- BUILT 2026-10-04
 
 Done: `components/audio/voice_fx.c`. During any call, a touch-tone (or
-rotary-dialled) 5/6/7/8 sets Dalek / chipmunk / deep / 8-bit, 0 turns it off,
-and both phones hear it whoever presses (`in_call_key()` in `telephony.c`).
-321-324 now really apply their effect when the call connects. Dalek and 8-bit
-add no delay; chipmunk/deep use a 30 ms delay-line pitch shifter (~15 ms).
+rotary-dialled) 5/6/7/8/9 sets Dalek / chipmunk / Vader / 8-bit / robot, 0
+turns it off, and both phones hear it whoever presses (`in_call_key()` in
+`telephony.c`). 322-324 start a call with chipmunk/Vader/Dalek. Dalek, 8-bit
+and robot add no delay; chipmunk and Vader use a 30 ms delay-line pitch
+shifter (~15 ms).
 
 Still open here:
 - VoIP: a key pressed by the far end isn't detected (only local phones'
@@ -59,7 +60,7 @@ Still open here:
   for a menu option will also turn on Dalek. A `*` prefix would avoid that if
   it turns out to matter.
 - More effects that add no delay: tremolo, a "radio" band-pass with
-  crackle, overdrive.
+  crackle. Vader could also get a breathing loop between phrases.
 
 ## Other ideas that fall out of having mid-call DTMF codes
 

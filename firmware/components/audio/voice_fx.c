@@ -7,7 +7,11 @@
 #define DALEK_HZ          30
 #define PITCH_WINDOW_MS   30
 #define PITCH_UP_Q16      98304   /* 1.5 */
-#define PITCH_DOWN_Q16    45875   /* 0.7 */
+#define VADER_PITCH_Q16   52429   /* 0.8 */
+#define VADER_MASK_US     1500    /* short comb: the mask's boxy resonance */
+#define VADER_MASK_FB_Q15 9830    /* 0.3 */
+#define ROBOT_HZ          110     /* comb delay = one period of this */
+#define ROBOT_FB_Q15      19661   /* 0.6 */
 #define CRUSH_RATE_HZ     4000
 #define CRUSH_MASK        0xF800  /* keep the top 5 bits */
 
@@ -26,6 +30,10 @@ struct voice_fx_state {
 
     uint32_t hold_n, hold_left;
     int16_t  held;
+
+    /* Feedback comb (robot, Vader's mask): y[n] = x[n] + g * y[n - D]. */
+    int16_t *comb;
+    uint32_t comb_mask, cw, robot_d, mask_d;
 };
 
 static int16_t s_sine[256];
@@ -46,6 +54,13 @@ voice_fx_state_t *voice_fx_create(uint32_t sample_rate)
     s->buf = calloc(size, sizeof(int16_t));
     if (!s->buf) { free(s); return NULL; }
     s->mask = size - 1;
+    uint32_t csize = 1;
+    while (csize < sample_rate / 100 + 4) csize <<= 1;   /* >= 10 ms */
+    s->comb = calloc(csize, sizeof(int16_t));
+    if (!s->comb) { free(s->buf); free(s); return NULL; }
+    s->comb_mask = csize - 1;
+    s->robot_d = sample_rate / ROBOT_HZ;
+    s->mask_d = sample_rate * VADER_MASK_US / 1000000;
     s->win_q16 = (int32_t)(win << 16);
     s->half_q16 = s->win_q16 / 2;
     s->ring_step = (uint32_t)(((uint64_t)DALEK_HZ << 32) / sample_rate);
@@ -56,7 +71,9 @@ voice_fx_state_t *voice_fx_create(uint32_t sample_rate)
 static void reset(voice_fx_state_t *s)
 {
     memset(s->buf, 0, (s->mask + 1) * sizeof(int16_t));
+    memset(s->comb, 0, (s->comb_mask + 1) * sizeof(int16_t));
     s->w = 0;
+    s->cw = 0;
     s->d_q16 = 0;
     s->ring_phase = 0;
     s->hold_left = 0;
@@ -102,6 +119,30 @@ static void pitch(voice_fx_state_t *s, int32_t ratio_q16, int16_t *x, size_t n)
     }
 }
 
+/* Feedback comb. Output at 0.7x: speech mostly falls between the comb's
+ * resonant peaks, so this keeps it about as loud as the dry voice. */
+static void comb(voice_fx_state_t *s, uint32_t d, int32_t g_q15, int16_t *x, size_t n)
+{
+    const int32_t out_q15 = 22938;
+    for (size_t k = 0; k < n; k++) {
+        int32_t back = s->comb[(s->cw - d) & s->comb_mask];
+        int32_t y = x[k] + ((back * g_q15) >> 15);
+        s->comb[s->cw & s->comb_mask] = sat16(y);
+        s->cw++;
+        x[k] = sat16((y * out_q15) >> 15);
+    }
+}
+
+/* Gentle overdrive: 1.5v - 0.5v^3 on a 2x-driven signal, soft at full scale. */
+static void overdrive(int16_t *x, size_t n)
+{
+    for (size_t k = 0; k < n; k++) {
+        int64_t v = sat16((int32_t)x[k] * 2);
+        int64_t y = (3 * v) / 2 - (v * v * v) / (2LL * 32768 * 32768);
+        x[k] = sat16((int32_t)y);
+    }
+}
+
 void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *x, size_t n)
 {
     if (!s || fx == VOICE_FX_NONE) return;
@@ -112,18 +153,23 @@ void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *x, size_t n)
     switch (fx) {
     case VOICE_FX_DALEK:
         for (size_t k = 0; k < n; k++) {
-            /* x1.5 makes up most of the level a ring modulator costs on
-             * average without clipping loud speech. */
+            /* Multiplying by a sine halves the average power; 1.25x wins
+             * back some loudness without clipping full-scale speech. */
             int32_t m = s_sine[s->ring_phase >> 24];
-            x[k] = sat16((int32_t)(((int64_t)x[k] * m * 3) >> 16));
+            x[k] = sat16((int32_t)(((int64_t)x[k] * m * 5) >> 17));
             s->ring_phase += s->ring_step;
         }
         break;
     case VOICE_FX_CHIPMUNK:
         pitch(s, PITCH_UP_Q16, x, n);
         break;
-    case VOICE_FX_DEEP:
-        pitch(s, PITCH_DOWN_Q16, x, n);
+    case VOICE_FX_VADER:
+        pitch(s, VADER_PITCH_Q16, x, n);
+        overdrive(x, n);
+        comb(s, s->mask_d, VADER_MASK_FB_Q15, x, n);
+        break;
+    case VOICE_FX_ROBOT:
+        comb(s, s->robot_d, ROBOT_FB_Q15, x, n);
         break;
     case VOICE_FX_8BIT:
         for (size_t k = 0; k < n; k++) {
@@ -145,8 +191,9 @@ const char *voice_fx_name(voice_fx_t fx)
     switch (fx) {
     case VOICE_FX_DALEK:    return "Dalek";
     case VOICE_FX_CHIPMUNK: return "chipmunk";
-    case VOICE_FX_DEEP:     return "deep voice";
+    case VOICE_FX_VADER:    return "Vader";
     case VOICE_FX_8BIT:     return "8-bit";
+    case VOICE_FX_ROBOT:    return "robot";
     default:                return "normal";
     }
 }

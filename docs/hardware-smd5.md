@@ -53,12 +53,9 @@ ESP32-C6-DevKitC-1 carrier, **U3**/**U4** = the two AG1171 SLICs, **J8**/**J9**
 
 ## 2. Schematic and layout
 
-This doc used to carry a full pin-by-pin table for every connector on the
-board. That table was really just a hand-copy of the schematic, which goes
-stale the moment the schematic changes — easier, and more trustworthy, to
-look at the real thing. What follows is the schematic and the top copper
-layer; open the KiCad project (above) for the bottom layer, 3D view, or to
-trace any net not called out below.
+The schematic and top copper layer are below; open the KiCad project
+(above) for the bottom layer, the 3D view, or to trace any net not called
+out here.
 
 **Schematic:**
 

@@ -608,7 +608,7 @@ static voice_fx_t voice_fx_for(voice_effect_t e)
 {
     switch (e) {
     case FX_HIGH:  return VOICE_FX_CHIPMUNK;
-    case FX_LOW:   return VOICE_FX_DEEP;
+    case FX_LOW:   return VOICE_FX_VADER;
     case FX_DALEK: return VOICE_FX_DALEK;
     default:       return VOICE_FX_NONE;
     }
@@ -624,8 +624,9 @@ static void in_call_key(int line, char ch)
     switch (ch) {
     case '5': fx = VOICE_FX_DALEK;    break;
     case '6': fx = VOICE_FX_CHIPMUNK; break;
-    case '7': fx = VOICE_FX_DEEP;     break;
+    case '7': fx = VOICE_FX_VADER;    break;
     case '8': fx = VOICE_FX_8BIT;     break;
+    case '9': fx = VOICE_FX_ROBOT;    break;
     case '0': fx = VOICE_FX_NONE;     break;
     default:  return;
     }

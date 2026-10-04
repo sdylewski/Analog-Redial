@@ -59,7 +59,7 @@ static const entry_t TABLE[] = {
      * behavior as when this used to be #if CONFIG_BOARD_NUM_LINES > 1. */
     { "321", ACT_CALL_LINE, -1, FX_NORMAL, "Call other phone (normal voice)", true },
     { "322", ACT_CALL_LINE, -1, FX_HIGH,   "Call other phone (chipmunk)", true },
-    { "323", ACT_CALL_LINE, -1, FX_LOW,    "Call other phone (low pitch)", true },
+    { "323", ACT_CALL_LINE, -1, FX_LOW,    "Call other phone (Vader)", true },
     { "324", ACT_CALL_LINE, -1, FX_DALEK,  "Call other phone (Dalek)", true },
 
     /* 8xx -- internet radio; only 811/812 are configured on the Pi today,

@@ -3205,21 +3205,23 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "<div class=\"card\"><h2>%s</h2>"
         "<form method=\"POST\" action=\"/wifi_reprovision\" class=\"settings-form\" "
         "onsubmit=\"return confirm('%s')\">"
+        "<label><input type=\"checkbox\" name=\"clear_name\" value=\"1\"> %s</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\">%s\xe2\x80\xa6</button></div>"
         "</form>",
         i18n_str("reset.title", "Reset"),
         i18n_str("reset.wifi.confirm",
-                 "Forget all saved WiFi networks and the board name, then reboot into setup "
-                 "mode? Hardware settings, dial codes, prompts and audio are kept."),
+                 "Forget all saved WiFi networks and reboot into setup mode? Hardware "
+                 "settings, dial codes, prompts and audio are kept."),
+        i18n_str("reset.wifi.clear_name", "Also reset the board name to <code>phone</code>"),
         i18n_str("reset.wifi.button", "Reset WiFi"));
     off = append_hint(buf, cap, off,
         i18n_str("reset.wifi.hint_lead",
-                 "Forgets WiFi and the board name, then starts the setup network -- for moving "
-                 "the board, or handing it to someone. It comes back as "
-                 "<code>phone.local</code>."),
+                 "Forgets WiFi and starts the setup network, for moving the board. Giving it "
+                 "away? Tick the box too, so it comes back as <code>phone.local</code>."),
         i18n_str("reset.wifi.hint_detail",
-                 "Keeps the hardware settings (lines, microSD, Bluetooth), dial codes, prompts "
-                 "and audio, recordings, the setup password and the self-test history. After "
+                 "Keeps the board name unless the box is ticked, plus the hardware settings "
+                 "(lines, microSD, Bluetooth), dial codes, prompts and audio, recordings, the "
+                 "setup password and the self-test history. After "
                  "the reboot the board broadcasts its setup network; whoever powers it up next "
                  "joins that network and enters their WiFi. Locked out of this page? Hold the "
                  "<b>BOOT</b> button for 3&nbsp;seconds <em>while it's already running</em> to "
@@ -4947,26 +4949,35 @@ static esp_err_t send_reboot_page(httpd_req_t *req, const char *title, const cha
 }
 
 /* POST /wifi_reprovision ("Reset WiFi") -- forgets every saved WiFi network
- * and the board name, then reboots into the setup AP. Everything else stays.
- * Covers both moving a board to a new network and handing a checked board to
- * someone else: either way it comes back as phone.local. The name is cleared
- * first because the setup AP's own name is derived from it. */
+ * and reboots into the setup AP; clear_name=1 also resets the board name to
+ * "phone" (handing a board to someone). Everything else stays. The name is
+ * cleared before reading the setup AP's name, which is derived from it. */
 static esp_err_t wifi_reprovision_handler(httpd_req_t *req)
 {
-    ESP_LOGW(TAG, "web UI: reset WiFi -- clearing WiFi + board name");
+    char body[64] = "", clear_name[4] = "";
+    if (req->content_len > 0 && req->content_len < sizeof(body)) {
+        int r = httpd_req_recv(req, body, req->content_len);
+        if (r > 0) body[r] = '\0';
+        form_field(body, "clear_name", clear_name, sizeof(clear_name));
+    }
+    bool forget_name = clear_name[0] == '1';
+    ESP_LOGW(TAG, "web UI: reset WiFi%s", forget_name ? " + board name" : "");
     esp_err_t err = wifi_clear_credentials();
     if (err != ESP_OK) ESP_LOGW(TAG, "wifi_clear_credentials failed: %s", esp_err_to_name(err));
-    err = board_name_clear();
-    if (err != ESP_OK) ESP_LOGW(TAG, "board_name_clear failed: %s", esp_err_to_name(err));
-    char ap[33], ap_esc[100], body[400];
+    if (forget_name) {
+        err = board_name_clear();
+        if (err != ESP_OK) ESP_LOGW(TAG, "board_name_clear failed: %s", esp_err_to_name(err));
+    }
+    char ap[33], ap_esc[100], body_html[420];
     wifi_setup_ap_name(ap, sizeof(ap));
     html_escape(ap, ap_esc, sizeof(ap_esc));
-    snprintf(body, sizeof(body),
-        "<p class=\"hint\">WiFi networks and the board name are cleared; everything else "
-        "is kept. In a few seconds it broadcasts the <code>%s</code> setup network. Join "
-        "it, enter a WiFi network, then open <code>phone.local</code> -- or unplug it now "
-        "to hand it to someone.</p>", ap_esc);
-    return send_reboot_page(req, "WiFi reset \xe2\x80\x94 rebooting\xe2\x80\xa6", body);
+    snprintf(body_html, sizeof(body_html),
+        "<p class=\"hint\">WiFi networks are cleared%s; everything else is kept. In a few "
+        "seconds it broadcasts the <code>%s</code> setup network. Join it and enter a WiFi "
+        "network%s.</p>",
+        forget_name ? ", and the board name is back to <code>phone</code>" : "", ap_esc,
+        forget_name ? " -- or unplug it now to hand it to someone" : "");
+    return send_reboot_page(req, "WiFi reset \xe2\x80\x94 rebooting\xe2\x80\xa6", body_html);
 }
 
 /* POST /factory_reset -- erases the ENTIRE NVS partition (WiFi, board
@@ -6786,8 +6797,8 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
     /* Not dial-plan codes: in_call_key() in telephony.c. */
     if (off > 0 && (size_t)off < cap) {
         static const struct { const char *key, *desc; } IN_CALL[] = {
-            { "5", "Dalek voice" }, { "6", "Chipmunk voice" }, { "7", "Deep voice" },
-            { "8", "8-bit voice" }, { "0", "Normal voice" },
+            { "5", "Dalek voice" }, { "6", "Chipmunk voice" }, { "7", "Darth Vader voice" },
+            { "8", "8-bit voice" }, { "9", "Robot voice" }, { "0", "Normal voice" },
         };
         off += snprintf(buf + off, cap - off,
             "<div class=\"card\"><h2>During a call</h2>");

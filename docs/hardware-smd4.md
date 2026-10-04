@@ -2,8 +2,7 @@
 
 Design reference for the current production board: a 2-layer, ESP32-C6-based
 analog-phone-line gateway carrying one or two POTS lines through Silvertel
-AG1171 SLICs and an Everest ES8388 stereo codec. This document describes the
-board as it is today — it is not a changelog against earlier spins.
+AG1171 SLICs and an Everest ES8388 stereo codec.
 
 KiCad project: `hardware/kicad/Analog Redial v4/`. The custom symbols and
 footprints it uses (SLICs, RJ12 jacks, ESP32-C6 modules) are
@@ -42,12 +41,9 @@ ESP32-C6-DevKitC-1 carrier, **U3**/**U4** = the two AG1171 SLICs, **J8**/**J9**
 
 ## 2. Schematic and layout
 
-This doc used to carry a full pin-by-pin table for every connector on the
-board. That table was really just a hand-copy of the schematic, which goes
-stale the moment the schematic changes — easier, and more trustworthy, to
-look at the real thing. What follows is the schematic and the top copper
-layer; open the KiCad project (above) for the bottom layer, 3D view, or to
-trace any net not called out below.
+The schematic and top copper layer are below; open the KiCad project
+(above) for the bottom layer, the 3D view, or to trace any net not called
+out here.
 
 **Schematic:**
 
@@ -144,10 +140,7 @@ ground island.
 ## 6. AG1171 SLIC & RJ12 wiring
 
 Each SLIC (**U4** = line 0, **U3** = line 1) interfaces one RJ12 jack (**J9**
-line 0, **J8** line 1) with the following support network. This is the
-current, corrected wiring — earlier hand-soldered revisions had a SLIC
-Vin/Vout swap and a mono-mic-capture bug; both are fixed as of this design,
-so only the corrected circuit is described below.
+line 0, **J8** line 1) with the following support network.
 
 | Signal | Wiring |
 |--------|--------|

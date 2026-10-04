@@ -581,7 +581,7 @@ def main() -> int:
         if rc != 0 or not online:
             print("\nNot resetting WiFi: fix the failures above first.")
         else:
-            code, _ = curl(args.host, "/wifi_reprovision", form={"confirm": "1"})
+            code, _ = curl(args.host, "/wifi_reprovision", form={"clear_name": "1"})
             if ok_status(code):
                 print("\nWiFi reset: WiFi and board name cleared, rebooting into "
                       "setup mode. Unplug it once its setup network appears.")

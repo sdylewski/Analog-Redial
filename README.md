@@ -173,15 +173,22 @@ tip/ring copper with real respect.
 
 ## Status
 
-- **Hardware:** SMD4 is the current design — schematic unchanged from the
-  prior spin, re-routed as a 2-layer PCB. Designed and ERC/DRC-reviewed;
-  not yet fabricated/bench-tested as of this writing.
+- **Hardware:** SMD4 (Analog Redial v4) is the current board, built and in
+  use. SMD5 (v5, adding Bluetooth) is at the fab.
 - **Firmware:** Core telephony (hook detect, pulse + DTMF dialing, tones,
-  ringing, recording, VoIP) is mature and tested on earlier SMD-family
-  hardware; the SMD4-specific pin-map header is written once boards are
-  back from fab.
+  ringing, recording, VoIP) is mature and runs on SMD2 and SMD4 boards.
 
 Contributions and issues welcome.
+
+## History
+
+| When | Version | What it was |
+|------|---------|-------------|
+| Aug 2020 | **Raspberry Pi** <br><img src="docs/pics/pi_version.jpg" width="220" alt="Raspberry Pi version in its project box"> | A Raspberry Pi 4 in a project box, with two AG1170 SLIC modules hand-wired to its GPIO header and a USB sound dongle per phone line. Python software (`pi_rotary_phone`), after a short Arduino + Adafruit Wave Shield experiment in July 2020. |
+| Jun 2026 | **Analog Redial v1** | The first ESP32 board: through-hole, an ESP32-C6-DevKitM-1 with a WM8731 codec and two AG1170 SLICs. Same job as the Pi, on a $5 microcontroller instead of a Linux computer. |
+| Jul 2026 | **Analog Redial v2** (SMD2) <br><img src="docs/pics/smd2_board.jpg" width="220" alt="Analog Redial v2 board"> | First surface-mount board: ESP32-C6-WROOM-1 module, ES8388 stereo codec, AG1171 SLICs, microSD. Three hand-soldered. |
+| Sep 2026 | **Analog Redial v4** (SMD4) <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | The current board: 2-layer, built around an ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. (v3 was its schematic, re-laid-out as v4 before it was ever made.) |
+| Oct 2026 | **Analog Redial v5** (SMD5) | At the fab: takes a genuine or clone ESP32-C6 module, and adds a BM64 Bluetooth companion so a mobile phone can use the rotary phone as its handset. |
 
 ## License
 
