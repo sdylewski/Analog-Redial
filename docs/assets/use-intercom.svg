@@ -1,45 +1,45 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 290" width="760" height="290" role="img" aria-label="Intercom setup: two analog telephones plugged into one Analog Redial board, so dialling 321 rings the other phone">
-  <rect width="760" height="290" fill="#ffffff"/>
+  <rect width="760" height="290" fill="#f7f0e0"/>
   <g font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
 
     <!-- left phone -->
     <g transform="translate(40,80)">
-      <line x1="14" y1="16" x2="76" y2="16" stroke="#b45309" stroke-width="20" stroke-linecap="round"/>
-      <circle cx="14" cy="16" r="13" fill="#f59e0b"/><circle cx="76" cy="16" r="13" fill="#f59e0b"/>
-      <rect x="4" y="32" width="82" height="44" rx="8" fill="#0f172a"/>
-      <circle cx="45" cy="54" r="14" fill="none" stroke="#f59e0b" stroke-width="3"/>
-      <circle cx="45" cy="54" r="3.5" fill="#f59e0b"/>
-      <text x="45" y="100" text-anchor="middle" font-size="14" fill="#334155">Phone 1</text>
+      <line x1="14" y1="16" x2="76" y2="16" stroke="#4d5a26" stroke-width="20" stroke-linecap="round"/>
+      <circle cx="14" cy="16" r="13" fill="#7c8c45"/><circle cx="76" cy="16" r="13" fill="#7c8c45"/>
+      <rect x="4" y="32" width="82" height="44" rx="8" fill="#2b2620"/>
+      <circle cx="45" cy="54" r="14" fill="none" stroke="#7c8c45" stroke-width="3"/>
+      <circle cx="45" cy="54" r="3.5" fill="#7c8c45"/>
+      <text x="45" y="100" text-anchor="middle" font-size="14" fill="#423525">Phone 1</text>
     </g>
 
     <!-- cord left -->
-    <path d="M 126 134 q 13.50 -12 27.00 0 q 13.50 12 27.00 0 q 13.50 -12 27.00 0 q 13.50 12 27.00 0 q 13.50 -12 27.00 0 q 13.50 12 27.00 0" fill="none" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+    <path d="M 126 134 q 13.50 -12 27.00 0 q 13.50 12 27.00 0 q 13.50 -12 27.00 0 q 13.50 12 27.00 0 q 13.50 -12 27.00 0 q 13.50 12 27.00 0" fill="none" stroke="#8a6f4d" stroke-width="4" stroke-linecap="round"/>
 
     <!-- board -->
     <g transform="translate(295,88)">
-      <rect x="0" y="0" width="170" height="92" rx="10" fill="#0f172a"/>
-      <rect x="-7" y="30" width="10" height="26" rx="2" fill="#475569"/>
-      <rect x="167" y="30" width="10" height="26" rx="2" fill="#475569"/>
-      <circle cx="30" cy="24" r="4" fill="#38bdf8"/><circle cx="46" cy="24" r="4" fill="#f59e0b"/>
-      <text x="85" y="56" text-anchor="middle" font-size="15" font-weight="600" fill="#f8fafc">ANALOG REDIAL</text>
-      <text x="85" y="76" text-anchor="middle" font-size="12" fill="#94a3b8">no network needed</text>
+      <rect x="0" y="0" width="170" height="92" rx="10" fill="#2b2620"/>
+      <rect x="-7" y="30" width="10" height="26" rx="2" fill="#5c4a35"/>
+      <rect x="167" y="30" width="10" height="26" rx="2" fill="#5c4a35"/>
+      <circle cx="30" cy="24" r="4" fill="#c78a2b"/><circle cx="46" cy="24" r="4" fill="#7c8c45"/>
+      <text x="85" y="56" text-anchor="middle" font-size="15" font-weight="600" fill="#f7f0e0">ANALOG REDIAL</text>
+      <text x="85" y="76" text-anchor="middle" font-size="12" fill="#8a6f4d">no network needed</text>
     </g>
 
     <!-- cord right -->
-    <path d="M 472 134 q 13.50 -12 27.00 0 q 13.50 12 27.00 0 q 13.50 -12 27.00 0 q 13.50 12 27.00 0 q 13.50 -12 27.00 0 q 13.50 12 27.00 0" fill="none" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+    <path d="M 472 134 q 13.50 -12 27.00 0 q 13.50 12 27.00 0 q 13.50 -12 27.00 0 q 13.50 12 27.00 0 q 13.50 -12 27.00 0 q 13.50 12 27.00 0" fill="none" stroke="#8a6f4d" stroke-width="4" stroke-linecap="round"/>
 
     <!-- right phone -->
     <g transform="translate(630,80)">
-      <line x1="14" y1="16" x2="76" y2="16" stroke="#b45309" stroke-width="20" stroke-linecap="round"/>
-      <circle cx="14" cy="16" r="13" fill="#f59e0b"/><circle cx="76" cy="16" r="13" fill="#f59e0b"/>
-      <rect x="4" y="32" width="82" height="44" rx="8" fill="#0f172a"/>
-      <circle cx="45" cy="54" r="14" fill="none" stroke="#f59e0b" stroke-width="3"/>
-      <circle cx="45" cy="54" r="3.5" fill="#f59e0b"/>
-      <text x="45" y="100" text-anchor="middle" font-size="14" fill="#334155">Phone 2</text>
+      <line x1="14" y1="16" x2="76" y2="16" stroke="#4d5a26" stroke-width="20" stroke-linecap="round"/>
+      <circle cx="14" cy="16" r="13" fill="#7c8c45"/><circle cx="76" cy="16" r="13" fill="#7c8c45"/>
+      <rect x="4" y="32" width="82" height="44" rx="8" fill="#2b2620"/>
+      <circle cx="45" cy="54" r="14" fill="none" stroke="#7c8c45" stroke-width="3"/>
+      <circle cx="45" cy="54" r="3.5" fill="#7c8c45"/>
+      <text x="45" y="100" text-anchor="middle" font-size="14" fill="#423525">Phone 2</text>
     </g>
 
-    <text x="380" y="40" text-anchor="middle" font-size="19" font-weight="600" fill="#0f172a">Intercom</text>
-    <text x="380" y="248" text-anchor="middle" font-size="15" fill="#475569">Dial <tspan font-weight="600" fill="#0f172a">321</tspan> and the other phone rings. Real dial tone, real bell —</text>
-    <text x="380" y="270" text-anchor="middle" font-size="15" fill="#475569">no Wi-Fi, no server, nothing to sign up for.</text>
+    <text x="380" y="40" text-anchor="middle" font-size="19" font-weight="600" fill="#2b2620">Intercom</text>
+    <text x="380" y="248" text-anchor="middle" font-size="15" fill="#5c4a35">Dial <tspan font-weight="600" fill="#2b2620">321</tspan> and the other phone rings. Real dial tone, real bell —</text>
+    <text x="380" y="270" text-anchor="middle" font-size="15" fill="#5c4a35">no Wi-Fi, no server, nothing to sign up for.</text>
   </g>
 </svg>

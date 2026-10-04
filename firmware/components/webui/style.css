@@ -1,14 +1,14 @@
 :root {
-  --bg: #0f1419;
-  --panel: #1a212b;
-  --panel2: #222c38;
-  --text: #e6edf3;
-  --muted: #8b98a5;
-  --accent: #4cc2ff;
-  --green: #3fb950;
-  --red: #f85149;
-  --amber: #d29922;
-  --border: #2d3743;
+  --bg: #262219;
+  --panel: #312c23;
+  --panel2: #3b352a;
+  --text: #f0e7d3;
+  --muted: #b3a68d;
+  --accent: #e0ab4a;
+  --green: #a7b964;
+  --red: #e2654f;
+  --amber: #e6b94a;
+  --border: #4b4335;
 }
 
 * { box-sizing: border-box; }
@@ -96,7 +96,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line, #e2e8f0); margin: 18px 0 1
 /* First-boot setup banner (index_handler): same card, just visually called
  * out with the accent color so it reads as "please look at this once,"
  * distinct from the plain status cards around it. */
-.card.firstboot { border-color: var(--accent); background: rgba(76,194,255,.06); }
+.card.firstboot { border-color: var(--accent); background: rgba(224,171,74,.06); }
 
 .statusrow { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; }
 .statusrow .label { color: var(--muted); }
@@ -116,10 +116,10 @@ hr.sep { border: 0; border-top: 1px solid var(--line, #e2e8f0); margin: 18px 0 1
   font-weight: 700;
   font-size: 13px;
 }
-.pill.on { background: rgba(63,185,80,.18); color: var(--green); }
-.pill.off { background: rgba(139,152,165,.15); color: var(--muted); }
-.pill.busy { background: rgba(210,153,34,.18); color: var(--amber); }
-.pill.amber { background: rgba(210,153,34,.18); color: var(--amber); }
+.pill.on { background: rgba(167,185,100,.18); color: var(--green); }
+.pill.off { background: rgba(179,166,141,.15); color: var(--muted); }
+.pill.busy { background: rgba(230,185,74,.18); color: var(--amber); }
+.pill.amber { background: rgba(230,185,74,.18); color: var(--amber); }
 
 .bignum { font-size: 30px; font-weight: 800; letter-spacing: .12em; min-height: 38px; }
 
@@ -130,7 +130,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line, #e2e8f0); margin: 18px 0 1
 .logpanel h2 { margin: 0; padding: 12px 16px; font-size: 13px; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .logpanel h2 button { padding: 4px 10px; font-size: 11px; text-transform: none; font-weight: 600; }
 .logbody { max-height: 420px; overflow-y: auto; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; }
-.logline { display: flex; gap: 10px; padding: 4px 16px; border-bottom: 1px solid rgba(45,55,67,.5); }
+.logline { display: flex; gap: 10px; padding: 4px 16px; border-bottom: 1px solid rgba(75,67,53,.5); }
 .logline:hover { background: var(--panel2); }
 .logline .t { color: var(--muted); white-space: nowrap; }
 .logline .k { color: var(--accent); width: 54px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -273,7 +273,7 @@ details.hint-detail > .hint { margin: 0; }
 .msg { font-size: 13px; color: var(--muted); }
 .msg.err { color: var(--red); }
 .msg.ok { color: var(--green); }
-button.primary { background: rgba(76,194,255,.15); border-color: var(--accent); color: var(--accent); }
+button.primary { background: rgba(224,171,74,.15); border-color: var(--accent); color: var(--accent); }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 button:disabled:hover { border-color: var(--border); }
 .mode-list { display: flex; flex-direction: column; gap: 14px; }
@@ -284,7 +284,7 @@ button:disabled:hover { border-color: var(--border); }
 .voip-line-result { margin: 8px 0; }
 .ok-text { color: var(--green); }
 .err-text { color: var(--red); }
-.warn-text { color: #d29922; }
+.warn-text { color: var(--amber); }
 .hardware-stats { margin: 8px 0 0; }
 .hardware-row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .hardware-row:last-child { border-bottom: none; }
@@ -298,7 +298,7 @@ button:disabled:hover { border-color: var(--border); }
 }
 .health-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; background: var(--muted); }
 .health-ok .health-dot { background: var(--green); }
-.health-warn .health-dot { background: #d29922; }
+.health-warn .health-dot { background: var(--amber); }
 .health-bad .health-dot { background: var(--red); }
 /* Hazard banner (board_sd_line1_conflict()) -- deliberately louder than
    .health-banner above: a solid red block, not a subtle dot, since this
@@ -307,14 +307,14 @@ button:disabled:hover { border-color: var(--border); }
 .hazard-banner {
   display: flex; align-items: center; gap: 10px;
   padding: 12px 16px; margin: 12px 0;
-  border-radius: 10px; background: var(--red); color: #1a0a0a;
+  border-radius: 10px; background: var(--red); color: #1f1a12;
   font-weight: 700; font-size: 15px;
 }
 .hazard-banner a { color: inherit; text-decoration: underline; }
 .health-unknown .health-dot { background: var(--muted); }
-.health-ok { border-color: rgba(63, 185, 80, 0.35); }
-.health-warn { border-color: rgba(210, 153, 34, 0.45); }
-.health-bad { border-color: rgba(248, 81, 73, 0.45); }
+.health-ok { border-color: rgba(167, 185, 100, 0.35); }
+.health-warn { border-color: rgba(230, 185, 74, 0.45); }
+.health-bad { border-color: rgba(226, 101, 79, 0.45); }
 .lang-section-top { margin-top: 8px; }
 .lang-list {
   display: grid;
@@ -428,7 +428,7 @@ a.button:hover { border-color: var(--accent); color: var(--accent); }
 .help-box ol { margin: 8px 0 0; padding-left: 20px; }
 .help-box li { margin: 6px 0; }
 
-.code-row { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(45,55,67,.4); font-size: 13.5px; }
+.code-row { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(75,67,53,.4); font-size: 13.5px; }
 .code-row:last-child { border-bottom: none; }
 .code-row .code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 700; color: var(--accent); white-space: nowrap; }
 .code-row .desc { flex: 1; color: var(--text); }

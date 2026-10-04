@@ -1,30 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 216" width="240" height="216" role="img" aria-label="Analog Redial logo: two phone handsets with curly cords connecting to a circuit board, with a wifi signal between them">
-  <rect x="0" y="0" width="240" height="216" rx="28" fill="#0f172a"/>
+  <rect x="0" y="0" width="240" height="216" rx="28" fill="#eee1c2"/>
 
   <!-- left handset -->
-  <line x1="35" y1="60" x2="70" y2="125" stroke="#b45309" stroke-width="24" stroke-linecap="round"/>
-  <circle cx="35" cy="60" r="20" fill="#f59e0b" stroke="#b45309" stroke-width="2"/>
-  <circle cx="70" cy="125" r="20" fill="#f59e0b" stroke="#b45309" stroke-width="2"/>
+  <line x1="35" y1="60" x2="70" y2="125" stroke="#4d5a26" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="35" cy="60" r="20" fill="#7c8c45" stroke="#4d5a26" stroke-width="2"/>
+  <circle cx="70" cy="125" r="20" fill="#7c8c45" stroke="#4d5a26" stroke-width="2"/>
 
   <!-- right handset (mirrored) -->
-  <line x1="205" y1="60" x2="170" y2="125" stroke="#b45309" stroke-width="24" stroke-linecap="round"/>
-  <circle cx="205" cy="60" r="20" fill="#f59e0b" stroke="#b45309" stroke-width="2"/>
-  <circle cx="170" cy="125" r="20" fill="#f59e0b" stroke="#b45309" stroke-width="2"/>
+  <line x1="205" y1="60" x2="170" y2="125" stroke="#4d5a26" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="205" cy="60" r="20" fill="#7c8c45" stroke="#4d5a26" stroke-width="2"/>
+  <circle cx="170" cy="125" r="20" fill="#7c8c45" stroke="#4d5a26" stroke-width="2"/>
 
   <!-- curly cords down to the board -->
-  <path d="M 70 125 Q 60 135 72 141 Q 84 147 74 153 Q 64 159 78 168" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/>
-  <path d="M 170 125 Q 180 135 168 141 Q 156 147 166 153 Q 176 159 162 168" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/>
+  <path d="M 70 125 Q 60 135 72 141 Q 84 147 74 153 Q 64 159 78 168" fill="none" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/>
+  <path d="M 170 125 Q 180 135 168 141 Q 156 147 166 153 Q 176 159 162 168" fill="none" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/>
 
   <!-- wifi signal, between the two handsets -->
-  <path d="M 83.2 117.1 A 48 48 0 0 1 156.8 117.1" fill="none" stroke="#38bdf8" stroke-width="6" stroke-linecap="round"/>
-  <path d="M 94.7 126.8 A 33 33 0 0 1 145.3 126.8" fill="none" stroke="#38bdf8" stroke-width="6" stroke-linecap="round"/>
-  <path d="M 106.2 136.4 A 18 18 0 0 1 133.8 136.4" fill="none" stroke="#38bdf8" stroke-width="6" stroke-linecap="round"/>
-  <circle cx="120" cy="148" r="7" fill="#38bdf8"/>
+  <path d="M 83.2 117.1 A 48 48 0 0 1 156.8 117.1" fill="none" stroke="#c78a2b" stroke-width="6" stroke-linecap="round"/>
+  <path d="M 94.7 126.8 A 33 33 0 0 1 145.3 126.8" fill="none" stroke="#c78a2b" stroke-width="6" stroke-linecap="round"/>
+  <path d="M 106.2 136.4 A 18 18 0 0 1 133.8 136.4" fill="none" stroke="#c78a2b" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="120" cy="148" r="7" fill="#c78a2b"/>
 
   <!-- circuit board -->
-  <rect x="50" y="168" width="140" height="38" rx="8" fill="#475569" stroke="#94a3b8" stroke-width="2"/>
-  <rect x="85" y="180" width="34" height="14" rx="2" fill="#334155"/>
-  <rect x="130" y="180" width="20" height="14" rx="2" fill="#334155"/>
-  <circle cx="63" cy="187" r="3" fill="#22c55e"/>
-  <circle cx="177" cy="187" r="3" fill="#22c55e"/>
+  <rect x="50" y="168" width="140" height="38" rx="8" fill="#5c4a35" stroke="#8a6f4d" stroke-width="2"/>
+  <rect x="85" y="180" width="34" height="14" rx="2" fill="#423525"/>
+  <rect x="130" y="180" width="20" height="14" rx="2" fill="#423525"/>
+  <circle cx="63" cy="187" r="3" fill="#eec24a"/>
+  <circle cx="177" cy="187" r="3" fill="#eec24a"/>
 </svg>
