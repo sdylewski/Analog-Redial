@@ -317,11 +317,11 @@ esp_err_t board_tone_region_set(const char *code)
 bool board_voice_fx_enabled_get(void)
 {
     nvs_handle_t h;
-    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return true;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return false;   /* experimental: off unless turned on */
     uint8_t en;
     esp_err_t err = nvs_get_u8(h, "voice_fx_en", &en);
     nvs_close(h);
-    return (err == ESP_OK) ? (en != 0) : true;
+    return (err == ESP_OK) ? (en != 0) : false;
 }
 
 esp_err_t board_voice_fx_enabled_set(bool enabled)

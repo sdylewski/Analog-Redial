@@ -520,14 +520,25 @@ static void fxtest_row(voice_fx_t fx, float hz, const fx_tone_result_t *r, bool 
            bad ? "FAIL: " : "ok", bad ? bad : "");
 }
 
+typedef struct { voice_fx_t fx; float hz, amp; fx_tone_result_t r; esp_err_t e; volatile bool done; } fx_other_t;
+
+static void fx_other_task(void *arg)
+{
+    fx_other_t *o = arg;
+    o->e = audio_fx_roundtrip(1, o->fx, o->hz, o->amp, &o->r);
+    o->done = true;
+    vTaskDelete(NULL);
+}
+
 static int cmd_fxtest(int argc, char **argv)
 {
     float hz = argc > 1 ? (float)atof(argv[1]) : 1000.0f;
     int line = argc > 2 ? atoi(argv[2]) : -1;
     int only = argc > 3 ? atoi(argv[3]) : -1;       /* one effect, repeated 3 times */
+    bool both = argc > 4 && strcmp(argv[4], "both") == 0;   /* line 1 plays the same effect meanwhile */
     float amp = 0.3f;
     if (hz < 200 || hz > 2500 || line >= AUDIO_NUM_LINES) {
-        printf("usage: fxtest [tone Hz 200-2500, default 1000] [line] [effect 0-7: just that one, x3]\n"
+        printf("usage: fxtest [tone Hz 200-2500, default 1000] [line] [effect 0-7: just that one, x3] [both: line 1 runs it too]\n"
                "  Plays a pure tone through every effect and reports the two strongest lines out.\n"
                "  Without a line: in software only. With a line (on-hook!): also through the real\n"
                "  effect path, DAC, SLIC and back in through the hybrid and ADC.\n");
@@ -548,9 +559,20 @@ static int cmd_fxtest(int argc, char **argv)
         printf("line %d round trip (earpiece level as set; the normal row is the line's own response):\n", line);
         for (int i = 0, fx = (only >= 0 ? only : 0); i < (only >= 0 ? 3 : 8); i++, fx += (only >= 0 ? 0 : 1)) {
             fx_tone_result_t r;
+            fx_other_t *other = both ? calloc(1, sizeof(*other)) : NULL;
+            if (other) {
+                other->fx = (voice_fx_t)fx; other->hz = hz; other->amp = amp;
+                xTaskCreate(fx_other_task, "fxother", 4096, other, 5, NULL);
+            }
             esp_err_t e = audio_fx_roundtrip(line, (voice_fx_t)fx, hz, amp, &r);
-            if (e != ESP_OK) { printf("  %-10s failed: %s\n", FX_NAMES[fx], esp_err_to_name(e)); continue; }
-            fxtest_row((voice_fx_t)fx, hz, &r, false);
+            if (e != ESP_OK) { printf("  %-10s failed: %s\n", FX_NAMES[fx], esp_err_to_name(e)); }
+            else fxtest_row((voice_fx_t)fx, hz, &r, false);
+            if (other) {
+                for (int w = 0; w < 100 && !other->done; w++) vTaskDelay(pdMS_TO_TICKS(100));
+                if (other->done && other->e == ESP_OK) { printf("   (line 1)"); fxtest_row((voice_fx_t)fx, hz, &other->r, false); }
+                else printf("   (line 1) failed: %s\n", other->done ? esp_err_to_name(other->e) : "timeout");
+                if (other->done) free(other);
+            }
         }
     }
     return 0;

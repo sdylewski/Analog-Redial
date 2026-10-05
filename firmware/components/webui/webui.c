@@ -1734,9 +1734,9 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>",
-        i18n_str("voicefx.title", "Voice effects"),
+        i18n_str("voicefx.title", "Voice effects (experimental)"),
         fx_on ? " checked" : "",
-        i18n_str("voicefx.enabled", "Enable audio effects during calls"),
+        i18n_str("voicefx.enabled", "Enable audio effects during calls (experimental, off by default)"),
         i18n_str("general.button.save", "Save"));
     off = append_hint(buf, cap, off,
         i18n_str("voicefx.hint_lead",
