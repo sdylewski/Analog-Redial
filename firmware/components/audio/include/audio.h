@@ -75,6 +75,24 @@ typedef struct {
 } tone_purity_t;
 esp_err_t audio_tone_purity(int line, bool digital, tone_purity_t *out);
 
+/* Deterministic voice-effect measurement (fx_test.c): a pure tone through an
+ * effect, then the strongest two spectral lines out. */
+typedef struct {
+    float peak_hz, peak_dbfs;        /* strongest line */
+    float second_hz, second_dbfs;    /* strongest line >= 40 Hz away from it */
+    float rms_dbfs, sample_peak_dbfs;
+    float other_pct;                 /* energy outside those two lines */
+    float env_ratio;                 /* quietest / loudest 10 ms block (tremolo ~0.3) */
+    uint32_t clipped, limited;
+    float us_avg, us_max;            /* software run: time to process one frame */
+    uint32_t frame_us;               /* ... against the frame it must fit in */
+} fx_tone_result_t;
+/* In software only: tone -> effect -> measure. */
+esp_err_t audio_fx_tone_test(voice_fx_t fx, float hz, float amp, fx_tone_result_t *out);
+/* Through the engine's effect path, the DAC, the SLIC and back in through the
+ * hybrid and ADC. The line must be idle (on-hook). */
+esp_err_t audio_fx_roundtrip(int line, voice_fx_t fx, float hz, float amp, fx_tone_result_t *out);
+
 esp_err_t  audio_set_voice_fx(int line, voice_fx_t fx);
 voice_fx_t audio_voice_fx(int line);
 /* Levels through the effect on `line` since the last call (downlink = what its

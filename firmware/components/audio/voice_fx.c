@@ -77,6 +77,14 @@ voice_fx_state_t *voice_fx_create(uint32_t sample_rate)
     return s;
 }
 
+void voice_fx_destroy(voice_fx_state_t *s)
+{
+    if (!s) return;
+    free(s->buf);
+    free(s->comb);
+    free(s);
+}
+
 static void reset(voice_fx_state_t *s)
 {
     memset(s->buf, 0, (s->mask + 1) * sizeof(int16_t));

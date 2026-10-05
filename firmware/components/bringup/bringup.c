@@ -485,6 +485,77 @@ static int cmd_fxgain(int argc, char **argv)
     return 0;
 }
 
+/* What each effect should do to a pure tone of `hz`: where the strongest line
+ * lands. Returns NULL if it's right, otherwise what's wrong. */
+static const char *fx_expect(voice_fx_t fx, float hz, const fx_tone_result_t *r)
+{
+    float want = hz, tol = fmaxf(12.0f, hz * 0.02f);
+    switch (fx) {
+    case VOICE_FX_DALEK: {
+        /* 30 Hz ring modulation: two lines at hz-30 and hz+30, nothing at hz. */
+        float m = r->peak_hz, o = r->second_hz;
+        bool ok = (fabsf(m - (hz - 30)) < 12 && fabsf(o - (hz + 30)) < 12) ||
+                  (fabsf(m - (hz + 30)) < 12 && fabsf(o - (hz - 30)) < 12);
+        return ok ? NULL : "expected lines at tone +/- 30 Hz";
+    }
+    case VOICE_FX_CHIPMUNK: want = hz * 1.5f; tol = fmaxf(12.0f, want * 0.03f); break;
+    case VOICE_FX_VADER:    want = hz * 0.8f; tol = fmaxf(12.0f, want * 0.03f); break;
+    default: break;
+    }
+    if (fabsf(r->peak_hz - want) > tol) return "main line is at the wrong pitch";
+    if (fx == VOICE_FX_TREMOLO && r->env_ratio > 0.5f) return "no amplitude wobble";
+    return NULL;
+}
+
+static void fxtest_row(voice_fx_t fx, float hz, const fx_tone_result_t *r, bool digital)
+{
+    const char *bad = fx == VOICE_FX_NONE ? NULL : fx_expect(fx, hz, r);
+    if (!bad && digital && r->limited) bad = "peak limiter had to act";
+    if (!bad && r->clipped) bad = "clipped";
+    char timing[24] = "";
+    if (digital) snprintf(timing, sizeof(timing), "%4.0f/%4.0f us", r->us_avg, r->us_max);
+    printf("  %-10s %6.0f Hz %6.1f | %6.0f Hz %6.1f | %6.1f %6.1f %5.1f%% %4.2f %s %s%s\n",
+           voice_fx_name(fx), r->peak_hz, r->peak_dbfs, r->second_hz, r->second_dbfs,
+           r->rms_dbfs, r->sample_peak_dbfs, r->other_pct, r->env_ratio, timing,
+           bad ? "FAIL: " : "ok", bad ? bad : "");
+}
+
+static int cmd_fxtest(int argc, char **argv)
+{
+    float hz = argc > 1 ? (float)atof(argv[1]) : 1000.0f;
+    int line = argc > 2 ? atoi(argv[2]) : -1;
+    int only = argc > 3 ? atoi(argv[3]) : -1;       /* one effect, repeated 3 times */
+    float amp = 0.3f;
+    if (hz < 200 || hz > 2500 || line >= AUDIO_NUM_LINES) {
+        printf("usage: fxtest [tone Hz 200-2500, default 1000] [line] [effect 0-7: just that one, x3]\n"
+               "  Plays a pure tone through every effect and reports the two strongest lines out.\n"
+               "  Without a line: in software only. With a line (on-hook!): also through the real\n"
+               "  effect path, DAC, SLIC and back in through the hybrid and ADC.\n");
+        return 1;
+    }
+    printf("tone %.0f Hz at %.1f dBFS peak (%.1f dBFS rms) in. Columns: strongest line (dBFS), "
+           "2nd line, rms, peak, energy outside those two lines, 10 ms envelope min/max, "
+           "time per 10 ms frame avg/max\n",
+           hz, 20 * log10f(amp), 20 * log10f(amp / 1.4142f));
+    printf("software:\n");
+    for (int fx = (only >= 0 ? only : 0); fx <= (only >= 0 ? only : 7); fx++) {
+        fx_tone_result_t r;
+        esp_err_t e = audio_fx_tone_test((voice_fx_t)fx, hz, amp, &r);
+        if (e != ESP_OK) { printf("  %-10s failed: %s\n", FX_NAMES[fx], esp_err_to_name(e)); continue; }
+        fxtest_row((voice_fx_t)fx, hz, &r, true);
+    }
+    if (line >= 0) {
+        printf("line %d round trip (earpiece level as set; the normal row is the line's own response):\n", line);
+        for (int i = 0, fx = (only >= 0 ? only : 0); i < (only >= 0 ? 3 : 8); i++, fx += (only >= 0 ? 0 : 1)) {
+            fx_tone_result_t r;
+            esp_err_t e = audio_fx_roundtrip(line, (voice_fx_t)fx, hz, amp, &r);
+            if (e != ESP_OK) { printf("  %-10s failed: %s\n", FX_NAMES[fx], esp_err_to_name(e)); continue; }
+            fxtest_row((voice_fx_t)fx, hz, &r, false);
+        }
+    }
+    return 0;
+}
+
 static float fx_db(int32_t v) { return v > 0 ? 20.0f * log10f((float)v / 32768.0f) : -99.0f; }
 
 static int cmd_fxstat(int argc, char **argv)
@@ -2462,6 +2533,7 @@ void bringup_console_start(void)
     register_cmd("reboot", "Software restart of the ESP32 (keeps the monitor attached)", cmd_reboot);
     register_cmd("download", "Reboot into the ROM bootloader for flashing (quiets audio/SLIC first; power-cycle when done)", cmd_download);
     register_cmd("fx", "Voice effect for diagnostics: fx <line> <0-7> [both] (see usage)", cmd_fx);
+    register_cmd("fxtest", "Deterministic voice-effect check: a pure tone through each effect, spectrum out: fxtest [Hz] [line]", cmd_fxtest);
     register_cmd("fxgain", "Voice effect output gain for testing: fxgain [percent 10-300, default 100]", cmd_fxgain);
     register_cmd("fxstat", "Live levels through the voice effects: fxstat [secs]", cmd_fxstat);
     register_cmd("tonetest", "Dial-tone purity as returned by the SLIC (clipping/distortion): tonetest [line]", cmd_tonetest);

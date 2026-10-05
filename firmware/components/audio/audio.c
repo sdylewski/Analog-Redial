@@ -54,6 +54,11 @@ typedef struct {
      * VoIP reads (48 kHz raw or 8 kHz echo-cancelled). Allocated on first use. */
     voice_fx_t        fx;
     voice_fx_state_t *fx_down, *fx_up, *fx_up8;
+    /* When something (the VoIP RTP task, the recorder) last asked for this
+     * line's uplink. The uplink effect costs as much as the downlink one
+     * (~2 ms of every 10 ms frame for pitch effects), so on a call between two
+     * local phones, where nobody reads the uplink, it's skipped. */
+    volatile int64_t uplink_read_us;
 } line_t;
 
 static line_t s_line[AUDIO_NUM_LINES];
@@ -399,15 +404,21 @@ size_t audio_rx_read(int line, int16_t *mono, size_t n, uint32_t timeout_ms)
 {
     audio_wake();
     if (line < 0 || line >= AUDIO_NUM_LINES || !s_line[line].rx) return 0;
-    return xStreamBufferReceive(s_line[line].rx, mono, n * sizeof(int16_t),
-                                pdMS_TO_TICKS(timeout_ms)) / sizeof(int16_t);
+    s_line[line].uplink_read_us = esp_timer_get_time();
+    size_t got = xStreamBufferReceive(s_line[line].rx, mono, n * sizeof(int16_t),
+                                      pdMS_TO_TICKS(timeout_ms)) / sizeof(int16_t);
+    s_line[line].uplink_read_us = esp_timer_get_time();
+    return got;
 }
 
 size_t audio_aec_read(int line, int16_t *mono, size_t n, uint32_t timeout_ms)
 {
     if (line < 0 || line >= AUDIO_NUM_LINES || !s_line[line].aec_out) return 0;
-    return xStreamBufferReceive(s_line[line].aec_out, mono, n * sizeof(int16_t),
-                                pdMS_TO_TICKS(timeout_ms)) / sizeof(int16_t);
+    s_line[line].uplink_read_us = esp_timer_get_time();
+    size_t got = xStreamBufferReceive(s_line[line].aec_out, mono, n * sizeof(int16_t),
+                                      pdMS_TO_TICKS(timeout_ms)) / sizeof(int16_t);
+    s_line[line].uplink_read_us = esp_timer_get_time();
+    return got;
 }
 
 uint16_t audio_rx_level(int line)
@@ -604,7 +615,8 @@ static void audio_task(void *arg)
                  * hear the '0' that turns an effect off); only the uplink
                  * VoIP reads gets the effect. */
                 const int16_t *up = src;
-                if (s_line[line].fx != VOICE_FX_NONE && s_line[line].fx_up && s_fx_tmp[line]) {
+                bool wanted = esp_timer_get_time() - s_line[line].uplink_read_us < 500000;
+                if (wanted && s_line[line].fx != VOICE_FX_NONE && s_line[line].fx_up && s_fx_tmp[line]) {
                     memcpy(s_fx_tmp[line], src, rxn * sizeof(int16_t));
                     voice_fx_process(s_line[line].fx_up, s_line[line].fx, s_fx_tmp[line], rxn);
                     up = s_fx_tmp[line];
@@ -637,7 +649,8 @@ static void audio_task(void *arg)
                 }
                 if (m) {
                     aec_process(line, ref8, near8, near8, m); /* in-place */
-                    voice_fx_process(s_line[line].fx_up8, s_line[line].fx, near8, m);
+                    if (esp_timer_get_time() - s_line[line].uplink_read_us < 500000)
+                        voice_fx_process(s_line[line].fx_up8, s_line[line].fx, near8, m);
                     xStreamBufferSend(s_line[line].aec_out, near8, m * sizeof(int16_t), 0);
                 }
             }

@@ -30,6 +30,8 @@ typedef struct voice_fx_state voice_fx_state_t;
 /* One state per audio stream (each keeps its own delay line). NULL on OOM. */
 voice_fx_state_t *voice_fx_create(uint32_t sample_rate);
 
+void voice_fx_destroy(voice_fx_state_t *s);   /* NULL ok */
+
 /* What one stream has done since the last voice_fx_take_stats(): levels going
  * in and coming out of the effect, and how often the peak limiter bent a
  * sample. For diagnosing "too loud" / "distorted" without a scope. */
