@@ -124,6 +124,10 @@ hr.sep { border: 0; border-top: 1px solid var(--border); margin: 18px 0 14px; }
  * squeezed into one of several narrow auto-fit columns on a wide screen --
  * span the full row regardless of how many sibling cards there are. */
 .card.wide { grid-column: 1 / -1; }
+/* Answering machine: one column per line plus the shared default greeting. */
+.amcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+.amcol { min-width: 0; }
+.amcol h3 { margin-top: 0; }
 /* Same reasoning as .card.wide -- a log/activity panel needs the full row,
  * not one of several narrow auto-fit columns. No-op when it's rendered
  * outside a .cards grid (e.g. the Status page's activity panel, between two

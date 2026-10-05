@@ -1581,7 +1581,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
      * whenever VOIP/a second line gets added), just flagged. */
     bool am_active = voip_is_enabled() || num_lines > 1;
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>%s</h2>", i18n_str("am.title", "Answering machine"));
+        "<div class=\"card wide\"><h2>%s</h2>", i18n_str("am.title", "Answering machine"));
     if (!am_active) {
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<p class=\"hint warn-text\">%s</p>",
@@ -1591,6 +1591,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                      "it. Settings below are saved either way -- they'll take effect as soon as "
                      "VOIP is enabled or a second line is configured."));
     }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "<div class=\"amcols\">");
     for (int l = 0; l < num_lines; l++) {
         board_am_cfg_t am = board_am_get(l);
         char greeting[STORAGE_MAX_NAME];
@@ -1603,7 +1604,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         snprintf(line_h3, sizeof(line_h3), i18n_str("status.line.title", "Line %d"), l);
         snprintf(save_line, sizeof(save_line), i18n_str("speaker.save_line", "Save line %d"), l);
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<h3>%s</h3>"
+            "<div class=\"amcol\"><h3>%s</h3>"
             "<form method=\"POST\" action=\"/answering_machine\" class=\"settings-form\">"
             "<input type=\"hidden\" name=\"line\" value=\"%d\">"
             "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
@@ -1649,15 +1650,17 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                 "<span><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></span></div>",
                 i18n_str("am.greeting_default", "Greeting: default"), AM_DEFAULT_GREETING_NAME);
         }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
     }
 
     /* The shared default greeting's text, for text-to-speech -- same
      * mechanism as the Operator and Record prompts. Until generated, the
      * one built into the firmware plays. */
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<h3>%s</h3>", i18n_str("am.default_title", "Default greeting"));
+        "<div class=\"amcol\"><h3>%s</h3>", i18n_str("am.default_title", "Default greeting"));
     off = append_prompt_field(buf, cap, off, AM_DEFAULT_GREETING_NAME,
                               "Leave a message after the beep.");
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div></div>"); /* column, amcols */
     off = append_hint(buf, cap, off,
         i18n_str("am.hint_lead",
                  "Each line plays its own recorded greeting if it has one, otherwise the "
@@ -1676,6 +1679,114 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         "</div>"
         "<script>%s</script>",
         RECORDING_RELOAD_JS);
+
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>%s</h2>", i18n_str("speaker.title", "Speaker (earpiece) volume"));
+    for (int l = 0; l < num_lines; l++) {
+        uint8_t vol = board_speaker_volume_get(l, ES8388_DEFAULT_SPK_VOL);
+        /* Shown in the same steps as the bring-up `spkamp` command (1.5 dB each,
+         * 30 = the codec's 0 dB point), so a number read off one works in the
+         * other. The bar under the slider is green up to the highest level the
+         * Diagnostics audio-level check found clean on THIS board, amber above. */
+        char line_label[32];
+        snprintf(line_label, sizeof(line_label), i18n_str("status.line.title", "Line %d"), l);
+        char save_line[48];
+        snprintf(save_line, sizeof(save_line), i18n_str("speaker.save_line", "Save line %d"), l);
+        unsigned clean = board_speaker_clean_max_get(l);
+        int shown = vol < SPK_MIN ? SPK_MIN : vol > SPK_MAX ? SPK_MAX : vol;
+        char clean_note[160], bar[96] = "";
+        if (clean) {
+            unsigned c = clean < SPK_MIN ? SPK_MIN : clean > SPK_MAX ? SPK_MAX : clean;
+            snprintf(bar, sizeof(bar), "<div class=\"levelbar\"><i style=\"width:%u%%\"></i></div>",
+                     (c - SPK_MIN) * 100u / (SPK_MAX - SPK_MIN));
+            snprintf(clean_note, sizeof(clean_note), i18n_str("speaker.clean_known",
+                     "Clean up to level %u on this board (green); above it the tone may distort."), clean);
+        } else {
+            snprintf(clean_note, sizeof(clean_note), "%s", i18n_str("speaker.clean_unknown",
+                     "Not measured yet: run the Line audio level check on the Diagnostics tab."));
+        }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<form method=\"POST\" action=\"/speaker_volume\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<label>%s <input type=\"range\" name=\"vol\" min=\"%d\" max=\"%d\" step=\"1\" "
+            "value=\"%d\" oninput=\"spkLive(%d,this.value)\"> "
+            "<span id=\"spkpct%d\">Level %d (%.1f dB)</span></label>%s"
+            "<span class=\"fieldhint\">%s</span>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+            "</form>",
+            l, line_label, SPK_MIN, SPK_MAX, shown, l, l, shown, (shown - 30) * 1.5, bar,
+            clean_note, save_line);
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">%s</p></div>",
+        i18n_str("speaker.hint",
+                 "Drag while on a call to hear the change live (applied immediately, not saved "
+                 "yet) -- click Save once you land on a level you like. Each step is 1.5 dB and "
+                 "30 is the codec's 0 dB point. Set it too high and the phone line's audio "
+                 "input distorts, which you hear as a harsh dial tone; the default is 30 (0 dB). "
+                 "Same scale as the bring-up <code>spkamp</code> console command, and "
+                 "<code>tonetest</code> measures the distortion at a given level."));
+    bool fx_on = board_voice_fx_enabled_get();
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<form method=\"POST\" action=\"/voice_fx_enabled\" class=\"settings-form\">"
+        "<input type=\"hidden\" name=\"form\" value=\"1\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form>",
+        i18n_str("voicefx.title", "Voice effects"),
+        fx_on ? " checked" : "",
+        i18n_str("voicefx.enabled", "Enable audio effects during calls"),
+        i18n_str("general.button.save", "Save"));
+    off = append_hint(buf, cap, off,
+        i18n_str("voicefx.hint_lead",
+                 "During a call, press or dial 1 Dalek, 2 chipmunk, 3 Darth Vader, 4 8-bit, "
+                 "5 robot, 6 tremolo, 7 distortion, 0 normal. Both phones hear it."),
+        i18n_str("voicefx.hint_detail",
+                 "Works on calls between this board's two phones and on VoIP calls: the board "
+                 "where the key is pressed changes both voices, so the far end needs nothing "
+                 "special. The key's tone also reaches the other phone as a short beep. On a "
+                 "VoIP call to an automated phone menu, turn this off so menu choices don't "
+                 "change your voice. Also applies to dialling 322-324."));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+
+    board_offhook_alert_t roh = board_offhook_alert_get();
+    char roh_status[48];
+    if (roh.enabled) {
+        snprintf(roh_status, sizeof(roh_status),
+                 i18n_str("general.offhook.status_on", "on, after %u s"), (unsigned)roh.seconds);
+    } else {
+        snprintf(roh_status, sizeof(roh_status), "%s", i18n_str("general.offhook.status_off", "off"));
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<form method=\"POST\" action=\"/offhook_alert\" class=\"settings-form\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
+        "<label>%s "
+        "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form>",
+        i18n_str("general.offhook.title", "Off-hook alert"),
+        i18n_str("general.current", "Current"), roh_status,
+        roh.enabled ? " checked" : "", i18n_str("general.offhook.enabled", "Enabled"),
+        i18n_str("general.offhook.seconds_label", "Seconds on dial tone before the alert"),
+        (unsigned)roh.seconds, BOARD_OFFHOOK_ALERT_MIN_S, BOARD_OFFHOOK_ALERT_MAX_S,
+        i18n_str("general.button.save", "Save"));
+    off = append_hint(buf, cap, off,
+        i18n_str("general.offhook.hint_lead",
+                 "Plays the standard \"receiver off-hook\" alert if dial tone sits untouched "
+                 "too long."),
+        i18n_str("general.offhook.hint_detail",
+                 "A handset left off the hook sits on dial tone forever, and the line is "
+                 "unreachable the whole time (callers get busy) with nothing to draw attention "
+                 "to it. This plays the loud, warbling \"receiver off-hook\" alert real phone "
+                 "switches use (1400+2060+2450+2600&nbsp;Hz, 100&nbsp;ms on/off, per Telcordia "
+                 "GR-506-CORE) once dial tone has gone untouched this long. Hanging up stops "
+                 "it. The clock restarts on every return to dial tone, so only a genuinely "
+                 "forgotten handset ever reaches it. Takes effect on the next dial tone -- no "
+                 "reboot."));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
     bool tone_follow_lang = board_tone_follow_language_get();
     char cur_lang[8], cur_region[8];
@@ -1757,44 +1868,6 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "&mdash; English especially, which could mean the US, the UK, Australia or "
                  "India &mdash; falls back to North America, so untick the box and pick a region "
                  "if that's not what you want."));
-
-    board_offhook_alert_t roh = board_offhook_alert_get();
-    char roh_status[48];
-    if (roh.enabled) {
-        snprintf(roh_status, sizeof(roh_status),
-                 i18n_str("general.offhook.status_on", "on, after %u s"), (unsigned)roh.seconds);
-    } else {
-        snprintf(roh_status, sizeof(roh_status), "%s", i18n_str("general.offhook.status_off", "off"));
-    }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>%s</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
-        "<form method=\"POST\" action=\"/offhook_alert\" class=\"settings-form\">"
-        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
-        "<label>%s "
-        "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-        "</form>",
-        i18n_str("general.offhook.title", "Off-hook alert"),
-        i18n_str("general.current", "Current"), roh_status,
-        roh.enabled ? " checked" : "", i18n_str("general.offhook.enabled", "Enabled"),
-        i18n_str("general.offhook.seconds_label", "Seconds on dial tone before the alert"),
-        (unsigned)roh.seconds, BOARD_OFFHOOK_ALERT_MIN_S, BOARD_OFFHOOK_ALERT_MAX_S,
-        i18n_str("general.button.save", "Save"));
-    off = append_hint(buf, cap, off,
-        i18n_str("general.offhook.hint_lead",
-                 "Plays the standard \"receiver off-hook\" alert if dial tone sits untouched "
-                 "too long."),
-        i18n_str("general.offhook.hint_detail",
-                 "A handset left off the hook sits on dial tone forever, and the line is "
-                 "unreachable the whole time (callers get busy) with nothing to draw attention "
-                 "to it. This plays the loud, warbling \"receiver off-hook\" alert real phone "
-                 "switches use (1400+2060+2450+2600&nbsp;Hz, 100&nbsp;ms on/off, per Telcordia "
-                 "GR-506-CORE) once dial tone has gone untouched this long. Hanging up stops "
-                 "it. The clock restarts on every return to dial tone, so only a genuinely "
-                 "forgotten handset ever reaches it. Takes effect on the next dial tone -- no "
-                 "reboot."));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("aec.title", "Echo cancellation"));
@@ -1895,76 +1968,6 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "digit answers with its own touch-tone pair; <b>spoken digits are planned</b> "
                  "and need a set of number recordings per language. Persists to flash."));
 
-    bool fx_on = board_voice_fx_enabled_get();
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>%s</h2>"
-        "<form method=\"POST\" action=\"/voice_fx_enabled\" class=\"settings-form\">"
-        "<input type=\"hidden\" name=\"form\" value=\"1\">"
-        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-        "</form>",
-        i18n_str("voicefx.title", "Voice effects"),
-        fx_on ? " checked" : "",
-        i18n_str("voicefx.enabled", "Enable audio effects during calls"),
-        i18n_str("general.button.save", "Save"));
-    off = append_hint(buf, cap, off,
-        i18n_str("voicefx.hint_lead",
-                 "During a call, press or dial 1 Dalek, 2 chipmunk, 3 Darth Vader, 4 8-bit, "
-                 "5 robot, 6 tremolo, 7 distortion, 0 normal. Both phones hear it."),
-        i18n_str("voicefx.hint_detail",
-                 "Works on calls between this board's two phones and on VoIP calls: the board "
-                 "where the key is pressed changes both voices, so the far end needs nothing "
-                 "special. The key's tone also reaches the other phone as a short beep. On a "
-                 "VoIP call to an automated phone menu, turn this off so menu choices don't "
-                 "change your voice. Also applies to dialling 322-324."));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
-
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<div class=\"card\"><h2>%s</h2>", i18n_str("speaker.title", "Speaker (earpiece) volume"));
-    for (int l = 0; l < num_lines; l++) {
-        uint8_t vol = board_speaker_volume_get(l, ES8388_DEFAULT_SPK_VOL);
-        /* Shown in the same steps as the bring-up `spkamp` command (1.5 dB each,
-         * 30 = the codec's 0 dB point), so a number read off one works in the
-         * other. The bar under the slider is green up to the highest level the
-         * Diagnostics audio-level check found clean on THIS board, amber above. */
-        char line_label[32];
-        snprintf(line_label, sizeof(line_label), i18n_str("status.line.title", "Line %d"), l);
-        char save_line[48];
-        snprintf(save_line, sizeof(save_line), i18n_str("speaker.save_line", "Save line %d"), l);
-        unsigned clean = board_speaker_clean_max_get(l);
-        int shown = vol < SPK_MIN ? SPK_MIN : vol > SPK_MAX ? SPK_MAX : vol;
-        char clean_note[160], bar[96] = "";
-        if (clean) {
-            unsigned c = clean < SPK_MIN ? SPK_MIN : clean > SPK_MAX ? SPK_MAX : clean;
-            snprintf(bar, sizeof(bar), "<div class=\"levelbar\"><i style=\"width:%u%%\"></i></div>",
-                     (c - SPK_MIN) * 100u / (SPK_MAX - SPK_MIN));
-            snprintf(clean_note, sizeof(clean_note), i18n_str("speaker.clean_known",
-                     "Clean up to level %u on this board (green); above it the tone may distort."), clean);
-        } else {
-            snprintf(clean_note, sizeof(clean_note), "%s", i18n_str("speaker.clean_unknown",
-                     "Not measured yet: run the Line audio level check on the Diagnostics tab."));
-        }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<form method=\"POST\" action=\"/speaker_volume\" class=\"settings-form\">"
-            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
-            "<label>%s <input type=\"range\" name=\"vol\" min=\"%d\" max=\"%d\" step=\"1\" "
-            "value=\"%d\" oninput=\"spkLive(%d,this.value)\"> "
-            "<span id=\"spkpct%d\">Level %d (%.1f dB)</span></label>%s"
-            "<span class=\"fieldhint\">%s</span>"
-            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-            "</form>",
-            l, line_label, SPK_MIN, SPK_MAX, shown, l, l, shown, (shown - 30) * 1.5, bar,
-            clean_note, save_line);
-    }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-        "<p class=\"hint\">%s</p></div>",
-        i18n_str("speaker.hint",
-                 "Drag while on a call to hear the change live (applied immediately, not saved "
-                 "yet) -- click Save once you land on a level you like. Each step is 1.5 dB and "
-                 "30 is the codec's 0 dB point. Set it too high and the phone line's audio "
-                 "input distorts, which you hear as a harsh dial tone; the default is 24. "
-                 "Same scale as the bring-up <code>spkamp</code> console command, and "
-                 "<code>tonetest</code> measures the distortion at a given level."));
     return off;
 }
 

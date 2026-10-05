@@ -38,8 +38,11 @@ esp_err_t audio_tone_purity(int line, bool digital, tone_purity_t *out)
     memset(out, 0, sizeof(*out));
     uint32_t fs = audio_sample_rate();
 
+    /* 0.5 s is plenty, but a fragmented heap (the Diagnostics page is big) may
+     * not have 48 KB in one piece; settle for a shorter capture, down to 0.125 s
+     * (still ~8 Hz resolution, far finer than the 100 Hz spacing it must resolve). */
     capture_t cap = { .target = fs / 2 };
-    cap.buf = malloc(cap.target * sizeof(int16_t));
+    while (!(cap.buf = malloc(cap.target * sizeof(int16_t))) && cap.target > fs / 8) cap.target /= 2;
     if (!cap.buf) return ESP_ERR_NO_MEM;
 
     /* 1.5 s burst: 0.6 s for the line to settle, 0.5 s captured. Same level as
