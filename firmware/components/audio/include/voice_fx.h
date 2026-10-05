@@ -47,6 +47,12 @@ void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *buf, size_t n
 
 const char *voice_fx_name(voice_fx_t fx);
 
+/* Output gain applied after every effect (before the limiter), percent of the
+ * level-matched default, 10-300. Runtime only (resets to 100 on boot): for
+ * testing how much headroom the effects have. */
+void voice_fx_set_gain_pct(int pct);
+int voice_fx_gain_pct(void);
+
 #ifdef __cplusplus
 }
 #endif

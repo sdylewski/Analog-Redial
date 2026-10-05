@@ -156,6 +156,11 @@ static void overdrive(int16_t *x, size_t n, int32_t drive, int32_t out_q15)
  * 1/4 (so 32767 comes out at ~23200). The effects are level-matched to plain
  * speech, but the phone line's audio input starts distorting well before the
  * codec's full scale, so a rare loud peak shouldn't get through at full size. */
+static volatile int s_gain_pct = 100;
+
+void voice_fx_set_gain_pct(int pct) { s_gain_pct = pct < 10 ? 10 : (pct > 300 ? 300 : pct); }
+int voice_fx_gain_pct(void) { return s_gain_pct; }
+
 static uint32_t limit(int16_t *x, size_t n)
 {
     uint32_t hit = 0;
@@ -234,6 +239,10 @@ void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *x, size_t n)
         break;
     default:
         break;
+    }
+    int g = s_gain_pct;
+    if (g != 100) {
+        for (size_t k = 0; k < n; k++) x[k] = sat16((x[k] * g) / 100);
     }
     s->st_limited += limit(x, n);
     measure(x, n, &s->st_out_peak, &s->st_out_sq);

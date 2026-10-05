@@ -474,6 +474,17 @@ static int cmd_fx(int argc, char **argv)
     return 0;
 }
 
+static int cmd_fxgain(int argc, char **argv)
+{
+    if (argc > 1) {
+        int pct = atoi(argv[1]);
+        if (pct < 10 || pct > 300) { printf("usage: fxgain [percent 10-300]\n"); return 1; }
+        voice_fx_set_gain_pct(pct);
+    }
+    printf("voice effect gain: %d%% (100 = level-matched default; resets on reboot)\n", voice_fx_gain_pct());
+    return 0;
+}
+
 static float fx_db(int32_t v) { return v > 0 ? 20.0f * log10f((float)v / 32768.0f) : -99.0f; }
 
 static int cmd_fxstat(int argc, char **argv)
@@ -2451,6 +2462,7 @@ void bringup_console_start(void)
     register_cmd("reboot", "Software restart of the ESP32 (keeps the monitor attached)", cmd_reboot);
     register_cmd("download", "Reboot into the ROM bootloader for flashing (quiets audio/SLIC first; power-cycle when done)", cmd_download);
     register_cmd("fx", "Voice effect for diagnostics: fx <line> <0-7> [both] (see usage)", cmd_fx);
+    register_cmd("fxgain", "Voice effect output gain for testing: fxgain [percent 10-300, default 100]", cmd_fxgain);
     register_cmd("fxstat", "Live levels through the voice effects: fxstat [secs]", cmd_fxstat);
     register_cmd("tonetest", "Dial-tone purity as returned by the SLIC (clipping/distortion): tonetest [line]", cmd_tonetest);
     register_cmd("miclevel", "Handset mic level/clipping check while you talk: miclevel [secs] [line]", cmd_miclevel);
