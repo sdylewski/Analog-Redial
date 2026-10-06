@@ -2,9 +2,10 @@
 
 Design reference for the current production board: a 2-layer, ESP32-C6-based
 analog-phone-line gateway carrying one or two POTS lines through Silvertel
-AG1171 SLICs and an Everest ES8388 stereo codec.
+AG1171 SLICs and an Everest ES8388 stereo codec. This document describes the
+board as it is today — it is not a changelog against earlier spins.
 
-KiCad project: `hardware/kicad/Analog Redial v4/`. The custom symbols and
+KiCad project: `hardware/kicad/Rotary_phone_SMD4/`. The custom symbols and
 footprints it uses (SLICs, RJ12 jacks, ESP32-C6 modules) are
 maintained separately and shared across boards:
 [sdylewski/MajorHack-Kicad-Libraries](https://github.com/sdylewski/MajorHack-Kicad-Libraries) —
@@ -29,6 +30,11 @@ designed in on the next spin: see [`hardware-smd5.md`](hardware-smd5.md).
 | Board size | ~100 × 50 mm |
 | Connectors | RJ12 ×1–2 (phone lines), USB-C, DC jack, microSD (optional) |
 
+The schematic is the same circuit across the SMD3/SMD4 spins — SMD4 changes
+only the PCB layout, re-routing the same nets onto 2 copper layers instead of
+4 (see [§7, 2-layer PCB notes](#7-2-layer-pcb-notes)) and adding a microSD
+card-detect connection SMD3 left unwired.
+
 Reference designators below follow the current schematic: **U1** = the
 ESP32-C6-DevKitC-1 carrier, **U3**/**U4** = the two AG1171 SLICs, **J8**/**J9**
 = their RJ12 jacks, **J1** = the DC jack, **D1** = the power diode-OR diode,
@@ -36,9 +42,12 @@ ESP32-C6-DevKitC-1 carrier, **U3**/**U4** = the two AG1171 SLICs, **J8**/**J9**
 
 ## 2. Schematic and layout
 
-The schematic and top copper layer are below; open the KiCad project
-(above) for the bottom layer, the 3D view, or to trace any net not called
-out here.
+This doc used to carry a full pin-by-pin table for every connector on the
+board. That table was really just a hand-copy of the schematic, which goes
+stale the moment the schematic changes — easier, and more trustworthy, to
+look at the real thing. What follows is the schematic and the top copper
+layer; open the KiCad project (above) for the bottom layer, 3D view, or to
+trace any net not called out below.
 
 **Schematic:**
 
@@ -135,7 +144,10 @@ ground island.
 ## 6. AG1171 SLIC & RJ12 wiring
 
 Each SLIC (**U4** = line 0, **U3** = line 1) interfaces one RJ12 jack (**J9**
-line 0, **J8** line 1) with the following support network.
+line 0, **J8** line 1) with the following support network. This is the
+current, corrected wiring — earlier hand-soldered revisions had a SLIC
+Vin/Vout swap and a mono-mic-capture bug; both are fixed as of this design,
+so only the corrected circuit is described below.
 
 | Signal | Wiring |
 |--------|--------|
@@ -145,29 +157,8 @@ line 0, **J8** line 1) with the following support network.
 | **F/R** (ring cadence), **RM** (ringing mode) | Driven directly as 3.3 V ESP32 GPIO outputs — no level shifting needed, since these are ESP32-driven control inputs on the SLIC, not SLIC-driven signals |
 | **VIN** (needs external drive) | Fed from the codec's DAC output for that line through a coupling capacitor |
 | **VOUT** (SLIC-driven) | Feeds the codec's ADC input for that line through a coupling capacitor and series resistor |
-| **Tip/Ring** | Straight from the RJ12 jack to the SLIC, with a surge clamp hanging off it — the AG1171 datasheet's own Figure 4 protection circuit. Each line has a 4-diode bridge (M7/1N4007-class, D4–D11) that steers every tip and ring conductor two ways: down to GND (D4–D7) if it goes below ground, and up to a shared `/P6K` bus (D8–D11) if it goes too far positive. **One** unidirectional TVS (**D12**, P6KE82A, cathode on `/P6K`, anode on GND) clamps that bus for both lines — the datasheet's "only one needed per line card". The bridge isn't in series with the line, and it isn't there for wiring polarity |
+| **Tip/Ring** | Straight from the RJ12 jack to the SLIC, with a surge clamp hanging off it — the AG1171 datasheet's own Figure 4 protection circuit. One unidirectional TVS (**D12**, P6KE82A) clamps that bus for both lines. |
 
-```text
-+5V ──► +VPWR (SLIC)      470µF + 100nF locally at each SLIC
-
-ESP32 GPIO ── PD net ──►|──► PD pin      (diode only — cathode toward PD, no pull-up)
-
-ESP32 GPIO ◄── SHK ── 10k ──┬── (from SLIC SHK pin, ~3.3 V logic)
-                            15k   ← as built; should be 100k (see below)
-                             │
-                            GND
-
-ESP32 GPIO ─────────────► F/R    (output — ring cadence)
-ESP32 GPIO ─────────────► RM     (output — ringing mode)
-
-Codec DAC out ──[coupling cap]──► SLIC VIN
-SLIC VOUT ──[coupling cap + series R]──► Codec ADC in
-
-Tip/Ring ◄──► RJ12 jack
-              │
-              ├── [M7 ×2 per conductor] ──► GND      (clamps below ground)
-              └── [M7 ×2 per conductor] ──► /P6K ──[D12 P6KE82A]──► GND   (one TVS, both lines)
-```
 
 ## 7. SHK divider rework (SMD4 as built)
 
@@ -217,8 +208,6 @@ This board routes on 2 copper layers (`F.Cu`/`B.Cu`) rather than 4. Standard
 2-layer tradeoffs apply and are worth keeping in mind when reviewing or
 modifying the layout:
 
-![SMD4 PCB layout, bottom](pics/smd4_layout_bottom.png)
-
 - **No dedicated ground/power plane** — GND is a deliberately-poured zone on
   one side with stitching vias tying the two layers together, rather than a
   continuous internal plane. Worth confirming a continuous GND pour exists
@@ -255,4 +244,4 @@ modifying the layout:
 | [`hardware-smd5.md`](hardware-smd5.md) | The next spin: Bluetooth, LDO, dual MCU footprint |
 | [`getting-started.md`](getting-started.md) | Toolchain, flashing, first boot |
 | [`../archive/signal-levels.md`](../archive/signal-levels.md) | Audio/logic levels reference |
-| `hardware/kicad/Analog Redial v4/` | The KiCad project itself — the real source of truth for anything not covered above |
+| `hardware/kicad/Rotary_phone_SMD4/` | The KiCad project itself — the real source of truth for anything not covered above |

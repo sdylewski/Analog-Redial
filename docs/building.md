@@ -16,7 +16,7 @@ it.
 |-------|-------------|
 | **Pre-assembled** (most people) | The surface-mount side is already done — codec, resistors, capacitors, bridge diodes. You hand-solder the through-hole parts below. |
 | **Order it yourself** | Send the Gerbers and BOM/CPL to JLCPCB for SMT assembly, then hand-solder the same through-hole parts. See [`bom.md`](bom.md). |
-| **Fully from scratch** | Possible, but the ES8388 is a 28-pin QFN with a thermal pad — you'll want a hotplate or reflow oven, not an iron. |
+| **Fully from scratch** | Possible, but the ES8388 is a 28-pin QFN with a thermal pad — you'll need a hotplate or reflow oven, not an iron. |
 
 Everything on the hand-solder list is through-hole and friendly to a regular
 iron. There is no fine-pitch work left for you.

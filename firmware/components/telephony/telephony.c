@@ -113,6 +113,8 @@ typedef struct {
     /* off-hook alert: when the current dial-tone dwell expires (0 = not
      * armed, i.e. not sitting on dial tone or the feature is disabled) */
     int64_t              offhook_alert_at_us;
+    /* intercom: when dial tone has gone unused long enough to ring the other line (0 = not armed) */
+    int64_t              intercom_at_us;
     /* active recording (211 archive, 212 greeting, or answering-machine
      * voicemail -- see rec_purpose_t) */
     char                 rec_name[STORAGE_MAX_NAME];
@@ -325,6 +327,12 @@ static void enter_dialtone(int line)
     board_offhook_alert_t roh = board_offhook_alert_get();
     s_line[line].offhook_alert_at_us =
         roh.enabled ? esp_timer_get_time() + (int64_t)roh.seconds * 1000000 : 0;
+
+    /* Intercom: same idea, and likewise self-invalidating -- only consulted
+     * while still in DIALTONE, so dialling a digit cancels it. */
+    board_intercom_t ic = board_intercom_get();
+    s_line[line].intercom_at_us =
+        (ic.enabled && NLINES_ACTIVE > 1) ? esp_timer_get_time() + (int64_t)ic.seconds * 1000000 : 0;
 }
 
 /* Which line the Bluetooth companion claims. Always line 0: the companion's
@@ -546,7 +554,7 @@ static void start_record_beep(int line)
  * call, and auto_answer() already degrades gracefully with no greeting
  * recorded (straight to a beep, then record). Shared by start_local_call()
  * and on_voip_incoming() so this only lives in one place. */
-static void start_ring(int line)
+static void start_ring(int line, bool intercom)
 {
     s_line[line].ring_started_us = esp_timer_get_time();
     if (board_quiet_hours_active()) {
@@ -568,12 +576,13 @@ static void start_ring(int line)
         }
         return; /* no ag1170_ring_start() -- stay silent either way */
     }
-    ag1170_ring_start(line);
+    if (intercom) ag1170_ring_start_intercom(line);
+    else          ag1170_ring_start(line);
     s_line[line].ring_am_cfg = board_am_get(line);
 }
 
 /* ---- inter-line local call ---- */
-static void start_local_call(int caller, int target, voice_effect_t fx)
+static void start_local_call_ex(int caller, int target, voice_effect_t fx, bool intercom)
 {
     if (target < 0 || target >= NLINES || target == caller) {
         play_transient(caller, TONE_REORDER, 3000, TEL_REORDER, TEL_DIALTONE);
@@ -586,14 +595,19 @@ static void start_local_call(int caller, int target, voice_effect_t fx)
     /* ring the target, give caller ringback */
     s_line[target].state = TEL_RINGING;
     s_line[target].peer  = caller;
-    start_ring(target);
+    start_ring(target, intercom);
 
     s_line[caller].state = TEL_RINGBACK;
     s_line[caller].peer  = target;
     s_line[caller].call_fx = fx;
     audio_tx_tone(caller, TONE_RINGBACK);
     ESP_LOGI(TAG, "line %d calling line %d (fx=%d)", caller, target, fx);
-    activity_log("Line %d called line %d", caller, target);
+    activity_log(intercom ? "Line %d rang line %d (intercom)" : "Line %d called line %d", caller, target);
+}
+
+static void start_local_call(int caller, int target, voice_effect_t fx)
+{
+    start_local_call_ex(caller, target, fx, false);
 }
 
 /* Same effect for everyone in the call: both lines of a local bridge (each
@@ -1092,7 +1106,7 @@ static void on_voip_incoming(int line)
                   s_line[line].caller_number);
     s_line[line].state = TEL_RINGING;
     s_line[line].peer = PEER_VOIP;
-    start_ring(line);
+    start_ring(line, false);
 }
 
 /* The paired phone's call state changed (or a caller ID arrived for a call
@@ -1124,7 +1138,7 @@ static void on_bt_call(int line, bt_call_state_t cs)
         activity_log("Line %d: ringing -- Bluetooth call%s%s", line, cid[0] ? " from " : "", cid);
         s_line[line].state = TEL_RINGING;
         s_line[line].peer = PEER_BT;
-        start_ring(line);
+        start_ring(line, false);
         return;
     }
 
@@ -1337,6 +1351,23 @@ static void fsm_task(void *arg)
              * self-invalidating: any transition out (dialing, a call, going
              * on-hook) simply stops it from ever being consulted, and coming
              * back to dial tone re-arms it in enter_dialtone(). */
+            if (s_line[line].state == TEL_DIALTONE &&
+                s_line[line].intercom_at_us &&
+                now >= s_line[line].intercom_at_us) {
+                s_line[line].intercom_at_us = 0;
+                int other = 1 - line;
+                if (other >= 0 && other < NLINES_ACTIVE) {
+                    if (s_line[other].state == TEL_DIALTONE) {
+                        /* Both handsets are up and idle: nobody needs to ring. */
+                        ESP_LOGI(TAG, "intercom: line %d and line %d both off-hook, connecting", line, other);
+                        audio_tx_silence(other);
+                        connect_bridge(line, other);
+                    } else {
+                        ESP_LOGI(TAG, "intercom: line %d rings line %d", line, other);
+                        start_local_call_ex(line, other, FX_NORMAL, true);
+                    }
+                }
+            }
             if (s_line[line].state == TEL_DIALTONE &&
                 s_line[line].offhook_alert_at_us &&
                 now >= s_line[line].offhook_alert_at_us) {

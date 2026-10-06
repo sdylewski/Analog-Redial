@@ -6,7 +6,7 @@ that plays audio clips, records messages, calls a second handset completely
 offline, streams internet radio, and places VoIP calls over Wi-Fi.
 
 New here? This is the doc to start with. It assumes no prior ESP32
-experience. For deeper detail see [`../README.md`](../README.md),
+experience. For more detail see [`../README.md`](../README.md),
 [`features.md`](features.md), [`../firmware/README.md`](../firmware/README.md),
 and [`hardware-smd4.md`](hardware-smd4.md).
 
@@ -20,7 +20,7 @@ and [`hardware-smd4.md`](hardware-smd4.md).
 
 **Hardware** — an SMD4 or SMD5 board ([`hardware-smd4.md`](hardware-smd4.md)):
 
-- ESP32-C6-DevKit
+- ESP32-C6-DevKit -N16 or -N8
 - ES8388 stereo codec
 - 1–2× Silvertel AG1171 SLIC (one per phone line)
 - 1 or 2 analog (rotary or touch-tone) telephones on tip/ring

@@ -192,6 +192,20 @@ board_offhook_alert_t board_offhook_alert_get(void);
  * dwell timer). */
 esp_err_t board_offhook_alert_set(board_offhook_alert_t cfg);
 
+/* ---- Intercom (2-line boards) ----
+ * Lift the handset, wait `seconds` on dial tone without dialling, and the other
+ * line rings with a short double ring. Dialling a digit first makes it a
+ * normal call. Off by default. */
+#define BOARD_INTERCOM_MIN_S 1
+#define BOARD_INTERCOM_MAX_S 30
+typedef struct {
+    bool    enabled;
+    uint8_t seconds;
+} board_intercom_t;
+board_intercom_t board_intercom_get(void);
+/* ESP_ERR_INVALID_ARG outside MIN..MAX. Applies from the next dial tone. */
+esp_err_t board_intercom_set(board_intercom_t cfg);
+
 /* ---- Answering machine (per line) ----
  * After `rings` unanswered rings, auto-answers and plays this line's own
  * greeting (recorded via dial code 999, see telephony.c) then records the

@@ -391,6 +391,33 @@ esp_err_t board_offhook_alert_set(board_offhook_alert_t cfg)
     return err;
 }
 
+board_intercom_t board_intercom_get(void)
+{
+    board_intercom_t cfg = { .enabled = false, .seconds = 4 };
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return cfg;
+    uint8_t v;
+    if (nvs_get_u8(h, "icom_en", &v) == ESP_OK) cfg.enabled = (v != 0);
+    if (nvs_get_u8(h, "icom_secs", &v) == ESP_OK &&
+        v >= BOARD_INTERCOM_MIN_S && v <= BOARD_INTERCOM_MAX_S) cfg.seconds = v;
+    nvs_close(h);
+    return cfg;
+}
+
+esp_err_t board_intercom_set(board_intercom_t cfg)
+{
+    if (cfg.seconds < BOARD_INTERCOM_MIN_S || cfg.seconds > BOARD_INTERCOM_MAX_S) return ESP_ERR_INVALID_ARG;
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, "icom_en", cfg.enabled ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_u8(h, "icom_secs", cfg.seconds);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) ESP_LOGI(TAG, "intercom %s, %u s", cfg.enabled ? "enabled" : "disabled", (unsigned)cfg.seconds);
+    return err;
+}
+
 #define AM_EN_NVS_KEY0     "am_en0"
 #define AM_EN_NVS_KEY1     "am_en1"
 #define AM_RINGS_NVS_KEY0  "am_rings0"

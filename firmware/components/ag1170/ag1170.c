@@ -35,11 +35,13 @@ typedef struct {
 
     /* ring state */
     bool    ringing;
+    bool    ring_intercom; /* short double ring instead of the normal cadence */
     int64_t ring_phase_start_us;
     int64_t last_fr_toggle_us;
     int     fr_level;
 } line_state_t;
 
+#define INTERCOM_RING_PERIOD_MS 3000
 static line_state_t   s_ls[BOARD_NUM_LINES]; /* array is always max width; see s_active_lines */
 static ag1170_config_t s_cfg;
 static ag1170_event_cb s_cb;
@@ -122,9 +124,17 @@ void ag1170_ring_start(int line)
     if (line < 0 || line >= s_active_lines) return;
     int64_t now = esp_timer_get_time();
     s_ls[line].ringing = true;
+    s_ls[line].ring_intercom = false;
     s_ls[line].ring_phase_start_us = now;
     s_ls[line].last_fr_toggle_us = now;
     ESP_LOGI(TAG, "line %d ring start", line);
+}
+
+void ag1170_ring_start_intercom(int line)
+{
+    if (line < 0 || line >= s_active_lines) return;
+    ag1170_ring_start(line);
+    s_ls[line].ring_intercom = true;
 }
 
 void ag1170_ring_stop(int line)
@@ -180,6 +190,13 @@ static void service_ring(int line, int64_t now)
     uint32_t period_ms = s_cfg.ring_on_ms + s_cfg.ring_off_ms;
     int64_t  phase_ms  = ((now - ls->ring_phase_start_us) / 1000) % period_ms;
     bool     on        = phase_ms < s_cfg.ring_on_ms;
+    if (ls->ring_intercom) {
+        /* Distinctive internal ring: two short bursts, then a pause
+         * (0.4 s on, 0.2 s off, 0.4 s on, 2.0 s off). */
+        period_ms = INTERCOM_RING_PERIOD_MS;
+        phase_ms  = ((now - ls->ring_phase_start_us) / 1000) % period_ms;
+        on        = phase_ms < 400 || (phase_ms >= 600 && phase_ms < 1000);
+    }
 
     if (on) {
         ag1170_set_rm(line, 1);

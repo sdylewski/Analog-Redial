@@ -1750,6 +1750,35 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "change your voice. Also applies to dialling 322-324."));
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
 
+    if (num_lines > 1) {
+        board_intercom_t ic = board_intercom_get();
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"card\"><h2>%s</h2>"
+            "<form method=\"POST\" action=\"/intercom\" class=\"settings-form\">"
+            "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
+            "<label>%s "
+            "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+            "</form>",
+            i18n_str("intercom.title", "Intercom"),
+            ic.enabled ? " checked" : "", i18n_str("intercom.enabled", "Ring the other line when I pick up and don't dial"),
+            i18n_str("intercom.seconds_label", "Seconds to wait on dial tone first"),
+            (unsigned)ic.seconds, BOARD_INTERCOM_MIN_S, BOARD_INTERCOM_MAX_S,
+            i18n_str("general.button.save", "Save"));
+        off = append_hint(buf, cap, off,
+            i18n_str("intercom.hint_lead",
+                     "Pick up and wait: the other phone rings with a short double ring. Dial a "
+                     "number first and it's a normal call."),
+            i18n_str("intercom.hint_detail",
+                     "After the wait, the other line rings two short bursts, a pause, and "
+                     "repeats (a distinctive ring, so it's recognisably the other room and not an "
+                     "outside call). If the other handset is already up and idle, the two "
+                     "lines are connected straight away. If it's busy you hear busy. Nothing "
+                     "to switch off or on in the moment: dialling any digit before the wait "
+                     "ends gives the usual dial plan. Applies from the next dial tone."));
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    }
+
     board_offhook_alert_t roh = board_offhook_alert_get();
     char roh_status[48];
     if (roh.enabled) {
@@ -4836,7 +4865,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
                                                       * +the mismatch-confirm card if showing */
         : 0;
     size_t general_room = (strcmp(tab, "general") == 0) ? 3200 + 1400 + 2600 : 0; /* +setup password card */ /* +saved-network list */ /* +quiet hours card's timezone dropdown */
-    size_t phone_room = (strcmp(tab, "phone") == 0) ? 12500 + 1800 + 900 : 0; /* +voice effects card */ /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card, AM greeting text-to-speech field (~2.2 KB) */
+    size_t phone_room = (strcmp(tab, "phone") == 0) ? 12500 + 1800 + 900 + 1600 : 0; /* +voice effects card, +intercom card */ /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card, AM greeting text-to-speech field (~2.2 KB) */
     size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 : 0;
     size_t bt_room = (strcmp(tab, "bluetooth") == 0) ? 3300 : 0; /* +experimental notice */ /* "What Bluetooth can do" card */ /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
     /* This tab's `n*220` share (n = ALL dialplan entries, not just clips)
@@ -5320,6 +5349,31 @@ static esp_err_t voice_fx_enabled_handler(httpd_req_t *req)
     }
     form_field(body, "enabled", enabled, sizeof(enabled));
     board_voice_fx_enabled_set(enabled[0] == '1');
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=phone");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+static esp_err_t intercom_handler(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    char body[WIFI_FORM_MAX_BODY];
+    int r = httpd_req_recv(req, body, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    body[r] = '\0';
+    char enabled[8] = {0}, seconds[12] = {0};
+    form_field(body, "enabled", enabled, sizeof(enabled));
+    form_field(body, "seconds", seconds, sizeof(seconds));
+    unsigned long secs = seconds[0] ? strtoul(seconds, NULL, 10) : 0;
+    board_intercom_t cfg = { .enabled = (enabled[0] == '1'), .seconds = secs > 255 ? 255 : (uint8_t)secs };
+    if (board_intercom_set(cfg) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "seconds out of range");
+        return ESP_OK;
+    }
     httpd_resp_set_status(req, "303 See Other");
     httpd_resp_set_hdr(req, "Location", "/settings?tab=phone");
     httpd_resp_send(req, NULL, 0);
@@ -8158,6 +8212,7 @@ esp_err_t webui_start(void)
         { .uri = "/board_hw_set",    .method = HTTP_POST, .handler = board_hw_set_handler },
         { .uri = "/board_type_confirm", .method = HTTP_POST, .handler = board_type_confirm_handler },
         { .uri = "/offhook_alert",   .method = HTTP_POST, .handler = offhook_alert_handler },
+        { .uri = "/intercom",        .method = HTTP_POST, .handler = intercom_handler },
         { .uri = "/timezone_set",    .method = HTTP_POST, .handler = timezone_set_handler },
         { .uri = "/tone_lang_set",   .method = HTTP_POST, .handler = tone_lang_set_handler },
         { .uri = "/quiet_hours",     .method = HTTP_POST, .handler = quiet_hours_handler },

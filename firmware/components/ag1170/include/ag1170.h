@@ -62,6 +62,8 @@ esp_err_t ag1170_set_power(int line, bool run);
 
 /* Ringing (US cadence by default). */
 void ag1170_ring_start(int line);
+/* Same, with the intercom cadence: two short bursts (0.4 s, 0.2 s gap, 0.4 s), 2 s pause. */
+void ag1170_ring_start_intercom(int line);
 void ag1170_ring_stop(int line);
 bool ag1170_is_ringing(int line);
 
