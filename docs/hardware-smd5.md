@@ -1,18 +1,17 @@
-# Hardware Reference — SMD5 Board
+[Home](../README.md) · [1 · Get a board](board.md) · [2 · Parts & assembly](bom.md) · [3 · Flash & test](flashing.md) · [4 · Set up & use](setup.md)
 
-> **SMD5 has been sent to fabrication (October 2026) but not tested yet.** It
-> is the next spin, and this document describes the design as sent to fab.
-> For a board proven on real hardware,
-> see [`hardware-smd4.md`](hardware-smd4.md). Everything below that isn't
-> marked as an SMD5 change carries over from SMD4 unchanged and is proven on
-> real hardware; the SMD5-only parts are not.
+# Board reference: v5 (SMD5) · coming soon
+
+> **v5 is at the fab and not yet tested.** For a proven board, build
+> [v4](hardware-smd4.md). Everything here that isn't listed as new against
+> v4 carries over from v4 unchanged.
 
 Design reference for the next-generation board: a 2-layer, ESP32-C6-based
 analog-phone-line gateway carrying one or two POTS lines through Silvertel
 AG1171 SLICs and an Everest ES8388 stereo codec, plus an optional Bluetooth
 companion.
 
-KiCad project: `hardware/kicad/Analog Redial v5/`. Its custom symbols and
+KiCad project: [`hardware/kicad/Analog Redial v5`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5). Its custom symbols and
 footprints (SLICs, RJ12 jacks, ESP32-C6 modules, BM64) are maintained
 separately and shared across boards:
 [sdylewski/MajorHack-Kicad-Libraries](https://github.com/sdylewski/MajorHack-Kicad-Libraries) —
@@ -248,7 +247,7 @@ mainstream yet" for that reason. Fitting this on SMD4 instead means serious hand
 not a drop-in option.
 
 The status LED shows pairing/connection state once this is fitted and
-working — see [`getting-started.md`'s LED reference](getting-started.md#7-status-led-reference).
+working — see [the status light reference](setup.md#7-the-status-light).
 
 | J2 pin | Net | Carrier side | Notes |
 |--------|-----|--------------|-------|
@@ -299,7 +298,7 @@ Bridge one side only: both sides together short GPIO2 to a USB data line.
 (`CONFIG_BOARD_TYPE_SMD5_CHEAP` remains for a clone board with the jumpers
 left at the default, which costs native USB.) Full detail, including the
 symptoms of getting it wrong, is in
-[`../archive/hardware/smd5.md`](../archive/hardware/smd5.md).
+[`archive/hardware/smd5.md`](https://github.com/sdylewski/Analog-Redial/blob/main/archive/hardware/smd5.md).
 
 ## 11. Board size & connectors
 
@@ -321,5 +320,5 @@ symptoms of getting it wrong, is in
 | [`hardware-smd4.md`](hardware-smd4.md) | The current, fabricated-and-tested board |
 | [`building.md`](building.md) | Hand-solder order, pre-power checks, first power-on |
 | [`bom.md`](bom.md) | Parts list / shopping checklist |
-| [`../archive/hardware/smd5.md`](../archive/hardware/smd5.md) | Dev notes: jumper plan, MCU footprint details, open questions |
-| `hardware/kicad/Analog Redial v5/` | The KiCad project itself — the real source of truth for anything not covered above |
+| [`archive/hardware/smd5.md`](https://github.com/sdylewski/Analog-Redial/blob/main/archive/hardware/smd5.md) | Dev notes: jumper plan, MCU footprint details, open questions |
+| [KiCad project](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5) | The real source of truth for anything not covered above |

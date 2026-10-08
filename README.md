@@ -1,197 +1,204 @@
 <p align="center">
-  <img src="docs/assets/logo.svg" alt="Analog Redial logo" width="180">
+  <img src="docs/assets/logo.svg" alt="Analog Redial logo" width="160">
 </p>
 
-# Analog Redial
+<h1 align="center">Analog Redial</h1>
 
-**An ESP32-C6 analog phone exchange** — two POTS phones (rotary or
-touch-tone), no server required, VoIP when you want it.
+<p align="center">
+  <b>Bring old telephones back to life.</b><br>
+  Plug in one or two analog phones, rotary or touch-tone, and they get real
+  dial tone, real ringing, and a little phone system of their own.<br>
+  No server, no app, no subscription.
+</p>
 
-Plug in one or two analog telephones and this board gives them dial tone
-and full phone-line signaling on real hardware — with
-enough on-chip smarts to be a self-contained phone system on its own, or a
-gateway onto a SIP/VoIP network when you want it to be.
-![Analog Redial PCB](docs/pics/smd4_board.jpg)
----
+<p align="center">
+  <a href="#what-can-i-do-with-it">What it does</a> ·
+  <a href="#set-it-up-from-your-browser">Web interface</a> ·
+  <a href="#what-does-one-cost">Cost</a> ·
+  <a href="#build-one">Build one</a> ·
+  <a href="#community">Community</a>
+</p>
 
-## Why not just buy a VoIP adapter (ATA)?
-
-Commercial ATAs (Grandstream HT802 and similar) bridge an analog phone to a
-SIP server — they need that server to do anything, including letting two
-phones on the same box call each other. This board is different:
-
-- **Pulse (rotary) *and* touch-tone (DTMF) dialing.** Most off-the-shelf ATAs
-  only decode DTMF — they can't read a rotary phone's dial pulses at all.
-  That's the actual reason a vintage rotary phone can't just plug into a
-  commercial adapter.
-- **Standalone, offline two-phone exchange.** Two phones on one board can
-  call each other directly — no SIP server, no network, no internet
-  connection required. Wire this up at home with no Wi-Fi at all and
-  you still have a working two-line phone system.
-- **VoIP when you want it.** Register a line with Asterisk, FreePBX, or any
-  standards-compliant SIP server for calls beyond the board itself.
-- **Open, hackable hardware and firmware.** ESP-IDF C source, not a sealed appliance —
-  add your own dial codes, tones, dial plans, or recordings.
-
-## What people build with it
-
-### Intercom
-
-![Intercom: two analog phones on one board](docs/assets/use-intercom.svg)
-
-Two phones, one board, nothing else. Houses, classrooms, preschools,
-workshops, a studio and a control room. Dial **321** and the other phone
-rings with a real bell. No account, no cloud, no network — unplug the Wi-Fi
-and it still works.
-
-### Standalone — a phone that does things
-
-![Standalone: one phone and a microSD card, playing clips and recording messages with no network](docs/assets/use-standalone.svg)
-
-The cheapest build: one SLIC, one jack, no second line, no Wi-Fi. Dial a
-code and something happens — play an audio clip, record a message, leave
-voicemail on the built-in answering machine. Fit a **microSD card** and you
-have hours of storage instead of a few megabytes of flash.
-
-Museum exhibits, art installations, a kids' phone that tells jokes, a
-wedding guestbook that records messages.
-
-### VoIP
-
-![VoIP: the board registers with a SIP server over Wi-Fi](docs/assets/use-voip.svg)
-
-Register a line with Asterisk, FreePBX, or any standards-compliant SIP
-server and dial **555 +** a four-digit extension to reach anything that
-server can reach. Needs a server on your network — and if it goes down,
-phone-to-phone calling carries on regardless.
-
-See [`docs/voip-setup.md`](docs/voip-setup.md).
-
-### Bluetooth — the phone becomes a handset for your cell
-
-![Bluetooth: the board pairs with a mobile phone so the analog phone handles cellular calls](docs/assets/use-bluetooth.svg)
-
-Pair a cell phone and the rotary phone becomes its handset. Incoming calls
-ring the bell; lift the handset to answer, hang up to end. Dial **1** + area
-code + number to call out. Caller ID lands in the activity log.
-
-Needs the **SMD5** board and its BM64 companion — designed, not yet
-fabricated. See [`docs/hardware-smd5.md`](docs/hardware-smd5.md).
+<table>
+  <tr>
+    <td width="50%"><img src="docs/pics/smd4_board.jpg" alt="The Analog Redial board"></td>
+    <td width="50%"><img src="docs/assets/photo-placeholder.svg" alt="The board in its 3D-printed case (photo coming soon)"></td>
+  </tr>
+  <tr>
+    <td align="center">The board: an ESP32-C6, an audio codec, and a phone-line chip per jack</td>
+    <td align="center">In its 3D-printed case (<a href="https://github.com/sdylewski/Analog-Redial/tree/main/hardware/3d-printed-case">print files</a>)</td>
+  </tr>
+</table>
 
 ---
 
-## Features
+## What can I do with it?
 
-- Pulse (rotary) and touch-tone (DTMF) dialing
-- Fully offline two-phone calling — no server, no network needed
-- VoIP/SIP gateway mode (Asterisk/FreePBX or any standards-compliant PBX)
-- **International dial tones** — pick your region in the web UI and dial tone,
-  ringback and busy all switch to that country's frequencies and cadence
-- Custom dial/ringback/busy tones, region-selectable
-- Voicemail-style message recording, downloadable from the web UI
-- Configurable dial plan — add your own dial codes and audio clips at runtime
-- **Web interface for easy interactions and configuration** — line status,
-  recent activity, the dial guide, recordings, and every setting, at
-  `phone.local` (see below)
-- Optional microSD storage (single-line build only)
-- Open ESP-IDF firmware
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/assets/use-intercom.svg" alt="Two analog phones on one board">
+      <h3>Intercom</h3>
+      Two phones, one board. Dial <b>321</b> and the other phone rings with its
+      real bell. Works with no Wi-Fi and no internet at all. Houses, workshops,
+      kids' rooms, a studio and its control room.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/assets/use-standalone.svg" alt="One phone playing clips and recording messages">
+      <h3>A phone that does things</h3>
+      Dial a code and something happens: play a clip, leave a message, reach the
+      answering machine. Museum exhibits, art pieces, a wedding guestbook phone,
+      a phone that tells kids jokes.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/assets/use-voip.svg" alt="The board registered with a SIP server">
+      <h3>VoIP</h3>
+      Register a line with Asterisk, FreePBX or any SIP server and call anything
+      that server can reach. If the server goes down, the two phones can still
+      call each other.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/assets/use-bluetooth.svg" alt="The board paired with a mobile phone">
+      <h3>Bluetooth <i>(coming soon)</i></h3>
+      Pair your mobile and the rotary phone becomes its handset: the bell rings
+      for incoming calls, lift to answer, dial out on the rotary dial. Arrives
+      with the next board revision.
+    </td>
+  </tr>
+</table>
 
-See [`docs/features.md`](docs/features.md) for the full feature list and
-firmware architecture.
+### Why not just buy a VoIP adapter?
 
-### Web interface
+Off-the-shelf analog telephone adapters (ATAs) only understand touch-tone,
+so a rotary phone can't dial through them, and they need a SIP server before
+they do anything at all, even to let two phones on the same box call each
+other. Analog Redial reads rotary pulses as well as touch-tone, and it is a
+complete phone exchange on its own.
 
-![Status page: line state, recent activity, and the dial guide](docs/pics/status.png)
+### The finer print
 
-| | |
-|---|---|
-| ![Settings, General tab](docs/pics/settings-general.png) | ![Settings, Dial Codes & Prompts tab](docs/pics/settings-dialcodes.png) |
-| **General** — board name, Wi-Fi, quiet hours | **Dial Codes & Prompts** — your own codes and audio |
+- **Dialing.** Rotary pulse and touch-tone. Add your own dial codes and
+  audio clips from the browser, no rebuild. Optional digit readback.
+- **Calls.** Line-to-line calls with ringback and busy tones. Optional
+  intercom mode: lift one handset, wait, and the other phone rings.
+  Experimental voice effects mid-call: Dalek, chipmunk, Darth Vader, 8-bit,
+  robot and more. VoIP in and out (G.711, on your local network).
+- **Sound.** Dial tone, ringback and busy that match your country (North
+  America, several European countries, Japan, China, or a generic
+  international set). Echo cancellation and earpiece volume per line. An
+  off-hook alert if a handset is left off.
+- **Messages.** Record a message with **211** and download it from the
+  browser. A per-line answering machine, each line with its own greeting.
+  Fit a microSD card for hours of storage.
+- **Day to day.** Quiet hours that silence the bell overnight. Remembers
+  several Wi-Fi networks. Firmware updates from the browser. A one-button
+  rescue mode for when it can't find its network.
+- **Open.** ESP-IDF C firmware under the MIT license, KiCad hardware files,
+  and a serial console for poking at every part of the hardware.
 
-More pages are in [`docs/pics/`](docs/pics/) (`settings-<tab>.png`,
-`recordings.png`). They're regenerated from a live board with
-`firmware/bringup/screenshot_webui.py <board-ip>`.
-
----
-
-## Hardware at a glance
-
-| Item | Detail |
-|------|--------|
-| MCU | ESP32-C6-DevKitC-1 |
-| Codec | ES8388 stereo codec |
-| SLIC | Silvertel AG1171 ×1–2 |
-| Power | USB-C or DC jack |
-| PCB | 2-layer, ~100×50 mm |
-| Storage | Internal flash; optional microSD (single-line build) |
-
-Full design reference: [`docs/hardware-smd4.md`](docs/hardware-smd4.md). Parts list:
-[`docs/bom.md`](docs/bom.md).
-
----
-
-## Quick start
-
-```bash
-git clone https://github.com/sdylewski/Analog-Redial.git analog-redial
-cd analog-redial/firmware
-idf.py set-target esp32c6
-idf.py build flash monitor
-```
-
-Full walkthrough (toolchain install, first-boot Wi-Fi setup, web UI tour):
-**[`docs/getting-started.md`](docs/getting-started.md)**.
-
----
-
-## Documentation
-
-| Doc | Covers |
-|-----|--------|
-| [`docs/building.md`](docs/building.md) | Assembling a board: hand-solder order, checks, first power-on |
-| [`docs/getting-started.md`](docs/getting-started.md) | Toolchain, flashing, first boot and Wi-Fi setup |
-| [`docs/features.md`](docs/features.md) | Feature list and firmware architecture |
-| [`docs/hardware-smd4.md`](docs/hardware-smd4.md) | Schematic reference, GPIO pin map, power tree |
-| [`docs/hardware-smd5.md`](docs/hardware-smd5.md) | Next-spin board: Bluetooth companion, dedicated LDO, dual MCU footprint — **not yet fabricated** |
-| [`docs/bom.md`](docs/bom.md) | Parts list / shopping checklist |
-| [`archive/signal-levels.md`](archive/signal-levels.md) | Audio/logic level reference |
-| [`docs/voip-setup.md`](docs/voip-setup.md) | Connecting a line to a SIP server |
-| [`firmware/README.md`](firmware/README.md) | Toolchain setup, build layout, console commands |
-| [`hardware/3d-printed-case/`](hardware/3d-printed-case/) | Enclosure (placeholder — no files yet) |
+Full feature list and firmware architecture: [Features](docs/features.md).
 
 ---
 
-## ⚠️ Phone-line voltage safety
+## Set it up from your browser
 
-Real telephone lines carry meaningful voltage: **~48 V DC** off-hook feed,
-**~60 Vrms** ringing (up to **~90 V** peaks). This is engineering guidance,
-not a telecom safety certification — review
-[`docs/hardware-smd4.md`](docs/hardware-smd4.md) before fabricating a board, and treat
-tip/ring copper with real respect.
+The board serves its own web page at **`http://phone.local`**, reachable
+from any phone or laptop on your Wi-Fi. No app, no account, no cloud. On
+first boot it makes its own Wi-Fi network with a setup page that gets it
+onto yours.
+
+<table>
+  <tr>
+    <td align="center" width="33%"><a href="docs/pics/status.png"><img src="docs/pics/thumbs/status.png" alt="Status page"></a><br><b>Status</b><br>Lines, activity, the dial guide</td>
+    <td align="center" width="33%"><a href="docs/pics/settings-phone.png"><img src="docs/pics/thumbs/settings-phone.png" alt="Phone settings"></a><br><b>Phone settings</b><br>Answering machine, tones, effects</td>
+    <td align="center" width="33%"><a href="docs/pics/settings-dialcodes.png"><img src="docs/pics/thumbs/settings-dialcodes.png" alt="Dial codes and prompts"></a><br><b>Dial codes</b><br>Your own codes and audio</td>
+  </tr>
+  <tr>
+    <td align="center"><a href="docs/pics/settings-voip.png"><img src="docs/pics/thumbs/settings-voip.png" alt="VoIP settings"></a><br><b>VoIP</b><br>SIP server, generated Asterisk script</td>
+    <td align="center"><a href="docs/pics/recordings.png"><img src="docs/pics/thumbs/recordings.png" alt="Recordings"></a><br><b>Recordings</b><br>Play or download messages</td>
+    <td align="center"><a href="docs/pics/settings-hardware.png"><img src="docs/pics/thumbs/settings-hardware.png" alt="Hardware settings"></a><br><b>Hardware</b><br>Line count, microSD, firmware update</td>
+  </tr>
+</table>
+
+Click any picture for the full page. A guided tour is in
+[Set up & use](docs/setup.md).
 
 ---
 
-## Status
+## What does one cost?
 
-- **Hardware:** SMD4 (Analog Redial v4) is the current board, built and in
-  use. SMD5 (v5, adding Bluetooth) is at the fab.
-- **Firmware:** Core telephony (hook detect, pulse + DTMF dialing, tones,
-  ringing, recording, VoIP) is mature and runs on SMD2 and SMD4 boards.
+Building a single-line board yourself, US prices from October 2026
+including shipping and import tariff:
 
-Contributions and issues welcome.
+| | Just you | Pooled order (30 boards) |
+|---|---:|---:|
+| Assembled PCB from JLCPCB (5-board minimum) | $85.53 for 5, so $17.11 each | about $6 each |
+| Hand-solder parts from DigiKey ([parts list](docs/bom.md)) | about $19, plus shipping | about $19 |
+| **One single-line board** | **about $110 up front**, with 4 spare PCBs | **about $25** |
+| Second phone line (optional) | +$10 | +$10 |
 
-## History
+You'll also want a 2 A USB-C charger and one or two analog phones. Buying
+the hand-solder parts from AliExpress instead brings them to about $12 a
+board.
+
+**A pooled order makes boards much cheaper.** Most of a small order is fixed
+setup fees, so the price per board falls fast with quantity. If you'd like a
+board from a pooled order, register your interest: no commitment, it just
+tells us how many to order. **Interest form: coming soon.**
+<!-- TODO: replace "coming soon" with the interest form link -->
+
+Price breakdown by quantity: [Get a board](docs/board.md#what-it-costs).
+
+---
+
+## Build one
+
+No surface-mount soldering needed: the fab places the small parts, and
+everything you solder is through-hole. If you can solder a header and type a
+few commands in a terminal, you can build one.
+
+| Step | Guide | What's in it |
+|---|---|---|
+| **1** | [Get a board](docs/board.md) | Board versions, ordering from JLCPCB, pooled orders, costs |
+| **2** | [Parts](docs/bom.md) and [assembly](docs/building.md) | What to buy, soldering order, checks before power-on |
+| **3** | [Flash & test](docs/flashing.md) | Install ESP-IDF, flash the firmware, run the hardware self-test |
+| **4** | [Set up & use](docs/setup.md) | Wi-Fi, the web interface, dial codes, your own audio |
+
+Going further: [VoIP setup](docs/voip-setup.md) ·
+[Board reference (v4)](docs/hardware-smd4.md) ·
+[Board reference (v5)](docs/hardware-smd5.md) ·
+[Features & firmware architecture](docs/features.md) ·
+[Firmware developer notes](https://github.com/sdylewski/Analog-Redial/blob/main/firmware/README.md)
+
+> ⚠️ **Phone lines carry real voltage.** The board drives about 48 V DC on
+> an off-hook line and about 60 V AC while ringing, with peaks near 90 V.
+> Don't touch the phone jacks or the line chips while it's powered, and never
+> connect it to your house or telephone-company wiring. This is a hobby
+> project, not certified telecom equipment.
+
+---
+
+## Community
+
+- **Discord:** coming soon <!-- TODO: Discord invite link -->
+- **Bugs and questions:** [GitHub Issues](https://github.com/sdylewski/Analog-Redial/issues)
+- **Built one?** Open an issue with a photo. We'd love to see it.
+
+---
+
+## Project history
 
 | When | Version | What it was |
 |------|---------|-------------|
-| Aug 2020 | **Raspberry Pi** <br><img src="docs/pics/pi_version.jpg" width="220" alt="Raspberry Pi version in its project box"> | A Raspberry Pi 4 in a project box, with two AG1170 SLIC modules hand-wired to its GPIO header and a USB sound dongle per phone line. Python software (`pi_rotary_phone`), after a short Arduino + Adafruit Wave Shield experiment in July 2020. |
-| Jun 2026 | **Analog Redial v1** | The first ESP32 board: through-hole, an ESP32-C6-DevKitM-1 with a WM8731 codec and two AG1170 SLICs. Same job as the Pi, on a $5 microcontroller instead of a Linux computer. |
-| Jul 2026 | **Analog Redial v2** (SMD2) <br><img src="docs/pics/smd2_board.jpg" width="220" alt="Analog Redial v2 board"> | First surface-mount board: ESP32-C6-WROOM-1 module, ES8388 stereo codec, AG1171 SLICs, microSD. Three hand-soldered. |
-| Sep 2026 | **Analog Redial v4** (SMD4) <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | The current board: 2-layer, built around an ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. (v3 was its schematic, re-laid-out as v4 before it was ever made.) |
-| Oct 2026 | **Analog Redial v5** (SMD5) | At the fab: takes a genuine or clone ESP32-C6 module, and adds a BM64 Bluetooth companion so a mobile phone can use the rotary phone as its handset. |
+| Aug 2020 | **Raspberry Pi** <br><img src="docs/pics/pi_version.jpg" width="220" alt="Raspberry Pi version in its project box"> | A Raspberry Pi 4 in a project box, two SLIC modules hand-wired to its GPIO header, and a USB sound dongle per phone line. Python software, after a short Arduino experiment in July 2020. |
+| Jun 2026 | **v1** | The first ESP32 board: through-hole, with a WM8731 codec and two AG1170 SLICs. The Pi's job on a $5 microcontroller. |
+| Jul 2026 | **v2** <br><img src="docs/pics/smd2_board.jpg" width="220" alt="Analog Redial v2 board"> | First surface-mount board: ESP32-C6 module, ES8388 codec, AG1171 SLICs, microSD. Three hand-soldered. |
+| Sep 2026 | **v4** <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | The current board: 2-layer, built around an ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. |
+| Oct 2026 | **v5** | At the fab: takes a genuine or clone ESP32-C6 module, and adds the Bluetooth companion. |
 
 ## License
 
-[MIT](LICENSE) for firmware and documentation. Hardware design files are
-provided as-is for personal/hobby use — see the [`LICENSE`](LICENSE) file's
-hardware note.
+[MIT](LICENSE) for the firmware and documentation. Hardware design files are
+provided as-is for personal and hobby use; see the note in [`LICENSE`](LICENSE).

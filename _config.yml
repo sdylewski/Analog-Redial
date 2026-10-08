@@ -1,0 +1,19 @@
+# GitHub Pages site: README.md becomes the home page and docs/*.md the
+# guide pages. Publish from the main branch, root folder.
+title: Analog Redial
+description: Bring old telephones back to life. An ESP32-C6 phone exchange for rotary and touch-tone phones.
+theme: jekyll-theme-cayman
+
+# Only README.md, docs/ and LICENSE belong on the site. Everything else is
+# source, linked from the docs by full GitHub URL.
+exclude:
+  - firmware
+  - hardware
+  - archive
+  - Bluetooth
+  - reference
+  - datasheets
+  - voice_prompts
+  - .venv-datasheet
+  - CLAUDE.md
+  - "*.code-workspace"

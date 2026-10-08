@@ -1,3 +1,5 @@
+[Home](../README.md) · [1 · Get a board](board.md) · [2 · Parts & assembly](bom.md) · [3 · Flash & test](flashing.md) · [4 · Set up & use](setup.md)
+
 # VoIP setup
 
 Analog Redial works completely offline as a two-phone exchange with no
@@ -16,8 +18,7 @@ Asterisk extension too.
 
 ## Dialing between lines on a SIP server
 
-The firmware's VoIP dial pattern (`firmware/components/dialplan/dialplan.c`)
-is **`555` + a 4-digit extension**, exactly 7 digits total. It fires the
+The VoIP dial pattern is **`555` + a 4-digit extension**, exactly 7 digits total. It fires the
 instant the 7th digit lands, strips the `555` prefix, and dials the
 remaining 4 digits. Pick a numbering scheme for your own extensions (e.g.
 `1000`, `1001`, `1002`, ...) and keep a note of which numbers are in use on
@@ -88,7 +89,7 @@ without needing a second physical board:
 
 ## See also
 
-- [`getting-started.md`](getting-started.md) — the web UI walkthrough,
-  including the Settings → VOIP tab.
-- `firmware/components/voip/voip.c` — the embedded SIP UA implementation
-  (scope, what's supported) if you're debugging registration/call issues.
+- [Set up & use](setup.md): the web interface, including Settings → VOIP.
+- [`firmware/components/voip/voip.c`](https://github.com/sdylewski/Analog-Redial/blob/main/firmware/components/voip/voip.c):
+  the embedded SIP client, if you're debugging registration or call
+  problems.

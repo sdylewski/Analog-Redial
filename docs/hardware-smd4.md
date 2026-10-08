@@ -1,11 +1,13 @@
-# Hardware Reference — SMD4 Board
+[Home](../README.md) · [1 · Get a board](board.md) · [2 · Parts & assembly](bom.md) · [3 · Flash & test](flashing.md) · [4 · Set up & use](setup.md)
 
-Design reference for the current production board: a 2-layer, ESP32-C6-based
+# Board reference: v4 (SMD4)
+
+Design reference for the current board: a 2-layer, ESP32-C6-based
 analog-phone-line gateway carrying one or two POTS lines through Silvertel
-AG1171 SLICs and an Everest ES8388 stereo codec. This document describes the
-board as it is today — it is not a changelog against earlier spins.
+AG1171 SLICs and an Everest ES8388 stereo codec. You don't need this page to
+build one; it's for understanding or modifying the design.
 
-KiCad project: `hardware/kicad/Rotary_phone_SMD4/`. The custom symbols and
+KiCad project: [`hardware/kicad/Analog Redial v4`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v4). The custom symbols and
 footprints it uses (SLICs, RJ12 jacks, ESP32-C6 modules) are
 maintained separately and shared across boards:
 [sdylewski/MajorHack-Kicad-Libraries](https://github.com/sdylewski/MajorHack-Kicad-Libraries) —
@@ -27,13 +29,8 @@ designed in on the next spin: see [`hardware-smd5.md`](hardware-smd5.md).
 | Storage | Internal SPI flash (SPIFFS) always; optional **microSD** (SPI) on single-line builds |
 | Power input | **USB-C** (via the DevKit's own port) **or** a **DC jack**, diode-ORed onto one +5 V rail |
 | Copper | **2 layers** (`F.Cu`, `B.Cu`) |
-| Board size | ~100 × 50 mm |
+| Board size | 110 × 54 mm |
 | Connectors | RJ12 ×1–2 (phone lines), USB-C, DC jack, microSD (optional) |
-
-The schematic is the same circuit across the SMD3/SMD4 spins — SMD4 changes
-only the PCB layout, re-routing the same nets onto 2 copper layers instead of
-4 (see [§7, 2-layer PCB notes](#7-2-layer-pcb-notes)) and adding a microSD
-card-detect connection SMD3 left unwired.
 
 Reference designators below follow the current schematic: **U1** = the
 ESP32-C6-DevKitC-1 carrier, **U3**/**U4** = the two AG1171 SLICs, **J8**/**J9**
@@ -242,6 +239,6 @@ modifying the layout:
 | [`building.md`](building.md) | Hand-solder order, pre-power checks, first power-on |
 | [`bom.md`](bom.md) | Parts list / shopping checklist |
 | [`hardware-smd5.md`](hardware-smd5.md) | The next spin: Bluetooth, LDO, dual MCU footprint |
-| [`getting-started.md`](getting-started.md) | Toolchain, flashing, first boot |
-| [`../archive/signal-levels.md`](../archive/signal-levels.md) | Audio/logic levels reference |
-| `hardware/kicad/Rotary_phone_SMD4/` | The KiCad project itself — the real source of truth for anything not covered above |
+| [`flashing.md`](flashing.md) | Toolchain, flashing, hardware self-test |
+| [`signal-levels.md`](https://github.com/sdylewski/Analog-Redial/blob/main/archive/signal-levels.md) | Audio and logic levels reference |
+| [KiCad project](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v4) | The real source of truth for anything not covered above |

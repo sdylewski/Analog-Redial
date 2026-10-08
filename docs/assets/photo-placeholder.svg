@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Photo coming soon: the board in its 3D-printed case">
+  <rect width="800" height="600" rx="16" fill="#f3efe6" stroke="#c9bfa8" stroke-width="4" stroke-dasharray="18 12"/>
+  <g fill="none" stroke="#8a7f68" stroke-width="10" stroke-linejoin="round">
+    <rect x="250" y="210" width="300" height="170" rx="18"/>
+    <circle cx="400" cy="295" r="48"/>
+    <path d="M300 210 l25 -34 h150 l25 34"/>
+  </g>
+  <text x="400" y="455" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="34" font-weight="600" fill="#6b614c">Photo coming soon</text>
+  <text x="400" y="500" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="26" fill="#8a7f68">The board in its 3D-printed case</text>
+</svg>

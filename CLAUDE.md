@@ -154,9 +154,10 @@ structure) — only links from live files (this one included) need the
 
 ## Key docs (read before making changes)
 
-- [`README.md`](README.md) — public project overview, build/flash instructions
+- [`README.md`](README.md) — public front page (also the GitHub Pages home via `_config.yml`): use cases, finer-print features, web UI thumbnails, cost table, the 4-step build guide
+- Newcomer flow, each page with the same nav bar: [`docs/board.md`](docs/board.md) (1 · get a board: versions, JLCPCB ordering, cost by quantity) → [`docs/bom.md`](docs/bom.md) + [`docs/building.md`](docs/building.md) (2 · hand-solder parts, assembly incl. the SMD4 15k rework) → [`docs/flashing.md`](docs/flashing.md) (3 · toolchain, flash, console self-test) → [`docs/setup.md`](docs/setup.md) (4 · Wi-Fi, web UI tour, dial codes, LED, BOOT button, OTA)
+- Public docs are also served by GitHub Pages, which only publishes `README.md` + `docs/`: link anything outside `docs/` by full `https://github.com/sdylewski/Analog-Redial/blob/main/...` URL, and never put a `.md` link inside raw HTML (Jekyll won't rewrite it)
 - [`docs/features.md`](docs/features.md) — feature list, firmware architecture (components, threading model, VoIP seams)
-- [`docs/building.md`](docs/building.md) — board assembly: hand-solder order, pre-power checks, the SMD4 15k rework
 - [`docs/hardware-smd4.md`](docs/hardware-smd4.md) — SMD4 schematic reference, GPIO pin map, power tree
 - [`docs/hardware-smd5.md`](docs/hardware-smd5.md) — SMD5 board reference (Bluetooth companion, LDO, dual MCU footprint); sent to fab, not yet tested
 - [`archive/signal-levels.md`](archive/signal-levels.md) — SLIC/codec levels, SHK dividers

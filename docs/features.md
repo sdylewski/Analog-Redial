@@ -1,11 +1,9 @@
-# Features & Architecture
+[Home](../README.md) · [1 · Get a board](board.md) · [2 · Parts & assembly](bom.md) · [3 · Flash & test](flashing.md) · [4 · Set up & use](setup.md)
 
-What Analog Redial implements, and how the firmware is put together.
+# Features & firmware architecture
 
-Successor to a Raspberry Pi–based prototype (Python); this build is **not**
-a line-by-line port of that prototype — it uses an on-chip I²S codec, GPIO
-SLIC control, and (eventually) embedded SIP instead of USB dongles + a
-softphone + a web framework.
+Everything Analog Redial does, and how the firmware is put together. For
+using these features day to day, see [Set up & use](setup.md).
 
 ---
 
@@ -27,14 +25,13 @@ A single-line build can trade line 2 for **microSD** (GPIO 18–21 shared).
 | Ring | **RM** + **F/R** toggle (~20 Hz) |
 | Net | Wi-Fi → SIP |
 
-See [`hardware-smd4.md`](hardware-smd4.md) and [`../archive/signal-levels.md`](../archive/signal-levels.md).
+See [`hardware-smd4.md`](hardware-smd4.md) and [`signal-levels.md`](https://github.com/sdylewski/Analog-Redial/blob/main/archive/signal-levels.md).
 
 ---
 
 ## 2. Feature list
 
-Legend: ✅ implemented · 🟡 partial/simplified · 🔜 stubbed interface,
-implemented later
+Legend: ✅ working · 🧪 experimental, off by default · 🔜 coming soon
 
 | Feature | Status | Notes |
 |------------|--------------|-------|
@@ -51,10 +48,10 @@ implemented later
 | **Record to web archive (211)** | ✅ | 8 kHz mono WAV, timestamped filename (UTC), downloadable/playable from `/recordings` |
 | **Intercom** | 🧪 off by default (Settings → Phone Settings, 2-line boards) | Pick up and don't dial: after a wait (default 4 s, 1–30) the other line rings with a short double ring (0.4 s, 0.2 s gap, 0.4 s, 2 s pause), distinct from an outside call. Dial a digit first and it's a normal call, so there is no mode to switch. If the other handset is already up and idle the lines connect at once; if it is busy you hear busy |
 | **Voice effects during a call** | 🧪 experimental, off by default (Settings → Phone Settings) | Press or dial **1** Dalek, **2** chipmunk, **3** Darth Vader, **4** 8-bit, **5** robot, **6** tremolo, **7** distortion, **0** normal — mid-call, on either phone; both hear it. Works on local and VoIP calls (the board where the key is pressed changes both voices). Or dial 322–324 to start a call as chipmunk, Vader or Dalek. Chipmunk and Vader add ~15 ms; the rest add no delay. On/off in Settings → Phone Settings |
-| **Internet radio (8xx)** | 🟡 | HTTP/Shoutcast stream → I²S |
+| **Internet radio (8xx)** | 🔜 | Dial codes are reserved; streaming isn't implemented yet |
 | **Operator help / TTS (dial 0)** | ✅ | No on-device TTS; `operator.wav` ships pre-rendered by default. Text-to-speech generation (`gen_prompt.py`, host-side) can re-render it, the record-message prompt, and the answering machine's default greeting from edited text |
 | **Answering machine** (dial 899 to record a greeting) | ✅ | Per line: rings N times, plays that line's own greeting (or the shared default if none is recorded), then records the caller. Needs VOIP or a second line to actually be reachable |
-| **Bluetooth (BM64 companion)** | 🟡 | UART bridge + analog audio handoff implemented; hardware is SMD5-only and not yet fabricated, or a hand-wired SMD4 — see `hardware-smd5.md` §9. Flagged "experimental, not mainstream yet" in the web UI |
+| **Bluetooth (BM64 companion)** | 🔜 | Arrives with the v5 board: pair a mobile and the analog phone becomes its handset. The firmware side is written; see [`hardware-smd5.md`](hardware-smd5.md) §9 |
 | **Language** | ✅ | One language for the whole phone, set at setup time — no in-use switching. UI string translations are plumbed in (`i18n_str()`) but only English ships; the language picker greys out any language without a translation file on the board |
 | **Digit readback on/off** | ✅ | Explicit setting |
 | **Wrong-number handling** | ✅ | Unmatched 3+ digit → prompt + dial tone |
@@ -154,20 +151,9 @@ can act as a standalone two-phone exchange with zero network dependency.
 
 ---
 
-## 4. Bring-up test commands (serial console)
+## 4. Bring-up console
 
-| Command | Tests |
-|---------|-------|
-| `i2c_scan` / `codec_detect` | I²C bus + codec presence, board/codec mismatch warning |
-| `codec_init` / `codec_dump` | Codec config + register readback path |
-| `tone <hz> [ms] [line]` | DAC → line audio generation |
-| `dialtone`/`ringback`/`busy <line>` | Call-progress tone synthesis |
-| `loopback` | ADC → DAC passthrough (codec + I²S sanity) |
-| `capture <ms>` | ADC RMS / level meter |
-| `slic <line> <pd\|fr\|rm> <0\|1>` | Raw SLIC line control |
-| `ring <line> [secs]` | Mechanical ring cadence |
-| `hookmon` | Live SHK state for both lines |
-| `dialmon` | Decode pulse + DTMF digits live |
-| `dtmf_gen <digits>` | Emit DTMF on a line |
-
-See [`../firmware/README.md`](../firmware/README.md) for build/flash/run.
+The serial console's hardware-test commands are listed in
+[Flash & test](flashing.md#6-test-the-hardware); type `help` on the console
+for all of them. Toolchain and build-system detail:
+[`firmware/README.md`](https://github.com/sdylewski/Analog-Redial/blob/main/firmware/README.md).

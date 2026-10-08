@@ -1,137 +1,96 @@
-# Building the Board
+[Home](../README.md) · [1 · Get a board](board.md) · **2 · Parts & assembly** · [3 · Flash & test](flashing.md) · [4 · Set up & use](setup.md)
 
-How to go from parts to a working board. Written for the **SMD4** board,
-with **SMD5** differences called out inline — SMD5 is the next spin and has
-not been fabricated or tested yet.
+# 2 · Assembly
 
-Once the hardware is together, continue to
-[`getting-started.md`](getting-started.md) to install the toolchain and flash
-it.
+From a fab-assembled board and the [parts list](bom.md) to a board that's
+ready to flash. Everything you solder is through-hole, so a regular iron is
+all you need. Written for v4; v5 differences are called out where they come
+up.
 
----
-
-## 1. How you get a board
-
-| Route | What you do |
-|-------|-------------|
-| **Pre-assembled** (most people) | The surface-mount side is already done — codec, resistors, capacitors, bridge diodes. You hand-solder the through-hole parts below. |
-| **Order it yourself** | Send the Gerbers and BOM/CPL to JLCPCB for SMT assembly, then hand-solder the same through-hole parts. See [`bom.md`](bom.md). |
-| **Fully from scratch** | Possible, but the ES8388 is a 28-pin QFN with a thermal pad — you'll need a hotplate or reflow oven, not an iron. |
-
-Everything on the hand-solder list is through-hole and friendly to a regular
-iron. There is no fine-pitch work left for you.
-
-## 2. Tools
+## 1. Tools
 
 - Soldering iron with a fine conical or chisel tip, and solder
 - Flush cutters for trimming leads
-- Multimeter (continuity and DC volts) — **not optional**, see §6
-- A 2 A USB-C supply or a 5.5–6 V DC brick
+- Multimeter (continuity and DC volts). **Not optional**, see [§5](#5-check-before-power)
+- A 2 A USB-C charger, or a 5.5–6 V DC supply
 - One or two analog telephones with RJ11/RJ12 cords
 
-## 3. What you're fitting
+## 2. v4 only: remove two resistors first
 
-Pulled from [`bom.md`](bom.md), in the order it's easiest to solder.
+**Remove R14 and R12**, the two 15 kΩ resistors in the hook-switch dividers.
+With them fitted, the off-hook signal only reaches about 1.9 V, below what
+the ESP32-C6 reliably reads as high. The symptom is a line whose audio works
+but which never notices the handset being lifted.
+
+Leave **R15** and **R13**, the 10 kΩ resistors, in place. Full explanation
+in the [v4 board reference](hardware-smd4.md#7-shk-divider-rework-smd4-as-built).
+v5 has the corrected values, so there's nothing to remove.
+
+## 3. Soldering order
+
+Lowest parts first, tallest last.
 
 | Order | Ref | Part | Notes |
 |-------|-----|------|-------|
 | 1 | **J5** | 2×4 pin header | Lowest profile, do it first |
 | 2 | **J9** | RJ12 jack, line 0 | Snaps in; check it sits flat |
 | 3 | **J8** | RJ12 jack, line 1 | Second line only |
-| 4 | **D12** | P6KE82A TVS | Optional, see [`bom.md`](bom.md). **Polarized** (unidirectional): the body's stripe (cathode) goes at the silkscreen band end — pin 1, the `/P6K` bus, not GND |
-| 5 | **C16** | 470 µF, line 0 | **Polarized** — stripe to the negative pad |
+| 4 | **D12** | P6KE82A TVS | Optional. **Polarized**: the stripe goes at the silkscreen band end, toward `/P6K`, not GND |
+| 5 | **C16** | 470 µF, line 0 | **Polarized**: stripe to the negative pad |
 | 6 | **C17** | 470 µF, line 1 | Second line only, same polarity care |
-| 7 | **U4** | AG1171 SLIC, line 0 | 14-pin SIL module, sits upright |
+| 7 | **U4** | AG1171 SLIC, line 0 | 14-pin module, stands upright. Match pin 1 to the silkscreen **before** soldering: desoldering a 14-pin SIL module is miserable |
 | 8 | **U3** | AG1171 SLIC, line 1 | Second line only |
 | 9 | **J1** | DC barrel jack | Optional; chunky, needs a hot iron and a moment to wet |
 | 10 | **U1** | ESP32-C6 DevKit | Tallest part, so it goes last |
 
-**SMD5 adds J2**, the 8-pin Bluetooth companion header — fit it before the
-DevKit, and only if you're using the Bluetooth option.
+**Keeping the DevKit square:** tack one pin at each far corner, check the
+module sits flat and square against the board, then solder the rest.
 
-### Keeping the DevKit square
+**v5 Bluetooth header (J2)**, when that option arrives: fit it before the
+DevKit.
 
-Tack one pin at each far corner first, check the module sits flat and
-square against the board, then solder the rest. A module soldered in
-crooked is a lot of pins to rework.
+## 4. Set the build jumpers
 
-## 4. Choosing your build
-
-Two parts of the board are mutually exclusive, and **J5** is the switch
-between them.
+**J5** chooses between a second phone line and microSD:
 
 | | Dual line | Single line + microSD |
 |---|---|---|
-| Fit | **U3**, **J8**, **C17** | Nothing extra |
-| **J5** | **Bridge all four pairs** with shunts | **Leave open** — no shunts |
-| Firmware | lines = 2, microSD off | lines = 1, microSD on |
+| Parts fitted | **U3**, **J8**, **C17** | Nothing extra |
+| **J5** | **Bridge all four pairs** with shunts | **Leave open**, no shunts |
 
-Line 1's SLIC and the microSD socket share GPIO18–21, so only one can be
-wired through at a time. Get this wrong and the firmware will tell you: put
-a card in a board configured for two lines and it powers line 1 down and
-raises a banner in the web UI.
+Never a mix. If you get it wrong the firmware will tell you: a card in a
+board set up for two lines shuts line 1 off and shows a warning in the web
+interface.
 
-## 5. ⚠️ Before you power anything on
+## 5. Check before power
 
-This board generates real telephone-line voltages: about **48 V DC** on an
-off-hook line and roughly **60 V RMS** while ringing, with peaks near 90 V.
-That is enough to give you a memorable jolt.
+> ⚠️ **This board makes real telephone-line voltages:** about 48 V DC on an
+> off-hook line and about 60 V AC while ringing, with peaks near 90 V.
+> Don't touch the RJ12 pins or the SLIC pins while it's powered, power down
+> before changing jumpers, and never connect the jacks to house or telco
+> wiring.
 
-- **Don't touch tip/ring, the RJ12 pins, or the SLIC pins while powered.**
-  Ringing is the dangerous moment.
-- **Never connect these jacks to house or telco wiring.** This board is its
-  own exchange; it expects to drive the line, not meet a live one.
-- Power down before changing jumpers or reseating the DevKit.
+Five minutes with a multimeter beats a dead SLIC:
 
-## 6. Check before power
+1. **Look for bridges** between neighbouring pins, especially on the RJ12
+   jacks and the DevKit headers.
+2. **Capacitor polarity:** C16/C17 stripe to the negative pad. Backwards is
+   the classic way to make one vent.
+3. **No shorts:** +5 V to GND and 3.3 V to GND should both read open.
+4. **J5:** all four bridged for two lines, all open for microSD.
 
-Five minutes with a multimeter beats a dead SLIC.
-
-1. **Look at it first.** Bridges between adjacent pins, especially on the
-   RJ12 jacks and the DevKit headers.
-2. **Electrolytic polarity** — C16/C17 stripe to the negative pad. Backwards
-   is the classic way to vent one.
-3. **Continuity check: +5 V to GND, and 3.3 V to GND.** Both should read
-   open, not a short.
-4. **Jumper check** — J5 bridged for two lines, open for microSD. Not a mix.
-5. **SLIC orientation** — the AG1171s are keyed by their pin row; confirm
-   pin 1 matches the silkscreen before you solder, because desoldering a
-   14-pin SIL module is miserable.
-
-## 7. First power-on
+## 6. First power-on
 
 Power it with **nothing plugged into the phone jacks yet**.
 
-- The DevKit's LED should come up. Nothing should get hot — if anything
-  does, pull the power immediately and go back to §6.
-- Measure the +5 V rail and the 3.3 V rail. Both should be within a few
-  percent.
-- Only once those look right, plug in a phone.
+- The DevKit's LED should come on. Nothing should get hot; if anything does,
+  pull the power and go back to [§5](#5-check-before-power).
+- Measure the 5 V and 3.3 V rails. Both should be within a few percent.
+- Only then plug in a phone.
 
-The board ships with no firmware, so it won't do anything useful yet.
-That's expected — head to [`getting-started.md`](getting-started.md).
-
-## 8. One known rework on SMD4
-
-**Remove R14 and R12**, the two 15 kΩ resistors in the hook-switch dividers.
-As built, they drop the off-hook signal to ~1.9 V, below the ESP32-C6's
-2.475 V input-high threshold. Some boards read it as high anyway and some
-don't — the symptom is a line whose audio works but whose handset lift is
-never detected.
-
-Leave **R15** and **R13**, the 10 kΩ series resistors, in place. Removing
-both 15 kΩ resistors is confirmed on real hardware. Full explanation in
-[`hardware-smd4.md`](hardware-smd4.md) §7.
-
-**SMD5 fixes this in the design** (10 kΩ / 100 kΩ), so no rework there.
+The board has no firmware yet, so it won't do anything useful. That's
+expected.
 
 ---
 
-## See also
-
-| Doc | What's in it |
-|-----|--------------|
-| [`bom.md`](bom.md) | What to buy, with prices and links |
-| [`hardware-smd4.md`](hardware-smd4.md) | Schematic, layout, power tree |
-| [`hardware-smd5.md`](hardware-smd5.md) | The next spin: Bluetooth, LDO, dual MCU footprint |
-| [`getting-started.md`](getting-started.md) | Toolchain, flashing, first boot |
+**Next: [3 · Flash & test](flashing.md)**

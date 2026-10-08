@@ -1,19 +1,25 @@
-# 3D-printed case (placeholder)
+# 3D-printed case
 
-STL/step files for a printable enclosure are not designed yet — this is a
-placeholder for when they are. Contributions welcome.
+A two-part case, box and lid, for the Analog Redial board.
 
-## Constraints for a case design
+<!-- TODO: replace with a photo of the board in its case, e.g. ../../docs/pics/board_in_case.jpg -->
+![Photo coming soon: the board in its 3D-printed case](../../docs/assets/photo-placeholder.svg)
 
-- **Board size:** ~100 × 50 mm, 2-layer PCB (see [`../../archive/hardware/smd4.md`](../../archive/hardware/smd4.md)).
-- **Connector cutouts needed:**
-  - RJ12 phone jack(s) — 1 or 2, depending on build (dual-line vs. single-line + microSD)
-  - USB-C (power/programming)
-  - DC barrel jack (alternate power input)
-  - microSD card slot access (single-line build only)
-- **Mounting:** standoff/screw pattern TBD once a specific enclosure design is started — check hole positions against the actual KiCad board outline in [`../kicad/Analog Redial v4/`](../kicad/Analog%20Redial%20v4/) before finalizing.
-- Consider ventilation/access for the BOOT (GPIO9) and reset controls if they need to be reachable without opening the case.
+## v4 board
 
-## Status
+In [`Analog Redial v4/`](Analog%20Redial%20v4/). Print one box and the lid.
 
-No files yet.
+| File | Print it for |
+|------|--------------|
+| `AnalogRedial-4 - Box-SingleLine.stl` | Single-line board |
+| `AnalogRedial-4 - Box - dualLine.stl` | Dual-line board |
+| `AnalogRedial-4 - Lid.stl` | Either |
+
+The `.step` files are the same parts, for editing in CAD.
+
+## Other boards
+
+- **v5** is 5 mm longer than v4, so the v4 case won't fit it. Its case will
+  be added here.
+- [`Analog Redial v2/`](Analog%20Redial%20v2/) holds the case for the
+  earlier v2 board.
