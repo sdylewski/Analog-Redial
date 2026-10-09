@@ -51,6 +51,7 @@ class ProvisionerTest(unittest.TestCase):
             "permit": ["192.168.0.0/24"],
             "reload_commands": [[sys.executable, "-c", "pass"]],
             "exists_command": [sys.executable, fake, self.existing, "{number}"],
+            "context": "internal",
             "keys": [
                 {"id": "home", "secret": self.secret, "number_min": 1000, "number_max": 1999, "max_boards": 2},
                 {"id": "friend", "secret": self.other_secret, "number_min": 2000, "number_max": 2099},
@@ -122,7 +123,10 @@ class ProvisionerTest(unittest.TestCase):
         self.assertIn(f"password={out['password']}", pj)
         self.assertIn('callerid="kitchen Line 0" <1005>', pj)
         self.assertIn("deny=0.0.0.0/0.0.0.0\npermit=192.168.0.0/24", pj)
-        self.assertIn("exten => 1005,1,Dial(PJSIP/1005,30)", self.read("extensions_redial.conf"))
+        ext = self.read("extensions_redial.conf")
+        self.assertIn("[internal]\nexten => 1005,1,Dial(PJSIP/1005,30)", ext)
+        self.assertIn("context=internal", pj)
+        self.assertNotIn("transport=", pj)
         self.assertEqual(os.stat(os.path.join(self.tmp.name, "state.json")).st_mode & 0o777, 0o600)
 
         tok = out["board_token"]

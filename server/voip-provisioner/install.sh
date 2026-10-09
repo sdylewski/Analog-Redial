@@ -3,7 +3,7 @@
 # Run from this directory:
 #
 #   sudo ./install.sh --sip-server <host boards register with> \
-#        [--include-into <context>]... [--permit <cidr>]... [--port 8077]
+#        [--context <dialplan context>] [--permit <cidr>]... [--port 8077]
 #
 # Safe to re-run: it keeps an existing config and key, and never adds an
 # include line twice. pjsip.conf and extensions.conf are backed up before
@@ -12,18 +12,17 @@ set -euo pipefail
 
 SIP_SERVER=""
 PORT=8077
-INCLUDE_INTO=()
+CONTEXT=rotary
 PERMIT=()
 while [ $# -gt 0 ]; do
     case "$1" in
         --sip-server)   SIP_SERVER="$2"; shift 2 ;;
         --port)         PORT="$2"; shift 2 ;;
-        --include-into) INCLUDE_INTO+=("$2"); shift 2 ;;
+        --context)      CONTEXT="$2"; shift 2 ;;
         --permit)       PERMIT+=("$2"); shift 2 ;;
         *) echo "unknown option: $1" >&2; exit 2 ;;
     esac
 done
-[ ${#INCLUDE_INTO[@]} -eq 0 ] && INCLUDE_INTO=(rotary)
 
 [ "$(id -u)" -eq 0 ] || { echo "run with sudo" >&2; exit 1; }
 [ -n "$SIP_SERVER" ] || { echo "--sip-server is required (the name or IP boards register with)" >&2; exit 1; }
@@ -53,14 +52,14 @@ NEW_KEY=""
 if [ -f "$CONFIG" ]; then
     echo "   keeping existing $CONFIG"
 else
-    SIP_SERVER="$SIP_SERVER" PORT="$PORT" PERMIT="${PERMIT[*]:-}" CONTEXT="${INCLUDE_INTO[0]}" python3 - "$CONFIG" <<'EOF'
+    SIP_SERVER="$SIP_SERVER" PORT="$PORT" PERMIT="${PERMIT[*]:-}" CONTEXT="$CONTEXT" python3 - "$CONFIG" <<'EOF'
 import json, os, sys
 cfg = {
     "name": "Analog Redial VoIP",
     "listen": "0.0.0.0",
     "port": int(os.environ["PORT"]),
     "sip_server": os.environ["SIP_SERVER"],
-    "endpoint_context": os.environ["CONTEXT"],
+    "context": os.environ["CONTEXT"],
     "permit": os.environ["PERMIT"].split(),
     "keys": [],
 }
@@ -84,30 +83,6 @@ add_line() {  # file line
 add_line /etc/asterisk/pjsip.conf "#include redial/pjsip.conf"
 touch /etc/asterisk/extensions.conf
 add_line /etc/asterisk/extensions.conf "#include redial/extensions.conf"
-for ctx in "${INCLUDE_INTO[@]}"; do
-    [ -f "/etc/asterisk/extensions.conf.bak-redial-$STAMP" ] || cp -p /etc/asterisk/extensions.conf "/etc/asterisk/extensions.conf.bak-redial-$STAMP"
-    python3 - /etc/asterisk/extensions.conf "$ctx" <<'EOF'
-import re, sys
-path, ctx = sys.argv[1], sys.argv[2]
-lines = open(path).read().split("\n")
-want = "include => redial-provisioned"
-hdr = re.compile(r"^\[" + re.escape(ctx) + r"\](\(.*\))?\s*(;.*)?$")
-starts = [i for i, l in enumerate(lines) if hdr.match(l.strip())]
-if not starts:
-    lines += ["", f"[{ctx}]", want, ""]
-    print(f"   extensions.conf: created [{ctx}] with {want}")
-else:
-    i = starts[0]
-    j = i + 1
-    while j < len(lines) and not lines[j].strip().startswith("["):
-        j += 1
-    if any(l.strip().replace(" ", "") == want.replace(" ", "") for l in lines[i:j]):
-        sys.exit(0)
-    lines.insert(i + 1, want)
-    print(f"   extensions.conf: added {want} to [{ctx}]")
-open(path, "w").write("\n".join(lines))
-EOF
-done
 
 if [ -d /etc/avahi/services ]; then
     echo "== mDNS advertisement"
@@ -143,9 +118,8 @@ if [ -n "$NEW_KEY" ]; then
     echo "It is stored in $CONFIG. Make more with:"
     echo "    sudo $PY add-key --config $CONFIG <name> --min 2000 --max 2099"
 fi
-echo "Boards land in context [${INCLUDE_INTO[0]}]. For other phones to call them,"
-echo "add 'include => redial-provisioned' to their context too (re-run with"
-echo "--include-into <context>)."
+echo "Board numbers are added to the [$(python3 -c "import json;print(json.load(open('$CONFIG'))['context'])")] dialplan context:"
+echo "phones in that context can call them, and the boards' own calls land there."
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
     echo "ufw is active: allow the port from your LAN only, e.g."
     echo "    sudo ufw allow from 192.168.0.0/24 to any port 8077 proto tcp"

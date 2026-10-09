@@ -26,8 +26,9 @@ installer:
 - writes the generated SIP accounts and dialplan to
   `/etc/asterisk/redial/`, and adds `#include` lines for them to
   `pjsip.conf` and `extensions.conf` (backing both up first)
-- adds `include => redial-provisioned` to the `[rotary]` dialplan context,
-  where the boards' calls land
+- puts each board's number into the dialplan context you choose (default
+  `[rotary]`), so phones in that context can call the boards and the
+  boards' own calls land there
 - advertises the service on the network (mDNS), so a board's **Find on
   network** button can locate it
 - starts the `redial-provisioner` systemd service on port 8077
@@ -37,7 +38,7 @@ Options:
 
 | Option | Default | |
 |--------|---------|---|
-| `--include-into <context>` | `rotary` | Dialplan context that should be able to call the boards. Repeat it for each context your other phones use, e.g. `--include-into rotary --include-into internal`. The first one is where the boards' own calls land |
+| `--context <name>` | `rotary` | Dialplan context the boards join. Use the one your other phones are in (e.g. `internal`) so they can call each other. The numbers are added to that context directly, so they work even if it ends with a catch-all like `exten => _X.,1,Hangup()` |
 | `--permit <cidr>` | anywhere | Only accept SIP registrations from this network, e.g. `--permit 192.168.0.0/24`. Repeatable |
 | `--port <n>` | 8077 | Port the service listens on |
 
