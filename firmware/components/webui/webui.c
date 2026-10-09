@@ -184,6 +184,7 @@ static esp_err_t redirect_to(httpd_req_t *req, const char *loc)
 }
 
 static void js_escape(const char *in, char *out, size_t outsz);
+static void url_encode_path(const char *in, char *out, size_t outsz);
 /* Defined right after html_escape -- forward-declared for the same reason. */
 static int append_hint(char *buf, size_t cap, int off, const char *lead, const char *detail);
 static int append_setup_password_card(char *buf, size_t cap, int off);
@@ -251,10 +252,11 @@ static void strip_ansi(char *s)
 }
 
 /* Parses one "X (12345) tag: rest of message" ESP_LOG line (X = level
- * letter) into .t/.k/.m spans matching the Pi UI's .logline structure. Log
- * content here is entirely our own ESP_LOG calls (not user-supplied text),
- * so this intentionally skips HTML-escaping -- fine for a LAN bring-up
- * tool, would need escaping if log messages could ever include user input. */
+ * letter) into .t/.k/.m spans matching the Pi UI's .logline structure.
+ * HTML-escaped: log lines carry remote-supplied text (the first line of
+ * every SIP packet received, a caller's display name, a paired phone's
+ * caller ID), so unescaped they'd let anything on the network inject script
+ * into this page. */
 static int append_log_line(char *out, size_t out_len, int off, const char *raw)
 {
     char line[256];
@@ -286,10 +288,13 @@ static int append_log_line(char *out, size_t out_len, int off, const char *raw)
         }
     }
     const char *kind = tag[0] ? log_kind_class(tag, msg) : "debug";
-    return off + snprintf(out + off, ((size_t)off < out_len) ? out_len - off : 0,
+    char etag[sizeof(tag) * 6], emsg[sizeof(line) * 6];
+    html_escape(tag[0] ? tag : "-", etag, sizeof(etag));
+    html_escape(msg, emsg, sizeof(emsg));
+    return appendf(out, out_len, off,
         "<div class=\"logline\"><span class=\"t\">%d</span>"
         "<span class=\"k %s\">%s</span><span class=\"m\">%s</span></div>",
-        ms, kind, tag[0] ? tag : "-", msg);
+        ms, kind, etag, emsg);
 }
 
 /* Renders the whole logbuf snapshot as a .logpanel, newest line first (like
@@ -498,6 +503,28 @@ static esp_err_t favicon_ico_handler(httpd_req_t *req)
  * strings being rendered into this page -- everything else the status page
  * prints originates on this device. Truncates rather than overflowing;
  * always NUL-terminates. */
+/* Percent-encodes a file name for use in a URL path: everything except
+ * RFC 3986 unreserved characters. Pairs with media_name_from_uri(). */
+static void url_encode_path(const char *in, char *out, size_t outsz)
+{
+    static const char hx[] = "0123456789ABCDEF";
+    size_t o = 0;
+    if (outsz == 0) return;
+    for (const unsigned char *p = (const unsigned char *)in; *p; p++) {
+        bool plain = isalnum(*p) || *p == '-' || *p == '.' || *p == '_' || *p == '~';
+        if (plain) {
+            if (o + 1 >= outsz) break;
+            out[o++] = (char)*p;
+        } else {
+            if (o + 3 >= outsz) break;
+            out[o++] = '%';
+            out[o++] = hx[*p >> 4];
+            out[o++] = hx[*p & 0xF];
+        }
+    }
+    out[o] = '\0';
+}
+
 static void html_escape(const char *in, char *out, size_t outsz)
 {
     size_t o = 0;
@@ -1142,6 +1169,8 @@ static esp_err_t index_handler(httpd_req_t *req)
     if (off > 0 && (size_t)off < cap) {
         off = append_first_boot_banner(buf, cap, off);
     }
+    char ssid_esc[33 * 6];
+    html_escape(wifi_get_ssid(), ssid_esc, sizeof(ssid_esc));
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         /* Connection status: used to live as a 3rd <header> child (a
@@ -1162,7 +1191,7 @@ static esp_err_t index_handler(httpd_req_t *req)
                              : i18n_str("status.system.disconnected", "disconnected"),
         wifi_is_connected() ? " \xc2\xb7 " : "", wifi_is_connected() ? ip : "",
         i18n_str("status.system.wifi", "WiFi"),
-        wifi_get_ssid()[0] ? wifi_get_ssid() : i18n_str("status.system.not_configured", "(not configured)"),
+        wifi_get_ssid()[0] ? ssid_esc : i18n_str("status.system.not_configured", "(not configured)"),
         wifi_rssi(), wifi_signal_label(wifi_rssi()),
         i18n_str("status.system.ip", "IP"), ip,
         i18n_str("status.system.uptime", "Uptime"), (long long)uptime_s,
@@ -1457,6 +1486,8 @@ static int append_general_tab(char *buf, size_t cap, int off)
     char ssid[33];
     strncpy(ssid, wifi_get_ssid(), sizeof(ssid) - 1);
     ssid[sizeof(ssid) - 1] = '\0';
+    char ssid_esc[sizeof(ssid) * 6]; /* SSIDs may legitimately contain & < " ' */
+    html_escape(ssid, ssid_esc, sizeof(ssid_esc));
 
     /* Saved networks: the board joins whichever of these is strongest, so
      * taking it somewhere else works once that network has been saved. */
@@ -1510,13 +1541,13 @@ static int append_general_tab(char *buf, size_t cap, int off)
         "</div>",
         i18n_str("general.wifi.title", "WiFi"),
         i18n_str("general.wifi.current", "Current"),
-        ssid[0] ? ssid : i18n_str("status.system.not_configured", "(not configured)"),
-        i18n_str("general.wifi.ssid_label", "SSID"), ssid,
+        ssid[0] ? ssid_esc : i18n_str("status.system.not_configured", "(not configured)"),
+        i18n_str("general.wifi.ssid_label", "SSID"), ssid_esc,
         i18n_str("general.wifi.scanning", "Scanning for nearby networks"),
         i18n_str("general.wifi.ssid_label", "SSID"),
         i18n_str("general.wifi.enter_network", "Enter network name"),
         i18n_str("general.wifi.rescan", "Rescan"),
-        i18n_str("general.wifi.ssid_label", "SSID"), ssid,
+        i18n_str("general.wifi.ssid_label", "SSID"), ssid_esc,
         i18n_str("general.wifi.password_label", "Password"),
         i18n_str("general.wifi.password_placeholder", "leave blank for an open network"),
         i18n_str("general.wifi.saved_title", "Saved networks"),
@@ -2231,6 +2262,9 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         for (size_t i = 0; i < nclips && (size_t)off < cap; i++) {
             char edesc[64 * 6];
             html_escape(clips[i].desc, edesc, sizeof(edesc));
+            char fname_h[sizeof(clips[i].filename) * 6], fname_u[sizeof(clips[i].filename) * 3];
+            html_escape(clips[i].filename, fname_h, sizeof(fname_h));
+            url_encode_path(clips[i].filename, fname_u, sizeof(fname_u));
             off = appendf(buf, cap, off,
                 "<div class=\"dialcode-item\">"
                 "<div class=\"dc-line dc-line-code\">"
@@ -2266,7 +2300,7 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 "<audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio>"
                 "</div></div>",
                 clips[i].code, edesc, i18n_str("dialcodes.save", "save"),
-                clips[i].filename, clips[i].filename);
+                fname_h, fname_u);
         }
         off = appendf(buf, cap, off, "</div>" /* .dialcode-list */);
     }
@@ -4588,12 +4622,16 @@ static int append_storage_table(char *buf, size_t cap, int off,
         if (!storage_table_matches(entries[i].name, name_prefix)) continue;
         char sz[16];
         char dur[16];
-        char play[160];
+        char play[200];
         char recorded[32] = "";
+        /* Names come from uploads: escaped for the page, encoded for links. */
+        char name_h[STORAGE_MAX_NAME * 6], name_u[STORAGE_MAX_NAME * 3];
+        html_escape(entries[i].name, name_h, sizeof(name_h));
+        url_encode_path(entries[i].name, name_u, sizeof(name_u));
         if (is_wav_name(entries[i].name) || is_mp3_name(entries[i].name)) {
             snprintf(play, sizeof(play),
                 "<audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio>",
-                entries[i].name);
+                name_u);
             /* wav_duration_str() reads a RIFF/WAV header -- doesn't apply to
              * MP3's frame-based format, and the browser's own <audio>
              * element shows its duration once loaded anyway, so this just
@@ -4607,19 +4645,22 @@ static int append_storage_table(char *buf, size_t cap, int off,
         if (show_recorded) format_recording_timestamp(entries[i].name, recorded, sizeof(recorded));
         char recorded_td[48] = "";
         if (show_recorded) snprintf(recorded_td, sizeof(recorded_td), "<td>%s</td>", recorded);
-        char delete_confirm[STORAGE_MAX_NAME + 16];
+        char delete_confirm[STORAGE_MAX_NAME + 32], confirm_h[sizeof(delete_confirm) * 6];
         snprintf(delete_confirm, sizeof(delete_confirm), i18n_str("storage.delete_confirm", "Delete %s?"),
                  entries[i].name);
+        html_escape(delete_confirm, confirm_h, sizeof(confirm_h));
+        /* The confirmation text rides in a data attribute rather than being
+         * spliced into JavaScript, so no name can break out of it. */
         off = appendf(buf, cap, off,
             "<tr><td><input type=\"checkbox\" name=\"names\" value=\"%s\"></td>"
             "<td><code>%s</code></td>%s<td>%s</td><td>%s</td><td>%s</td>"
             "<td><a href=\"/media/%s\">%s</a></td>"
             "<td><button type=\"submit\" formaction=\"/media_delete/%s\" formmethod=\"POST\" "
-            "onclick=\"return confirm('%s')\">%s</button></td></tr>",
-            entries[i].name, entries[i].name, recorded_td,
+            "data-confirm=\"%s\" onclick=\"return confirm(this.dataset.confirm)\">%s</button></td></tr>",
+            name_h, name_h, recorded_td,
             fmt_bytes(entries[i].size, sz, sizeof(sz)), dur, play,
-            entries[i].name, i18n_str("storage.download", "download"),
-            entries[i].name, delete_confirm, i18n_str("storage.delete", "delete"));
+            name_u, i18n_str("storage.download", "download"),
+            name_u, confirm_h, i18n_str("storage.delete", "delete"));
     }
     /* "Delete selected" -- also doubles as "delete all" (check the header
      * box, then click this) rather than needing a second, separate button
@@ -5145,6 +5186,28 @@ static void url_decode(char *s)
         }
     }
     *o = '\0';
+}
+
+/* The file name in a /media/<name> or /media_delete/<name> request path:
+ * stops at any query string and decodes %XX escapes (but not '+', which is
+ * literal in a path). False if it's missing or too long. */
+static bool media_name_from_uri(const char *uri, const char *prefix, char *out, size_t outsz)
+{
+    size_t pl = strlen(prefix);
+    if (strncmp(uri, prefix, pl) != 0) return false;
+    const char *p = uri + pl;
+    size_t o = 0;
+    while (*p && *p != '?' && o + 1 < outsz) {
+        if (*p == '%' && isxdigit((unsigned char)p[1]) && isxdigit((unsigned char)p[2])) {
+            char hex[3] = { p[1], p[2], 0 };
+            out[o++] = (char)strtol(hex, NULL, 16);
+            p += 3;
+        } else {
+            out[o++] = *p++;
+        }
+    }
+    out[o] = '\0';
+    return o > 0 && (*p == '\0' || *p == '?');
 }
 
 static bool form_field(const char *body, const char *key, char *out, size_t out_len)
@@ -6950,12 +7013,11 @@ static esp_err_t dialcode_delete_handler(httpd_req_t *req)
  * Settings the way it did when Storage was the form's only caller. */
 static esp_err_t media_delete_handler(httpd_req_t *req)
 {
-    const char *prefix = "/media_delete/";
-    if (strncmp(req->uri, prefix, strlen(prefix)) != 0) {
+    char name[STORAGE_MAX_NAME];
+    if (!media_name_from_uri(req->uri, "/media_delete/", name, sizeof(name))) {
         httpd_resp_send_404(req);
         return ESP_OK;
     }
-    const char *name = req->uri + strlen(prefix);
 
     esp_err_t err = storage_delete(name);
     if (err != ESP_OK) {
@@ -7087,11 +7149,13 @@ static int append_guide_row(char *buf, size_t cap, int off, const char *code,
 {
     char hy[24];
     hyphenate_code(code, hy, sizeof(hy));
-    return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    char edesc[96 * 6]; /* descriptions are user-editable (Settings -> Dial Codes) */
+    html_escape(desc ? desc : "", edesc, sizeof(edesc));
+    return appendf(buf, cap, off,
         "<div class=\"code-row\"><span class=\"code\">%s</span>"
         "<span class=\"desc\">%s</span>"
         "<span class=\"pill %s\">%s</span></div>",
-        hy, desc, implemented ? "on" : "off", implemented ? "working" : "not yet");
+        hy, edesc, implemented ? "on" : "off", implemented ? "working" : "not yet");
 }
 
 /* Card-rendering for the dial-code guide -- formerly its own /guide page
@@ -7270,19 +7334,13 @@ static esp_err_t recordings_json_handler(httpd_req_t *req)
 
 static esp_err_t media_handler(httpd_req_t *req)
 {
-    const char *prefix = "/media/";
-    if (strncmp(req->uri, prefix, strlen(prefix)) != 0) {
+    /* req->uri includes any query string (e.g. "foo.wav?inline=1") and is
+     * still %-encoded (links encode names with spaces etc.). */
+    char name[STORAGE_MAX_NAME];
+    if (!media_name_from_uri(req->uri, "/media/", name, sizeof(name))) {
         httpd_resp_send_404(req);
         return ESP_OK;
     }
-    /* req->uri includes any query string (e.g. "foo.wav?inline=1") -- strip
-     * it before using this as a filename, both for lookups below and so the
-     * query-string handling further down doesn't see it munged in. */
-    char name[STORAGE_MAX_NAME];
-    strncpy(name, req->uri + strlen(prefix), sizeof(name) - 1);
-    name[sizeof(name) - 1] = '\0';
-    char *qmark = strchr(name, '?');
-    if (qmark) *qmark = '\0';
 
     /* Existence check + streaming both go through storage_read_open() --
      * used to be a separate storage_list()-based pre-check first, which
@@ -7876,13 +7934,8 @@ static esp_err_t dialcode_upload_handler(httpd_req_t *req)
 
 static esp_err_t media_upload_handler(httpd_req_t *req)
 {
-    const char *prefix = "/media/";
-    if (strncmp(req->uri, prefix, strlen(prefix)) != 0) {
-        httpd_resp_send_404(req);
-        return ESP_OK;
-    }
-    const char *name = req->uri + strlen(prefix);
-    if (!name[0] || strlen(name) >= STORAGE_MAX_NAME) {
+    char name[STORAGE_MAX_NAME];
+    if (!media_name_from_uri(req->uri, "/media/", name, sizeof(name))) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "missing/too-long filename");
         return ESP_OK;
     }

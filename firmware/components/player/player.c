@@ -67,6 +67,10 @@ static bool play_mp3(int line, storage_reader_t *rd, uint8_t *buf, size_t have,
     int16_t *resampled = NULL;
     size_t resampled_cap = 0;
 
+    if (*stop_requested) {
+        audio_mp3_decoder_destroy(dec);
+        return false;
+    }
     audio_tx_external(line, true);
     while (!*stop_requested) {
         if (pos > 0) {
@@ -141,8 +145,10 @@ static bool play_mp3(int line, storage_reader_t *rd, uint8_t *buf, size_t have,
          * out before switching the line's audio source away -- same
          * settle delay the WAV path uses. */
         vTaskDelay(pdMS_TO_TICKS(120));
+        audio_tx_silence(line);
     }
-    audio_tx_silence(line);
+    /* Stopped: whoever stopped us already owns the line's audio (see the
+     * matching comment in play_task()). */
     return !stopped && decode_ok;
 }
 #endif /* CONFIG_PLAYER_MP3 */
@@ -205,6 +211,10 @@ static void play_task(void *arg)
             goto out;
         }
 
+        if (s_line[line].stop_requested) {
+            free(resampled);
+            goto out;
+        }
         audio_tx_external(line, true);
         size_t remaining = wav.data_bytes;
         while (remaining > 0 && !s_line[line].stop_requested) {
@@ -232,8 +242,14 @@ static void play_task(void *arg)
             /* let what's still queued in the ext stream buffer actually
              * play out before switching the line's audio source away. */
             vTaskDelay(pdMS_TO_TICKS(120));
+            audio_tx_silence(line);
         }
-        audio_tx_silence(line);
+        /* Stopped: leave the line's audio alone. The FSM stops a clip and
+         * sets the line's next source in the same step (bridging a
+         * barged-in call, dial tone after a quick re-pickup), and this
+         * lower-priority task only notices the stop afterwards -- silencing
+         * here used to cut that new audio off, e.g. one-way audio when
+         * picking up during the answering machine's greeting. */
         ok = !stopped;
     }
 

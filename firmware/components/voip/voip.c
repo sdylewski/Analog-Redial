@@ -147,6 +147,10 @@ static void md5_hex(const char *in, char *out33)
 static bool get_header(const char *msg, const char *name, const char *cname,
                        char *out, size_t outsz)
 {
+    /* Always a valid string, even when the header is missing: callers parse
+     * the result unconditionally, and a malformed packet without (say) a
+     * CSeq used to leave them reading uninitialized stack memory. */
+    out[0] = '\0';
     size_t nl = strlen(name), cl = cname ? strlen(cname) : 0;
     for (const char *p = msg; *p; ) {
         const char *eol = strstr(p, "\r\n");
@@ -559,6 +563,7 @@ static void reset_call(line_t *L)
 
 static void handle_response(const char *msg, const struct sockaddr_in *src)
 {
+    if (strlen(msg) < 12) return; /* "SIP/2.0 NNN " at least */
     int code = atoi(msg + 8); /* after "SIP/2.0 " */
     char callid[80], cseq[64];
     if (!get_header(msg, "Call-ID", "i", callid, sizeof(callid))) return;
@@ -653,12 +658,35 @@ static void handle_response(const char *msg, const struct sockaddr_in *src)
     /* 1xx and BYE/CANCEL responses: nothing to do. */
 }
 
+/* Calls only come through the configured SIP server. Anything else on the
+ * network (or, once registered through a router to a server on the
+ * internet, a SIP scanner) could otherwise ring the phone or hang up a
+ * call. */
+static bool from_server(const struct sockaddr_in *src)
+{
+    if (!s_server_ip[0]) return false;
+    return src->sin_addr.s_addr == s_server_addr.sin_addr.s_addr;
+}
+
 static void handle_request(const char *msg, const struct sockaddr_in *src)
 {
     char method[16] = "";
     sscanf(msg, "%15s", method);
     char callid[80];
     if (!get_header(msg, "Call-ID", "i", callid, sizeof(callid))) return;
+
+    if (strcmp(method, "OPTIONS") != 0 && !from_server(src)) {
+        static int64_t s_last_warn_us;
+        static bool s_warned;
+        int64_t now = esp_timer_get_time();
+        if (!s_warned || now - s_last_warn_us > 60 * 1000000LL) {
+            s_warned = true;
+            s_last_warn_us = now;
+            ESP_LOGW(TAG, "ignoring %s from %s -- not the SIP server (%s)",
+                     method, inet_ntoa(src->sin_addr), s_server_ip[0] ? s_server_ip : "unresolved");
+        }
+        return;
+    }
 
     if (strcmp(method, "OPTIONS") == 0) {
         line_t tmp = {0};
