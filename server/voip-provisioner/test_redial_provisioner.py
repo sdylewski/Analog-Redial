@@ -136,6 +136,9 @@ class ProvisionerTest(unittest.TestCase):
         self.assertNotIn("board_token", again)
         status, st = self.post("/api/v1/status", {}, ident=f"board:{BOARD_A}", secret=tok)
         self.assertEqual(st["numbers"], [{"line": 0, "number": "1005"}])
+        self.assertEqual((st["number_min"], st["number_max"]), (1000, 1999))
+        status, st = self.post("/api/v1/status", {}, ident="key:friend", secret=self.other_secret)
+        self.assertEqual((status, st["number_min"], st["number_max"], st["numbers"]), (200, 2000, 2099, []))
         self.assertEqual(self.post("/api/v1/check", {"number": "1005"},
                                    ident=f"board:{BOARD_A}", secret=tok)[1]["reason"], "yours")
 

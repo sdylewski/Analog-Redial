@@ -24,7 +24,7 @@ Protocol (version 1), all bodies JSON:
     POST /api/v1/register  {board_id, board_name, line, number}
                                            key or board auth
     POST /api/v1/release   {line}          board auth
-    POST /api/v1/status    {}              board auth
+    POST /api/v1/status    {}              key or board auth
 
 Every POST carries
 
@@ -320,6 +320,10 @@ class Service:
             raise ApiError(400, "out_of_range", f"Pick a number from {lo} to {hi}",
                            number_min=lo, number_max=hi)
 
+    def key_range(self, key_id):
+        k = self.key_entry(key_id) or {}
+        return {"number_min": k.get("number_min", 1000), "number_max": k.get("number_max", 9999)}
+
     def board_key_id(self, kind, name, st):
         if kind == "key":
             return name
@@ -339,12 +343,13 @@ class Service:
             key_id = self.board_key_id(kind, name, st)
             self.check_number(number, key_id)
             held = st["numbers"].get(number)
-            if held:
-                mine = kind == "board" and held["board_id"] == name
-                return {"number": number, "available": mine, "reason": "yours" if mine else "taken"}
+        rng = self.key_range(key_id)
+        if held:
+            mine = kind == "board" and held["board_id"] == name
+            return {"number": number, "available": mine, "reason": "yours" if mine else "taken", **rng}
         if asterisk_has_endpoint(self.cfg, number):
-            return {"number": number, "available": False, "reason": "taken"}
-        return {"number": number, "available": True, "reason": "free"}
+            return {"number": number, "available": False, "reason": "taken", **rng}
+        return {"number": number, "available": True, "reason": "free", **rng}
 
     def register(self, auth, body):
         kind, name = auth
@@ -404,7 +409,8 @@ class Service:
             apply_to_asterisk(self.cfg, st)
 
         resp = {"number": number, "line": line, "username": number, "password": password,
-                "sip_server": self.cfg["sip_server"], "sip_port": self.cfg["sip_port"]}
+                "sip_server": self.cfg["sip_server"], "sip_port": self.cfg["sip_port"],
+                **self.key_range(key_id)}
         if issued_token:
             resp["board_token"] = issued_token
         return resp
@@ -424,13 +430,14 @@ class Service:
         return {"released": gone}
 
     def status(self, auth, _body):
+        """The numbers this key may use, and (for a board) the ones it holds."""
         kind, name = auth
-        if kind != "board":
-            raise ApiError(403, "board_only", "Status needs the board's own token")
         with locked_state(self.cfg) as st:
+            key_id = self.board_key_id(kind, name, st)
             nums = [{"line": v["line"], "number": n}
-                    for n, v in st["numbers"].items() if v["board_id"] == name]
-        return {"board_id": name, "numbers": sorted(nums, key=lambda x: x["line"])}
+                    for n, v in st["numbers"].items() if kind == "board" and v["board_id"] == name]
+        return {"numbers": sorted(nums, key=lambda x: x["line"]),
+                "max_lines": self.cfg["max_lines_per_board"], **self.key_range(key_id)}
 
 
 def make_handler(svc):

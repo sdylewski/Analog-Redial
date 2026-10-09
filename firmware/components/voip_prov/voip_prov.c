@@ -31,6 +31,7 @@ static bool s_loaded;
 static char s_url[URL_LEN];
 static char s_key[KEY_LEN];
 static char s_token[TOKEN_LEN];
+static int32_t s_nmin = -1, s_nmax = -1;
 
 /* ---- storage ---------------------------------------------------------- */
 
@@ -43,6 +44,8 @@ static void load(void)
     size_t n = sizeof(s_url);   nvs_get_str(h, "url", s_url, &n);
     n = sizeof(s_key);          nvs_get_str(h, "key", s_key, &n);
     n = sizeof(s_token);        nvs_get_str(h, "token", s_token, &n);
+    nvs_get_i32(h, "nmin", &s_nmin);
+    nvs_get_i32(h, "nmax", &s_nmax);
     nvs_close(h);
 }
 
@@ -60,6 +63,33 @@ static esp_err_t save_str(const char *k, const char *v, char *cache, size_t cach
 }
 
 const char *voip_prov_url(void) { load(); return s_url; }
+
+bool voip_prov_number_range(int *min, int *max)
+{
+    load();
+    if (s_nmin < 0 || s_nmax < s_nmin) return false;
+    *min = (int)s_nmin;
+    *max = (int)s_nmax;
+    return true;
+}
+
+/* Saves number_min/number_max from any provisioner reply that carries them. */
+static void note_range(const cJSON *j)
+{
+    cJSON *lo = cJSON_GetObjectItem(j, "number_min");
+    cJSON *hi = cJSON_GetObjectItem(j, "number_max");
+    if (!cJSON_IsNumber(lo) || !cJSON_IsNumber(hi)) return;
+    int32_t a = (int32_t)lo->valuedouble, b = (int32_t)hi->valuedouble;
+    if (a == s_nmin && b == s_nmax) return;
+    nvs_handle_t h;
+    if (nvs_open(NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    nvs_set_i32(h, "nmin", a);
+    nvs_set_i32(h, "nmax", b);
+    nvs_commit(h);
+    nvs_close(h);
+    s_nmin = a;
+    s_nmax = b;
+}
 bool voip_prov_has_key(void)    { load(); return s_key[0] != '\0'; }
 bool voip_prov_enrolled(void)   { load(); return s_token[0] != '\0'; }
 
@@ -73,7 +103,10 @@ esp_err_t voip_prov_set_url(const char *url)
     if (n && strncmp(clean, "http://", 7) != 0 && strncmp(clean, "https://", 8) != 0) {
         return ESP_ERR_INVALID_ARG;
     }
-    if (strcmp(clean, s_url) != 0) save_str("token", "", s_token, sizeof(s_token));
+    if (strcmp(clean, s_url) != 0) {
+        save_str("token", "", s_token, sizeof(s_token));
+        s_nmin = s_nmax = -1;
+    }
     return save_str("url", clean, s_url, sizeof(s_url));
 }
 
@@ -212,6 +245,7 @@ static int signed_post(const char *path, const char *body, bool use_token, long 
 static void server_message(const char *resp, int status, char *msg, size_t msg_len)
 {
     cJSON *j = cJSON_Parse(resp);
+    note_range(j);
     cJSON *m = cJSON_GetObjectItem(j, "message");
     if (cJSON_IsString(m)) snprintf(msg, msg_len, "%s", m->valuestring);
     else if (status < 0) snprintf(msg, msg_len, "Can't reach the provisioner at %s", s_url);
@@ -280,6 +314,7 @@ esp_err_t voip_prov_check(const char *number, bool *available, char *msg, size_t
     esp_err_t err = ESP_FAIL;
     if (st == 200) {
         cJSON *j = cJSON_Parse(resp);
+        note_range(j);
         cJSON *reason = cJSON_GetObjectItem(j, "reason");
         *available = cJSON_IsTrue(cJSON_GetObjectItem(j, "available"));
         const char *r = cJSON_IsString(reason) ? reason->valuestring : "";
@@ -321,6 +356,7 @@ esp_err_t voip_prov_register(int line, const char *number, char *msg, size_t msg
     esp_err_t err = ESP_FAIL;
     if (st == 200) {
         cJSON *j = cJSON_Parse(resp);
+        note_range(j);
         cJSON *server = cJSON_GetObjectItem(j, "sip_server");
         cJSON *user = cJSON_GetObjectItem(j, "username");
         cJSON *pass = cJSON_GetObjectItem(j, "password");
@@ -364,6 +400,31 @@ esp_err_t voip_prov_release(int line, char *msg, size_t msg_len)
         if (line == 0) voip_set_config(NULL, "", "", NULL, NULL);
         else           voip_set_config(NULL, NULL, NULL, "", "");
         snprintf(msg, msg_len, "Released line %d's number", line + 1);
+        err = ESP_OK;
+    } else {
+        server_message(resp, st, msg, msg_len);
+    }
+    free(resp);
+    return err;
+}
+
+esp_err_t voip_prov_refresh(char *msg, size_t msg_len)
+{
+    long offset;
+    char *resp = begin(&offset, msg, msg_len);
+    if (!resp) return ESP_FAIL;
+    int st = post_with_fallback("/api/v1/status", "{}", offset, resp);
+    esp_err_t err = ESP_FAIL;
+    if (st == 200) {
+        cJSON *j = cJSON_Parse(resp);
+        note_range(j);
+        cJSON_Delete(j);
+        int lo, hi;
+        if (voip_prov_number_range(&lo, &hi)) {
+            snprintf(msg, msg_len, "Connected -- this key can register numbers %d to %d", lo, hi);
+        } else {
+            snprintf(msg, msg_len, "Connected");
+        }
         err = ESP_OK;
     } else {
         server_message(resp, st, msg, msg_len);

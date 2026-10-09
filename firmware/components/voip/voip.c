@@ -922,8 +922,7 @@ static void load_config(void)
     /* No default server -- ships unconfigured, like CONFIG_WIFI_SSID.
      * Set via the web UI or `sip_set` (see bringup.c). */
     strncpy(s_server, "", sizeof(s_server) - 1);
-    strncpy(s_l[0].user, "phone", sizeof(s_l[0].user) - 1);
-    strncpy(s_l[1].user, "phone2", sizeof(s_l[1].user) - 1);
+    s_l[0].user[0] = s_l[1].user[0] = '\0'; /* unconfigured until a number is set */
     s_l[0].enabled = s_l[1].enabled = true;
 
     nvs_handle_t h;

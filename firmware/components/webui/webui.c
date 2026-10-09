@@ -789,7 +789,7 @@ static const char *WIFI_SCAN_JS =
     "var ph=document.createElement('option');ph.value='';ph.textContent='Select a network\\u2026';"
     "ph.disabled=true;ph.selected=true;sel.appendChild(ph);"
     "list.forEach(function(n){var o=document.createElement('option');o.value=n.ssid;"
-    "o.textContent=n.ssid+' ('+n.rssi+' dBm)'+(n.secured?' \\uD83D\\uDD12':'');sel.appendChild(o);});"
+    "o.textContent=n.ssid+' ('+n.rssi+' dBm)'+(n.secured?' \\uD83D\\uDD12':'');o.dataset.secured=n.secured?'1':'';sel.appendChild(o);});"
     "}else{"
     "var o2=document.createElement('option');o2.value='';"
     "o2.textContent=err?'Scan failed \\u2013 enter manually below':'No networks found \\u2013 enter manually below';"
@@ -820,6 +820,11 @@ static const char *WIFI_SCAN_JS =
     "}else{"
     "row.style.display='none';sel.name='ssid';man.removeAttribute('name');man.required=false;"
     "}"
+    /* A secured network needs its password -- except re-saving the one we're
+     * already on, where blank means "keep the saved password". */
+    "var pw=sel.form&&sel.form.elements['password'];"
+    "if(pw){var o=sel.options[sel.selectedIndex];"
+    "pw.required=!!(o&&o.dataset.secured)&&sel.value!==(sel.dataset.current||'');}"
     "}"
     "wifiRescan();";
 
@@ -854,6 +859,16 @@ static const char *RECORDING_RELOAD_JS =
  * handle live toggling after that, not an on-load sync. */
 static const char *FEATURE_TOGGLE_JS =
     "function toggleSection(cb,id){var e=document.getElementById(id);if(e)e.hidden=!cb.checked;}";
+
+/* Plain-English signal quality. Below about -75 dBm a 2.4 GHz link starts
+ * dropping out, which looks like the board randomly vanishing. */
+static const char *wifi_signal_label(int rssi)
+{
+    if (rssi >= -55) return "excellent";
+    if (rssi >= -65) return "good";
+    if (rssi >= -72) return "fair";
+    return "weak -- move the board or the router closer";
+}
 
 /* Setup page served on the SoftAP: an SSID picker (scanned live) + password
  * form. Kept minimal and self-contained (its own <form>, the shared
@@ -1085,7 +1100,7 @@ static esp_err_t index_handler(httpd_req_t *req)
          * child to sit flush right) -- moved here since it's the same
          * information the System card already shows underneath. */
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s%s%s</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s, %d dBm</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s, %d dBm (%s)</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%lld s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
@@ -1098,7 +1113,7 @@ static esp_err_t index_handler(httpd_req_t *req)
         wifi_is_connected() ? " \xc2\xb7 " : "", wifi_is_connected() ? ip : "",
         i18n_str("status.system.wifi", "WiFi"),
         wifi_get_ssid()[0] ? wifi_get_ssid() : i18n_str("status.system.not_configured", "(not configured)"),
-        wifi_rssi(),
+        wifi_rssi(), wifi_signal_label(wifi_rssi()),
         i18n_str("status.system.ip", "IP"), ip,
         i18n_str("status.system.uptime", "Uptime"), (long long)uptime_s,
         i18n_str("status.system.free_heap", "Free heap"),
@@ -1395,21 +1410,24 @@ static int append_general_tab(char *buf, size_t cap, int off)
 
     /* Saved networks: the board joins whichever of these is strongest, so
      * taking it somewhere else works once that network has been saved. */
-    char saved_rows[900] = "";
+    char saved_rows[1400] = "";
     {
         wifi_known_net_t known[WIFI_MAX_NETWORKS];
         int nk = wifi_known_list(known, WIFI_MAX_NETWORKS);
         int o = 0;
-        for (int i = 0; i < nk && o < (int)sizeof(saved_rows) - 180; i++) {
+        for (int i = 0; i < nk && o < (int)sizeof(saved_rows) - 280; i++) {
             char esc[66];
             html_escape(known[i].ssid, esc, sizeof(esc));
             bool active = strcmp(known[i].ssid, ssid) == 0;
             o += snprintf(saved_rows + o, sizeof(saved_rows) - o,
-                "<tr><td>%s%s</td><td>%s</td><td>"
+                "<tr><td>%s%s%s</td><td>%s</td><td>"
                 "<form method=\"POST\" action=\"/wifi_forget\" style=\"display:inline\">"
                 "<input type=\"hidden\" name=\"ssid\" value=\"%s\">"
                 "<button type=\"submit\">%s</button></form></td></tr>",
                 esc, active ? " \xe2\x97\x8f" : "",
+                known[i].bad_password
+                    ? " <span class=\"pill off\">password refused -- pick it above and enter it again</span>"
+                    : "",
                 known[i].has_password ? "\xf0\x9f\x94\x92" : "\xe2\x80\x94",
                 esc, i18n_str("general.wifi.forget", "Forget"));
         }
@@ -2261,6 +2279,18 @@ static void build_voip_instructions(char steps[VOIP_INSTR_STEPS][VOIP_INSTR_STEP
 static char s_prov_msg[VOIP_PROV_MSG_LEN];
 static bool s_prov_ok;
 
+static bool all_digits(const char *s)
+{
+    if (!s[0]) return false;
+    for (; *s; s++) if (*s < '0' || *s > '9') return false;
+    return true;
+}
+
+/* What a line's number is for, shared by both setup sections. */
+#define VOIP_NUMBER_TIP "This line's phone number on your SIP server, digits only. " \
+    "Other phones on the server dial it as-is; another Analog Redial board dials 555 first " \
+    "(e.g. 5551005), so use 4 digits."
+
 /* Automatic setup: claim a number from an Analog Redial VoIP provisioner
  * (server/voip-provisioner/) instead of filling in SIP details by hand. */
 static int append_voip_prov_section(char *buf, size_t cap, int off)
@@ -2270,8 +2300,8 @@ static int append_voip_prov_section(char *buf, size_t cap, int off)
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<h3>Automatic setup</h3>"
         "<p class=\"hint\">If your SIP server runs the Analog Redial provisioner, enter its "
-        "address and your enrollment key once, then pick a number and press Register. "
-        "It creates the account and fills in everything below.</p>");
+        "address and your enrollment key once, then pick a number for each line and press "
+        "Register. It creates the account and fills in the manual settings below for you.</p>");
     if (s_prov_msg[0]) {
         char msg_esc[VOIP_PROV_MSG_LEN * 2];
         html_escape(s_prov_msg, msg_esc, sizeof(msg_esc));
@@ -2282,30 +2312,54 @@ static int append_voip_prov_section(char *buf, size_t cap, int off)
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<form method=\"POST\" action=\"/voip_prov_config\" class=\"settings-form\">"
-        "<label>Provisioner address <input name=\"url\" value=\"%s\" "
+        "<label title=\"Where the provisioner runs: http:// for your own network, https:// for "
+        "one on the internet. Find on network fills this in if the server advertises itself.\">"
+        "Provisioner address <input name=\"url\" value=\"%s\" "
         "placeholder=\"http://pbx.local:8077\"></label>"
-        "<label>Enrollment key <input type=\"password\" name=\"key\" autocomplete=\"off\" "
+        "<label title=\"The key the server's administrator gave you, in the form name.secret. "
+        "It's never sent over the network and can't be read back from this page.\">"
+        "Enrollment key <input type=\"password\" name=\"key\" autocomplete=\"off\" "
         "placeholder=\"%s\"></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button>"
         "<button type=\"submit\" formaction=\"/voip_prov_find\">Find on network</button></div>"
         "</form>",
-        url_esc, voip_prov_has_key() ? "saved -- leave blank to keep" : "name.secret, from the server's admin");
+        url_esc, voip_prov_has_key() ? "saved -- leave blank to keep" : "name.secret");
 
     if (voip_prov_url()[0] && (voip_prov_has_key() || voip_prov_enrolled())) {
+        int lo = 0, hi = 0;
+        bool have_range = voip_prov_number_range(&lo, &hi);
+        char range[80] = "";
+        if (have_range) snprintf(range, sizeof(range), "Numbers you can register: <b>%d to %d</b>. ", lo, hi);
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<p class=\"hint\">%sOther phones on the server dial a line's number directly; another "
+            "Analog Redial board dials <b>555</b> first (555 + 1005).</p>", range);
+
         int lines = board_hw_config_get().num_lines > 1 ? 2 : 1;
         for (int line = 0; line < lines; line++) {
+            const char *cur = voip_user(line);
+            bool has_num = all_digits(cur);
+            char now[96];
+            if (has_num) snprintf(now, sizeof(now), "Now %s (%s)", cur,
+                                  voip_is_registered(line) ? "registered" : "not registered yet");
+            else snprintf(now, sizeof(now), "No number yet");
+            char ph[24];
+            snprintf(ph, sizeof(ph), "e.g. %d", have_range ? lo + 5 : 1005);
             off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
                 "<form method=\"POST\" action=\"/voip_prov_line\" class=\"settings-form\">"
                 "<input type=\"hidden\" name=\"line\" value=\"%d\">"
-                "<label>Line %d number <input name=\"number\" value=\"%s\" inputmode=\"numeric\" "
+                "<label title=\"" VOIP_NUMBER_TIP "\">Line %d number <span class=\"hint\">%s</span>"
+                "<input name=\"number\" value=\"%s\" placeholder=\"%s\" inputmode=\"numeric\" "
                 "pattern=\"[1-9][0-9]{1,9}\" required></label>"
                 "<div class=\"toolbar sub\">"
-                "<button type=\"submit\" name=\"action\" value=\"check\">Check</button>"
-                "<button type=\"submit\" name=\"action\" value=\"register\" class=\"primary\">Register</button>%s"
+                "<button type=\"submit\" name=\"action\" value=\"check\" "
+                "title=\"Ask the server whether this number is free\">Check</button>"
+                "<button type=\"submit\" name=\"action\" value=\"register\" class=\"primary\" "
+                "title=\"Claim this number for this line and restart to connect with it\">Register</button>%s"
                 "</div></form>",
-                line, line + 1, voip_user(line),
-                (voip_prov_enrolled() && voip_user(line)[0])
-                    ? "<button type=\"submit\" name=\"action\" value=\"release\" formnovalidate>Release</button>" : "");
+                line, line + 1, now, has_num ? cur : "", ph,
+                (voip_prov_enrolled() && has_num)
+                    ? "<button type=\"submit\" name=\"action\" value=\"release\" formnovalidate "
+                      "title=\"Give this number back to the server and clear the line\">Release</button>" : "");
         }
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
             "<p class=\"hint\">Register restarts the board so it connects with the new number.</p>");
@@ -2374,23 +2428,30 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     /* Manual setup: server + credentials form, the numbered setup steps and
      * both downloads, for anyone not using the provisioner above. */
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<p class=\"hint\">Hover over a field for what goes in it. Each line's number is its "
+        "extension on the SIP server and also its SIP username; the password is the one set "
+        "for that extension on the server.</p>"
         "<form method=\"POST\" action=\"/voip_set\" class=\"settings-form\">"
-        "<label>SIP server (host or IP) <input name=\"server\" id=\"voip_server_input\" "
-        "oninput=\"voipSyncCheckServer()\" value=\"%s\"></label>"
-        "<label>Line 1 extension <input name=\"user0\" value=\"%s\"></label>"
-        "<label>Line 1 password <input type=\"password\" name=\"pass0\" "
-        "placeholder=\"leave blank to keep\"></label>",
-        voip_server(), voip_user(0));
-    /* Same "or a stale account exists" condition as the status pill above
-     * -- otherwise a 1-line board with a leftover line-2 config (e.g.
-     * reconfigured down from 2 lines) has no way to ever clear it: the
-     * fields to submit blank would themselves be hidden. */
-    if (board_hw_config_get().num_lines > 1 || voip_user(1)[0]) {
+        "<label title=\"Name or IP address of your Asterisk or other SIP server, e.g. "
+        "pbx.local or 192.168.0.10. Port 5060 (UDP).\">"
+        "SIP server (name or IP) <input name=\"server\" id=\"voip_server_input\" "
+        "oninput=\"voipSyncCheckServer()\" value=\"%s\"></label>",
+        voip_server());
+    /* Line 2 also shows when an account is left over on a 1-line board, so
+     * there's a field to clear it with. */
+    int manual_lines = (board_hw_config_get().num_lines > 1 || voip_user(1)[0]) ? 2 : 1;
+    for (int line = 0; line < manual_lines; line++) {
+        const char *u = voip_user(line);
         off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
-            "<label>Line 2 extension <input name=\"user1\" value=\"%s\"></label>"
-            "<label>Line 2 password <input type=\"password\" name=\"pass1\" "
-            "placeholder=\"leave blank to keep\"></label>",
-            voip_user(1));
+            "<label title=\"" VOIP_NUMBER_TIP "\">Line %d number (extension) "
+            "<input name=\"user%d\" value=\"%s\" placeholder=\"e.g. 1005\" inputmode=\"numeric\"></label>%s"
+            "<label title=\"The SIP password for this extension, exactly as set on the server. "
+            "Leave blank to keep the saved one.\">Line %d password "
+            "<input type=\"password\" name=\"pass%d\" placeholder=\"leave blank to keep\"></label>",
+            line + 1, line, u,
+            (u[0] && !all_digits(u))
+                ? "<p class=\"hint\">Not a number other phones can dial -- use digits only.</p>" : "",
+            line + 1, line);
     }
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<div class=\"toolbar sub\">"
@@ -4905,9 +4966,9 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         ? 6000 + (board_type_mismatch() ? 900 : 0) /* +memory map card, several partition rows,
                                                       * +the mismatch-confirm card if showing */
         : 0;
-    size_t general_room = (strcmp(tab, "general") == 0) ? 3200 + 1400 + 2600 : 0; /* +setup password card */ /* +saved-network list */ /* +quiet hours card's timezone dropdown */
+    size_t general_room = (strcmp(tab, "general") == 0) ? 3200 + 1400 + 2600 + 500 /* refused-password pills */ : 0; /* +setup password card */ /* +saved-network list */ /* +quiet hours card's timezone dropdown */
     size_t phone_room = (strcmp(tab, "phone") == 0) ? 12500 + 1800 + 900 + 1600 : 0; /* +voice effects card, +intercom card */ /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card, AM greeting text-to-speech field (~2.2 KB) */
-    size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 + 2600 /* automatic setup */ : 0;
+    size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 + 4200 /* automatic setup + field hints */ : 0;
     size_t bt_room = (strcmp(tab, "bluetooth") == 0) ? 3300 : 0; /* +experimental notice */ /* "What Bluetooth can do" card */ /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
     /* This tab's `n*220` share (n = ALL dialplan entries, not just clips)
      * was never actually enough for it: each dial-code row is TWO forms
@@ -6015,6 +6076,9 @@ static esp_err_t voip_prov_config_handler(httpd_req_t *req)
         snprintf(s_prov_msg, sizeof(s_prov_msg), "The address must start with http:// or https://");
     } else if (key[0] && voip_prov_set_key(key) != ESP_OK) {
         snprintf(s_prov_msg, sizeof(s_prov_msg), "That doesn't look like an enrollment key (name.secret)");
+    } else if (voip_prov_url()[0] && (voip_prov_has_key() || voip_prov_enrolled())) {
+        /* Confirms the address and key work, and fetches the number range. */
+        s_prov_ok = voip_prov_refresh(s_prov_msg, sizeof(s_prov_msg)) == ESP_OK;
     } else {
         s_prov_ok = true;
         snprintf(s_prov_msg, sizeof(s_prov_msg), "Saved");
@@ -6036,7 +6100,13 @@ static esp_err_t voip_prov_find_handler(httpd_req_t *req)
     s_prov_ok = voip_prov_discover(url, sizeof(url), name, sizeof(name)) == ESP_OK;
     if (s_prov_ok) {
         voip_prov_set_url(url);
-        snprintf(s_prov_msg, sizeof(s_prov_msg), "Found %.60s at %.80s", name, url);
+        if (voip_prov_has_key() || voip_prov_enrolled()) {
+            char more[VOIP_PROV_MSG_LEN];
+            voip_prov_refresh(more, sizeof(more));
+            snprintf(s_prov_msg, sizeof(s_prov_msg), "Found %.40s. %.100s", name, more);
+        } else {
+            snprintf(s_prov_msg, sizeof(s_prov_msg), "Found %.60s at %.80s", name, url);
+        }
     } else {
         snprintf(s_prov_msg, sizeof(s_prov_msg),
                  "No provisioner found on this network -- type its address instead");

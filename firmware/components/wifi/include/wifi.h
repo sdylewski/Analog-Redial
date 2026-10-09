@@ -50,6 +50,7 @@ esp_err_t wifi_save_credentials(const char *ssid, const char *password);
 typedef struct {
     char ssid[33];
     bool has_password;
+    bool bad_password;  /* last attempt was refused for its password (or lack of one) */
     int  slot;          /* storage index, for removal */
 } wifi_known_net_t;
 

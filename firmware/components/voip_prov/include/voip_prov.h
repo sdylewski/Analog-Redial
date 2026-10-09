@@ -32,6 +32,14 @@ esp_err_t   voip_prov_set_key(const char *key);
 /* True once the provisioner has issued this board its own token. */
 bool        voip_prov_enrolled(void);
 
+/* The range of numbers this board's key may register, as last reported by
+ * the provisioner. False if it hasn't been heard yet. */
+bool        voip_prov_number_range(int *min, int *max);
+
+/* Asks the provisioner for the key's number range (saved for
+ * voip_prov_number_range()). Blocks for one or two round trips. */
+esp_err_t   voip_prov_refresh(char *msg, size_t msg_len);
+
 /* Looks for a provisioner advertising _redial-prov._tcp on the LAN and
  * writes its URL into url. Blocks up to ~3 s. */
 esp_err_t   voip_prov_discover(char *url, size_t url_len, char *name, size_t name_len);

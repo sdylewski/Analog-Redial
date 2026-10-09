@@ -56,8 +56,22 @@ static esp_err_t known_get(int slot, char *ssid, size_t ssid_len, char *pass, si
     return err;
 }
 
+/* Per saved-network slot: set when the router refuses that network's
+ * password (or its lack of one), cleared when it connects or the password
+ * is saved again. RAM only -- a reboot simply retries. */
+static bool s_bad_password[WIFI_MAX_NETWORKS];
+static int  s_trying_slot = -1;
+
+static bool is_password_reason(int reason)
+{
+    return reason == WIFI_REASON_AUTH_FAIL || reason == WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT ||
+           reason == WIFI_REASON_HANDSHAKE_TIMEOUT || reason == WIFI_REASON_MIC_FAILURE ||
+           reason == WIFI_REASON_NO_AP_FOUND_W_COMPATIBLE_SECURITY;
+}
+
 static esp_err_t known_put(int slot, const char *ssid, const char *pass)
 {
+    if (slot >= 0 && slot < WIFI_MAX_NETWORKS) s_bad_password[slot] = false;
     nvs_handle_t h;
     esp_err_t err = nvs_open(NVS_NS, NVS_READWRITE, &h);
     if (err != ESP_OK) return err;
@@ -100,6 +114,7 @@ int wifi_known_list(wifi_known_net_t *out, int max)
         if (known_get(i, ssid, sizeof(ssid), pass, sizeof(pass)) == ESP_OK && ssid[0]) {
             strlcpy(out[n].ssid, ssid, sizeof(out[n].ssid));
             out[n].has_password = pass[0] != '\0';
+            out[n].bad_password = s_bad_password[i];
             out[n].slot = i;
             n++;
         }
@@ -263,6 +278,7 @@ static void manager_task(void *arg)
         for (int i = 0; i < n && !connected; i++) {
             char ssid[33] = {0}, pass[65] = {0};
             if (known_get(cand[i].slot, ssid, sizeof(ssid), pass, sizeof(pass)) != ESP_OK) continue;
+            s_trying_slot = cand[i].slot;
             for (int a = 1; a <= CONNECT_ATTEMPTS && !connected; a++) {
                 if (a > 1) {
                     /* Back off before retrying. A rejected attempt fails in
@@ -322,6 +338,9 @@ static void event_handler(void *arg, esp_event_base_t base, int32_t id, void *da
                      d ? d->reason : -1, d ? d->rssi : 0);
         } else if (d) {
             ESP_LOGI(TAG, "'%s' didn't connect (reason %d)", s_ssid, d->reason);
+            if (is_password_reason(d->reason) && s_trying_slot >= 0) {
+                s_bad_password[s_trying_slot] = true;
+            }
         }
         s_connected = false;
         if (s_ev) xEventGroupSetBits(s_ev, EV_DISC);
@@ -329,6 +348,7 @@ static void event_handler(void *arg, esp_event_base_t base, int32_t id, void *da
         ip_event_got_ip_t *e = (ip_event_got_ip_t *)data;
         s_ip = e->ip_info.ip;
         s_connected = true;
+        if (s_trying_slot >= 0) s_bad_password[s_trying_slot] = false;
         board_led_set_state(BOARD_LED_OK);
         ESP_LOGI(TAG, "connected to '%s', IP=" IPSTR, s_ssid, IP2STR(&s_ip));
         if (s_ev) xEventGroupSetBits(s_ev, EV_GOT_IP);

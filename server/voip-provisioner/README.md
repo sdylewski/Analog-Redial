@@ -131,10 +131,10 @@ with `sig = HMAC-SHA256(secret, METHOD\nPATH\nts\nnonce\nhex(SHA-256(body)))`.
 | Request | Auth | Returns |
 |---------|------|---------|
 | `GET /api/v1/info` | none | service name, SIP server and port, `server_time` (for boards with no clock) |
-| `POST /api/v1/check` `{number}` | key or board | `{available, reason: free / taken / yours}` |
+| `POST /api/v1/check` `{number}` | key or board | `{available, reason: free / taken / yours}`, plus the number range |
 | `POST /api/v1/register` `{board_id, board_name, line, number}` | key or board | SIP `username`, `password`, `sip_server`; plus `board_token` when signed with a key |
 | `POST /api/v1/release` `{line}` | board | numbers released |
-| `POST /api/v1/status` `{}` | board | this board's numbers |
+| `POST /api/v1/status` `{}` | key or board | the key's number range (`number_min`, `number_max`), and for a board the numbers it holds |
 
 Errors come back as `{"error": "<code>", "message": "<readable text>"}`.
 
