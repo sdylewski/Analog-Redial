@@ -8177,6 +8177,42 @@ static esp_err_t webui_conn_open(httpd_handle_t hd, int sockfd)
     return ESP_OK;
 }
 
+/* ---- cross-site request guard ----
+ * Every POST route goes through post_guard(). Without it, any web page the
+ * owner happened to visit could make their browser POST to phone.local
+ * behind their back -- change settings, delete recordings, even upload
+ * firmware (a no-cors fetch can send a multipart body). Browsers always send
+ * Origin on a cross-site POST, so one whose Origin isn't this board is
+ * refused. Requests with no Origin (curl, first_setup.py, gen_prompt.py)
+ * still work. Doesn't stop DNS rebinding, which needs a malicious DNS
+ * server as well. */
+static bool same_origin(httpd_req_t *req)
+{
+    char origin[128], host[96];
+    esp_err_t oe = httpd_req_get_hdr_value_str(req, "Origin", origin, sizeof(origin));
+    if (oe == ESP_ERR_NOT_FOUND) return true;
+    if (oe != ESP_OK) return false;  /* truncated: not one of our own origins */
+    if (httpd_req_get_hdr_value_str(req, "Host", host, sizeof(host)) != ESP_OK) return false;
+    const char *o = origin;
+    if (strncasecmp(o, "http://", 7) == 0) o += 7;
+    else if (strncasecmp(o, "https://", 8) == 0) o += 8;
+    else return false;              /* "null" (sandboxed frame, file://) and the like */
+    return strcasecmp(o, host) == 0;
+}
+
+static esp_err_t post_guard(httpd_req_t *req)
+{
+    if (!same_origin(req)) {
+        char origin[64] = "";
+        httpd_req_get_hdr_value_str(req, "Origin", origin, sizeof(origin));
+        ESP_LOGW(TAG, "refused cross-site POST %s from origin '%s'", req->uri, origin);
+        httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "cross-site request refused");
+        return ESP_OK;
+    }
+    esp_err_t (*real)(httpd_req_t *) = (esp_err_t (*)(httpd_req_t *))req->user_ctx;
+    return real(req);
+}
+
 esp_err_t webui_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -8270,7 +8306,7 @@ esp_err_t webui_start(void)
         return err;
     }
 
-    static const httpd_uri_t routes[] = {
+    static httpd_uri_t routes[] = {   /* not const: POST routes get wrapped below */
         { .uri = "/",                .method = HTTP_GET, .handler = index_handler },
         { .uri = "/recordings",      .method = HTTP_GET, .handler = recordings_page_handler },
         { .uri = "/guide",           .method = HTTP_GET, .handler = redirect_to_index_handler },
@@ -8356,6 +8392,10 @@ esp_err_t webui_start(void)
         { .uri = "/*",               .method = HTTP_GET, .handler = catchall_handler },
     };
     for (size_t i = 0; i < sizeof(routes) / sizeof(routes[0]); i++) {
+        if (routes[i].method == HTTP_POST && routes[i].handler != post_guard) {
+            routes[i].user_ctx = (void *)routes[i].handler;
+            routes[i].handler = post_guard;
+        }
         esp_err_t rerr = httpd_register_uri_handler(server, &routes[i]);
         if (rerr != ESP_OK) {
             ESP_LOGE(TAG, "route %s (method %d) failed to register: %s",
