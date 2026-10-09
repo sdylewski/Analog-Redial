@@ -45,6 +45,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -133,6 +134,55 @@ static int append_storage_table(char *buf, size_t cap, int off,
  * needs it to escape possibly remote-supplied caller ID text, and is
  * defined earlier in the file, right after append_log_panel()) can call it. */
 static void html_escape(const char *in, char *out, size_t outsz);
+
+/* ---- small shared helpers ---- */
+
+/* Appends printf-style text at buf+off and returns the new offset, exactly
+ * like `off += snprintf(...)`: the return keeps growing past cap when the
+ * text doesn't fit, which is how page builders notice they need a bigger
+ * buffer. Never writes past cap, even when off already has. */
+static int appendf(char *buf, size_t cap, int off, const char *fmt, ...)
+    __attribute__((format(printf, 4, 5)));
+static int appendf(char *buf, size_t cap, int off, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    bool room = off >= 0 && (size_t)off < cap;
+    int n = vsnprintf(room ? buf + off : NULL, room ? cap - off : 0, fmt, ap);
+    va_end(ap);
+    return off + (n > 0 ? n : 0);
+}
+
+/* Reads a small urlencoded form body into out (NUL-terminated). On failure
+ * it has already answered the request: return its result from the handler. */
+static esp_err_t read_form(httpd_req_t *req, char *out, size_t out_len)
+{
+    if (req->content_len == 0 || req->content_len >= out_len) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_ERR_INVALID_SIZE;
+    }
+    int r = httpd_req_recv(req, out, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+    out[r] = '\0';
+    return ESP_OK;
+}
+
+/* Handler-side wrapper: read the form or return what read_form() decided. */
+#define READ_FORM_OR_RETURN(req, body)                                      \
+    do {                                                                    \
+        esp_err_t _rf = read_form((req), (body), sizeof(body));             \
+        if (_rf != ESP_OK) return _rf == ESP_ERR_INVALID_SIZE ? ESP_OK : ESP_FAIL; \
+    } while (0)
+
+/* 303 See Other to loc (the usual answer to a settings form POST). */
+static esp_err_t redirect_to(httpd_req_t *req, const char *loc)
+{
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", loc);
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 static void js_escape(const char *in, char *out, size_t outsz);
 /* Defined right after html_escape -- forward-declared for the same reason. */
 static int append_hint(char *buf, size_t cap, int off, const char *lead, const char *detail);
@@ -248,7 +298,7 @@ static int append_log_line(char *out, size_t out_len, int off, const char *raw)
  * collected up front and walked in reverse. Returns the new offset. */
 static int append_log_panel(char *out, size_t out_len, int off, char *log_snapshot)
 {
-    off += snprintf(out + off, ((size_t)off < out_len) ? out_len - off : 0,
+    off = appendf(out, out_len, off,
         "<div class=\"logpanel\" style=\"margin-top:16px\"><h2>Recent log"
         "<button type=\"button\" onclick=\"copyLog(this)\">Copy log</button>"
         "</h2><div class=\"logbody\">");
@@ -273,7 +323,7 @@ static int append_log_panel(char *out, size_t out_len, int off, char *log_snapsh
      * over http://<name>.local, which most browsers don't treat as a secure
      * context -- navigator.clipboard is unavailable there, only on https or
      * localhost. */
-    off += snprintf(out + off, ((size_t)off < out_len) ? out_len - off : 0, "</div></div>"
+    off = appendf(out, out_len, off, "</div></div>"
         "<script>function copyLog(btn){"
         "var text=btn.closest('.logpanel').querySelector('.logbody').innerText;"
         "function fallback(){"
@@ -306,21 +356,21 @@ static int append_activity_panel(char *buf, size_t cap, int off)
     char lines[20][96];
     size_t n = activity_get(lines, 20);
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"logpanel\" style=\"margin-top:16px\"><h2>Recent activity</h2>"
         "<div class=\"logbody\">");
     if (n == 0) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"empty\">nothing yet</div>");
     } else {
         for (size_t i = 0; i < n && (size_t)off < cap; i++) {
             char eline[96 * 6];
             html_escape(lines[i], eline, sizeof(eline));
-            off += snprintf(buf + off, cap - off,
+            off = appendf(buf, cap, off,
                 "<div class=\"logline\"><span class=\"m\">%s</span></div>", eline);
         }
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div></div>");
+    off = appendf(buf, cap, off, "</div></div>");
     return off;
 }
 
@@ -609,7 +659,7 @@ static int append_language_options(char *out, size_t cap, int off, const char *c
     for (size_t i = 0; i < UI_LANGUAGES_N; i++) {
         bool selected = strcmp(UI_LANGUAGES[i].code, cur) == 0;
         bool available = ui_language_available(UI_LANGUAGES[i].code);
-        off += snprintf(out + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(out, cap, off,
             "<option value=\"%s\"%s%s>%s %s%s</option>",
             UI_LANGUAGES[i].code, selected ? " selected" : "",
             (available || selected) ? "" : " disabled",
@@ -688,7 +738,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
      * name). "Analog Redial" drops to a subtitle. */
     char name[40];
     wifi_live_name(name, sizeof(name));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<!doctype html><html><head><meta charset=\"utf-8\"><title>%s \xc2\xb7 %s</title>"
         "%s"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
@@ -700,7 +750,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
         THEME_JS, name, i18n_str("header.subtitle", "Analog Redial"));
     for (size_t i = 0; i < NAV_TABS_N; i++) {
         bool active = strcmp(NAV_TABS[i].href, active_href) == 0;
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<a%s href=\"%s\">%s</a>", active ? " class=\"active\"" : "",
             NAV_TABS[i].href, i18n_str(NAV_TABS[i].i18n_key, NAV_TABS[i].label));
     }
@@ -714,11 +764,11 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
      * this is the visible seam for when that's built out). */
     char cur_lang[8];
     board_language_get(cur_lang, sizeof(cur_lang));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/language_set\" class=\"langpick\">"
         "<select name=\"lang\" onchange=\"this.form.submit()\" title=\"Language\">");
     off = append_language_options(buf, cap, off, cur_lang);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "</select></form>"
         "<button type=\"button\" id=\"themebtn\" class=\"themebtn\" onclick=\"rdTheme()\">"
         "\xe2\x97\x90 Auto</button></nav>");
@@ -729,7 +779,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
      * silent, and why line 1 has already been powered down by the time
      * anyone sees this (app_main.c's periodic check, not this render). */
     if (wifi_ap_is_forced()) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"hazard-banner\">%s</div>",
             i18n_str("hazard.rescue_ap",
                      "&#128246; Rescue mode: this board is running its own setup Wi-Fi network "
@@ -738,7 +788,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
                      "(Settings &rarr; Hardware) to rejoin it."));
     }
     if (board_sd_line1_conflict()) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"hazard-banner\">%s</div>",
             i18n_str("hazard.sd_line1_conflict",
                      "&#9888; microSD card detected, but this board is configured for 2 lines "
@@ -759,7 +809,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
                      "the correct firmware, or if this board genuinely changed, confirm it in "
                      "<a href=\"/settings?tab=hardware\">Settings &rarr; Hardware</a>."),
             board_pcb_variant_name(), recorded[0] ? recorded : "(unknown)");
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"hazard-banner\">%s</div>", mismatch_hint);
     }
     return off;
@@ -1002,14 +1052,14 @@ static int append_first_boot_banner(char *buf, size_t cap, int off)
     char name[40];
     wifi_live_name(name, sizeof(name));
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card wide firstboot\"><h2>%s</h2>"
         "<p class=\"hint\">%s</p>",
         i18n_str("firstboot.title", "First-time setup"),
         i18n_str("firstboot.intro", "Quick one-time check -- confirm these and this won't show again."));
 
     if (!name_done) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<form method=\"POST\" action=\"/board_name\" class=\"settings-form\">"
             "<label>%s "
             "<input name=\"name\" value=\"%s\" maxlength=\"31\" required></label>"
@@ -1023,7 +1073,7 @@ static int append_first_boot_banner(char *buf, size_t cap, int off)
 
     if (!hw_done) {
         board_hw_config_t cfg = board_hw_config_get();
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<form method=\"POST\" action=\"/board_hw_set\" class=\"settings-form\">"
             "<label>%s"
             "<select name=\"variant\">"
@@ -1046,7 +1096,7 @@ static int append_first_boot_banner(char *buf, size_t cap, int off)
                      "built before confirming."));
     }
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    off = appendf(buf, cap, off, "</div>");
     return off;
 }
 
@@ -1083,7 +1133,7 @@ static esp_err_t index_handler(httpd_req_t *req)
      * that banner has something to ask for; back on once both are
      * confirmed and the banner stops rendering for good. */
     int off = append_page_head(buf, cap, 0, i18n_str("nav.status", "Status"), "/", !first_boot_banner_needed());
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "</header>"
         "<main>"
         "<p class=\"tagline\">%s</p>"
@@ -1092,7 +1142,7 @@ static esp_err_t index_handler(httpd_req_t *req)
     if (off > 0 && (size_t)off < cap) {
         off = append_first_boot_banner(buf, cap, off);
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         /* Connection status: used to live as a 3rd <header> child (a
          * "<span class=dot>" sibling of <h1>/<nav>), which broke the
@@ -1138,7 +1188,7 @@ static esp_err_t index_handler(httpd_req_t *req)
 
         char line_title[32];
         snprintf(line_title, sizeof(line_title), i18n_str("status.line.title", "Line %d"), l);
-        off += snprintf(buf + off, cap - off,
+        off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>%s</h2>"
             "<div class=\"statusrow\"><span class=\"label\">%s</span>"
             "<span class=\"pill %s\">%s</span></div>"
@@ -1152,17 +1202,17 @@ static esp_err_t index_handler(httpd_req_t *req)
             caller);
     }
     if (off > 0 && (size_t)off < cap) {
-        off += snprintf(buf + off, cap - off, "</div>" /* .cards */);
+        off = appendf(buf, cap, off, "</div>" /* .cards */);
     }
     if (off > 0 && (size_t)off < cap) {
         off = append_activity_panel(buf, cap, off);
     }
     if (off > 0 && (size_t)off < cap) {
-        off += snprintf(buf + off, cap - off, "<div class=\"cards\">");
+        off = appendf(buf, cap, off, "<div class=\"cards\">");
     }
     off = append_dialguide_cards(buf, cap, off, entries, n);
     if (off > 0 && (size_t)off < cap) {
-        off += snprintf(buf + off, cap - off,
+        off = appendf(buf, cap, off,
             "<div class=\"toolbar sub\">"
             "<a href=\"/api/log\">raw log</a>"
             "<a href=\"/api/status\">status JSON</a>"
@@ -1225,7 +1275,7 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
     char recordings_h2[48];
     snprintf(recordings_h2, sizeof(recordings_h2), i18n_str("recordings.title", "Recordings (%u)"),
              (unsigned)shown);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "</header><main>"
         "<div class=\"card\"><h2>%s</h2>"
         "<p class=\"hint\">%s</p>",
@@ -1235,7 +1285,7 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
                  "<a href=\"/settings\">Settings</a>."));
 
     if (shown == 0) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"empty\">%s</div>",
             i18n_str("recordings.none_yet", "none yet \xe2\x80\x94 dial 211, leave a message, hang up"));
     } else {
@@ -1254,7 +1304,7 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
          * SIZE_MAX (~4.29 GB) for a bigger card (see storage.c), which would
          * under-report a real card's capacity right next to the Hardware
          * tab's correct figure for the same card. */
-        off += snprintf(buf + off, cap - off,
+        off = appendf(buf, cap, off,
             "</div>"
             "<p class=\"hint\">%s: %s / %s%s. %s "
             "<a href=\"/api/recordings\">%s</a>.</p>"
@@ -1319,16 +1369,16 @@ static const settings_tab_t SETTINGS_TABS[] = {
 
 static int append_settings_tabs(char *buf, size_t cap, int off, const char *active)
 {
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<nav class=\"settings-tabs\">");
     for (size_t i = 0; i < SETTINGS_TABS_N; i++) {
         bool is_active = strcmp(SETTINGS_TABS[i].id, active) == 0;
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<a class=\"tab-btn%s\" href=\"/settings?tab=%s\">%s</a>",
             is_active ? " active" : "", SETTINGS_TABS[i].id,
             i18n_str(SETTINGS_TABS[i].i18n_key, SETTINGS_TABS[i].label));
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</nav>");
+    off = appendf(buf, cap, off, "</nav>");
     return off;
 }
 
@@ -1389,7 +1439,7 @@ static int append_general_tab(char *buf, size_t cap, int off)
                  "Also sets the mDNS address: reachable as <code>%s.local</code>. Hardware type "
                  "and serial are on the <a href=\"/settings?tab=hardware\">Hardware</a> tab."),
         host);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<form method=\"POST\" action=\"/board_name\" class=\"settings-form\">"
         "<label>%s <input name=\"name\" value=\"%s\" maxlength=\"31\" required></label>"
@@ -1435,7 +1485,7 @@ static int append_general_tab(char *buf, size_t cap, int off)
             snprintf(saved_rows, sizeof(saved_rows), "<tr><td colspan=\"3\">%s</td></tr>",
                      i18n_str("general.wifi.none_saved", "No networks saved yet."));
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<form method=\"POST\" action=\"/wifi_set\" class=\"settings-form\">"
@@ -1498,7 +1548,7 @@ static int append_general_tab(char *buf, size_t cap, int off)
     } else {
         snprintf(qh_status, sizeof(qh_status), "%s", i18n_str("general.quiethours.status_off", "off"));
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<form method=\"POST\" action=\"/quiet_hours\" class=\"settings-form\">"
@@ -1509,12 +1559,12 @@ static int append_general_tab(char *buf, size_t cap, int off)
         qh.enabled ? " checked" : "", i18n_str("general.quiethours.enabled", "Enabled"),
         i18n_str("general.quiethours.tz_label", "Timezone"));
     for (size_t i = 0; i < UI_TIMEZONES_N; i++) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<option value=\"%s\"%s data-iana=\"%s\">%s</option>",
             UI_TIMEZONES[i].tz, strcmp(UI_TIMEZONES[i].tz, tz) == 0 ? " selected" : "",
             UI_TIMEZONES[i].iana, UI_TIMEZONES[i].label);
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "</select>"
         "<span id=\"tzsuggest\" class=\"hint\"></span></label>"
         "<label>%s <input type=\"time\" name=\"start\" value=\"%02u:%02u\" required></label>"
@@ -1536,7 +1586,7 @@ static int append_general_tab(char *buf, size_t cap, int off)
                  "and don't shift if you move. Start later than end (e.g. 21:00-07:00) means "
                  "the window wraps past midnight. Takes effect on the next incoming call -- "
                  "no reboot."));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         /* The browser already knows which zone the person is sitting in, and
          * it's the only party here that does -- the board only ever learns
          * UTC from SNTP. Offer it rather than applying it: silently changing
@@ -1583,10 +1633,10 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
      * hiding the card over (the config is harmless to leave in place for
      * whenever VOIP/a second line gets added), just flagged. */
     bool am_active = voip_is_enabled() || num_lines > 1;
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2>", i18n_str("am.title", "Answering machine"));
     if (!am_active) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<p class=\"hint warn-text\">%s</p>",
             i18n_str("am.inactive_hint",
                      "Nothing can ring in to trigger this yet: VOIP is off (Settings -> VOIP) "
@@ -1594,7 +1644,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                      "it. Settings below are saved either way -- they'll take effect as soon as "
                      "VOIP is enabled or a second line is configured."));
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "<div class=\"amcols\">");
+    off = appendf(buf, cap, off, "<div class=\"amcols\">");
     for (int l = 0; l < num_lines; l++) {
         board_am_cfg_t am = board_am_get(l);
         char greeting[STORAGE_MAX_NAME];
@@ -1606,7 +1656,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         char line_h3[32], save_line[48];
         snprintf(line_h3, sizeof(line_h3), i18n_str("status.line.title", "Line %d"), l);
         snprintf(save_line, sizeof(save_line), i18n_str("speaker.save_line", "Save line %d"), l);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"amcol\"><h3>%s</h3>"
             "<form method=\"POST\" action=\"/answering_machine\" class=\"settings-form\">"
             "<input type=\"hidden\" name=\"line\" value=\"%d\">"
@@ -1623,20 +1673,20 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
             (unsigned)(am.max_ms / 1000), (unsigned)(BOARD_AM_MAX_MS_MIN / 1000),
             (unsigned)(BOARD_AM_MAX_MS_MAX / 1000));
         if (num_lines > 1) {
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "<label><input type=\"checkbox\" name=\"other_line\" value=\"1\"%s> "
                 "%s</label>",
                 am.other_line ? " checked" : "",
                 i18n_str("am.other_line_label", "Also answer unanswered calls from other line"));
         }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
             "</form>",
             save_line);
         if (have_greeting) {
             /* This line's own recording wins; deleting it falls back to the
              * shared default greeting below. */
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "<div class=\"statusrow\"><span class=\"label\">%s</span>"
                 "<span><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></span></div>"
                 "<form method=\"POST\" action=\"/media_delete/%s\" class=\"settings-form\" "
@@ -1648,22 +1698,22 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                          "Delete this line's recorded greeting and use the default one?"),
                 i18n_str("am.use_default", "Use the default greeting instead"));
         } else {
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "<div class=\"statusrow\"><span class=\"label\">%s</span>"
                 "<span><audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio></span></div>",
                 i18n_str("am.greeting_default", "Greeting: default"), AM_DEFAULT_GREETING_NAME);
         }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+        off = appendf(buf, cap, off, "</div>");
     }
 
     /* The shared default greeting's text, for text-to-speech -- same
      * mechanism as the Operator and Record prompts. Until generated, the
      * one built into the firmware plays. */
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"amcol\"><h3>%s</h3>", i18n_str("am.default_title", "Default greeting"));
     off = append_prompt_field(buf, cap, off, AM_DEFAULT_GREETING_NAME,
                               "Leave a message after the beep.");
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div></div>"); /* column, amcols */
+    off = appendf(buf, cap, off, "</div></div>"); /* column, amcols */
     off = append_hint(buf, cap, off,
         i18n_str("am.hint_lead",
                  "Each line plays its own recorded greeting if it has one, otherwise the "
@@ -1678,12 +1728,12 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "beep, then records the caller -- capped at the length above or ~8s of "
                  "silence, whichever comes first. Picking up the handset at any point takes "
                  "the call live instead."));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "</div>"
         "<script>%s</script>",
         RECORDING_RELOAD_JS);
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("speaker.title", "Speaker (earpiece) volume"));
     for (int l = 0; l < num_lines; l++) {
         uint8_t vol = board_speaker_volume_get(l, ES8388_DEFAULT_SPK_VOL);
@@ -1708,7 +1758,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
             snprintf(clean_note, sizeof(clean_note), "%s", i18n_str("speaker.clean_unknown",
                      "Not measured yet: run the Line audio level check on the Diagnostics tab."));
         }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<form method=\"POST\" action=\"/speaker_volume\" class=\"settings-form\">"
             "<input type=\"hidden\" name=\"line\" value=\"%d\">"
             "<label>%s <input type=\"range\" name=\"vol\" min=\"%d\" max=\"%d\" step=\"1\" "
@@ -1720,7 +1770,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
             l, line_label, SPK_MIN, SPK_MAX, shown, l, l, shown, (shown - 30) * 1.5, bar,
             clean_note, save_line);
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<p class=\"hint\">%s</p></div>",
         i18n_str("speaker.hint",
                  "Drag while on a call to hear the change live (applied immediately, not saved "
@@ -1730,7 +1780,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "Same scale as the bring-up <code>spkamp</code> console command, and "
                  "<code>tonetest</code> measures the distortion at a given level."));
     bool fx_on = board_voice_fx_enabled_get();
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<form method=\"POST\" action=\"/voice_fx_enabled\" class=\"settings-form\">"
         "<input type=\"hidden\" name=\"form\" value=\"1\">"
@@ -1751,11 +1801,11 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "special. The key's tone also reaches the other phone as a short beep. On a "
                  "VoIP call to an automated phone menu, turn this off so menu choices don't "
                  "change your voice. Also applies to dialling 322-324."));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    off = appendf(buf, cap, off, "</div>");
 
     if (num_lines > 1) {
         board_intercom_t ic = board_intercom_get();
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>%s</h2>"
             "<form method=\"POST\" action=\"/intercom\" class=\"settings-form\">"
             "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
@@ -1779,7 +1829,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                      "lines are connected straight away. If it's busy you hear busy. Nothing "
                      "to switch off or on in the moment: dialling any digit before the wait "
                      "ends gives the usual dial plan. Applies from the next dial tone."));
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+        off = appendf(buf, cap, off, "</div>");
     }
 
     board_offhook_alert_t roh = board_offhook_alert_get();
@@ -1790,7 +1840,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
     } else {
         snprintf(roh_status, sizeof(roh_status), "%s", i18n_str("general.offhook.status_off", "off"));
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<form method=\"POST\" action=\"/offhook_alert\" class=\"settings-form\">"
@@ -1818,7 +1868,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "it. The clock restarts on every return to dial tone, so only a genuinely "
                  "forgotten handset ever reaches it. Takes effect on the next dial tone -- no "
                  "reboot."));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    off = appendf(buf, cap, off, "</div>");
 
     bool tone_follow_lang = board_tone_follow_language_get();
     char cur_lang[8], cur_region[8];
@@ -1867,7 +1917,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         }
     }
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<form method=\"POST\" action=\"/tone_lang_set\" class=\"settings-form\">"
         "<label>%s</label>"
@@ -1901,7 +1951,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "India &mdash; falls back to North America, so untick the box and pick a region "
                  "if that's not what you want."));
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("aec.title", "Echo cancellation"));
     for (int l = 0; l < num_lines; l++) {
         uint32_t ms = board_aec_delay_get(l, AEC_DEFAULT_DELAY_MS);
@@ -1911,7 +1961,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         snprintf(delay_label, sizeof(delay_label), i18n_str("aec.line_delay", "Line %d delay"), l);
         char measure_line[48];
         snprintf(measure_line, sizeof(measure_line), i18n_str("aec.measure_line", "Measure line %d"), l);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"statusrow\"><span class=\"label\">%s</span>"
             "<span class=\"pill %s\">%s</span></div>"
             "<div class=\"toolbar sub\">"
@@ -1946,7 +1996,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "number the canceller needs to align against. Takes about 2 seconds (3 "
                  "quick measurements averaged for reliability). Applying saves it and "
                  "takes effect immediately, no reboot."));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "</div>"
         "<script>"
         "var AEC_I18N={measuring:'%s',noEcho:'%s',tries:'%s',delayFmt:'%s',consistent:'%s',"
@@ -2053,7 +2103,7 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
         : (text[0] ? "Suggested default -- edit and Save to actually set it."
                    : "No text set -- this clip stays silent/skipped until generated.");
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/prompt_text_set\" class=\"settings-form\">"
         "<input type=\"hidden\" name=\"name\" value=\"%s\">"
         "<label>Spoken prompt text"
@@ -2086,11 +2136,11 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
                  ip, pw, clip_name);
         char ecmd[256 * 6];
         html_escape(cmd, ecmd, sizeof(ecmd));
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<p class=\"hint\">Generate + upload this clip's audio (run from the repo root):"
             "<br><code style=\"user-select:all\">%s</code></p>", ecmd);
     } else {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<p class=\"hint\">Generate + upload with "
             "<code>firmware/bringup/gen_prompt.py --sync HOST --secret ...</code> "
             "(local text-to-speech, no server dependency) -- set a setup password "
@@ -2107,7 +2157,7 @@ static int append_setup_password_card(char *buf, size_t cap, int off)
 {
     char epw[80 * 6];
     html_escape(voip_setup_password(), epw, sizeof(epw));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>Setup password</h2>");
     off = append_hint(buf, cap, off,
         "Used by the generate-audio commands on the Dial Codes and Phone tabs. Each board "
@@ -2119,7 +2169,7 @@ static int append_setup_password_card(char *buf, size_t cap, int off)
         "also the credential for <code>GET /api/prompt_requests?secret=...</code>, enforced "
         "only for callers off this board's own LAN (e.g. over a VPN); anyone on the LAN can "
         "already read this page.");
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/voip_setup_password\" class=\"settings-form\">"
         "<label>Password"
         "<div class=\"pw-field\">"
@@ -2154,7 +2204,7 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
     char dialcodes_h2[48];
     snprintf(dialcodes_h2, sizeof(dialcodes_h2), i18n_str("dialcodes.title", "Dial codes (%u)"),
              (unsigned)nclips);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<p class=\"hint\">%s</p>",
         dialcodes_h2,
@@ -2164,7 +2214,7 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                  "plays: remove it below, then add it again with the new audio."));
 
     if (nclips == 0) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"empty\">%s</div>", i18n_str("dialcodes.none_yet", "none yet"));
     } else {
         /* Three stacked lines per entry, not a <table> row -- this card
@@ -2176,12 +2226,12 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
          * the fixed-layout attempt this replaced). Stacking reads fine at
          * any width instead: recode+builtin-or-remove, then description,
          * then filename+play. */
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"dialcode-list\">");
         for (size_t i = 0; i < nclips && (size_t)off < cap; i++) {
             char edesc[64 * 6];
             html_escape(clips[i].desc, edesc, sizeof(edesc));
-            off += snprintf(buf + off, cap - off,
+            off = appendf(buf, cap, off,
                 "<div class=\"dialcode-item\">"
                 "<div class=\"dc-line dc-line-code\">"
                 "<form method=\"POST\" action=\"/dialcode_set_code\" class=\"dc-inline\">"
@@ -2191,19 +2241,19 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 "<button type=\"submit\">%s</button></form>",
                 clips[i].code, clips[i].code, i18n_str("dialcodes.save", "save"));
             if (clips[i].builtin) {
-                off += snprintf(buf + off, cap - off,
+                off = appendf(buf, cap, off,
                     "<span class=\"pill off\">%s</span>", i18n_str("dialcodes.builtin", "built-in"));
             } else {
                 char remove_confirm[64];
                 snprintf(remove_confirm, sizeof(remove_confirm),
                          i18n_str("dialcodes.remove_confirm", "Remove dial code %s?"), clips[i].code);
-                off += snprintf(buf + off, cap - off,
+                off = appendf(buf, cap, off,
                     "<form method=\"POST\" action=\"/dialcode_delete/%s\" "
                     "onsubmit=\"return confirm('%s')\">"
                     "<button type=\"submit\">%s</button></form>",
                     clips[i].code, remove_confirm, i18n_str("dialcodes.remove", "remove"));
             }
-            off += snprintf(buf + off, cap - off,
+            off = appendf(buf, cap, off,
                 "</div>"
                 "<div class=\"dc-line\">"
                 "<form method=\"POST\" action=\"/dialcode_set_desc\" class=\"dc-inline dc-grow\">"
@@ -2218,10 +2268,10 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 clips[i].code, edesc, i18n_str("dialcodes.save", "save"),
                 clips[i].filename, clips[i].filename);
         }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>" /* .dialcode-list */);
+        off = appendf(buf, cap, off, "</div>" /* .dialcode-list */);
     }
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/dialcode_upload\" enctype=\"multipart/form-data\" class=\"settings-form\">"
         "<h3>%s</h3>"
         "<div class=\"grid2\">"
@@ -2242,7 +2292,7 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
 static int append_operator_tab(char *buf, size_t cap, int off,
                                 dialplan_entry_info_t *entries, size_t n)
 {
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("operator.title", "Operator help"));
     for (size_t i = 0; i < n; i++) {
         if (strcmp(entries[i].code, "0") != 0) continue;
@@ -2253,7 +2303,7 @@ static int append_operator_tab(char *buf, size_t cap, int off,
         i18n_str("operator.default_prompt",
                  "You've reached the operator line. To leave a message, dial 2-1-1. "
                  "For other features, please refer to your phone's guide."));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<p class=\"hint\">%s</p>"
         "<form method=\"POST\" action=\"/operator_upload\" enctype=\"multipart/form-data\" "
         "class=\"settings-form\">"
@@ -2297,7 +2347,7 @@ static int append_voip_prov_section(char *buf, size_t cap, int off)
 {
     char url_esc[200];
     html_escape(voip_prov_url(), url_esc, sizeof(url_esc));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<h3>Automatic setup</h3>"
         "<p class=\"hint\">If your SIP server runs the Analog Redial provisioner, enter its "
         "address and your enrollment key once, then pick a number for each line and press "
@@ -2305,12 +2355,12 @@ static int append_voip_prov_section(char *buf, size_t cap, int off)
     if (s_prov_msg[0]) {
         char msg_esc[VOIP_PROV_MSG_LEN * 2];
         html_escape(s_prov_msg, msg_esc, sizeof(msg_esc));
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"statusrow\"><span class=\"pill %s\">%s</span></div>",
             s_prov_ok ? "on" : "off", msg_esc);
         s_prov_msg[0] = '\0';
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/voip_prov_config\" class=\"settings-form\">"
         "<label title=\"Where the provisioner runs: http:// for your own network, https:// for "
         "one on the internet. Find on network fills this in if the server advertises itself.\">"
@@ -2330,7 +2380,7 @@ static int append_voip_prov_section(char *buf, size_t cap, int off)
         bool have_range = voip_prov_number_range(&lo, &hi);
         char range[80] = "";
         if (have_range) snprintf(range, sizeof(range), "Numbers you can register: <b>%d to %d</b>. ", lo, hi);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<p class=\"hint\">%sOther phones on the server dial a line's number directly; another "
             "Analog Redial board dials <b>555</b> first (555 + 1005).</p>", range);
 
@@ -2344,7 +2394,7 @@ static int append_voip_prov_section(char *buf, size_t cap, int off)
             else snprintf(now, sizeof(now), "No number yet");
             char ph[24];
             snprintf(ph, sizeof(ph), "e.g. %d", have_range ? lo + 5 : 1005);
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "<form method=\"POST\" action=\"/voip_prov_line\" class=\"settings-form\">"
                 "<input type=\"hidden\" name=\"line\" value=\"%d\">"
                 "<label title=\"" VOIP_NUMBER_TIP "\">Line %d number <span class=\"hint\">%s</span>"
@@ -2361,10 +2411,10 @@ static int append_voip_prov_section(char *buf, size_t cap, int off)
                     ? "<button type=\"submit\" name=\"action\" value=\"release\" formnovalidate "
                       "title=\"Give this number back to the server and clear the line\">Release</button>" : "");
         }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<p class=\"hint\">Register restarts the board so it connects with the new number.</p>");
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<hr class=\"sep\"><h3>Set it up by hand</h3>");
     return off;
 }
@@ -2376,7 +2426,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     board_name_get(name, sizeof(name));
 
     bool r0 = voip_is_registered(0);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
@@ -2392,13 +2442,13 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
      * still a status pill (and, below, form fields) to clear it by. */
     if (board_hw_config_get().num_lines > 1 || voip_user(1)[0]) {
         bool r1 = voip_is_registered(1);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"statusrow\"><span class=\"label\">%s</span>"
             "<span class=\"pill %s\">%s</span></div>",
             i18n_str("voip.line2", "Line 2"),
             r1 ? "on" : "off", r1 ? i18n_str("voip.registered", "registered") : i18n_str("voip.not_registered", "not registered"));
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    off = appendf(buf, cap, off, "</div>");
 
     /* Master "enable VOIP" switch -- gates sip_task() itself (voip.c), not
      * just this tab's own visibility. The status card above always shows
@@ -2410,7 +2460,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
      * section below is its own <form>, so hiding it doesn't stop it from
      * submitting normally when visible. */
     bool voip_on = voip_is_enabled();
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>SIP server</h2>"
         "<form method=\"POST\" action=\"/voip_enable\" class=\"settings-form\">"
         "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\" "
@@ -2427,7 +2477,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
 
     /* Manual setup: server + credentials form, the numbered setup steps and
      * both downloads, for anyone not using the provisioner above. */
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<p class=\"hint\">Hover over a field for what goes in it. Each line's number is its "
         "extension on the SIP server and also its SIP username; the password is the one set "
         "for that extension on the server.</p>"
@@ -2442,7 +2492,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     int manual_lines = (board_hw_config_get().num_lines > 1 || voip_user(1)[0]) ? 2 : 1;
     for (int line = 0; line < manual_lines; line++) {
         const char *u = voip_user(line);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<label title=\"" VOIP_NUMBER_TIP "\">Line %d number (extension) "
             "<input name=\"user%d\" value=\"%s\" placeholder=\"e.g. 1005\" inputmode=\"numeric\"></label>%s"
             "<label title=\"The SIP password for this extension, exactly as set on the server. "
@@ -2453,7 +2503,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
                 ? "<p class=\"hint\">Not a number other phones can dial -- use digits only.</p>" : "",
             line + 1, line);
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"toolbar sub\">"
         "<button type=\"submit\" class=\"primary\">Save (takes effect on reboot)</button>"
         "<a class=\"button\" href=\"/voip_server_script\" download=\"rotary-voip-server-setup.sh\">"
@@ -2464,10 +2514,10 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
 
     char steps[VOIP_INSTR_STEPS][VOIP_INSTR_STEP_LEN];
     build_voip_instructions(steps);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<p class=\"hint\">Setup steps (same wording as the downloadable copy above):</p><ol>");
     for (int i = 0; i < VOIP_INSTR_STEPS && (size_t)off < cap; i++) {
-        off += snprintf(buf + off, cap - off, "<li>%s</li>", steps[i]);
+        off = appendf(buf, cap, off, "<li>%s</li>", steps[i]);
     }
     /* Same condition as the Line 2 form field above: a genuine 2-line board,
      * or a stale line-2 account still configured on a 1-line board. Doesn't
@@ -2481,7 +2531,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
      * whole point of this block is to need zero substitution once a real
      * extension IS saved, so say so either way. */
     bool using_placeholders = !voip_user(0)[0];
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "</ol>"
         "<p class=\"hint\">Prefer to add the line by hand instead of the downloadable script? "
         "Pick whichever matches your server -- both end up at the same config, just a different "
@@ -2524,7 +2574,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         html_escape(name, ename, sizeof(ename));
         html_escape(ext0, euser0, sizeof(euser0));
         html_escape(rawpass0, epass0, sizeof(epass0));
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<pre><code>[%s]\n"
             "type=aor\n"
             "max_contacts=1\n"
@@ -2555,7 +2605,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
             char euser1[192], epass1[288];
             html_escape(ext1, euser1, sizeof(euser1));
             html_escape(rawpass1, epass1, sizeof(epass1));
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "\n[%s]\n"
                 "type=aor\n"
                 "max_contacts=1\n"
@@ -2581,10 +2631,10 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
                 "callerid=\"%s Line 1\" &lt;%s&gt;\n",
                 euser1, euser1, euser1, epass1, euser1, euser1, euser1, ename, euser1);
         }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</code></pre>");
+        off = appendf(buf, cap, off, "</code></pre>");
     }
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<ol start=\"4\">"
         "<li>Add a matching <code>exten =&gt; &lt;number&gt;,1,Dial(PJSIP/&lt;number&gt;,20)</code> "
         "/ <code>same =&gt; n,Hangup()</code> entry to a <code>[rotary]</code> context in "
@@ -2595,7 +2645,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         const char *ext0 = voip_user(0)[0] ? voip_user(0) : "1234";
         char euser0[192];
         html_escape(ext0, euser0, sizeof(euser0));
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<pre><code>[rotary]\n"
             "exten =&gt; %s,1,Dial(PJSIP/%s,30)\n"
             " same =&gt; n,Hangup()\n",
@@ -2604,15 +2654,15 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
             const char *ext1 = voip_user(1)[0] ? voip_user(1) : "1235";
             char euser1[192];
             html_escape(ext1, euser1, sizeof(euser1));
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "exten =&gt; %s,1,Dial(PJSIP/%s,30)\n"
                 " same =&gt; n,Hangup()\n",
                 euser1, euser1);
         }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</code></pre>");
+        off = appendf(buf, cap, off, "</code></pre>");
     }
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<ol start=\"5\">"
         "<li><code>asterisk -rx \"pjsip reload\"</code> and "
         "<code>asterisk -rx \"dialplan reload\"</code>.</li>"
@@ -2693,7 +2743,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
      * wording); mirroring the one you're already typing into avoids both
      * problems. voip_check_handler() still falls back to the saved
      * voip_server() if this arrives empty (no-JS). */
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>2. Check a number</h2>"
         "<p class=\"hint\">See <code>archive/VOIP_SETUP.md</code> for this project's shared numbering "
         "registry, then confirm a candidate is actually free here before you commit to it.</p>"
@@ -2709,11 +2759,11 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         const char *label = strcmp(result, "free") == 0 ? "nothing answered -- looks free" :
                 strcmp(result, "taken") == 0 ? "in use, or not confirmable" :
                 "couldn't tell (server unreachable)";
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"statusrow\"><span class=\"label\">%s</span>"
             "<span class=\"pill %s\">%s</span></div>", checked, cls, label);
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<p class=\"hint\">Sends a SIP OPTIONS to that number on "
         "<span id=\"voip_check_server_label\">%s</span> (whatever's in the SIP server field "
         "above right now -- no need to Save first). Only a clean "
@@ -2767,7 +2817,7 @@ static int append_bt_config_card(char *buf, size_t cap, int off,
         : (st->bd_addr[0] ? i18n_str("bt.cfg_unverified", "not checked yet")
                           : i18n_str("bt.cfg_unknown", "unknown"));
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span class=\"pill %s\">%s</span></div>"
@@ -2783,7 +2833,7 @@ static int append_bt_config_card(char *buf, size_t cap, int off,
                  "need to reconnect."));
 
     if (have_report) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<table class=\"filetable\"><thead><tr><th>%s</th><th>%s</th><th>%s</th>"
             "<th>%s</th><th>%s</th></tr></thead><tbody>",
             i18n_str("bt.cfg_col_addr", "Address"),
@@ -2799,26 +2849,26 @@ static int append_bt_config_card(char *buf, size_t cap, int off,
                                              : i18n_str("bt.cfg_state_bad", "wrong"));
             char what[160];
             html_escape(it->what ? it->what : "", what, sizeof(what));
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "<tr><td>0x%04X</td><td>%02X</td><td>%02X</td><td>%s</td><td>%s</td></tr>",
                 it->addr, it->found, it->expected, state, what);
         }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</tbody></table>");
+        off = appendf(buf, cap, off, "</tbody></table>");
 
         if (rep.error[0]) {
             char esc[128];
             html_escape(rep.error, esc, sizeof(esc));
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "<p class=\"hint err\">%s</p>", esc);
         } else {
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "<p class=\"hint\">%s</p>",
                 rep.ok ? i18n_str("bt.cfg_all_ok", "All bytes correct.")
                        : i18n_str("bt.cfg_still_wrong", "Some bytes are still wrong."));
         }
     }
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/bt_config_check\" class=\"settings-form\">"
         "<div class=\"toolbar sub\"><button type=\"submit\"%s>%s</button></div>"
         "</form>"
@@ -2846,10 +2896,10 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
         "UART to this board, plus a spare GPIO for its power button. Fine for "
         "experimenting, not something to plan a build around yet.");
 #endif
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2><p class=\"warn-text\">%s</p></div>",
         i18n_str("bt.experimental_title", "Experimental: not mainstream yet"), bt_status);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2>"
         "<form method=\"POST\" action=\"/bt_enable_set\" class=\"settings-form\">"
         "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\" "
@@ -2907,7 +2957,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
     char paired[BT_COMPANION_NAME_MAX * 6];
     html_escape(st.bt_connected ? st.paired_name : i18n_str("bt.none_paired", "(none)"),
                 paired, sizeof(paired));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span id=\"bt-link-pill\" class=\"pill %s\">%s</span></div>"
@@ -2945,7 +2995,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
               js_pairing, sizeof(js_pairing));
     js_escape(i18n_str("bt.pair_button_paired", "Paired!"), js_paired, sizeof(js_paired));
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/bt_pair\" class=\"settings-form\" id=\"bt-pair-form\">"
         "<div class=\"toolbar sub\"><button type=\"submit\" id=\"bt-pair-btn\"%s>%s</button></div>"
         "</form>"
@@ -3013,14 +3063,14 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
 
     off = append_bt_config_card(buf, cap, off, &st);
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>"); /* closes #bt-extra */
+    off = appendf(buf, cap, off, "</div>"); /* closes #bt-extra */
     return off;
 }
 
 static int append_record_tab(char *buf, size_t cap, int off,
                               dialplan_entry_info_t *entries, size_t n)
 {
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("record.title", "Record message"));
     for (size_t i = 0; i < n; i++) {
         if (strcmp(entries[i].code, "211") != 0) continue;
@@ -3039,7 +3089,7 @@ static int append_record_tab(char *buf, size_t cap, int off,
                  "front. The message is saved in "
                  "<a href=\"/recordings\">Recordings</a> / <a href=\"/settings?tab=storage\">"
                  "Settings &rarr; Storage</a>."));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/record_max_ms\" class=\"settings-form\">"
         "<label>%s "
         "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%u\" max=\"%u\" required></label>"
@@ -3050,7 +3100,7 @@ static int append_record_tab(char *buf, size_t cap, int off,
         (unsigned)(BOARD_RECORD_MAX_MS_MIN / 1000), (unsigned)(BOARD_RECORD_MAX_MS_MAX / 1000),
         i18n_str("general.button.save", "Save"));
     off = append_prompt_field(buf, cap, off, RECORD_PROMPT_NAME, NULL);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    off = appendf(buf, cap, off, "</div>");
     return off;
 }
 
@@ -3099,7 +3149,7 @@ static int append_firmware_card(char *buf, size_t cap, int off)
             i18n_str("firmware.revert_button", "Revert to previous version"));
     }
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
@@ -3132,7 +3182,7 @@ static int append_firmware_card(char *buf, size_t cap, int off)
                  "(<code>idf.py flash</code>) still works exactly as before; this is an "
                  "additional option, not a replacement, and is still how you flash a board for "
                  "the very first time."));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    off = appendf(buf, cap, off, "</div>");
     return off;
 }
 
@@ -3189,7 +3239,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
     }
 
     char fl[16], ru[16], rf[16], su[16], sf[16];
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
@@ -3225,7 +3275,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                  "<a href=\"/settings?tab=storage\">Settings &rarr; Storage</a> for both listed "
                  "separately. RAM is live internal heap. Uptime/WiFi are on the <a href=\"/\">"
                  "Status</a> page."));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    off = appendf(buf, cap, off, "</div>");
 
     if (board_type_mismatch()) {
         char recorded[16];
@@ -3237,7 +3287,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                      "hardware itself genuinely changed -- if you flashed the wrong firmware "
                      "by mistake, reflash the correct build instead."),
             board_pcb_variant_name(), recorded[0] ? recorded : "(unknown)");
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>%s</h2>"
             "<p class=\"hint warn-text\">%s</p>"
             "<form method=\"POST\" action=\"/board_type_confirm\" class=\"settings-form\" "
@@ -3312,7 +3362,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                  (unsigned long)ips.sleep_count);
     }
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
@@ -3321,14 +3371,14 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         i18n_str("general.current", "Current"), ip_status,
         i18n_str("idlepower.now_label", "Right now"), ip_now_pill, ip_now);
     if (ip_total[0]) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>",
             i18n_str("idlepower.total_label", "Time in low-power"), ip_total);
     }
     if (ip.pause_audio) {
         /* Like the "Right now" row, this page's own request can't un-pause
          * audio (only an audio user can), so this one IS a live reading. */
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"statusrow\"><span class=\"label\">%s</span>"
             "<span class=\"pill %s\">%s</span></div>",
             i18n_str("idlepower.audio_label", "Audio processing"),
@@ -3343,12 +3393,12 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                      ? i18n_str("idlepower.tx_reduced", "%d dBm (reduced -- signal %d dBm)")
                      : i18n_str("idlepower.tx_full", "%d dBm (full -- signal %d dBm)"),
                  ips.tx_power_dbm, ips.rssi_dbm);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>",
             i18n_str("idlepower.tx_label", "WiFi transmit power"), tx);
     }
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/idle_power\" class=\"settings-form\">"
         "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
         "<label>%s "
@@ -3391,7 +3441,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                  "waiting out the idle timer again."),
         (double)idle_power_estimated_savings_w(), idle_power_worst_case_latency_ms(),
         (unsigned)ip.minutes, (unsigned)ip.minutes);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<p class=\"hint\">%s</p></div>", idlepower_hint);
 
     off = append_firmware_card(buf, cap, off);
@@ -3399,7 +3449,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
     char setup_ap[33], setup_ap_esc[100];
     wifi_setup_ap_name(setup_ap, sizeof(setup_ap));
     html_escape(setup_ap, setup_ap_esc, sizeof(setup_ap_esc));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<form method=\"POST\" action=\"/wifi_reprovision\" class=\"settings-form\" "
         "onsubmit=\"return confirm('%s')\">"
@@ -3425,10 +3475,10 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                  "<b>BOOT</b> button for 3&nbsp;seconds <em>while it's already running</em> to "
                  "get the setup network without forgetting anything (not during power-on, "
                  "which puts the chip in USB flashing mode)."));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<p class=\"hint\">Setup network: <code>%s</code>.</p>",
         setup_ap_esc);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/factory_reset\" class=\"settings-form\" "
         "onsubmit=\"return confirm('%s')\">"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"danger\">"
@@ -3485,7 +3535,7 @@ static int append_memory_map_card(char *buf, size_t cap, int off)
      * time snprintf reads an EARLIER %s from it (a real, if cosmetic, bug
      * this card shipped with initially: RAM total showed the flash size). */
     char ru[16], rt[16], ft[16];
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span>%s / %s %s (%u%%)</span></div>"
@@ -3529,7 +3579,7 @@ static int append_memory_map_card(char *buf, size_t cap, int off)
 
     if (lowest_addr > 0) {
         char ls[16];
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"statusrow indent\"><span class=\"label\">%s</span>"
             "<span>%s (%s)</span></div>",
             i18n_str("memmap.bootloader", "Bootloader + partition table"),
@@ -3585,14 +3635,14 @@ static int append_memory_map_card(char *buf, size_t cap, int off)
         char cs[16], us[16];
         unsigned pct = (p->size && have_used) ? (unsigned)(100ULL * used / p->size) : 0;
         if (have_used) {
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "<div class=\"statusrow indent\"><span class=\"label\">%s</span>"
                 "<span>%s / %s (%u%%)</span></div>"
                 "<div class=\"membar\"><div class=\"membarfill\" style=\"width:%u%%\"></div></div>",
                 partition_friendly_name(p->label), fmt_bytes((size_t)used, us, sizeof(us)),
                 fmt_bytes(p->size, cs, sizeof(cs)), pct, pct);
         } else {
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "<div class=\"statusrow indent\"><span class=\"label\">%s</span>"
                 "<span>%s %s</span></div>",
                 partition_friendly_name(p->label), fmt_bytes(p->size, cs, sizeof(cs)),
@@ -3619,7 +3669,7 @@ static int append_memory_map_card(char *buf, size_t cap, int off)
                        "partitions would need to shrink first (see their rows above for how "
                        "full they actually are right now)."),
         fmt_bytes(allocated, fs, sizeof(fs)));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"statusrow indent\"><span class=\"label\">%s</span>"
         "<span>%s %s</span></div>"
         "<p class=\"hint\">%s</p></div>",
@@ -3637,7 +3687,7 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
     board_hw_config_t cfg = board_hw_config_get();
     bool confirmed = board_hw_config_is_set();
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s%s</span></div>",
         i18n_str("hwconfig.title", "Line 2 / microSD configuration"),
@@ -3650,14 +3700,14 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
 
     if (!confirmed) {
         board_hw_evidence_t ev = board_hw_detect_evidence();
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"statusrow\"><span class=\"label\">%s</span>"
             "<span>%s</span></div>",
             i18n_str("hwconfig.card_detect", "microSD card detect"),
             ev.card_present ? i18n_str("hwconfig.card_present", "card physically present")
                             : i18n_str("hwconfig.card_absent", "no card detected"));
         if (ev.valid) {
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "<div class=\"statusrow\"><span class=\"label\">%s</span>"
                 "<span>%s</span></div>",
                 i18n_str("hwconfig.evidence", "Advisory evidence"),
@@ -3676,7 +3726,7 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
      * the board generation isn't in here at all because it's a compile-time
      * choice (CONFIG_BOARD_TYPE_*) -- it's shown above and confirmed
      * separately, not selected. */
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/board_hw_set\" class=\"settings-form\">"
         "<label>%s"
         "<select name=\"lines\">"
@@ -3725,7 +3775,7 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
                  "it works alongside either choice above. On SMD4 its control pins share line "
                  "1's (GPIO18-20), so on a 2-line board pull J5's four shunts, wire the module "
                  "to J5, and choose \"Neither\" above -- line 1 stays stuffed but disconnected."));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    off = appendf(buf, cap, off, "</div>");
 
     return off;
 }
@@ -3745,7 +3795,7 @@ static int append_level_report(char *buf, size_t cap, int off, int line)
 {
     const selftest_level_report_t *r = selftest_level_report(line);
     if (!r || !r->valid || r->n == 0) return off;
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<details class=\"hint-detail\"><summary></summary>"
         "<table class=\"mini\"><thead><tr><th>Level</th><th>dB</th><th>Tone</th><th>Peak</th>"
         "<th>Distortion</th><th>Worst product</th></tr></thead><tbody>");
@@ -3758,7 +3808,7 @@ static int append_level_report(char *buf, size_t cap, int off, int line)
         done[best] = true;
         const selftest_level_point_t *p = &r->pt[best];
         bool clean = p->distortion_pct < 3.0f && p->clipped == 0;
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<tr><td>%u%s</td><td>%.1f</td><td>%.1f dBFS</td><td>%.1f dBFS</td>"
             "<td><span class=\"pill %s\">%.1f%%</span>%s</td><td>%.0f Hz, %.1f dBFS</td></tr>",
             p->level, p->level == r->saved_level ? " &larr; current" : "",
@@ -3766,7 +3816,7 @@ static int append_level_report(char *buf, size_t cap, int off, int line)
             clean ? "on" : "off", p->distortion_pct,
             p->clipped ? " (clipped)" : "", p->worst_hz, p->worst_dbfs);
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "</tbody></table><p class=\"hint\">Each row is one half-second test tone (350 + 450 Hz) "
         "played at that earpiece level and measured as it comes back from the phone-line chip. "
         "Tone and peak are at the codec's input; they fall 1.5 dB per level, as they should. "
@@ -3785,7 +3835,7 @@ static int append_selftest_card(char *buf, size_t cap, int off)
     char board_id[16] = {0};
     selftest_board_id(board_id, sizeof(board_id));
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<p class=\"hint\">%s</p>"
@@ -3803,7 +3853,7 @@ static int append_selftest_card(char *buf, size_t cap, int off)
         i18n_str("diag.selftest.start", "Run automatic checks"));
 
     if (selftest_busy()) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<p class=\"hint-lead\">%s</p>"
             "<script>setTimeout(function(){location.reload();},1500);</script>",
             i18n_str("diag.selftest.busy",
@@ -3811,7 +3861,7 @@ static int append_selftest_card(char *buf, size_t cap, int off)
     }
 
     if (rep->n > 0) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<table class=\"filetable\"><thead><tr><th>%s</th><th>%s</th><th>%s</th></tr>"
             "</thead><tbody>",
             i18n_str("diag.selftest.col_check", "Check"),
@@ -3831,14 +3881,14 @@ static int append_selftest_card(char *buf, size_t cap, int off)
             html_escape(c->detail[0] ? c->detail : (c->instruction ? c->instruction : ""),
                         detail, sizeof(detail));
 
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "<tr><td>%s</td><td><span class=\"pill %s\">%s</span></td><td>%s",
                 c->title, badge, label, detail);
 
             /* The audio-level check stays re-runnable after it has a result:
              * it's a measurement, not a one-time human gesture. */
             if (strncmp(c->id, "level", 5) == 0 && c->result != SELFTEST_SKIP && !selftest_busy()) {
-                off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                off = appendf(buf, cap, off,
                     "<form method=\"POST\" action=\"/selftest_action\" class=\"settings-form\">"
                     "<input type=\"hidden\" name=\"id\" value=\"%s\">"
                     "<div class=\"toolbar sub\"><button type=\"submit\">%s</button></div></form>",
@@ -3848,20 +3898,20 @@ static int append_selftest_card(char *buf, size_t cap, int off)
                 off = append_level_report(buf, cap, off, c->id[strlen(c->id) - 1] == '1' ? 1 : 0);
             } else if (c->result == SELFTEST_PENDING && c->kind == SELFTEST_ACTION &&
                        strncmp(c->id, "level", 5) != 0) {
-                off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                off = appendf(buf, cap, off,
                     "<form method=\"POST\" action=\"/selftest_action\" class=\"settings-form\">"
                     "<input type=\"hidden\" name=\"id\" value=\"%s\">"
                     "<div class=\"toolbar sub\"><button type=\"submit\">%s</button></div></form>",
                     c->id, i18n_str("diag.selftest.watch", "Watch for it now (15s)"));
             } else if (c->result == SELFTEST_PENDING && c->kind == SELFTEST_CONFIRM) {
                 if (strncmp(c->id, "ring", 4) == 0) {
-                    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                    off = appendf(buf, cap, off,
                         "<form method=\"POST\" action=\"/selftest_stimulus\" class=\"settings-form\">"
                         "<input type=\"hidden\" name=\"id\" value=\"%s\">"
                         "<div class=\"toolbar sub\"><button type=\"submit\">%s</button></div></form>",
                         c->id, i18n_str("diag.selftest.ring_now", "Ring it now"));
                 }
-                off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                off = appendf(buf, cap, off,
                     "<form method=\"POST\" action=\"/selftest_answer\" class=\"settings-form\">"
                     "<input type=\"hidden\" name=\"id\" value=\"%s\">"
                     "<div class=\"toolbar sub\">"
@@ -3871,9 +3921,9 @@ static int append_selftest_card(char *buf, size_t cap, int off)
                     c->id, i18n_str("diag.selftest.yes", "Yes"),
                     i18n_str("diag.selftest.no", "No"));
             }
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</td></tr>");
+            off = appendf(buf, cap, off, "</td></tr>");
         }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "</tbody></table>"
             "<form method=\"POST\" action=\"/selftest_save\" class=\"settings-form\">"
             "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
@@ -3886,7 +3936,7 @@ static int append_selftest_card(char *buf, size_t cap, int off)
     selftest_run_t hist[SELFTEST_HISTORY_MAX];
     size_t n_hist = selftest_history_get(hist, SELFTEST_HISTORY_MAX);
     if (n_hist > 0) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<h3>%s</h3><table class=\"filetable\"><thead><tr><th>%s</th><th>%s</th></tr>"
             "</thead><tbody>",
             i18n_str("diag.selftest.history", "Previous runs"),
@@ -3903,14 +3953,14 @@ static int append_selftest_card(char *buf, size_t cap, int off)
                 snprintf(when, sizeof(when), "%s",
                          i18n_str("diag.selftest.no_clock", "date unknown (clock unsynced)"));
             }
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "<tr><td>%s</td><td>%u pass, %u fail, %u n/a, %u unanswered</td></tr>",
                 when, hist[i].n_pass, hist[i].n_fail, hist[i].n_skip, hist[i].n_pending);
         }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</tbody></table>");
+        off = appendf(buf, cap, off, "</tbody></table>");
     }
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    off = appendf(buf, cap, off, "</div>");
     return off;
 }
 
@@ -3941,7 +3991,7 @@ static int append_flash_help_card(char *buf, size_t cap, int off)
         snprintf(mon, sizeof(mon), "idf.py -B %s -D SDKCONFIG=%s/sdkconfig -p PORT monitor", bdir, bdir);
     }
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<p class=\"hint-lead\">%s <b>%s</b>, %u MB flash.</p>"
         "<script>function copyCmd(b){var t=b.parentNode.querySelector('pre').innerText;"
@@ -3981,7 +4031,7 @@ static int append_flash_help_card(char *buf, size_t cap, int off)
                  "&rarr; Firmware (best for a board that is already working; flash by USB while "
                  "you're testing a build, because a build that doesn't boot rolls back to the "
                  "old image)."));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    off = appendf(buf, cap, off, "</div>");
     return off;
 }
 
@@ -3990,7 +4040,7 @@ static int append_flash_help_card(char *buf, size_t cap, int off)
 static int append_fx_diag_card(char *buf, size_t cap, int off)
 {
     int lines = board_hw_config_get().num_lines;
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2>", i18n_str("fxdiag.title", "Voice effects: live levels"));
     off = append_hint(buf, cap, off,
         i18n_str("fxdiag.hint_lead",
@@ -4007,7 +4057,7 @@ static int append_fx_diag_card(char *buf, size_t cap, int off)
                  "(<code>fx</code> and <code>fxstat</code> do the same from the console). An "
                  "effect set here ends when the line hangs up."));
     for (int l = 0; l < lines; l++) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"statusrow\"><span class=\"label\">Line %d</span><span>"
             "<select id=\"fxsel%d\" onchange=\"fxSet(%d,this.value)\">"
             "<option value=\"0\">off</option><option value=\"1\">1 Dalek</option>"
@@ -4017,7 +4067,7 @@ static int append_fx_diag_card(char *buf, size_t cap, int off)
             "</select></span></div>"
             "<pre class=\"cmd\" id=\"fxout%d\">waiting for audio...</pre>", l, l, l, l);
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<script>"
         "function fxSet(l,v){fetch('/voice_fx_test',{method:'POST',headers:"
         "{'Content-Type':'application/x-www-form-urlencoded'},body:'line='+l+'&fx='+v});}"
@@ -4043,7 +4093,7 @@ static int append_diag_tab(char *buf, size_t cap, int off)
     off = append_fx_diag_card(buf, cap, off);
     off = append_flash_help_card(buf, cap, off);
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span class=\"pill on\">%s</span></div>"
@@ -4053,11 +4103,11 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         i18n_str("diag.logging.current", "Current level"), logctl_level_name(cur),
         i18n_str("diag.logging.level_label", "Level"));
     for (size_t i = 0; i < sizeof(LEVELS) / sizeof(LEVELS[0]); i++) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<option value=\"%s\"%s>%s</option>",
             LEVELS[i], ((size_t)cur == i) ? " selected" : "", LEVELS[i]);
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "</select></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>"
@@ -4089,7 +4139,7 @@ static int append_diag_tab(char *buf, size_t cap, int off)
      * a real, distinct tone out the earpiece confirms the DAC/amp path end
      * to end, which the loopback test below deliberately doesn't (that stays inside
      * the chip, digital TX->RX, never touches the codec at all). */
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<form method=\"POST\" action=\"/test/tone\" class=\"settings-form\">"
         "<label>%s <select name=\"line\">%s</select></label>"
@@ -4132,7 +4182,7 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         }
         char line_h3[24];
         snprintf(line_h3, sizeof(line_h3), i18n_str("status.line.title", "Line %d"), l);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "%s<h3>%s</h3>"
             "<form method=\"POST\" action=\"/test/mic_record\" class=\"settings-form\">"
             "<input type=\"hidden\" name=\"line\" value=\"%d\">"
@@ -4159,7 +4209,7 @@ static int append_diag_tab(char *buf, size_t cap, int off)
                      "for the duration -- speak into the handset while it's running. Play it "
                      "back above to check it sounds right (level, clarity, no clipping). Each "
                      "run overwrites that line's previous test recording."));
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+        off = appendf(buf, cap, off, "</div>");
     }
 
     /* Test mode + audio loopback + SD self-test (DVT harness controls; also
@@ -4176,7 +4226,7 @@ static int append_diag_tab(char *buf, size_t cap, int off)
                           i18n_str("diag.test.line", "Line"), l);
     }
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2>"
 
         /* --- ring --- */
@@ -4227,7 +4277,7 @@ static int append_diag_tab(char *buf, size_t cap, int off)
     /* Harness-only switches, kept to the bottom: these change how the board
      * behaves rather than exercising hardware, and normal users never need
      * them. */
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<hr class=\"sep\">"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span class=\"pill %s\">%s</span></div>"
@@ -4505,7 +4555,7 @@ static int append_storage_table(char *buf, size_t cap, int off,
         shown++;
     }
     if (shown == 0) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"empty\">%s</div>", i18n_str("dialcodes.none_yet", "none yet"));
         return off;
     }
@@ -4523,7 +4573,7 @@ static int append_storage_table(char *buf, size_t cap, int off,
      * the form/table -- the header checkbox and the bulk button both find
      * their own table via closest(), so this is safe to render more than
      * once on the same page (Settings -> Storage's SD + internal tables). */
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/media_delete_bulk\">"
         "<input type=\"hidden\" name=\"return_to\" value=\"%s\">"
         "<table><tr><th><input type=\"checkbox\" title=\"%s\" "
@@ -4560,7 +4610,7 @@ static int append_storage_table(char *buf, size_t cap, int off,
         char delete_confirm[STORAGE_MAX_NAME + 16];
         snprintf(delete_confirm, sizeof(delete_confirm), i18n_str("storage.delete_confirm", "Delete %s?"),
                  entries[i].name);
-        off += snprintf(buf + off, cap - off,
+        off = appendf(buf, cap, off,
             "<tr><td><input type=\"checkbox\" name=\"names\" value=\"%s\"></td>"
             "<td><code>%s</code></td>%s<td>%s</td><td>%s</td><td>%s</td>"
             "<td><a href=\"/media/%s\">%s</a></td>"
@@ -4583,10 +4633,10 @@ static int append_storage_table(char *buf, size_t cap, int off,
         "return confirm(n+' %s');",
         i18n_str("storage.bulk_none_selected", "No files selected."),
         i18n_str("storage.bulk_confirm_suffix", "file(s) will be deleted. Continue?"));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<tr><td colspan=\"8\"><button type=\"submit\" onclick=\"%s\">%s</button></td></tr>",
         bulk_confirm_js, i18n_str("storage.delete_selected", "Delete selected"));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</table></form>");
+    off = appendf(buf, cap, off, "</table></form>");
     return off;
 }
 
@@ -4662,7 +4712,7 @@ static int append_sdcard_info_card(char *buf, size_t cap, int off)
             i18n_str("storage.sd_selftest_label", "Last self-test"), s_sd_selftest_result);
     }
 
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card wide\" style=\"margin-top:16px\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
@@ -4702,7 +4752,7 @@ static int append_sdcard_info_card(char *buf, size_t cap, int off)
                  "directions -- SD cards have no portable SMART-style health check, so a card "
                  "that's failing or unusually slow tends to show up here as a mismatch or a low "
                  "throughput number instead."));
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    off = appendf(buf, cap, off, "</div>");
     return off;
 }
 
@@ -4748,14 +4798,14 @@ static int append_storage_section(char *buf, size_t cap, int off)
                      "listed below in its own section so anything saved before the card was "
                      "inserted is still reachable."));
     }
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div id=\"storage\" class=\"card wide\" style=\"margin-top:16px\"><h2>%s</h2>",
         i18n_str("storage.title", "Storage"));
     off = append_hint(buf, cap, off,
         i18n_str("storage.hint_lead",
                  "Recordings, uploaded prompt/clip WAVs, anything else."),
         storage_hint_detail);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    off = appendf(buf, cap, off, "</div>");
 
     /* Configured for SD but nothing's mounted right now -- either a card
      * was never inserted, the last mount attempt failed (bad format, wiring,
@@ -4773,7 +4823,7 @@ static int append_storage_section(char *buf, size_t cap, int off)
              * corrupted), not wiring -- so offer the thing that actually
              * fixes it instead of a plain retry, which would just fail the
              * same way again. */
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "<div class=\"card wide\" style=\"margin-top:16px\"><h2>%s</h2>"
                 "<p class=\"hint warn-text\">%s</p>"
                 "<div class=\"toolbar sub\">"
@@ -4792,7 +4842,7 @@ static int append_storage_section(char *buf, size_t cap, int off)
                          "currently on it. This cannot be undone."),
                 i18n_str("storage.sd_force_format_button", "Format as FAT32"));
         } else {
-            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            off = appendf(buf, cap, off,
                 "<div class=\"card wide\" style=\"margin-top:16px\"><h2>%s</h2>"
                 "<p class=\"hint\">%s</p>"
                 "<div class=\"toolbar sub\">"
@@ -4816,7 +4866,7 @@ static int append_storage_section(char *buf, size_t cap, int off)
         storage_entry_t *sd_entries = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
         size_t sd_n = sd_entries ? storage_list_sd(sd_entries, STORAGE_LIST_MAX) : 0;
         char su[16], sc[16];
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"card wide\" style=\"margin-top:16px\"><h2>microSD (%u %s)</h2>"
             "<p class=\"hint\">%s / %s %s. %s</p>",
             (unsigned)sd_n, sd_n == 1 ? i18n_str("storage.file", "file") : i18n_str("storage.files", "files"),
@@ -4826,13 +4876,13 @@ static int append_storage_section(char *buf, size_t cap, int off)
             i18n_str("storage.sd_new_here", "New recordings and uploads go here."));
         off = append_storage_table(buf, cap, off, sd_entries, sd_n, NULL, false, "/settings?tab=storage");
         free(sd_entries);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+        off = appendf(buf, cap, off, "</div>");
     }
 
     storage_entry_t *in_entries = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
     size_t in_n = in_entries ? storage_list_internal(in_entries, STORAGE_LIST_MAX) : 0;
     char isu[16], isc[16];
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card wide\" style=\"margin-top:16px\"><h2>%s (%u %s)</h2>"
         "<p class=\"hint\">%s / %s %s.%s</p>",
         sd ? i18n_str("storage.internal_flash", "Internal flash") : i18n_str("storage.title", "Storage files"),
@@ -4845,7 +4895,7 @@ static int append_storage_section(char *buf, size_t cap, int off)
                  "(uploaded clips/operator.wav are never auto-evicted)."));
     off = append_storage_table(buf, cap, off, in_entries, in_n, NULL, false, "/settings?tab=storage");
     free(in_entries);
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    off = appendf(buf, cap, off, "</div>");
 
     return off;
 }
@@ -4997,10 +5047,10 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
 
         off = append_page_head(buf, cap, 0, i18n_str("nav.settings", "Settings"), "/settings", false);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "</header><main class=\"settings-main\">");
         off = append_settings_tabs(buf, cap, off, tab);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<script>%s</script><div class=\"cards\">", FEATURE_TOGGLE_JS);
 
         if (strcmp(tab, "general") == 0) off = append_general_tab(buf, cap, off);
@@ -5032,8 +5082,8 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
             off = append_memory_map_card(buf, cap, off);
         }
 
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>" /* .cards */);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</main></body></html>");
+        off = appendf(buf, cap, off, "</div>" /* .cards */);
+        off = appendf(buf, cap, off, "</main></body></html>");
 
         if (off <= 0 || (size_t)off < cap || attempt == 1) break;
         ESP_LOGW(TAG, "settings tab '%s' needed %d bytes, estimated %u -- re-rendering",
@@ -5075,10 +5125,7 @@ static esp_err_t mode_set_handler(httpd_req_t *req)
         ESP_LOGW(TAG, "mode_set: unknown or non-mode code '%s'", code);
     }
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings");
 }
 
 /* Minimal application/x-www-form-urlencoded decoder -- '+' and %XX only.
@@ -5165,14 +5212,8 @@ static esp_err_t wifi_scan_json_handler(httpd_req_t *req)
 
 static esp_err_t wifi_set_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[WIFI_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     char ssid[33] = {0}, pass[65] = {0};
     form_field(body, "ssid", ssid, sizeof(ssid));
@@ -5273,10 +5314,7 @@ static esp_err_t wifi_set_handler(httpd_req_t *req)
         ESP_LOGW(TAG, "wifi_set_credentials failed: %s", esp_err_to_name(err));
     }
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings");
 }
 
 /* 303-redirects back to whichever page submitted this form (the Referer
@@ -5382,14 +5420,8 @@ static esp_err_t factory_reset_handler(httpd_req_t *req)
  * address updates without a reboot. */
 static esp_err_t board_name_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[WIFI_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     char name[32] = {0};
     form_field(body, "name", name, sizeof(name));
@@ -5414,14 +5446,8 @@ static esp_err_t board_name_handler(httpd_req_t *req)
  * changes this, no per-line flag -- one language for the whole phone. */
 static esp_err_t language_set_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[WIFI_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     char lang[8] = {0};
     form_field(body, "lang", lang, sizeof(lang));
@@ -5451,22 +5477,13 @@ static esp_err_t voice_fx_enabled_handler(httpd_req_t *req)
     }
     form_field(body, "enabled", enabled, sizeof(enabled));
     board_voice_fx_enabled_set(enabled[0] == '1');
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=phone");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=phone");
 }
 
 static esp_err_t intercom_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[WIFI_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
     char enabled[8] = {0}, seconds[12] = {0};
     form_field(body, "enabled", enabled, sizeof(enabled));
     form_field(body, "seconds", seconds, sizeof(seconds));
@@ -5476,22 +5493,13 @@ static esp_err_t intercom_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "seconds out of range");
         return ESP_OK;
     }
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=phone");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=phone");
 }
 
 static esp_err_t offhook_alert_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[WIFI_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     char enabled[8] = {0}, seconds[12] = {0};
     form_field(body, "enabled", enabled, sizeof(enabled));
@@ -5506,10 +5514,7 @@ static esp_err_t offhook_alert_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=general");
 }
 
 /* POST /tone_lang_set -- form body [enabled=1]. Unchecked checkbox submits
@@ -5531,10 +5536,7 @@ static esp_err_t tone_lang_set_handler(httpd_req_t *req)
         if (region[0]) board_tone_region_set(region);
     }
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=phone");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=phone");
 }
 
 /* POST /timezone_set -- form body tz=... (a POSIX TZ string; blank = UTC). */
@@ -5555,10 +5557,7 @@ static esp_err_t timezone_set_handler(httpd_req_t *req)
     form_field(body, "tz", tz, sizeof(tz));
     board_timezone_set(tz); /* only fails on an NVS write error, nothing form-validatable */
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=general");
 }
 
 /* POST /quiet_hours -- form body [enabled=1&]start=HH:MM&end=HH:MM (the
@@ -5576,14 +5575,8 @@ static bool parse_hhmm(const char *s, uint8_t *h, uint8_t *m)
 
 static esp_err_t quiet_hours_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[WIFI_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     char enabled[8] = {0}, start[8] = {0}, end[8] = {0}, tz[BOARD_TZ_MAX] = {0};
     form_field(body, "enabled", enabled, sizeof(enabled));
@@ -5603,10 +5596,7 @@ static esp_err_t quiet_hours_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=general");
 }
 
 /* POST /voip_enable -- form body enabled=1 (checkbox present) or nothing at
@@ -5625,23 +5615,14 @@ static esp_err_t voip_enable_handler(httpd_req_t *req)
     form_field(body, "enabled", enabled, sizeof(enabled));
     voip_set_enabled(enabled[0] == '1');
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=voip");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=voip");
 }
 
 /* POST /idle_power -- form body enabled=1 (checkbox present) + minutes=N. */
 static esp_err_t idle_power_settings_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[WIFI_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     char enabled[8] = {0}, minutes[12] = {0}, max_savings[8] = {0}, adaptive_tx[8] = {0},
          pause_audio[8] = {0}, cpu_scale[8] = {0};
@@ -5688,14 +5669,8 @@ static esp_err_t idle_power_settings_handler(httpd_req_t *req)
  * rings=N, max_secs=N, other_line=1 (checkbox, 2-line boards only). */
 static esp_err_t answering_machine_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[WIFI_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     char lstr[4] = {0}, enabled[8] = {0}, rings[8] = {0}, max_secs[12] = {0}, other[8] = {0};
     form_field(body, "line", lstr, sizeof(lstr));
@@ -5716,24 +5691,15 @@ static esp_err_t answering_machine_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=hardware");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=hardware");
 }
 
 /* POST /record_max_ms -- form body seconds=N (whole seconds; board.h stores
  * ms). Mirrors offhook_alert_handler's shape. */
 static esp_err_t record_max_ms_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[WIFI_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     char seconds[12] = {0};
     form_field(body, "seconds", seconds, sizeof(seconds));
@@ -5743,10 +5709,7 @@ static esp_err_t record_max_ms_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=dialcodes");
 }
 
 /* POST /board_hw_set -- form body variant=2line|1line_sd|1line_nosd. The
@@ -5756,14 +5719,8 @@ static esp_err_t record_max_ms_handler(httpd_req_t *req)
  * effect on reboot, same as every other hardware config in this project. */
 static esp_err_t board_hw_set_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[WIFI_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     /* "lines" is the GPIO18-21 either/or; "bt" is independent of it. Accepts
      * the field under its old name "variant" too, so the first-boot banner's
@@ -5809,10 +5766,7 @@ static esp_err_t board_type_confirm_handler(httpd_req_t *req)
     } else {
         ESP_LOGW(TAG, "board_type_confirm failed: %s", esp_err_to_name(err));
     }
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=hardware");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=hardware");
 }
 
 /* POST /bt_enable_set -- form body [enabled=1]. Master switch for the
@@ -5835,10 +5789,7 @@ static esp_err_t bt_enable_set_handler(httpd_req_t *req)
     form_field(body, "enabled", enabled, sizeof(enabled));
     bt_companion_set_enabled(enabled[0] == '1');
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=bluetooth");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=bluetooth");
 }
 
 /* POST /bt_pair -- no form body. Tells the companion board to enter
@@ -5852,10 +5803,7 @@ static esp_err_t bt_pair_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "companion board not connected");
         return ESP_OK;
     }
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=bluetooth");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=bluetooth");
 }
 
 /* POST /bt_config_check -- no form body. Checks (and repairs) the BM64's
@@ -5873,10 +5821,7 @@ static esp_err_t bt_config_check_handler(httpd_req_t *req)
                             "this board has no GPIO control of the BM64 mode pins");
         return ESP_OK;
     }
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=bluetooth");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=bluetooth");
 }
 
 /* ---- hardware bring-up check (selftest.h) ----
@@ -5965,14 +5910,8 @@ static esp_err_t selftest_save_handler(httpd_req_t *req)
 
 static esp_err_t voip_set_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= VOIP_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[VOIP_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     char server[64] = {0}, user0[32] = {0}, pass0[48] = {0}, user1[32] = {0}, pass1[48] = {0};
     form_field(body, "server", server, sizeof(server));
@@ -5984,10 +5923,7 @@ static esp_err_t voip_set_handler(httpd_req_t *req)
     voip_set_config(server[0] ? server : NULL, user0[0] ? user0 : NULL, pass0[0] ? pass0 : NULL,
                      user1, user1[0] ? (pass1[0] ? pass1 : NULL) : "");
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=voip");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=voip");
 }
 
 /* POST /voip_check -- form body number=..&server=.. . `server` comes from
@@ -6004,14 +5940,8 @@ static esp_err_t voip_set_handler(httpd_req_t *req)
  * separate JSON/AJAX endpoint needed. */
 static esp_err_t voip_check_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= VOIP_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[VOIP_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     char number[8] = {0}, server_buf[64] = {0};
     form_field(body, "number", number, sizeof(number));
@@ -6035,39 +5965,14 @@ static esp_err_t voip_check_handler(httpd_req_t *req)
     } else {
         snprintf(loc, sizeof(loc), "/settings?tab=voip");
     }
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", loc);
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
-}
-
-/* Reads a small urlencoded form body into out; false (with a 400 sent) if
- * it's missing or too big. */
-static bool read_voip_prov_form(httpd_req_t *req, char *out, size_t out_len)
-{
-    if (req->content_len == 0 || req->content_len >= out_len) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return false;
-    }
-    int r = httpd_req_recv(req, out, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return false; }
-    out[r] = '\0';
-    return true;
-}
-
-static esp_err_t back_to_voip_tab(httpd_req_t *req)
-{
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=voip");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, loc);
 }
 
 /* POST /voip_prov_config -- url=..&key=.. (blank key keeps the saved one). */
 static esp_err_t voip_prov_config_handler(httpd_req_t *req)
 {
     char body[VOIP_FORM_MAX_BODY];
-    if (!read_voip_prov_form(req, body, sizeof(body))) return ESP_OK;
+    READ_FORM_OR_RETURN(req, body);
     char url[100] = {0}, key[84] = {0};
     form_field(body, "url", url, sizeof(url));
     form_field(body, "key", key, sizeof(key));
@@ -6083,7 +5988,7 @@ static esp_err_t voip_prov_config_handler(httpd_req_t *req)
         s_prov_ok = true;
         snprintf(s_prov_msg, sizeof(s_prov_msg), "Saved");
     }
-    return back_to_voip_tab(req);
+    return redirect_to(req, "/settings?tab=voip");
 }
 
 /* POST /voip_prov_find -- looks for a provisioner over mDNS and saves its
@@ -6091,7 +5996,7 @@ static esp_err_t voip_prov_config_handler(httpd_req_t *req)
 static esp_err_t voip_prov_find_handler(httpd_req_t *req)
 {
     char body[VOIP_FORM_MAX_BODY];
-    if (!read_voip_prov_form(req, body, sizeof(body))) return ESP_OK;
+    READ_FORM_OR_RETURN(req, body);
     char key[84] = {0};
     form_field(body, "key", key, sizeof(key));
     if (key[0]) voip_prov_set_key(key);
@@ -6111,14 +6016,14 @@ static esp_err_t voip_prov_find_handler(httpd_req_t *req)
         snprintf(s_prov_msg, sizeof(s_prov_msg),
                  "No provisioner found on this network -- type its address instead");
     }
-    return back_to_voip_tab(req);
+    return redirect_to(req, "/settings?tab=voip");
 }
 
 /* POST /voip_prov_line -- line=0|1&number=..&action=check|register|release. */
 static esp_err_t voip_prov_line_handler(httpd_req_t *req)
 {
     char body[VOIP_FORM_MAX_BODY];
-    if (!read_voip_prov_form(req, body, sizeof(body))) return ESP_OK;
+    READ_FORM_OR_RETURN(req, body);
     char line_s[4] = {0}, number[16] = {0}, action[12] = {0};
     form_field(body, "line", line_s, sizeof(line_s));
     form_field(body, "number", number, sizeof(number));
@@ -6145,7 +6050,7 @@ static esp_err_t voip_prov_line_handler(httpd_req_t *req)
         snprintf(s_prov_msg, sizeof(s_prov_msg), "Unknown action");
     }
     activity_log("VoIP provisioner: %s", s_prov_msg);
-    return back_to_voip_tab(req);
+    return redirect_to(req, "/settings?tab=voip");
 }
 
 /* POST /voip_setup_password -- form body password=.. . Sets the shared
@@ -6155,36 +6060,21 @@ static esp_err_t voip_prov_line_handler(httpd_req_t *req)
  * unchanged", same convention as the main VOIP form. */
 static esp_err_t voip_setup_password_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= VOIP_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[VOIP_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     char password[80] = {0};
     form_field(body, "password", password, sizeof(password));
     if (password[0]) voip_set_setup_password(password);
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=general");
 }
 
 /* POST /log_level -- form body level=<name>. Persists + applies (logctl). */
 static esp_err_t log_level_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[WIFI_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     char level[16] = {0};
     form_field(body, "level", level, sizeof(level));
@@ -6195,10 +6085,7 @@ static esp_err_t log_level_handler(httpd_req_t *req)
     }
     logctl_set_level(lvl);
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=diag");
 }
 
 /* ---- Test / DVT-harness endpoints ----
@@ -6242,10 +6129,7 @@ static esp_err_t wifi_forget_handler(httpd_req_t *req)
     }
     form_field(body, "ssid", ssid, sizeof(ssid));
     if (ssid[0]) wifi_known_remove(ssid);
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=general");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=general");
 }
 
 static esp_err_t test_ring_handler(httpd_req_t *req)
@@ -6274,10 +6158,7 @@ static esp_err_t test_ring_handler(httpd_req_t *req)
         ag1170_ring_start(line);
         esp_timer_start_once(s_ring_timer, (uint64_t)secs * 1000000);
     }
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=diag");
 }
 
 static esp_err_t test_progress_handler(httpd_req_t *req)
@@ -6295,10 +6176,7 @@ static esp_err_t test_progress_handler(httpd_req_t *req)
     else if (!strcmp(tbuf, "busy"))     audio_tx_tone(line, TONE_BUSY);
     else if (!strcmp(tbuf, "reorder"))  audio_tx_tone(line, TONE_REORDER);
     else                                audio_tx_silence(line);
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=diag");
 }
 
 static esp_err_t test_mode_handler(httpd_req_t *req)
@@ -6311,10 +6189,7 @@ static esp_err_t test_mode_handler(httpd_req_t *req)
     telephony_test_set_enabled(on[0] == '1');
     /* Redirect so a browser form lands back on the tab; a host harness
      * ignores the redirect and confirms via GET /api/status (test_mode). */
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=diag");
 }
 
 /* POST /test/loopback  body on=0|1 -- audio TX->RX digital loopback. */
@@ -6326,10 +6201,7 @@ static esp_err_t test_loopback_handler(httpd_req_t *req)
     }
     form_field(body, "on", on, sizeof(on));
     audio_set_test_loopback(on[0] == '1');
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=diag");
 }
 
 /* POST /test/tone  body line=N&hz=N&ms=N -- play a single-frequency burst
@@ -6360,10 +6232,7 @@ static esp_err_t test_tone_handler(httpd_req_t *req)
     if (ms > 5000) ms = 5000;
 
     audio_tx_burst(line, hz, 0.0f, 0.6f, (uint32_t)ms);
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=diag");
 }
 
 /* Defined further down (used there for upload conversion); forward-declared
@@ -6427,10 +6296,7 @@ static esp_err_t test_mic_record_handler(httpd_req_t *req)
     wr_u32le(sz, actual_samples * 2);      storage_patch(fname, 40, sz, 4);
 
     activity_log("Line %d: mic test recording (%lds)", line, secs);
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=diag");
 }
 
 /* POST /test/inject  body type=offhook|onhook|digit & line=N [& digit=D]
@@ -6557,10 +6423,7 @@ static esp_err_t test_sd_handler(httpd_req_t *req)
 static esp_err_t sd_selftest_ui_handler(httpd_req_t *req)
 {
     run_sd_selftest();
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=storage");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=storage");
 }
 
 /* POST /sd_format -- wipes the mounted microSD card. Real, irreversible
@@ -6576,10 +6439,7 @@ static esp_err_t sd_format_handler(httpd_req_t *req)
     } else {
         ESP_LOGW(TAG, "SD format failed: %s", esp_err_to_name(err));
     }
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=storage");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=storage");
 }
 
 /* POST /sd_force_format -- for a card sdcard_needs_format() flagged (talks
@@ -6596,10 +6456,7 @@ static esp_err_t sd_force_format_handler(httpd_req_t *req)
     } else {
         ESP_LOGW(TAG, "SD force-format failed: %s", esp_err_to_name(err));
     }
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=storage");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=storage");
 }
 
 /* ---- Speaker (earpiece) volume: live tuning + persistence ----
@@ -6707,10 +6564,7 @@ static esp_err_t speaker_volume_handler(httpd_req_t *req)
     speaker_volume_apply(line, (uint8_t)vol);
     board_speaker_volume_set(line, (uint8_t)vol);
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=phone");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=phone");
 }
 
 /* ---- AEC calibration wizard ----
@@ -6800,10 +6654,7 @@ static esp_err_t aec_delay_apply_handler(httpd_req_t *req)
         board_aec_delay_set(line, (uint32_t)ms);
     }
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=diag");
 }
 
 /* POST /aec_enable -- body line=N&on=0|1. Testing toggle -- see the
@@ -6823,10 +6674,7 @@ static esp_err_t aec_enable_handler(httpd_req_t *req)
     }
     aec_set_enabled(line, on_s[0] == '1');
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=diag");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=diag");
 }
 
 /* GET /voip_server_script -- downloadable bash script that provisions this
@@ -6845,7 +6693,7 @@ static esp_err_t voip_server_script_handler(httpd_req_t *req)
     char *buf = malloc(4096);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
     int off = 0;
-    off += snprintf(buf + off, 4096 - off,
+    off = appendf(buf, 4096, off,
         "#!/bin/bash\n"
         "# Asterisk setup for rotary phone gateway '%s' -- generated from its\n"
         "# Settings -> VOIP page. Run on the Asterisk/PBX box (sudo).\n"
@@ -6873,7 +6721,7 @@ static esp_err_t voip_server_script_handler(httpd_req_t *req)
         const char *user = voip_user(line);
         const char *pass = voip_pass(line);
         if (!user[0]) continue; /* line not configured yet -- nothing to provision */
-        off += snprintf(buf + off, (off < 4096) ? (size_t)(4096 - off) : 0,
+        off = appendf(buf, 4096, off,
             "\n"
             "# ---- %s line %d (%s) ----\n"
             "sed -i \"/^; BEGIN %s-line%d/,/^; END %s-line%d/d\" \"$PJSIP\"\n"
@@ -6952,7 +6800,7 @@ static esp_err_t voip_server_script_handler(httpd_req_t *req)
             name, line);                /* extensions.conf END marker */
     }
 
-    off += snprintf(buf + off, (off < 4096) ? 4096 - off : 0,
+    off = appendf(buf, 4096, off,
         "\n"
         "asterisk -rx \"pjsip reload\" 2>/dev/null || true\n"
         "asterisk -rx \"dialplan reload\" 2>/dev/null || true\n"
@@ -7005,7 +6853,7 @@ static esp_err_t voip_instructions_txt_handler(httpd_req_t *req)
     char body[VOIP_INSTR_STEPS * VOIP_INSTR_STEP_LEN + 64];
     int off = 0;
     for (int i = 0; i < VOIP_INSTR_STEPS; i++) {
-        off += snprintf(body + off, (off < (int)sizeof(body)) ? sizeof(body) - off : 0,
+        off = appendf(body, sizeof(body), off,
                          "%d. %s\n", i + 1, steps[i]);
     }
     httpd_resp_set_hdr(req, "Content-Disposition",
@@ -7018,14 +6866,8 @@ static esp_err_t voip_instructions_txt_handler(httpd_req_t *req)
 /* POST /dialcode_set_code -- form body old_code=..&new_code=.. */
 static esp_err_t dialcode_set_code_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[WIFI_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     char old_code[8] = {0}, new_code[8] = {0};
     form_field(body, "old_code", old_code, sizeof(old_code));
@@ -7042,24 +6884,15 @@ static esp_err_t dialcode_set_code_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=dialcodes");
 }
 
 /* POST /dialcode_set_desc -- form body code=..&desc=.. (relabels an
  * existing code, builtin or not -- see dialplan_clip_set_desc()). */
 static esp_err_t dialcode_set_desc_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= WIFI_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[WIFI_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     char code[8] = {0}, desc[64] = {0};
     form_field(body, "code", code, sizeof(code));
@@ -7072,10 +6905,7 @@ static esp_err_t dialcode_set_desc_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=dialcodes");
 }
 
 /* POST /dialcode_delete/<code> */
@@ -7092,10 +6922,7 @@ static esp_err_t dialcode_delete_handler(httpd_req_t *req)
         ESP_LOGW(TAG, "dialcode_delete '%s' failed: %s", code, esp_err_to_name(err));
     }
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=dialcodes");
 }
 
 /* POST /media_delete/<name> -- plain HTML-form-friendly delete (browsers
@@ -7138,10 +6965,7 @@ static esp_err_t media_delete_handler(httpd_req_t *req)
     if (strcmp(return_to, "/recordings") == 0) loc = "/recordings";
     else if (strcmp(return_to, "/settings?tab=phone") == 0) loc = "/settings?tab=phone";
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", loc);
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, loc);
 }
 
 /* POST /media_delete_bulk -- the "select multiple, delete selected" form
@@ -7161,10 +6985,7 @@ static esp_err_t media_delete_handler(httpd_req_t *req)
 static esp_err_t media_delete_bulk_handler(httpd_req_t *req)
 {
     if (req->content_len <= 0) {
-        httpd_resp_set_status(req, "303 See Other");
-        httpd_resp_set_hdr(req, "Location", "/settings?tab=storage");
-        httpd_resp_send(req, NULL, 0);
-        return ESP_OK;
+        return redirect_to(req, "/settings?tab=storage");
     }
     size_t body_cap = (size_t)req->content_len;
     if (body_cap > MEDIA_DELETE_BULK_MAX_BODY) body_cap = MEDIA_DELETE_BULK_MAX_BODY;
@@ -7215,10 +7036,7 @@ static esp_err_t media_delete_bulk_handler(httpd_req_t *req)
     if (strcmp(return_to, "/recordings") == 0) loc = "/recordings";
     else if (strcmp(return_to, "/settings?tab=phone") == 0) loc = "/settings?tab=phone";
 
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", loc);
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, loc);
 }
 
 /* Cards grouped by code prefix -- matches the layout of the Pi's
@@ -7281,7 +7099,7 @@ static int append_guide_clips(char *buf, size_t cap, int off)
     dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
     size_t nclips = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
     if (nclips == 0) return off;
-    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>Clips</h2>");
     for (size_t i = 0; i < nclips && (size_t)off < cap; i++)
         off = append_guide_row(buf, cap, off, clips[i].code, clips[i].desc, true);
@@ -7315,18 +7133,18 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
     /* 0 -- operator. Its own card: a single code with no prefix family. */
     for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
         if (strcmp(entries[i].code, "0") != 0) continue;
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>Operator</h2>");
         off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
                                 entries[i].implemented);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+        off = appendf(buf, cap, off, "</div>");
     }
 
     /* 1 -- Bluetooth dial-out. Matched directly in dialplan_feed(), only
      * while the companion is enabled (dialplan_set_bt_dialout()), so it's
      * synthetic rather than a TABLE entry. */
     if (bt_companion_active() && off > 0 && (size_t)off < cap) {
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>Bluetooth</h2>"
             "<div class=\"code-row\"><span class=\"code\">1 - x x x - x x x - x x x x</span>"
             "<span class=\"desc\">Call out via the paired phone</span>"
@@ -7346,14 +7164,14 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
         if (GUIDE_CATS[g].prefix > '4') off = append_guide_clips(buf, cap, off);
         if (GUIDE_CATS[g].prefix > '5') off = append_guide_voip(buf, cap, off);
 
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>%s</h2>", GUIDE_CATS[g].heading);
         for (size_t i = 0; i < n && (size_t)off < cap; i++) {
             if (entries[i].code[0] != GUIDE_CATS[g].prefix) continue;
             off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
                                     entries[i].implemented);
         }
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+        off = appendf(buf, cap, off, "</div>");
     }
 
     /* If no 8xx category rendered (nothing above 5xx), these still need to
@@ -7369,17 +7187,17 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
             { "4", "8-bit voice" }, { "5", "Robot voice" }, { "6", "Tremolo voice" },
             { "7", "Distorted voice" }, { "0", "Normal voice" },
         };
-        off += snprintf(buf + off, cap - off,
+        off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>During a call</h2>");
         for (size_t i = 0; i < sizeof(IN_CALL) / sizeof(IN_CALL[0]); i++)
             off = append_guide_row(buf, cap, off, IN_CALL[i].key, IN_CALL[i].desc, true);
-        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        off = appendf(buf, cap, off,
             "<p class=\"hint\">Press or dial during a call. Both phones hear the change, "
             "whoever presses it.</p></div>");
     }
 
     if (off > 0 && (size_t)off < cap) {
-        off += snprintf(buf + off, cap - off,
+        off = appendf(buf, cap, off,
             "</div>" /* .cards, opened by the caller (index_handler) */
             "<p class=\"hint\">Source of truth: <code>components/dialplan/dialplan.c</code> -- "
             "this list is generated from the same table the phone actually matches against, "
@@ -7835,10 +7653,7 @@ static esp_err_t operator_upload_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
     prompts_mark_generated("operator.wav");
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=dialcodes");
 }
 
 /* POST /ota_upload -- multipart, field "file" (a .bin from `idf.py build`).
@@ -8031,10 +7846,7 @@ static esp_err_t dialcode_upload_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
     if (dest[0]) prompts_mark_generated(dest);
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/settings?tab=dialcodes");
-    httpd_resp_send(req, NULL, 0);
-    return ESP_OK;
+    return redirect_to(req, "/settings?tab=dialcodes");
 }
 
 /* Upload path for host-generated prompt/clip WAVs (see tools/gen_prompt.py) --
@@ -8131,14 +7943,8 @@ static esp_err_t media_upload_handler(httpd_req_t *req)
 #define PROMPT_FORM_MAX_BODY 1024
 static esp_err_t prompt_text_set_handler(httpd_req_t *req)
 {
-    if (req->content_len == 0 || req->content_len >= PROMPT_FORM_MAX_BODY) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
-        return ESP_OK;
-    }
     char body[PROMPT_FORM_MAX_BODY];
-    int r = httpd_req_recv(req, body, req->content_len);
-    if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
-    body[r] = '\0';
+    READ_FORM_OR_RETURN(req, body);
 
     char name[PROMPT_NAME_MAX] = {0}, text[PROMPT_TEXT_MAX] = {0};
     form_field(body, "name", name, sizeof(name));
