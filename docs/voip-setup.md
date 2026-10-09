@@ -25,11 +25,25 @@ remaining 4 digits. Pick a numbering scheme for your own extensions (e.g.
 your server — there's no central registry, your PBX's own config is the
 source of truth.
 
-## Setting up a line
+## Automatic setup
 
-There's no companion service and nothing to install on the Asterisk host —
-the board's web UI generates a ready-to-run setup script from its own
-current config, and you copy it over by hand.
+If you run the [VoIP provisioner](https://github.com/sdylewski/Analog-Redial/blob/main/server/voip-provisioner/README.md) next to Asterisk (one install script),
+each board claims its own number from its web interface:
+
+1. Settings → VOIP → **Automatic setup**: press **Find on network** (or type
+   the provisioner's address) and paste the enrollment key the installer
+   printed. **Save**.
+2. Type the number you want, press **Check**, then **Register**. The board
+   restarts and connects with that number.
+
+**Release** gives the number back. Requests are signed, so the key never
+crosses the network; see the provisioner's README for how it stays secure
+and for running it on the internet.
+
+## Setting up a line by hand
+
+Without the provisioner, the board's web interface generates a ready-to-run
+setup script from its own config, and you copy it to the server yourself.
 
 1. **Check availability** on a number to confirm it's free before you commit
    to it (see below for what this check can and can't tell you).

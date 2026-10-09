@@ -57,7 +57,7 @@ Legend: ✅ working · 🧪 experimental, off by default · 🔜 coming soon
 | **Wrong-number handling** | ✅ | Unmatched 3+ digit → prompt + dial tone |
 | **VoIP outbound (555-xxxx)** | ✅ | Embedded SIP UA + RTP/G.711; digest auth |
 | **VoIP inbound** | ✅ | Inbound INVITE rings the line; answer on off-hook |
-| **VoIP setup (Settings → VOIP)** | ✅ | Web form (server/extension/user/password per line), plus a downloadable Asterisk server-script generator |
+| **VoIP setup (Settings → VOIP)** | ✅ | Automatic: claim a number from the [VoIP provisioner](https://github.com/sdylewski/Analog-Redial/blob/main/server/voip-provisioner/README.md) running next to Asterisk (HMAC-signed requests, per-board tokens). By hand: a web form plus a downloadable Asterisk setup script |
 | **Web UI (status/log/recordings)** | ✅ | `esp_http_server`; settings page with WiFi/mode tabs |
 | **WiFi provisioning (first boot / factory reset)** | ✅ | No creds, or none in range after 3 tries each → open SoftAP (named after the board once it has one) + captive setup page; BOOT-button hold (3 s) forces it without touching saved creds, (10 s) wipes them. Remembers several networks and reconnects to whichever is strongest |
 | **Event log** | ✅ | Two tiers: a short activity feed (calls, recordings, dial errors) on the Status page, and the full ring-buffer debug log under Settings → Diagnostics |

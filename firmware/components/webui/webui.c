@@ -15,6 +15,7 @@
 #include "prompts.h"
 #include "dialplan.h"
 #include "voip.h"
+#include "voip_prov.h"
 #include "bt_companion.h"
 #include "selftest.h"
 #include "multipart.h"
@@ -2271,6 +2272,65 @@ static int append_operator_tab(char *buf, size_t cap, int off,
 #define VOIP_INSTR_STEP_LEN 200
 static void build_voip_instructions(char steps[VOIP_INSTR_STEPS][VOIP_INSTR_STEP_LEN]);
 
+/* Outcome of the last provisioner action, shown once at the top of the
+ * Automatic setup section and then cleared. */
+static char s_prov_msg[VOIP_PROV_MSG_LEN];
+static bool s_prov_ok;
+
+/* Automatic setup: claim a number from an Analog Redial VoIP provisioner
+ * (server/voip-provisioner/) instead of filling in SIP details by hand. */
+static int append_voip_prov_section(char *buf, size_t cap, int off)
+{
+    char url_esc[200];
+    html_escape(voip_prov_url(), url_esc, sizeof(url_esc));
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<h3>Automatic setup</h3>"
+        "<p class=\"hint\">If your SIP server runs the Analog Redial provisioner, enter its "
+        "address and your enrollment key once, then pick a number and press Register. "
+        "It creates the account and fills in everything below.</p>");
+    if (s_prov_msg[0]) {
+        char msg_esc[VOIP_PROV_MSG_LEN * 2];
+        html_escape(s_prov_msg, msg_esc, sizeof(msg_esc));
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<div class=\"statusrow\"><span class=\"pill %s\">%s</span></div>",
+            s_prov_ok ? "on" : "off", msg_esc);
+        s_prov_msg[0] = '\0';
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<form method=\"POST\" action=\"/voip_prov_config\" class=\"settings-form\">"
+        "<label>Provisioner address <input name=\"url\" value=\"%s\" "
+        "placeholder=\"http://pbx.local:8077\"></label>"
+        "<label>Enrollment key <input type=\"password\" name=\"key\" autocomplete=\"off\" "
+        "placeholder=\"%s\"></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button>"
+        "<button type=\"submit\" formaction=\"/voip_prov_find\">Find on network</button></div>"
+        "</form>",
+        url_esc, voip_prov_has_key() ? "saved -- leave blank to keep" : "name.secret, from the server's admin");
+
+    if (voip_prov_url()[0] && (voip_prov_has_key() || voip_prov_enrolled())) {
+        int lines = board_hw_config_get().num_lines > 1 ? 2 : 1;
+        for (int line = 0; line < lines; line++) {
+            off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+                "<form method=\"POST\" action=\"/voip_prov_line\" class=\"settings-form\">"
+                "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+                "<label>Line %d number <input name=\"number\" value=\"%s\" inputmode=\"numeric\" "
+                "pattern=\"[1-9][0-9]{1,9}\" required></label>"
+                "<div class=\"toolbar sub\">"
+                "<button type=\"submit\" name=\"action\" value=\"check\">Check</button>"
+                "<button type=\"submit\" name=\"action\" value=\"register\" class=\"primary\">Register</button>%s"
+                "</div></form>",
+                line, line + 1, voip_user(line),
+                (voip_prov_enrolled() && voip_user(line)[0])
+                    ? "<button type=\"submit\" name=\"action\" value=\"release\" formnovalidate>Release</button>" : "");
+        }
+        off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+            "<p class=\"hint\">Register restarts the board so it connects with the new number.</p>");
+    }
+    off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        "<hr class=\"sep\"><h3>Set it up by hand</h3>");
+    return off;
+}
+
 static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, const char *result,
                             const char *created, const char *createresult)
 {
@@ -2324,6 +2384,8 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "turn it back on.</p>"
         "<div id=\"voip-extra\"%s><hr class=\"sep\">",
         voip_on ? " checked" : "", voip_on ? "" : " hidden");
+
+    off = append_voip_prov_section(buf, cap, off);
 
     /* 1. Point this phone at your SIP server -- promoted to the top of the
      * tab (was step 4, behind an auto-provisioning flow that made server
@@ -4866,7 +4928,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         : 0;
     size_t general_room = (strcmp(tab, "general") == 0) ? 3200 + 1400 + 2600 : 0; /* +setup password card */ /* +saved-network list */ /* +quiet hours card's timezone dropdown */
     size_t phone_room = (strcmp(tab, "phone") == 0) ? 12500 + 1800 + 900 + 1600 : 0; /* +voice effects card, +intercom card */ /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card, AM greeting text-to-speech field (~2.2 KB) */
-    size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 : 0;
+    size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 + 2600 /* automatic setup */ : 0;
     size_t bt_room = (strcmp(tab, "bluetooth") == 0) ? 3300 : 0; /* +experimental notice */ /* "What Bluetooth can do" card */ /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
     /* This tab's `n*220` share (n = ALL dialplan entries, not just clips)
      * was never actually enough for it: each dial-code row is TWO forms
@@ -5937,6 +5999,104 @@ static esp_err_t voip_check_handler(httpd_req_t *req)
     httpd_resp_set_hdr(req, "Location", loc);
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
+}
+
+/* Reads a small urlencoded form body into out; false (with a 400 sent) if
+ * it's missing or too big. */
+static bool read_voip_prov_form(httpd_req_t *req, char *out, size_t out_len)
+{
+    if (req->content_len == 0 || req->content_len >= out_len) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return false;
+    }
+    int r = httpd_req_recv(req, out, req->content_len);
+    if (r <= 0) { httpd_resp_send_500(req); return false; }
+    out[r] = '\0';
+    return true;
+}
+
+static esp_err_t back_to_voip_tab(httpd_req_t *req)
+{
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/settings?tab=voip");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* POST /voip_prov_config -- url=..&key=.. (blank key keeps the saved one). */
+static esp_err_t voip_prov_config_handler(httpd_req_t *req)
+{
+    char body[VOIP_FORM_MAX_BODY];
+    if (!read_voip_prov_form(req, body, sizeof(body))) return ESP_OK;
+    char url[100] = {0}, key[84] = {0};
+    form_field(body, "url", url, sizeof(url));
+    form_field(body, "key", key, sizeof(key));
+    s_prov_ok = false;
+    if (voip_prov_set_url(url) != ESP_OK) {
+        snprintf(s_prov_msg, sizeof(s_prov_msg), "The address must start with http:// or https://");
+    } else if (key[0] && voip_prov_set_key(key) != ESP_OK) {
+        snprintf(s_prov_msg, sizeof(s_prov_msg), "That doesn't look like an enrollment key (name.secret)");
+    } else {
+        s_prov_ok = true;
+        snprintf(s_prov_msg, sizeof(s_prov_msg), "Saved");
+    }
+    return back_to_voip_tab(req);
+}
+
+/* POST /voip_prov_find -- looks for a provisioner over mDNS and saves its
+ * address (and a key, if one was typed in the same form). */
+static esp_err_t voip_prov_find_handler(httpd_req_t *req)
+{
+    char body[VOIP_FORM_MAX_BODY];
+    if (!read_voip_prov_form(req, body, sizeof(body))) return ESP_OK;
+    char key[84] = {0};
+    form_field(body, "key", key, sizeof(key));
+    if (key[0]) voip_prov_set_key(key);
+
+    char url[100], name[64];
+    s_prov_ok = voip_prov_discover(url, sizeof(url), name, sizeof(name)) == ESP_OK;
+    if (s_prov_ok) {
+        voip_prov_set_url(url);
+        snprintf(s_prov_msg, sizeof(s_prov_msg), "Found %.60s at %.80s", name, url);
+    } else {
+        snprintf(s_prov_msg, sizeof(s_prov_msg),
+                 "No provisioner found on this network -- type its address instead");
+    }
+    return back_to_voip_tab(req);
+}
+
+/* POST /voip_prov_line -- line=0|1&number=..&action=check|register|release. */
+static esp_err_t voip_prov_line_handler(httpd_req_t *req)
+{
+    char body[VOIP_FORM_MAX_BODY];
+    if (!read_voip_prov_form(req, body, sizeof(body))) return ESP_OK;
+    char line_s[4] = {0}, number[16] = {0}, action[12] = {0};
+    form_field(body, "line", line_s, sizeof(line_s));
+    form_field(body, "number", number, sizeof(number));
+    form_field(body, "action", action, sizeof(action));
+    int line = atoi(line_s);
+
+    esp_err_t err = ESP_ERR_INVALID_ARG;
+    if (strcmp(action, "check") == 0) {
+        bool available = false;
+        err = voip_prov_check(number, &available, s_prov_msg, sizeof(s_prov_msg));
+        s_prov_ok = err == ESP_OK && available;
+    } else if (strcmp(action, "register") == 0) {
+        err = voip_prov_register(line, number, s_prov_msg, sizeof(s_prov_msg));
+        s_prov_ok = err == ESP_OK;
+        if (s_prov_ok) {
+            strlcat(s_prov_msg, ". Restarting to connect...", sizeof(s_prov_msg));
+            xTaskCreate(reboot_task, "reboot", 2048, NULL, tskIDLE_PRIORITY + 1, NULL);
+        }
+    } else if (strcmp(action, "release") == 0) {
+        err = voip_prov_release(line, s_prov_msg, sizeof(s_prov_msg));
+        s_prov_ok = err == ESP_OK;
+    } else {
+        s_prov_ok = false;
+        snprintf(s_prov_msg, sizeof(s_prov_msg), "Unknown action");
+    }
+    activity_log("VoIP provisioner: %s", s_prov_msg);
+    return back_to_voip_tab(req);
 }
 
 /* POST /voip_setup_password -- form body password=.. . Sets the shared
@@ -8237,6 +8397,9 @@ esp_err_t webui_start(void)
         { .uri = "/selftest_save",           .method = HTTP_POST, .handler = selftest_save_handler },
         { .uri = "/voip_set",               .method = HTTP_POST, .handler = voip_set_handler },
         { .uri = "/voip_check",             .method = HTTP_POST, .handler = voip_check_handler },
+        { .uri = "/voip_prov_config",       .method = HTTP_POST, .handler = voip_prov_config_handler },
+        { .uri = "/voip_prov_find",         .method = HTTP_POST, .handler = voip_prov_find_handler },
+        { .uri = "/voip_prov_line",         .method = HTTP_POST, .handler = voip_prov_line_handler },
         { .uri = "/voip_setup_password",    .method = HTTP_POST, .handler = voip_setup_password_handler },
         { .uri = "/log_level",              .method = HTTP_POST, .handler = log_level_handler },
         { .uri = "/test/mode",              .method = HTTP_POST, .handler = test_mode_handler },

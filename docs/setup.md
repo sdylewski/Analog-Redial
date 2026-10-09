@@ -138,9 +138,10 @@ the answering machine's default greeting and a public-domain modem sound.
 ## 6. VoIP
 
 Optional. Register one or both lines with Asterisk, FreePBX or another SIP
-server to call beyond the board: fill in Settings → VOIP, download the
-generated setup script, run it on your server, and dial **555** + an
-extension. Calls stay on your local network (no encryption).
+server to call beyond the board, then dial **555** + an extension. With the
+VoIP provisioner running next to Asterisk, it's one button: Settings →
+VOIP → Automatic setup, pick a number, **Register**. Otherwise fill in the
+form, download the generated setup script and run it on your server. Calls stay on your local network (no encryption).
 Walkthrough: [VoIP setup](voip-setup.md).
 
 ## 7. The status light

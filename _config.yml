@@ -8,6 +8,7 @@ theme: jekyll-theme-cayman
 # source, linked from the docs by full GitHub URL.
 exclude:
   - firmware
+  - server
   - hardware
   - archive
   - Bluetooth

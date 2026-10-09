@@ -1,0 +1,22 @@
+[Unit]
+Description=Analog Redial VoIP provisioner
+After=network-online.target asterisk.service
+Wants=network-online.target
+
+[Service]
+# Runs as the asterisk user: it writes its two include files in
+# /etc/asterisk/redial and reloads Asterisk through the control socket.
+User=asterisk
+Group=asterisk
+ExecStart=/usr/bin/python3 /opt/redial-provisioner/redial_provisioner.py serve --config /etc/redial-provisioner/config.json
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/etc/asterisk/redial /var/lib/redial-provisioner -/run/asterisk -/var/run/asterisk
+
+[Install]
+WantedBy=multi-user.target

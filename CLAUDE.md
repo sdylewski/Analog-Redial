@@ -162,6 +162,7 @@ structure) — only links from live files (this one included) need the
 - [`docs/hardware-smd5.md`](docs/hardware-smd5.md) — SMD5 board reference (Bluetooth companion, LDO, dual MCU footprint); sent to fab, not yet tested
 - [`archive/signal-levels.md`](archive/signal-levels.md) — SLIC/codec levels, SHK dividers
 - [`docs/voip-setup.md`](docs/voip-setup.md) — SIP server setup, dial-plan reference
+- [`server/voip-provisioner/`](server/voip-provisioner/README.md) — the Asterisk-side number-provisioning service (stdlib Python, HMAC-signed protocol, per-board tokens); its board-side client is `firmware/components/voip_prov`. Tests: `python3 -m unittest test_redial_provisioner.py` in that folder
 - [`firmware/README.md`](firmware/README.md) — ESP-IDF toolchain setup, build/flash
 - Dial plan source of truth: `firmware/components/dialplan/` (the web UI's
   dial guide is generated from the same table). The sibling `pi_rotary_phone`
