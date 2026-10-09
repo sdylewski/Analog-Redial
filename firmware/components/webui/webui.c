@@ -6767,8 +6767,11 @@ static esp_err_t aec_enable_handler(httpd_req_t *req)
  * would. */
 static esp_err_t voip_server_script_handler(httpd_req_t *req)
 {
+    /* The hostname form of the board name ([a-z0-9-] only), never the
+     * free-form name: this script is run with sudo on the PBX, and the name
+     * is settable by anyone on the LAN. */
     char name[32];
-    board_name_get(name, sizeof(name));
+    board_hostname(name, sizeof(name));
 
     char *buf = malloc(4096);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
@@ -6801,11 +6804,22 @@ static esp_err_t voip_server_script_handler(httpd_req_t *req)
         const char *user = voip_user(line);
         const char *pass = voip_pass(line);
         if (!user[0]) continue; /* line not configured yet -- nothing to provision */
+        /* Both land in a script run as root on the PBX: only a dialable
+         * number, and no control characters (a newline in the password
+         * could end the heredoc early and run the rest as commands). */
+        bool pass_ok = true;
+        for (const char *c = pass; *c; c++) if ((unsigned char)*c < 0x20) pass_ok = false;
+        if (!all_digits(user) || !pass_ok) {
+            off = appendf(buf, 4096, off,
+                "\n# line %d skipped: its number must be digits only and its password "
+                "can't contain control characters -- fix it in Settings -> VOIP\n", line);
+            continue;
+        }
         off = appendf(buf, 4096, off,
             "\n"
             "# ---- %s line %d (%s) ----\n"
             "sed -i \"/^; BEGIN %s-line%d/,/^; END %s-line%d/d\" \"$PJSIP\"\n"
-            "cat >> \"$PJSIP\" <<PEER\n"
+            "cat >> \"$PJSIP\" <<'PEER'\n"  /* quoted: bash expands nothing inside */
             "; BEGIN %s-line%d\n"
             "[%s]\n"
             "type=aor\n"
