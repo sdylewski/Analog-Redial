@@ -401,6 +401,7 @@ static cJSON *build_status_json(void)
     cJSON_AddStringToObject(root, "wifi_ip", ip);
     cJSON_AddNumberToObject(root, "wifi_rssi", wifi_rssi());
     cJSON_AddNumberToObject(root, "uptime_s", (double)(esp_timer_get_time() / 1000000));
+    cJSON_AddNumberToObject(root, "reset_reason", (double)esp_reset_reason()); /* esp_reset_reason_t */
     cJSON_AddNumberToObject(root, "heap_free", (double)esp_get_free_heap_size());
     cJSON_AddNumberToObject(root, "heap_min_free", (double)esp_get_minimum_free_heap_size());
     cJSON_AddNumberToObject(root, "storage_used", (double)storage_used_bytes());

@@ -108,6 +108,20 @@ void app_main(void)
     /* Structured "what just happened" ring buffer for the web UI's Status
      * page (calls, recordings, dial errors...); independent of log level. */
     activity_init();
+    {
+        /* Why the last restart happened, so a crash, watchdog or brownout
+         * (e.g. a weak supply while ringing) leaves a trace on the Status
+         * page instead of looking like a board that just restarted. */
+        esp_reset_reason_t rr = esp_reset_reason();
+        const char *why = rr == ESP_RST_PANIC ? "a crash" :
+                          rr == ESP_RST_INT_WDT || rr == ESP_RST_TASK_WDT || rr == ESP_RST_WDT
+                              ? "a watchdog timeout" :
+                          rr == ESP_RST_BROWNOUT ? "a power brownout (supply too weak?)" : NULL;
+        if (why) {
+            ESP_LOGW(TAG, "restarted after %s (reset reason %d)", why, (int)rr);
+            activity_log("Restarted after %s", why);
+        }
+    }
     /* Apply the saved runtime log level (default INFO) before subsystems
      * start logging -- lets a DEBUG level chosen from the web UI/console
      * persist across reboots (watch pulse/hook timing, etc.). */
