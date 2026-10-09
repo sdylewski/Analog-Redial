@@ -1,28 +1,27 @@
 # Name,   Type, SubType, Offset,  Size,   Flags
-nvs,      data, nvs,     ,        0x6000,
+nvs,      data, nvs,     0x9000,  0x6000,
 # Tracks which of ota_0/ota_1 is the active/valid boot slot. Standard
 # ESP-IDF size (0x2000) -- required for OTA support (esp_ota_ops.h).
-otadata,  data, ota,     ,        0x2000,
-phy_init, data, phy,     ,        0x1000,
-# Two OTA slots (replaces the old single "factory" partition) so a web-UI
-# firmware upload (Settings -> Hardware -> Firmware) can write the new
-# image into the *inactive* slot while the current one keeps running, then
-# switch on success -- see firmware/components/webui's ota_upload_handler
-# and CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE (sdkconfig.defaults) for the
-# auto-revert-on-boot-failure safety net. 1.75MB each (current app is
-# ~1.4MB) -- USB flashing via `idf.py flash` still works exactly as
-# before, unchanged; it just targets ota_0 instead of a "factory" slot.
-ota_0,    app,  ota_0,   ,        0x1C0000,
-ota_1,    app,  ota_1,   ,        0x1C0000,
-# Recordings + uploaded prompt/clip WAVs (writable, subject to the recording
-# cap/eviction -- see storage.c). Mounted at /assets.
-storage,  data, spiffs,  ,        0x600000,
-# Read-only-in-spirit default audio (operator.wav + whatever a builder baked
-# in via firmware/assets/ + sync_pi_audio.py), built into the image at
-# compile time (spiffs_create_partition_image, see main/CMakeLists.txt) and
-# reflashed with the app -- separate from `storage` so a routine reflash
-# never wipes recordings, and vice versa. Mounted at /bundled; storage.c
-# falls back to it when a name isn't found in the writable partition.
-bundled,  data, spiffs,  ,        0x200000,
-# ~11.5MB of 16MB total flash used above -- leaves ~4.5MB unallocated for
-# later, not a maximalist grab.
+otadata,  data, ota,     0xf000,  0x2000,
+phy_init, data, phy,     0x11000, 0x1000,
+# Two 2 MB OTA slots so a web-UI firmware upload (Settings -> Hardware ->
+# Firmware) can write the new image into the *inactive* slot while the
+# current one keeps running, then switch on success -- see
+# firmware/components/webui's ota_upload_handler and
+# CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE (sdkconfig.defaults). USB flashing
+# via `idf.py flash` writes ota_0.
+#
+# Offsets are explicit so `storage` and `bundled` keep the addresses they
+# had when the slots were 1.75 MB: reflashing over USB doesn't touch the
+# recordings and uploaded clips in `storage`. ota_1 lives at the end, in
+# space that used to be unused; 0x220000-0x3A0000 is a free gap.
+ota_0,    app,  ota_0,   0x20000, 0x200000,
+# Writable SPIFFS: recordings, uploaded prompts/clips, greetings. Without a
+# microSD card recordings are capped (CONFIG_STORAGE_RECORDING_CAP_BYTES)
+# so they can't crowd out prompts.
+storage,  data, spiffs,  0x3A0000, 0x600000,
+# Read-only audio baked in at build time (firmware/main/CMakeLists.txt
+# BUNDLED_AUDIO), reflashed by every `idf.py flash`; a same-named file in
+# `storage` overrides it.
+bundled,  data, spiffs,  0x9A0000, 0x200000,
+ota_1,    app,  ota_1,   0xBA0000, 0x200000,
