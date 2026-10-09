@@ -179,12 +179,31 @@ def speak_piper(text: str, model_path: Path, out_wav: Path) -> None:
     subprocess.run(cmd, input=text.encode("utf-8"), check=True)
 
 
+def _text_file(text: str, near: Path) -> Path:
+    """Writes `text` to a file beside `near`. The engines below read it with
+    -f rather than taking it as an argument: prompt text can come from a
+    board (--sync), and text starting with '-' would otherwise be parsed as
+    an option -- e.g. `say -o <path>` overwriting a file of its choosing."""
+    p = near.with_suffix(".txt")
+    p.write_text(text, encoding="utf-8")
+    return p
+
+
 def speak_espeak(text: str, voice: str, out_wav: Path) -> None:
-    subprocess.run(["espeak-ng", "-v", voice, "-s", "135", "-w", str(out_wav), text], check=True)
+    txt = _text_file(text, out_wav)
+    try:
+        subprocess.run(["espeak-ng", "-v", voice, "-s", "135", "-w", str(out_wav), "-f", str(txt)],
+                       check=True)
+    finally:
+        txt.unlink(missing_ok=True)
 
 
 def speak_say(text: str, voice: str, out_aiff: Path) -> None:
-    subprocess.run(["say", "-v", voice, "-o", str(out_aiff), text], check=True)
+    txt = _text_file(text, out_aiff)
+    try:
+        subprocess.run(["say", "-v", voice, "-o", str(out_aiff), "-f", str(txt)], check=True)
+    finally:
+        txt.unlink(missing_ok=True)
 
 
 def synthesize(text: str, engine: str, piper_model: str | None,
