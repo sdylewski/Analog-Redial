@@ -21,19 +21,39 @@ static const char *TAG = "storage";
 
 static bool s_bundled_mounted;
 
+/* A bare file name: no path separators, no "..", no control characters.
+ * Names arrive from URLs and upload forms, so every path below goes
+ * through this; a bad name yields an empty path, which every open/stat/
+ * unlink then simply fails. */
+static bool safe_name(const char *name)
+{
+    if (!name || !name[0] || strlen(name) >= STORAGE_MAX_NAME) return false;
+    if (strstr(name, "..")) return false;
+    for (const char *p = name; *p; p++) {
+        if (*p == '/' || *p == '\\' || (unsigned char)*p < 0x20) return false;
+    }
+    return true;
+}
+
+static void mount_path(char *out, size_t out_len, const char *mount, const char *name)
+{
+    if (safe_name(name)) snprintf(out, out_len, "%s/%s", mount, name);
+    else if (out_len) out[0] = '\0';
+}
+
 static void full_path(char *out, size_t out_len, const char *name)
 {
-    snprintf(out, out_len, MOUNT_POINT "/%s", name);
+    mount_path(out, out_len, MOUNT_POINT, name);
 }
 
 static void sd_full_path(char *out, size_t out_len, const char *name)
 {
-    snprintf(out, out_len, SD_MOUNT_POINT "/%s", name);
+    mount_path(out, out_len, SD_MOUNT_POINT, name);
 }
 
 static void bundled_path(char *out, size_t out_len, const char *name)
 {
-    snprintf(out, out_len, BUNDLED_MOUNT_POINT "/%s", name);
+    mount_path(out, out_len, BUNDLED_MOUNT_POINT, name);
 }
 
 /* Saturate a 64-bit byte count into this chip's 32-bit size_t rather than
@@ -443,69 +463,63 @@ static int cmp_mtime(const void *a, const void *b)
     return 0;
 }
 
+/* The newest max_entries files in mount, newest first. A directory holding
+ * more than that keeps the newest ones -- never an arbitrary readdir-order
+ * subset, which used to hide (and, through the web UI's existence checks,
+ * 404) recent recordings once a card held more than 64 files. */
 static size_t list_dir(const char *mount, storage_entry_t *out, size_t max_entries)
 {
+    if (max_entries == 0) return 0;
     DIR *d = opendir(mount);
     if (!d) return 0;
-
-    /* Small, bounded (recordings are capped in the low hundreds of KB-MB
-     * range at most): collect name+stat pairs, sort by mtime, then copy out
-     * up to max_entries. Simple insertion sort -- entry counts here are
-     * tiny, not worth pulling in qsort machinery for structs of two arrays. */
-    struct dirent *de;
-    char path[288];
-    struct stat st;
-    size_t n = 0;
-    const size_t cap = 64;
-    /* Heap, not stack -- 64 * (32 + sizeof(struct stat)) is too big a frame
-     * for a console/httpd worker task stack. */
-    char (*names)[STORAGE_MAX_NAME] = malloc(cap * STORAGE_MAX_NAME);
-    struct stat *stats = malloc(cap * sizeof(struct stat));
-    if (!names || !stats) {
-        free(names);
-        free(stats);
+    /* Heap, not stack: up to ~100 struct stats is too big a frame for a
+     * console/httpd worker task. */
+    struct stat *stats = malloc(max_entries * sizeof(struct stat));
+    if (!stats) {
         closedir(d);
         return 0;
     }
 
-    while ((de = readdir(d)) != NULL && n < cap) {
+    struct dirent *de;
+    char path[288];
+    struct stat st;
+    size_t n = 0;
+    while ((de = readdir(d)) != NULL) {
         snprintf(path, sizeof(path), "%s/%s", mount, de->d_name);
         if (stat(path, &st) != 0) continue;
-        strncpy(names[n], de->d_name, STORAGE_MAX_NAME - 1);
-        names[n][STORAGE_MAX_NAME - 1] = 0;
-        stats[n] = st;
-        n++;
+        size_t slot;
+        if (n < max_entries) {
+            slot = n++;
+        } else {
+            /* Full: replace the oldest kept entry if this one is newer. */
+            slot = 0;
+            for (size_t i = 1; i < n; i++) {
+                if (cmp_mtime(&stats[i], &stats[slot]) < 0) slot = i;
+            }
+            if (cmp_mtime(&st, &stats[slot]) <= 0) continue;
+        }
+        stats[slot] = st;
+        strlcpy(out[slot].name, de->d_name, sizeof(out[slot].name));
+        out[slot].size = (size_t)st.st_size;
     }
     closedir(d);
 
-    /* insertion sort by mtime, newest first (Storage/Recordings pages both
-     * read this -- newest-at-top is the more useful default for either:
-     * a fresh 211 message or a just-uploaded clip is what you're looking
-     * for right after it lands, not scrolled below everything older),
-     * keep names[]/stats[] in lockstep */
+    /* Insertion sort, newest first -- a fresh 211 message or a just-uploaded
+     * clip is what you're looking for, so it belongs at the top. */
     for (size_t i = 1; i < n; i++) {
         struct stat key_st = stats[i];
-        char key_name[STORAGE_MAX_NAME];
-        strncpy(key_name, names[i], STORAGE_MAX_NAME);
+        storage_entry_t key = out[i];
         int j = (int)i - 1;
         while (j >= 0 && cmp_mtime(&stats[j], &key_st) < 0) {
             stats[j + 1] = stats[j];
-            strncpy(names[j + 1], names[j], STORAGE_MAX_NAME);
+            out[j + 1] = out[j];
             j--;
         }
         stats[j + 1] = key_st;
-        strncpy(names[j + 1], key_name, STORAGE_MAX_NAME);
+        out[j + 1] = key;
     }
-
-    size_t copied = (n < max_entries) ? n : max_entries;
-    for (size_t i = 0; i < copied; i++) {
-        strncpy(out[i].name, names[i], STORAGE_MAX_NAME - 1);
-        out[i].name[STORAGE_MAX_NAME - 1] = 0;
-        out[i].size = (size_t)stats[i].st_size;
-    }
-    free(names);
     free(stats);
-    return copied;
+    return n;
 }
 
 size_t storage_list_internal(storage_entry_t *out, size_t max_entries)

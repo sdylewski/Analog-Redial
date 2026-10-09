@@ -4430,7 +4430,7 @@ static void wav_duration_str(const char *name, size_t size, char *out, size_t ou
         bool short_read = (got < scan_sizes[pass]); /* true EOF -- see below */
         if (err == ESP_OK && got > 0) {
             ok = audio_wav_parse(header, got, &wav) && wav.sample_rate != 0 &&
-                 wav.channels != 0 && wav.bits_per_sample != 0;
+                 wav.channels != 0 && wav.bits_per_sample >= 8;
         }
         free(header);
         /* A short read means true EOF -- a bigger buffer can't find bytes
@@ -5154,12 +5154,27 @@ static bool form_field(const char *body, const char *key, char *out, size_t out_
     while (p) {
         if (strncmp(p, key, klen) == 0 && p[klen] == '=') {
             p += klen + 1;
-            const char *amp = strchr(p, '&');
-            size_t vlen = amp ? (size_t)(amp - p) : strlen(p);
-            if (vlen >= out_len) vlen = out_len - 1;
-            memcpy(out, p, vlen);
-            out[vlen] = '\0';
-            url_decode(out);
+            /* Decode while copying, so out_len limits the decoded value:
+             * truncating the encoded form first cut long values short
+             * (each %XX escape is three characters for one), e.g. a WiFi
+             * password with several symbols in it. */
+            const char *end = strchr(p, '&');
+            if (!end) end = p + strlen(p);
+            size_t o = 0;
+            while (p < end && o + 1 < out_len) {
+                if (*p == '+') {
+                    out[o++] = ' ';
+                    p++;
+                } else if (*p == '%' && end - p >= 3 &&
+                           isxdigit((unsigned char)p[1]) && isxdigit((unsigned char)p[2])) {
+                    char hex[3] = { p[1], p[2], 0 };
+                    out[o++] = (char)strtol(hex, NULL, 16);
+                    p += 3;
+                } else {
+                    out[o++] = *p++;
+                }
+            }
+            out[o] = '\0';
             return true;
         }
         p = strchr(p, '&');
@@ -5207,8 +5222,9 @@ static esp_err_t wifi_scan_json_handler(httpd_req_t *req)
 /* POST /wifi_set -- form body ssid=...&password=.... Blank password means
  * an open network (matches do_connect()'s own authmode choice in wifi.c),
  * not "keep the old one". */
-#define WIFI_FORM_MAX_BODY 384  /* was 256; +name field (31 bytes raw, more once
-                                        * URL-encoded) needs a little headroom */
+/* Fits every field at full length fully %XX-encoded (3 bytes per char):
+ * SSID 32 + password 64 + board name 31, plus the language and field names. */
+#define WIFI_FORM_MAX_BODY 768
 
 static esp_err_t wifi_set_handler(httpd_req_t *req)
 {
@@ -5906,7 +5922,8 @@ static esp_err_t selftest_save_handler(httpd_req_t *req)
  * otherwise retries registering it forever. Clearing user1 also clears
  * pass1 (an orphaned password serves no purpose once its extension is
  * gone). Takes effect on reboot, same as the console's sip_set command. */
-#define VOIP_FORM_MAX_BODY 512
+/* Server + two users + two passwords at full length, fully %XX-encoded. */
+#define VOIP_FORM_MAX_BODY 1024
 
 static esp_err_t voip_set_handler(httpd_req_t *req)
 {
@@ -7008,13 +7025,15 @@ static esp_err_t media_delete_bulk_handler(httpd_req_t *req)
         const char *amp = strchr(p, '&');
         size_t plen = amp ? (size_t)(amp - p) : strlen(p);
         if (plen > 6 && strncmp(p, "names=", 6) == 0) {
-            char name[STORAGE_MAX_NAME];
+            /* Decode first, then length-check: %XX escapes make the encoded
+             * form up to 3x longer than the name itself. */
+            char name[STORAGE_MAX_NAME * 3];
             size_t vlen = plen - 6;
             if (vlen >= sizeof(name)) vlen = sizeof(name) - 1;
             memcpy(name, p + 6, vlen);
             name[vlen] = '\0';
             url_decode(name);
-            if (name[0]) {
+            if (name[0] && strlen(name) < STORAGE_MAX_NAME) {
                 if (storage_delete(name) == ESP_OK) {
                     deleted++;
                     ESP_LOGI(TAG, "deleted '%s' via web UI (bulk)", name);

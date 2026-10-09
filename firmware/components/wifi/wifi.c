@@ -197,7 +197,8 @@ static int  ap_client_count(void);
 
 static void apply_sta_config(const char *ssid, const char *pass)
 {
-    wifi_config_t wc = { 0 };
+    wifi_config_t wc;
+    memset(&wc, 0, sizeof(wc)); /* a union: "= {0}" only covers its first member */
     strncpy((char *)wc.sta.ssid, ssid, sizeof(wc.sta.ssid) - 1);
     strncpy((char *)wc.sta.password, pass, sizeof(wc.sta.password) - 1);
     wc.sta.threshold.authmode = strlen(pass) ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
@@ -436,7 +437,8 @@ static void ap_up(const char *why)
 
     char ssid[33];
     wifi_setup_ap_name(ssid, sizeof(ssid));
-    wifi_config_t ap = { 0 };
+    wifi_config_t ap;
+    memset(&ap, 0, sizeof(ap)); /* a union: "= {0}" only covers its first member */
     size_t n = strlen(ssid);
     memcpy(ap.ap.ssid, ssid, n);           /* SSIDs aren't NUL-terminated */
     ap.ap.ssid_len = (uint8_t)n;
