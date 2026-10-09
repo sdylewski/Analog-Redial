@@ -162,6 +162,11 @@ typedef struct {
  *                             prefix
  *   ESP_ERR_NO_MEM         -- DIALPLAN_MAX_CLIP_ENTRIES already used
  */
+/* What dialplan_clip_add() would say about `code`, without adding it:
+ * ESP_ERR_INVALID_ARG (not 2-6 digits), ESP_ERR_INVALID_STATE (conflicts with
+ * an existing code), ESP_ERR_NO_MEM (table full), or ESP_OK. Lets an upload
+ * be refused before its audio is written anywhere. */
+esp_err_t dialplan_clip_check_new(const char *code);
 esp_err_t dialplan_clip_add(const char *code, const char *filename, const char *desc);
 /*
  *   ESP_ERR_NOT_FOUND      -- no entry has old_code

@@ -7881,9 +7881,27 @@ static esp_err_t dialcode_upload_handler(httpd_req_t *req)
             read_field_body(&mp, desc, sizeof(desc));
         } else if (strcmp(part_name, "file") == 0 && filename[0]) {
             if (new_code[0]) {
+                /* Check the code BEFORE writing anything: the file used to be
+                 * written first, so a rejected code still left it behind. */
+                esp_err_t cerr = dialplan_clip_check_new(new_code);
+                if (cerr != ESP_OK) {
+                    err_msg = (cerr == ESP_ERR_INVALID_ARG) ? "code must be 2-6 digits" :
+                              (cerr == ESP_ERR_INVALID_STATE) ? "that code conflicts with an existing one" :
+                              "dial code limit reached";
+                    break;
+                }
                 char fallback[24];
                 snprintf(fallback, sizeof(fallback), "clip_%s.wav", new_code);
                 sanitize_upload_name(filename, fallback, dest, sizeof(dest));
+                /* Never reuse a name that's taken: uploading "operator.wav"
+                 * or a second "song.wav" overwrote the operator message or
+                 * the other clip's audio. Codes are unique, so the fallback
+                 * name is too. */
+                storage_reader_t probe = {0};
+                if (storage_read_open(dest, &probe) == ESP_OK) {
+                    storage_read_close(&probe);
+                    strlcpy(dest, fallback, sizeof(dest));
+                }
             } else if (code[0]) {
                 if (dialplan_clip_get_filename(code, dest, sizeof(dest)) != ESP_OK) {
                     err_msg = "code not found";

@@ -486,6 +486,16 @@ static int clip_find_idx(const char *code)
     return -1;
 }
 
+esp_err_t dialplan_clip_check_new(const char *code)
+{
+    if (!code || !valid_code(code)) return ESP_ERR_INVALID_ARG;
+    if (code_conflicts_except(code, -1)) return ESP_ERR_INVALID_STATE;
+    for (int i = 0; i < DIALPLAN_MAX_CLIP_ENTRIES; i++) {
+        if (!s_clips[i].code[0]) return ESP_OK;
+    }
+    return ESP_ERR_NO_MEM;
+}
+
 esp_err_t dialplan_clip_add(const char *code, const char *filename, const char *desc)
 {
     if (!code || !filename || !filename[0]) return ESP_ERR_INVALID_ARG;
