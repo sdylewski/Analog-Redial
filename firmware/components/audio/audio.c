@@ -101,7 +101,6 @@ static void audio_wake(void)
 }
 
 uint32_t audio_sample_rate(void) { return s_sr; }
-size_t   audio_frame_samples(void) { return s_frame; }
 
 /* ---- source setters (short critical sections) ---- */
 void audio_tx_silence(int line)

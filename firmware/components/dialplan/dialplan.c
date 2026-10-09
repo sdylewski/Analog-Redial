@@ -505,18 +505,6 @@ esp_err_t dialplan_clip_set_code(const char *old_code, const char *new_code)
     return ESP_OK;
 }
 
-esp_err_t dialplan_clip_set_filename(const char *code, const char *filename)
-{
-    if (!filename || !filename[0]) return ESP_ERR_INVALID_ARG;
-    int idx = clip_find_idx(code);
-    if (idx < 0) return ESP_ERR_NOT_FOUND;
-    strncpy(s_clips[idx].filename, filename, sizeof(s_clips[idx].filename) - 1);
-    s_clips[idx].filename[sizeof(s_clips[idx].filename) - 1] = '\0';
-    clips_save();
-    ESP_LOGI(TAG, "clip code %s now plays %s", code, filename);
-    return ESP_OK;
-}
-
 esp_err_t dialplan_clip_set_desc(const char *code, const char *desc)
 {
     int idx = clip_find_idx(code);

@@ -32,9 +32,6 @@ esp_err_t   voip_prov_set_key(const char *key);
 /* True once the provisioner has issued this board its own token. */
 bool        voip_prov_enrolled(void);
 
-/* Forget the key, the token and the URL (does not touch SIP settings). */
-esp_err_t   voip_prov_forget(void);
-
 /* Looks for a provisioner advertising _redial-prov._tcp on the LAN and
  * writes its URL into url. Blocks up to ~3 s. */
 esp_err_t   voip_prov_discover(char *url, size_t url_len, char *name, size_t name_len);

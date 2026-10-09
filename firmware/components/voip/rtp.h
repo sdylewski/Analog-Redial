@@ -28,7 +28,6 @@ esp_err_t rtp_start(int line, const char *remote_ip, uint16_t remote_port);
 /* Tear down the session on `line` (call ended). Safe if not running. */
 void rtp_stop(int line);
 
-bool rtp_is_active(int line);
 
 #ifdef __cplusplus
 }

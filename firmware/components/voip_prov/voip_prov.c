@@ -85,14 +85,6 @@ esp_err_t voip_prov_set_key(const char *key)
     return save_str("key", key, s_key, sizeof(s_key));
 }
 
-esp_err_t voip_prov_forget(void)
-{
-    load();
-    save_str("token", "", s_token, sizeof(s_token));
-    save_str("key", "", s_key, sizeof(s_key));
-    return save_str("url", "", s_url, sizeof(s_url));
-}
-
 /* ---- discovery -------------------------------------------------------- */
 
 esp_err_t voip_prov_discover(char *url, size_t url_len, char *name, size_t name_len)

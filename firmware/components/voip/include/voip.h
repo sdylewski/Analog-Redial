@@ -110,10 +110,9 @@ const char *voip_pass(int line);
 
 /* Shared "setup" secret, per board: gates off-LAN access to
  * GET /api/prompt_requests and is the --secret gen_prompt.py --sync expects
- * (see that script's --help and webui.c's append_prompt_field()). Formerly
- * doubled as the auto-provisioning companion service's shared password too
- * (see git history) -- that flow is gone, but the secret itself is still a
- * real, independent feature, so it stays. voip_init() generates a random
+ * (see that script's --help and webui.c's append_prompt_field()). Not
+ * related to the VoIP provisioner, which uses its own enrollment key
+ * (voip_prov.h). voip_init() generates a random
  * 10-character default on first boot, so it is never empty after that. Unlike
  * voip_set_config(), takes effect immediately -- nothing caches this at
  * boot, so no reboot is needed after saving. */

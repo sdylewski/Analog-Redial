@@ -179,10 +179,3 @@ size_t audio_convert_push(audio_convert_ctx_t *ctx, const void *in_bytes, size_t
     }
     return out_n;
 }
-
-size_t audio_convert_max_out(const audio_convert_ctx_t *ctx, size_t in_len)
-{
-    size_t frame_bytes = (size_t)ctx->fmt.in_channels * (ctx->fmt.in_bits / 8);
-    size_t n_frames = (in_len + ctx->leftover_len) / frame_bytes + 1;
-    return audio_resampler_max_out(&ctx->rs, n_frames);
-}

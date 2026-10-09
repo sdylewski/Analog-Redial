@@ -93,9 +93,6 @@ typedef struct {
  * slave), given sample rate. Uses the shared board I2C bus. */
 esp_err_t es8388_init(const es8388_config_t *cfg);
 
-/* Probe: returns ESP_OK if the device ACKs on the I2C bus. */
-esp_err_t es8388_probe(uint8_t i2c_addr);
-
 /* Write one 8-bit register (low-level). */
 esp_err_t es8388_write_reg(es8388_reg_t reg, uint8_t value);
 

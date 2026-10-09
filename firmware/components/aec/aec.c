@@ -133,8 +133,6 @@ esp_err_t aec_set_delay_ms(int line, uint32_t ms)
     return ESP_OK;
 }
 
-uint32_t aec_delay_ms(int line) { return line_ok(line) ? s_l[line].delay_ms : 0; }
-
 void aec_process(int line, const int16_t *ref, const int16_t *near,
                  int16_t *out, size_t n)
 {

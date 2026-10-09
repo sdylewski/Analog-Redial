@@ -55,7 +55,6 @@ esp_err_t recorder_start_downlink(int line, const char *storage_name, uint32_t m
  * to call when nothing is recording. */
 void recorder_stop(int line);
 
-bool recorder_is_active(int line);
 
 #ifdef __cplusplus
 }

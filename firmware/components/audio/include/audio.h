@@ -44,7 +44,6 @@ typedef void (*audio_rx_tap_fn)(int line, const int16_t *mono, size_t n, void *c
 
 esp_err_t audio_init(const audio_config_t *cfg);
 uint32_t  audio_sample_rate(void);
-size_t    audio_frame_samples(void);
 
 /* ---- transmit source selection (mutually exclusive per line) ---- */
 void audio_tx_silence(int line);

@@ -1324,26 +1324,10 @@ static void mode_set_url(char *out, size_t out_len, const char *code, int line)
 }
 
 /* One card: a live pill for the mode's current value plus the two buttons
- * that set it explicitly. The phone's own dial codes (e.g. 921/922) always
- * set state outright rather than toggling it, so these buttons mirror that
- * instead of offering a single flip. */
-static int append_mode_card_hint(char *buf, size_t cap, int off, const char *title,
-                                 const char *pill_class, const char *state_label,
-                                 const char *opt_a_label, const char *opt_a_code,
-                                 const char *opt_b_label, const char *opt_b_code, int line,
-                                 const char *hint);
-
-static int append_mode_card(char *buf, size_t cap, int off, const char *title,
-                             const char *pill_class, const char *state_label,
-                             const char *opt_a_label, const char *opt_a_code,
-                             const char *opt_b_label, const char *opt_b_code, int line)
-{
-    return append_mode_card_hint(buf, cap, off, title, pill_class, state_label,
-                                 opt_a_label, opt_a_code, opt_b_label, opt_b_code, line, NULL);
-}
-
-/* Same card with an explanatory paragraph under the buttons. NULL hint
- * renders exactly as before. */
+ * that set it explicitly, and an optional explanatory paragraph (NULL for
+ * none). The phone's own dial codes (e.g. 921/922) always set state outright
+ * rather than toggling it, so these buttons mirror that instead of offering
+ * a single flip. */
 static int append_mode_card_hint(char *buf, size_t cap, int off, const char *title,
                                  const char *pill_class, const char *state_label,
                                  const char *opt_a_label, const char *opt_a_code,
@@ -2387,13 +2371,8 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
 
     off = append_voip_prov_section(buf, cap, off);
 
-    /* 1. Point this phone at your SIP server -- promoted to the top of the
-     * tab (was step 4, behind an auto-provisioning flow that made server
-     * calls on this page's behalf; that's gone, so this plain "server +
-     * credentials" form is the actual first thing to do now). Numbered
-     * setup steps + both downloads sit right here, prominent and always
-     * visible (not a collapsed <details>), since this is now the main
-     * content of the tab, not an afterthought under three other cards. */
+    /* Manual setup: server + credentials form, the numbered setup steps and
+     * both downloads, for anyone not using the provisioner above. */
     off += snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
         "<form method=\"POST\" action=\"/voip_set\" class=\"settings-form\">"
         "<label>SIP server (host or IP) <input name=\"server\" id=\"voip_server_input\" "

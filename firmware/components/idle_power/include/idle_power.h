@@ -82,11 +82,6 @@ esp_err_t idle_power_set(idle_power_cfg_t cfg);
  * telephony (which also brings up voip) and wifi are all up. */
 void idle_power_init(void);
 
-/* True while the system is currently past the idle threshold and
- * duty-cycling (SLIC(s) and/or WiFi actually sleeping right now). For the
- * Settings/status page -- not something normal callers need. */
-bool idle_power_is_sleeping(void);
-
 typedef enum {
     IDLE_POWER_DISABLED = 0, /* feature switched off */
     IDLE_POWER_IN_USE,       /* a line isn't idle, so the clock isn't running */

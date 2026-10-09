@@ -42,7 +42,6 @@ esp_err_t player_play(int line, const char *storage_name, player_done_cb_t done_
  * NOT invoked. Safe to call even if nothing is playing. */
 void player_stop(int line);
 
-bool player_is_playing(int line);
 
 #ifdef __cplusplus
 }

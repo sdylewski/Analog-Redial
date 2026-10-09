@@ -332,9 +332,3 @@ void recorder_stop(int line)
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
     s_rec[line].stop = true;
 }
-
-bool recorder_is_active(int line)
-{
-    if (line < 0 || line >= AUDIO_NUM_LINES) return false;
-    return s_rec[line].active;
-}

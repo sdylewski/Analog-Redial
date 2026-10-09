@@ -84,15 +84,11 @@ void audio_convert_init(audio_convert_ctx_t *ctx, const audio_convert_fmt_t *fmt
 /* Feeds raw interleaved input bytes in the source format; writes converted
  * 8kHz mono int16 samples to `out` (capacity `out_cap_samples` samples),
  * returns how many were written. May legitimately write fewer than
- * `audio_convert_max_out()` on any given call (a partial frame straddling
+ * the full amount on any given call (a partial frame straddling
  * this call and the next is buffered internally) -- just keep feeding
  * sequential chunks of the same stream. */
 size_t audio_convert_push(audio_convert_ctx_t *ctx, const void *in_bytes, size_t in_len,
                            int16_t *out, size_t out_cap_samples);
-
-/* Upper bound on samples audio_convert_push() could emit for `in_len` bytes
- * of input, for sizing the caller's `out` buffer. */
-size_t audio_convert_max_out(const audio_convert_ctx_t *ctx, size_t in_len);
 
 /* ---- MP3 decode support ----
  * Declared/usable when either CONFIG_AUDIO_CONVERT_MP3 (webui.c's

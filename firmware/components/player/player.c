@@ -307,9 +307,3 @@ void player_stop(int line)
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
     s_line[line].stop_requested = true;
 }
-
-bool player_is_playing(int line)
-{
-    if (line < 0 || line >= AUDIO_NUM_LINES) return false;
-    return s_line[line].active;
-}

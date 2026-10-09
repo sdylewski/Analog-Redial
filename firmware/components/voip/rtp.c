@@ -223,8 +223,3 @@ void rtp_stop(int line)
     if (r->sock >= 0) { close(r->sock); r->sock = -1; }
     ESP_LOGI(TAG, "line %d: RTP stopped", line);
 }
-
-bool rtp_is_active(int line)
-{
-    return (line >= 0 && line < AUDIO_NUM_LINES) && s_rtp[line].active;
-}

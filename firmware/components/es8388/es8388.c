@@ -66,12 +66,6 @@ static esp_err_t ensure_dev(uint8_t addr)
     return err;
 }
 
-esp_err_t es8388_probe(uint8_t i2c_addr)
-{
-    ESP_ERROR_CHECK(board_i2c_init());
-    return i2c_master_probe(board_i2c_bus(), i2c_addr, 100 /*ms*/);
-}
-
 esp_err_t es8388_reset(void)
 {
     /* CONTROL1: bits1:0 = RESET (active). Hold then release, then power

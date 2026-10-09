@@ -84,7 +84,6 @@ void aec_set_enabled(int line, bool on);
 bool aec_is_enabled(int line);
 
 esp_err_t aec_set_delay_ms(int line, uint32_t ms);
-uint32_t  aec_delay_ms(int line);
 
 /* Drop adapted state (call teardown, delay change, handset moved). */
 void aec_reset(int line);

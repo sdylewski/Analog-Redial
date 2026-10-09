@@ -170,9 +170,6 @@ esp_err_t dialplan_clip_add(const char *code, const char *filename, const char *
  *                             counting the entry being renamed)
  */
 esp_err_t dialplan_clip_set_code(const char *old_code, const char *new_code);
-/* Points an existing code at a different (already-stored) filename, e.g.
- * right after uploading a replacement. ESP_ERR_NOT_FOUND if code is unknown. */
-esp_err_t dialplan_clip_set_filename(const char *code, const char *filename);
 /* Relabels an existing code -- e.g. after repurposing a builtin slot for
  * different audio (see dialplan_defaults.h's dial-up-modem comment): the
  * label is a "seeded once" copy from CLIP_DEFAULTS like everything else in

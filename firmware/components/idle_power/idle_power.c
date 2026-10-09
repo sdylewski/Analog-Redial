@@ -142,8 +142,6 @@ esp_err_t idle_power_set(idle_power_cfg_t cfg)
     return err;
 }
 
-bool idle_power_is_sleeping(void) { return s_sleeping; }
-
 void idle_power_note_activity(void) { s_activity_ping = true; }
 
 idle_power_status_t idle_power_status(void)
