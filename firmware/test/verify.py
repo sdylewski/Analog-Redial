@@ -32,6 +32,8 @@ class Dev:
     def _curl(self, args, retries=3):
         """Run curl; return (http_status:int, body:bytes). -1 status on failure."""
         cmd = ["curl", "-s", "-m", "15", "-o", "-", "-w", "\n__HTTP__%{http_code}", *args]
+        if os.environ.get("REDIAL_PASSWORD"):  # the board's web password, if it has one
+            cmd[1:1] = ["-u", "admin:" + os.environ["REDIAL_PASSWORD"]]
         last = b""
         for _ in range(retries):
             p = subprocess.run(cmd, capture_output=True)

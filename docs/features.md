@@ -116,7 +116,8 @@ split so the **telephony logic never talks to registers directly** and the
 The diagram above is the signal path specifically — the telephony/audio/VoIP
 chain this section is about. Everything around it that makes the device
 usable is its own set of components too, not pictured since they don't sit
-on that signal path: `webui` (HTTP server, all settings pages), `wifi`
+on that signal path: `webui` (HTTP server, all settings pages) / `webauth`
+(the optional web password and sign-in sessions), `wifi`
 (station/AP mode, the multi-network connection manager, mDNS), `storage` /
 `sdcard` (internal flash + microSD, both behind one API), `prompts` / `i18n`
 (text-to-speech prompt tracking, UI string translation), `bt_companion`

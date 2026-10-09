@@ -121,8 +121,12 @@ def upload(path: Path, host: str, name: str) -> None:
         host = f"http://{host}"
     url = f"{host.rstrip('/')}/media/{name}"
     data = path.read_bytes()
-    req = urllib.request.Request(url, data=data, method="POST",
-                                  headers={"Content-Type": "audio/wav"})
+    import base64, os
+    headers = {"Content-Type": "audio/wav"}
+    if os.environ.get("REDIAL_PASSWORD"):  # the board's web password, if it has one
+        token = base64.b64encode(f"admin:{os.environ['REDIAL_PASSWORD']}".encode()).decode()
+        headers["Authorization"] = f"Basic {token}"
+    req = urllib.request.Request(url, data=data, method="POST", headers=headers)
     with urllib.request.urlopen(req, timeout=15) as resp:
         body = resp.read().decode("utf-8", errors="replace").strip()
     print(f"uploaded -> {url} ({len(data)} bytes): {body}")

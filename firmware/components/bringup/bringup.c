@@ -10,6 +10,7 @@
 #include "telephony.h"
 #include "selftest.h"
 #include "idle_power.h"
+#include "webauth.h"
 #include "esp_pm.h"
 #include "wifi.h"
 #include "esp_wifi_types.h"   /* WIFI_AUTH_* for wifi_scan's output */
@@ -41,6 +42,19 @@
 static const char *TAG = "bringup";
 
 /* ---------- i2c_scan ---------- */
+/* webpass [clear]: the web UI password (webauth.h) -- shows whether one is
+ * set; `clear` removes it, for a forgotten password. */
+static int cmd_webpass(int argc, char **argv)
+{
+    if (argc >= 2 && strcmp(argv[1], "clear") == 0) {
+        webauth_clear();
+        printf("Web password removed: the web UI no longer asks for one.\n");
+        return 0;
+    }
+    printf("Web password: %s. 'webpass clear' removes it.\n", webauth_enabled() ? "set" : "not set");
+    return 0;
+}
+
 static int cmd_board_info(int argc, char **argv)
 {
     printf("board: smd\n"); /* kept for older bringup scripts that require the key */
@@ -2524,6 +2538,7 @@ void bringup_console_start(void)
     register_cmd("help", "This list", cmd_help);
 
     register_cmd("board_info", "Print detected board type and pin map", cmd_board_info);
+    register_cmd("webpass", "Web UI password: webpass [clear] -- clear removes a forgotten one", cmd_webpass);
     register_cmd("i2c_scan", "Scan I2C bus for the codec", cmd_i2c_scan);
     register_cmd("codec_detect", "Probe both known codec addresses, warn on board-type mismatch", cmd_codec_detect);
     register_cmd("codec_init", "Initialize the ES8388 codec", cmd_codec_init);

@@ -85,7 +85,9 @@ needed for that part.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -386,13 +388,31 @@ def _base_url(host: str) -> str:
     return host.rstrip("/")
 
 
+# The board's web password (Settings -> General), if it has one: --password,
+# or the REDIAL_PASSWORD environment variable. Sent as HTTP Basic auth.
+_web_password = os.environ.get("REDIAL_PASSWORD", "")
+
+
+def _auth_headers() -> dict[str, str]:
+    if not _web_password:
+        return {}
+    token = base64.b64encode(f"admin:{_web_password}".encode("utf-8")).decode("ascii")
+    return {"Authorization": f"Basic {token}"}
+
+
 def upload(path: Path, host: str, name: str) -> None:
     url = f"{_base_url(host)}/media/{name}"
     data = path.read_bytes()
     req = urllib.request.Request(url, data=data, method="POST",
-                                  headers={"Content-Type": "audio/wav"})
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        body = resp.read().decode("utf-8", errors="replace").strip()
+                                  headers={"Content-Type": "audio/wav", **_auth_headers()})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            body = resp.read().decode("utf-8", errors="replace").strip()
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            raise SystemExit(f"{host} has a web password: pass it with --password "
+                             "(or set REDIAL_PASSWORD).") from e
+        raise
     print(f"uploaded -> {url} ({len(data)} bytes): {body}")
 
 
@@ -479,6 +499,8 @@ def main() -> None:
                                      "running --sync from the same LAN subnet as the board -- only "
                                      "for a board reachable over a different network (VPN, remote "
                                      "setup, etc).")
+    p.add_argument("--password", help="The board's web password, if it has one (Settings -> "
+                                       "General -> Web password). Default: $REDIAL_PASSWORD.")
     p.add_argument("--only", action="append", metavar="NAME",
                     help="With --sync, only generate this clip name (repeatable). Default: everything pending.")
     p.add_argument("--no-auto-install", action="store_true",
@@ -487,6 +509,9 @@ def main() -> None:
                          "instead (or, with --engine piper, error out) if Piper isn't already set up.")
     args = p.parse_args()
     auto_install = not args.no_auto_install
+    global _web_password
+    if args.password:
+        _web_password = args.password
 
     if args.sync:
         sync_prompts(args.sync, args.secret, args.engine, args.piper_model,

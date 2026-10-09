@@ -33,6 +33,15 @@ from pathlib import Path
 I18N_DIR = Path(__file__).resolve().parent.parent / "assets" / "i18n"
 
 
+def _auth_headers() -> dict:
+    """HTTP Basic auth with the board's web password, if REDIAL_PASSWORD is set."""
+    import base64, os
+    pw = os.environ.get("REDIAL_PASSWORD")
+    if not pw:
+        return {}
+    return {"Authorization": "Basic " + base64.b64encode(f"admin:{pw}".encode()).decode()}
+
+
 def _base_url(host: str) -> str:
     if not host.startswith("http://") and not host.startswith("https://"):
         host = f"http://{host}"
@@ -49,7 +58,7 @@ def upload_language_file(lang: str, host: str) -> None:
     name = f"i18n_{lang}.json"
     url = f"{_base_url(host)}/media/{name}"
     req = urllib.request.Request(url, data=data, method="POST",
-                                  headers={"Content-Type": "application/json"})
+                                  headers={"Content-Type": "application/json", **_auth_headers()})
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
             body = resp.read().decode("utf-8", errors="replace").strip()
@@ -62,7 +71,8 @@ def set_language(lang: str, host: str) -> None:
     url = f"{_base_url(host)}/language_set"
     data = f"lang={lang}".encode("ascii")
     req = urllib.request.Request(url, data=data, method="POST",
-                                  headers={"Content-Type": "application/x-www-form-urlencoded"})
+                                  headers={"Content-Type": "application/x-www-form-urlencoded",
+                                           **_auth_headers()})
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
             resp.read()

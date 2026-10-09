@@ -52,6 +52,7 @@ Examples
 from __future__ import annotations
 
 import argparse
+import os
 import json
 import re
 import shutil
@@ -184,6 +185,8 @@ def curl(host: str, path: str, *, form: dict[str, str] | None = None,
     success -- it isn't followed."""
     with tempfile.NamedTemporaryFile() as body:
         cmd = ["curl", "-sS", "-m", str(timeout), "-o", body.name, "-w", "%{http_code}"]
+        if os.environ.get("REDIAL_PASSWORD"):  # the board's web password, if it has one
+            cmd += ["-u", "admin:" + os.environ["REDIAL_PASSWORD"]]
         if form is not None:
             for k, v in form.items():
                 cmd += ["--data-urlencode", f"{k}={v}"]

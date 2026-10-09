@@ -33,8 +33,15 @@ named the board, it's `http://<name>.local` instead.
 - **`.local` not loading?** Some networks don't pass these names. Find the
   board in your router's list of connected devices and open its IP address
   directly.
-- **There's no login.** Anyone on your Wi-Fi can open the settings, so keep
-  the board on a network you trust.
+- **Web password (optional).** Out of the box, anyone on your Wi-Fi can
+  change the settings. Settings → General → **Web password** turns on a
+  password: pages can still be viewed, but changing anything asks you to
+  sign in (a sign-in lasts 30 days, or until the board restarts). Scripts
+  pass it with `curl -u admin:PASSWORD`, or by setting `REDIAL_PASSWORD`
+  for the tools in `firmware/bringup/`. The board talks plain HTTP, so the
+  password crosses your network unencrypted: it keeps out casual changes
+  and other websites, not someone watching your Wi-Fi traffic. Forgot it?
+  See [§8](#8-the-boot-button-rescue-and-reset).
 
 ## 3. Dialing
 
@@ -80,8 +87,8 @@ Click any picture for the full page.
   <tr>
     <td><a href="pics/settings-general.png"><img src="pics/thumbs/settings-general.png" alt="General settings"></a></td>
     <td valign="top"><b>Settings → General.</b> Board name, saved Wi-Fi
-    networks, interface language, and quiet hours that keep the bell silent
-    overnight.</td>
+    networks, the optional web password, interface language, and quiet
+    hours that keep the bell silent overnight.</td>
   </tr>
   <tr>
     <td><a href="pics/settings-phone.png"><img src="pics/thumbs/settings-phone.png" alt="Phone settings"></a></td>
@@ -164,12 +171,15 @@ With the board **running**, hold the **BOOT** button on the DevKit:
 
 | Hold | What happens |
 |------|--------------|
-| **3 seconds, then let go** | **Rescue mode.** The board brings up its own Wi-Fi network (named after the board) for one session, keeping your saved networks. Join it and browse to **192.168.4.1** for the full web interface. Use this when it can't reach the network in front of it |
-| **10 seconds** | **Forget Wi-Fi.** Erases saved networks and restarts in setup mode ([§1](#1-get-it-on-your-wi-fi)) |
+| **3 seconds, then let go** | **Rescue mode.** The board brings up its own Wi-Fi network (named after the board) for one session, keeping your saved networks. Join it and browse to **192.168.4.1** for the full web interface, which doesn't ask for the web password there, so you can remove a forgotten one (Settings → General). Use this when it can't reach the network in front of it |
+| **10 seconds** | **Forget Wi-Fi.** Erases saved networks and the web password, and restarts in setup mode ([§1](#1-get-it-on-your-wi-fi)) |
 
 The light changes at the 3-second mark so you know when to let go. Holding
 BOOT **while plugging in** does something different: it puts the chip in
 USB flashing mode.
+
+With the board plugged into a computer, the serial console command
+`webpass clear` also removes a forgotten web password.
 
 ## 9. Updating the firmware
 

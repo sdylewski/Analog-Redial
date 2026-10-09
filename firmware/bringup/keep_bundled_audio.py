@@ -22,6 +22,7 @@ evicts recordings (rec_*, voicemail_*).
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import tempfile
@@ -32,7 +33,9 @@ FORMERLY_BUNDLED = ["burp.wav", "crocodile_rock.wav", "martians.wav", "ring_of_f
 
 
 def curl(args: list[str]) -> int:
-    proc = subprocess.run(["curl", "-sS", "-m", "60", "-w", "%{http_code}", *args],
+    # The board's web password, if it has one, from REDIAL_PASSWORD.
+    auth = ["-u", "admin:" + os.environ["REDIAL_PASSWORD"]] if os.environ.get("REDIAL_PASSWORD") else []
+    proc = subprocess.run(["curl", "-sS", "-m", "60", "-w", "%{http_code}", *auth, *args],
                           capture_output=True, text=True)
     try:
         return int(proc.stdout.strip()[-3:])

@@ -27,6 +27,7 @@
 #include "logctl.h"
 #include "activity.h"
 #include "webui.h"
+#include "webauth.h"
 #include "bringup.h"
 #include "esp_log.h"
 #include "esp_err.h"
@@ -52,9 +53,10 @@ static void on_wifi_rescue(void)
  * unprovisioned. See board.h. */
 static void on_factory_reset(void)
 {
-    ESP_LOGW(TAG, "factory reset: erasing WiFi credentials and rebooting");
+    ESP_LOGW(TAG, "factory reset: erasing WiFi credentials and the web password, rebooting");
     board_led_set_state(BOARD_LED_ERROR);
     wifi_clear_credentials();
+    webauth_clear();
     vTaskDelay(pdMS_TO_TICKS(300)); /* let the NVS commit + log flush */
     esp_restart();
 }
@@ -234,6 +236,7 @@ void app_main(void)
          * comment). */
         sdcard_hotplug_start();
     }
+    webauth_init();
     if ((err = webui_start()) != ESP_OK) {
         ESP_LOGW(TAG, "webui_start failed: %s", esp_err_to_name(err));
         board_led_set_state(BOARD_LED_ERROR);

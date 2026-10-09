@@ -53,6 +53,8 @@
 #include <ctype.h>
 #include <strings.h>
 #include <math.h>
+#include "webauth.h"
+#include "mbedtls/base64.h"
 
 static const char *TAG = "webui";
 
@@ -188,6 +190,14 @@ static void url_encode_path(const char *in, char *out, size_t outsz);
 /* Defined right after html_escape -- forward-declared for the same reason. */
 static int append_hint(char *buf, size_t cap, int off, const char *lead, const char *detail);
 static int append_setup_password_card(char *buf, size_t cap, int off);
+static int append_web_password_card(char *buf, size_t cap, int off);
+/* Whether the browser that asked for the page being rendered is signed in
+ * (or no web password is set). Set by the page handlers before rendering;
+ * the web server runs every handler on one task, so a static is safe. Page
+ * parts that show secrets check it. */
+static bool s_viewer_signed_in = true;
+static bool request_signed_in(httpd_req_t *req);
+static bool require_signed_in(httpd_req_t *req);
 /* Defined with the Dial Codes & Prompts tab; also used by the answering
  * machine card's default-greeting text. */
 static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_name,
@@ -1130,6 +1140,7 @@ static int append_first_boot_banner(char *buf, size_t cap, int off)
 
 static esp_err_t index_handler(httpd_req_t *req)
 {
+    s_viewer_signed_in = request_signed_in(req);
     /* A forced AP (BOOT-button rescue) already has credentials -- the point
      * of the gesture is reaching this dashboard, not re-provisioning, so
      * only the genuinely-unconfigured case gets the setup page. */
@@ -1483,6 +1494,7 @@ static int append_general_tab(char *buf, size_t cap, int off)
         boardname_hint);
 
     off = append_setup_password_card(buf, cap, off);
+    off = append_web_password_card(buf, cap, off);
 
     char ssid[33];
     strncpy(ssid, wifi_get_ssid(), sizeof(ssid) - 1);
@@ -2159,7 +2171,11 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
      * to hit /api/prompt_requests directly. Spelling it out here just saves
      * a trip up the page and a manual copy. */
     const char *pw = voip_setup_password();
-    if (pw[0]) {
+    if (pw[0] && !s_viewer_signed_in) {
+        off = appendf(buf, cap, off,
+            "<p class=\"hint\"><a href=\"/login?then=/settings\">Sign in</a> to see this clip's "
+            "ready-to-paste <code>gen_prompt.py --sync</code> command.</p>");
+    } else if (pw[0]) {
         char ip[16];
         wifi_get_ip_str(ip, sizeof(ip));
         char cmd[256];
@@ -2188,7 +2204,7 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
 static int append_setup_password_card(char *buf, size_t cap, int off)
 {
     char epw[80 * 6];
-    html_escape(voip_setup_password(), epw, sizeof(epw));
+    html_escape(s_viewer_signed_in ? voip_setup_password() : "", epw, sizeof(epw));
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>Setup password</h2>");
     off = append_hint(buf, cap, off,
@@ -2227,6 +2243,57 @@ static int append_setup_password_card(char *buf, size_t cap, int off)
         epw);
     return off;
 }
+
+/* General tab: the optional web password (webauth.h). Pages stay readable
+ * without it; changes need a sign-in. */
+#define WEB_RESET_HINT \
+        "Forgot it? Hold the board's <b>BOOT</b> button 3 seconds and let go: in the rescue "\
+        "Wi-Fi network that starts, this page works without the password and can remove it. "\
+        "Holding BOOT 10 seconds removes it too, along with the saved Wi-Fi networks."
+
+static int append_web_password_card(char *buf, size_t cap, int off)
+{
+    off = appendf(buf, cap, off, "<div class=\"card\" id=\"security\"><h2>Web password</h2>");
+    if (!webauth_enabled()) {
+        off = appendf(buf, cap, off,
+            "<p class=\"hint\">Off: anyone on your network can change this board's settings. "
+            "With a password, pages can still be viewed, but changing anything needs a sign-in "
+            "(scripts pass it with <code>curl -u admin:PASSWORD</code>).</p>");
+    } else if (!s_viewer_signed_in) {
+        off = appendf(buf, cap, off,
+            "<p class=\"hint\">On. <a href=\"/login?then=/settings\">Sign in</a> to change "
+            "settings or the password.</p><p class=\"hint\">%s</p></div>", WEB_RESET_HINT);
+        return off;
+    } else {
+        off = appendf(buf, cap, off,
+            "<p class=\"hint\">On, and this browser is signed in (for 30 days, or until the "
+            "board restarts).</p>"
+            "<div class=\"toolbar sub\">"
+            "<form method=\"POST\" action=\"/logout\" style=\"display:inline\">"
+            "<button type=\"submit\">Sign out</button></form> "
+            "<form method=\"POST\" action=\"/web_password\" style=\"display:inline\" "
+            "onsubmit=\"return confirm('Remove the web password? Anyone on your network will be "
+            "able to change settings again.')\">"
+            "<input type=\"hidden\" name=\"action\" value=\"remove\">"
+            "<button type=\"submit\" class=\"danger\">Remove password</button></form>"
+            "</div>");
+    }
+    off = appendf(buf, cap, off,
+        "<form method=\"POST\" action=\"/web_password\" class=\"settings-form\">"
+        "<input type=\"hidden\" name=\"action\" value=\"set\">"
+        "<label>%s <input type=\"password\" name=\"password\" maxlength=\"%d\" "
+        "autocomplete=\"new-password\" required></label>"
+        "<label>Again <input type=\"password\" name=\"confirm\" maxlength=\"%d\" "
+        "autocomplete=\"new-password\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form><p class=\"hint\">%s</p></div>",
+        webauth_enabled() ? "New password" : "Password",
+        WEBAUTH_PASSWORD_MAX, WEBAUTH_PASSWORD_MAX,
+        webauth_enabled() ? "Change password" : "Turn on",
+        WEB_RESET_HINT);
+    return off;
+}
+
 
 static int append_dialcodes_tab(char *buf, size_t cap, int off)
 {
@@ -4944,6 +5011,7 @@ static int append_storage_section(char *buf, size_t cap, int off)
 
 static esp_err_t settings_page_handler(httpd_req_t *req)
 {
+    s_viewer_signed_in = request_signed_in(req);
     char tab[16] = "general";
     char checked[8] = "", result[8] = "";
     char created[8] = "", createresult[16] = "";
@@ -5092,6 +5160,12 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         off = appendf(buf, cap, off,
             "</header><main class=\"settings-main\">");
         off = append_settings_tabs(buf, cap, off, tab);
+        if (!s_viewer_signed_in) {
+            off = appendf(buf, cap, off,
+                "<div class=\"hazard-banner\">&#128274; This board has a web password: "
+                "<a href=\"/login?then=/settings%%3Ftab%%3D%s\">sign in</a> to change settings.</div>",
+                tab);
+        }
         off = appendf(buf, cap, off,
             "<script>%s</script><div class=\"cards\">", FEATURE_TOGGLE_JS);
 
@@ -6768,6 +6842,7 @@ static esp_err_t aec_enable_handler(httpd_req_t *req)
  * would. */
 static esp_err_t voip_server_script_handler(httpd_req_t *req)
 {
+    if (!require_signed_in(req)) return ESP_OK;
     /* The hostname form of the board name ([a-z0-9-] only), never the
      * free-form name: this script is run with sudo on the PBX, and the name
      * is settable by anyone on the LAN. */
@@ -6942,6 +7017,7 @@ static void build_voip_instructions(char steps[VOIP_INSTR_STEPS][VOIP_INSTR_STEP
  * append_voip_tab() -- same wording either way, see build_voip_instructions(). */
 static esp_err_t voip_instructions_txt_handler(httpd_req_t *req)
 {
+    if (!require_signed_in(req)) return ESP_OK;
     char steps[VOIP_INSTR_STEPS][VOIP_INSTR_STEP_LEN];
     build_voip_instructions(steps);
 
@@ -8145,7 +8221,7 @@ static esp_err_t prompt_text_set_handler(httpd_req_t *req)
  * anything that doesn't cleanly resolve to an IPv4 peer against our own
  * IPv4 STA netif -- a real IPv6 peer, no STA netif, a lookup error, etc. --
  * so an unexpected setup never silently grants LAN trust it can't verify. */
-static bool peer_on_lan(httpd_req_t *req)
+static bool peer_on_netif(httpd_req_t *req, const char *ifkey)
 {
     int sockfd = httpd_req_to_sockfd(req);
     if (sockfd < 0) return false;
@@ -8167,13 +8243,15 @@ static bool peer_on_lan(httpd_req_t *req)
     uint32_t peer_ip;
     memcpy(&peer_ip, &peer.sin6_addr.s6_addr[12], sizeof(peer_ip));
 
-    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-    if (!sta) return false;
+    esp_netif_t *nif = esp_netif_get_handle_from_ifkey(ifkey);
+    if (!nif) return false;
     esp_netif_ip_info_t ip_info;
-    if (esp_netif_get_ip_info(sta, &ip_info) != ESP_OK) return false;
+    if (esp_netif_get_ip_info(nif, &ip_info) != ESP_OK || ip_info.ip.addr == 0) return false;
 
     return (peer_ip & ip_info.netmask.addr) == (ip_info.ip.addr & ip_info.netmask.addr);
 }
+
+static bool peer_on_lan(httpd_req_t *req) { return peer_on_netif(req, "WIFI_STA_DEF"); }
 
 /* Expands {{boardname}} (case-insensitive, spaces inside the braces
  * allowed) in spoken-prompt text. Unknown {{...}} tokens are left as-is. */
@@ -8274,6 +8352,246 @@ static esp_err_t webui_conn_open(httpd_handle_t hd, int sockfd)
     return ESP_OK;
 }
 
+/* ---- web password (webauth.h) ----
+ * With a password set, every POST and the pages that hand out secrets need
+ * a signed-in browser (session cookie) or HTTP Basic auth (scripts: any user
+ * name, the web password). Exception: a client on the board's own network
+ * during BOOT-button rescue mode -- that takes being at the board, so it's
+ * how a forgotten password gets removed. */
+#define SESSION_COOKIE "ar_session"
+
+static bool basic_auth_ok(httpd_req_t *req)
+{
+    char hdr[160];
+    if (httpd_req_get_hdr_value_str(req, "Authorization", hdr, sizeof(hdr)) != ESP_OK) return false;
+    if (strncasecmp(hdr, "Basic ", 6) != 0) return false;
+    unsigned char dec[120];
+    size_t n = 0;
+    if (mbedtls_base64_decode(dec, sizeof(dec) - 1, &n, (const unsigned char *)hdr + 6,
+                              strlen(hdr + 6)) != 0) return false;
+    dec[n] = '\0';
+    char *colon = strchr((char *)dec, ':');
+    if (!colon) return false;
+    bool ok = webauth_check(colon + 1, NULL) == WEBAUTH_OK;
+    memset(dec, 0, sizeof(dec));
+    if (!ok) ESP_LOGW(TAG, "wrong web password (Basic auth) for %s", req->uri);
+    return ok;
+}
+
+static bool request_signed_in(httpd_req_t *req)
+{
+    if (!webauth_enabled()) return true;
+    /* Only the BOOT-button rescue: the same open network also comes up on its
+     * own when no saved network is reachable, and that mustn't let a
+     * passer-by in. */
+    if (wifi_ap_is_forced() && peer_on_netif(req, "WIFI_AP_DEF")) return true;
+    char token[WEBAUTH_TOKEN_LEN + 8];
+    size_t len = sizeof(token);
+    if (httpd_req_get_cookie_val(req, SESSION_COOKIE, token, &len) == ESP_OK &&
+        webauth_session_valid(token)) {
+        return true;
+    }
+    return basic_auth_ok(req);
+}
+
+/* `then` must be a path on this board: not empty, starting with one '/'. */
+static void sanitize_then(char *then)
+{
+    bool ok = then[0] == '/' && then[1] != '/' && then[1] != '\\';
+    for (const char *p = then; ok && *p; p++) ok = (unsigned char)*p > ' ' && *p != '"' && *p != '<';
+    if (!ok) strcpy(then, "/settings");
+}
+
+/* The page a refused form came from (Referer), as a path. */
+static void referer_path(httpd_req_t *req, char *out, size_t len)
+{
+    char ref[200];
+    out[0] = '\0';
+    if (httpd_req_get_hdr_value_str(req, "Referer", ref, sizeof(ref)) == ESP_OK) {
+        const char *p = strstr(ref, "://");
+        p = p ? strchr(p + 3, '/') : NULL;
+        if (p) snprintf(out, len, "%s", p);
+    }
+    sanitize_then(out);
+}
+
+/* Answers a request that needs a sign-in: a browser navigation (a form
+ * submit) goes to the login page and comes back to the page it was on;
+ * anything else (fetch(), curl) gets a 401. */
+static esp_err_t send_sign_in_needed(httpd_req_t *req)
+{
+    char mode[16];
+    if (httpd_req_get_hdr_value_str(req, "Sec-Fetch-Mode", mode, sizeof(mode)) == ESP_OK &&
+        strcmp(mode, "navigate") == 0) {
+        char then[160], enc[480], loc[512];
+        if (req->method == HTTP_GET) {
+            snprintf(then, sizeof(then), "%.159s", req->uri);
+            sanitize_then(then);
+        } else {
+            referer_path(req, then, sizeof(then));
+        }
+        url_encode_path(then, enc, sizeof(enc));
+        snprintf(loc, sizeof(loc), "/login?then=%s", enc);
+        return redirect_to(req, loc);
+    }
+    httpd_resp_set_status(req, "401 Unauthorized");
+    httpd_resp_set_type(req, "text/plain");
+    httpd_resp_sendstr(req, "This board has a web password: sign in first "
+                            "(or pass it with curl -u admin:PASSWORD).\n");
+    return ESP_OK;
+}
+
+/* For GET handlers whose page carries secrets: false = answered already. */
+static bool require_signed_in(httpd_req_t *req)
+{
+    if (request_signed_in(req)) return true;
+    send_sign_in_needed(req);
+    return false;
+}
+
+static esp_err_t set_session_cookie(httpd_req_t *req, const char *token, bool clear)
+{
+    /* httpd keeps a pointer to the header value until the response is sent. */
+    static char cookie[128];
+    snprintf(cookie, sizeof(cookie), SESSION_COOKIE "=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Strict",
+             clear ? "" : token, clear ? 0 : WEBAUTH_SESSION_SECS);
+    return httpd_resp_set_hdr(req, "Set-Cookie", cookie);
+}
+
+static esp_err_t login_page_handler(httpd_req_t *req)
+{
+    char query[256], then[160] = "", err[12] = "", wait[8] = "";
+    if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
+        if (httpd_query_key_value(query, "then", then, sizeof(then)) == ESP_OK) url_decode(then);
+        httpd_query_key_value(query, "err", err, sizeof(err));
+        httpd_query_key_value(query, "wait", wait, sizeof(wait));
+    }
+    sanitize_then(then);
+    char ethen[160 * 6];
+    html_escape(then, ethen, sizeof(ethen));
+
+    const char *msg = "";
+    char msgbuf[96];
+    if (strcmp(err, "wrong") == 0) msg = "Wrong password.";
+    else if (strcmp(err, "locked") == 0) {
+        int secs = atoi(wait);
+        snprintf(msgbuf, sizeof(msgbuf), "Too many wrong passwords: try again in %d seconds.",
+                 secs > 0 && secs < 10000 ? secs : 30);
+        msg = msgbuf;
+    }
+
+    size_t cap = 6144 + 1000 + (board_type_mismatch() ? 700 : 0);
+    char *buf = malloc(cap);
+    if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
+    int off = append_page_head(buf, cap, 0, "Sign in", "", false);
+    if (!webauth_enabled()) {
+        off = appendf(buf, cap, off,
+            "</header><main><div class=\"card\"><h2>Sign in</h2>"
+            "<p class=\"hint\">This board has no web password, so there's nothing to sign in to. "
+            "<a href=\"%s\">Continue</a></p></div></main></body></html>", ethen);
+    } else {
+        off = appendf(buf, cap, off,
+            "</header><main><div class=\"card\"><h2>Sign in</h2>"
+            "<p class=\"hint\">This board has a web password. Pages can be viewed without it; "
+            "changing anything needs a sign-in. If you were changing a setting, make the change "
+            "again after signing in.</p>"
+            "%s%s%s"
+            "<form method=\"POST\" action=\"/login\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"then\" value=\"%s\">"
+            "<label>Password <input type=\"password\" name=\"password\" maxlength=\"%d\" "
+            "autocomplete=\"current-password\" autofocus required></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Sign in</button></div>"
+            "</form><p class=\"hint\">%s</p></div></main></body></html>",
+            msg[0] ? "<p class=\"hint\" style=\"color:var(--red)\">" : "", msg, msg[0] ? "</p>" : "",
+            ethen, WEBAUTH_PASSWORD_MAX, WEB_RESET_HINT);
+    }
+    if (off < 0 || (size_t)off >= cap) { free(buf); httpd_resp_send_500(req); return ESP_FAIL; }
+    httpd_resp_set_type(req, "text/html; charset=utf-8");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    esp_err_t r = httpd_resp_send(req, buf, off);
+    free(buf);
+    return r;
+}
+
+/* POST /login -- password=..&then=.. */
+static esp_err_t login_handler(httpd_req_t *req)
+{
+    char body[512];
+    READ_FORM_OR_RETURN(req, body);
+    char password[WEBAUTH_PASSWORD_MAX + 1] = "", then[160] = "";
+    form_field(body, "password", password, sizeof(password));
+    form_field(body, "then", then, sizeof(then));
+    sanitize_then(then);
+    char enc[480], loc[560];
+    url_encode_path(then, enc, sizeof(enc));
+
+    int wait = 0;
+    webauth_result_t res = webauth_check(password, &wait);
+    memset(password, 0, sizeof(password));
+    memset(body, 0, sizeof(body));
+    if (res == WEBAUTH_OK) {
+        char token[WEBAUTH_TOKEN_LEN + 1];
+        webauth_session_new(token);
+        set_session_cookie(req, token, false);
+        activity_log("Web UI: signed in");
+        return redirect_to(req, then);
+    }
+    if (res == WEBAUTH_LOCKED) {
+        snprintf(loc, sizeof(loc), "/login?err=locked&wait=%d&then=%s", wait, enc);
+    } else {
+        ESP_LOGW(TAG, "wrong web password on the sign-in page");
+        snprintf(loc, sizeof(loc), "/login?err=wrong&then=%s", enc);
+    }
+    return redirect_to(req, loc);
+}
+
+/* POST /logout */
+static esp_err_t logout_handler(httpd_req_t *req)
+{
+    char token[WEBAUTH_TOKEN_LEN + 8];
+    size_t len = sizeof(token);
+    if (httpd_req_get_cookie_val(req, SESSION_COOKIE, token, &len) == ESP_OK) webauth_session_end(token);
+    set_session_cookie(req, NULL, true);
+    return redirect_to(req, "/settings?tab=general#security");
+}
+
+/* POST /web_password -- action=set&password=..&confirm=.. | action=remove */
+static esp_err_t web_password_handler(httpd_req_t *req)
+{
+    char body[512];
+    READ_FORM_OR_RETURN(req, body);
+    char action[8] = "", pw[WEBAUTH_PASSWORD_MAX + 1] = "", confirm[WEBAUTH_PASSWORD_MAX + 1] = "";
+    form_field(body, "action", action, sizeof(action));
+    form_field(body, "password", pw, sizeof(pw));
+    form_field(body, "confirm", confirm, sizeof(confirm));
+    memset(body, 0, sizeof(body));
+
+    esp_err_t r;
+    if (strcmp(action, "remove") == 0) {
+        webauth_clear();
+        activity_log("Web UI: password removed");
+        set_session_cookie(req, NULL, true);
+        r = redirect_to(req, "/settings?tab=general#security");
+    } else if (strcmp(action, "set") != 0 || !pw[0] || strcmp(pw, confirm) != 0) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                            "The two passwords are empty or don't match -- go back and try again.");
+        r = ESP_OK;
+    } else if (webauth_set_password(pw) != ESP_OK) {
+        httpd_resp_send_500(req);
+        r = ESP_FAIL;
+    } else {
+        /* Setting it signed everyone out; keep this browser signed in. */
+        char token[WEBAUTH_TOKEN_LEN + 1];
+        webauth_session_new(token);
+        set_session_cookie(req, token, false);
+        activity_log("Web UI: password set");
+        r = redirect_to(req, "/settings?tab=general#security");
+    }
+    memset(pw, 0, sizeof(pw));
+    memset(confirm, 0, sizeof(confirm));
+    return r;
+}
+
 /* ---- cross-site request guard ----
  * Every POST route goes through post_guard(). Without it, any web page the
  * owner happened to visit could make their browser POST to phone.local
@@ -8305,6 +8623,9 @@ static esp_err_t post_guard(httpd_req_t *req)
         ESP_LOGW(TAG, "refused cross-site POST %s from origin '%s'", req->uri, origin);
         httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "cross-site request refused");
         return ESP_OK;
+    }
+    if (strcmp(req->uri, "/login") != 0 && !request_signed_in(req)) {
+        return send_sign_in_needed(req);
     }
     esp_err_t (*real)(httpd_req_t *) = (esp_err_t (*)(httpd_req_t *))req->user_ctx;
     return real(req);
@@ -8482,6 +8803,10 @@ esp_err_t webui_start(void)
         { .uri = "/aec_delay_apply",        .method = HTTP_POST, .handler = aec_delay_apply_handler },
         { .uri = "/aec_enable",             .method = HTTP_POST, .handler = aec_enable_handler },
         { .uri = "/voip_server_script",     .method = HTTP_GET,  .handler = voip_server_script_handler },
+        { .uri = "/login",                  .method = HTTP_GET,  .handler = login_page_handler },
+        { .uri = "/login",                  .method = HTTP_POST, .handler = login_handler },
+        { .uri = "/logout",                 .method = HTTP_POST, .handler = logout_handler },
+        { .uri = "/web_password",           .method = HTTP_POST, .handler = web_password_handler },
         { .uri = "/voip_instructions.txt",  .method = HTTP_GET,  .handler = voip_instructions_txt_handler },
         /* Catch-all LAST: captive-portal redirect while provisioning, plain
          * 404 otherwise. The wildcard matcher tries handlers in registration
