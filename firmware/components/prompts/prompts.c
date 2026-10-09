@@ -24,9 +24,19 @@ void prompts_init(void)
     memset(s_prompts, 0, sizeof(s_prompts));
     nvs_handle_t h;
     if (nvs_open(PROMPTS_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
-    size_t len = sizeof(s_prompts);
-    nvs_get_blob(h, PROMPTS_NVS_KEY, s_prompts, &len); /* short/missing -> stays zeroed */
+    /* Same guard as the dial-code table: a size that isn't a whole number
+     * of entries is an old layout and would read back scrambled. */
+    size_t len = 0;
+    if (nvs_get_blob(h, PROMPTS_NVS_KEY, NULL, &len) == ESP_OK && len > 0 &&
+        len % sizeof(s_prompts[0]) == 0 && len <= sizeof(s_prompts)) {
+        nvs_get_blob(h, PROMPTS_NVS_KEY, s_prompts, &len);
+    }
     nvs_close(h);
+    for (int i = 0; i < PROMPT_MAX_ENTRIES; i++) {
+        s_prompts[i].name[sizeof(s_prompts[i].name) - 1] = '\0';
+        s_prompts[i].text[sizeof(s_prompts[i].text) - 1] = '\0';
+        s_prompts[i].generated_text[sizeof(s_prompts[i].generated_text) - 1] = '\0';
+    }
 }
 
 static int find_slot(const char *name)

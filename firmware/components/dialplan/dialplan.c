@@ -169,8 +169,25 @@ static void clips_load(void)
     nvs_handle_t h;
     if (nvs_open(CLIPS_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
 
-    size_t len = sizeof(s_clips);
-    nvs_get_blob(h, CLIPS_NVS_KEY, s_clips, &len); /* short/missing -> stays zeroed */
+    /* The saved table is a raw array of entries. Fewer entries than now
+     * (DIALPLAN_MAX_CLIP_ENTRIES grew) reads back fine; a size that isn't a
+     * whole number of entries means the entry layout changed, and reading
+     * it would scramble every code -- start from the defaults instead. */
+    size_t len = 0;
+    if (nvs_get_blob(h, CLIPS_NVS_KEY, NULL, &len) == ESP_OK && len > 0) {
+        if (len % sizeof(s_clips[0]) == 0 && len <= sizeof(s_clips)) {
+            nvs_get_blob(h, CLIPS_NVS_KEY, s_clips, &len);
+        } else {
+            ESP_LOGW(TAG, "saved dial codes (%u bytes) are from an incompatible firmware -- "
+                          "using the defaults", (unsigned)len);
+            nvs_erase_key(h, CLIPS_NVS_SEEDED);
+        }
+    }
+    for (int i = 0; i < DIALPLAN_MAX_CLIP_ENTRIES; i++) {
+        s_clips[i].code[sizeof(s_clips[i].code) - 1] = '\0';
+        s_clips[i].filename[sizeof(s_clips[i].filename) - 1] = '\0';
+        s_clips[i].desc[sizeof(s_clips[i].desc) - 1] = '\0';
+    }
 
     uint8_t seeded = 0;
     esp_err_t serr = nvs_get_u8(h, CLIPS_NVS_SEEDED, &seeded);
