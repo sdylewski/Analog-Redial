@@ -7757,6 +7757,50 @@ static esp_err_t operator_upload_handler(httpd_req_t *req)
  * never reaches esp_ota_mark_app_valid_cancel_rollback() (app_main.c) --
  * crashes, hangs, whatever -- CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE
  * reverts to this slot automatically on the next boot. */
+/* Finds board_image_marker's id ("smd4/16MB") in a firmware image streamed
+ * through in chunks, carrying a tail across chunk boundaries. */
+typedef struct {
+    uint8_t carry[64];
+    size_t  carry_len;
+    char    found[32];   /* "" until the image's id has been seen */
+} image_id_scan_t;
+
+static void image_id_scan(image_id_scan_t *s, const uint8_t *data, size_t n)
+{
+    if (s->found[0]) return;
+    const char *m = board_image_marker;
+    size_t plen = (size_t)(strchr(m, '\x02') - m) + 1;   /* "\x01AR-BOARD\x02" */
+    while (n > 0) {
+        uint8_t win[sizeof(s->carry) + 1024];
+        size_t wn = s->carry_len;
+        memcpy(win, s->carry, wn);
+        size_t take = n < sizeof(win) - wn ? n : sizeof(win) - wn;
+        memcpy(win + wn, data, take);
+        wn += take;
+        data += take;
+        n -= take;
+
+        size_t keep_from = wn > sizeof(s->carry) ? wn - sizeof(s->carry) : 0;
+        for (size_t i = 0; i + plen <= wn; i++) {
+            if (win[i] != 0x01 || memcmp(win + i, m, plen) != 0) continue;
+            size_t j = i + plen, k = 0;
+            /* Only id characters: this ends up in an error message. */
+            while (j < wn && (isalnum(win[j]) || win[j] == '_' || win[j] == '/') &&
+                   k < sizeof(s->found) - 1) s->found[k++] = (char)win[j++];
+            if (j < wn && win[j] == 0x03) {
+                s->found[k] = '\0';
+                return;
+            }
+            s->found[0] = '\0';   /* id runs past this window: rescan it next time */
+            keep_from = i;
+            break;
+        }
+        s->carry_len = wn - keep_from;
+        if (s->carry_len > sizeof(s->carry)) s->carry_len = sizeof(s->carry);
+        memmove(s->carry, win + wn - s->carry_len, s->carry_len);
+    }
+}
+
 static esp_err_t ota_upload_handler(httpd_req_t *req)
 {
     multipart_reader_t mp;
@@ -7795,7 +7839,9 @@ static esp_err_t ota_upload_handler(httpd_req_t *req)
             uint8_t chunk[2048];
             size_t n;
             bool write_failed = false;
+            image_id_scan_t idscan = {0};
             while ((n = multipart_read_body(&mp, chunk, sizeof(chunk))) > 0) {
+                image_id_scan(&idscan, chunk, n);
                 if (esp_ota_write(ota_handle, chunk, n) != ESP_OK) { write_failed = true; break; }
             }
             if (write_failed) {
@@ -7809,6 +7855,24 @@ static esp_err_t ota_upload_handler(httpd_req_t *req)
                 err_msg = (err == ESP_ERR_OTA_VALIDATE_FAILED)
                     ? "that file isn't a valid firmware image"
                     : "failed to finalize the write (see device log)";
+                break;
+            }
+            /* Only now, before it can boot: is this image for this board?
+             * Writing it to the inactive slot was harmless either way. A
+             * wrong-board image starts up fine (just with the wrong pins),
+             * so rollback wouldn't catch it. */
+            if (!idscan.found[0]) {
+                ESP_LOGW(TAG, "OTA image has no board id (built before the check)");
+                err_msg = "this firmware doesn't say which board it's for (it predates that "
+                          "check) -- flash it over USB instead";
+                break;
+            }
+            if (strcmp(idscan.found, BOARD_IMAGE_ID) != 0) {
+                ESP_LOGW(TAG, "OTA image is for %s, this board is %s", idscan.found, BOARD_IMAGE_ID);
+                static char mismatch[160];
+                snprintf(mismatch, sizeof(mismatch), "that firmware is for %.24s, but this board is "
+                         BOARD_IMAGE_ID " -- nothing was changed", idscan.found);
+                err_msg = mismatch;
                 break;
             }
             err = esp_ota_set_boot_partition(target);

@@ -24,6 +24,8 @@
 #include <stdio.h>
 #include <time.h>
 
+const char board_image_marker[] = "\x01" "AR-BOARD" "\x02" BOARD_IMAGE_ID "\x03";
+
 static const char *TAG = "board";
 static i2c_master_bus_handle_t s_bus;
 static board_codec_t s_detected_codec = BOARD_CODEC_NONE;
