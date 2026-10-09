@@ -52,6 +52,12 @@ esp_err_t sdcard_force_format(void);
  * whatever gets inserted next. No-op if not currently mounted. */
 void sdcard_deinit(void);
 
+/* Pins the mounted card for the duration of an operation: true means it's
+ * mounted and won't be unmounted until the matching sdcard_release(); false
+ * means no card (or it's being removed) -- treat it as not mounted. */
+bool sdcard_acquire(void);
+void sdcard_release(void);
+
 /* Starts a small background task that watches the card-detect pin (on
  * boards that have one -- BOARD_SD_CD, board_pins_smd4.h) and calls
  * sdcard_init()/sdcard_deinit() on insertion/removal, so a card swapped in

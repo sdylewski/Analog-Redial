@@ -84,9 +84,15 @@ static bool path_exists(const char *path)
     return stat(path, &st) == 0;
 }
 
-static bool resolve_existing_path(const char *name, char *out, size_t out_len)
+static bool on_sd(const char *path)
 {
-    bool sd = sdcard_mounted();
+    return strncmp(path, SD_MOUNT_POINT "/", sizeof(SD_MOUNT_POINT)) == 0;
+}
+
+/* `sd` = the caller holds the card (sdcard_acquire()); without that hold the
+ * SD backend is treated as absent. */
+static bool resolve_existing_path(const char *name, char *out, size_t out_len, bool sd)
+{
     if (sd) {
         sd_full_path(out, out_len, name);
         if (path_exists(out)) return true;
@@ -168,17 +174,21 @@ size_t storage_cap_bytes_internal(void) { return CONFIG_STORAGE_RECORDING_CAP_BY
  * card inserted right now). */
 uint64_t storage_used_bytes_sd(void)
 {
-    if (!sdcard_mounted()) return 0;
+    if (!sdcard_acquire()) return 0;
     uint64_t total = 0, free_b = 0;
-    if (sdcard_capacity(&total, &free_b) != ESP_OK) return 0;
+    esp_err_t err = sdcard_capacity(&total, &free_b);
+    sdcard_release();
+    if (err != ESP_OK) return 0;
     return (total > free_b) ? (total - free_b) : 0;
 }
 
 uint64_t storage_cap_bytes_sd(void)
 {
-    if (!sdcard_mounted()) return 0;
+    if (!sdcard_acquire()) return 0;
     uint64_t total = 0, free_b = 0;
-    return (sdcard_capacity(&total, &free_b) == ESP_OK) ? total : 0;
+    esp_err_t err = sdcard_capacity(&total, &free_b);
+    sdcard_release();
+    return (err == ESP_OK) ? total : 0;
 }
 
 bool storage_sd_present(void) { return sdcard_mounted(); }
@@ -250,7 +260,9 @@ static esp_err_t write_begin_ex(const char *name, size_t expected_len, bool pref
 {
     w->file = NULL;
     w->path[0] = '\0';
-    bool sd = prefer_sd && sdcard_mounted();
+    w->sd_held = false;
+    bool sd = prefer_sd && sdcard_acquire();
+    w->sd_held = sd;   /* released by storage_write_end()/_abort(), or below on failure */
 
     if (sd) {
         /* No eviction on SD -- see storage.h. A card is big enough that
@@ -258,6 +270,8 @@ static esp_err_t write_begin_ex(const char *name, size_t expected_len, bool pref
          * surprise; fail instead once it's genuinely out of free space. */
         uint64_t total = 0, free_b = 0;
         if (sdcard_capacity(&total, &free_b) == ESP_OK && (uint64_t)expected_len > free_b) {
+            sdcard_release();
+            w->sd_held = false;
             return ESP_ERR_NO_MEM;
         }
         sd_full_path(w->path, sizeof(w->path), name);
@@ -274,11 +288,12 @@ static esp_err_t write_begin_ex(const char *name, size_t expected_len, bool pref
          * shadow this fresh internal write. A real SD-preferred write never
          * reaches this branch while a card is mounted, so this is a no-op
          * for recorder.c's callers. */
-        if (!prefer_sd && sdcard_mounted()) {
+        if (!prefer_sd && sdcard_acquire()) {
             char sd_path[sizeof(w->path)];
             sd_full_path(sd_path, sizeof(sd_path), name);
             struct stat sdst;
             if (stat(sd_path, &sdst) == 0) unlink(sd_path);
+            sdcard_release();
         }
     }
 
@@ -301,7 +316,10 @@ static esp_err_t write_begin_ex(const char *name, size_t expected_len, bool pref
     }
 
     FILE *f = fopen(w->path, "wb");
-    if (!f) return ESP_FAIL;
+    if (!f) {
+        if (w->sd_held) { sdcard_release(); w->sd_held = false; }
+        return ESP_FAIL;
+    }
     w->file = f;
     return ESP_OK;
 }
@@ -323,11 +341,20 @@ esp_err_t storage_write_chunk(storage_writer_t *w, const void *data, size_t len)
     return (written == len) ? ESP_OK : ESP_FAIL;
 }
 
+static void writer_drop_sd(storage_writer_t *w)
+{
+    if (w->sd_held) {
+        sdcard_release();
+        w->sd_held = false;
+    }
+}
+
 esp_err_t storage_write_end(storage_writer_t *w)
 {
     if (!w->file) return ESP_ERR_INVALID_STATE;
     int rc = fclose((FILE *)w->file);
     w->file = NULL;
+    writer_drop_sd(w);
     return (rc == 0) ? ESP_OK : ESP_FAIL;
 }
 
@@ -338,6 +365,7 @@ void storage_write_abort(storage_writer_t *w)
         w->file = NULL;
     }
     if (w->path[0]) unlink(w->path);
+    writer_drop_sd(w);
 }
 
 esp_err_t storage_write(const char *name, const void *data, size_t len)
@@ -357,17 +385,22 @@ esp_err_t storage_read(const char *name, void *buf, size_t buf_len, size_t *out_
 {
     char path[288];
     FILE *f = NULL;
-    if (resolve_existing_path(name, path, sizeof(path))) {
+    bool sd = sdcard_acquire();
+    if (resolve_existing_path(name, path, sizeof(path), sd)) {
         f = fopen(path, "rb");
     } else if (s_bundled_mounted) {
         bundled_path(path, sizeof(path), name);
         f = fopen(path, "rb");
     }
-    if (!f) return ESP_ERR_NOT_FOUND;
-    size_t n = fread(buf, 1, buf_len, f);
-    fclose(f);
-    if (out_len) *out_len = n;
-    return ESP_OK;
+    esp_err_t err = ESP_ERR_NOT_FOUND;
+    if (f) {
+        size_t n = fread(buf, 1, buf_len, f);
+        fclose(f);
+        if (out_len) *out_len = n;
+        err = ESP_OK;
+    }
+    if (sd) sdcard_release();
+    return err;
 }
 
 esp_err_t storage_read_open(const char *name, storage_reader_t *r)
@@ -377,14 +410,23 @@ esp_err_t storage_read_open(const char *name, storage_reader_t *r)
      * overrides a bundled default without a rebuild. */
     char path[288];
     FILE *f = NULL;
-    if (resolve_existing_path(name, path, sizeof(path))) {
+    r->file = NULL;
+    r->sd_held = false;
+    bool sd = sdcard_acquire();
+    if (resolve_existing_path(name, path, sizeof(path), sd)) {
         f = fopen(path, "rb");
     } else if (s_bundled_mounted) {
         bundled_path(path, sizeof(path), name);
         f = fopen(path, "rb");
     }
+    /* Keep holding the card only while a file on it stays open. */
+    if (sd && !(f && on_sd(path))) {
+        sdcard_release();
+        sd = false;
+    }
     if (!f) return ESP_ERR_NOT_FOUND;
     r->file = f;
+    r->sd_held = sd;
     return ESP_OK;
 }
 
@@ -422,16 +464,24 @@ void storage_read_close(storage_reader_t *r)
         fclose((FILE *)r->file);
         r->file = NULL;
     }
+    if (r->sd_held) {
+        sdcard_release();
+        r->sd_held = false;
+    }
 }
 
 esp_err_t storage_delete(const char *name)
 {
     char path[288];
-    if (!resolve_existing_path(name, path, sizeof(path))) {
+    bool sd = sdcard_acquire();
+    if (!resolve_existing_path(name, path, sizeof(path), sd)) {
+        if (sd) sdcard_release();
         ESP_LOGW(TAG, "delete '%s': not found on any backend", name);
         return ESP_ERR_NOT_FOUND;
     }
-    if (unlink(path) == 0) return ESP_OK;
+    int rc = unlink(path);
+    if (sd) sdcard_release();
+    if (rc == 0) return ESP_OK;
     /* Log the real errno -- collapsing every unlink() failure into
      * ESP_ERR_NOT_FOUND (the old behavior) hid whatever the actual SPIFFS/
      * VFS error was, which made this impossible to diagnose from the webui
@@ -444,14 +494,17 @@ esp_err_t storage_delete(const char *name)
 esp_err_t storage_patch(const char *name, size_t offset, const void *data, size_t len)
 {
     char path[288];
-    if (!resolve_existing_path(name, path, sizeof(path))) return ESP_ERR_NOT_FOUND;
-    FILE *f = fopen(path, "r+b");
-    if (!f) return ESP_ERR_NOT_FOUND;
-    esp_err_t err = ESP_OK;
-    if (fseek(f, (long)offset, SEEK_SET) != 0 || fwrite(data, 1, len, f) != len) {
-        err = ESP_FAIL;
+    bool sd = sdcard_acquire();
+    FILE *f = resolve_existing_path(name, path, sizeof(path), sd) ? fopen(path, "r+b") : NULL;
+    esp_err_t err = ESP_ERR_NOT_FOUND;
+    if (f) {
+        err = ESP_OK;
+        if (fseek(f, (long)offset, SEEK_SET) != 0 || fwrite(data, 1, len, f) != len) {
+            err = ESP_FAIL;
+        }
+        fclose(f);
     }
-    fclose(f);
+    if (sd) sdcard_release();
     return err;
 }
 
@@ -529,8 +582,10 @@ size_t storage_list_internal(storage_entry_t *out, size_t max_entries)
 
 size_t storage_list_sd(storage_entry_t *out, size_t max_entries)
 {
-    if (!sdcard_mounted()) return 0;
-    return list_dir(SD_MOUNT_POINT, out, max_entries);
+    if (!sdcard_acquire()) return 0;
+    size_t n = list_dir(SD_MOUNT_POINT, out, max_entries);
+    sdcard_release();
+    return n;
 }
 
 size_t storage_list(storage_entry_t *out, size_t max_entries)

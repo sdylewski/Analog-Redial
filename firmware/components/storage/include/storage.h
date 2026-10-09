@@ -80,6 +80,7 @@ esp_err_t storage_write(const char *name, const void *data, size_t len);
 typedef struct {
     void *file;  /* FILE*, opaque here to keep stdio out of the public header */
     char  path[288];
+    bool  sd_held; /* holds the SD card mounted until end/abort */
 } storage_writer_t;
 
 esp_err_t storage_write_begin(const char *name, size_t expected_len, storage_writer_t *w);
@@ -116,6 +117,7 @@ esp_err_t storage_read(const char *name, void *buf, size_t buf_len, size_t *out_
  */
 typedef struct {
     void *file; /* FILE*, opaque here to keep stdio out of the public header */
+    bool  sd_held; /* holds the SD card mounted until storage_read_close() */
 } storage_reader_t;
 
 /* ESP_ERR_NOT_FOUND if `name` doesn't exist. */

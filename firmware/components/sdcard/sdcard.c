@@ -21,6 +21,13 @@ static const char *TAG = "sdcard";
 
 static sdmmc_card_t *s_card;
 
+/* Users of the mounted card (open files, one-shot operations), so pulling
+ * the card can't unmount and free it under a task that's mid-read or
+ * mid-write -- see sdcard_acquire()/sdcard_deinit(). */
+static portMUX_TYPE  s_use_mux = portMUX_INITIALIZER_UNLOCKED;
+static int           s_users;
+static volatile bool s_removing;
+
 #ifdef BOARD_SD_CD
 static bool s_cd_configured;
 
@@ -168,13 +175,46 @@ esp_err_t sdcard_force_format(void)
     return do_mount(true);
 }
 
-bool sdcard_mounted(void) { return s_card != NULL; }
+bool sdcard_mounted(void) { return s_card != NULL && !s_removing; }
+
+bool sdcard_acquire(void)
+{
+    portENTER_CRITICAL(&s_use_mux);
+    bool ok = s_card != NULL && !s_removing;
+    if (ok) s_users++;
+    portEXIT_CRITICAL(&s_use_mux);
+    return ok;
+}
+
+void sdcard_release(void)
+{
+    portENTER_CRITICAL(&s_use_mux);
+    if (s_users > 0) s_users--;
+    portEXIT_CRITICAL(&s_use_mux);
+}
+
+/* Refuses new users at once (callers fall back to internal flash), then
+ * waits for current ones to finish before unmounting: with the card gone
+ * their reads and writes fail quickly and they close. Unmounting under them
+ * used to free the card while another task was still using it. */
+#define SD_DRAIN_WAIT_MS 5000
 
 void sdcard_deinit(void)
 {
     if (!s_card) return;
+    s_removing = true;
+    int users = 0;
+    for (int waited = 0; waited <= SD_DRAIN_WAIT_MS; waited += 20) {
+        portENTER_CRITICAL(&s_use_mux);
+        users = s_users;
+        portEXIT_CRITICAL(&s_use_mux);
+        if (users == 0) break;
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+    if (users) ESP_LOGW(TAG, "unmounting with %d user(s) still active after %d ms", users, SD_DRAIN_WAIT_MS);
     esp_vfs_fat_sdcard_unmount(SD_MOUNT, s_card);
     s_card = NULL;
+    s_removing = false;
 }
 
 #ifdef BOARD_SD_CD
@@ -215,8 +255,10 @@ void sdcard_hotplug_start(void)
 
 esp_err_t sdcard_capacity(uint64_t *total_bytes, uint64_t *free_bytes)
 {
-    if (!s_card) return ESP_ERR_INVALID_STATE;
-    return esp_vfs_fat_info(SD_MOUNT, total_bytes, free_bytes);
+    if (!sdcard_acquire()) return ESP_ERR_INVALID_STATE;
+    esp_err_t err = esp_vfs_fat_info(SD_MOUNT, total_bytes, free_bytes);
+    sdcard_release();
+    return err;
 }
 
 void sdcard_print_info(void)
@@ -227,7 +269,7 @@ void sdcard_print_info(void)
                "line 2's SLIC instead).\n");
         return;
     }
-    if (!s_card) { printf("SD: not mounted\n"); return; }
+    if (!sdcard_acquire()) { printf("SD: not mounted\n"); return; }
     sdmmc_card_print_info(stdout, s_card);
     uint64_t total = 0, freeb = 0;
     if (esp_vfs_fat_info(SD_MOUNT, &total, &freeb) == ESP_OK) {
@@ -235,11 +277,12 @@ void sdcard_print_info(void)
                (unsigned long long)(total / (1024 * 1024)),
                (unsigned long long)(freeb / (1024 * 1024)));
     }
+    sdcard_release();
 }
 
 bool sdcard_get_info(sdcard_info_t *out)
 {
-    if (!s_card || !out) return false;
+    if (!out || !sdcard_acquire()) return false;
     memset(out->name, 0, sizeof(out->name));
     memcpy(out->name, s_card->cid.name, sizeof(s_card->cid.name));
     out->mfg_id = s_card->cid.mfg_id;
@@ -247,13 +290,14 @@ bool sdcard_get_info(sdcard_info_t *out)
     out->max_freq_khz = s_card->max_freq_khz;
     out->real_freq_khz = s_card->real_freq_khz;
     out->bus_width = s_card->log_bus_width ? (1 << s_card->log_bus_width) : 1;
+    sdcard_release();
     return true;
 }
 
 #define SELFTEST_BYTES (128 * 1024)
 #define SELFTEST_CHUNK (4 * 1024)
 
-esp_err_t sdcard_selftest(float *write_kbps_out, float *read_kbps_out)
+static esp_err_t selftest_held(float *write_kbps_out, float *read_kbps_out)
 {
     /* Measure into locals so the summary line shows real numbers even when
      * the caller (e.g. the sd_test console command) passes NULL. */
@@ -261,7 +305,6 @@ esp_err_t sdcard_selftest(float *write_kbps_out, float *read_kbps_out)
     float *write_kbps = &wk, *read_kbps = &rk;
     if (write_kbps_out) *write_kbps_out = 0;
     if (read_kbps_out) *read_kbps_out = 0;
-    if (!s_card) { printf("SD: not mounted\n"); return ESP_ERR_INVALID_STATE; }
     const char *path = SD_MOUNT "/_sdtest.bin";
 
     /* Streamed through one small buffer. A single SELFTEST_BYTES buffer
@@ -326,9 +369,21 @@ esp_err_t sdcard_selftest(float *write_kbps_out, float *read_kbps_out)
     return ESP_OK;
 }
 
+esp_err_t sdcard_selftest(float *write_kbps_out, float *read_kbps_out)
+{
+    if (write_kbps_out) *write_kbps_out = 0;
+    if (read_kbps_out) *read_kbps_out = 0;
+    if (!sdcard_acquire()) { printf("SD: not mounted\n"); return ESP_ERR_INVALID_STATE; }
+    esp_err_t err = selftest_held(write_kbps_out, read_kbps_out);
+    sdcard_release();
+    return err;
+}
+
 esp_err_t sdcard_format(void)
 {
-    if (!s_card) return ESP_ERR_INVALID_STATE;
+    if (!sdcard_acquire()) return ESP_ERR_INVALID_STATE;
     ESP_LOGW(TAG, "formatting SD card at %s -- all data on it is about to be erased", SD_MOUNT);
-    return esp_vfs_fat_sdcard_format(SD_MOUNT, s_card);
+    esp_err_t err = esp_vfs_fat_sdcard_format(SD_MOUNT, s_card);
+    sdcard_release();
+    return err;
 }

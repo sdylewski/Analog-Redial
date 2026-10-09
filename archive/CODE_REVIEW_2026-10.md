@@ -33,6 +33,8 @@ person at the phone.
 | gen_prompt.py | Prompt text (which `--sync` fetches from a board) passed to `say`/`espeak-ng` as an argument | Text starting with `-` was parsed as an option, e.g. `say -o <path>` overwriting a file on your Mac | `98ed6f0` |
 | SLIC | Ring-trip only stopped ringing on the on-hook to off-hook edge | **The self-test's ringer check or the `ring` command on a line whose handset was already up put ring voltage into the earpiece** | `9df5d61` |
 | Diagnostics | No record of why the board restarted | A crash, watchdog or brownout looked like an ordinary reboot; now shown in Recent activity and `/api/status` | `d2b00ea` |
+| Firmware upload | Browser upload didn't check the image was built for this board | An SMD2 image on an SMD4 (or a 16 MB image on an 8 MB board) booted with the wrong pin map, and rollback doesn't catch a build that starts up fine. Images now carry a board/flash-size id and a mismatch (or an image without one) is refused | `3acce29` |
+| SD card | Card removal unmounted and freed the card while a player, recorder or download on another task was mid-read | **Pulling the card during playback could crash the board.** Every SD use now holds the card; removal refuses new users at once and unmounts once current ones finish (up to 5 s) | SD_COMMIT |
 
 ## Checked and fine
 
@@ -78,14 +80,6 @@ person at the phone.
   (~128 ms) -- the 51 ms silence check already covers short contact chatter.
 - **DNS rebinding** isn't stopped by the Origin check; it needs a malicious
   DNS server too. A login, or a per-session token in forms, would close it.
-- **SD card pulled mid-use**: `sdcard_deinit()` frees the card while a
-  player, recorder or download may be mid-read on another task, so pulling
-  the card during playback can crash rather than just fail the read. Fixing
-  it properly needs open-file accounting in the storage layer.
-- **Firmware upload doesn't check the board type**: an SMD2 image uploaded
-  to an SMD4 boots with the wrong pin map, and since it starts up fine,
-  rollback doesn't save it. Put the board type in the app description (or
-  version string) at build time and refuse a mismatch on upload.
 - **No login on the web UI**: anything on the LAN (or a VPN) can change
   settings; only `/api/prompt_requests` asks for the setup password. An
   optional password would also close DNS rebinding.
