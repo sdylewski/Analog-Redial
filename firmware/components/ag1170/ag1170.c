@@ -190,6 +190,14 @@ static void service_ring(int line, int64_t now)
 {
     line_state_t *ls = &s_ls[line];
     if (!ls->ringing) return;
+    /* Never ring a line whose handset is up. Ring-trip below only catches the
+     * on-hook -> off-hook edge; a ring started while the handset is already
+     * lifted (the self-test's ringer check, the `ring` console command, mid-
+     * call) would otherwise put ring voltage into the earpiece. */
+    if (ls->offhook_reported) {
+        ag1170_ring_stop(line);
+        return;
+    }
 
     uint32_t period_ms = s_cfg.ring_on_ms + s_cfg.ring_off_ms;
     int64_t  phase_ms  = ((now - ls->ring_phase_start_us) / 1000) % period_ms;
