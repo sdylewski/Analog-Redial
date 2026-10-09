@@ -246,6 +246,9 @@ class Service:
     def rate_check(self, ip, failure=False):
         now = time.time()
         with self.lock:
+            if len(self.rate) > 5000:   # forget addresses with nothing recent (internet use)
+                self.rate = {k: v for k, v in self.rate.items()
+                             if any(now - t < RATE_WINDOW_S for t in v[0] + v[1])}
             reqs, fails = self.rate.get(ip, ([], []))
             reqs = [t for t in reqs if now - t < RATE_WINDOW_S]
             fails = [t for t in fails if now - t < RATE_WINDOW_S]

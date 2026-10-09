@@ -142,6 +142,10 @@ void ag1170_ring_stop(int line)
     if (line < 0 || line >= s_active_lines) return;
     s_ls[line].ringing = false;
     ag1170_set_rm(line, 0);
+    /* Back to normal polarity: ringing toggles F/R at 20 Hz, so it would
+     * otherwise stay at whichever level the last half-cycle left it --
+     * reversed loop polarity for about half of all answered calls. */
+    ag1170_set_fr(line, 0);
     ESP_LOGI(TAG, "line %d ring stop", line);
 }
 
