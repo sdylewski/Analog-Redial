@@ -35,6 +35,7 @@ person at the phone.
 | Diagnostics | No record of why the board restarted | A crash, watchdog or brownout looked like an ordinary reboot; now shown in Recent activity and `/api/status` | `d2b00ea` |
 | Firmware upload | Browser upload didn't check the image was built for this board | An SMD2 image on an SMD4 (or a 16 MB image on an 8 MB board) booted with the wrong pin map, and rollback doesn't catch a build that starts up fine. Images now carry a board/flash-size id and a mismatch (or an image without one) is refused | `3acce29` |
 | SD card | Card removal unmounted and freed the card while a player, recorder or download on another task was mid-read | **Pulling the card during playback could crash the board.** Every SD use now holds the card; removal refuses new users at once and unmounts once current ones finish (up to 5 s) | `59fb0a6` |
+| Web UI | No login; the Origin check didn't stop DNS rebinding | Anything on the LAN (or a VPN) could change settings. Optional web password now (Settings -> General): every POST and the secret-bearing VoIP script need a sign-in or HTTP Basic auth, which also closes DNS rebinding. Removed by BOOT-button rescue mode, the 10 s hold, or `webpass clear` | `d6b999d` |
 
 ## Checked and fine
 
@@ -78,11 +79,6 @@ person at the phone.
   (70-100 ms tone + 70-100 ms gap): `5551005` could become `551005`. Test a
   stored number with doubled digits; if digits go missing, try 5 blocks
   (~128 ms) -- the 51 ms silence check already covers short contact chatter.
-- **DNS rebinding** isn't stopped by the Origin check; it needs a malicious
-  DNS server too. A login, or a per-session token in forms, would close it.
-- **No login on the web UI**: anything on the LAN (or a VPN) can change
-  settings; only `/api/prompt_requests` asks for the setup password. An
-  optional password would also close DNS rebinding.
 - **Self-test ringer**: its fixed 4 s ring ends with `ag1170_ring_stop()`,
   which would also stop a real incoming call's ring that started meanwhile.
 - **RTP** accepts audio from any source address and ignores the header's
