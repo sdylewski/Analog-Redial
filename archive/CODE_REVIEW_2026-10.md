@@ -34,7 +34,7 @@ person at the phone.
 | SLIC | Ring-trip only stopped ringing on the on-hook to off-hook edge | **The self-test's ringer check or the `ring` command on a line whose handset was already up put ring voltage into the earpiece** | `9df5d61` |
 | Diagnostics | No record of why the board restarted | A crash, watchdog or brownout looked like an ordinary reboot; now shown in Recent activity and `/api/status` | `d2b00ea` |
 | Firmware upload | Browser upload didn't check the image was built for this board | An SMD2 image on an SMD4 (or a 16 MB image on an 8 MB board) booted with the wrong pin map, and rollback doesn't catch a build that starts up fine. Images now carry a board/flash-size id and a mismatch (or an image without one) is refused | `3acce29` |
-| SD card | Card removal unmounted and freed the card while a player, recorder or download on another task was mid-read | **Pulling the card during playback could crash the board.** Every SD use now holds the card; removal refuses new users at once and unmounts once current ones finish (up to 5 s) | SD_COMMIT |
+| SD card | Card removal unmounted and freed the card while a player, recorder or download on another task was mid-read | **Pulling the card during playback could crash the board.** Every SD use now holds the card; removal refuses new users at once and unmounts once current ones finish (up to 5 s) | `59fb0a6` |
 
 ## Checked and fine
 
