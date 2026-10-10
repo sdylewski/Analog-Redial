@@ -872,7 +872,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr through_hole exclude_from_pos_files exclude_from_bom)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start 4.97 -1.37)
@@ -1431,7 +1431,7 @@
 				(pins "PWR" "GNDBREAK" "GND")
 			)
 		)
-		(attr through_hole exclude_from_pos_files exclude_from_bom)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -4.4 4.5)
@@ -2830,7 +2830,7 @@
 				(pins "14" "1" "13" "2" "12" "3" "11" "4" "10" "5" "9" "6" "8" "7")
 			)
 		)
-		(attr smd exclude_from_pos_files exclude_from_bom)
+		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_rect
 			(start -28.5 -7.5)
@@ -3392,7 +3392,7 @@
 				(pins "1" "3" "5" "7" "2" "4" "6" "8")
 			)
 		)
-		(attr through_hole exclude_from_pos_files exclude_from_bom)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.38 -1.38)
@@ -3842,7 +3842,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr through_hole exclude_from_pos_files exclude_from_bom)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start 5.83 -0.533)
@@ -7080,7 +7080,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr through_hole exclude_from_pos_files exclude_from_bom)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.38 -1.38)
@@ -8456,7 +8456,7 @@
 				(pins "1" "2" "3")
 			)
 		)
-		(attr through_hole exclude_from_pos_files exclude_from_bom)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.38 -1.38)
@@ -8966,7 +8966,7 @@
 			)
 		)
 		(property "Value" "ESP32-C6-DevKitC-1"
-			(at 11.875 44.725 180)
+			(at 11 45 180)
 			(layer "F.SilkS")
 			(uuid "71230ff0-6447-41b5-851c-3b187505c978")
 			(effects
@@ -8976,7 +8976,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://docs.espressif.com/projects/espressif-esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitc-1/user_guide.html"
+		(property "Datasheet" ""
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -8987,7 +8987,7 @@
 				)
 			)
 		)
-		(property "Description" "ESP32-C6-DevKitC-1"
+		(property "Description" ""
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -9040,16 +9040,7 @@
 		(path "/8c178dd8-351e-4f38-ac01-77904d9859fa")
 		(sheetname "/")
 		(sheetfile "Analog Redial v5.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" "13" "14" "15"
-					"16" "32" "31" "30" "29" "28" "27" "26" "25" "24" "23" "22" "21" "20"
-					"19" "18" "17"
-				)
-			)
-		)
-		(attr through_hole exclude_from_pos_files exclude_from_bom)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.5 -4.115)
@@ -10132,7 +10123,7 @@
 		(pad "1" thru_hole rect
 			(at 0 0 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "+3.3V")
@@ -10143,7 +10134,7 @@
 		(pad "2" thru_hole oval
 			(at 0 2.54 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "unconnected-(U1-EN{slash}RESET-Pad2)")
@@ -10154,7 +10145,7 @@
 		(pad "3" thru_hole oval
 			(at 0 5.08 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/Line0_F{slash}R")
@@ -10165,7 +10156,7 @@
 		(pad "4" thru_hole oval
 			(at 0 7.62 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/Line0_RM")
@@ -10176,7 +10167,7 @@
 		(pad "5" thru_hole oval
 			(at 0 10.16 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/Line0_SHK")
@@ -10187,7 +10178,7 @@
 		(pad "6" thru_hole oval
 			(at 0 12.7 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/Line0_PD")
@@ -10198,7 +10189,7 @@
 		(pad "7" thru_hole oval
 			(at 0 15.24 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/I2S_DIN")
@@ -10209,7 +10200,7 @@
 		(pad "8" thru_hole oval
 			(at 0 17.78 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/I2S_LRCK")
@@ -10220,7 +10211,7 @@
 		(pad "9" thru_hole oval
 			(at 0 20.32 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "unconnected-(U1-GPIO8{slash}BOOT-Pad9)")
@@ -10231,7 +10222,7 @@
 		(pad "10" thru_hole oval
 			(at 0 22.86 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/I2S_DOUT")
@@ -10242,7 +10233,7 @@
 		(pad "11" thru_hole oval
 			(at 0 25.4 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/I2S_BCLK")
@@ -10253,7 +10244,7 @@
 		(pad "12" thru_hole oval
 			(at 0 27.94 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "Net-(JP3-A)")
@@ -10264,7 +10255,7 @@
 		(pad "13" thru_hole oval
 			(at 0 30.48 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "Net-(JP2-A)")
@@ -10275,7 +10266,7 @@
 		(pad "14" thru_hole oval
 			(at 0 33.02 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "+5V")
@@ -10286,7 +10277,7 @@
 		(pad "15" thru_hole oval
 			(at 0 35.56 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "GND")
@@ -10297,7 +10288,7 @@
 		(pad "15" thru_hole oval
 			(at 25.5 30.48 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "GND")
@@ -10308,7 +10299,7 @@
 		(pad "16" thru_hole oval
 			(at 0 38.1 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "unconnected-(U1-NC-Pad16)")
@@ -10319,7 +10310,7 @@
 		(pad "17" thru_hole oval
 			(at 22.86 38.1 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "unconnected-(U1-NC-Pad17)")
@@ -10330,7 +10321,7 @@
 		(pad "18" thru_hole oval
 			(at 22.86 35.56 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "GND")
@@ -10341,7 +10332,7 @@
 		(pad "18" thru_hole oval
 			(at 25.5 33.02 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "GND")
@@ -10352,7 +10343,7 @@
 		(pad "19" thru_hole oval
 			(at 22.86 33.02 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/GPIO12")
@@ -10363,7 +10354,7 @@
 		(pad "19" thru_hole oval
 			(at 25.5 0 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/GPIO12")
@@ -10374,7 +10365,7 @@
 		(pad "20" thru_hole oval
 			(at 22.86 30.48 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/GPIO13")
@@ -10385,7 +10376,7 @@
 		(pad "20" thru_hole oval
 			(at 25.5 2.54 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/GPIO13")
@@ -10396,7 +10387,7 @@
 		(pad "21" thru_hole oval
 			(at 22.86 27.94 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "GND")
@@ -10407,7 +10398,7 @@
 		(pad "22" thru_hole oval
 			(at 22.86 25.4 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "unconnected-(U1-GPIO9{slash}BOOT-Pad22)")
@@ -10418,7 +10409,7 @@
 		(pad "22" thru_hole oval
 			(at 25.5 27.94 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "unconnected-(U1-GPIO9{slash}BOOT-Pad22)")
@@ -10429,7 +10420,7 @@
 		(pad "23" thru_hole oval
 			(at 22.86 22.86 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/SD_MISO")
@@ -10440,7 +10431,7 @@
 		(pad "23" thru_hole oval
 			(at 25.5 25.4 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/SD_MISO")
@@ -10451,7 +10442,7 @@
 		(pad "24" thru_hole oval
 			(at 22.86 20.32 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/SD_CLK")
@@ -10462,7 +10453,7 @@
 		(pad "24" thru_hole oval
 			(at 25.5 22.86 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/SD_CLK")
@@ -10473,7 +10464,7 @@
 		(pad "25" thru_hole oval
 			(at 22.86 17.78 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/SD_MOSI")
@@ -10484,7 +10475,7 @@
 		(pad "25" thru_hole oval
 			(at 25.5 20.32 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/SD_MOSI")
@@ -10495,7 +10486,7 @@
 		(pad "26" thru_hole oval
 			(at 22.86 15.24 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/SD_CS")
@@ -10506,7 +10497,7 @@
 		(pad "26" thru_hole oval
 			(at 25.5 17.78 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/SD_CS")
@@ -10517,7 +10508,7 @@
 		(pad "27" thru_hole oval
 			(at 22.86 12.7 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/I2C_SDA")
@@ -10528,7 +10519,7 @@
 		(pad "27" thru_hole oval
 			(at 25.5 15.24 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/I2C_SDA")
@@ -10539,7 +10530,7 @@
 		(pad "28" thru_hole oval
 			(at 22.86 10.16 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/I2C_SCL")
@@ -10550,7 +10541,7 @@
 		(pad "28" thru_hole oval
 			(at 25.5 12.7 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/I2C_SCL")
@@ -10561,7 +10552,7 @@
 		(pad "29" thru_hole oval
 			(at 22.86 7.62 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/MFB")
@@ -10572,7 +10563,7 @@
 		(pad "29" thru_hole oval
 			(at 25.5 10.16 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "/MFB")
@@ -10583,7 +10574,7 @@
 		(pad "30" thru_hole oval
 			(at 22.86 5.08 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "Net-(U1-GPIO17{slash}U0RXD)")
@@ -10594,7 +10585,7 @@
 		(pad "30" thru_hole oval
 			(at 25.5 7.62 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "Net-(U1-GPIO17{slash}U0RXD)")
@@ -10605,7 +10596,7 @@
 		(pad "31" thru_hole oval
 			(at 22.86 2.54 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "Net-(U1-GPIO16{slash}U0TXD)")
@@ -10616,7 +10607,7 @@
 		(pad "31" thru_hole oval
 			(at 25.5 5.08 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "Net-(U1-GPIO16{slash}U0TXD)")
@@ -10627,7 +10618,7 @@
 		(pad "32" thru_hole oval
 			(at 22.86 0 270)
 			(size 1.2 2)
-			(drill 0.8)
+			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(net "GND")
@@ -10636,6 +10627,17 @@
 			(uuid "a63a53c5-4369-4eb3-b3f3-4408395481f7")
 		)
 		(embedded_fonts no)
+		(model "/Users/sdylewski/Documents/KiCad/Custom/Custom.3dshapes/ESP32-C6-DevKitC-1.step"
+			(offset
+				(xyz 11.5 -50 3)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz -0 -0 -0)
+			)
+		)
 	)
 	(footprint "Resistor_SMD:R_0402_1005Metric"
 		(placed yes)
@@ -11455,7 +11457,7 @@
 			(uuid "32d9e10a-57b7-45d5-8dff-8b37976b636d")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../libraries/JLCImport.3dshapes/TF-01A.step"
+		(model "/Users/sdylewski/Documents/KiCad/JLCImport.3dshapes/TF-01A.step"
 			(offset
 				(xyz 0.002223 -5.10134 0.14732)
 			)
@@ -11463,7 +11465,7 @@
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz 0 0 0)
+				(xyz -0 -0 -0)
 			)
 		)
 	)
@@ -11815,7 +11817,7 @@
 		(descr "RJ12/RJ11 horizontal 6-pos modular jack, tab down, Amphenol 87180 series (e.g. 87180-062LF 6P2C or 87180-066LF 6P6C), drawing 87180 rev AD")
 		(tags "RJ12 connector")
 		(property "Reference" "J9"
-			(at -4.82 5.79 180)
+			(at -1.66 -2.16 0)
 			(layer "F.SilkS")
 			(uuid "c4319c65-aed8-4edb-a51a-a883ed38bf78")
 			(effects
@@ -11836,7 +11838,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.amphenol-cs.com/media/wysiwyg/files/documentation/datasheet/inputoutput/io_modularjack.pdf"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -11849,7 +11851,7 @@
 				)
 			)
 		)
-		(property "Description" "RJ connector, 6P6C (6 positions 6 connected)"
+		(property "Description" "Amphenol 87180-062LF"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -12009,13 +12011,7 @@
 		(path "/26cdede6-29b8-4e18-b9ce-33b4b89a2105")
 		(sheetname "/")
 		(sheetfile "Analog Redial v5.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "6" "5" "4" "3" "2" "1")
-			)
-		)
-		(attr through_hole exclude_from_pos_files exclude_from_bom)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -3.84 0.77)
@@ -12354,15 +12350,15 @@
 			(uuid "4646e023-513b-4d2c-ae2c-bb5d372a6e46")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../libraries/Custom.3dshapes/87180-062LF.step"
+		(model "/Users/sdylewski/Documents/KiCad/Custom/Custom.3dshapes/87180-066LF.step"
 			(offset
-				(xyz 3.2 -8.78 0)
+				(xyz 6.5 0 0)
 			)
 			(scale
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz -90 -0 -0)
+				(xyz -0 -0 -180)
 			)
 		)
 	)
@@ -12569,7 +12565,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr through_hole exclude_from_pos_files exclude_from_bom)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -2.659698 -2.315)
@@ -18223,7 +18219,7 @@
 		(descr "Through hole straight pin header, 1x08, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x08 2.54mm single row")
 		(property "Reference" "J2"
-			(at 2.325 4.29 0)
+			(at 2.325 4.29 180)
 			(layer "F.SilkS")
 			(uuid "12ba810f-4718-4de3-97a5-6371870ae79a")
 			(effects
@@ -18288,7 +18284,7 @@
 				(pins "1" "2" "3" "4" "5" "6" "7" "8")
 			)
 		)
-		(attr through_hole exclude_from_pos_files exclude_from_bom)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.38 19.16)
@@ -19783,7 +19779,7 @@
 				(pins "14" "1" "13" "2" "12" "3" "11" "4" "10" "5" "9" "6" "8" "7")
 			)
 		)
-		(attr smd exclude_from_pos_files exclude_from_bom)
+		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_rect
 			(start -28.5 -7.5)
@@ -20234,7 +20230,7 @@
 			)
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../libraries/Custom.3dshapes/AG1171.step"
+		(model "/Users/sdylewski/Documents/KiCad/Custom/Custom.3dshapes/AG1171.step"
 			(offset
 				(xyz 31.25 4.3 0)
 			)
@@ -25245,7 +25241,7 @@
 		(descr "RJ12/RJ11 horizontal 6-pos modular jack, tab down, Amphenol 87180 series (e.g. 87180-062LF 6P2C or 87180-066LF 6P6C), drawing 87180 rev AD")
 		(tags "RJ12 connector")
 		(property "Reference" "J8"
-			(at 10.83 -0.71 0)
+			(at -1.66 -2.16 0)
 			(layer "F.SilkS")
 			(uuid "bbb3bf39-ec0e-43e4-834c-35042f7ccbbf")
 			(effects
@@ -25266,7 +25262,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.amphenol-cs.com/media/wysiwyg/files/documentation/datasheet/inputoutput/io_modularjack.pdf"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -25279,7 +25275,7 @@
 				)
 			)
 		)
-		(property "Description" "RJ connector, 6P6C (6 positions 6 connected)"
+		(property "Description" "Amphenol 87180-062LF"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -25439,13 +25435,7 @@
 		(path "/03ea3391-074b-47a6-9b1a-8634e3a0e7fd")
 		(sheetname "/")
 		(sheetfile "Analog Redial v5.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "6" "5" "4" "3" "2" "1")
-			)
-		)
-		(attr through_hole exclude_from_pos_files exclude_from_bom)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -3.84 0.77)
@@ -25784,15 +25774,15 @@
 			(uuid "f87b9032-f1dc-4e2c-a710-eb2728d74d1e")
 		)
 		(embedded_fonts no)
-		(model "${KIPRJMOD}/../libraries/Custom.3dshapes/87180-062LF.step"
+		(model "/Users/sdylewski/Documents/KiCad/Custom/Custom.3dshapes/87180-066LF.step"
 			(offset
-				(xyz 3.2 -8.78 0)
+				(xyz 6.5 0 0)
 			)
 			(scale
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz -90 -0 -0)
+				(xyz -0 -0 -180)
 			)
 		)
 	)
@@ -26339,7 +26329,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr through_hole exclude_from_pos_files exclude_from_bom)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start 3.38 -1.47)
@@ -27100,7 +27090,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr through_hole exclude_from_pos_files exclude_from_bom)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start 4.97 -1.37)
@@ -27431,7 +27421,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr through_hole exclude_from_pos_files exclude_from_bom)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.38 -1.38)
@@ -31891,7 +31881,7 @@
 		)
 	)
 	(gr_text "For wide ESP32-C6\nmodify solder jumper\non back of board"
-		(at 132.4 93.675 0)
+		(at 133 94.25 0)
 		(layer "F.SilkS")
 		(uuid "98d8453d-e5e7-48c6-8af6-540418c4b30f")
 		(effects
@@ -32774,7 +32764,7 @@
 			(justify right mirror)
 		)
 	)
-	(gr_text "Analog Redial v5"
+	(gr_text "Analog Redial 5"
 		(at 53.88 86.75 -90)
 		(layer "B.SilkS")
 		(uuid "7f61b3ff-1a39-4425-966c-68dfbf19dc63")
@@ -32786,7 +32776,7 @@
 			(justify left bottom mirror)
 		)
 	)
-	(gr_text "Analog Redial v5"
+	(gr_text "Analog Redial 5"
 		(at 116.08 62.58 0)
 		(layer "B.SilkS")
 		(uuid "f1c34b21-15e2-4228-96f9-ad742eb5dffc")
