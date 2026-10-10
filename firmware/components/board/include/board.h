@@ -324,6 +324,16 @@ esp_err_t board_speaker_clean_max_set(int line, uint8_t level);
  * as the wrong peripheral (the line-2 side of that pair carries SLIC
  * control signals). So: defaults to the SAFEST option (1 line, no SD) until
  * a human explicitly confirms otherwise -- see board_hw_config_set(). */
+/* Which Bluetooth companion is on the J2 header, if any. Same 8 pins, same
+ * analog audio path; they differ in UART protocol and in what they can do
+ * (the BK3266 can't dial out). Chosen in Settings -> Hardware, takes effect
+ * on reboot. */
+typedef enum {
+    BOARD_BT_NONE = 0,
+    BOARD_BT_BM64,
+    BOARD_BT_BK3266,
+} board_bt_module_t;
+
 typedef struct {
     int  num_lines;    /* 1 or 2 */
     bool has_microsd;  /* only meaningful combined with num_lines == 1 */
@@ -344,6 +354,10 @@ typedef struct {
      * and use J5 only temporarily for EEPROM programming. See
      * archive/BLUETOOTH_AUDIO_UPGRADE.md and bt_companion_ibdk_enter().) */
     bool has_bt_module;
+    /* Which one. board_hw_config_set() keeps the two in step: a caller that
+     * only sets has_bt_module = true gets BOARD_BT_BM64 (the only module
+     * that existed when that field was the whole story). */
+    board_bt_module_t bt_module;
 } board_hw_config_t;
 
 /* Current config: whatever was last written, by a human

@@ -712,16 +712,18 @@ esp_err_t board_record_max_ms_set(uint32_t ms)
 #define HW_CONFIG_NVS_NS       "board"
 #define HW_CONFIG_NVS_KEY_LINES "hw_lines"  /* u8: 1 or 2 */
 #define HW_CONFIG_NVS_KEY_SD    "hw_sd"     /* u8: 0 or 1 */
-#define HW_CONFIG_NVS_KEY_BT    "hw_bt"     /* u8: 0 or 1 -- BM64 module fitted */
+#define HW_CONFIG_NVS_KEY_BT    "hw_bt"     /* u8: 0 or 1 -- a module fitted (written by older firmware: BM64) */
+#define HW_CONFIG_NVS_KEY_BTMOD "hw_btmod"  /* u8: board_bt_module_t -- which module */
 #define HW_CONFIG_NVS_KEY_CONFIRMED "hw_confirmed" /* u8: 1 once a human has actually reviewed this */
 
 board_hw_config_t board_hw_config_get(void)
 {
     /* safe fallback if nothing saved yet */
-    board_hw_config_t cfg = { .num_lines = 1, .has_microsd = false, .has_bt_module = false };
+    board_hw_config_t cfg = { .num_lines = 1, .has_microsd = false, .has_bt_module = false,
+                              .bt_module = BOARD_BT_NONE };
     nvs_handle_t h;
     if (nvs_open(HW_CONFIG_NVS_NS, NVS_READONLY, &h) == ESP_OK) {
-        uint8_t lines = 0, sd = 0, bt = 0;
+        uint8_t lines = 0, sd = 0, bt = 0, btmod = 0;
         if (nvs_get_u8(h, HW_CONFIG_NVS_KEY_LINES, &lines) == ESP_OK && (lines == 1 || lines == 2)) {
             cfg.num_lines = lines;
         }
@@ -730,6 +732,13 @@ board_hw_config_t board_hw_config_get(void)
         }
         if (nvs_get_u8(h, HW_CONFIG_NVS_KEY_BT, &bt) == ESP_OK) {
             cfg.has_bt_module = (bt != 0);
+            /* Saved before module types existed: fitted meant BM64. */
+            cfg.bt_module = cfg.has_bt_module ? BOARD_BT_BM64 : BOARD_BT_NONE;
+        }
+        if (nvs_get_u8(h, HW_CONFIG_NVS_KEY_BTMOD, &btmod) == ESP_OK &&
+            btmod <= BOARD_BT_BK3266) {
+            cfg.bt_module = (board_bt_module_t)btmod;
+            cfg.has_bt_module = (cfg.bt_module != BOARD_BT_NONE);
         }
         nvs_close(h);
     }
@@ -767,6 +776,10 @@ esp_err_t board_hw_config_set(board_hw_config_t cfg)
 {
     if (cfg.num_lines < 1 || cfg.num_lines > 2) return ESP_ERR_INVALID_ARG;
     if (cfg.num_lines == 2 && cfg.has_microsd) return ESP_ERR_INVALID_ARG; /* GPIO18-21 conflict */
+    if (cfg.bt_module > BOARD_BT_BK3266) return ESP_ERR_INVALID_ARG;
+    /* The two fields describe one fact; callers may fill in either. */
+    if (cfg.bt_module == BOARD_BT_NONE && cfg.has_bt_module) cfg.bt_module = BOARD_BT_BM64;
+    cfg.has_bt_module = (cfg.bt_module != BOARD_BT_NONE);
 
     nvs_handle_t h;
     esp_err_t err = nvs_open(HW_CONFIG_NVS_NS, NVS_READWRITE, &h);
@@ -774,6 +787,7 @@ esp_err_t board_hw_config_set(board_hw_config_t cfg)
     err = nvs_set_u8(h, HW_CONFIG_NVS_KEY_LINES, (uint8_t)cfg.num_lines);
     if (err == ESP_OK) err = nvs_set_u8(h, HW_CONFIG_NVS_KEY_SD, cfg.has_microsd ? 1 : 0);
     if (err == ESP_OK) err = nvs_set_u8(h, HW_CONFIG_NVS_KEY_BT, cfg.has_bt_module ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_u8(h, HW_CONFIG_NVS_KEY_BTMOD, (uint8_t)cfg.bt_module);
     /* A human went through the Settings/first-boot form and hit Save --
      * that's what makes this "confirmed", not just a value existing (see
      * board_hw_config_autodetect(), which writes lines/sd but deliberately
@@ -782,10 +796,11 @@ esp_err_t board_hw_config_set(board_hw_config_t cfg)
     if (err == ESP_OK) err = nvs_commit(h);
     nvs_close(h);
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "hardware config set: %d line%s, microSD %s, BM64 module %s",
+        ESP_LOGI(TAG, "hardware config set: %d line%s, microSD %s, Bluetooth module: %s",
                  cfg.num_lines, cfg.num_lines == 1 ? "" : "s",
                  cfg.has_microsd ? "yes" : "no",
-                 cfg.has_bt_module ? "fitted" : "not fitted");
+                 cfg.bt_module == BOARD_BT_BM64 ? "BM64"
+                 : cfg.bt_module == BOARD_BT_BK3266 ? "BK3266" : "none");
     }
     return err;
 }

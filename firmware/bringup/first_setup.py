@@ -315,7 +315,8 @@ def step_network(run: Run, host: str | None) -> dict:
 
 def step_hardware(run: Run, host: str, args, status: dict) -> dict:
     run.header("hardware", "lines / microSD / Bluetooth")
-    if args.lines is None and not args.bluetooth:
+    bt_module = args.bt_module or ("bm64" if args.bluetooth else None)
+    if args.lines is None and bt_module is None:
         n = len(status.get("lines", []))
         run.record("hardware", "SKIP", f"left as is: {n} line(s), SD "
                    f"{'in use' if status.get('storage_on_sd') else 'not in use'} "
@@ -324,15 +325,15 @@ def step_hardware(run: Run, host: str, args, status: dict) -> dict:
     lines = args.lines or len(status.get("lines", [])) or 1
     variant = "2line" if lines == 2 else ("1line_nosd" if args.no_microsd else "1line_sd")
     form = {"lines": variant}
-    if args.bluetooth:
-        form["bt"] = "1"
+    if bt_module:
+        form["bt"] = bt_module
     code, _ = curl(host, "/board_hw_set", form=form)
     if not ok_status(code):
         run.record("hardware", "FAIL", f"board refused '{variant}' (HTTP {code})")
         return status
     _, body = curl(host, "/api/status")
     status = json.loads(body) if body else status
-    run.record("hardware", "PASS", f"set to {variant}{' + Bluetooth' if args.bluetooth else ''}"
+    run.record("hardware", "PASS", f"set to {variant}{' + Bluetooth ' + bt_module if bt_module and bt_module != 'none' else ''}"
                " (line/SD changes take effect after a reboot)")
     return status
 
@@ -394,7 +395,7 @@ def step_audio(run: Run, host: str, args, status: dict) -> list[str]:
     run.header("audio", f"default prompts ({args.language})")
     p = PROMPTS[args.language]
     nlines = len(status.get("lines", [])) or 1
-    bt = bool(args.bluetooth or status.get("bt_enabled"))
+    bt = bool(args.bluetooth or (args.bt_module not in (None, "none")) or status.get("bt_enabled"))
     clips = [
         ("operator.wav", operator_text(args.language, nlines, bt), True),
         ("record_prompt.wav", p["record"], True),
@@ -467,7 +468,10 @@ def main() -> int:
                     help="Set the board to 1 or 2 lines (default: leave as is)")
     ap.add_argument("--no-microsd", action="store_true",
                     help="With --lines 1: no microSD socket fitted")
-    ap.add_argument("--bluetooth", action="store_true", help="BM64 companion fitted")
+    ap.add_argument("--bluetooth", action="store_true",
+                    help="BM64 companion fitted (same as --bt-module bm64)")
+    ap.add_argument("--bt-module", choices=("none", "bm64", "bk3266"),
+                    help="Which Bluetooth module is fitted (default: leave as is)")
     ap.add_argument("--digits", action="store_true",
                     help="Also upload spoken digits 0-9 (for digit readback)")
     ap.add_argument("--tests", action="store_true",

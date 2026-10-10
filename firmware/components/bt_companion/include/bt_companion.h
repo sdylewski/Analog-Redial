@@ -26,6 +26,7 @@
  * handshake the module turned out to need first). */
 #pragma once
 
+#include "board.h"
 #include "esp_err.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -90,6 +91,14 @@ esp_err_t   bt_companion_set_enabled(bool enabled);
  * with no hardware attached, leaving no dial tone and no way to tell why
  * (2026-09-26). "Fitted" is a fact about the board, "enabled" is a choice. */
 bool bt_companion_active(void);
+
+/* Which module the board was booted with (Settings -> Hardware). */
+board_bt_module_t bt_companion_module(void);
+
+/* Whether this module can place a call (bt_companion_make_call()). The BM64
+ * can; the BK3266 has no dial command, so telephony must not offer the
+ * "1 + number" dial-out when this is false. */
+bool bt_companion_can_dial(void);
 
 /* Current link/pairing status. link_up/bt_connected/paired_name are all
  * runtime-only (not persisted) -- they reflect whatever the module last

@@ -32,7 +32,8 @@ not yet tested** — `hardware/kicad/Analog Redial v5/`, dev notes at
 [`archive/hardware/smd5.md`](archive/hardware/smd5.md).
 Headline changes: a dual-compatible MCU footprint (real ESP32-C6-DevKitC-1 or
 a cheaper clone, selected by solder jumpers JP2/JP3), and an 8-pin J2 header
-for the BM64 Bluetooth companion with MFB on GPIO15. Firmware reuses SMD4's
+for a Bluetooth companion — the BM64 carrier or the BK3266 daughter board,
+chosen in Settings → Hardware (`board_bt_module_t`), MFB/WAKEUP on GPIO15. Firmware reuses SMD4's
 pin map for it.
 
 ## Building/flashing for a specific board type (SMD2 vs SMD4 vs SMD5)
@@ -142,7 +143,7 @@ written for someone building a board from scratch — SMD4 only, no
 dev-journal detail. Everything else lives under **[`archive/`](archive/)** —
 dev-journal docs (`archive/ECHO_DEBUGGING.md`, `archive/BLUETOOTH_AUDIO_UPGRADE.md`,
 `archive/ANSWERING_MACHINE.md`, `archive/POWER_SAVING.md`, `archive/VOIP_SETUP.md`), and superseded/pre-SMD4 hardware docs
-(`archive/hardware/smd2.md` — the SMD2 board whole: design, BOM, DTMF-clipping rework, only 3 ever built; `archive/hardware/smd4.md`, `smd5.md`, `BOM*.md`, and the through-hole/WM8731 board's own docs under `archive/hardware/through-hole-wm8731/`). These are
+(`archive/hardware/smd2.md` — the SMD2 board whole: design, BOM, DTMF-clipping rework, only 3 ever built; `archive/hardware/smd4.md`, `smd5.md`, `bk3266.md` — the BK3266 Bluetooth module's wiring, driver, bring-up sequence and bench log —, `BOM*.md`, and the through-hole/WM8731 board's own docs under `archive/hardware/through-hole-wm8731/`). These are
 **your working notes, not part of the public doc set** — useful for you when
 picking up this project again, not linked from the public README. When
 adding new engineering-journal-style content (debug sessions, open

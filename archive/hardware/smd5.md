@@ -17,8 +17,9 @@ Everything not listed here is the same as SMD4 — see
 - **Dual MCU footprint** (`U1`): takes a genuine Espressif
   ESP32-C6-DevKitC-1 or a cheaper AliExpress clone, selected with two solder
   jumpers (JP2, JP3).
-- **BM64 Bluetooth header** `J2`, 8 pins, with its own 3.3 V LDO (U5) and
-  MFB on GPIO15.
+- **Bluetooth header** `J2`, 8 pins, with its own 3.3 V LDO (U5) and MFB
+  on GPIO15. Takes the BM64 carrier or the BK3266 daughter board
+  ([`bk3266.md`](bk3266.md)); same pins, chosen in Settings → Hardware.
 - **SHK divider 10 kΩ / 100 kΩ** (R15/R14 line 0, R13/R12 line 1).
 
 ## Dual MCU footprint
@@ -144,13 +145,27 @@ this option: [`BOM-bluetooth.md`](BOM-bluetooth.md).
 ### BM64 EEPROM programming (through J5)
 
 The BM64's IBDK mode needs RST_N and P2_0 driven at reset — a one-time step
-per module. The carrier's 4-pin `J2` (`P2_0`, `RST_N`) mates with the main
-board's J5 for this:
+per module. The carrier brings the two signals out on `J2`, a **1×2**
+footprint (pin 1 `P2_0`, pin 2 `RST_N`; the symbol draws four pins but only
+two exist on the board). On the main board they come from `J5`, the 2×4
+header whose odd pins are the ESP32 side and even pins line 1's SLIC:
+
+| J5 pin | Net | GPIO | Carrier J2 |
+|--|--|--|--|
+| 3 | `SD_MOSI` / line 1 `RM` | GPIO20 | pin 1 `P2_0` |
+| 5 | `SD_CLK` / line 1 `SHK` | GPIO19 | pin 2 `RST_N` |
+
+(Checked 2026-10-09 against both netlists and the firmware's
+`BOARD_BT_P20_PIN`/`BOARD_BT_RST_PIN`.) J5 pins 3 and 5 are adjacent in the
+same column, so a 1×2 header spans them. With the carrier seated on `J2`
+its programming pads do **not** land over J5 (they're ~20 mm off), so this
+is done with the carrier connected by wires or a short 2-pin lead, not by
+stacking.
 
 1. Pull J5's four shunts (line 1's SLIC, if fitted, is then disconnected).
-2. Plug the carrier's programming header into J5.
+2. Connect carrier J2 pin 1 to J5 pin 3 and pin 2 to J5 pin 5.
 3. Settings → Hardware: one line, BM64 fitted. Run the EEPROM check.
-4. Unplug and refit the shunts.
+4. Remove the leads and refit the shunts.
 
 `bt_companion_ibdk_enter()` drives GPIO18–20 for this and refuses on a
 board configured for two lines.
@@ -170,6 +185,54 @@ half-configured, tack-soldering is the safe default.
 ~3.3 V through an internal 3.3 kΩ pull-up (VOH 2.8 V min); with 100 kΩ the
 GPIO sees ~2.9 V off-hook, above the C6's 2.475 V input-high threshold, and
 a defined low with the SLIC powered down.
+
+## Bring-up checklist
+
+Nothing on this board has been powered yet. In order; stop at the first
+thing that's wrong.
+
+**Which firmware, which jumpers.** The two MCU modules differ at four pads
+(see above), and the jumpers JP2/JP3 steer `I2S_MCLK` and `SD_CD` to match.
+So there's one firmware for both modules as long as the jumpers agree with
+the module:
+
+| Module fitted | JP2 / JP3 | Firmware |
+|--|--|--|
+| Genuine ESP32-C6-DevKitC-1 | as shipped (pads 1–2 bridged) | `smd5` |
+| Clone, jumpers moved | cut 1–2, bridge 2–3 | `smd5` |
+| Clone, jumpers left | as shipped | `smd5_cheap` (no USB console) |
+
+Moving the jumpers is a cut and a solder blob on the back of the board;
+the firmware doesn't change. Do one module at a time and re-check the
+table's "wrong jumper" symptom (no audio, microSD "no card") if it
+misbehaves.
+
+1. **Before power.** Beep out: +5 V to GND (no short), +3.3 V to GND, U5
+   output (`+3.3V_BM`) to GND. Check JP2/JP3 against the module fitted,
+   and that only one side of each is bridged.
+2. **First power, no phone, no daughter board.** 5 V in. Measure +3.3 V on
+   the MCU rail and on `+3.3V_BM` (U5), and the SLIC rails.
+3. **Flash.** `firmware/bringup/flash_board.py --board smd5` (or
+   `smd5_cheap`), 16 MB or 8 MB is detected from the chip. A fresh board has
+   no firmware to ask, so `--board` is required the first time.
+4. **Console and board identity.** `board_info` reports the pin map;
+   `codec_detect` → ES8388 at 0x10. If audio is silent but I²C answers,
+   suspect the MCLK jumper (scope U2 pin 1 for 12.288 MHz).
+5. **The standard steps:** `firmware/bringup/bringup_checklist.py`
+   (MCU → codec → audio → SLIC → DTMF), then `first_setup.py` for Wi-Fi and
+   the default prompts. microSD: insert a card, `sd_test`.
+6. **SHK divider.** With a handset lifted, the SHK GPIO should read high
+   (~2.9 V with the 10 kΩ / 100 kΩ divider); `hookmon` shows it.
+7. **Bluetooth, one module at a time:**
+   - BM64 carrier on `J2` (pin 1 at the 3.3 V end). Settings → Hardware →
+     BM64, reboot. `bm64_test`, `bm64_addr`, then the EEPROM check
+     (programming leads per the section above).
+   - BK3266 daughter board: [`bk3266.md`](bk3266.md) has its own sequence
+     (`firmware/bringup/test_bk3266.py`).
+   Switching modules is a Hardware-tab change plus a reboot; no jumper or
+   firmware difference.
+8. **Results** go in the sections above (replace "not yet tested") and in
+   [`bk3266.md`](bk3266.md)'s log.
 
 ## Open questions
 

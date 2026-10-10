@@ -1,7 +1,11 @@
 # BK3266 — Cheap BM64 Replacement for Analog Redial
 
-**Updated:** 2026-10-01  
-**Status:** Ready to order samples for bench testing
+**Updated:** 2026-10-09  
+**Status:** Research, written before the daughter board was designed. The
+board has since been fabbed and the firmware driver written; the living
+notes (as-built wiring, bring-up sequence, open questions, bench log) are in
+[`archive/hardware/bk3266.md`](../../archive/hardware/bk3266.md). Where this
+file's wiring plan differs from the fabbed board, that file is right.
 
 ---
 
@@ -244,6 +248,10 @@ worse than floating it.
 
 ## Wiring plan: daughter-board header (mirrors the BM64 carrier's 8-pin J12)
 
+> **Superseded by the as-built board.** The fabbed header order is 3.3 V,
+> module TX, module RX, WAKEUP, MICP, MICN, AUDIOLP, GND (identical to the
+> BM64 carrier's J1), not the order below. See `bk3266.md`.
+
 ```
 Header pin   Net                                    BK3266SR pin
 ──────────   ───                                     ────────────
@@ -465,6 +473,7 @@ Three ways forward, cheapest first:
 3. **Trace the reference schematic.** `SCH_BT_BK3266_V2.0.pdf` gives the
    pinout for the symbol; the symbol is the easy half either way.
 
-**Note:** `Bluetooth/BK3266_board_v1/` is currently still a copy of the BM64
-carrier -- its schematic and PCB reference `BM64:BM64_MCH` and
-`BM64SPKS1MC2-0003AA`, so no BK3266 part has been placed yet.
+**Note (2026-10-09):** `Bluetooth/BK3266_board_v1/` is now a real BK3266SR
+board (module symbol `BK3266SR`, 8-pin socket, 6-pin diagnostic header) and
+has been fabbed; the "no KiCad symbol" problem above was solved by drawing
+one.

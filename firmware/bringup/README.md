@@ -53,7 +53,7 @@ a PASS / WARN / FAIL / SKIP table:
 | `console` | serial REPL answers; reads the board type the firmware was built for | `codec`, `microsd` test, `tests` |
 | `codec` | ES8388 found on I²C | `tests` |
 | `network` | board answers `/api/status` at `--host` | everything below |
-| `hardware` | sets lines / microSD / Bluetooth — only when you pass `--lines` or `--bluetooth` | — |
+| `hardware` | sets lines / microSD / Bluetooth — only when you pass `--lines`, `--bluetooth` (BM64) or `--bt-module none\|bm64\|bk3266` | — |
 | `microsd` | skipped on 2-line boards (shared pins); WARN if no card is in use; otherwise `sd_test` write/read/verify over serial | — |
 | `audio` | generates and uploads `operator.wav`, `record_prompt.wav` (dial 211), `am_greeting.wav`, the answering machine's default greeting ("Leave a message after the beep"; a line's own recording via 899 still wins), and with `--digits`, `digit_0..9.wav` | `verify` |
 | `verify` | reads every uploaded file back and checks it's a WAV | — |
@@ -139,6 +139,7 @@ Or run one subsystem at a time while debugging a specific block:
 | `test_audio.py` | Tone generation, ADC capture level, digital loopback (mic -> earpiece) |
 | `test_slic.py` | SLIC power-up, hook-switch detection, ringing |
 | `test_dtmf.py` | DTMF digit generation and call-progress tones (dial/ringback/busy) |
+| `test_bk3266.py` | BK3266 Bluetooth module: protocol check, probe, link, pairing, incoming call, call end (needs the module; see `archive/hardware/bk3266.md`) |
 
 Each takes `--port`, `--baud`, and (except `test_mcu.py`) `--line 0|1`. Steps
 that require a human to listen or lift a handset say so explicitly and print

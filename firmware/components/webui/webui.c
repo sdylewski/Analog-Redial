@@ -436,6 +436,11 @@ static cJSON *build_status_json(void)
     cJSON_AddBoolToObject(root, "bt_connected", bt_st.bt_connected);
     cJSON_AddStringToObject(root, "bt_paired_name", bt_st.paired_name);
     cJSON_AddStringToObject(root, "bt_addr", bt_st.bd_addr);
+    {
+        board_bt_module_t m = bt_companion_module();
+        cJSON_AddStringToObject(root, "bt_module",
+                                m == BOARD_BT_BM64 ? "bm64" : m == BOARD_BT_BK3266 ? "bk3266" : "none");
+    }
 
     cJSON *lines = cJSON_AddArrayToObject(root, "lines");
     for (int l = 0; l < num_lines; l++) {
@@ -2983,6 +2988,42 @@ static int append_bt_config_card(char *buf, size_t cap, int off,
 static int append_bluetooth_tab(char *buf, size_t cap, int off)
 {
     bool bt_on = bt_companion_enabled();
+    board_bt_module_t bt_mod = bt_companion_module();
+
+    /* Which module the board booted with, and what it can't do. The choice
+     * itself is under Settings -> Hardware, since it needs a reboot. */
+    const char *mod_text;
+    if (bt_mod == BOARD_BT_BM64) {
+        mod_text = i18n_str("bt.module_bm64",
+            "<b>BM64</b> module (Microchip). Can ring this phone, answer, hang up, show caller ID "
+            "and dial out.");
+    } else if (bt_mod == BOARD_BT_BK3266) {
+        mod_text = i18n_str("bt.module_bk3266",
+            "<b>BK3266</b> module (Beken). Can ring this phone, answer, hang up and show caller "
+            "ID. It <b>can't dial out</b>: the module has no command for it. New and lightly "
+            "tested.");
+    } else {
+        mod_text = i18n_str("bt.module_none",
+            "No Bluetooth module is selected. Choose the one you fitted under "
+            "<a href=\"/settings?tab=hardware\">Settings &rarr; Hardware</a> (takes effect after "
+            "a reboot).");
+    }
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\"><h2>%s</h2><p class=\"hint\">%s</p></div>",
+        i18n_str("bt.module_title", "Module"), mod_text);
+    const char *bk_features = (bt_mod == BOARD_BT_BK3266)
+        ? i18n_str("bt.features_bk3266_html",
+            "<p class=\"hint\">Pair a cell phone or laptop and the rotary phone on line 1 "
+            "acts as its handset, like a Bluetooth headset.</p>"
+            "<ul>"
+            "<li><b>Incoming calls ring the phone.</b> Lift the handset to answer, hang up to "
+            "end the call.</li>"
+            "<li><b>Caller ID</b> shows in the activity log when the phone sends it.</li>"
+            "<li><b>No dial-out.</b> The BK3266 can't place a call, so there is no "
+            "\"1 + number\" dialing with this module. Dial codes work as usual.</li>"
+            "<li><b>Calls placed on the paired phone</b> can be moved to this handset.</li>"
+            "</ul>")
+        : NULL;
 
     /* Not mainstream yet -- say so before anything else on the tab. */
 #if CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
@@ -3022,7 +3063,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
                  "switch, this takes effect immediately, no reboot: it just starts or stops "
                  "talking over that UART."),
         i18n_str("bt.features_title", "What Bluetooth can do"),
-        i18n_str("bt.features_html",
+        bk_features ? bk_features : i18n_str("bt.features_html",
             "<p class=\"hint\">Pair a cell phone or laptop and the rotary phone on line 1 "
             "acts as its handset, like a Bluetooth headset.</p>"
             "<ul>"
@@ -3163,7 +3204,8 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
         js_link_up, js_link_down, js_connected, js_not_connected, js_none_paired,
         js_pair_btn, js_pairing, js_paired);
 
-    off = append_bt_config_card(buf, cap, off, &st);
+    /* The EEPROM step is a BM64 thing; the BK3266 has no equivalent. */
+    if (bt_mod != BOARD_BT_BK3266) off = append_bt_config_card(buf, cap, off, &st);
 
     off = appendf(buf, cap, off, "</div>"); /* closes #bt-extra */
     return off;
@@ -3838,8 +3880,9 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
         "</select></label>"
         "<label>%s"
         "<select name=\"bt\">"
-        "<option value=\"0\"%s>%s</option>"
-        "<option value=\"1\"%s>%s</option>"
+        "<option value=\"none\"%s>%s</option>"
+        "<option value=\"bm64\"%s>%s</option>"
+        "<option value=\"bk3266\"%s>%s</option>"
         "</select></label>"
         "<button type=\"submit\">%s</button>"
         "</form>"
@@ -3852,10 +3895,12 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
         (cfg.num_lines == 1 && !cfg.has_microsd) ? " selected" : "",
         i18n_str("hwconfig.opt_1line_nosd", "Neither (one phone line, no microSD)"),
         i18n_str("hwconfig.bt_label", "Bluetooth companion module"),
-        !cfg.has_bt_module ? " selected" : "",
+        cfg.bt_module == BOARD_BT_NONE ? " selected" : "",
         i18n_str("hwconfig.bt_no", "Not fitted"),
-        cfg.has_bt_module ? " selected" : "",
+        cfg.bt_module == BOARD_BT_BM64 ? " selected" : "",
         i18n_str("hwconfig.bt_yes", "BM64 module fitted"),
+        cfg.bt_module == BOARD_BT_BK3266 ? " selected" : "",
+        i18n_str("hwconfig.bt_bk3266", "BK3266 module fitted (no dial-out)"),
         i18n_str("hwconfig.button", "Save (takes effect on reboot)"),
         i18n_str("hwconfig.hint",
                  "This board can carry a second phone line <em>or</em> a microSD card, never "
@@ -5129,7 +5174,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     size_t general_room = (strcmp(tab, "general") == 0) ? 3200 + 1400 + 2600 + 500 /* refused-password pills */ : 0; /* +setup password card */ /* +saved-network list */ /* +quiet hours card's timezone dropdown */
     size_t phone_room = (strcmp(tab, "phone") == 0) ? 12500 + 1800 + 900 + 1600 : 0; /* +voice effects card, +intercom card */ /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card, AM greeting text-to-speech field (~2.2 KB) */
     size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 + 4200 /* automatic setup + field hints */ : 0;
-    size_t bt_room = (strcmp(tab, "bluetooth") == 0) ? 3300 : 0; /* +experimental notice */ /* "What Bluetooth can do" card */ /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
+    size_t bt_room = (strcmp(tab, "bluetooth") == 0) ? 3300 + 1500 : 0; /* +experimental notice */ /* "What Bluetooth can do" card */ /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
     /* This tab's `n*220` share (n = ALL dialplan entries, not just clips)
      * was never actually enough for it: each dial-code row is TWO forms
      * (recode + description) plus an audio player -- measured at up to
@@ -5879,7 +5924,7 @@ static esp_err_t board_hw_set_handler(httpd_req_t *req)
     /* "lines" is the GPIO18-21 either/or; "bt" is independent of it. Accepts
      * the field under its old name "variant" too, so the first-boot banner's
      * form (and any bookmarked POST) keeps working. */
-    char variant[16] = {0}, bt[4] = {0};
+    char variant[16] = {0}, bt[12] = {0};
     form_field(body, "lines", variant, sizeof(variant));
     if (!variant[0]) form_field(body, "variant", variant, sizeof(variant));
     form_field(body, "bt", bt, sizeof(bt));
@@ -5897,7 +5942,12 @@ static esp_err_t board_hw_set_handler(httpd_req_t *req)
     }
     /* A form that doesn't carry the field at all (the first-boot banner)
      * mustn't silently clear a module someone already declared fitted. */
-    cfg.has_bt_module = bt[0] ? (bt[0] == '1') : board_hw_config_get().has_bt_module;
+    /* "bt" is none/bm64/bk3266; older forms sent 0/1 (1 meant BM64). */
+    if (!bt[0]) cfg.bt_module = board_hw_config_get().bt_module;
+    else if (strcmp(bt, "bk3266") == 0) cfg.bt_module = BOARD_BT_BK3266;
+    else if (strcmp(bt, "bm64") == 0 || strcmp(bt, "1") == 0) cfg.bt_module = BOARD_BT_BM64;
+    else cfg.bt_module = BOARD_BT_NONE;
+    cfg.has_bt_module = cfg.bt_module != BOARD_BT_NONE;
     board_hw_config_set(cfg);
 
     /* Also appears on the Status page's first-boot banner -- see

@@ -978,7 +978,8 @@ static void process_digit(int line, char ch)
         audio_tx_dtmf(line, ch, 120);
     }
 
-    dialplan_set_bt_dialout(line == bt_companion_line() && bt_companion_active());
+    dialplan_set_bt_dialout(line == bt_companion_line() && bt_companion_active() &&
+                            bt_companion_can_dial());
     dialplan_action_t a = dialplan_feed(&s_line[line].coll, line, ch);
     ESP_LOGD(TAG, "line %d: digit '%c' -> collected '%s', action kind=%d", line,
              ch, s_line[line].coll.buf, a.kind);

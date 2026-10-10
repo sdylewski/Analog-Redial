@@ -19,6 +19,8 @@
 #include "player.h"
 #include "voip.h"
 #include "bt_companion.h"
+#include "bk3266.h"
+#include "bk3266_proto.h"
 #include "driver/gpio.h"
 #include "logctl.h"
 #include "esp_console.h"
@@ -2449,6 +2451,174 @@ static int cmd_bm64_pin(int argc, char **argv)
 }
 #endif
 
+/* ---------- BK3266 bring-up ----------
+ * For the BK3266SR module on J2 (archive/hardware/bk3266.md has the
+ * sequence). All of these except bk_state/bk_cmd need bt_companion disabled
+ * first (bt_enable 0), because they own the UART directly. */
+
+static int bk_busy(void)
+{
+    printf("the BK3266 driver is running (bt_enable 1). Use bt_enable 0 first, "
+           "or bk_state / bk_cmd, which work alongside it.\n");
+    return 1;
+}
+
+static int bk_check_module(void)
+{
+    if (bt_companion_module() == BOARD_BT_BK3266) return 0;
+    printf("this board isn't set to a BK3266 module (Settings -> Hardware, then reboot). "
+           "Raw bk_* commands still talk on GPIO16/17 at 9600 baud, so go ahead if that's "
+           "what's wired.\n");
+    return 0;   /* informational only: bring-up is done before the setting is changed */
+}
+
+static int cmd_bk_probe(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    bk_check_module();
+    esp_err_t err = bk3266_probe();
+    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
+    return err == ESP_OK ? 0 : 1;
+}
+
+static int cmd_bk_listen(int argc, char **argv)
+{
+    int ms = (argc > 1) ? atoi(argv[1]) : 5000;
+    if (ms < 100) ms = 100;
+    if (ms > 120000) ms = 120000;
+    esp_err_t err = bk3266_listen(ms);
+    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
+    return err == ESP_OK ? 0 : 1;
+}
+
+static int cmd_bk_send(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("usage: bk_send <hex bytes> [listen_ms, default 1000]\n"
+               "  raw bytes, no framing added -- e.g. a complete frame:\n"
+               "  bk_send \"52 42 23 04 01 14 19 23 42 52\"\n");
+        return 1;
+    }
+    uint8_t buf[64];
+    int n = parse_hex_bytes(argv[1], buf, sizeof(buf));
+    if (n <= 0) { printf("bk_send: couldn't parse '%s' as hex bytes\n", argv[1]); return 1; }
+    esp_err_t err = bk3266_send_raw(buf, (size_t)n, argc > 2 ? atoi(argv[2]) : 1000);
+    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
+    return err == ESP_OK ? 0 : 1;
+}
+
+/* bk_cmd <code> [listen_ms]: one MCU->module command code in a proper frame
+ * (cmd 0x01, DATA = code, checksum added). With the driver running it just
+ * sends and the reply lands in the log / bk_state. */
+static int cmd_bk_cmd(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("usage: bk_cmd <hex code> [listen_ms, default 1000]\n"
+               "  01 pair   03 disconnect   04 answer   05 reject   06 hang up   07 redial\n"
+               "  11 address  12 name  13 phone name  14 version  15 ACL?  16 call status\n"
+               "  25 receive mode   (full table: components/bt_companion/include/bk3266_proto.h)\n");
+        return 1;
+    }
+    uint8_t code[1];
+    if (parse_hex_bytes(argv[1], code, 1) != 1) { printf("bk_cmd: one hex byte please\n"); return 1; }
+    if (bk3266_running()) {
+        esp_err_t e = bk3266_send_code(code[0]);
+        printf("bk_cmd: sent %02X (%s); watch the log or run bk_state\n", code[0], esp_err_to_name(e));
+        return e == ESP_OK ? 0 : 1;
+    }
+    esp_err_t err = bk3266_send_framed(BK_MID_SEND, code, 1, argc > 2 ? atoi(argv[2]) : 1000);
+    return err == ESP_OK ? 0 : 1;
+}
+
+/* bk_frame <cmd hex> [data hex...] [listen_ms]: any outer CMD, DATA, with
+ * LEN/CRC/header/footer computed -- for trying the other reading of the
+ * protocol (command code as the outer CMD). */
+static int cmd_bk_frame(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("usage: bk_frame <cmd hex> [data hex bytes] [listen_ms]\n"
+               "  bk_frame 14          (version query, code as CMD, no data)\n"
+               "  bk_frame 01 \"14\"     (version query, code as DATA)\n");
+        return 1;
+    }
+    uint8_t cmd[1], data[BK_FRAME_MAX_DATA];
+    if (parse_hex_bytes(argv[1], cmd, 1) != 1) { printf("bk_frame: cmd must be one hex byte\n"); return 1; }
+    int n = 0;
+    if (argc > 2) {
+        n = parse_hex_bytes(argv[2], data, sizeof(data));
+        if (n < 0) { printf("bk_frame: couldn't parse data\n"); return 1; }
+    }
+    esp_err_t err = bk3266_send_framed(cmd[0], data, (size_t)n, argc > 3 ? atoi(argv[3]) : 1000);
+    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
+    return err == ESP_OK ? 0 : 1;
+}
+
+/* bk_at <text> [listen_ms]: a text line + CRLF, for the text-AT firmware
+ * variant (BT+..., COM+...). */
+static int cmd_bk_at(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("usage: bk_at <text> [listen_ms, default 1500]   e.g. bk_at BT+PR\n");
+        return 1;
+    }
+    char line[80];
+    int n = snprintf(line, sizeof(line), "%s\r\n", argv[1]);
+    if (n <= 0 || n >= (int)sizeof(line)) { printf("bk_at: too long\n"); return 1; }
+    esp_err_t err = bk3266_send_raw((const uint8_t *)line, (size_t)n, argc > 2 ? atoi(argv[2]) : 1500);
+    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
+    return err == ESP_OK ? 0 : 1;
+}
+
+static int cmd_bk_state(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    bk3266_print_state();
+    return 0;
+}
+
+static int cmd_bk_wake(int argc, char **argv)
+{
+    int ms = (argc > 1) ? atoi(argv[1]) : 300;
+    esp_err_t err = bk3266_wake_pulse(ms);
+    if (err == ESP_ERR_NOT_SUPPORTED) {
+        printf("bk_wake: WAKEUP is only on its own GPIO (GPIO15) on SMD5 boards\n");
+        return 1;
+    }
+    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
+    printf("bk_wake: GPIO15 high for %d ms, then released. A short pulse is a button press; "
+           "6 s would power the module off.\n", ms);
+    return err == ESP_OK ? 0 : 1;
+}
+
+/* Runs the parser and state mapping on built-in frames, on the device itself.
+ * Needs no module; a quick "is this build's protocol code sane". The full
+ * set is firmware/test/host/test_bk3266_proto.c. */
+static int cmd_bk_selftest(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    static const uint8_t frames[] = {
+        0x52,0x42,0x23,0x04,0x00,0x64,0x68,0x23,0x42,0x52,   /* booted */
+        0x52,0x42,0x23,0x04,0x00,0x65,0x69,0x23,0x42,0x52,   /* link established */
+        0x52,0x42,0x23,0x04,0x00,0x73,0x77,0x23,0x42,0x52,   /* incoming call */
+    };
+    bk_parser_t p; bk_state_t st;
+    bk_parser_init(&p); bk_state_init(&st);
+    int good = 0;
+    for (size_t i = 0; i < sizeof(frames); i++) {
+        bk_frame_t f;
+        if (bk_parser_feed(&p, frames[i], &f)) { bk_state_apply(&st, &f); good++; }
+    }
+    uint8_t out[BK_FRAME_MAX_BYTES];
+    size_t n = bk_build_command(BK_CMD_MATCH, out, sizeof(out));
+    static const uint8_t want[] = { 0x52,0x42,0x23,0x04,0x01,0x01,0x06,0x23,0x42,0x52 };
+    bool build_ok = n == sizeof(want) && memcmp(out, want, n) == 0;
+    bool ok = good == 3 && st.booted && st.connected && st.call == BK_CALL_INCOMING && build_ok;
+    printf("bk_selftest: %d/3 frames parsed, state %s, pairing frame %s -> %s\n", good,
+           (st.booted && st.connected && st.call == BK_CALL_INCOMING) ? "ok" : "WRONG",
+           build_ok ? "ok" : "WRONG", ok ? "PASS" : "FAIL");
+    return ok ? 0 : 1;
+}
+
 static int cmd_bt_enable(int argc, char **argv)
 {
     if (argc < 2) {
@@ -2467,7 +2637,7 @@ static int cmd_bt_enable(int argc, char **argv)
  * format. We already have every (command, help) pair at registration time,
  * so just stash them here rather than pulling them back out of esp_console
  * (commands.c's registry is static/internal, not exposed for enumeration). */
-#define MAX_HELP_ENTRIES 32
+#define MAX_HELP_ENTRIES 64
 static struct { const char *cmd; const char *help; } s_help[MAX_HELP_ENTRIES];
 static int s_help_count = 0;
 
@@ -2538,6 +2708,15 @@ void bringup_console_start(void)
     register_cmd("help", "This list", cmd_help);
 
     register_cmd("board_info", "Print detected board type and pin map", cmd_board_info);
+    register_cmd("bk_probe", "BK3266: is anything answering? listens, sends a version query", cmd_bk_probe);
+    register_cmd("bk_listen", "BK3266: print raw bytes + decoded frames: bk_listen [ms]", cmd_bk_listen);
+    register_cmd("bk_cmd", "BK3266: send one command code: bk_cmd <hex> [listen_ms]", cmd_bk_cmd);
+    register_cmd("bk_frame", "BK3266: build + send a frame: bk_frame <cmd> [data] [ms]", cmd_bk_frame);
+    register_cmd("bk_send", "BK3266: send raw hex bytes: bk_send <hex> [listen_ms]", cmd_bk_send);
+    register_cmd("bk_at", "BK3266: send a text line (AT firmware): bk_at <text>", cmd_bk_at);
+    register_cmd("bk_state", "BK3266: show decoded link/call/name state", cmd_bk_state);
+    register_cmd("bk_wake", "BK3266: pulse WAKEUP (GPIO15, SMD5): bk_wake [ms]", cmd_bk_wake);
+    register_cmd("bk_selftest", "BK3266: check the protocol code on built-in frames", cmd_bk_selftest);
     register_cmd("webpass", "Web UI password: webpass [clear] -- clear removes a forgotten one", cmd_webpass);
     register_cmd("i2c_scan", "Scan I2C bus for the codec", cmd_i2c_scan);
     register_cmd("codec_detect", "Probe both known codec addresses, warn on board-type mismatch", cmd_codec_detect);

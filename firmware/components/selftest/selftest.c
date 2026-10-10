@@ -236,12 +236,16 @@ void selftest_begin(void)
 
     selftest_check_t *bl = add_check("btlink", "Bluetooth module link", NULL, SELFTEST_AUTO);
     selftest_check_t *be = add_check("bteeprom", "Bluetooth audio EEPROM", NULL, SELFTEST_AUTO);
-    if (board_hw_config_get().has_bt_module) {
+    board_bt_module_t bt_mod = board_hw_config_get().bt_module;
+    if (bt_mod == BOARD_BT_BM64) {
         check_bt_link(bl);
         check_bt_eeprom(be);
+    } else if (bt_mod == BOARD_BT_BK3266) {
+        check_bt_link(bl);
+        set_result(be, SELFTEST_SKIP, "BM64 only: the BK3266 has no EEPROM step");
     } else {
-        set_result(bl, SELFTEST_SKIP, "no BM64 module fitted");
-        set_result(be, SELFTEST_SKIP, "no BM64 module fitted");
+        set_result(bl, SELFTEST_SKIP, "no Bluetooth module fitted");
+        set_result(be, SELFTEST_SKIP, "no Bluetooth module fitted");
     }
 
 }
