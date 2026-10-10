@@ -52,10 +52,26 @@ Set to match the module, both nets land on GPIO2/GPIO3 and the normal
 To switch: cut the 1–2 trace, bridge 2–3. Bridge one side only — both
 sides together short GPIO2 to a USB data line.
 
-**Wrong jumper: nothing errors.** The codec still answers on I²C
-(`codec detect: ES8388 @ 0x10`, `es8388: init ok`), Wi-Fi, web UI, hook
-detection and ringing all work, but there's no audio at all and microSD
-always reads "no card".
+**Wrong jumper: nothing errors.** What you'll see, and why:
+
+- *Missing MCLK* (JP3 wrong): the ES8388's control port is independent of
+  its clock, so I²C works and `codec_detect`, `es8388: init ok`, and the
+  self-test's "Audio codec on I²C" and "Codec output configuration" rows all
+  pass. With no clock its digital core is stopped: the handset hears **no dial
+  tone, no ringback, no prompts, nothing**, and the mic path reads as dead
+  (no DTMF detected). Everything that doesn't go through the codec still
+  works — hook detection, ringing, Wi-Fi, web UI — which is what makes it
+  look like a dead codec rather than a clocking fault. The self-test's
+  "Line 0 dial tone" and "audio level" rows fail. Scope U2 pin 1.
+- *Card-detect on the wrong pin* (JP2 wrong): the firmware reads a floating
+  GPIO with its internal pull-up, always "empty", and logs `no card detected
+  (CD pin) -- not attempting a mount`. Settings → Storage shows no card,
+  recordings go to internal flash. A card that's seated on a genuine module
+  with the clone-side jumper also pulls USB D+ low, so USB stops enumerating.
+
+The MCLK behaviour is what the codec's design implies (it runs as an I²S
+slave and needs MCLK); confirm it on the first SMD5 by deliberately
+mis-jumpering one board.
 
 | Module | Jumpers | Firmware | Result |
 |--|--|--|--|

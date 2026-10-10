@@ -97,3 +97,62 @@ Easy additions under that rule: `{{extension}}` (this line's VoIP number),
 
 Also worth adding: mark a prompt "pending" again when the board is renamed,
 since its audio still says the old name.
+
+## Detect the Bluetooth module type at boot
+
+Idea (2026-10-09): fit a BM64 or BK3266 and let the firmware work out which
+it is, instead of asking in Settings -> Hardware (the manual choice stays as
+an override).
+
+**Looks feasible**, because the two speak completely different protocols on
+the same pins and both answer a harmless query:
+
+| | BK3266 | BM64 |
+|--|--|--|
+| Baud | 9600 | 115200 |
+| Framing | `52 42 23 LEN CMD DATA CRC 23 42 52` | `AA 00 LEN OP DATA CHK` |
+| Powers on | by itself at boot (may send a `0x64` boot frame) | only after an MFB high pulse |
+| Probe | version query `52 42 23 04 01 14 19 23 42 52` | `GET_UART_VERSION` |
+
+**Order matters.** Probe the BK3266 first and passively: listen at 9600 for
+a boot frame, send the version query, touch no pins. Only if nothing
+answers, run the BM64 power-on (MFB high 400 ms per the datasheet) and send
+`GET_UART_VERSION` at 115200. Reversed, the MFB pulse could turn a BK3266
+off or reconnect it (WAKEUP's behaviour is an open question), and holding
+MFB high at power-up wipes a BM64's pairings.
+
+Things to settle: do it in the background task, not in the boot path (a
+board with nothing fitted would spend a few seconds failing both probes);
+cache the result in NVS and show it in Settings -> Bluetooth ("detected:
+BK3266"); a text-AT BK3266 answers `BT+GNM` with `NA_...` rather than binary
+frames, so a third probe is possible; and decide what happens when the
+manual setting and the detection disagree (suggest: warn, trust the
+detection). Needs a real module of each kind to validate.
+
+## Catch a wrong SMD5 jumper (JP2/JP3) at boot
+
+Idea (2026-10-09): a clone MCU module with the jumpers left at default
+leaves the codec without a clock and the card-detect switch unread, with no
+error anywhere (see `archive/hardware/smd5.md`).
+
+There is **no way to see the codec's MCLK pin or the card-detect net from
+the MCU directly**: each net has only the one MCU pad on it, and the codec
+MCLK input is high-impedance. Two indirect checks do work:
+
+1. **Codec clock, by data.** With MCLK missing the ES8388's I2S output is
+   dead. After codec init, read ~20 ms of ADC samples; a stream that never
+   changes (all zeros) while the codec reports powered-up means no clock.
+   Needs validating on a real board to be sure a *working* quiet codec's
+   noise floor is reliably non-constant. Could be a self-test row and a log
+   warning "no data from codec: check JP3".
+2. **Card detect, by SPI.** The card talks over SPI regardless of the CD
+   pin. If the board is set to microSD and CD reads "empty", try one SPI
+   mount: if it succeeds, the card is there and CD is not wired to the pin
+   the firmware reads, which is exactly a wrong JP2. (Today the firmware
+   refuses to attempt a mount when CD reads empty.) Do it once at boot or
+   from a "Check microSD" button, not repeatedly.
+
+**Optional step further:** if check 1 fails on an SMD5 build, move MCLK to the
+clone's GPIO12 at runtime (what the `SMD5_CHEAP` build does at compile time)
+so one firmware self-corrects, at the cost of the USB console on that boot.
+

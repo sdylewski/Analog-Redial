@@ -140,6 +140,7 @@ Or run one subsystem at a time while debugging a specific block:
 | `test_slic.py` | SLIC power-up, hook-switch detection, ringing |
 | `test_dtmf.py` | DTMF digit generation and call-progress tones (dial/ringback/busy) |
 | `test_bk3266.py` | BK3266 Bluetooth module: protocol check, probe, link, pairing, incoming call, call end (needs the module; see `archive/hardware/bk3266.md`) |
+| `test_bk3266_dialout.py` | Does the BK3266 have any way to dial a number? Tries REDIAL and the undocumented gaps; reports whether the phone started a call |
 
 Each takes `--port`, `--baud`, and (except `test_mcu.py`) `--line 0|1`. Steps
 that require a human to listen or lift a handset say so explicitly and print

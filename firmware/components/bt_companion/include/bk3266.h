@@ -56,12 +56,14 @@ esp_err_t bk3266_send_code(uint8_t code);
 /* Prints what the task has decoded so far, plus parser counters. */
 void      bk3266_print_state(void);
 
-/* The rest need the task NOT running (ESP_ERR_INVALID_STATE otherwise):
+/* The rest need the task NOT running (ESP_ERR_INVALID_STATE otherwise),
+ * except the two send functions, which just transmit when it is running:
  * they own the UART for their duration and print every byte they see. */
 
 /* Listens for listen_ms, printing raw bytes and decoded frames. */
 esp_err_t bk3266_listen(int listen_ms);
-/* Sends raw bytes (any framing, or text), then listens. */
+/* Sends raw bytes (any framing, or text), then listens. With the driver
+ * running it only sends: the reply shows up in its log and bk_state. */
 esp_err_t bk3266_send_raw(const uint8_t *tx, size_t n, int listen_ms);
 /* Sends a well-formed frame with the given outer CMD and DATA, then listens. */
 esp_err_t bk3266_send_framed(uint8_t cmd, const uint8_t *data, size_t n, int listen_ms);

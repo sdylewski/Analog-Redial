@@ -394,6 +394,14 @@ esp_err_t bk3266_listen(int listen_ms)
 
 esp_err_t bk3266_send_raw(const uint8_t *tx, size_t n, int listen_ms)
 {
+    if (s_task) {
+        /* The driver owns the UART and logs/decodes whatever comes back
+         * (see bk_state), so just put the bytes on the wire. */
+        send_bytes(tx, n);
+        printf("sent %u byte%s; the driver is running: watch the log or bk_state for the reply\n",
+               (unsigned)n, n == 1 ? "" : "s");
+        return ESP_OK;
+    }
     esp_err_t err = bring_up_ready();
     if (err != ESP_OK) return err;
     printf("sending %u byte%s, listening %d ms...\n", (unsigned)n, n == 1 ? "" : "s", listen_ms);

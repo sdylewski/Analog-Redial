@@ -162,6 +162,19 @@ crc = (len + cmd + sum(data)) & 0xFF
 
 **The only gap is direct dial-out (no `ATDnumber;` equivalent).**
 
+> **Correction (2026-10-09): the theory below does not hold up.** It rests
+> on the serial protocol's "documented actions go up to 0x12", but the
+> vendor's own spreadsheet documents the command codes up to 0x29, and
+> 0x13-0x1C are queries and test commands there (0x13 phone name, 0x14
+> version, 0x15 ACL, 0x16 call status, 0x17 song status, 0x18/0x19 1 kHz
+> test tone, 0x1A volume, 0x1B/0x1C transmit-mode search). The ToolKit's
+> "VOICE NUM 0-9 / VOICE DIAL" numbering belongs to its *button-action*
+> table, a different list. Neither the binary protocol nor the text AT
+> firmware (`BT+PR/AC/DC/CA/CJ/CE/CR` and `COM+...`) has a command that
+> takes a number to dial; the only call the module can start is last-number
+> redial. `firmware/bringup/test_bk3266_dialout.py` tests this on a real
+> module.
+
 However, decompiling the ToolKit exe revealed the BK3266 firmware
 supports **VOICE NUM 0–9** and **VOICE DIAL** as internal action codes:
 

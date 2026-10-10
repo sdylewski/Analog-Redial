@@ -2459,7 +2459,7 @@ static int cmd_bm64_pin(int argc, char **argv)
 static int bk_busy(void)
 {
     printf("the BK3266 driver is running (bt_enable 1). Use bt_enable 0 first, "
-           "or bk_state / bk_cmd, which work alongside it.\n");
+           "or bk_state / bk_cmd / bk_frame / bk_send / bk_at, which work alongside it.\n");
     return 1;
 }
 
