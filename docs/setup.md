@@ -2,7 +2,7 @@
 
 # 4 · Set up & use
 
-Getting a flashed board onto your Wi-Fi, and everything you can do from its
+Get a flashed board onto your Wi-Fi. This describes everything you can do from its
 web interface. If someone handed you a ready-made board, start here.
 
 ## 1. Get it on your Wi-Fi
@@ -19,8 +19,7 @@ network** for setup:
 The board needs **2.4 GHz** Wi-Fi; the ESP32-C6 can't use 5 GHz.
 
 The phones work before any of this: dial tone, calls between the two lines,
-clips and recordings all run without a network. Wi-Fi is for the web
-interface and VoIP.
+clips and recordings all run without a network. Wi-Fi is for modifying settings through the web interface, and VoIP.
 
 ## 2. Open the web interface
 
@@ -53,19 +52,13 @@ defaults:
 | **0** | Operator: a spoken help message |
 | **211** | Record a message after the beep. Play or download it under Recordings |
 | **321** | Ring the other phone (two-line boards) |
-| **322**, **323**, **324** | Ring the other phone, talking as a chipmunk, Darth Vader or a Dalek |
-| **412** | A dial-up modem, for old times' sake |
+| **412** | A dial-up modem sound, for old times' sake |
 | **555** + 4 digits | A VoIP call to that extension ([VoIP setup](voip-setup.md)) |
 | **821** / **822** | Digit readback off / on |
 | **899** | Record this line's answering-machine greeting |
 
 Add your own codes with your own audio in Settings → Dial Codes & Prompts.
 
-**During a call**, with voice effects turned on in Settings → Phone
-Settings, press or dial a digit to change both voices: **1** Dalek,
-**2** chipmunk, **3** Darth Vader, **4** 8-bit, **5** robot, **6** tremolo,
-**7** distortion, **0** back to normal. The other person hears the key tone
-too.
 
 ## 4. The web interface
 

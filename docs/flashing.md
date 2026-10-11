@@ -9,8 +9,8 @@ toolchain, which you only do once.
 ## 1. What you need
 
 - An assembled board ([step 2](building.md))
-- A USB-C cable that carries data, not just charge
-- A computer running macOS, Linux or Windows
+- A USB-C cable that carries data, not just power
+- A computer running OSX, Linux or Windows
 - An analog phone to test with
 
 ## 2. Install the toolchain (once)
@@ -44,7 +44,9 @@ cd analog-redial/firmware
 
 ## 4. Flash it
 
-Plug the board into your computer through the **DevKit's USB-C port**, then:
+Plug the board into your computer through the **DevKit's Right USB-C port**<br>
+(note there are 2 usb-c ports on the ESP-32-C6-DevelKit. Use the right one for USB, the left one is for UART)<br>
+then:
 
 ```bash
 cd bringup
@@ -105,6 +107,7 @@ Lift the handset: you should hear dial tone.
 > USB works, not a fault, so connecting a monitor mid-call ends the call.
 
 ## 6. Test the hardware
+Note: a lot of these functions are available in the web UI, but the console gives you more control and debugging capability.
 
 The same USB connection gives you a console that works with or without
 Wi-Fi. Type `help` for the full list. A good first run on a new board:

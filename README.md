@@ -7,9 +7,8 @@
 <p align="center">
   <b>Bring old telephones back to life.</b><br>
   Plug in one or two analog phones, rotary or touch-tone, and they get real
-  dial tone, real ringing, and a little phone system of their own.<br>
-  No server, no app, no subscription.
-</p>
+  dial tone, ringing, operator recording, and answering machine- a complete phone system!<br>
+  Hackable open source hardware and software with a working web UI for configuration.</p>
 
 <p align="center">
   <a href="#what-can-i-do-with-it">What it does</a> ·
@@ -25,7 +24,7 @@
     <td width="50%"><img src="docs/assets/photo-placeholder.svg" alt="The board in its 3D-printed case (photo coming soon)"></td>
   </tr>
   <tr>
-    <td align="center">The board: an ESP32-C6, an audio codec, and a phone-line chip per jack</td>
+    <td align="center">The board: an ESP32-C6, an audio codec, with dual phone lines.</td>
     <td align="center">In its 3D-printed case (<a href="https://github.com/sdylewski/Analog-Redial/tree/main/hardware/3d-printed-case">print files</a>)</td>
   </tr>
 </table>
@@ -39,16 +38,15 @@
     <td width="50%" valign="top">
       <img src="docs/assets/use-intercom.svg" alt="Two analog phones on one board">
       <h3>Intercom</h3>
-      Two phones, one board. Dial <b>321</b> and the other phone rings with its
-      real bell. Works with no Wi-Fi and no internet at all. Houses, workshops,
-      kids' rooms, a studio and its control room.
+      Two phones, one board. Dial <b>321</b> and the other phone rings. Or intercom mode. Works with no Wi-Fi and no internet. Use it between 2 rooms in your house,
+      kids' rooms, etc.
     </td>
     <td width="50%" valign="top">
       <img src="docs/assets/use-standalone.svg" alt="One phone playing clips and recording messages">
       <h3>A phone that does things</h3>
       Dial a code and something happens: play a clip, leave a message, reach the
       answering machine. Museum exhibits, art pieces, a wedding guestbook phone,
-      a phone that tells kids jokes.
+      a phone that tells kids jokes. Saves messages to uSD card. 
     </td>
   </tr>
   <tr>
@@ -75,7 +73,7 @@ Off-the-shelf analog telephone adapters (ATAs) only understand touch-tone,
 so a rotary phone can't dial through them, and they need a SIP server before
 they do anything at all, even to let two phones on the same box call each
 other. Analog Redial reads rotary pulses as well as touch-tone, and it is a
-complete phone exchange on its own.
+complete hackable phone exchange on its own.
 
 ### The finer print
 
@@ -83,15 +81,14 @@ complete phone exchange on its own.
   audio clips from the browser, no rebuild. Optional digit readback.
 - **Calls.** Line-to-line calls with ringback and busy tones. Optional
   intercom mode: lift one handset, wait, and the other phone rings.
-  Experimental voice effects mid-call: Dalek, chipmunk, Darth Vader, 8-bit,
-  robot and more. VoIP in and out (G.711, on your local network).
+  VoIP in and out (G.711, on your network).
 - **Sound.** Dial tone, ringback and busy that match your country (North
   America, several European countries, Japan, China, or a generic
   international set). Echo cancellation and earpiece volume per line. An
   off-hook alert if a handset is left off.
 - **Messages.** Record a message with **211** and download it from the
   browser. A per-line answering machine, each line with its own greeting.
-  Fit a microSD card for hours of storage.
+  Insert a microSD card for hours of storage (1-line version only).
 - **Day to day.** Quiet hours that silence the bell overnight. Remembers
   several Wi-Fi networks. Firmware updates from the browser. A one-button
   rescue mode for when it can't find its network.
@@ -139,7 +136,7 @@ including shipping and import tariff:
 | **One single-line board** | **about $110 up front**, with 4 spare PCBs | **about $25** |
 | Second phone line (optional) | +$10 | +$10 |
 
-You'll also want a 2 A USB-C charger and one or two analog phones. Buying
+You'll also want a 2A USB-C charger and one or two analog phones. Buying
 the hand-solder parts from AliExpress instead brings them to about $12 a
 board.
 
@@ -184,7 +181,7 @@ Going further: [VoIP setup](docs/voip-setup.md) ·
 
 - **Discord:** coming soon <!-- TODO: Discord invite link -->
 - **Bugs and questions:** [GitHub Issues](https://github.com/sdylewski/Analog-Redial/issues)
-- **Built one?** Open an issue with a photo. We'd love to see it.
+- **Built one?** Post a picture in the Discord channel! We'd love to see it.
 
 ---
 
@@ -192,10 +189,10 @@ Going further: [VoIP setup](docs/voip-setup.md) ·
 
 | When | Version | What it was |
 |------|---------|-------------|
-| Aug 2020 | **Raspberry Pi** <br><img src="docs/pics/pi_version.jpg" width="220" alt="Raspberry Pi version in its project box"> | A Raspberry Pi 4 in a project box, two SLIC modules hand-wired to its GPIO header, and a USB sound dongle per phone line. Python software, after a short Arduino experiment in July 2020. |
-| Jun 2026 | **v1** | The first ESP32 board: through-hole, with a WM8731 codec and two AG1170 SLICs. The Pi's job on a $5 microcontroller. |
-| Jul 2026 | **v2** <br><img src="docs/pics/smd2_board.jpg" width="220" alt="Analog Redial v2 board"> | First surface-mount board: ESP32-C6 module, ES8388 codec, AG1171 SLICs, microSD. Three hand-soldered. |
-| Sep 2026 | **v4** <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | The current board: 2-layer, built around an ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. |
+| Aug 2020 | **Raspberry Pi** <br><img src="docs/pics/pi_version.jpg" width="220" alt="Raspberry Pi version in its project box"> | A Raspberry Pi 4 in a project box, two SLIC modules hand-wired on breadboard to the GPIO header, and a USB sound dongle per phone line. Hand written python software and shell scripts. No web UI, but it worked!|
+| Jun 2026 | **v1** | The first ESP32 board: through-hole, with a WM8731 codec and two AG1170 SLICs. The Pi's job on a $5 microcontroller. Never built because boards got lost in the mail.|
+| Jul 2026 | **v2** <br><img src="docs/pics/smd2_board.jpg" width="220" alt="Analog Redial v2 board"> | First surface-mount board: ESP32-C6 module, ES8388 codec, AG1171 SLICs, microSD. Required rework on audio lines and usb connection but it worked. |
+| Sep 2026 | **v4** <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | The current board: 2-layer, built around an cheaper 32-pin ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. |
 | Oct 2026 | **v5** | At the fab: takes a genuine or clone ESP32-C6 module, and adds the Bluetooth companion. |
 
 ## License

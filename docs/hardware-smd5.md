@@ -62,7 +62,7 @@ out here.
 
 **PCB layout, top copper/silkscreen:**
 
-![SMD5 PCB layout, top](pics/smd5_layout_top.png)
+![SMD5 PCB bottom](pics/V5_board_front.png)
 
 ## 3. Power tree
 
@@ -220,7 +220,8 @@ This board routes on 2 copper layers (`F.Cu`/`B.Cu`) rather than 4. Standard
 2-layer tradeoffs apply and are worth keeping in mind when reviewing or
 modifying the layout:
 
-![SMD5 PCB layout, bottom](pics/smd5_layout_bottom.png)
+![SMD5 PCB bottom](pics/V5_board_rear.png)
+
 
 - **No dedicated ground/power plane** — GND is a deliberately-poured zone on
   one side with stitching vias tying the two layers together, rather than a
@@ -293,6 +294,17 @@ the normal `CONFIG_BOARD_TYPE_SMD5` build with native USB working.
 |--------|-----|---------------------------|------------------------------|
 | **JP3** | `I2S_MCLK` | pad 12 | pad 19 |
 | **JP2** | `SD_CD` | pad 13 | pad 20 |
+
+<table>
+  <tr>
+    <td width="50%"><img src="pics/v6_esp32_solder_jumpers.png" alt="The Analog Redial board"></td>
+    <td width="50%"><img src="../docs/assets/photo-placeholder.svg" alt=" (photo coming soon)"></td>
+  </tr>
+  <tr>
+    <td align="center">Modification needed for cheap 30-pin esp32-c6-devkit</td>
+    <td align="center">add photo of finished rework</td>
+  </tr>
+</table>
 
 Bridge one side only: both sides together short GPIO2 to a USB data line.
 (`CONFIG_BOARD_TYPE_SMD5_CHEAP` remains for a clone board with the jumpers
