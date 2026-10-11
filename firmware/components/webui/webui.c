@@ -1299,6 +1299,11 @@ static bool is_user_recording(const char *name)
  * flat storage partition. Manage those under Settings -> Storage files. */
 static esp_err_t recordings_page_handler(httpd_req_t *req)
 {
+    /* Recordings are people's messages: with a web password set, hearing,
+     * downloading, listing or deleting them all need a sign-in (a browser is
+     * sent to the sign-in page and comes back here). */
+    if (!require_signed_in(req)) return ESP_OK;
+    s_viewer_signed_in = true;
     /* Both backends, not just primary: unlike Settings -> Storage files
      * (which shows microSD and internal flash as separate, clearly-labeled
      * cards for management), this is the casual "your messages" page --
@@ -2336,8 +2341,9 @@ static int append_web_password_card(char *buf, size_t cap, int off)
     if (!webauth_enabled()) {
         off = appendf(buf, cap, off,
             "<p class=\"hint\">Off: anyone on your network can change this board's settings. "
-            "With a password, pages can still be viewed, but changing anything needs a sign-in "
-            "(scripts pass it with <code>curl -u admin:PASSWORD</code>).</p>");
+            "With a password, settings pages can still be viewed, but changing anything, and "
+            "seeing, playing, downloading or deleting recordings and stored audio, needs a "
+            "sign-in (scripts pass it with <code>curl -u admin:PASSWORD</code>).</p>");
     } else if (!s_viewer_signed_in) {
         static char hint_line[WEBAUTH_HINT_BYTES * 6 + 40];
         hint_line[0] = '\0';
@@ -4808,6 +4814,13 @@ static int append_storage_table(char *buf, size_t cap, int off,
                                 const char *name_prefix, bool show_recorded,
                                 const char *return_to)
 {
+    if (!s_viewer_signed_in) {
+        /* The file names and timestamps of recordings are as private as the
+         * audio. */
+        return appendf(buf, cap, off,
+            "<p class=\"hint\"><a href=\"/login?then=/settings%%3Ftab%%3Dstorage\">Sign in</a> "
+            "to see, play, download or delete stored files.</p>");
+    }
     size_t shown = 0;
     for (size_t i = 0; i < n; i++) {
         if (!storage_table_matches(entries[i].name, name_prefix)) continue;
@@ -7626,6 +7639,7 @@ static esp_err_t log_handler(httpd_req_t *req)
 
 static esp_err_t recordings_json_handler(httpd_req_t *req)
 {
+    if (!require_signed_in(req)) return ESP_OK;
     storage_entry_t *entries = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
     size_t n = entries ? storage_list(entries, STORAGE_LIST_MAX) : 0;
     cJSON *arr = cJSON_CreateArray();
@@ -7646,6 +7660,9 @@ static esp_err_t recordings_json_handler(httpd_req_t *req)
 
 static esp_err_t media_handler(httpd_req_t *req)
 {
+    /* Any stored audio: recordings, and the clips the Settings pages play.
+     * With a web password set these need a sign-in (curl: -u admin:PASSWORD). */
+    if (!require_signed_in(req)) return ESP_OK;
     /* req->uri includes any query string (e.g. "foo.wav?inline=1") and is
      * still %-encoded (links encode names with spaces etc.). */
     char name[STORAGE_MAX_NAME];
@@ -8728,9 +8745,9 @@ static esp_err_t login_page_handler(httpd_req_t *req)
     } else {
         off = appendf(buf, cap, off,
             "</header><main><div class=\"card\"><h2>Sign in</h2>"
-            "<p class=\"hint\">This board has a web password. Pages can be viewed without it; "
-            "changing anything needs a sign-in. If you were changing a setting, make the change "
-            "again after signing in.</p>"
+            "<p class=\"hint\">This board has a web password. Settings pages can be viewed without "
+            "it; changing anything, and recordings and stored audio, need a sign-in. If you "
+            "were changing a setting, make the change again after signing in.</p>"
             "%s%s%s"
             "<form method=\"POST\" action=\"/login\" class=\"settings-form\">"
             "<input type=\"hidden\" name=\"then\" value=\"%s\">"
