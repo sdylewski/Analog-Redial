@@ -198,6 +198,7 @@ static int append_web_password_card(char *buf, size_t cap, int off);
 static bool s_viewer_signed_in = true;
 static bool request_signed_in(httpd_req_t *req);
 static bool require_signed_in(httpd_req_t *req);
+static bool destructive_confirmed(httpd_req_t *req, const char *word);
 /* Defined with the Dial Codes & Prompts tab; also used by the answering
  * machine card's default-greeting text. */
 static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_name,
@@ -774,6 +775,16 @@ static const char THEME_JS[] =
     "document.addEventListener('DOMContentLoaded',rdLabel);"
     "</script>";
 
+/* While no time zone has ever been chosen, the first browser to open a page
+ * offers its own (once per tab session). The board decides: it only accepts
+ * a zone it can map to a rule, and only if none is chosen yet. */
+static const char TZ_AUTO_JS[] =
+    "<script>try{var z=Intl.DateTimeFormat().resolvedOptions().timeZone;"
+    "if(z&&!sessionStorage.rdtz){sessionStorage.rdtz=1;"
+    "fetch('/timezone_auto',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},"
+    "body:'iana='+encodeURIComponent(z)}).then(function(r){return r.text()})"
+    ".then(function(t){if(t=='set')location.reload()})}}catch(e){}</script>";
+
 static int append_page_head(char *buf, size_t cap, int off, const char *page_title,
                              const char *active_href, bool auto_refresh)
 {
@@ -788,10 +799,11 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
         "<link rel=\"icon\" href=\"/favicon.ico\" sizes=\"any\">"
         "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">"
-        "<link rel=\"stylesheet\" href=\"/static/style.css\">%s</head><body>"
+        "<link rel=\"stylesheet\" href=\"/static/style.css\">%s%s</head><body>"
         "<header><h1>%s <span class=\"dot\">%s</span></h1><nav>",
         name, page_title, auto_refresh ? "<meta http-equiv=\"refresh\" content=\"5\">" : "",
-        THEME_JS, name, i18n_str("header.subtitle", "Analog Redial"));
+        THEME_JS, board_timezone_is_chosen() ? "" : TZ_AUTO_JS,
+        name, i18n_str("header.subtitle", "Analog Redial"));
     for (size_t i = 0; i < NAV_TABS_N; i++) {
         bool active = strcmp(NAV_TABS[i].href, active_href) == 0;
         off = appendf(buf, cap, off,
@@ -1164,7 +1176,7 @@ static esp_err_t index_handler(httpd_req_t *req)
      * activity entries, see append_activity_panel()). */
     dialplan_entry_info_t entries[40];
     size_t n = dialplan_list(entries, 40);
-    size_t cap = 8192 + 1000 /* page head's theme script */ + n * 220 + 1800 /* append_first_boot_banner(), while unconfirmed */
+    size_t cap = 8192 + 1500 /* page head's theme + zone scripts */ + n * 220 + 1800 /* append_first_boot_banner(), while unconfirmed */
         + 300 /* dial guide's Bluetooth dial-out card */
         + 1800 /* dial guide's "During a call" card */
         + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
@@ -1313,7 +1325,7 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
      * ~9600) before landing on these numbers from actual measurement
      * instead of another guess -- if this ever needs to change again,
      * measure a rendered row rather than estimating. */
-    size_t cap = 2048 + 1024 + 1000 /* page head's theme script */ + n * 600
+    size_t cap = 2048 + 1024 + 1500 /* page head's theme + zone scripts */ + n * 600
         + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
     char *buf = malloc(cap);
     if (!buf) { free(entries); httpd_resp_send_500(req); return ESP_FAIL; }
@@ -1330,6 +1342,17 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
         i18n_str("recordings.hint",
                  "Messages left with dial code 211. Built-in audio (operator, clips) is under "
                  "<a href=\"/settings\">Settings</a>."));
+    {
+        time_t now_t = time(NULL);
+        struct tm lt;
+        char zn[16];
+        localtime_r(&now_t, &lt);
+        strftime(zn, sizeof(zn), "%Z", &lt);
+        off = appendf(buf, cap, off,
+            "<p class=\"hint\">Times are shown in %s. Change it under "
+            "<a href=\"/settings?tab=general#timezone\">Settings &rarr; General &rarr; Time zone</a>.</p>",
+            zn);
+    }
 
     if (shown == 0) {
         off = appendf(buf, cap, off,
@@ -1598,29 +1621,84 @@ static int append_general_tab(char *buf, size_t cap, int off)
     } else {
         snprintf(qh_status, sizeof(qh_status), "%s", i18n_str("general.quiethours.status_off", "off"));
     }
+    /* Time zone: a card of its own. It sets every time the board shows (the
+     * Recordings "Recorded" column, the activity log) as well as the quiet-hours
+     * window, so it doesn't belong inside Quiet hours. Detected zone offered
+     * here; the same detection also applies once, on its own, the first time a
+     * browser opens any page while no zone has ever been chosen (see
+     * timezone_auto_handler()). */
+    {
+        time_t now_t = time(NULL);
+        struct tm lt;
+        char now_s[48];
+        localtime_r(&now_t, &lt);
+        if (lt.tm_year + 1900 >= 2024) strftime(now_s, sizeof(now_s), "%Y-%m-%d %H:%M %Z", &lt);
+        else snprintf(now_s, sizeof(now_s), "%s", "clock not set yet");
+        const char *zone_label = NULL;
+        for (size_t i = 0; i < UI_TIMEZONES_N; i++) {
+            if (strcmp(UI_TIMEZONES[i].tz, tz) == 0) { zone_label = UI_TIMEZONES[i].label; break; }
+        }
+        bool chosen = board_timezone_is_chosen();
+        char tz_esc[BOARD_TZ_MAX * 6];
+        html_escape(tz, tz_esc, sizeof(tz_esc));
+        off = appendf(buf, cap, off,
+            "<div class=\"card\" id=\"timezone\"><h2>%s</h2>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+            "<form method=\"POST\" action=\"/timezone_set\" class=\"settings-form\">"
+            "<label>%s <select id=\"tz_select\" name=\"tz\">",
+            i18n_str("general.timezone.title", "Time zone"),
+            i18n_str("general.timezone.now", "Time on the board"), now_s,
+            i18n_str("general.timezone.label", "Zone"));
+        if (!zone_label) {
+            /* A custom POSIX string set over the API/console: keep it selectable so
+             * saving this form doesn't silently replace it. */
+            off = appendf(buf, cap, off, "<option value=\"%s\" selected>Custom: %s</option>", tz_esc, tz_esc);
+        }
+        for (size_t i = 0; i < UI_TIMEZONES_N; i++) {
+            off = appendf(buf, cap, off,
+                "<option value=\"%s\"%s data-iana=\"%s\">%s</option>",
+                UI_TIMEZONES[i].tz, strcmp(UI_TIMEZONES[i].tz, tz) == 0 ? " selected" : "",
+                UI_TIMEZONES[i].iana, UI_TIMEZONES[i].label);
+        }
+        off = appendf(buf, cap, off,
+            "</select><span id=\"tzsuggest\" class=\"hint\"></span></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+            "</form><p class=\"hint\">%s%s</p>",
+            i18n_str("general.button.save", "Save"),
+            chosen ? "" : "No zone has been chosen yet, so times show in UTC. ",
+            i18n_str("general.timezone.hint",
+                     "Used for every time shown in the web UI (recordings, the activity log) "
+                     "and for the quiet-hours window. Recording <i>file names</i> stay in UTC "
+                     "so they sort correctly and don't shift if you move. The board gets only "
+                     "UTC from the network; it can't learn your zone from Wi-Fi, so it asks "
+                     "your browser."));
+        off = appendf(buf, cap, off,
+            "<script>(function(){try{"
+            "var want=Intl.DateTimeFormat().resolvedOptions().timeZone;"
+            "var sel=document.getElementById('tz_select'),out=document.getElementById('tzsuggest');"
+            "if(!want||!sel||!out)return;var hit=null;"
+            "for(var i=0;i<sel.options.length;i++){"
+            "var l=(sel.options[i].dataset.iana||'').split(',');"
+            "if(l.indexOf(want)>=0){hit=sel.options[i];break;}}"
+            "if(!hit||hit.selected)return;"
+            "out.innerHTML=' Your browser says <b>'+want+'</b>. <a href=\"#\" id=\"tzuse\">Use '+hit.text+'</a>';"
+            "document.getElementById('tzuse').onclick=function(e){"
+            "e.preventDefault();hit.selected=true;out.textContent=' Set below \u2014 press Save.';};"
+            "}catch(e){}})();</script></div>");
+    }
+
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<form method=\"POST\" action=\"/quiet_hours\" class=\"settings-form\">"
         "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
-        "<label>%s<select id=\"tz_select\" name=\"tz\">",
-        i18n_str("general.quiethours.title", "Quiet hours"),
-        i18n_str("general.current", "Current"), qh_status,
-        qh.enabled ? " checked" : "", i18n_str("general.quiethours.enabled", "Enabled"),
-        i18n_str("general.quiethours.tz_label", "Timezone"));
-    for (size_t i = 0; i < UI_TIMEZONES_N; i++) {
-        off = appendf(buf, cap, off,
-            "<option value=\"%s\"%s data-iana=\"%s\">%s</option>",
-            UI_TIMEZONES[i].tz, strcmp(UI_TIMEZONES[i].tz, tz) == 0 ? " selected" : "",
-            UI_TIMEZONES[i].iana, UI_TIMEZONES[i].label);
-    }
-    off = appendf(buf, cap, off,
-        "</select>"
-        "<span id=\"tzsuggest\" class=\"hint\"></span></label>"
         "<label>%s <input type=\"time\" name=\"start\" value=\"%02u:%02u\" required></label>"
         "<label>%s <input type=\"time\" name=\"end\" value=\"%02u:%02u\" required></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>",
+        i18n_str("general.quiethours.title", "Quiet hours"),
+        i18n_str("general.current", "Current"), qh_status,
+        qh.enabled ? " checked" : "", i18n_str("general.quiethours.enabled", "Enabled"),
         i18n_str("general.quiethours.start_label", "Start"), qh.start_hour, qh.start_min,
         i18n_str("general.quiethours.end_label", "End"), qh.end_hour, qh.end_min,
         i18n_str("general.button.save", "Save"));
@@ -1631,34 +1709,11 @@ static int append_general_tab(char *buf, size_t cap, int off)
                  "Machine is off, since there's nowhere else to send the call."),
         i18n_str("general.quiethours.hint_detail",
                  "Old mechanical ringers are loud, and not everyone wants one going off at "
-                 "2 a.m. This window, and every time shown in the web UI, use the timezone "
-                 "set above; recording <i>filenames</i> stay in UTC so they sort correctly "
-                 "and don't shift if you move. Start later than end (e.g. 21:00-07:00) means "
+                 "2 a.m. This window uses the Time zone set in the card above. "
+                 "Start later than end (e.g. 21:00-07:00) means "
                  "the window wraps past midnight. Takes effect on the next incoming call -- "
                  "no reboot."));
-    off = appendf(buf, cap, off,
-        /* The browser already knows which zone the person is sitting in, and
-         * it's the only party here that does -- the board only ever learns
-         * UTC from SNTP. Offer it rather than applying it: silently changing
-         * a saved setting because someone opened the page from a hotel would
-         * be worse than making them click. */
-        "<script>(function(){"
-        "try{"
-        "var want=Intl.DateTimeFormat().resolvedOptions().timeZone;"
-        "var sel=document.getElementById('tz_select');"
-        "var out=document.getElementById('tzsuggest');"
-        "if(!want||!sel||!out)return;"
-        "var hit=null;"
-        "for(var i=0;i<sel.options.length;i++){"
-        "var l=(sel.options[i].dataset.iana||'').split(',');"
-        "if(l.indexOf(want)>=0){hit=sel.options[i];break;}}"
-        "if(!hit||hit.selected)return;"
-        "out.innerHTML=' Your browser says <b>'+want+'</b>. '"
-        "+'<a href=\"#\" id=\"tzuse\">Use '+hit.text+'</a>';"
-        "document.getElementById('tzuse').onclick=function(e){"
-        "e.preventDefault();hit.selected=true;out.textContent=' Set below \\u2014 press Save.';};"
-        "}catch(e){}})();</script>"
-        "</div>");
+    off = appendf(buf, cap, off, "</div>");
     return off;
 }
 
@@ -3681,6 +3736,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
     off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/factory_reset\" class=\"settings-form\" "
         "onsubmit=\"return confirm('%s')\">"
+        "<input type=\"hidden\" name=\"confirm\" value=\"reset\">"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"danger\">"
         "%s\xe2\x80\xa6</button></div>"
         "</form>"
@@ -4935,6 +4991,7 @@ static int append_sdcard_info_card(char *buf, size_t cap, int off)
         "<button type=\"submit\">%s</button></form>"
         "<form method=\"POST\" action=\"/sd_format\" style=\"display:inline\" "
         "onsubmit=\"return confirm('%s')\">"
+        "<input type=\"hidden\" name=\"confirm\" value=\"format\">"
         "<button type=\"submit\" class=\"danger\">%s</button></form>"
         "</div>",
         i18n_str("storage.sd_info_title", "microSD card"),
@@ -5039,6 +5096,7 @@ static int append_storage_section(char *buf, size_t cap, int off)
                 "<div class=\"toolbar sub\">"
                 "<form method=\"POST\" action=\"/sd_force_format\" style=\"display:inline\" "
                 "onsubmit=\"return confirm('%s')\">"
+                "<input type=\"hidden\" name=\"confirm\" value=\"format\">"
                 "<button type=\"submit\" class=\"danger\">%s</button></form>"
                 "</div></div>",
                 i18n_str("storage.sd_info_title", "microSD card"),
@@ -5245,7 +5303,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * and NVS-backed (not a filesystem walk), so sizing for that many
      * outright is cheap and avoids a second listing call just to count. */
     size_t dialcodes_room = (strcmp(tab, "dialcodes") == 0) ? DIALPLAN_MAX_CLIP_ENTRIES * 950 + 6000 : 0;
-    size_t cap = 6144 + 1000 /* page head's theme script */ + n * 220 + storage_room + log_room + hw_room + general_room + voip_room + dialcodes_room + phone_room + bt_room + diag_room
+    size_t cap = 6144 + 1500 /* page head's theme + zone scripts */ + n * 220 + storage_room + log_room + hw_room + general_room + voip_room + dialcodes_room + phone_room + bt_room + diag_room
         + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
     /* The per-tab room estimates above are guesses; every append below
      * keeps adding its would-be length even once the buffer is full, so on
@@ -5654,6 +5712,7 @@ static esp_err_t wifi_reprovision_handler(httpd_req_t *req)
  * someone else. */
 static esp_err_t factory_reset_handler(httpd_req_t *req)
 {
+    if (!destructive_confirmed(req, "reset")) return ESP_OK;
     ESP_LOGW(TAG, "web UI: factory reset requested -- erasing all settings");
     esp_err_t err = nvs_flash_erase();
     if (err != ESP_OK) {
@@ -5795,6 +5854,37 @@ static esp_err_t tone_lang_set_handler(httpd_req_t *req)
 }
 
 /* POST /timezone_set -- form body tz=... (a POSIX TZ string; blank = UTC). */
+/* POST /timezone_auto -- iana=<IANA zone name from the browser>. Applies the
+ * matching zone from UI_TIMEZONES, but only while none has ever been chosen:
+ * a saved choice is never overridden by whoever opens a page. Answers "set",
+ * "chosen" (already decided) or "unknown" (no rule for that zone here). */
+static esp_err_t timezone_auto_handler(httpd_req_t *req)
+{
+    static char body[160];
+    READ_FORM_OR_RETURN(req, body);
+    char iana[64] = "";
+    form_field(body, "iana", iana, sizeof(iana));
+    httpd_resp_set_type(req, "text/plain");
+    if (board_timezone_is_chosen()) return httpd_resp_sendstr(req, "chosen");
+    for (size_t i = 0; iana[0] && i < UI_TIMEZONES_N; i++) {
+        /* exact match inside the comma-separated list */
+        const char *p = UI_TIMEZONES[i].iana;
+        size_t n = strlen(iana);
+        while (p && *p) {
+            const char *e = strchr(p, ',');
+            size_t len = e ? (size_t)(e - p) : strlen(p);
+            if (len == n && strncmp(p, iana, n) == 0) {
+                board_timezone_set(UI_TIMEZONES[i].tz);
+                activity_log("Time zone set to %s from the browser (%s)",
+                             UI_TIMEZONES[i].label, iana);
+                return httpd_resp_sendstr(req, "set");
+            }
+            p = e ? e + 1 : NULL;
+        }
+    }
+    return httpd_resp_sendstr(req, "unknown");
+}
+
 static esp_err_t timezone_set_handler(httpd_req_t *req)
 {
     if (req->content_len >= WIFI_FORM_MAX_BODY) {
@@ -6690,8 +6780,32 @@ static esp_err_t sd_selftest_ui_handler(httpd_req_t *req)
 /* POST /sd_format -- wipes the mounted microSD card. Real, irreversible
  * data loss -- the Storage tab's own confirm() dialog is the only guard,
  * this handler itself just does it. */
+/* Routes that wipe something act only on a form that carries confirm=<word>.
+ * The Settings page's own buttons add it (behind a JavaScript confirm()); a
+ * stray, scripted or cross-site POST doesn't, so it can't reformat a card or
+ * erase the settings by accident, whether or not a web password is set.
+ * (Added after a test request to /sd_format formatted a card on a board
+ * whose password had just been removed.) Answers the request itself when it
+ * returns false. */
+static bool destructive_confirmed(httpd_req_t *req, const char *word)
+{
+    char body[64] = "", got[24] = "";
+    if (req->content_len > 0 && req->content_len < sizeof(body)) {
+        int r = httpd_req_recv(req, body, req->content_len);
+        if (r > 0) body[r] = '\0';
+    }
+    form_field(body, "confirm", got, sizeof(got));
+    if (strcmp(got, word) == 0) return true;
+    ESP_LOGW(TAG, "refused %s: no confirmation in the request", req->uri);
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+        "This erases data, so it only runs from its button on the Settings page "
+        "(or with confirm=<word> in the form).");
+    return false;
+}
+
 static esp_err_t sd_format_handler(httpd_req_t *req)
 {
+    if (!destructive_confirmed(req, "format")) return ESP_OK;
     esp_err_t err = sdcard_format();
     if (err == ESP_OK) {
         s_sd_selftest_result[0] = '\0'; /* stale after a wipe -- re-run to get a fresh number */
@@ -6710,6 +6824,7 @@ static esp_err_t sd_format_handler(httpd_req_t *req)
  * /sd_format -- the Storage tab's own confirm() dialog is the only guard. */
 static esp_err_t sd_force_format_handler(httpd_req_t *req)
 {
+    if (!destructive_confirmed(req, "format")) return ESP_OK;
     esp_err_t err = sdcard_force_format();
     if (err == ESP_OK) {
         ESP_LOGI(TAG, "SD card reformatted (was unmounted/wrong filesystem) via web UI");
@@ -8654,6 +8769,7 @@ static esp_err_t login_handler(httpd_req_t *req)
         char token[WEBAUTH_TOKEN_LEN + 1];
         webauth_session_new(token);
         set_session_cookie(req, token, false);
+        ESP_LOGI(TAG, "signed in (session cookie set, %d day(s))", webauth_session_days());
         activity_log("Web UI: signed in");
         return redirect_to(req, then);
     }
@@ -8771,6 +8887,12 @@ static esp_err_t post_guard(httpd_req_t *req)
         return ESP_OK;
     }
     if (strcmp(req->uri, "/login") != 0 && !request_signed_in(req)) {
+        char tok[WEBAUTH_TOKEN_LEN + 8];
+        size_t tl = sizeof(tok);
+        bool has_cookie = httpd_req_get_cookie_val(req, SESSION_COOKIE, tok, &tl) == ESP_OK;
+        ESP_LOGW(TAG, "refused POST %s: not signed in (session cookie %s)", req->uri,
+                 has_cookie ? "sent but not valid -- expired, or the board restarted"
+                            : "not sent");
         return send_sign_in_needed(req);
     }
     esp_err_t (*real)(httpd_req_t *) = (esp_err_t (*)(httpd_req_t *))req->user_ctx;
@@ -8901,6 +9023,7 @@ esp_err_t webui_start(void)
         { .uri = "/offhook_alert",   .method = HTTP_POST, .handler = offhook_alert_handler },
         { .uri = "/intercom",        .method = HTTP_POST, .handler = intercom_handler },
         { .uri = "/timezone_set",    .method = HTTP_POST, .handler = timezone_set_handler },
+        { .uri = "/timezone_auto",   .method = HTTP_POST, .handler = timezone_auto_handler },
         { .uri = "/tone_lang_set",   .method = HTTP_POST, .handler = tone_lang_set_handler },
         { .uri = "/quiet_hours",     .method = HTTP_POST, .handler = quiet_hours_handler },
         { .uri = "/voip_enable",     .method = HTTP_POST, .handler = voip_enable_handler },

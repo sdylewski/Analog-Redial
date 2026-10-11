@@ -503,6 +503,16 @@ void board_timezone_get(char *out, size_t len)
     out[0] = '\0'; /* "" = UTC */
 }
 
+bool board_timezone_is_chosen(void)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return false;
+    size_t n = 0;
+    esp_err_t err = nvs_get_str(h, BOARD_TZ_NVS_KEY, NULL, &n);
+    nvs_close(h);
+    return err == ESP_OK;
+}
+
 esp_err_t board_timezone_set(const char *tz)
 {
     if (!tz) return ESP_ERR_INVALID_ARG;

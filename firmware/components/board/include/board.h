@@ -241,6 +241,10 @@ esp_err_t board_am_set(int line, board_am_cfg_t cfg);
  * strings. "" (default) means UTC. */
 #define BOARD_TZ_MAX 64
 void      board_timezone_get(char *out, size_t len); /* "" = UTC (default) */
+/* True once a zone has been saved, by a person or by the browser default
+ * (even "" = UTC). False on a board that has never had one, which still
+ * shows UTC. */
+bool      board_timezone_is_chosen(void);
 /* Applies immediately (setenv("TZ", ...) + tzset()) -- no reboot needed. */
 esp_err_t board_timezone_set(const char *tz);
 /* Applies whatever's saved in NVS to the process's C library timezone.
