@@ -8,7 +8,7 @@ capacitors and diodes). You add the larger through-hole parts with a soldering i
 
 <table>
   <tr>
-    <td width="50%"><img src="../docs/pics/v6_board_front.png" alt="The Analog Redial board"></td>
+    <td width="50%"><img src="pics/v6_board_front.png" alt="The Analog Redial board"></td>
     <td width="50%"><img src="../docs/assets/photo-placeholder.svg" alt=" (photo coming soon)"></td>
   </tr>
   <tr>

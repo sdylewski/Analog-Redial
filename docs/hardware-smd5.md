@@ -62,7 +62,7 @@ out here.
 
 **PCB layout, top copper/silkscreen:**
 
-![SMD5 PCB bottom](pics/V5_board_front.png)
+![SMD5 PCB](pics/V5_board_front.png)
 
 ## 3. Power tree
 
