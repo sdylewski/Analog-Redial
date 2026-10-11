@@ -19,6 +19,12 @@ extern "C" {
 
 esp_err_t webui_start(void);
 
+/* Test only, from the serial console (`webhang`): blocks the web server's
+ * task forever, the way the 2026-10-11 freezes looked, so the web server
+ * watchdog can be seen restarting the board (~100 s). Needs physical access
+ * on purpose: there is no web route for it. */
+void webui_debug_hang(void);
+
 #ifdef __cplusplus
 }
 #endif

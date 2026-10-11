@@ -485,8 +485,9 @@ esp_err_t board_am_set(int line, board_am_cfg_t cfg)
  * them. Safe to call as often as the setting changes; not on any hot path. */
 static void board_timezone_apply(const char *tz)
 {
-    if (tz && tz[0]) setenv("TZ", tz, 1);
-    else unsetenv("TZ");
+    /* "UTC0" rather than no TZ at all: with TZ unset newlib names the zone
+     * "GMT", which is what the web UI then shows. */
+    setenv("TZ", (tz && tz[0]) ? tz : "UTC0", 1);
     tzset();
 }
 

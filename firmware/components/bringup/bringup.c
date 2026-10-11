@@ -11,6 +11,7 @@
 #include "selftest.h"
 #include "idle_power.h"
 #include "webauth.h"
+#include "webui.h"
 #include "esp_pm.h"
 #include "wifi.h"
 #include "esp_wifi_types.h"   /* WIFI_AUTH_* for wifi_scan's output */
@@ -55,6 +56,20 @@ static int cmd_webpass(int argc, char **argv)
         return 0;
     }
     printf("Web password: %s. 'webpass clear' removes it.\n", webauth_enabled() ? "set" : "not set");
+    return 0;
+}
+
+/* webhang: freezes the web server on purpose to check the watchdog restarts
+ * the board (~100 s). Console only. */
+static int cmd_webhang(int argc, char **argv)
+{
+    if (argc < 2 || strcmp(argv[1], "yes") != 0) {
+        printf("webhang yes -- blocks the web server forever, to test that its watchdog restarts\n"
+               "the board within ~100 s. The web UI stops answering until then.\n");
+        return 1;
+    }
+    webui_debug_hang();
+    printf("web server blocked; expect 'webui watchdog' lines, then a restart in ~100 s\n");
     return 0;
 }
 
@@ -2806,6 +2821,7 @@ void bringup_console_start(void)
     register_cmd("bk_state", "BK3266: show decoded link/call/name state", cmd_bk_state);
     register_cmd("bk_wake", "BK3266: pulse WAKEUP (GPIO15, SMD5): bk_wake [ms]", cmd_bk_wake);
     register_cmd("bk_selftest", "BK3266: check the protocol code on built-in frames", cmd_bk_selftest);
+    register_cmd("webhang", "Test: freeze the web server to check its watchdog restarts the board", cmd_webhang);
     register_cmd("webpass", "Web UI password: webpass [clear] -- clear removes a forgotten one", cmd_webpass);
     register_cmd("i2c_scan", "Scan I2C bus for the codec", cmd_i2c_scan);
     register_cmd("codec_detect", "Probe both known codec addresses, warn on board-type mismatch", cmd_codec_detect);

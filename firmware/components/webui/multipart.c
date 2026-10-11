@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <strings.h>
 
+extern volatile uint32_t g_webui_progress;   /* webui.c: transfer progress for the watchdog */
+
 /* Compacts unread bytes to the front of the buffer, then tries to fill it
  * (up to capacity or the rest of the request body) via httpd_req_recv().
  * Returns false only on an actual recv() failure -- NOT reaching `want`
@@ -22,6 +24,7 @@ static bool ensure(multipart_reader_t *r, size_t want)
         size_t ask = ((size_t)r->remaining < space) ? (size_t)r->remaining : space;
         int n = httpd_req_recv(r->req, (char *)r->buf + r->buf_len, ask);
         if (n <= 0) return false;
+        g_webui_progress++;
         r->buf_len += (size_t)n;
         r->remaining -= n;
     }

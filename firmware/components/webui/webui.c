@@ -54,6 +54,9 @@
 #include <strings.h>
 #include <math.h>
 #include "webauth.h"
+#include "esp_attr.h"
+#include "esp_rom_sys.h"
+#include "esp_system.h"
 #include "mbedtls/base64.h"
 
 static const char *TAG = "webui";
@@ -145,9 +148,100 @@ static void html_escape(const char *in, char *out, size_t outsz);
  * buffer. Never writes past cap, even when off already has. */
 static int appendf(char *buf, size_t cap, int off, const char *fmt, ...)
     __attribute__((format(printf, 4, 5)));
+/* ---- streamed pages ----
+ * A page used to be built whole in one allocation, sized per tab (up to
+ * ~50 KB for Diagnostics), then sent. With the SD card mounted the board idles
+ * at ~67 KB free, and a browser loading a few pages at once took the heap's
+ * low-water mark to 4 KB -- a few KB from failures in Wi-Fi/lwIP.
+ *
+ * Now a page is rendered through a PAGE_CHUNK buffer and sent as a chunked
+ * response as it fills. Callers don't change: they keep calling
+ * appendf(buf, cap, off, ...) with `buf` = the stream's buffer and
+ * cap = PAGE_VIRTUAL_CAP. `off` stays the running total of bytes produced, so
+ * the existing "is there room left" guards (off < cap) keep passing. Only
+ * writes aimed at the stream's own buffer are streamed: builders that use
+ * appendf on a small local string (option lists etc.) work as before. One
+ * stream at a time, which is all the single-task web server needs. */
+#define PAGE_CHUNK       4096
+#define PAGE_VIRTUAL_CAP (1u << 24)
+
+typedef struct {
+    httpd_req_t *req;
+    char        *buf;
+    size_t       len;     /* bytes waiting in buf */
+    size_t       sent;
+    bool         failed;  /* the client went away: keep rendering, send nothing */
+} page_stream_t;
+
+static page_stream_t *s_ps;
+
+/* Bumped by every long transfer (page chunks, downloads, uploads), so the
+ * watchdog can tell "busy sending a big file to a slow phone" from "stuck".
+ * Also bumped from multipart.c. */
+volatile uint32_t g_webui_progress;
+
+static void page_stream_send(const char *data, size_t len)
+{
+    if (s_ps->failed || len == 0) return;
+    if (httpd_resp_send_chunk(s_ps->req, data, len) != ESP_OK) s_ps->failed = true;
+    else { s_ps->sent += len; g_webui_progress++; }
+}
+
+static void page_stream_flush(void)
+{
+    page_stream_send(s_ps->buf, s_ps->len);
+    s_ps->len = 0;
+}
+
+/* Content type and other headers must be set before this. `buf` must hold
+ * PAGE_CHUNK bytes. */
+static void page_stream_begin(page_stream_t *ps, httpd_req_t *req, char *buf)
+{
+    memset(ps, 0, sizeof(*ps));
+    ps->req = req;
+    ps->buf = buf;
+    s_ps = ps;
+}
+
+static esp_err_t page_stream_end(page_stream_t *ps)
+{
+    page_stream_flush();
+    if (!ps->failed) httpd_resp_send_chunk(ps->req, NULL, 0);
+    s_ps = NULL;
+    return ps->failed ? ESP_FAIL : ESP_OK;
+}
+
 static int appendf(char *buf, size_t cap, int off, const char *fmt, ...)
 {
     va_list ap;
+    if (s_ps && buf == s_ps->buf) {
+        size_t room = PAGE_CHUNK - s_ps->len;
+        va_start(ap, fmt);
+        int n = vsnprintf(s_ps->buf + s_ps->len, room, fmt, ap);
+        va_end(ap);
+        if (n <= 0) return off;
+        if ((size_t)n < room) { s_ps->len += n; return off + n; }
+        /* Didn't fit: send what's waiting, then try again in the empty buffer. */
+        page_stream_flush();
+        va_start(ap, fmt);
+        n = vsnprintf(s_ps->buf, PAGE_CHUNK, fmt, ap);
+        va_end(ap);
+        if ((size_t)n < PAGE_CHUNK) { s_ps->len = n; return off + n; }
+        /* One piece bigger than a chunk (a long script): format it on its own. */
+        char *tmp = malloc((size_t)n + 1);
+        if (tmp) {
+            va_start(ap, fmt);
+            vsnprintf(tmp, (size_t)n + 1, fmt, ap);
+            va_end(ap);
+            page_stream_send(tmp, (size_t)n);
+            free(tmp);
+        } else {
+            ESP_LOGE(TAG, "page piece of %d bytes: out of memory", n);
+            s_ps->failed = true;
+        }
+        s_ps->len = 0;
+        return off + n;
+    }
     va_start(ap, fmt);
     bool room = off >= 0 && (size_t)off < cap;
     int n = vsnprintf(room ? buf + off : NULL, room ? cap - off : 0, fmt, ap);
@@ -580,10 +674,10 @@ static void html_escape(const char *in, char *out, size_t outsz)
 static int append_hint(char *buf, size_t cap, int off, const char *lead, const char *detail)
 {
     if (!detail || !detail[0]) {
-        return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+        return appendf(buf, cap, off,
             "<p class=\"hint\">%s</p>", lead);
     }
-    return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    return appendf(buf, cap, off,
         "<p class=\"hint-lead\">%s</p>"
         "<details class=\"hint-detail\"><summary></summary><p class=\"hint\">%s</p></details>",
         lead, detail);
@@ -1176,12 +1270,12 @@ static esp_err_t index_handler(httpd_req_t *req)
      * activity entries, see append_activity_panel()). */
     dialplan_entry_info_t entries[40];
     size_t n = dialplan_list(entries, 40);
-    size_t cap = 8192 + 1500 /* page head's theme + zone scripts */ + n * 220 + 1800 /* append_first_boot_banner(), while unconfirmed */
-        + 300 /* dial guide's Bluetooth dial-out card */
-        + 1800 /* dial guide's "During a call" card */
-        + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
-    char *buf = malloc(cap);
+    char *buf = malloc(PAGE_CHUNK);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
+    size_t cap = PAGE_VIRTUAL_CAP;   /* streamed: see page_stream_begin() */
+    page_stream_t ps;
+    httpd_resp_set_type(req, "text/html");
+    page_stream_begin(&ps, req, buf);
 
     /* The usual 5s auto-refresh (append_page_head()'s auto_refresh arg,
      * <meta http-equiv="refresh">) is a full page reload -- fine for a
@@ -1279,8 +1373,7 @@ static esp_err_t index_handler(httpd_req_t *req)
             "</div></main></body></html>");
     }
 
-    httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, buf, clamp_send_len(off, cap));
+    page_stream_end(&ps);
     free(buf);
     return ESP_OK;
 }
@@ -1330,10 +1423,12 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
      * ~9600) before landing on these numbers from actual measurement
      * instead of another guess -- if this ever needs to change again,
      * measure a rendered row rather than estimating. */
-    size_t cap = 2048 + 1024 + 1500 /* page head's theme + zone scripts */ + n * 600
-        + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
-    char *buf = malloc(cap);
+    char *buf = malloc(PAGE_CHUNK);
     if (!buf) { free(entries); httpd_resp_send_500(req); return ESP_FAIL; }
+    size_t cap = PAGE_VIRTUAL_CAP;   /* streamed: see page_stream_begin() */
+    page_stream_t ps;
+    httpd_resp_set_type(req, "text/html");
+    page_stream_begin(&ps, req, buf);
 
     int off = append_page_head(buf, cap, 0, i18n_str("nav.recordings", "Recordings"), "/recordings", false);
     char recordings_h2[48];
@@ -1394,8 +1489,7 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
             RECORDING_RELOAD_JS);
     }
 
-    httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, buf, clamp_send_len(off, cap));
+    page_stream_end(&ps);
     free(buf);
     free(entries);
     return ESP_OK;
@@ -1477,7 +1571,7 @@ static int append_mode_card_hint(char *buf, size_t cap, int off, const char *tit
     char url_a[32], url_b[32];
     mode_set_url(url_a, sizeof(url_a), opt_a_code, line);
     mode_set_url(url_b, sizeof(url_b), opt_b_code, line);
-    return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    return appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span class=\"pill %s\">%s</span></div>"
@@ -2324,11 +2418,12 @@ static int append_web_password_card(char *buf, size_t cap, int off)
         { 30, "30 days" }, { 90, "90 days" }, { 365, "1 year" },
     };
     int cur_days = webauth_session_days();
-    /* static: this runs on the web server's task, whose stack is small, and
-     * there is only the one task */
-    static char hint[WEBAUTH_HINT_BYTES + 1], hint_esc[WEBAUTH_HINT_BYTES * 6 + 1];
+    /* Escaped hint: sized to the hint and freed below, not a fixed buffer. */
+    char hint[WEBAUTH_HINT_BYTES + 1];
     webauth_hint_get(hint, sizeof(hint));
-    html_escape(hint, hint_esc, sizeof(hint_esc));
+    size_t esc_cap = strlen(hint) * 6 + 1;
+    char *hint_esc = malloc(esc_cap);
+    if (hint_esc) html_escape(hint, hint_esc, esc_cap);
 
     char opts[600] = "";
     int oo = 0;
@@ -2345,12 +2440,13 @@ static int append_web_password_card(char *buf, size_t cap, int off)
             "seeing, playing, downloading or deleting recordings and stored audio, needs a "
             "sign-in (scripts pass it with <code>curl -u admin:PASSWORD</code>).</p>");
     } else if (!s_viewer_signed_in) {
-        static char hint_line[WEBAUTH_HINT_BYTES * 6 + 40];
-        hint_line[0] = '\0';
-        if (hint[0]) snprintf(hint_line, sizeof(hint_line), "<p class=\"hint\">Hint: %s</p>", hint_esc);
+        bool show = hint[0] && hint_esc;
         off = appendf(buf, cap, off,
             "<p class=\"hint\">On. <a href=\"/login?then=/settings\">Sign in</a> to change "
-            "settings or the password.</p>%s<p class=\"hint\">%s</p></div>", hint_line, WEB_RESET_HINT);
+            "settings or the password.</p>%s%s%s<p class=\"hint\">%s</p></div>",
+            show ? "<p class=\"hint\">Hint: " : "", show ? hint_esc : "", show ? "</p>" : "",
+            WEB_RESET_HINT);
+        free(hint_esc);
         return off;
     } else {
         const char *how = cur_days == 0 ? "until you close the browser"
@@ -2382,7 +2478,7 @@ static int append_web_password_card(char *buf, size_t cap, int off)
             "</form>"
             "<p class=\"hint\">The hint is shown on the sign-in page to anyone who can reach this "
             "board, so describe the password; don't write it.</p>",
-            how, opts, hint_esc, WEBAUTH_HINT_MAX);
+            how, opts, hint_esc ? hint_esc : "", WEBAUTH_HINT_MAX);
     }
     off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/web_password\" class=\"settings-form\">"
@@ -2404,6 +2500,7 @@ static int append_web_password_card(char *buf, size_t cap, int off)
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form><p class=\"hint\">%s</p></div>",
         webauth_enabled() ? "Change password" : "Turn on", WEB_RESET_HINT);
+    free(hint_esc);
     return off;
 }
 
@@ -5238,150 +5335,60 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     dialplan_entry_info_t entries[40];
     size_t n = dialplan_list(entries, 40);
 
-    /* Sized for the busiest tab. Diagnostics needs room for the full log
-     * panel (moved here from the Status page, see append_diag_tab()) --
-     * each raw log line can roughly triple in size once wrapped in
-     * .logline/.t/.k/.m markup. +3000 for the Tone generator + Mic record
-     * test cards added on top of the original Logging/Test mode cards the
-     * flat 6144 base below was sized for -- 2 lines' worth of mic-record
-     * cards (each with its own form + conditional <audio> player row). */
-    size_t log_room = (strcmp(tab, "diag") == 0) ? 8200 * 3 + 3000 : 0;
-
-    size_t diag_room = (strcmp(tab, "diag") == 0) ? 5000 + 3600 + 6500 + 4200 : 0; /* bench-test card + its hints */
-    /* Storage sizes off the REAL file count, not STORAGE_LIST_MAX's
-     * worst case -- this used to just assume up to STORAGE_LIST_MAX files
-     * on each backend (a flat ~68KB), which sounded conservative but
-     * wasn't: once append_storage_table() grew a bulk-delete <form> (with
-     * a real per-row cost of ~525 bytes -- see recordings_page_handler's
-     * matching comment -- not the ~340 originally guessed), the same
-     * worst-case math needed ~120KB, and a single malloc() that size
-     * reliably 500'd this handler even with a small, ordinary real file
-     * count. One heap-allocated STORAGE_LIST_MAX-sized scratch array,
-     * reused sequentially for both backends purely to count, costs a
-     * second SPIFFS/FATFS walk (append_storage_section() does its own
-     * listing right after this) but keeps the allocation honest instead
-     * of pessimistic -- and it's heap, not stack, so it doesn't reopen the
-     * stack-overflow history STORAGE_LIST_MAX's own doc comment
-     * describes. */
-    size_t storage_room = 0;
-    if (strcmp(tab, "storage") == 0) {
-        storage_entry_t *count_tmp = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
-        size_t sd_n = (count_tmp && storage_sd_present()) ? storage_list_sd(count_tmp, STORAGE_LIST_MAX) : 0;
-        size_t in_n = count_tmp ? storage_list_internal(count_tmp, STORAGE_LIST_MAX) : 0;
-        free(count_tmp);
-        /* 600/row (measured worst case) + 2048 fixed per backend actually
-         * present (each renders its own full bulk-delete <form>, ~746
-         * bytes measured) -- not per possible backend, so a card-less
-         * board (the common case) doesn't pay for the SD form it never
-         * renders. SD's own fixed share is bumped to 4096 (was 2048) to
-         * also cover append_sdcard_info_card() -- product/manufacturer/
-         * type/bus rows, self-test result, and the self-test + format
-         * buttons, on top of the bulk-delete form already accounted for.
-         * +1200 covers the "configured for SD but not mounted" fallback
-         * card (append_storage_section()) on a board that's configured for
-         * a card but doesn't currently have one mounted -- sized for its
-         * larger of two variants (sdcard_needs_format()'s force-format
-         * confirm dialog + danger button, bigger than the plain retry
-         * button the other variant renders). */
-        storage_room = (sd_n + in_n) * 600 + (storage_sd_present() ? 4096 : 0) + 2048 +
-            (!storage_sd_present() && board_hw_config_get().has_microsd ? 1200 : 0);
-    }
-    /* Hardware tab lost its heaviest content (speaker volume/echo/answering
-     * machine, all per-line cards -- see append_phone_settings_tab()) to
-     * the Phone Settings tab, but keeps the memory map card and several
-     * partition rows, so this stays generous rather than being re-tuned
-     * down to the byte. General's room covers the WIFI_SCAN_JS on its WiFi
-     * card. Phone Settings inherits the per-line-card weight hw_room used
-     * to carry, doubled on a 2-line board, plus Echo Cancellation's and
-     * Answering Machine's own <script> blocks. */
-    size_t hw_room = (strcmp(tab, "hardware") == 0)
-        ? 6000 + (board_type_mismatch() ? 900 : 0) /* +memory map card, several partition rows,
-                                                      * +the mismatch-confirm card if showing */
-        : 0;
-    size_t general_room = (strcmp(tab, "general") == 0) ? 3200 + 1400 + 2600 + 500 + 2600 /* web password card */ /* refused-password pills */ : 0; /* +setup password card */ /* +saved-network list */ /* +quiet hours card's timezone dropdown */
-    size_t phone_room = (strcmp(tab, "phone") == 0) ? 12500 + 1800 + 900 + 1600 : 0; /* +voice effects card, +intercom card */ /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card, AM greeting text-to-speech field (~2.2 KB) */
-    size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 + 4200 /* automatic setup + field hints */ : 0;
-    size_t bt_room = (strcmp(tab, "bluetooth") == 0) ? 3300 + 1500 : 0; /* +experimental notice */ /* "What Bluetooth can do" card */ /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
-    /* This tab's `n*220` share (n = ALL dialplan entries, not just clips)
-     * was never actually enough for it: each dial-code row is TWO forms
-     * (recode + description) plus an audio player -- measured at up to
-     * ~950 bytes/row with a full 63-char description and long filename,
-     * not 220 -- and on top of that this tab also renders the Setup
-     * Password card and the Operator/Record prompt-text cards (each with
-     * a gen_prompt.py --sync command string once a password is set),
-     * none of which the shared base accounted for at all. Confirmed
-     * truncating real device output mid-textarea, well before the Save
-     * button or the generate-command hint, on a board with only 5 codes
-     * -- not a rare worst case. DIALPLAN_MAX_CLIP_ENTRIES (24) is small
-     * and NVS-backed (not a filesystem walk), so sizing for that many
-     * outright is cheap and avoids a second listing call just to count. */
-    size_t dialcodes_room = (strcmp(tab, "dialcodes") == 0) ? DIALPLAN_MAX_CLIP_ENTRIES * 950 + 6000 : 0;
-    size_t cap = 6144 + 1500 /* page head's theme + zone scripts */ + n * 220 + storage_room + log_room + hw_room + general_room + voip_room + dialcodes_room + phone_room + bt_room + diag_room
-        + (board_type_mismatch() ? 700 : 0); /* append_page_head()'s board-type hazard banner */
-    /* The per-tab room estimates above are guesses; every append below
-     * keeps adding its would-be length even once the buffer is full, so on
-     * overflow `off` is the exact size needed -- re-render once at that size
-     * instead of sending a cut-off page. */
-    char *buf = NULL;
-    int off = 0;
-    for (int attempt = 0; attempt < 2; attempt++) {
-        buf = malloc(cap);
-        if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
-
-        off = append_page_head(buf, cap, 0, i18n_str("nav.settings", "Settings"), "/settings", false);
-        off = appendf(buf, cap, off,
-            "</header><main class=\"settings-main\">");
-        off = append_settings_tabs(buf, cap, off, tab);
-        if (!s_viewer_signed_in) {
-            off = appendf(buf, cap, off,
-                "<div class=\"hazard-banner\">&#128274; This board has a web password: "
-                "<a href=\"/login?then=/settings%%3Ftab%%3D%s\">sign in</a> to change settings.</div>",
-                tab);
-        }
-        off = appendf(buf, cap, off,
-            "<script>%s</script><div class=\"cards\">", FEATURE_TOGGLE_JS);
-
-        if (strcmp(tab, "general") == 0) off = append_general_tab(buf, cap, off);
-        else if (strcmp(tab, "phone") == 0) off = append_phone_settings_tab(buf, cap, off);
-        /* Dial Codes & Prompts: the editable clip table, plus Operator help and
-         * Record-message -- each just one card (prompt text + audio upload),
-         * structurally the same thing as a Dial Codes row -- stacked below it.
-         * Used to be three separate tabs. */
-        else if (strcmp(tab, "dialcodes") == 0) {
-            off = append_dialcodes_tab(buf, cap, off);
-            off = append_operator_tab(buf, cap, off, entries, n);
-            off = append_record_tab(buf, cap, off, entries, n);
-        }
-        else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off, checked, result, created, createresult);
-        else if (strcmp(tab, "bluetooth") == 0) off = append_bluetooth_tab(buf, cap, off);
-        else if (strcmp(tab, "diag") == 0) off = append_diag_tab(buf, cap, off);
-        /* Storage: the full SD+internal file manager, kept separate from
-         * Hardware -- see SETTINGS_TABS's comment for why (its per-file
-         * WAV-duration parsing is the slowest single thing in Settings, and
-         * bundling it with anything else means paying that cost on every visit
-         * to the other tab too). */
-        else if (strcmp(tab, "storage") == 0) off = append_storage_section(buf, cap, off);
-        /* Hardware: stats + the SMD line2/microSD config card -- everything
-         * else that landed here (Answering Machine, Speaker, Echo, idle-power)
-         * is cheap NVS-backed config, not file I/O. */
-        else {
-            off = append_hw_config_tab(buf, cap, off);
-            off = append_hardware_tab(buf, cap, off);
-            off = append_memory_map_card(buf, cap, off);
-        }
-
-        off = appendf(buf, cap, off, "</div>" /* .cards */);
-        off = appendf(buf, cap, off, "</main></body></html>");
-
-        if (off <= 0 || (size_t)off < cap || attempt == 1) break;
-        ESP_LOGW(TAG, "settings tab '%s' needed %d bytes, estimated %u -- re-rendering",
-                 tab, off, (unsigned)cap);
-        free(buf);
-        cap = (size_t)off + 256;
-    }
-
+    /* Streamed (page_stream_begin()), so no per-tab size estimate and no
+     * re-render on overflow: the page used to need up to ~50 KB in one piece. */
+    char *buf = malloc(PAGE_CHUNK);
+    if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
+    size_t cap = PAGE_VIRTUAL_CAP;   /* streamed: see page_stream_begin() */
+    page_stream_t ps;
     httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, buf, clamp_send_len(off, cap));
+    page_stream_begin(&ps, req, buf);
+    int off = 0;
+    off = append_page_head(buf, cap, 0, i18n_str("nav.settings", "Settings"), "/settings", false);
+    off = appendf(buf, cap, off,
+        "</header><main class=\"settings-main\">");
+    off = append_settings_tabs(buf, cap, off, tab);
+    if (!s_viewer_signed_in) {
+        off = appendf(buf, cap, off,
+            "<div class=\"hazard-banner\">&#128274; This board has a web password: "
+            "<a href=\"/login?then=/settings%%3Ftab%%3D%s\">sign in</a> to change settings.</div>",
+            tab);
+    }
+    off = appendf(buf, cap, off,
+        "<script>%s</script><div class=\"cards\">", FEATURE_TOGGLE_JS);
+
+    if (strcmp(tab, "general") == 0) off = append_general_tab(buf, cap, off);
+    else if (strcmp(tab, "phone") == 0) off = append_phone_settings_tab(buf, cap, off);
+    /* Dial Codes & Prompts: the editable clip table, plus Operator help and
+     * Record-message -- each just one card (prompt text + audio upload),
+     * structurally the same thing as a Dial Codes row -- stacked below it.
+     * Used to be three separate tabs. */
+    else if (strcmp(tab, "dialcodes") == 0) {
+        off = append_dialcodes_tab(buf, cap, off);
+        off = append_operator_tab(buf, cap, off, entries, n);
+        off = append_record_tab(buf, cap, off, entries, n);
+    }
+    else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off, checked, result, created, createresult);
+    else if (strcmp(tab, "bluetooth") == 0) off = append_bluetooth_tab(buf, cap, off);
+    else if (strcmp(tab, "diag") == 0) off = append_diag_tab(buf, cap, off);
+    /* Storage: the full SD+internal file manager, kept separate from
+     * Hardware -- see SETTINGS_TABS's comment for why (its per-file
+     * WAV-duration parsing is the slowest single thing in Settings, and
+     * bundling it with anything else means paying that cost on every visit
+     * to the other tab too). */
+    else if (strcmp(tab, "storage") == 0) off = append_storage_section(buf, cap, off);
+    /* Hardware: stats + the SMD line2/microSD config card -- everything
+     * else that landed here (Answering Machine, Speaker, Echo, idle-power)
+     * is cheap NVS-backed config, not file I/O. */
+    else {
+        off = append_hw_config_tab(buf, cap, off);
+        off = append_hardware_tab(buf, cap, off);
+        off = append_memory_map_card(buf, cap, off);
+    }
+
+    off = appendf(buf, cap, off, "</div>" /* .cards */);
+    off = appendf(buf, cap, off, "</main></body></html>");
+    page_stream_end(&ps);
     free(buf);
     return ESP_OK;
 }
@@ -7403,6 +7410,7 @@ static esp_err_t media_delete_bulk_handler(httpd_req_t *req)
         int r = httpd_req_recv(req, body + total, body_cap - total);
         if (r <= 0) break;
         total += (size_t)r;
+        g_webui_progress++;
     }
     body[total] = '\0';
 
@@ -7502,7 +7510,7 @@ static int append_guide_row(char *buf, size_t cap, int off, const char *code,
 static bool s_guide_clips_done;
 static int append_guide_clips(char *buf, size_t cap, int off)
 {
-    if (s_guide_clips_done || off <= 0 || (size_t)off >= cap) return off;
+    if (s_guide_clips_done || (size_t)off >= cap) return off;
     s_guide_clips_done = true;
     dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
     size_t nclips = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
@@ -7511,7 +7519,7 @@ static int append_guide_clips(char *buf, size_t cap, int off)
         "<div class=\"card\"><h2>Clips</h2>");
     for (size_t i = 0; i < nclips && (size_t)off < cap; i++)
         off = append_guide_row(buf, cap, off, clips[i].code, clips[i].desc, true);
-    return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0, "</div>");
+    return appendf(buf, cap, off, "</div>");
 }
 
 /* 555xxxx is matched directly in dialplan_feed(), not a TABLE entry, so it
@@ -7519,9 +7527,9 @@ static int append_guide_clips(char *buf, size_t cap, int off)
 static bool s_guide_voip_done;
 static int append_guide_voip(char *buf, size_t cap, int off)
 {
-    if (s_guide_voip_done || off <= 0 || (size_t)off >= cap) return off;
+    if (s_guide_voip_done || (size_t)off >= cap) return off;
     s_guide_voip_done = true;
-    return off + snprintf(buf + off, ((size_t)off < cap) ? cap - off : 0,
+    return appendf(buf, cap, off,
         "<div class=\"card\"><h2>VoIP</h2>"
         "<div class=\"code-row\"><span class=\"code\">5-5-5-x-x-x-x</span>"
         "<span class=\"desc\">7-digit extension</span>"
@@ -7759,6 +7767,7 @@ static esp_err_t media_handler(httpd_req_t *req)
         send_err = httpd_resp_send_chunk(req, chunk, got);
         if (send_err != ESP_OK) break;
         remaining -= got;
+        g_webui_progress++;
     }
     storage_read_close(&r);
     if (send_err != ESP_OK) return ESP_FAIL;
@@ -8381,6 +8390,7 @@ static esp_err_t media_upload_handler(httpd_req_t *req)
     size_t received = 0;
     while (received < total) {
         int r = httpd_req_recv(req, chunk, (total - received < chunk_cap) ? total - received : chunk_cap);
+        g_webui_progress++;
         if (r <= 0) {
             free(chunk);
             storage_write_abort(&w);
@@ -8725,17 +8735,18 @@ static esp_err_t login_page_handler(httpd_req_t *req)
         msg = msgbuf;
     }
 
-    size_t cap = 6144 + 1000 + (board_type_mismatch() ? 700 : 0);
-    char *buf = malloc(cap);
+    char *buf = malloc(PAGE_CHUNK);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
-    static char hint[WEBAUTH_HINT_BYTES + 1], hint_esc[WEBAUTH_HINT_BYTES * 6 + 1],
-                hint_html[WEBAUTH_HINT_BYTES * 6 + 80];
-    hint_html[0] = '\0';
+    size_t cap = PAGE_VIRTUAL_CAP;   /* streamed: see page_stream_begin() */
+    page_stream_t ps;
+    httpd_resp_set_type(req, "text/html; charset=utf-8");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    page_stream_begin(&ps, req, buf);
+    char hint[WEBAUTH_HINT_BYTES + 1];
     webauth_hint_get(hint, sizeof(hint));
-    if (hint[0]) {
-        html_escape(hint, hint_esc, sizeof(hint_esc));
-        snprintf(hint_html, sizeof(hint_html), "<p class=\"hint\"><b>Forgot it?</b> Hint: %s</p>", hint_esc);
-    }
+    size_t esc_cap = strlen(hint) * 6 + 1;
+    char *hint_esc = hint[0] ? malloc(esc_cap) : NULL;
+    if (hint_esc) html_escape(hint, hint_esc, esc_cap);
     int off = append_page_head(buf, cap, 0, "Sign in", "", false);
     if (!webauth_enabled()) {
         off = appendf(buf, cap, off,
@@ -8754,14 +8765,15 @@ static esp_err_t login_page_handler(httpd_req_t *req)
             "<label>Password <input type=\"password\" name=\"password\" maxlength=\"%d\" "
             "autocomplete=\"current-password\" autofocus required></label>"
             "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Sign in</button></div>"
-            "</form>%s<p class=\"hint\">%s</p></div></main></body></html>",
+            "</form>%s%s%s<p class=\"hint\">%s</p></div></main></body></html>",
             msg[0] ? "<p class=\"hint\" style=\"color:var(--red)\">" : "", msg, msg[0] ? "</p>" : "",
-            ethen, WEBAUTH_PASSWORD_MAX, hint_html, WEB_RESET_HINT);
+            ethen, WEBAUTH_PASSWORD_MAX,
+            hint_esc ? "<p class=\"hint\"><b>Forgot it?</b> Hint: " : "", hint_esc ? hint_esc : "",
+            hint_esc ? "</p>" : "", WEB_RESET_HINT);
     }
-    if (off < 0 || (size_t)off >= cap) { free(buf); httpd_resp_send_500(req); return ESP_FAIL; }
-    httpd_resp_set_type(req, "text/html; charset=utf-8");
-    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
-    esp_err_t r = httpd_resp_send(req, buf, off);
+    (void)off;
+    esp_err_t r = page_stream_end(&ps);
+    free(hint_esc);
     free(buf);
     return r;
 }
@@ -8812,18 +8824,21 @@ static esp_err_t logout_handler(httpd_req_t *req)
 /* POST /web_password -- action=set&password=..&confirm=.. | action=remove */
 static esp_err_t web_password_handler(httpd_req_t *req)
 {
-    static char body[1400 + WEBAUTH_HINT_BYTES * 3];   /* a hint is UTF-8, %-encoded */
-    READ_FORM_OR_RETURN(req, body);
+    const size_t body_cap = 1400 + WEBAUTH_HINT_BYTES * 3;   /* a hint is UTF-8, %-encoded */
+    char *body = malloc(body_cap);
+    if (!body) { httpd_resp_send_500(req); return ESP_FAIL; }
+    esp_err_t rf = read_form(req, body, body_cap);
+    if (rf != ESP_OK) { free(body); return rf == ESP_ERR_INVALID_SIZE ? ESP_OK : ESP_FAIL; }
     char action[12] = "", pw[WEBAUTH_PASSWORD_MAX + 1] = "", confirm[WEBAUTH_PASSWORD_MAX + 1] = "";
-    static char hint[WEBAUTH_HINT_BYTES + 1];
-    hint[0] = '\0';
+    char hint[WEBAUTH_HINT_BYTES + 1] = "";
     char days_s[8] = "";
     bool has_hint = form_field(body, "hint", hint, sizeof(hint));
     form_field(body, "action", action, sizeof(action));
     form_field(body, "password", pw, sizeof(pw));
     form_field(body, "confirm", confirm, sizeof(confirm));
     bool has_days = form_field(body, "days", days_s, sizeof(days_s)) && days_s[0];
-    memset(body, 0, sizeof(body));
+    memset(body, 0, body_cap);
+    free(body);
     const char *back = "/settings?tab=general#security";
 
     esp_err_t r = ESP_OK;
@@ -8914,6 +8929,74 @@ static esp_err_t post_guard(httpd_req_t *req)
     }
     esp_err_t (*real)(httpd_req_t *) = (esp_err_t (*)(httpd_req_t *))req->user_ctx;
     return real(req);
+}
+
+/* ---- web server watchdog ----
+ * The web server is one task. If it ever wedges (seen twice on 2026-10-11:
+ * the TCP connection is accepted, nothing ever answers, the console froze too,
+ * and only a RESET press brought it back), an appliance on a shelf should
+ * recover by itself. Every WD_PERIOD_MS this queues a no-op onto the server's
+ * own task; if that doesn't run AND no transfer made progress for WD_MISSES
+ * checks in a row (~100 s), the board restarts. A long download to a slow
+ * phone or a firmware upload keeps g_webui_progress moving, so it isn't
+ * mistaken for a hang.
+ *
+ * Deliberately no ESP_LOGx on the way to the restart: if logging is what's
+ * stuck, a log call here would hang the watchdog as well. The reason crosses
+ * the restart in RTC memory and is logged properly on the next boot. */
+#define WD_PERIOD_MS 20000
+#define WD_WAIT_MS   5000
+#define WD_MISSES    4
+#define WD_MARK      0x57444F47u   /* "WDOG" */
+
+static httpd_handle_t        s_server;
+static volatile int64_t      s_wd_alive_us;
+static RTC_NOINIT_ATTR uint32_t s_wd_mark;
+
+static void wd_alive_work(void *arg)
+{
+    (void)arg;
+    s_wd_alive_us = esp_timer_get_time();
+}
+
+static void webui_watchdog_task(void *arg)
+{
+    (void)arg;
+    uint32_t seen = g_webui_progress;
+    int misses = 0;
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(WD_PERIOD_MS));
+        int64_t asked = esp_timer_get_time();
+        httpd_queue_work(s_server, wd_alive_work, NULL);
+        vTaskDelay(pdMS_TO_TICKS(WD_WAIT_MS));
+        bool answered = s_wd_alive_us >= asked;
+        bool moving = g_webui_progress != seen;
+        seen = g_webui_progress;
+        if (answered || moving) {
+            if (misses) esp_rom_printf("webui watchdog: web server answering again\n");
+            misses = 0;
+            continue;
+        }
+        if (++misses < WD_MISSES) {
+            esp_rom_printf("webui watchdog: web server not answering (%d of %d)\n", misses, WD_MISSES);
+            continue;
+        }
+        esp_rom_printf("webui watchdog: web server stuck for ~%d s -- restarting\n",
+                       WD_MISSES * (WD_PERIOD_MS + WD_WAIT_MS) / 1000);
+        s_wd_mark = WD_MARK;
+        esp_restart();
+    }
+}
+
+static void debug_hang_work(void *arg)
+{
+    (void)arg;
+    for (;;) vTaskDelay(portMAX_DELAY);
+}
+
+void webui_debug_hang(void)
+{
+    if (s_server) httpd_queue_work(s_server, debug_hang_work, NULL);
 }
 
 esp_err_t webui_start(void)
@@ -9008,6 +9091,13 @@ esp_err_t webui_start(void)
         ESP_LOGE(TAG, "httpd_start failed: %s", esp_err_to_name(err));
         return err;
     }
+    s_server = server;
+    if (s_wd_mark == WD_MARK && esp_reset_reason() == ESP_RST_SW) {
+        ESP_LOGW(TAG, "restarted by the web server watchdog: it had stopped answering");
+        activity_log("Restarted: the web server stopped answering for over a minute");
+    }
+    s_wd_mark = 0;
+    xTaskCreate(webui_watchdog_task, "webui_wd", 2560, NULL, tskIDLE_PRIORITY + 2, NULL);
 
     static httpd_uri_t routes[] = {   /* not const: POST routes get wrapped below */
         { .uri = "/",                .method = HTTP_GET, .handler = index_handler },
