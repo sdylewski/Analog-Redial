@@ -35,7 +35,7 @@ named the board, it's `http://<name>.local` instead.
 - **Web password (optional).** Out of the box, anyone on your Wi-Fi can
   change the settings. Settings → General → **Web password** turns on a
   password: pages can still be viewed, but changing anything asks you to
-  sign in (a sign-in lasts 30 days, or until the board restarts). Scripts
+  sign in (by default for 30 days, or until the board restarts). Scripts
   pass it with `curl -u admin:PASSWORD`, or by setting `REDIAL_PASSWORD`
   for the tools in `firmware/bringup/`. The board talks plain HTTP, so the
   password crosses your network unencrypted: it keeps out casual changes
