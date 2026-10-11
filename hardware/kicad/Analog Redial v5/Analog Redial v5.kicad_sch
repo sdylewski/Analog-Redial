@@ -6614,7 +6614,7 @@
 		)
 		(uuid "e5cf3b43-7c25-4a24-8574-670a30483b67")
 	)
-	(text "Changes for SMD4:\ncapacitor silkscreen needs to show capacitance value and line\nsilkscreen note to add jumpbers for 2nd AG1171\nsilkscreen note to only use uSD OR SLIC #2\nincrease capacitor clearance and update footprint clearance to AG1171 board\nNew esp32-c6 wide version option. (big change)\n	add cuttable jumpers to select correct pinout for wide/cheap esp32-c6\n\nchange SHK voltage divider so it's closer to 3.3V output (currently it's measuring 1.8V)\n	by swapping the 15k for 100k to gnd.\n\nadd 8-pin header for bluetooth module.\nadd pull-down 100k to MFB line, connected to GPIO15\nAdd 3.3V regulator for optional bluetooth module\n\n"
+	(text "Changes from SMD4:\ncapacitor silkscreen needs to show capacitance value and line\nsilkscreen note to add jumpbers for 2nd AG1171\nsilkscreen note to only use uSD OR SLIC #2\nincrease capacitor clearance and update footprint clearance to AG1171 board\nNew esp32-c6 wide version option. (big change)\n	add cuttable jumpers to select correct pinout for wide/cheap esp32-c6\n\nchange SHK voltage divider so it's closer to 3.3V output (currently it's measuring 1.8V)\n	by swapping the 15k for 100k to gnd.\n\nadd 8-pin header for bluetooth module.\nadd pull-down 100k to MFB line, connected to GPIO15\nAdd 3.3V regulator for optional bluetooth module\n\n"
 		(exclude_from_sim no)
 		(at 198.628 61.214 0)
 		(effects
