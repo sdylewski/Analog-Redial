@@ -538,8 +538,12 @@ static size_t list_dir(const char *mount, storage_entry_t *out, size_t max_entri
     struct stat st;
     size_t n = 0;
     while ((de = readdir(d)) != NULL) {
+        /* Only plain files: a card that's been in a Mac or a PC carries
+         * folders (.Spotlight-V100, .fseventsd, System Volume Information)
+         * and hidden "._name" files, none of which are recordings or clips. */
+        if (de->d_name[0] == '.') continue;
         snprintf(path, sizeof(path), "%s/%s", mount, de->d_name);
-        if (stat(path, &st) != 0) continue;
+        if (stat(path, &st) != 0 || !S_ISREG(st.st_mode)) continue;
         size_t slot;
         if (n < max_entries) {
             slot = n++;
