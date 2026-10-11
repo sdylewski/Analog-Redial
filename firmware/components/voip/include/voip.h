@@ -92,6 +92,12 @@ esp_err_t voip_set_config(const char *server, const char *user0, const char *pas
  * handler), nothing new to build there. Same "saved now, applied on next
  * reboot" convention as voip_set_config(). Defaults true (see voip.c). */
 bool      voip_is_enabled(void);
+
+/* True once the configured server's name has been turned into an address on
+ * the network the board is on now. False while it's still being looked for
+ * (e.g. a ".local" name when away from home); the background task keeps
+ * trying, backing off to once a minute. Not the same as registered. */
+bool      voip_server_found(void);
 esp_err_t voip_set_enabled(bool enabled);
 
 /* Configured SIP server (host or IP), for status display. */

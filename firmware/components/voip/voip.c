@@ -815,7 +815,7 @@ static void handle_request(const char *msg, const struct sockaddr_in *src)
  * s_server_ip) and voip_probe_number() (an arbitrary candidate server/number
  * check that must NOT disturb that cached state -- it may be run before
  * VoIP is even configured, or against a different host entirely). */
-static bool resolve_host(const char *host, char *ip_out, size_t ip_out_len)
+static bool resolve_host(const char *host, char *ip_out, size_t ip_out_len, bool log_failure)
 {
     struct in_addr a;
     if (inet_aton(host, &a)) { strncpy(ip_out, host, ip_out_len - 1); ip_out[ip_out_len - 1] = 0; return true; }
@@ -830,7 +830,7 @@ static bool resolve_host(const char *host, char *ip_out, size_t ip_out_len)
             snprintf(ip_out, ip_out_len, IPSTR, IP2STR(&ip));
             return true;
         }
-        ESP_LOGW(TAG, "mDNS could not resolve %s", host);
+        if (log_failure) ESP_LOGW(TAG, "mDNS could not resolve %s", host);
         return false;
     }
 
@@ -840,13 +840,16 @@ static bool resolve_host(const char *host, char *ip_out, size_t ip_out_len)
         strncpy(ip_out, inet_ntoa(*ia), ip_out_len - 1); ip_out[ip_out_len - 1] = 0;
         return true;
     }
-    ESP_LOGW(TAG, "could not resolve host '%s'", host);
+    if (log_failure) ESP_LOGW(TAG, "could not resolve host '%s'", host);
     return false;
 }
 
-static bool resolve_server(void)
+/* The server is looked up by the background task until it's found, and then
+ * again whenever the board's own address changes. `log_failure` is false for
+ * repeat attempts: the caller says so once and then stays quiet. */
+static bool resolve_server(bool log_failure)
 {
-    if (!resolve_host(s_server, s_server_ip, sizeof(s_server_ip))) return false;
+    if (!resolve_host(s_server, s_server_ip, sizeof(s_server_ip), log_failure)) return false;
     memset(&s_server_addr, 0, sizeof(s_server_addr));
     s_server_addr.sin_family = AF_INET;
     s_server_addr.sin_port = htons(SIP_PORT);
@@ -905,11 +908,13 @@ static void sip_task(void *arg)
     struct timeval tv = { .tv_sec = 0, .tv_usec = 300000 };
     setsockopt(s_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
-    if (resolve_server()) register_all();
+    if (resolve_server(true)) register_all();
 
     char *msg = malloc(MSG_MAX);
     if (!msg) { vTaskDelete(NULL); return; }
     int64_t next_resolve = 0;
+    int resolve_fails = 0;      /* consecutive failed lookups; 0 = none pending */
+    uint32_t last_ip = 0;       /* our last non-zero station address */
     while (1) {
         struct sockaddr_in src; socklen_t sl = sizeof(src);
         int n = recvfrom(s_sock, msg, MSG_MAX - 1, 0, (struct sockaddr *)&src, &sl);
@@ -935,9 +940,59 @@ static void sip_task(void *arg)
                 send_register(i, NULL, REG_RETRY_S);
             }
         }
-        if (!s_server_ip[0] && now >= next_resolve) {
-            next_resolve = now + 5000000;
-            if (resolve_server()) register_all();
+        /* The board moved to another network, or its address changed (DHCP):
+         * what we resolved and registered on the old one is stale, and the
+         * Contact address in our registrations is wrong. Start over rather
+         * than keep sending credentials to whatever now sits at the old
+         * server address. Address 0 is just a Wi-Fi drop; only a different
+         * non-zero address counts. */
+        {
+            esp_netif_ip_info_t ii;
+            esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+            uint32_t cur = (sta && esp_netif_get_ip_info(sta, &ii) == ESP_OK) ? ii.ip.addr : 0;
+            if (cur) {
+                if (last_ip && cur != last_ip) {
+                    ESP_LOGI(TAG, "network address changed -- looking up '%s' again", s_server);
+                    s_server_ip[0] = '\0';
+                    for (int i = 0; i < NLINES; i++) {
+                        s_l[i].registered = false;
+                        s_l[i].reg_refresh_at_us = 0;
+                    }
+                    resolve_fails = 0;
+                    next_resolve = 0;
+                }
+                last_ip = cur;
+            }
+        }
+
+        /* Keep looking, for as long as it takes: the server may simply not be
+         * on this network (away from home) or not up yet. Back off from 5 s to
+         * once a minute so a board that's away doesn't spend its life
+         * querying, and say so once instead of every attempt. */
+        if (!s_server_ip[0] && s_server[0] && now >= next_resolve) {
+            bool first = (resolve_fails == 0);
+            if (resolve_server(false)) {
+                if (resolve_fails > 0) {
+                    ESP_LOGI(TAG, "SIP server '%s' found after %d attempt%s", s_server,
+                             resolve_fails + 1, resolve_fails ? "s" : "");
+                }
+                resolve_fails = 0;
+                register_all();
+            } else {
+                resolve_fails++;
+                int wait_s = 5;
+                for (int i = 1; i < resolve_fails && wait_s < 60; i++) wait_s *= 2;
+                if (wait_s > 60) wait_s = 60;
+                next_resolve = now + (int64_t)wait_s * 1000000;
+                if (first) {
+                    ESP_LOGW(TAG, "SIP server '%s' not found on this network -- will keep "
+                                  "looking (every %d s at first, then once a minute)",
+                             s_server, 5);
+                } else if (resolve_fails % 20 == 0) {
+                    ESP_LOGI(TAG, "still looking for SIP server '%s' (%d tries)",
+                             s_server, resolve_fails);
+                }
+            }
         }
     }
     free(msg);
@@ -1141,6 +1196,11 @@ esp_err_t voip_set_config(const char *server, const char *user0, const char *pas
     return err;
 }
 
+bool voip_server_found(void)
+{
+    return s_server_ip[0] != '\0';
+}
+
 bool voip_is_enabled(void)
 {
     return s_voip_enabled;
@@ -1200,7 +1260,7 @@ esp_err_t voip_probe_number(const char *server, const char *number, voip_probe_r
     if (!server || !server[0] || !number || !number[0]) return ESP_ERR_INVALID_ARG;
 
     char ip[16];
-    if (!resolve_host(server, ip, sizeof(ip))) return ESP_ERR_NOT_FOUND;
+    if (!resolve_host(server, ip, sizeof(ip), true)) return ESP_ERR_NOT_FOUND;
 
     char my_ip[16];
     wifi_get_ip_str(my_ip, sizeof(my_ip));

@@ -425,6 +425,7 @@ static cJSON *build_status_json(void)
     /* No passwords here -- server/user only, so a test harness can snapshot
      * the persisted VoIP config before poking it and restore it after. */
     cJSON_AddStringToObject(root, "voip_server", voip_server());
+    cJSON_AddBoolToObject(root, "voip_server_found", voip_server_found());
     cJSON_AddStringToObject(root, "voip_user0", voip_user(0));
     if (num_lines > 1) {
         cJSON_AddStringToObject(root, "voip_user1", voip_user(1));
@@ -2533,6 +2534,15 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     board_name_get(name, sizeof(name));
 
     bool r0 = voip_is_registered(0);
+    char srv_esc[64 * 6], srv_text[64 * 6 + 128];
+    html_escape(voip_server(), srv_esc, sizeof(srv_esc));
+    if (voip_server()[0] && voip_is_enabled() && !voip_server_found()) {
+        snprintf(srv_text, sizeof(srv_text), "%s <span class=\"hint\">(%s)</span>", srv_esc,
+                 i18n_str("voip.server_not_found",
+                          "not found on this network, still looking"));
+    } else {
+        snprintf(srv_text, sizeof(srv_text), "%s", srv_esc);
+    }
     off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
@@ -2540,7 +2550,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "<span class=\"pill %s\">%s</span></div>",
         i18n_str("settings.tab.voip", "VOIP"),
         i18n_str("voip.sip_server", "SIP server"),
-        voip_server()[0] ? voip_server() : i18n_str("voip.not_set", "(not set)"),
+        voip_server()[0] ? srv_text : i18n_str("voip.not_set", "(not set)"),
         i18n_str("voip.line1", "Line 1"),
         r0 ? "on" : "off", r0 ? i18n_str("voip.registered", "registered") : i18n_str("voip.not_registered", "not registered"));
     /* Shown for a genuine 2-line board, but also whenever a line-2 account
