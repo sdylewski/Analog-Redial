@@ -132,7 +132,7 @@ Wi-Fi. Type `help` for the full list. A good first run on a new board:
 | `miclevel [secs]` | Handset microphone level; talk into it |
 | `spkamp` / `micamp` | Earpiece volume and microphone gain, live |
 | `sd_test` | microSD card info plus a write/read check |
-| `wifi_status` / `wifi_set <ssid> <pass>` | Check or set Wi-Fi without the web interface |
+| `wifi_status` / `wifi_set <ssid> <pass>` | Check or set Wi-Fi without the web interface. For a network name with an apostrophe, accent or emoji (an iPhone hotspot's "Name’s iPhone"), run `wifi_scan` and use `wifi_set #3 <pass>`; `wifi_set -u` takes `%XX` escapes for any bytes |
 | `reboot` | Restart, keeping the monitor attached |
 
 ## 7. Preparing boards for someone else

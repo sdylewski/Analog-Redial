@@ -297,7 +297,9 @@ firmware/
 ## WiFi setup & factory reset
 
 **Setting credentials** — any of:
-- Serial console: `wifi_set <ssid> <password>`
+- Serial console: `wifi_set <ssid> <password>`; or `wifi_scan` then
+  `wifi_set #N <password>` for names a terminal can't type (apostrophes,
+  accents, emoji); `wifi_set -u` takes `%XX` escapes
 - Web UI: **Settings → General → WiFi**
 - First boot with nothing saved: the device starts its own **SoftAP**
   (`AnalogRedial-XXXX`, open) — join it and a setup page opens (captive portal),

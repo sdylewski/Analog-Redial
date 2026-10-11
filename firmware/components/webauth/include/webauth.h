@@ -20,6 +20,7 @@
 #include "esp_err.h"
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,9 +28,29 @@ extern "C" {
 
 #define WEBAUTH_PASSWORD_MAX   64   /* characters */
 #define WEBAUTH_TOKEN_LEN      32   /* hex characters, without the NUL */
-#define WEBAUTH_SESSION_SECS   (30 * 24 * 3600)
+#define WEBAUTH_HINT_MAX       80   /* characters */
+#define WEBAUTH_HINT_BYTES     (WEBAUTH_HINT_MAX * 3)   /* as UTF-8, with room for accents */
+#define WEBAUTH_SESSION_DAYS_DEFAULT 30
 
 void webauth_init(void);
+
+/* How long a browser stays signed in after entering the password. This is
+ * NOT a password expiry: the password never expires. Allowed values:
+ *   0   until the browser is closed (and at most 1 day on the board)
+ *   1, 7, 30 (default), 90, 365
+ * Sessions are held in RAM, so a board restart signs everyone out whatever
+ * this says. Persisted; works whether or not a password is set. */
+uint16_t  webauth_session_days(void);
+esp_err_t webauth_set_session_days(uint16_t days);
+/* Cookie lifetime to send: seconds, or -1 for a browser-session cookie. */
+int       webauth_session_cookie_secs(void);
+
+/* A reminder shown on the sign-in page, visible to anyone who can reach the
+ * board -- so it must not be the password. "" = none. Cleared when the
+ * password is removed. */
+void      webauth_hint_get(char *out, size_t out_len);
+/* Trims; ESP_ERR_INVALID_ARG if too long or if it IS the password. */
+esp_err_t webauth_hint_set(const char *hint);
 
 bool webauth_enabled(void);
 

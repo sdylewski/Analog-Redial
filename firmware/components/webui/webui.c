@@ -2259,6 +2259,24 @@ static int append_setup_password_card(char *buf, size_t cap, int off)
 
 static int append_web_password_card(char *buf, size_t cap, int off)
 {
+    static const struct { int days; const char *label; } DURATIONS[] = {
+        { 0, "Until I close the browser" }, { 1, "1 day" }, { 7, "7 days" },
+        { 30, "30 days" }, { 90, "90 days" }, { 365, "1 year" },
+    };
+    int cur_days = webauth_session_days();
+    /* static: this runs on the web server's task, whose stack is small, and
+     * there is only the one task */
+    static char hint[WEBAUTH_HINT_BYTES + 1], hint_esc[WEBAUTH_HINT_BYTES * 6 + 1];
+    webauth_hint_get(hint, sizeof(hint));
+    html_escape(hint, hint_esc, sizeof(hint_esc));
+
+    char opts[600] = "";
+    int oo = 0;
+    for (size_t k = 0; k < sizeof(DURATIONS) / sizeof(DURATIONS[0]); k++) {
+        oo = appendf(opts, sizeof(opts), oo, "<option value=\"%d\"%s>%s</option>", DURATIONS[k].days,
+                     DURATIONS[k].days == cur_days ? " selected" : "", DURATIONS[k].label);
+    }
+
     off = appendf(buf, cap, off, "<div class=\"card\" id=\"security\"><h2>Web password</h2>");
     if (!webauth_enabled()) {
         off = appendf(buf, cap, off,
@@ -2266,14 +2284,21 @@ static int append_web_password_card(char *buf, size_t cap, int off)
             "With a password, pages can still be viewed, but changing anything needs a sign-in "
             "(scripts pass it with <code>curl -u admin:PASSWORD</code>).</p>");
     } else if (!s_viewer_signed_in) {
+        static char hint_line[WEBAUTH_HINT_BYTES * 6 + 40];
+        hint_line[0] = '\0';
+        if (hint[0]) snprintf(hint_line, sizeof(hint_line), "<p class=\"hint\">Hint: %s</p>", hint_esc);
         off = appendf(buf, cap, off,
             "<p class=\"hint\">On. <a href=\"/login?then=/settings\">Sign in</a> to change "
-            "settings or the password.</p><p class=\"hint\">%s</p></div>", WEB_RESET_HINT);
+            "settings or the password.</p>%s<p class=\"hint\">%s</p></div>", hint_line, WEB_RESET_HINT);
         return off;
     } else {
+        const char *how = cur_days == 0 ? "until you close the browser"
+                          : cur_days == 1 ? "for 1 day" : NULL;
+        char how_buf[40];
+        if (!how) { snprintf(how_buf, sizeof(how_buf), "for %d days", cur_days); how = how_buf; }
         off = appendf(buf, cap, off,
-            "<p class=\"hint\">On, and this browser is signed in (for 30 days, or until the "
-            "board restarts).</p>"
+            "<p class=\"hint\">On, and this browser is signed in %s (or until the board "
+            "restarts). The password itself never expires.</p>"
             "<div class=\"toolbar sub\">"
             "<form method=\"POST\" action=\"/logout\" style=\"display:inline\">"
             "<button type=\"submit\">Sign out</button></form> "
@@ -2282,7 +2307,21 @@ static int append_web_password_card(char *buf, size_t cap, int off)
             "able to change settings again.')\">"
             "<input type=\"hidden\" name=\"action\" value=\"remove\">"
             "<button type=\"submit\" class=\"danger\">Remove password</button></form>"
-            "</div>");
+            "</div>"
+            "<form method=\"POST\" action=\"/web_password\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"action\" value=\"duration\">"
+            "<label>Stay signed in <select name=\"days\">%s</select></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\">Save</button></div>"
+            "</form>"
+            "<form method=\"POST\" action=\"/web_password\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"action\" value=\"hint\">"
+            "<label>Password hint <input name=\"hint\" value=\"%s\" maxlength=\"%d\" "
+            "placeholder=\"e.g. the dog's name + the year\"></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\">Save hint</button></div>"
+            "</form>"
+            "<p class=\"hint\">The hint is shown on the sign-in page to anyone who can reach this "
+            "board, so describe the password; don't write it.</p>",
+            how, opts, hint_esc, WEBAUTH_HINT_MAX);
     }
     off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/web_password\" class=\"settings-form\">"
@@ -2290,13 +2329,20 @@ static int append_web_password_card(char *buf, size_t cap, int off)
         "<label>%s <input type=\"password\" name=\"password\" maxlength=\"%d\" "
         "autocomplete=\"new-password\" required></label>"
         "<label>Again <input type=\"password\" name=\"confirm\" maxlength=\"%d\" "
-        "autocomplete=\"new-password\" required></label>"
+        "autocomplete=\"new-password\" required></label>",
+        webauth_enabled() ? "New password" : "Password",
+        WEBAUTH_PASSWORD_MAX, WEBAUTH_PASSWORD_MAX);
+    if (!webauth_enabled()) {
+        off = appendf(buf, cap, off,
+            "<label>Hint (optional) <input name=\"hint\" maxlength=\"%d\" "
+            "placeholder=\"shown on the sign-in page\"></label>"
+            "<label>Stay signed in <select name=\"days\">%s</select></label>",
+            WEBAUTH_HINT_MAX, opts);
+    }
+    off = appendf(buf, cap, off,
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form><p class=\"hint\">%s</p></div>",
-        webauth_enabled() ? "New password" : "Password",
-        WEBAUTH_PASSWORD_MAX, WEBAUTH_PASSWORD_MAX,
-        webauth_enabled() ? "Change password" : "Turn on",
-        WEB_RESET_HINT);
+        webauth_enabled() ? "Change password" : "Turn on", WEB_RESET_HINT);
     return off;
 }
 
@@ -5181,7 +5227,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         ? 6000 + (board_type_mismatch() ? 900 : 0) /* +memory map card, several partition rows,
                                                       * +the mismatch-confirm card if showing */
         : 0;
-    size_t general_room = (strcmp(tab, "general") == 0) ? 3200 + 1400 + 2600 + 500 /* refused-password pills */ : 0; /* +setup password card */ /* +saved-network list */ /* +quiet hours card's timezone dropdown */
+    size_t general_room = (strcmp(tab, "general") == 0) ? 3200 + 1400 + 2600 + 500 + 2600 /* web password card */ /* refused-password pills */ : 0; /* +setup password card */ /* +saved-network list */ /* +quiet hours card's timezone dropdown */
     size_t phone_room = (strcmp(tab, "phone") == 0) ? 12500 + 1800 + 900 + 1600 : 0; /* +voice effects card, +intercom card */ /* +2x per-line speaker/echo/AM cards, 2 <script> blocks, AM inactive-hint, tone-region card, AM greeting text-to-speech field (~2.2 KB) */
     size_t voip_room = (strcmp(tab, "voip") == 0) ? 6500 + 4200 /* automatic setup + field hints */ : 0;
     size_t bt_room = (strcmp(tab, "bluetooth") == 0) ? 3300 + 1500 : 0; /* +experimental notice */ /* "What Bluetooth can do" card */ /* +copy-paste config examples, FreePBX + remote-deployment sections, enable-VOIP card */
@@ -8513,8 +8559,15 @@ static esp_err_t set_session_cookie(httpd_req_t *req, const char *token, bool cl
 {
     /* httpd keeps a pointer to the header value until the response is sent. */
     static char cookie[128];
-    snprintf(cookie, sizeof(cookie), SESSION_COOKIE "=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Strict",
-             clear ? "" : token, clear ? 0 : WEBAUTH_SESSION_SECS);
+    int secs = webauth_session_cookie_secs();   /* -1: until the browser closes */
+    if (clear) {
+        snprintf(cookie, sizeof(cookie), SESSION_COOKIE "=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict");
+    } else if (secs < 0) {
+        snprintf(cookie, sizeof(cookie), SESSION_COOKIE "=%s; Path=/; HttpOnly; SameSite=Strict", token);
+    } else {
+        snprintf(cookie, sizeof(cookie), SESSION_COOKIE "=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Strict",
+                 token, secs);
+    }
     return httpd_resp_set_hdr(req, "Set-Cookie", cookie);
 }
 
@@ -8543,6 +8596,14 @@ static esp_err_t login_page_handler(httpd_req_t *req)
     size_t cap = 6144 + 1000 + (board_type_mismatch() ? 700 : 0);
     char *buf = malloc(cap);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
+    static char hint[WEBAUTH_HINT_BYTES + 1], hint_esc[WEBAUTH_HINT_BYTES * 6 + 1],
+                hint_html[WEBAUTH_HINT_BYTES * 6 + 80];
+    hint_html[0] = '\0';
+    webauth_hint_get(hint, sizeof(hint));
+    if (hint[0]) {
+        html_escape(hint, hint_esc, sizeof(hint_esc));
+        snprintf(hint_html, sizeof(hint_html), "<p class=\"hint\"><b>Forgot it?</b> Hint: %s</p>", hint_esc);
+    }
     int off = append_page_head(buf, cap, 0, "Sign in", "", false);
     if (!webauth_enabled()) {
         off = appendf(buf, cap, off,
@@ -8561,9 +8622,9 @@ static esp_err_t login_page_handler(httpd_req_t *req)
             "<label>Password <input type=\"password\" name=\"password\" maxlength=\"%d\" "
             "autocomplete=\"current-password\" autofocus required></label>"
             "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Sign in</button></div>"
-            "</form><p class=\"hint\">%s</p></div></main></body></html>",
+            "</form>%s<p class=\"hint\">%s</p></div></main></body></html>",
             msg[0] ? "<p class=\"hint\" style=\"color:var(--red)\">" : "", msg, msg[0] ? "</p>" : "",
-            ethen, WEBAUTH_PASSWORD_MAX, WEB_RESET_HINT);
+            ethen, WEBAUTH_PASSWORD_MAX, hint_html, WEB_RESET_HINT);
     }
     if (off < 0 || (size_t)off >= cap) { free(buf); httpd_resp_send_500(req); return ESP_FAIL; }
     httpd_resp_set_type(req, "text/html; charset=utf-8");
@@ -8618,34 +8679,59 @@ static esp_err_t logout_handler(httpd_req_t *req)
 /* POST /web_password -- action=set&password=..&confirm=.. | action=remove */
 static esp_err_t web_password_handler(httpd_req_t *req)
 {
-    char body[512];
+    static char body[1400 + WEBAUTH_HINT_BYTES * 3];   /* a hint is UTF-8, %-encoded */
     READ_FORM_OR_RETURN(req, body);
-    char action[8] = "", pw[WEBAUTH_PASSWORD_MAX + 1] = "", confirm[WEBAUTH_PASSWORD_MAX + 1] = "";
+    char action[12] = "", pw[WEBAUTH_PASSWORD_MAX + 1] = "", confirm[WEBAUTH_PASSWORD_MAX + 1] = "";
+    static char hint[WEBAUTH_HINT_BYTES + 1];
+    hint[0] = '\0';
+    char days_s[8] = "";
+    bool has_hint = form_field(body, "hint", hint, sizeof(hint));
     form_field(body, "action", action, sizeof(action));
     form_field(body, "password", pw, sizeof(pw));
     form_field(body, "confirm", confirm, sizeof(confirm));
+    bool has_days = form_field(body, "days", days_s, sizeof(days_s)) && days_s[0];
     memset(body, 0, sizeof(body));
+    const char *back = "/settings?tab=general#security";
 
-    esp_err_t r;
+    esp_err_t r = ESP_OK;
     if (strcmp(action, "remove") == 0) {
         webauth_clear();
         activity_log("Web UI: password removed");
         set_session_cookie(req, NULL, true);
-        r = redirect_to(req, "/settings?tab=general#security");
+        r = redirect_to(req, back);
+    } else if (strcmp(action, "duration") == 0) {
+        if (!has_days || webauth_set_session_days((uint16_t)atoi(days_s)) != ESP_OK) {
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "unsupported sign-in length");
+        } else {
+            r = redirect_to(req, back);
+        }
+    } else if (strcmp(action, "hint") == 0) {
+        if (webauth_hint_set(hint) != ESP_OK) {
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                "The hint is too long, has odd characters, or is the password itself.");
+        } else {
+            r = redirect_to(req, back);
+        }
     } else if (strcmp(action, "set") != 0 || !pw[0] || strcmp(pw, confirm) != 0) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
                             "The two passwords are empty or don't match -- go back and try again.");
-        r = ESP_OK;
-    } else if (webauth_set_password(pw) != ESP_OK) {
-        httpd_resp_send_500(req);
-        r = ESP_FAIL;
     } else {
-        /* Setting it signed everyone out; keep this browser signed in. */
-        char token[WEBAUTH_TOKEN_LEN + 1];
-        webauth_session_new(token);
-        set_session_cookie(req, token, false);
-        activity_log("Web UI: password set");
-        r = redirect_to(req, "/settings?tab=general#security");
+        if (has_days) webauth_set_session_days((uint16_t)atoi(days_s));   /* ignored if unsupported */
+        if (webauth_set_password(pw) != ESP_OK) {
+            httpd_resp_send_500(req);
+            r = ESP_FAIL;
+        } else {
+            if (has_hint && webauth_hint_set(hint) != ESP_OK) {
+                ESP_LOGW(TAG, "password set, hint rejected (too long or equals the password)");
+                webauth_hint_set("");
+            }
+            /* Setting it signed everyone out; keep this browser signed in. */
+            char token[WEBAUTH_TOKEN_LEN + 1];
+            webauth_session_new(token);
+            set_session_cookie(req, token, false);
+            activity_log("Web UI: password set");
+            r = redirect_to(req, back);
+        }
     }
     memset(pw, 0, sizeof(pw));
     memset(confirm, 0, sizeof(confirm));

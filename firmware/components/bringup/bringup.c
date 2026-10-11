@@ -36,6 +36,7 @@
 #include "driver/i2c_master.h"
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <time.h>
@@ -1832,21 +1833,102 @@ static int collect_quoted_or_plain(int argc, char **argv, int start, char *out, 
     return -1;
 }
 
+/* The networks from the most recent wifi_scan, numbered, so wifi_set can take
+ * `#3` instead of a typed name. Typing is where special characters get lost:
+ * a curly apostrophe (iPhones put one in the hotspot name), an accented
+ * letter or an emoji doesn't make it through a serial terminal reliably, and
+ * the result is a different network name that simply isn't found. */
+#define SCAN_CACHE_MAX 32
+static char s_scan_ssid[SCAN_CACHE_MAX][33];
+static int  s_scan_n;
+
+/* In-place %XX decoding, for `wifi_set -u`. */
+static void pct_decode(char *s)
+{
+    char *o = s;
+    for (const char *p = s; *p; p++) {
+        if (*p == '%' && isxdigit((unsigned char)p[1]) && isxdigit((unsigned char)p[2])) {
+            char hex[3] = { p[1], p[2], 0 };
+            *o++ = (char)strtol(hex, NULL, 16);
+            p += 2;
+        } else {
+            *o++ = *p;
+        }
+    }
+    *o = '\0';
+}
+
+/* Letters and digits only, lower-cased: "Scotts iPhone" and "Scott’s iPhone"
+ * both become "scottsiphone". */
+static void name_key(const char *in, char *out, size_t out_len)
+{
+    size_t n = 0;
+    for (; *in && n + 1 < out_len; in++) {
+        unsigned char c = (unsigned char)*in;
+        if (isalnum(c)) out[n++] = (char)tolower(c);
+    }
+    out[n] = '\0';
+}
+
 static int cmd_wifi_set(int argc, char **argv)
 {
-    if (argc < 3) {
-        printf("usage: wifi_set <ssid> <password>\n"
-               "Values with spaces can be quoted either way, e.g.\n"
-               "  wifi_set \"My Network\" \"my password\"\n"
-               "  wifi_set 'My Network' 'my password'\n");
+    int a = 1;
+    bool url_encoded = false;
+    if (argc > 1 && strcmp(argv[1], "-u") == 0) { url_encoded = true; a = 2; }
+    if (argc - a < 2) {
+        printf("usage: wifi_set [-u] <ssid|#N> <password>\n"
+               "  wifi_set \"My Network\" \"my password\"      (quote values with spaces)\n"
+               "  wifi_set #3 \"my password\"                  (network #3 from the last wifi_scan:\n"
+               "                                               use this for names with an apostrophe,\n"
+               "                                               accent or emoji)\n"
+               "  wifi_set -u \"Caf%%C3%%A9\" \"p%%22ss%%25\"      (-u: %%XX escapes, any bytes;\n"
+               "                                               write a literal %% as %%25)\n");
         return 1;
     }
 
     static char ssid[64], pass[64];
-    int next = collect_quoted_or_plain(argc, argv, 1, ssid, sizeof(ssid));
+    int next = collect_quoted_or_plain(argc, argv, a, ssid, sizeof(ssid));
     if (next < 0) { printf("wifi_set: unterminated ' in SSID\n"); return 1; }
     next = collect_quoted_or_plain(argc, argv, next, pass, sizeof(pass));
     if (next < 0) { printf("wifi_set: unterminated ' in password\n"); return 1; }
+    if (url_encoded) { pct_decode(ssid); pct_decode(pass); }
+
+    if (ssid[0] == '#') {
+        int n = atoi(ssid + 1);
+        if (s_scan_n == 0) { printf("wifi_set: run wifi_scan first, then use its #numbers\n"); return 1; }
+        if (n < 1 || n > s_scan_n) { printf("wifi_set: no #%d in the last scan (1-%d)\n", n, s_scan_n); return 1; }
+        strlcpy(ssid, s_scan_ssid[n - 1], sizeof(ssid));
+        printf("using #%d from the last scan: '%s'\n", n, ssid);
+    } else if (s_scan_n > 0) {
+        /* Not an exact name in the last scan? Often the right network under a
+         * slightly different spelling -- say so before waiting 40 s. */
+        bool exact = false;
+        int near = -1;
+        char want[40], have[40];
+        name_key(ssid, want, sizeof(want));
+        for (int i = 0; i < s_scan_n; i++) {
+            if (strcmp(s_scan_ssid[i], ssid) == 0) { exact = true; break; }
+            name_key(s_scan_ssid[i], have, sizeof(have));
+            if (want[0] && strcmp(want, have) == 0 && near < 0) near = i;
+        }
+        if (!exact && near >= 0) {
+            printf("note: '%s' is not in the last scan, but '%s' (#%d) looks like it.\n"
+                   "      Try:  wifi_set #%d <password>\n", ssid, s_scan_ssid[near], near + 1, near + 1);
+        }
+    }
+    {
+        bool non_ascii = false;
+        for (const char *c = ssid; *c; c++) if ((unsigned char)*c >= 0x80) non_ascii = true;
+        if (non_ascii) {
+            printf("SSID bytes:");
+            for (const char *c = ssid; *c; c++) printf(" %02X", (unsigned char)*c);
+            printf("\n");
+        }
+    }
+    size_t plen = strlen(pass);
+    if (plen > 0 && plen < 8) {
+        printf("note: a WPA2/WPA3 password is 8-63 characters; this one is %u\n", (unsigned)plen);
+    }
 
     esp_err_t err = wifi_set_credentials(ssid, pass);
     if (err != ESP_OK) {
@@ -1930,8 +2012,15 @@ static int cmd_wifi_scan(int argc, char **argv)
     } else {
         printf("%d network(s) in %d ms%s\n", n, ms,
                wifi_is_provisioning() ? " (setup AP is up)" : "");
-        for (int i = 0; i < n; i++)
-            printf("  %4d dBm  %-6s %s\n", r[i].rssi, auth_name(r[i].authmode), r[i].ssid);
+        s_scan_n = 0;
+        for (int i = 0; i < n; i++) {
+            printf("  #%-2d %4d dBm  %-6s %s\n", i + 1, r[i].rssi, auth_name(r[i].authmode), r[i].ssid);
+            if (i < SCAN_CACHE_MAX) {
+                strlcpy(s_scan_ssid[i], r[i].ssid, sizeof(s_scan_ssid[i]));
+                s_scan_n = i + 1;
+            }
+        }
+        if (n > 0) printf("use a name from this list with: wifi_set #<number> <password>\n");
     }
     free(r);
     return n < 0;
@@ -2774,7 +2863,7 @@ void bringup_console_start(void)
     register_cmd("selftest", "Guided hardware bring-up check: selftest | action <id> | stimulus <id> | answer <id> <0|1> | save | history -- results stored on this board", cmd_selftest);
     register_cmd("status", "Per-line telephony status", cmd_status);
     register_cmd("reset", "Force line(s) out of a stuck tone/reorder state: reset [line]", cmd_reset);
-    register_cmd("wifi_set", "Save WiFi credentials + reconnect: wifi_set <ssid> <password>", cmd_wifi_set);
+    register_cmd("wifi_set", "Save WiFi credentials + reconnect: wifi_set [-u] <ssid|#N> <password>", cmd_wifi_set);
     register_cmd("wifi_status", "WiFi connection status", cmd_wifi_status);
     register_cmd("wifi_list", "List saved WiFi networks", cmd_wifi_list);
     register_cmd("wifi_scan", "Scan for nearby WiFi networks", cmd_wifi_scan);

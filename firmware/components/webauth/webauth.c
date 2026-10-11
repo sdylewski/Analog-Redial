@@ -41,6 +41,11 @@ static session_t s_sessions[MAX_SESSIONS];
 static int     s_fails;
 static int64_t s_locked_until_us;
 
+#define NVS_KEY_DAYS  "sess_days"   /* u16 */
+#define NVS_KEY_HINT  "hint"        /* string */
+static uint16_t s_session_days = WEBAUTH_SESSION_DAYS_DEFAULT;
+static char     s_hint[WEBAUTH_HINT_BYTES + 1];
+
 static int64_t now_us(void) { return esp_timer_get_time(); }
 
 static void derive(const char *password, const uint8_t salt[SALT_LEN], uint8_t out[HASH_LEN])
@@ -62,6 +67,11 @@ static void sessions_clear(void)
     memset(s_sessions, 0, sizeof(s_sessions));
 }
 
+static bool days_allowed(uint16_t d)
+{
+    return d == 0 || d == 1 || d == 7 || d == 30 || d == 90 || d == 365;
+}
+
 void webauth_init(void)
 {
     nvs_handle_t h;
@@ -73,6 +83,11 @@ void webauth_init(void)
         memcpy(s_hash, blob + SALT_LEN, HASH_LEN);
         s_enabled = true;
     }
+    uint16_t days;
+    if (nvs_get_u16(h, NVS_KEY_DAYS, &days) == ESP_OK && days_allowed(days)) s_session_days = days;
+    size_t hl = sizeof(s_hint);
+    if (nvs_get_str(h, NVS_KEY_HINT, s_hint, &hl) != ESP_OK) s_hint[0] = '\0';
+    s_hint[WEBAUTH_HINT_MAX] = '\0';
     nvs_close(h);
     if (s_enabled) ESP_LOGI(TAG, "web UI password is set");
 }
@@ -117,8 +132,17 @@ esp_err_t webauth_clear(void)
         if (err == ESP_OK) err = nvs_commit(h);
         nvs_close(h);
     }
+    {
+        nvs_handle_t hh;
+        if (nvs_open(NVS_NS, NVS_READWRITE, &hh) == ESP_OK) {
+            nvs_erase_key(hh, NVS_KEY_HINT);
+            nvs_commit(hh);
+            nvs_close(hh);
+        }
+    }
     portENTER_CRITICAL(&s_mux);
     s_enabled = false;
+    s_hint[0] = '\0';
     memset(s_hash, 0, sizeof(s_hash));
     sessions_clear();
     s_fails = 0;
@@ -184,7 +208,8 @@ bool webauth_session_valid(const char *token)
     for (int i = 0; i < MAX_SESSIONS; i++) {
         session_t *s = &s_sessions[i];
         if (!s->token[0]) continue;
-        if (now - s->started_us > (int64_t)WEBAUTH_SESSION_SECS * 1000000) {
+        int64_t limit_s = (int64_t)(s_session_days ? s_session_days : 1) * 24 * 3600;
+        if (now - s->started_us > limit_s * 1000000) {
             memset(s, 0, sizeof(*s));
             continue;
         }
@@ -203,3 +228,66 @@ void webauth_session_end(const char *token)
     }
     portEXIT_CRITICAL(&s_mux);
 }
+
+/* ---- sign-in duration and hint -------------------------------------------- */
+
+uint16_t webauth_session_days(void) { return s_session_days; }
+
+esp_err_t webauth_set_session_days(uint16_t days)
+{
+    if (!days_allowed(days)) return ESP_ERR_INVALID_ARG;
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u16(h, NVS_KEY_DAYS, days);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) s_session_days = days;
+    return err;
+}
+
+int webauth_session_cookie_secs(void)
+{
+    return s_session_days ? (int)s_session_days * 24 * 3600 : -1;
+}
+
+void webauth_hint_get(char *out, size_t out_len)
+{
+    if (!out_len) return;
+    strlcpy(out, s_hint, out_len);
+}
+
+esp_err_t webauth_hint_set(const char *hint)
+{
+    /* Trim, and reject control characters (it ends up in a web page). */
+    while (*hint == ' ') hint++;
+    char buf[WEBAUTH_HINT_BYTES + 1];
+    size_t n = strlen(hint);
+    if (n > WEBAUTH_HINT_BYTES) return ESP_ERR_INVALID_ARG;
+    size_t chars = 0;                       /* characters, not bytes */
+    for (size_t i = 0; i < n; i++) if (((unsigned char)hint[i] & 0xC0) != 0x80) chars++;
+    if (chars > WEBAUTH_HINT_MAX) return ESP_ERR_INVALID_ARG;
+    memcpy(buf, hint, n + 1);
+    while (n && buf[n - 1] == ' ') buf[--n] = '\0';
+    for (size_t i = 0; i < n; i++) {
+        if ((unsigned char)buf[i] < 0x20) return ESP_ERR_INVALID_ARG;
+    }
+    /* A hint that is the password defeats the point: anyone on the network
+     * could read it. Compared the same way a sign-in is, without counting
+     * as a failed attempt. */
+    if (n && s_enabled) {
+        uint8_t got[HASH_LEN];
+        derive(buf, s_salt, got);
+        if (equal_ct(got, s_hash, HASH_LEN)) return ESP_ERR_INVALID_ARG;
+    }
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = n ? nvs_set_str(h, NVS_KEY_HINT, buf) : nvs_erase_key(h, NVS_KEY_HINT);
+    if (err == ESP_ERR_NVS_NOT_FOUND) err = ESP_OK;
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) memcpy(s_hint, buf, n + 1);
+    return err;
+}
+

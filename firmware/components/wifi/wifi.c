@@ -248,6 +248,12 @@ static int build_candidates(candidate_t *out, int max)
     wifi_scan_result_t *scan = calloc(32, sizeof(*scan));
     if (!scan) return 0;
     int ns = wifi_scan(scan, 32);
+    if (ns < 0) {
+        /* The scan itself could not run (the radio was busy, e.g. a connect
+         * had just been started). That says nothing about what is in range. */
+        free(scan);
+        return -1;
+    }
 
     int n = 0;
     for (int i = 0; i < ns && n < max; i++) {
@@ -270,10 +276,23 @@ static int build_candidates(candidate_t *out, int max)
 
 static void manager_task(void *arg)
 {
+    int scan_failures = 0;
     for (;;) {
         xEventGroupClearBits(s_ev, EV_KICK);
         candidate_t cand[WIFI_MAX_NETWORKS];
         int n = build_candidates(cand, WIFI_MAX_NETWORKS);
+        if (n < 0) {
+            /* Before: a failed scan counted as "nothing in range" and brought
+             * up the open setup AP for no reason (seen right after re-saving
+             * the network we were already on). Look again shortly; only
+             * after several failures in a row fall through as before. */
+            if (++scan_failures < 4) {
+                xEventGroupWaitBits(s_ev, EV_KICK, pdFALSE, pdFALSE, pdMS_TO_TICKS(1500));
+                continue;
+            }
+            n = 0;
+        }
+        scan_failures = 0;
 
         bool connected = false;
         for (int i = 0; i < n && !connected; i++) {

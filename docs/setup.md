@@ -39,8 +39,16 @@ named the board, it's `http://<name>.local` instead.
   pass it with `curl -u admin:PASSWORD`, or by setting `REDIAL_PASSWORD`
   for the tools in `firmware/bringup/`. The board talks plain HTTP, so the
   password crosses your network unencrypted: it keeps out casual changes
-  and other websites, not someone watching your Wi-Fi traffic. Forgot it?
-  See [§8](#8-the-boot-button-rescue-and-reset).
+  and other websites, not someone watching your Wi-Fi traffic.
+  - **How long you stay signed in** is a setting: until you close the
+    browser, 1, 7, 30 (the default), 90 days or 1 year. That's the
+    *sign-in*; the password itself never expires. Restarting the board
+    always signs everyone out.
+  - **A hint** (optional, up to 80 characters) is shown on the sign-in page.
+    Anyone who can reach the board can read it, so describe the password
+    ("the dog + the year"); don't write it. The board refuses a hint that
+    is the password.
+  - Forgot it? See [§8](#8-the-boot-button-rescue-and-reset).
 
 ## 3. Dialing
 
