@@ -111,10 +111,18 @@ static esp_err_t do_mount(bool format_if_failed)
         .quadhd_io_num = -1,
         .max_transfer_sz = 4000,
     };
-    esp_err_t err = spi_bus_initialize(host.slot, &bus, SDSPI_DEFAULT_DMA);
-    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) { /* INVALID_STATE = already init */
-        ESP_LOGE(TAG, "spi_bus_initialize failed: %s", esp_err_to_name(err));
-        return err;
+    /* The bus is brought up once and kept (it's never freed): a card pulled
+     * and reinserted must not call this again, or ESP-IDF logs an error for
+     * "already initialized" on every remount. */
+    static bool s_bus_ready;
+    esp_err_t err = ESP_OK;
+    if (!s_bus_ready) {
+        err = spi_bus_initialize(host.slot, &bus, SDSPI_DEFAULT_DMA);
+        if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) { /* INVALID_STATE = already init */
+            ESP_LOGE(TAG, "spi_bus_initialize failed: %s", esp_err_to_name(err));
+            return err;
+        }
+        s_bus_ready = true;
     }
 
     sdspi_device_config_t dev = SDSPI_DEVICE_CONFIG_DEFAULT();
