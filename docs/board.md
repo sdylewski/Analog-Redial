@@ -37,7 +37,7 @@ assembly guide cover either one.
 
 | Route | What you do |
 |-------|-------------|
-| **Join a pooled order** | Cheapest per board. Register interest and you'll hear when an order goes in. **Interest form: coming soon.** <!-- TODO: interest form link --> |
+| **Join a pooled order** | Cheapest per board. Register interest and you'll hear when an order goes in: **[interest form](https://forms.gle/kVKHiXejV6M2ZxC17)**. No commitment. |
 | **Order your own** | Upload the design to JLCPCB with SMT assembly. Minimum 5 boards. Steps [below](#ordering-from-jlcpcb). |
 | **Fully from scratch** | Order bare PCBs (cheap) and place every part yourself. The ES8388 codec is a 28-pin QFN with a thermal pad, so you need a hotplate or reflow oven, not just an iron. |
 

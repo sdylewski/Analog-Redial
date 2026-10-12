@@ -144,9 +144,8 @@ board.
 
 **A pooled order makes boards much cheaper.** Most of a small order is fixed
 setup fees, so the price per board falls fast with quantity. If you'd like a
-board from a pooled order, register your interest: no commitment, it just
-tells us how many to order. **Interest form: coming soon.**
-<!-- TODO: replace "coming soon" with the interest form link -->
+board from a pooled order, **[register your interest](https://forms.gle/kVKHiXejV6M2ZxC17)**: no
+commitment, it just tells us how many to order.
 
 Price breakdown by quantity: [Get a board](docs/board.md#what-it-costs).
 
@@ -182,6 +181,7 @@ Going further: [VoIP setup](docs/voip-setup.md) ·
 ## Community
 
 - **Discord:** coming soon <!-- TODO: Discord invite link -->
+- **Want a board from a pooled order?** [Interest form](https://forms.gle/kVKHiXejV6M2ZxC17)
 - **Bugs and questions:** [GitHub Issues](https://github.com/sdylewski/Analog-Redial/issues)
 - **Built one?** Post a picture in the Discord channel! We'd love to see it.
 
