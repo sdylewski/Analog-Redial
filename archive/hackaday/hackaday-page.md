@@ -1,200 +1,216 @@
-# Hackaday.io page: "Building a hackable analog phone system"
+# Hackaday.io page: "Analog Redial: a hackable analog phone system"
 
-Paste-ready text for a hackaday.io project. Everything below is taken from
-this repo's docs, so it matches what the project actually does today. It is
-written in first person as you; change the voice wherever it doesn't sound
-like you. Items marked **[YOU]** need something only you have (a photo, a
-decision, a link).
+Paste-ready text for the hackaday.io project. Written about the **v5 board
+with the BM64 Bluetooth option**, in your voice. Don't publish until v5 and
+the BM64 carrier are tested; every spot that depends on that, or that only
+you can fill in, is marked **[YOU]**.
 
-Hackaday.io's editor changes from time to time, so treat the field names
-below as a guide and check them against the "Create project" page. The Details
-and log editors accept Markdown; paste, then look at the preview.
+Hackaday.io's editor changes now and then, so check the field names against
+its "Create project" page. The Details and log editors take Markdown; paste,
+then check the preview.
 
 ---
 
 ## 1. How to create the page
 
-1. Sign in at hackaday.io, then **Create → Project** (the "+" or "Add
-   project" button on your profile or the Projects page).
-2. Fill in the **Name**, **Summary** and **Tags** (section 2), upload the
-   **cover image**, and save. A new project starts unpublished, so you can
-   build the whole page before anyone sees it.
-3. Paste the **Details** (section 4). Add the **Components** (section 5),
-   **Links** (section 6) and **Files**.
-4. Add the **Instructions** (section 7) as build steps, with a picture per
-   step where you have one.
-5. Post the **Project logs** (section 8). Logs are dated posts; write the
-   first one now, and add more as you go. They are what makes people follow
-   a project.
-6. Preview from a logged-out window, then publish. Post the link in the
-   repo's README so the two point at each other.
-
-The Details section is the page people read first; the logs and
-instructions are where the depth goes.
+1. Sign in at hackaday.io, then **Create → Project**.
+2. Fill in **Name**, **Summary**, **Tags** (section 2), upload the **cover
+   image**, save. It stays unpublished until you publish it, so you can
+   build the whole thing quietly.
+3. Paste the **Details** (section 4). Add **Components** (5), **Links** and
+   **Files** (6).
+4. Add the **Instructions** (7) as build steps, a picture per step where you
+   have one.
+5. Post the **Project logs** (8). Logs are dated posts: put the first one up
+   with the page, then add more as you go. They're what makes people follow.
+6. Check it from a private window, publish, and link it from the README.
 
 ---
 
 ## 2. Name, summary, tags
 
-**Name** (pick one):
+**Name:** Analog Redial: a hackable analog phone system
 
-- **Analog Redial: a hackable analog phone system** *(recommended: says what
-  it is and matches the repo)*
-- Building a hackable analog phone system
-- Analog Redial: a $6 phone exchange for rotary phones
+Alternatives: *Building a hackable analog phone system* · *Analog Redial:
+make old phones ring again*
 
-**Summary** (one or two sentences; shown on cards and in search):
+**Summary:**
 
-> An open-source phone exchange for old analog phones: an ESP32-C6, an audio
-> codec and two SLICs give rotary or touch-tone phones dial tone, ringing, an
-> answering machine and VoIP, configured from a web page.
+> Plug in your old rotary or touch-tone phones and they get dial tone,
+> ringing, an answering machine and fun dial codes. Add Bluetooth and your
+> rotary phone becomes a handset for your cell phone.
 
-Shorter alternative:
-
-> Plug in rotary or touch-tone phones and give them dial tone, an answering
-> machine and VoIP. ESP32-C6, open hardware and firmware.
-
-**Tags:** `esp32`, `esp32-c6`, `rotary phone`, `telephony`, `voip`, `sip`,
-`slic`, `asterisk`, `kicad`, `esp-idf`, `retro`, `analog`
+**Tags:** `esp32`, `esp32-c6`, `rotary phone`, `telephony`, `bluetooth`,
+`voip`, `sip`, `slic`, `kicad`, `esp-idf`, `retro`, `claude code`
 
 ---
 
 ## 3. Images
 
-| Use | File in the repo | Suggested caption |
-|-----|------------------|-------------------|
-| **Cover** (landscape, shown on cards) | `docs/pics/smd4_board.jpg` | The Analog Redial board: an ESP32-C6, an audio codec and two phone-line chips |
-| Board, annotated | `docs/pics/smd4_board_annotated.jpg` | Where everything is |
-| Case **[YOU]** | not taken yet | The board in its 3D-printed case. *(the README still shows a placeholder here)* |
-| Web UI: status | `docs/pics/status.png` | The Status page: lines, activity feed and the dial guide |
-| Web UI: phone settings | `docs/pics/settings-phone.png` | Answering machine, tones, voice effects |
-| Web UI: dial codes | `docs/pics/settings-dialcodes.png` | Your own dial codes and audio, no rebuild |
-| Web UI: VoIP | `docs/pics/settings-voip.png` | SIP server setup and the generated Asterisk script |
-| Schematic | `docs/pics/smd4_schematic.png` | The v4 schematic |
-| PCB top / bottom | `docs/pics/smd4_layout_top.png`, `smd4_layout_bottom.png` | The 2-layer layout |
-| History: the Pi version | `docs/pics/pi_version.jpg` | The 2020 Raspberry Pi version |
-| History: first SMD board | `docs/pics/smd2_board.jpg` | v2, the first surface-mount board |
-| Next board | `docs/pics/V5_board_front.png` | v5: takes a genuine or clone ESP32-C6, and adds Bluetooth |
+| Use | File | Caption |
+|-----|------|---------|
+| **Cover** (landscape) **[YOU]** | a photo of the yellow wall phone plugged into the board | Yes, that's the actual phone from when I was a kid |
+| v5 board, assembled **[YOU]** | photo after bring-up | The v5 board |
+| v5 board (until you have a photo) | `docs/pics/V5_board_front.png` | v5 front |
+| v5 board back | `docs/pics/V5_board_rear.png` | Solder jumpers for the genuine or clone ESP32-C6 module |
+| Bluetooth carrier **[YOU]** | photo of the BM64 board on the header | The BM64 Bluetooth board plugs onto the 8-pin header |
+| Web UI | `docs/pics/status.png` | Status page: lines, activity, the dial guide |
+| Web UI | `docs/pics/settings-dialcodes.png` | Add your own dial codes and audio from the browser |
+| Web UI | `docs/pics/settings-bluetooth.png` | Pairing your cell phone |
+| Schematic | `docs/pics/smd5_schematic.png` | The v5 schematic |
+| History | `docs/pics/pi_version.jpg` | The original Raspberry Pi version |
+| History | `docs/pics/smd4_board.jpg` | v4, the board that's been running the house |
 
-Hackaday crops the cover to a wide card, so use a landscape picture with the
-subject in the middle. A photo with an actual phone plugged in will beat the
-bare board.
+Hackaday crops the cover to a wide card: landscape, subject in the middle.
+The yellow phone is the picture people will click on.
 
 ---
 
 ## 4. Details (paste this)
 
-**Analog Redial is an open-source phone exchange for old analog
-telephones.** Plug in one or two rotary or touch-tone phones and they get
-real dial tone, ringing, an operator, an answering machine and calls to each
-other, with a web page for configuration. If you want, they also register as
-extensions on any SIP server (Asterisk, FreePBX) and call anything that
-server can reach.
+**Analog Redial turns old analog phones into a little phone system you can
+hack.** Plug in one or two phones, rotary or touch-tone, and you get real dial
+tone, ringing, calls between the phones, an answering machine, and a bunch of
+dial codes that do fun things... all set up from a web page. Add the Bluetooth
+board and your rotary phone becomes a handset for your cell phone!
 
-Everything is open: KiCad hardware, ESP-IDF C firmware (MIT license), and a
+Everything's open: KiCad hardware, ESP-IDF firmware in C (MIT license), and a
 serial console for poking at every part of the hardware.
 
 ### Why I built it
 
-**[YOU: put your own reason here, in a sentence or two.]** The off-the-shelf
-answer for connecting an old phone is a VoIP adapter (an ATA), but those
-have two problems for this:
+This project started as a way to use my family's yellow rotary-dial wall
+phone from when I was a child. One rotary phone could call another, and my
+kid liked playing with it. The first version ran on a Raspberry Pi and worked
+OK for years, but this ESP32-based version has more features and is cheaper
+to build.
 
-- Most only understand **touch-tone**, so a rotary phone can't dial through
-  them.
-- They need a **SIP server** before they do anything at all, even to let two
-  phones on the same box call each other.
+Why not just buy a VoIP adapter? Most of them only understand touch-tone, so
+a rotary phone can't dial through them, and they need a SIP server before
+they'll do anything, even let two phones on the same box call each other.
+This is a whole phone system on its own.
 
-My first version was a Raspberry Pi 4 in a project box, two SLIC modules
-hand-wired to the GPIO header, and a USB sound card per phone line, running
-hand-written Python and shell scripts. No web UI, but it worked. This
-project is that job done on a $5 microcontroller.
+### The best part: Bluetooth
 
-### What it does
+Plug the Bluetooth board (a BM64 module) onto the header and pair it with
+your cell phone. Then:
 
-- **Rotary and touch-tone dialing.** Pulse dialing is read from the phone's
-  hook switch; touch-tone from the audio.
-- **Calls between the two phones, fully offline.** No Wi-Fi, no server.
-  Dial **321**, or turn on intercom mode: lift one handset, wait, and the
-  other rings.
-- **Dial codes that do things.** Play a clip, leave a message, reach the
-  answering machine. Add your own codes and audio from the browser, no
-  rebuild. Good for museum exhibits, art pieces, a wedding guestbook phone, a
-  phone that tells kids jokes.
-- **Messages.** Dial **211** to record; a per-line answering machine with its
-  own greeting; recordings go to a microSD card and download from the
-  browser.
-- **VoIP.** An embedded SIP user agent with RTP/G.711. Register a line with
-  Asterisk or FreePBX; an optional provisioner service hands out numbers
-  from the board's own web page.
-- **Proper sounds.** Dial tone, ringback and busy tones that match your
-  country, echo cancellation, per-line earpiece volume.
-- **Day to day.** Quiet hours that silence the bell overnight, several
-  remembered Wi-Fi networks, firmware updates from the browser, a one-button
-  rescue mode, and an optional web password.
+- **Make calls from the rotary phone.** Pick it up and dial 1 + area code +
+  number. The call goes out on your cell phone, and the audio comes through
+  the old handset.
+- **Incoming calls ring the real bell.** Lift the handset to answer, hang up
+  to end the call.
+- **Caller ID** shows up in the web page's activity log.
+- **Everything else still works.** With your cell connected but no call up,
+  picking up still gives you dial tone and all the local dial codes.
+
+There's also a cheaper Bluetooth module, the BK3266, that fits the same
+header. It should ring and answer, but probably can't dial out. I'm still
+testing it.
+
+**[YOU: once tested, add a line on how well it works, e.g. call quality.]**
+
+### Dial anything
+
+The ESP32 sees every digit you dial, so any number can do whatever you want.
+The dial plan is just a table. Out of the box:
+
+| Dial | What happens |
+|------|--------------|
+| **321** | Ring the other phone |
+| **211** | Record a message (download it from the web page later) |
+| **0** | Operator help |
+| **899** | Record your answering machine greeting |
+| **412** | A dial-up modem sound, because why not |
+| **1** + area code + number | Call out through your cell phone (Bluetooth) |
+
+Add your own codes and audio files from the browser, no reflashing: a joke
+line for the kids, a song, a museum exhibit, a wedding guestbook phone...
+
+**[YOU: this paragraph depends on the spare-pin question; see section 10.]**
+There are also spare pins on headers for your own hardware, so a dial code
+could unlock a door (through a relay or a MOSFET; a solenoid needs far more
+current than a pin can give), sound a buzzer, or flash a light.
+
+### More things it does
+
+- **Rotary and touch-tone.** Both work on either line.
+- **Answering machine** per line, each with its own greeting. Messages go to
+  a microSD card.
+- **Intercom mode:** lift one handset, wait a few seconds, and the other
+  phone rings.
+- **VoIP:** register a line with Asterisk or FreePBX and call anything that
+  server can reach.
+- **Proper phone sounds:** dial tone, ringback and busy tones for your
+  country, plus echo cancellation.
+- **Day to day:** quiet hours so the bell doesn't go off at 2 a.m., several
+  remembered Wi-Fi networks, firmware updates from the browser, and an
+  optional web password.
 
 ### How it works
 
 Each phone line goes through the same chain:
 
 ```
-phone ── RJ12 ── AG1171 SLIC ── ES8388 codec ── ESP32-C6 ── Wi-Fi ── SIP server
+phone ── RJ12 ── AG1171 SLIC ── ES8388 codec ── ESP32-C6 ── Wi-Fi / Bluetooth
 ```
 
-- **The SLIC** (Silvertel AG1171) is the part that makes a phone think it's
-  on a telephone exchange: it supplies the loop current, generates the ring
-  voltage, and tells the microcontroller when the handset is lifted.
-- **The codec** (ES8388) turns the handset audio into digital audio over I²S,
-  and back. One codec serves both lines as left and right channels.
-- **The ESP32-C6** does everything else: it times the pulses a rotary dial
-  makes, listens for touch-tones with a Goertzel detector, generates the tones
-  and the ring cadence, mixes and bridges audio between the lines, and runs
-  the SIP/RTP stack.
+- **The SLIC** (Silvertel AG1171) is what makes a phone think it's on a real
+  phone line: it supplies the loop current, makes the ring voltage, and tells
+  the ESP32 when the handset is lifted.
+- **The codec** (ES8388) turns handset audio into digital audio and back. One
+  codec handles both lines, as left and right channels.
+- **The ESP32-C6** does the rest: it counts the pulses from a rotary dial,
+  hears touch-tones, makes all the tones and the ring cadence, connects the
+  two lines, and runs the web page and VoIP.
+- **The Bluetooth board** connects straight to line 1's audio, so a cell
+  phone call never goes through the ESP32 at all. The ESP32 just tells it
+  what to do.
 
-The firmware is split into components, so the telephony logic never touches
-registers directly (`board`, `es8388`, `ag1170`, `audio`, `tones`, `dtmf`,
-`telephony`, `dialplan`, `voip`, and the web UI components). The dial plan is
-one data table, and the web UI's dial guide is generated from the same table,
-so the guide can't drift from what the phone really does.
+### The board (v5)
 
-### The board
+A 2-layer board around an ESP32-C6 DevKit, the ES8388 codec, and one or two
+AG1171 SLICs. The fab places the surface-mount parts; you solder the DevKit,
+SLICs, jacks and a few headers.
 
-The current board (v4) is a 2-layer PCB built around an ESP32-C6-DevKitC-1,
-the ES8388 codec and one or two AG1171 SLICs. Surface-mount parts are placed
-by the fab; the DevKit, SLICs and jacks are hand-soldered. A board can carry
-a **second phone line or a microSD slot**, not both (they share four pins),
-chosen with a header and a setting.
+- **Genuine or cheap ESP32-C6 module.** The footprint takes either the real
+  Espressif DevKitC-1 or a cheaper clone; a couple of solder jumpers on the
+  back select which.
+- **Bluetooth header** with its own 3.3 V regulator, for the BM64 board.
+- **Second phone line or microSD** (they share four pins), picked with a
+  header and a setting.
 
-### Setting it up
+**[YOU: confirm these once v5 is tested.]**
+
+### Setup
 
 No app and no account. On first boot the board makes its own Wi-Fi network
-with a setup page that gets it onto yours; after that it serves its web page
-at `http://phone.local`.
+with a setup page; pick your Wi-Fi, and after that it's at
+`http://phone.local` from any phone or laptop in the house.
+
+### Built with Claude Code
+
+I wrote a lot of this with Claude Code, an AI coding tool. The web UI is the
+part that really shows it: eight settings tabs, a file manager for your audio
+and recordings, browser firmware updates, a VoIP number provisioner. For a
+one-person hobby project that used to be way more work than I'd ever have time
+for, so a project like this would have stopped at "it rings." Now it can have
+the nice parts too.
 
 ### What it costs
 
-Ordering from JLCPCB with SMT assembly, delivered to the US (October 2026,
-including shipping and import tariff):
+Ordering the minimum five assembled boards from JLCPCB comes to about **$86
+delivered (about $17 a board)**, plus about **$19 of parts you solder
+yourself** for each board you build. **[YOU: re-check for v5 and add the
+BM64 module and carrier cost.]**
 
-| | 5 boards | 30 boards |
-|--|--:|--:|
-| Per board, assembled | $17.11 | $6.14 |
-| Plus the hand-soldered parts (about $19) | about $36 | about $25 |
-
-### Status and what's next
-
-- **Working:** everything above, on boards I use daily.
-- **At the fab:** v5, which takes a genuine or clone ESP32-C6 module and adds
-  an 8-pin header for a Bluetooth companion.
-- **Experimental:** Bluetooth (pair a mobile phone and the rotary phone
-  becomes its handset), in-call voice effects, intercom.
-- **Not yet:** internet radio dial codes are reserved but not implemented.
+If a few people want boards, ordering together gets a lot cheaper. **Want
+one? [Fill in the interest form](https://forms.gle/kVKHiXejV6M2ZxC17)**: no
+commitment, it just tells me how many to order.
 
 ### Get involved
 
-- Code, hardware files and docs: **[GitHub: sdylewski/Analog-Redial](https://github.com/sdylewski/Analog-Redial)**
-- Want a board from a pooled order? **[Interest form](https://forms.gle/kVKHiXejV6M2ZxC17)**: no
-  commitment, it just tells me how many to order.
+Code, hardware and docs: **[GitHub: sdylewski/Analog-Redial](https://github.com/sdylewski/Analog-Redial)**
 
 ---
 
@@ -202,140 +218,155 @@ including shipping and import tariff):
 
 | Qty | Part | What it's for |
 |----:|------|---------------|
-| 1 | ESP32-C6-DevKitC-1 | The microcontroller: Wi-Fi, firmware, SIP |
-| 1 | Everest Semiconductor ES8388 audio codec | Audio in/out of the phones (I²S) |
-| 1–2 | Silvertel AG1171 SLIC | Phone-line interface: loop current, ring, hook detect |
-| 1–2 | RJ12 jack | Plug for each phone |
+| 1 | ESP32-C6-DevKitC-1 (or a clone) | The brains: Wi-Fi, web page, dial plan, VoIP |
+| 1 | ES8388 audio codec | Phone audio in and out |
+| 1–2 | Silvertel AG1171 SLIC | The phone line: loop current, ring, hook detect |
+| 1–2 | RJ12 jack | One per phone |
 | 1 | 5 V DC supply and jack | Power |
-| 0–1 | microSD socket + card | Message storage (one-line build) |
-| — | Passives, TVS diodes, headers | See the BOM in the repo |
+| 0–1 | microSD socket and card | Message storage (one-line build) |
+| 0–1 | BM64 Bluetooth module on its carrier board | Pair with your cell phone |
+| 1 | XC6206 3.3 V regulator | Powers the Bluetooth board |
+| — | Passives, TVS diodes, headers | Full BOM in the repo |
 
-The full list with DigiKey part numbers and prices is in
+Full parts list with DigiKey numbers:
 [`docs/bom.md`](https://github.com/sdylewski/Analog-Redial/blob/main/docs/bom.md).
 
 ---
 
-## 6. Links
+## 6. Links and files
 
-- GitHub repository: https://github.com/sdylewski/Analog-Redial
-- Documentation (start at "Get a board"): https://github.com/sdylewski/Analog-Redial/blob/main/docs/board.md
-- Pooled order interest form: https://forms.gle/kVKHiXejV6M2ZxC17
-- KiCad shared library: https://github.com/sdylewski/MajorHack-Kicad-Libraries
+- GitHub: https://github.com/sdylewski/Analog-Redial
+- Docs, start at "Get a board": https://github.com/sdylewski/Analog-Redial/blob/main/docs/board.md
+- Interest form: https://forms.gle/kVKHiXejV6M2ZxC17
+- KiCad library: https://github.com/sdylewski/MajorHack-Kicad-Libraries
 
-**Files** to attach: the Gerber zip and BOM/CPL for the current board, and
-the schematic PDF. **[YOU]** export these from KiCad so the attached files
-match the revision you tell people to order.
+**Files [YOU]:** the v5 Gerbers and BOM/CPL, the schematic PDF, and the
+Bluetooth carrier's files, exported from the revision you tested.
 
 ---
 
 ## 7. Instructions (build steps)
 
-1. **Get a board.** Order the bare PCB with SMT assembly from JLCPCB (5-board
-   minimum), or join a pooled order. See *Get a board* in the repo docs.
-2. **Order the hand-solder parts.** The ESP32-C6 DevKit, the SLICs, jacks and
-   a few through-hole parts, about $19 from DigiKey (a parts list is
-   provided).
-3. **Assemble.** Solder the through-hole parts. Choose one build: second
-   phone line, or microSD (they share four pins; a 2×4 header selects).
-4. **Check before power.** Resistance between the supply rails, polarity, and
-   no shorts. (The assembly guide has the checks and the order.)
-5. **Flash.** Install ESP-IDF, build, and flash over USB.
-6. **Self-test.** The firmware has a guided hardware check from the web UI
-   and a serial console, with one command per subsystem.
-7. **Put it on Wi-Fi.** Join the board's own setup network and pick yours.
-8. **Plug in phones.** Lift a handset: dial tone. Dial 321 to ring the other.
-9. **Optional: VoIP.** Enter your SIP server; the web UI generates the
-   Asterisk script, or claim a number from the provisioner.
+1. **Get a board.** Order v5 from JLCPCB with SMT assembly (five-board
+   minimum), or [fill in the interest form](https://forms.gle/kVKHiXejV6M2ZxC17)
+   for a group order.
+2. **Order the hand-solder parts.** The ESP32-C6 DevKit, SLICs, jacks and a
+   few through-hole parts, about $19 from DigiKey (there's a ready-made list).
+3. **Set the module jumpers.** Genuine Espressif DevKit: leave them alone.
+   Cheaper clone: cut and re-bridge the two jumpers on the back.
+4. **Assemble.** Solder the through-hole parts. Pick a second phone line or
+   microSD: they share four pins, and a header selects.
+5. **Check before power.** No shorts between the supply rails; the assembly
+   guide has the checks.
+6. **Flash.** Install ESP-IDF, build and flash over USB.
+7. **Self-test.** A guided hardware check runs from the web page.
+8. **Wi-Fi.** Join the board's setup network and pick yours.
+9. **Plug in phones.** Lift a handset: dial tone! Dial 321 to ring the other.
+10. **Bluetooth (optional).** Plug the BM64 board onto the header (pin 1 at
+    the 3.3 V end), choose it in Settings → Hardware, run the one-time
+    module check, then pair your cell phone from Settings → Bluetooth.
+    **[YOU: describe the one-time BM64 setup as you actually do it; it
+    needs two jumper wires to J5 today.]**
 
 ---
 
-## 8. Project logs (drafts; post one at a time, newest last)
+## 8. Project logs (post one at a time)
 
-### Log 1: From a Raspberry Pi in a box to a $6 board
+### Log 1: The yellow wall phone
 
-In 2020 I built a phone exchange for the house: a Raspberry Pi 4 in a
-project box, two SLIC modules hand-wired to the GPIO header, a USB sound
-dongle per phone line, and hand-written Python and shell scripts. No web UI,
-but it worked.
+This started with my family's yellow rotary-dial wall phone from when I was a
+kid. I wanted it working again, and I wanted one rotary phone to be able to
+call another. My kid thought that was the best thing ever.
 
-This year I wanted it as a board anyone could build. The history, so far:
+The first version (2020) was a Raspberry Pi 4 in a project box, two phone
+line modules hand-wired to the GPIO header, and a USB sound dongle per line,
+with Python and shell scripts holding it together. No web page, but it worked
+for years.
 
-- **v1 (June 2026):** through-hole, WM8731 codec, two AG1170 SLICs. Never
-  built; the boards got lost in the mail.
-- **v2 (July 2026):** first surface-mount board. ESP32-C6 module, ES8388,
-  AG1171 SLICs, microSD. Needed rework on the audio lines and the USB
-  connection, but it worked.
-- **v4 (September 2026):** a 2-layer board around the cheaper 32-pin
-  ESP32-C6-DevKitC-1.
-- **v5 (October 2026):** at the fab now. Takes a genuine or clone ESP32-C6
-  module, and adds a header for a Bluetooth companion.
+Then I wanted a board anyone could build:
 
-*Images: `pi_version.jpg`, `smd2_board.jpg`, `smd4_board.jpg`*
+- **v1:** through-hole, a different codec. Never built: the boards got lost in
+  the mail.
+- **v2:** first surface-mount board on an ESP32-C6. Needed some rework on the
+  audio and USB, but it worked.
+- **v4:** a cheaper 2-layer board. This one's been running the house.
+- **v5:** takes a genuine or clone ESP32-C6, and adds Bluetooth.
 
-### Log 2: How a rotary dial talks to a microcontroller
+*Images: `pi_version.jpg`, `smd4_board.jpg`, v5 photo.*
 
-A rotary dial doesn't send a tone; it opens and closes the phone's loop
-current, once per digit step, about ten times a second. The SLIC turns that
-into a logic signal (SHK, "switch hook") that the ESP32 times: a digit is a
-run of short interruptions, and a longer pause marks the gap between digits.
-Pulse dialing is detected from that, with a debounce, and the same logic
-also handles the handset being lifted and put down.
+### Log 2: Dial anything
 
-Touch-tone is the opposite: it's audio. The codec's input stream goes
-through a Goertzel detector looking at the eight DTMF frequencies, with a
-debounce and a short lockout on repeated digits. Both kinds of digit end up
-in the same dial buffer, so everything after that, the dial plan, doesn't
-care which phone you have.
+The fun part of building your own phone system: the ESP32 sees every digit,
+so a number can do anything. The dial plan is a table that maps a code to an
+action: play a clip, record a message, ring the other phone, call out over
+VoIP or Bluetooth. The web page's dial guide is generated from the same table,
+so it can't get out of sync with what the phone actually does.
 
-### Log 3: A web interface that lives on a microcontroller
+You add your own codes and audio from the browser. Upload a WAV (any sample
+rate, it gets converted; MP3 too if you turn that on), pick a number, done.
+No reflashing.
 
-The board serves its own configuration site with no app and no cloud. The
-interesting part was fitting it in an ESP32-C6's RAM.
+Some ideas: a joke line for the kids, a "press 1 for..." menu for a museum
+exhibit, a wedding guestbook phone, a phone that plays a song from the year
+you dial.
 
-With a microSD card mounted, the board has about 67 KB of heap free at idle.
-My settings pages were each built whole, in one allocation, before being
-sent: the Diagnostics page wanted about 50 KB in one piece. On the bench, two
-tabs returned HTTP 500 outright, and loading a few pages at once drove the
-heap's low-water mark to 4 KB.
+**[YOU: if the spare-pin action is in by then, a door-unlock or buzzer demo
+would make a great photo for this log.]**
 
-The fix was to render pages through a fixed 4 KB buffer and send them as a
-chunked response as it fills. The page-building code didn't change: the
-function that appends to the page just flushes when the buffer is full. Pages
-are byte-for-byte identical, the two broken tabs work, and the low-water mark
-under the same load went from 4 KB to about 34 KB. I also added a small
-watchdog that restarts the board if the web server ever stops answering,
-because an appliance on a shelf shouldn't need a button press.
+### Log 3: Your cell phone, with a rotary dial
 
-### Log 4: The VoIP side, and a number-handout service
+The BM64 Bluetooth module pairs with your cell phone like a headset. Its
+audio is wired straight to line 1's phone chip, so the call never passes
+through the ESP32; the ESP32 just sends it commands over a serial line.
 
-Each line is a SIP account. The board has an embedded user agent with
-RTP/G.711 and digest authentication, plus an Asterisk setup script generated
-from the web page. To avoid typing numbers into every board, I wrote a small
-provisioner that runs next to the PBX: a board claims a number from its own
-web page using HMAC-signed requests and a per-board token. The board finds
-the provisioner on the local network by mDNS.
+- Dial 1 + area code + number on the rotary phone, and your cell places the
+  call. The audio comes out of the old handset.
+- An incoming call on your cell rings the real bell. Lift the handset to
+  answer.
+- Caller ID lands in the activity log.
 
-*(Add a screenshot of `settings-voip.png`.)*
+The BM64 needed a one-time configuration change before its analog audio
+worked at all (out of the box it sends audio to a digital output this board
+doesn't use), so the board can check and fix that for you.
+
+I also designed a board for a much cheaper module, the BK3266. Its command
+set has no "dial this number," so it'll probably ring and answer but not
+dial out. Testing it now.
+
+**[YOU: results from your testing.]**
+
+### Log 4: How a rotary dial talks to a microcontroller
+
+A rotary dial doesn't send a tone. It opens and closes the phone line, about
+ten times a second, once per click. The SLIC turns that into a logic signal
+for the ESP32, which counts the clicks; a longer pause means the next digit.
+
+Touch-tone is the opposite: it's sound. The ESP32 listens to the line's audio
+for the eight touch-tone frequencies. Either way the digits land in the same
+buffer, so the dial plan doesn't care which kind of phone you have.
 
 ---
 
 ## 9. Before you publish
 
-- [ ] A real photo of a phone plugged in, and one of the case **[YOU]**
-- [ ] Check every number in the cost table against `docs/board.md` the day
-      you publish (the fab quote is dated October 2026)
-- [ ] Attach the Gerber/BOM files for the revision you recommend **[YOU]**
-- [ ] Make sure the GitHub repo is public and the README links back to the
-      Hackaday page
+- [ ] v5 brought up and working **[YOU]**
+- [ ] BM64 board tested: pairing, dial-out, incoming ring **[YOU]**
+- [ ] Spare-pin paragraph sorted out (section 10) **[YOU]**
+- [ ] Photos: the yellow phone plugged in, the v5 board, the Bluetooth board
+- [ ] Re-check the cost line for v5, and add the Bluetooth parts
+- [ ] Attach the tested revision's files
+- [ ] GitHub repo is public, and the README links to the Hackaday page
 - [ ] Open the page in a private window and click every link
-- [ ] Decide which of the 4 logs go up on day one (the history log is the
-      best opener)
 
-## 10. Questions for you
+## 10. Open questions
 
-1. **Which board do you want to feature, v4 or v5?** I wrote it around v4,
-   which is built and in use, with v5 as "at the fab". Once v5 is tested it's
-   a one-paragraph change.
-2. **Photos.** I can resize and crop the repo images to the sizes the page
-   uses. I can't take the phone-plugged-in or case photos.
-3. **Tone.** I wrote it plainly; tell me if you want it more story-like.
+1. **Spare pins.** J3/J4 on v5 share the module-swap pads: on a genuine
+   DevKit they're the USB data lines, and with a clone and moved jumpers
+   they're tied to the codec clock and card detect. They're only free with a
+   clone and the jumpers left at default (the build without the USB console).
+   The firmware has no "dial code → pin" action yet either. Options: J5's
+   GPIO18–21 on a one-line board without microSD (four free pins), a pin on
+   a future board revision, or soften the paragraph to "pins you can wire
+   your own hardware to".
+2. **Bluetooth dial-out format.** The firmware dials out on 1 + 10 digits
+   today. Fine for the US; other countries would need a change.
