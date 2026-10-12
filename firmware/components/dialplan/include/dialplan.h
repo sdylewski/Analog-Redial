@@ -31,6 +31,7 @@ typedef enum {
     ACT_VOIP_DIAL,      /* number[] holds digits (e.g. 555xxxx) */
     ACT_BT_DIAL,        /* number[] holds 1 + 10 digits, placed via the paired phone */
     ACT_SET_MODE,       /* arg = dialplan_mode_change_t */
+    ACT_GPIO_OUT,       /* arg = GPIO number, arg2 = seconds high (0 = toggle) */
 } dialplan_action_kind_t;
 
 typedef enum {
@@ -194,6 +195,34 @@ esp_err_t dialplan_clip_get_filename(const char *code, char *out, size_t out_len
 esp_err_t dialplan_clip_remove(const char *code);
 /* Fills `out`, returns the number of entries written (<= max). */
 size_t    dialplan_list_clip_entries(dialplan_clip_entry_t *out, size_t max);
+
+/* ---- Pin dial codes (Settings -> Dial Codes -> Pin outputs) ----
+ * A code that drives one of a one-line board's spare GPIOs high for a few
+ * seconds, or toggles it. Only live while the board is set to one line and no
+ * microSD (the pins are free then): otherwise the code is ignored, as if it
+ * weren't there. The pin itself is driven by the auxpins component; this
+ * table is just code -> (gpio, secs). Shares the code space with everything
+ * else: the same prefix/conflict rules as clip codes apply in both
+ * directions. Persisted to NVS. */
+#define DIALPLAN_MAX_PIN_ACTIONS 4
+
+typedef struct {
+    char     code[8];   /* 2-6 digits */
+    uint8_t  gpio;
+    uint16_t secs;      /* 0 = toggle on each dial */
+    char     desc[40];
+} dialplan_pin_entry_t;
+
+/* ESP_OK; ESP_ERR_INVALID_ARG (not 2-6 digits); ESP_ERR_INVALID_STATE
+ * (conflicts with an existing code); ESP_ERR_NO_MEM (table full). */
+esp_err_t dialplan_pin_check_new(const char *code);
+/* Adds the code, or replaces its pin/secs/desc if it already is a pin code.
+ * Same errors as the check above, plus ESP_ERR_INVALID_ARG for secs > 3600. */
+esp_err_t dialplan_pin_set(const char *code, int gpio, int secs, const char *desc);
+esp_err_t dialplan_pin_remove(const char *code);   /* ESP_ERR_NOT_FOUND if unknown */
+size_t    dialplan_list_pin_entries(dialplan_pin_entry_t *out, size_t max);
+/* True while pin codes are live (one line, no microSD). */
+bool      dialplan_pins_active(void);
 
 #ifdef __cplusplus
 }

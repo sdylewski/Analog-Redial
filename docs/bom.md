@@ -20,6 +20,7 @@ line-1/microSD jumper header, **Card1** = microSD socket.
 |-------|-------|---------|------------|-------|
 | **Dual line** | **J9** + **J8** | No | All four pairs bridged | Base board **+ second line** |
 | **Single line + microSD** | **J9** only | **Card1** | Open, no shunts | Base board only |
+| **Single line + spare pins** | **J9** only | No | Open, no shunts | Base board only. **J5** pins 1, 3, 5 and 7 are free outputs: see below |
 
 **You can have a second line or microSD, not both.** Line 1's SLIC and the
 microSD socket share the same four ESP32 pins, and **J5** is the switch
@@ -29,6 +30,22 @@ you remove the card or switch the board to single-line in Settings →
 Hardware.
 
 Without microSD, recordings go to internal flash, about 4 MB.
+
+**Spare pins.** A one-line board that isn't using the microSD socket has four
+free GPIOs, wired out to the odd-numbered pins of **J5**:
+
+| J5 pin | GPIO |
+|--------|------|
+| 1 | 21 |
+| 3 | 20 |
+| 5 | 19 |
+| 7 | 18 |
+
+Leave the shunts off (with one in, the pin is wired to line 1's chip), leave
+the microSD socket empty, and set the board to "Neither" in Settings →
+Hardware. Then **Settings → Dial Codes → Pin outputs** connects a dial code to
+a pin: it goes high for a few seconds, or toggles. Each pin gives a few mA,
+so switch a relay or MOSFET with it; take ground from any GND on the board.
 
 ---
 

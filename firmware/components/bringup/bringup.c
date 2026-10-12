@@ -12,6 +12,8 @@
 #include "idle_power.h"
 #include "webauth.h"
 #include "webui.h"
+#include "auxpins.h"
+#include "dialplan.h"
 #include "esp_pm.h"
 #include "wifi.h"
 #include "esp_wifi_types.h"   /* WIFI_AUTH_* for wifi_scan's output */
@@ -56,6 +58,36 @@ static int cmd_webpass(int argc, char **argv)
         return 0;
     }
     printf("Web password: %s. 'webpass clear' removes it.\n", webauth_enabled() ? "set" : "not set");
+    return 0;
+}
+
+/* auxpin [<gpio> <secs>]: drive one of the spare pins (18-21) high for secs
+ * seconds, or toggle with 0. With no arguments: shows whether they're usable
+ * and each pin's level. */
+static int cmd_auxpin(int argc, char **argv)
+{
+    char why[160];
+    bool usable = auxpins_usable(why, sizeof(why));
+    int gp[AUXPINS_COUNT];
+    size_t n = auxpins_list(gp, AUXPINS_COUNT);
+    if (argc < 3) {
+        printf("spare pins %s%s%s\n", usable ? "usable" : "NOT usable: ", usable ? "" : why, "");
+        for (size_t i = 0; i < n; i++) printf("  GPIO%d  %s\n", gp[i], auxpins_level(gp[i]) ? "high" : "low");
+        printf("pin dial codes %s\n", dialplan_pins_active() ? "active" : "inactive (not one line + no microSD)");
+        dialplan_pin_entry_t pe[DIALPLAN_MAX_PIN_ACTIONS];
+        size_t np = dialplan_list_pin_entries(pe, DIALPLAN_MAX_PIN_ACTIONS);
+        for (size_t i = 0; i < np; i++) {
+            printf("  code %-6s -> GPIO%u, %s (%s)\n", pe[i].code, pe[i].gpio,
+                   pe[i].secs ? "timed" : "toggle", pe[i].desc);
+        }
+        printf("usage: auxpin <18-21> <seconds high | 0 = toggle>\n");
+        return 0;
+    }
+    int gpio = atoi(argv[1]), secs = atoi(argv[2]);
+    esp_err_t err = auxpins_pulse(gpio, secs);
+    if (err == ESP_ERR_INVALID_STATE) { printf("not driven: %s\n", why); return 1; }
+    if (err != ESP_OK) { printf("auxpin: %s\n", esp_err_to_name(err)); return 1; }
+    printf("GPIO%d is now %s\n", gpio, auxpins_level(gpio) ? "high" : "low");
     return 0;
 }
 
@@ -2821,6 +2853,7 @@ void bringup_console_start(void)
     register_cmd("bk_state", "BK3266: show decoded link/call/name state", cmd_bk_state);
     register_cmd("bk_wake", "BK3266: pulse WAKEUP (GPIO15, SMD5): bk_wake [ms]", cmd_bk_wake);
     register_cmd("bk_selftest", "BK3266: check the protocol code on built-in frames", cmd_bk_selftest);
+    register_cmd("auxpin", "Spare pins GPIO18-21 (one line, no microSD): auxpin [<gpio> <secs|0 toggle>]", cmd_auxpin);
     register_cmd("webhang", "Test: freeze the web server to check its watchdog restarts the board", cmd_webhang);
     register_cmd("webpass", "Web UI password: webpass [clear] -- clear removes a forgotten one", cmd_webpass);
     register_cmd("i2c_scan", "Scan I2C bus for the codec", cmd_i2c_scan);

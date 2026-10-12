@@ -68,6 +68,16 @@ defaults:
 
 Add your own codes with your own audio in Settings → Dial Codes & Prompts.
 
+**Make a code switch something.** On a one-line board with no microSD card,
+four spare pins (GPIO18–21) are wired to header J5. Under Settings → Dial
+Codes → **Pin outputs**, pick a code, a pin and a time: dial it and that pin
+goes high for that many seconds (or toggles, if you set 0). Wire a relay or
+a MOSFET to it to unlock a door, sound a buzzer, switch a lamp. A pin gives
+only a few mA, so don't connect a solenoid directly. Set the board to
+"Neither" under Settings → Hardware, take the four shunts off J5, and leave
+the microSD socket empty. The card shows what's in the way if it isn't
+active.
+
 
 ## 4. The web interface
 

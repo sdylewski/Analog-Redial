@@ -54,6 +54,7 @@
 #include <strings.h>
 #include <math.h>
 #include "webauth.h"
+#include "auxpins.h"
 #include "esp_attr.h"
 #include "esp_rom_sys.h"
 #include "esp_system.h"
@@ -2504,6 +2505,84 @@ static int append_web_password_card(char *buf, size_t cap, int off)
     return off;
 }
 
+
+/* Settings -> Dial Codes -> Pin outputs. A dial code that drives one of the
+ * one-line board's four spare GPIOs (18-21, wired out to header J5) high for a
+ * few seconds, or toggles it: switch a relay, a MOSFET, a buzzer. */
+static int append_pin_actions_card(char *buf, size_t cap, int off)
+{
+    char why[160] = "";
+    bool usable = auxpins_usable(why, sizeof(why));
+    dialplan_pin_entry_t pins[DIALPLAN_MAX_PIN_ACTIONS];
+    size_t np = dialplan_list_pin_entries(pins, DIALPLAN_MAX_PIN_ACTIONS);
+    int gp[AUXPINS_COUNT];
+    size_t ng = auxpins_list(gp, AUXPINS_COUNT);
+
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\" id=\"pins\"><h2>Pin outputs</h2>"
+        "<p class=\"hint\">A one-line board with no microSD card has four spare pins, "
+        "<b>GPIO18&ndash;21</b>, wired to header J5. Dial a code and one of them goes "
+        "high for a few seconds (or toggles): switch a relay or a MOSFET, sound a "
+        "buzzer, flash a light. A pin can only source a few mA, so drive a solenoid or "
+        "a lock through a relay or a MOSFET, not straight from the pin.</p>");
+    if (!usable) {
+        char why_esc[400];
+        html_escape(why, why_esc, sizeof(why_esc));
+        off = appendf(buf, cap, off,
+            "<p class=\"hint warn-text\">Not active: %s. The codes below are saved and "
+            "start working when this changes.</p>", why_esc);
+    } else {
+        off = appendf(buf, cap, off,
+            "<p class=\"hint\">Active. Take the four shunts off J5 first: with a shunt in, "
+            "the pin is wired to the second phone line's chip.</p>");
+    }
+
+    if (np) {
+        off = appendf(buf, cap, off,
+            "<table class=\"table\"><tr><th>Code</th><th>Pin</th><th>Does</th>"
+            "<th>Note</th><th></th></tr>");
+        for (size_t i = 0; i < np; i++) {
+            char desc_esc[40 * 6], act[40];
+            html_escape(pins[i].desc, desc_esc, sizeof(desc_esc));
+            if (pins[i].secs) snprintf(act, sizeof(act), "High for %u s", pins[i].secs);
+            else snprintf(act, sizeof(act), "Toggle");
+            off = appendf(buf, cap, off,
+                "<tr><td><b>%s</b></td><td>GPIO%u%s</td><td>%s</td><td>%s</td><td>"
+                "<form method=\"POST\" action=\"/pin_action_test/%s\" style=\"display:inline\">"
+                "<button type=\"submit\"%s>Test</button></form> "
+                "<form method=\"POST\" action=\"/pin_action_delete/%s\" style=\"display:inline\" "
+                "onsubmit=\"return confirm('Remove dial code %s?')\">"
+                "<button type=\"submit\" class=\"danger\">Remove</button></form></td></tr>",
+                pins[i].code, pins[i].gpio,
+                auxpins_level(pins[i].gpio) ? " &#9679; high" : "", act, desc_esc,
+                pins[i].code, usable ? "" : " disabled", pins[i].code, pins[i].code);
+        }
+        off = appendf(buf, cap, off, "</table>");
+    }
+
+    if (np < DIALPLAN_MAX_PIN_ACTIONS) {
+        off = appendf(buf, cap, off,
+            "<form method=\"POST\" action=\"/pin_action_set\" class=\"settings-form\">"
+            "<label>Dial code (2&ndash;6 digits) <input name=\"code\" inputmode=\"numeric\" "
+            "pattern=\"[0-9]{2,6}\" maxlength=\"6\" required></label>"
+            "<label>Pin <select name=\"gpio\">");
+        for (size_t i = 0; i < ng; i++) {
+            off = appendf(buf, cap, off, "<option value=\"%d\">GPIO%d</option>", gp[i], gp[i]);
+        }
+        off = appendf(buf, cap, off,
+            "</select></label>"
+            "<label>Seconds high (0 = toggle each time) <input name=\"secs\" type=\"number\" "
+            "min=\"0\" max=\"3600\" value=\"3\" required></label>"
+            "<label>Note <input name=\"desc\" maxlength=\"39\" "
+            "placeholder=\"e.g. front door\"></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Add or update"
+            "</button></div></form>");
+    } else {
+        off = appendf(buf, cap, off, "<p class=\"hint\">All %d slots are in use.</p>",
+                      DIALPLAN_MAX_PIN_ACTIONS);
+    }
+    return appendf(buf, cap, off, "</div>");
+}
 
 static int append_dialcodes_tab(char *buf, size_t cap, int off)
 {
@@ -5365,6 +5444,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * Used to be three separate tabs. */
     else if (strcmp(tab, "dialcodes") == 0) {
         off = append_dialcodes_tab(buf, cap, off);
+        off = append_pin_actions_card(buf, cap, off);
         off = append_operator_tab(buf, cap, off, entries, n);
         off = append_record_tab(buf, cap, off, entries, n);
     }
@@ -7321,6 +7401,64 @@ static esp_err_t dialcode_set_desc_handler(httpd_req_t *req)
 }
 
 /* POST /dialcode_delete/<code> */
+/* POST /pin_action_set -- code=..&gpio=..&secs=..&desc=.. */
+static esp_err_t pin_action_set_handler(httpd_req_t *req)
+{
+    char body[256];
+    READ_FORM_OR_RETURN(req, body);
+    char code[8] = "", gpio_s[8] = "", secs_s[8] = "", desc[40] = "";
+    form_field(body, "code", code, sizeof(code));
+    form_field(body, "gpio", gpio_s, sizeof(gpio_s));
+    form_field(body, "secs", secs_s, sizeof(secs_s));
+    form_field(body, "desc", desc, sizeof(desc));
+    int gpio = atoi(gpio_s), secs = atoi(secs_s);
+    if (!auxpins_valid(gpio)) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "that isn't one of the four spare pins");
+        return ESP_OK;
+    }
+    esp_err_t err = dialplan_pin_set(code, gpio, secs, desc);
+    if (err == ESP_ERR_INVALID_STATE) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+            "That code overlaps another dial code (a code can't be the start of another, "
+            "or start with 1 or 555).");
+        return ESP_OK;
+    }
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+            err == ESP_ERR_NO_MEM ? "All four pin slots are used."
+                                   : "The code must be 2 to 6 digits, and seconds 0 to 3600.");
+        return ESP_OK;
+    }
+    activity_log("Pin dial code %s set: GPIO%d, %s", code, gpio, secs ? "timed" : "toggle");
+    return redirect_to(req, "/settings?tab=dialcodes#pins");
+}
+
+/* POST /pin_action_delete/<code> and /pin_action_test/<code> */
+static esp_err_t pin_action_delete_handler(httpd_req_t *req)
+{
+    const char *prefix = "/pin_action_delete/";
+    if (strncmp(req->uri, prefix, strlen(prefix)) != 0) { httpd_resp_send_404(req); return ESP_OK; }
+    dialplan_pin_remove(req->uri + strlen(prefix));
+    return redirect_to(req, "/settings?tab=dialcodes#pins");
+}
+
+static esp_err_t pin_action_test_handler(httpd_req_t *req)
+{
+    const char *prefix = "/pin_action_test/";
+    if (strncmp(req->uri, prefix, strlen(prefix)) != 0) { httpd_resp_send_404(req); return ESP_OK; }
+    const char *code = req->uri + strlen(prefix);
+    dialplan_pin_entry_t pins[DIALPLAN_MAX_PIN_ACTIONS];
+    size_t n = dialplan_list_pin_entries(pins, DIALPLAN_MAX_PIN_ACTIONS);
+    for (size_t i = 0; i < n; i++) {
+        if (strcmp(pins[i].code, code) == 0) {
+            esp_err_t err = auxpins_pulse(pins[i].gpio, pins[i].secs);
+            if (err == ESP_OK) activity_log("Pin dial code %s tested: GPIO%u", code, pins[i].gpio);
+            break;
+        }
+    }
+    return redirect_to(req, "/settings?tab=dialcodes#pins");
+}
+
 static esp_err_t dialcode_delete_handler(httpd_req_t *req)
 {
     const char *prefix = "/dialcode_delete/";
@@ -7524,6 +7662,31 @@ static int append_guide_clips(char *buf, size_t cap, int off)
 
 /* 555xxxx is matched directly in dialplan_feed(), not a TABLE entry, so it
  * isn't in dialplan_list()'s output. One-shot, as above. */
+/* Pin dial codes, as a card next to the clips. One-shot like the others. */
+static bool s_guide_pins_done;
+static int append_guide_pins(char *buf, size_t cap, int off)
+{
+    if (s_guide_pins_done || (size_t)off >= cap) return off;
+    s_guide_pins_done = true;
+    dialplan_pin_entry_t pins[DIALPLAN_MAX_PIN_ACTIONS];
+    size_t n = dialplan_pins_active() ? dialplan_list_pin_entries(pins, DIALPLAN_MAX_PIN_ACTIONS) : 0;
+    if (n == 0) return off;
+    off = appendf(buf, cap, off, "<div class=\"card\"><h2>Pin outputs</h2>");
+    for (size_t i = 0; i < n; i++) {
+        char d[96], desc_esc[96 * 6];
+        snprintf(d, sizeof(d), "GPIO%u, %s%s%s", pins[i].gpio, pins[i].secs ? "high for " : "toggle",
+                 pins[i].secs ? "a few s" : "", pins[i].desc[0] ? " - " : "");
+        size_t dl = strlen(d);
+        snprintf(d + dl, sizeof(d) - dl, "%s", pins[i].desc);
+        html_escape(d, desc_esc, sizeof(desc_esc));
+        off = appendf(buf, cap, off,
+            "<div class=\"code-row\"><span class=\"code\">%s</span>"
+            "<span class=\"desc\">%s</span><span class=\"pill on\">working</span></div>",
+            pins[i].code, desc_esc);
+    }
+    return appendf(buf, cap, off, "</div>");
+}
+
 static bool s_guide_voip_done;
 static int append_guide_voip(char *buf, size_t cap, int off)
 {
@@ -7541,6 +7704,7 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
 {
     s_guide_clips_done = false;
     s_guide_voip_done = false;
+    s_guide_pins_done = false;
 
     /* Cards run in dialling order -- 0, 1, 2xx, 3xx, 4xx, 555, 8xx -- so the
      * guide reads the way someone would actually work through the keypad,
@@ -7577,7 +7741,10 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
 
         /* 4xx clips and 555 VoIP are interleaved here so the whole run stays
          * in dialling order even though they come from other sources. */
-        if (GUIDE_CATS[g].prefix > '4') off = append_guide_clips(buf, cap, off);
+        if (GUIDE_CATS[g].prefix > '4') {
+            off = append_guide_clips(buf, cap, off);
+            off = append_guide_pins(buf, cap, off);
+        }
         if (GUIDE_CATS[g].prefix > '5') off = append_guide_voip(buf, cap, off);
 
         off = appendf(buf, cap, off,
@@ -7594,6 +7761,7 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
      * come out -- append_guide_clips()/_voip() are one-shot and no-op after
      * the first call. */
     off = append_guide_clips(buf, cap, off);
+    off = append_guide_pins(buf, cap, off);
     off = append_guide_voip(buf, cap, off);
 
     /* Not dial-plan codes: in_call_key() in telephony.c. */
@@ -9140,6 +9308,9 @@ esp_err_t webui_start(void)
         { .uri = "/dialcode_set_code",      .method = HTTP_POST, .handler = dialcode_set_code_handler },
         { .uri = "/dialcode_set_desc",      .method = HTTP_POST, .handler = dialcode_set_desc_handler },
         { .uri = "/dialcode_delete/*",      .method = HTTP_POST, .handler = dialcode_delete_handler },
+        { .uri = "/pin_action_set",         .method = HTTP_POST, .handler = pin_action_set_handler },
+        { .uri = "/pin_action_delete/*",    .method = HTTP_POST, .handler = pin_action_delete_handler },
+        { .uri = "/pin_action_test/*",      .method = HTTP_POST, .handler = pin_action_test_handler },
         { .uri = "/dialcode_upload",        .method = HTTP_POST, .handler = dialcode_upload_handler },
         { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },
         { .uri = "/prompt_text_set",        .method = HTTP_POST, .handler = prompt_text_set_handler },

@@ -127,10 +127,14 @@ The dial plan is just a table. Out of the box:
 Add your own codes and audio files from the browser, no reflashing: a joke
 line for the kids, a song, a museum exhibit, a wedding guestbook phone...
 
-**[YOU: this paragraph depends on the spare-pin question; see section 10.]**
-There are also spare pins on headers for your own hardware, so a dial code
-could unlock a door (through a relay or a MOSFET; a solenoid needs far more
-current than a pin can give), sound a buzzer, or flash a light.
+**Make a dial code switch something.** Two phone lines, or one line and four
+spare pins, your choice. On a one-line board the pins for the second line
+are wired out to ordinary 2.54 mm header pins, so you can tap in and do what
+you want. In the web page, pick a code, a pin and a time: dial it and the pin
+goes high for that many seconds (or toggles). Hook a relay or a MOSFET to it
+to unlock a door, sound a buzzer, flash a light. (A solenoid needs more
+current than a pin can give, so switch it through the relay.) The catch: the
+same four pins are the microSD socket, so a board used this way has no card.
 
 ### More things it does
 
@@ -351,7 +355,7 @@ buffer, so the dial plan doesn't care which kind of phone you have.
 
 - [ ] v5 brought up and working **[YOU]**
 - [ ] BM64 board tested: pairing, dial-out, incoming ring **[YOU]**
-- [ ] Spare-pin paragraph sorted out (section 10) **[YOU]**
+- [ ] Pin dial code tried on the bench with a relay or an LED **[YOU]**
 - [ ] Photos: the yellow phone plugged in, the v5 board, the Bluetooth board
 - [ ] Re-check the cost line for v5, and add the Bluetooth parts
 - [ ] Attach the tested revision's files
@@ -360,13 +364,11 @@ buffer, so the dial plan doesn't care which kind of phone you have.
 
 ## 10. Open questions
 
-1. **Spare pins.** J3/J4 on v5 share the module-swap pads: on a genuine
-   DevKit they're the USB data lines, and with a clone and moved jumpers
-   they're tied to the codec clock and card detect. They're only free with a
-   clone and the jumpers left at default (the build without the USB console).
-   The firmware has no "dial code → pin" action yet either. Options: J5's
-   GPIO18–21 on a one-line board without microSD (four free pins), a pin on
-   a future board revision, or soften the paragraph to "pins you can wire
-   your own hardware to".
+1. **Spare pins are now a feature.** The four pins are GPIO18-21 on header
+   J5 (odd pins: 1 = GPIO21, 3 = GPIO20, 5 = GPIO19, 7 = GPIO18), driven
+   from Settings -> Dial Codes -> Pin outputs on a one-line board with no
+   microSD. The two header pads J3/J4 are *not* used for this: they depend on
+   which ESP32 module and jumper setting you have. A photo of a door-strike
+   or LED hooked to J5 would make a good log post.
 2. **Bluetooth dial-out format.** The firmware dials out on 1 + 10 digits
    today. Fine for the US; other countries would need a change.

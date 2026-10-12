@@ -11,6 +11,7 @@
 #include "storage.h"
 #include "activity.h"
 #include "bt_companion.h"
+#include "auxpins.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "board.h"
@@ -877,6 +878,22 @@ static void handle_action(int line, const dialplan_action_t *a)
                 play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
             }
             break;
+
+        case ACT_GPIO_OUT: {
+            /* A pin dial code (Settings -> Dial Codes -> Pin outputs). a->arg
+             * is the GPIO, a->arg2 the seconds high (0 = toggle). */
+            esp_err_t pr = auxpins_pulse(a->arg, a->arg2);
+            if (pr == ESP_OK) {
+                activity_log("Line %d: dial code -> GPIO%d %s", line, a->arg,
+                             a->arg2 ? "high" : "toggled");
+                play_transient(line, TONE_CONFIRM, 400, TEL_DIALTONE, TEL_DIALTONE);
+            } else {
+                ESP_LOGW(TAG, "line %d: pin code for GPIO%d not run (%s)", line, a->arg,
+                         esp_err_to_name(pr));
+                play_transient(line, TONE_REORDER, 700, TEL_DIALTONE, TEL_DIALTONE);
+            }
+            break;
+        }
 
         case ACT_RECORD_ARCHIVE: /* 211: prompt (if configured) -> beep -> record */
             s_line[line].rec_purpose = REC_ARCHIVE;

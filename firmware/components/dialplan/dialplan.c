@@ -12,6 +12,8 @@ static const char *TAG = "dialplan";
 #define CLIPS_NVS_NS       "dialclips"
 #define CLIPS_NVS_KEY      "entries"
 #define CLIPS_NVS_SEEDED   "seeded"
+#define PINS_NVS_NS        "dialpins"
+#define PINS_NVS_KEY       "entries"
 
 typedef struct {
     const char            *code;
@@ -206,12 +208,45 @@ static void clips_load(void)
     nvs_close(h);
 }
 
+/* Pin dial codes: a small fixed table, empty slot = code[0] == '\0'. */
+static dialplan_pin_entry_t s_pin_actions[DIALPLAN_MAX_PIN_ACTIONS];
+
+static void pins_save(void)
+{
+    nvs_handle_t h;
+    if (nvs_open(PINS_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    if (nvs_set_blob(h, PINS_NVS_KEY, s_pin_actions, sizeof(s_pin_actions)) == ESP_OK) {
+        nvs_commit(h);
+    }
+    nvs_close(h);
+}
+
+static void pins_load(void)
+{
+    memset(s_pin_actions, 0, sizeof(s_pin_actions));
+    nvs_handle_t h;
+    if (nvs_open(PINS_NVS_NS, NVS_READONLY, &h) != ESP_OK) return;
+    size_t len = 0;
+    /* Same rule as the clip table: a size that isn't the table's means the
+     * layout changed, and reading it would scramble every entry. */
+    if (nvs_get_blob(h, PINS_NVS_KEY, NULL, &len) == ESP_OK && len == sizeof(s_pin_actions)) {
+        nvs_get_blob(h, PINS_NVS_KEY, s_pin_actions, &len);
+    }
+    nvs_close(h);
+    for (int i = 0; i < DIALPLAN_MAX_PIN_ACTIONS; i++) {
+        s_pin_actions[i].code[sizeof(s_pin_actions[i].code) - 1] = '\0';
+        s_pin_actions[i].desc[sizeof(s_pin_actions[i].desc) - 1] = '\0';
+        if (s_pin_actions[i].secs > 3600) memset(&s_pin_actions[i], 0, sizeof(s_pin_actions[i]));
+    }
+}
+
 void dialplan_init(void)
 {
     memset(&s_modes, 0, sizeof(s_modes));
     modes_nvs_ready();
     modes_load();
     clips_load();
+    pins_load();
     ESP_LOGI(TAG, "loaded %u fixed codes", (unsigned)TABLE_N);
 }
 
@@ -260,6 +295,41 @@ static bool entry_available(const entry_t *e)
 {
     if (e->kind == ACT_CALL_LINE) return board_hw_config_get().num_lines > 1;
     return true;
+}
+
+bool dialplan_pins_active(void)
+{
+    board_hw_config_t cfg = board_hw_config_get();
+    return cfg.num_lines == 1 && !cfg.has_microsd;
+}
+
+static const dialplan_pin_entry_t *pin_exact_match(const char *buf)
+{
+    if (!dialplan_pins_active()) return NULL;
+    for (int i = 0; i < DIALPLAN_MAX_PIN_ACTIONS; i++) {
+        if (s_pin_actions[i].code[0] && strcmp(s_pin_actions[i].code, buf) == 0) return &s_pin_actions[i];
+    }
+    return NULL;
+}
+
+static bool pin_has_longer_prefix(const char *buf)
+{
+    if (!dialplan_pins_active()) return false;
+    size_t blen = strlen(buf);
+    for (int i = 0; i < DIALPLAN_MAX_PIN_ACTIONS; i++) {
+        if (s_pin_actions[i].code[0] && strlen(s_pin_actions[i].code) > blen &&
+            strncmp(s_pin_actions[i].code, buf, blen) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static dialplan_action_t fire_pin(const dialplan_pin_entry_t *p)
+{
+    dialplan_action_t a = { .kind = ACT_GPIO_OUT, .arg = p->gpio, .arg2 = p->secs };
+    strncpy(a.filename, p->desc, sizeof(a.filename) - 1);
+    return a;
 }
 
 static const entry_t *exact_match(const char *buf)
@@ -375,7 +445,8 @@ dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit)
         return make(ACT_NONE, 0, 0);
     }
 
-    bool longer = has_longer_prefix(c->buf) || clip_has_longer_prefix(c->buf);
+    bool longer = has_longer_prefix(c->buf) || clip_has_longer_prefix(c->buf) ||
+                  pin_has_longer_prefix(c->buf);
 
     const entry_t *e = exact_match(c->buf);
     if (e) {
@@ -387,6 +458,12 @@ dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit)
     if (cl) {
         if (longer) return make(ACT_NONE, 0, 0);
         return fire_clip(cl);
+    }
+
+    const dialplan_pin_entry_t *pa = pin_exact_match(c->buf);
+    if (pa) {
+        if (longer) return make(ACT_NONE, 0, 0);
+        return fire_pin(pa);
     }
 
     /* no exact match: is the buffer still a viable prefix? */
@@ -417,9 +494,13 @@ dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line)
     const dialplan_clip_entry_t *cl = clip_exact_match(c->buf);
     if (cl) return fire_clip(cl);
 
+    const dialplan_pin_entry_t *pa = pin_exact_match(c->buf);
+    if (pa) return fire_pin(pa);
+
     /* Still a viable prefix of a longer code (slow rotary inter-digit):
      * keep waiting rather than declaring a wrong number. */
-    if (has_longer_prefix(c->buf) || clip_has_longer_prefix(c->buf)) {
+    if (has_longer_prefix(c->buf) || clip_has_longer_prefix(c->buf) ||
+        pin_has_longer_prefix(c->buf)) {
         return make(ACT_NONE, 0, 0);
     }
 
@@ -447,7 +528,13 @@ size_t dialplan_list(dialplan_entry_info_t *out, size_t max)
  * "555..." itself, so e.g. "501" is fine and must not be rejected here).
  * Comparing only the first min(lengths) characters catches both "equal" and
  * "one is a prefix of the other". */
+static bool code_conflicts_ex(const char *code, int except_idx, int except_pin);
 static bool code_conflicts_except(const char *code, int except_idx)
+{
+    return code_conflicts_ex(code, except_idx, -1);
+}
+
+static bool code_conflicts_ex(const char *code, int except_idx, int except_pin)
 {
     size_t clen = strlen(code);
     size_t vlen = (clen < 3) ? clen : 3;
@@ -464,6 +551,12 @@ static bool code_conflicts_except(const char *code, int except_idx)
         size_t ulen = strlen(s_clips[i].code);
         size_t minlen = (clen < ulen) ? clen : ulen;
         if (strncmp(s_clips[i].code, code, minlen) == 0) return true;
+    }
+    for (int i = 0; i < DIALPLAN_MAX_PIN_ACTIONS; i++) {
+        if (i == except_pin || !s_pin_actions[i].code[0]) continue;
+        size_t plen = strlen(s_pin_actions[i].code);
+        size_t minlen = (clen < plen) ? clen : plen;
+        if (strncmp(s_pin_actions[i].code, code, minlen) == 0) return true;
     }
     return false;
 }
@@ -585,3 +678,66 @@ size_t dialplan_list_clip_entries(dialplan_clip_entry_t *out, size_t max)
     }
     return n;
 }
+
+/* ---- pin dial codes ---- */
+
+static int pin_find_idx(const char *code)
+{
+    for (int i = 0; i < DIALPLAN_MAX_PIN_ACTIONS; i++) {
+        if (s_pin_actions[i].code[0] && strcmp(s_pin_actions[i].code, code) == 0) return i;
+    }
+    return -1;
+}
+
+esp_err_t dialplan_pin_check_new(const char *code)
+{
+    if (!code || !valid_code(code)) return ESP_ERR_INVALID_ARG;
+    if (code_conflicts_ex(code, -1, -1)) return ESP_ERR_INVALID_STATE;
+    for (int i = 0; i < DIALPLAN_MAX_PIN_ACTIONS; i++) {
+        if (!s_pin_actions[i].code[0]) return ESP_OK;
+    }
+    return ESP_ERR_NO_MEM;
+}
+
+esp_err_t dialplan_pin_set(const char *code, int gpio, int secs, const char *desc)
+{
+    if (!code || !valid_code(code) || gpio < 0 || gpio > 48 || secs < 0 || secs > 3600) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    int idx = pin_find_idx(code);
+    if (idx < 0) {
+        esp_err_t chk = dialplan_pin_check_new(code);
+        if (chk != ESP_OK) return chk;
+        for (int i = 0; i < DIALPLAN_MAX_PIN_ACTIONS; i++) {
+            if (!s_pin_actions[i].code[0]) { idx = i; break; }
+        }
+    }
+    memset(&s_pin_actions[idx], 0, sizeof(s_pin_actions[idx]));
+    strncpy(s_pin_actions[idx].code, code, sizeof(s_pin_actions[idx].code) - 1);
+    s_pin_actions[idx].gpio = (uint8_t)gpio;
+    s_pin_actions[idx].secs = (uint16_t)secs;
+    if (desc) strncpy(s_pin_actions[idx].desc, desc, sizeof(s_pin_actions[idx].desc) - 1);
+    pins_save();
+    ESP_LOGI(TAG, "pin code %s -> GPIO%d, %s", code, gpio,
+             secs ? "timed" : "toggle");
+    return ESP_OK;
+}
+
+esp_err_t dialplan_pin_remove(const char *code)
+{
+    int idx = code ? pin_find_idx(code) : -1;
+    if (idx < 0) return ESP_ERR_NOT_FOUND;
+    memset(&s_pin_actions[idx], 0, sizeof(s_pin_actions[idx]));
+    pins_save();
+    return ESP_OK;
+}
+
+size_t dialplan_list_pin_entries(dialplan_pin_entry_t *out, size_t max)
+{
+    size_t n = 0;
+    for (int i = 0; i < DIALPLAN_MAX_PIN_ACTIONS && n < max; i++) {
+        if (s_pin_actions[i].code[0]) out[n++] = s_pin_actions[i];
+    }
+    return n;
+}
+
