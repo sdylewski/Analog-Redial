@@ -34,11 +34,15 @@ then check the preview.
 Alternatives: *Building a hackable analog phone system* · *Analog Redial:
 make old phones ring again*
 
-**Summary:**
+**Summary** (Hackaday limits it to 140 characters; this is 136):
 
-> Plug in your old rotary or touch-tone phones and they get dial tone,
-> ringing, an answering machine and fun dial codes. Add Bluetooth and your
-> rotary phone becomes a handset for your cell phone.
+> Old rotary phones get dial tone, dial codes and an answering machine. With Bluetooth, your rotary phone becomes a handset for your cell.
+
+Alternatives, also under 140: *Rotary phones get dial tone, dial codes and an
+answering machine. Add Bluetooth: dial out on the old phone, ring the bell
+for cell calls.* (137) · *Open-source phone system for old rotary/touch-tone
+phones: dial codes, answering machine, VoIP, and Bluetooth to your cell
+phone.* (129)
 
 **Tags:** `esp32`, `esp32-c6`, `rotary phone`, `telephony`, `bluetooth`,
 `voip`, `sip`, `slic`, `kicad`, `esp-idf`, `retro`, `claude code`
