@@ -136,8 +136,9 @@ spare pins, your choice. On a one-line board the pins for the second line
 are wired out to ordinary 2.54 mm header pins, so you can tap in and do what
 you want. In the web page, pick a code, a pin and a time: dial it and the pin
 goes high for that many seconds (or toggles). Hook a relay or a MOSFET to it
-to unlock a door, sound a buzzer, flash a light. (A solenoid needs more
-current than a pin can give, so switch it through the relay.) The catch: the
+to unlock a door, sound a buzzer, flash a light. (The pins are 3.3 V and
+only a few mA: that often works for a 5 V relay module, but check yours, and
+switch a solenoid through the relay rather than from the pin.) The catch: the
 same four pins are the microSD socket, so a board used this way has no card.
 
 ### More things it does

@@ -2523,8 +2523,13 @@ static int append_pin_actions_card(char *buf, size_t cap, int off)
         "<p class=\"hint\">A one-line board with no microSD card has four spare pins, "
         "<b>GPIO18&ndash;21</b>, wired to header J5. Dial a code and one of them goes "
         "high for a few seconds (or toggles): switch a relay or a MOSFET, sound a "
-        "buzzer, flash a light. A pin can only source a few mA, so drive a solenoid or "
-        "a lock through a relay or a MOSFET, not straight from the pin.</p>");
+        "buzzer, flash a light. The output is <b>3.3 V</b> and only a few mA, so drive a "
+        "solenoid or a lock through a relay or a MOSFET, not straight from the pin.</p>"
+        "<p class=\"hint\">3.3 V will often switch a 5 V relay <i>module</i> (one with its own "
+        "transistor or optocoupler), but check yours: a bare relay coil needs a transistor, and "
+        "some modules switch on a <i>low</i> input, so a \"high\" pin would turn those off. "
+        "The pins float until the first code fires after a restart, so if the input must stay "
+        "off, add a 10 k&Omega; resistor from it to ground.</p>");
     if (!usable) {
         char why_esc[400];
         html_escape(why, why_esc, sizeof(why_esc));

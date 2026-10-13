@@ -44,8 +44,18 @@ free GPIOs, wired out to the odd-numbered pins of **J5**:
 Leave the shunts off (with one in, the pin is wired to line 1's chip), leave
 the microSD socket empty, and set the board to "Neither" in Settings →
 Hardware. Then **Settings → Dial Codes → Pin outputs** connects a dial code to
-a pin: it goes high for a few seconds, or toggles. Each pin gives a few mA,
-so switch a relay or MOSFET with it; take ground from any GND on the board.
+a pin: it goes high for a few seconds, or toggles. The output is **3.3 V**
+and only a few mA, so switch a relay or MOSFET with it rather than a load
+directly; take ground from any GND on the board.
+
+**Check your relay.** 3.3 V will often switch a 5 V relay *module* (one with
+its own transistor or optocoupler), but confirm that yours does:
+
+- A bare relay coil needs a transistor between the pin and the coil.
+- Some modules switch on a *low* input, so a "high" pin turns them off.
+- The pins float from power-up until the first dial code fires, so if the
+  input must stay off in the meantime, add a 10 kΩ resistor from it to
+  ground.
 
 ---
 
