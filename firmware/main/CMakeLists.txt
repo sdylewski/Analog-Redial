@@ -16,7 +16,7 @@ set(BUNDLED_AUDIO
     operator.wav        # dial 0
     record_prompt.wav   # dial 211, before the beep
     am_greeting.wav     # answering machine's default greeting
-    dialup.mp3          # 412, public domain
+    dialup.wav          # 412, public domain (8-bit u-law: full length in 314 KB)
 )
 set(BUNDLED_STAGE "${CMAKE_BINARY_DIR}/bundled_assets")
 file(REMOVE_RECURSE "${BUNDLED_STAGE}")

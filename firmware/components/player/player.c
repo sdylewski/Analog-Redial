@@ -2,6 +2,7 @@
 #include "audio.h"
 #include "storage.h"
 #include "audio_convert.h"
+#include "g711.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -21,6 +22,7 @@ static line_state_t s_line[AUDIO_NUM_LINES];
 typedef struct {
     int    line;
     char   name[STORAGE_MAX_NAME];
+    bool   is_mp3;   /* decided in player_play(): sets the task's stack size */
     player_done_cb_t done_cb;
     void  *ctx;
 } play_args_t;
@@ -31,12 +33,17 @@ static void finish(int line, bool call_cb, player_done_cb_t cb, void *ctx)
     if (call_cb && cb) cb(line, ctx);
 }
 
-/* Read this much up front to find the "data" chunk -- covers the fixed
- * 44-byte header our own `record` command writes, plus real-world WAV
- * files with extra chunks (afconvert on macOS pads with a "FLLR" filler
- * chunk before "data", observed at a 4096-byte offset). */
+/* MP3 only: minimp3's sliding input window (play_mp3()). WAVs find their
+ * "data" chunk by walking chunk headers (wav_walk()), so extra chunks such
+ * as macOS afconvert's 4 KB "FLLR" filler cost a seek, not a buffer. */
 #define HEADER_SCAN_BYTES 8192
-#define PLAYBACK_CHUNK_BYTES 4096
+/* One storage read per pass while playing a WAV: 1 KB is 64 ms of 8 kHz
+ * 16-bit audio, 128 ms of µ-law. */
+#define PLAYBACK_CHUNK_BYTES 1024
+/* Stacks: an MP3 needs room for minimp3's ~16 KB decode local; a WAV only
+ * reads, resamples and writes (FATFS on the SD card is the deepest call). */
+#define STACK_MP3  28672
+#define STACK_WAV  6144
 /* Resample a read chunk this many input samples at a time. One pass over the
  * whole chunk needed a single 24 KB block for an 8 kHz clip (x6 to 48 kHz),
  * which a busy heap (MQTT connected, a few browsers) often doesn't have. */
@@ -163,15 +170,49 @@ static bool play_mp3(int line, storage_reader_t *rd, uint8_t *buf, size_t have,
 }
 #endif /* CONFIG_PLAYER_MP3 */
 
+/* Finds a WAV's "fmt " and "data" chunks by reading chunk headers and
+ * seeking past everything else, so a big filler chunk costs nothing. Leaves
+ * the reader at the start of the audio. */
+static bool wav_walk(storage_reader_t *rd, audio_wav_info_t *out)
+{
+    uint8_t h[16];
+    memset(out, 0, sizeof(*out));
+    if (storage_read_chunk(rd, h, 12) != 12 || memcmp(h, "RIFF", 4) || memcmp(h + 8, "WAVE", 4))
+        return false;
+    size_t pos = 12;
+    bool have_fmt = false;
+    for (int guard = 0; guard < 32; guard++) {
+        if (storage_read_chunk(rd, h, 8) != 8) return false;
+        uint32_t sz = (uint32_t)h[4] | (uint32_t)h[5] << 8 | (uint32_t)h[6] << 16 | (uint32_t)h[7] << 24;
+        pos += 8;
+        if (!memcmp(h, "data", 4)) {
+            out->data_offset = (uint32_t)pos;
+            out->data_bytes = sz;
+            return have_fmt;
+        }
+        if (!memcmp(h, "fmt ", 4) && sz >= 16) {
+            if (storage_read_chunk(rd, h, 16) != 16) return false;
+            out->audio_format    = (uint16_t)(h[0] | h[1] << 8);
+            out->channels        = (uint16_t)(h[2] | h[3] << 8);
+            out->sample_rate     = (uint32_t)h[4] | (uint32_t)h[5] << 8 | (uint32_t)h[6] << 16 | (uint32_t)h[7] << 24;
+            out->bits_per_sample = (uint16_t)(h[14] | h[15] << 8);
+            have_fmt = true;
+        }
+        pos += sz + (sz & 1);   /* chunks are word-aligned */
+        if (storage_read_seek(rd, pos) != ESP_OK) return false;
+    }
+    return false;
+}
+
 static void play_task(void *arg)
 {
     play_args_t *a = (play_args_t *)arg;
     int line = a->line;
     bool ok = false;
     storage_reader_t rd = { 0 };
-    uint8_t *buf = malloc(HEADER_SCAN_BYTES);
+    uint8_t *buf = malloc(a->is_mp3 ? HEADER_SCAN_BYTES : PLAYBACK_CHUNK_BYTES);
     if (!buf) {
-        ESP_LOGE(TAG, "line %d: malloc(%u) failed", line, (unsigned)HEADER_SCAN_BYTES);
+        ESP_LOGE(TAG, "line %d: buffer alloc failed", line);
         goto out;
     }
 
@@ -181,25 +222,23 @@ static void play_task(void *arg)
     }
 
     {
-        size_t scanned = storage_read_chunk(&rd, buf, HEADER_SCAN_BYTES);
-
 #if defined(CONFIG_PLAYER_MP3)
-        /* Checked before WAV parsing -- a WAV always starts "RIFF", which
-         * never collides with an MP3's ID3 tag or frame-sync magic, so this
-         * is an unambiguous fork, not a fallback guess. */
-        if (audio_convert_mp3_magic(buf, scanned)) {
+        if (a->is_mp3) {
+            size_t scanned = storage_read_chunk(&rd, buf, HEADER_SCAN_BYTES);
             ok = play_mp3(line, &rd, buf, scanned, &s_line[line].stop_requested, a->name);
             goto out;
         }
 #endif
 
         audio_wav_info_t wav;
-        if (!audio_wav_parse(buf, scanned, &wav) || wav.audio_format != 1 || wav.channels != 1 ||
-            wav.bits_per_sample != 16) {
-            ESP_LOGW(TAG, "line %d: '%s' isn't mono 16-bit PCM WAV (or header is bigger "
-                          "than %u bytes)", line, a->name, (unsigned)HEADER_SCAN_BYTES);
+        if (!wav_walk(&rd, &wav) || wav.channels != 1 ||
+            !((wav.audio_format == 1 && wav.bits_per_sample == 16) ||
+              (wav.audio_format == 7 && wav.bits_per_sample == 8))) {
+            ESP_LOGW(TAG, "line %d: '%s' isn't a mono 16-bit PCM or 8-bit u-law WAV",
+                     line, a->name);
             goto out;
         }
+        bool ulaw = (wav.audio_format == 7);
         bool need_resample = (wav.sample_rate != audio_sample_rate());
         audio_resampler_t rs;
         int16_t *resampled = NULL;
@@ -228,12 +267,23 @@ static void play_task(void *arg)
         audio_tx_external(line, true);
         size_t remaining = wav.data_bytes;
         while (remaining > 0 && !s_line[line].stop_requested) {
-            size_t want = (remaining < PLAYBACK_CHUNK_BYTES) ? remaining : PLAYBACK_CHUNK_BYTES;
-            size_t got = storage_read_chunk(&rd, buf, want);
+            /* u-law: read bytes into the top half, expand to 16-bit in place
+             * (writing sample i never reaches a byte not yet read). */
+            size_t cap = ulaw ? PLAYBACK_CHUNK_BYTES / 2 : PLAYBACK_CHUNK_BYTES;
+            size_t want = (remaining < cap) ? remaining : cap;
+            uint8_t *dst = ulaw ? buf + PLAYBACK_CHUNK_BYTES / 2 : buf;
+            size_t got = storage_read_chunk(&rd, dst, want);
             if (got == 0) break; /* short file vs. its own data_bytes header field */
             remaining -= got;
 
-            size_t in_total = got / sizeof(int16_t); /* drops a possible odd trailing byte */
+            size_t in_total;
+            if (ulaw) {
+                int16_t *pcm16 = (int16_t *)buf;
+                for (size_t i = 0; i < got; i++) pcm16[i] = ulaw_decode(dst[i]);
+                in_total = got;
+            } else {
+                in_total = got / sizeof(int16_t); /* drops a possible odd trailing byte */
+            }
             const int16_t *in = (const int16_t *)buf;
             for (size_t in_off = 0; in_off < in_total && !s_line[line].stop_requested; ) {
                 size_t in_n = in_total - in_off;
@@ -306,7 +356,16 @@ esp_err_t player_play(int line, const char *storage_name, player_done_cb_t done_
      * even though storage_read_open() could still read it fine. */
     storage_reader_t probe = {0};
     if (storage_read_open(storage_name, &probe) != ESP_OK) return ESP_ERR_NOT_FOUND;
+    /* Peek at the first bytes: only an MP3 needs minimp3's big stack. */
+    uint8_t head[12] = {0};
+    size_t head_n = storage_read_chunk(&probe, head, sizeof(head));
     storage_read_close(&probe);
+    bool is_mp3 = false;
+#if defined(CONFIG_PLAYER_MP3)
+    is_mp3 = audio_convert_mp3_magic(head, head_n);
+#else
+    (void)head_n;
+#endif
 
     play_args_t *a = malloc(sizeof(*a));
     if (!a) return ESP_ERR_NO_MEM;
@@ -315,21 +374,16 @@ esp_err_t player_play(int line, const char *storage_name, player_done_cb_t done_
     a->name[sizeof(a->name) - 1] = 0;
     a->done_cb = done_cb;
     a->ctx = ctx;
+    a->is_mp3 = is_mp3;
 
     s_line[line].active = true;
     s_line[line].stop_requested = false;
 
-    /* Whichever clip this turns out to be isn't known until play_task
-     * actually peeks at it -- so with MP3 playback compiled in, every
-     * play_task gets the bigger stack minimp3 needs (~16KB internal decode
-     * locals, measured -- see player/Kconfig), not just MP3 ones. Paid only
-     * per active playback task and freed when it ends, unlike the
-     * permanent tax CONFIG_AUDIO_CONVERT_MP3's httpd-worker path pays. */
-#if defined(CONFIG_PLAYER_MP3)
-    const uint32_t stack_bytes = 28672;
-#else
-    const uint32_t stack_bytes = 4096;
-#endif
+    /* Only an MP3 pays for minimp3's ~16 KB decode local (see
+     * player/Kconfig): a 28 KB stack for every clip, WAVs included, was the
+     * biggest single allocation on the board and left a clip one
+     * fragmented heap away from not playing at all. */
+    const uint32_t stack_bytes = is_mp3 ? STACK_MP3 : STACK_WAV;
     if (xTaskCreate(play_task, "player", stack_bytes, a, tskIDLE_PRIORITY + 3, NULL) != pdPASS) {
         s_line[line].active = false;
         free(a);

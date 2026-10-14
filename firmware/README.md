@@ -358,7 +358,7 @@ name are cleared.
   Playback and the `/media` download route check `storage` first, then fall
   back to `bundled`, so an upload of the same name overrides a bundled
   default without a rebuild. Only `operator.wav`, `am_greeting.wav` and
-  `dialup.mp3` ship by default (the `BUNDLED_AUDIO` list in
+  `dialup.wav` ship by default (the `BUNDLED_AUDIO` list in
   `main/CMakeLists.txt`) — see
   [`firmware/assets/README.md`](assets/README.md) for the mechanism and why
   the fun-clip test set isn't bundled (copyright). Dial codes with no
@@ -368,7 +368,7 @@ name are cleared.
   codes (401/411/…) are a separate mutable `dialplan_clip_entry_t` table
   (code + filename + desc + builtin flag), seeded once from
   `dialplan_defaults.h`'s `CLIP_DEFAULTS` -- now just 412, the dial-up modem
-  sound -- with plain filenames (`dialup.mp3`, not the old `clip_412.wav`
+  sound -- with plain filenames (`dialup.wav`, not the old `clip_412.wav`
   convention). Settings → Dial Codes lets you recode any of them and/or
   upload new audio for them independently, plus add brand new codes — a real
   `<input type=file>` browser upload (new `multipart.c` reader in `webui` +

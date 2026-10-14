@@ -204,8 +204,26 @@ esp_err_t rtp_start(int line, const char *remote_ip, uint16_t remote_port)
     r->up_prev = 0; r->up_primed = false;
     r->active = true;
 
-    xTaskCreate(rx_task, "rtp_rx", 4096, (void *)(intptr_t)line, tskIDLE_PRIORITY + 4, &r->rx_task);
-    xTaskCreate(tx_task, "rtp_tx", 4096, (void *)(intptr_t)line, tskIDLE_PRIORITY + 4, &r->tx_task);
+    /* Priority 6: above the web server, the phone logic and SIP (all 5), so
+     * a big page, a download or a firmware upload can't hold up a call's
+     * 20 ms packets. Both tasks are short and mostly blocked (recv timeout,
+     * tx pacing), so they don't starve those either. */
+    r->rx_task = r->tx_task = NULL;
+    TaskHandle_t rx = NULL, tx = NULL;
+    BaseType_t ok = xTaskCreate(rx_task, "rtp_rx", 4096, (void *)(intptr_t)line,
+                                tskIDLE_PRIORITY + 6, &rx);
+    if (ok == pdPASS) r->rx_task = rx;
+    if (ok == pdPASS) {
+        ok = xTaskCreate(tx_task, "rtp_tx", 4096, (void *)(intptr_t)line, tskIDLE_PRIORITY + 6, &tx);
+        if (ok == pdPASS) r->tx_task = tx;
+    }
+    if (ok != pdPASS) {
+        /* Without both tasks the call would connect with one-way or no
+         * audio. Fail instead: both callers send BYE and close the call. */
+        ESP_LOGE(TAG, "line %d: no memory for the RTP tasks -- not connecting the call", line);
+        rtp_stop(line);
+        return ESP_ERR_NO_MEM;
+    }
 
     ESP_LOGI(TAG, "line %d: RTP up, local :%u <-> %s:%u",
              line, r->local_port, remote_ip, remote_port);

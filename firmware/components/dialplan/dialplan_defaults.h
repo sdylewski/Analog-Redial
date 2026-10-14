@@ -22,14 +22,14 @@ typedef struct {
 } clip_default_t;
 
 static const clip_default_t CLIP_DEFAULTS[] = {
-    { "412", "dialup.mp3",          "Dial up modem" },
+    { "412", "dialup.wav",          "Dial up modem" },
     /* 412 used to be "Banana Boat" -- repurposed (Wikimedia Commons,
-     * "Dial_up_connection.ogg", public domain) once its own source audio
-     * turned out to be the first real test of CONFIG_PLAYER_MP3 playback
-     * (see player/Kconfig): full-length at 40kbps mono MP3 is ~197KB vs.
-     * ~630KB as 8kHz/16-bit PCM WAV, a real difference on a device with a
-     * few MB of flash for everything combined. See gen_prompt.py's
-     * convert_to_mp3()/--name *.mp3 for the host-side encode half.
+     * "Dial_up_connection.ogg", public domain). Shipped as 8 kHz u-law WAV
+     * (314 KB full length; 16-bit PCM would be 630 KB and overflow an 8 MB
+     * board's 1 MB bundled partition). It was an MP3 before, which made
+     * every clip's player task take minimp3's 28 KB stack; boards that still
+     * have dialup.mp3 saved or bundled keep working through telephony.c's
+     * .mp3/.wav fallback.
      * 411/413/414 (Banana Phone/Split, Lime in the Coconut) retired --
      * their pi_rotary_phone source audio was never part of this checkout
      * and isn't coming; see dialplan_clip_remove()'s "still_default" check

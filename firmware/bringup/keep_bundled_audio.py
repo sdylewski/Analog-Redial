@@ -2,7 +2,7 @@
 """Copy clips out of a board's built-in audio before a reflash removes them.
 
 The "bundled" partition is rewritten by every `idf.py flash`, and since
-2026-10-02 it only carries operator.wav, am_greeting.wav and dialup.mp3. A
+2026-10-02 it only carries operator.wav, am_greeting.wav and the dial-up clip. A
 board flashed before that also has clips like burp.wav baked in, and the
 next flash would drop them. This copies them into the board's writable
 storage, which flashing never touches -- the board keeps playing them, and

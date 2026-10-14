@@ -1,6 +1,7 @@
 #include "aec.h"
 #include "board.h"
 #include "esp_log.h"
+#include <stdlib.h>
 #include <string.h>
 
 static const char *TAG = "aec";
@@ -48,14 +49,22 @@ static const char *TAG = "aec";
  * would drag the filter away from the real path. */
 #define DT_RATIO     25
 
+/* The big per-line buffers (3.3 KB each), allocated the first time a line's
+ * AEC is turned on and kept until reboot: aec_process() runs on the audio
+ * task, so freeing them on "off" could pull them out from under it. Most
+ * boards never turn AEC on and never pay for them. */
 typedef struct {
-    bool     enabled;
+    int16_t  ring[REF_RING];
+    int32_t  wts[AEC_TAPS];  /* Q15 adaptive weights */
+} aec_bufs_t;
+
+typedef struct {
+    bool     enabled;        /* only ever true once b is allocated */
     uint32_t delay_ms;
     uint32_t delay_samp;
 
-    int16_t  ring[REF_RING];
+    aec_bufs_t *b;
     uint32_t w_idx;          /* next ring write position */
-    int32_t  wts[AEC_TAPS];  /* Q15 adaptive weights */
     int64_t  xpow;           /* running energy of the tap window */
 
     /* rolling stats, reset when read */
@@ -72,8 +81,7 @@ static inline bool line_ok(int line) { return line >= 0 && line < NLINES; }
 
 static void reset_locked(aec_line_t *a)
 {
-    memset(a->ring, 0, sizeof(a->ring));
-    memset(a->wts, 0, sizeof(a->wts));
+    if (a->b) memset(a->b, 0, sizeof(*a->b));
     a->w_idx = 0;
     a->xpow = 0;
     a->e_near = a->e_out = 0;
@@ -110,6 +118,13 @@ void aec_set_enabled(int line, bool on)
 {
     if (!line_ok(line)) return;
     if (s_l[line].enabled == on) return;
+    if (on && !s_l[line].b) {
+        s_l[line].b = calloc(1, sizeof(aec_bufs_t));
+        if (!s_l[line].b) {
+            ESP_LOGW(TAG, "line %d: AEC not enabled: no memory for its buffers", line);
+            return;
+        }
+    }
     /* Always start from zero weights: state adapted during a previous call
      * (different handset position, different far end) is worse than nothing. */
     reset_locked(&s_l[line]);
@@ -138,17 +153,19 @@ void aec_process(int line, const int16_t *ref, const int16_t *near,
 {
     if (!line_ok(line)) return;
     aec_line_t *a = &s_l[line];
-    if (!a->enabled) {
+    if (!a->enabled || !a->b) {
         if (out != near) memcpy(out, near, n * sizeof(int16_t));
         return;
     }
+    int16_t *ring = a->b->ring;
+    int32_t *wts = a->b->wts;
 
     const uint32_t D = a->delay_samp;
     int64_t blk_near = 0, blk_out = 0, blk_ref = 0;
 
     for (size_t k = 0; k < n; k++) {
         /* Push this playout sample, then advance. */
-        a->ring[a->w_idx & REF_MASK] = ref[k];
+        ring[a->w_idx & REF_MASK] = ref[k];
         a->w_idx++;
 
         /* Sample aligned with near[k] sits D back from the newest. */
@@ -156,15 +173,15 @@ void aec_process(int line, const int16_t *ref, const int16_t *near,
 
         /* Slide the tap-window energy: one sample in, one out. O(1) rather
          * than re-summing AEC_TAPS values every sample. */
-        int32_t x_in  = a->ring[base & REF_MASK];
-        int32_t x_out = a->ring[(base - AEC_TAPS) & REF_MASK];
+        int32_t x_in  = ring[base & REF_MASK];
+        int32_t x_out = ring[(base - AEC_TAPS) & REF_MASK];
         a->xpow += (int64_t)x_in * x_in - (int64_t)x_out * x_out;
         if (a->xpow < 0) a->xpow = 0; /* guard against rounding drift */
 
         /* y = w . x  (Q15 weights) */
         int64_t acc = 0;
         for (int i = 0; i < AEC_TAPS; i++) {
-            acc += (int64_t)a->wts[i] * a->ring[(base - i) & REF_MASK];
+            acc += (int64_t)wts[i] * ring[(base - i) & REF_MASK];
         }
         int32_t y = (int32_t)(acc >> 15);
 
@@ -190,10 +207,10 @@ void aec_process(int line, const int16_t *ref, const int16_t *near,
             int32_t g = (int32_t)g64;
             if (g) {
                 for (int i = 0; i < AEC_TAPS; i++) {
-                    int32_t xi = a->ring[(base - i) & REF_MASK];
-                    a->wts[i] += (g * xi) >> DELTA_SHIFT;
-                    if (a->wts[i] > W_LIMIT) a->wts[i] = W_LIMIT;
-                    else if (a->wts[i] < -W_LIMIT) a->wts[i] = -W_LIMIT;
+                    int32_t xi = ring[(base - i) & REF_MASK];
+                    wts[i] += (g * xi) >> DELTA_SHIFT;
+                    if (wts[i] > W_LIMIT) wts[i] = W_LIMIT;
+                    else if (wts[i] < -W_LIMIT) wts[i] = -W_LIMIT;
                 }
             }
         }
@@ -210,7 +227,7 @@ void aec_process(int line, const int16_t *ref, const int16_t *near,
          * block's worth of adaptation: cheaper and steadier than maintaining
          * a full shadow copy, and enough to stop a burst of near-end speech
          * from dragging the filter far off. */
-        for (int i = 0; i < AEC_TAPS; i++) a->wts[i] -= a->wts[i] >> 6;
+        for (int i = 0; i < AEC_TAPS; i++) wts[i] -= wts[i] >> 6;
     }
     a->e_near += blk_near;
     a->e_out  += blk_out;

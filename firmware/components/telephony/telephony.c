@@ -21,6 +21,7 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include <string.h>
+#include <strings.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -858,6 +859,24 @@ static void auto_answer(int line)
     }
 }
 
+/* Plays `name`, or the same name with .wav/.mp3 swapped if that's what the
+ * board actually has. The built-in 412 clip moved from dialup.mp3 to
+ * dialup.wav: a board's saved dial codes keep the old name, and only a USB
+ * flash rewrites the bundled audio (an over-the-air update doesn't), so
+ * either name can be the one present. */
+static esp_err_t play_clip_any_ext(int line, const char *name)
+{
+    esp_err_t err = player_play(line, name, clip_done_cb, NULL);
+    size_t n = strlen(name);
+    if (err != ESP_ERR_NOT_FOUND || n < 5 || n >= STORAGE_MAX_NAME) return err;
+    char alt[STORAGE_MAX_NAME];
+    memcpy(alt, name, n + 1);
+    if (!strcasecmp(alt + n - 4, ".mp3"))      memcpy(alt + n - 4, ".wav", 4);
+    else if (!strcasecmp(alt + n - 4, ".wav")) memcpy(alt + n - 4, ".mp3", 4);
+    else return err;
+    return player_play(line, alt, clip_done_cb, NULL);
+}
+
 /* ---- dial action dispatch ---- */
 static void handle_action(int line, const dialplan_action_t *a)
 {
@@ -886,7 +905,7 @@ static void handle_action(int line, const dialplan_action_t *a)
             break;
 
         case ACT_PLAY_CLIP: /* dial-code entry (Settings -> Dial Codes), a->filename set directly */
-            if (player_play(line, a->filename, clip_done_cb, NULL) == ESP_OK) {
+            if (play_clip_any_ext(line, a->filename) == ESP_OK) {
                 s_line[line].state = TEL_PLAYING;
                 activity_log("Line %d: played %s", line, a->filename);
             } else {

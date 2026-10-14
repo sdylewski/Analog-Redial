@@ -1,7 +1,7 @@
 # firmware/assets/ — bundled audio (baked in at build/flash time)
 
 The files listed in `BUNDLED_AUDIO` in `firmware/main/CMakeLists.txt` —
-**`operator.wav`, `record_prompt.wav`, `am_greeting.wav` and `dialup.mp3`,
+**`operator.wav`, `record_prompt.wav`, `am_greeting.wav` and `dialup.wav`,
 nothing else** — get
 baked into a **read-only-in-spirit `bundled` SPIFFS partition** at build time
 and flashed alongside the firmware image (see the `bundled` entry in
@@ -42,16 +42,21 @@ One 4xx "novelty clip" default remains, out of the box. (402 Burp,
 all retired from the defaults -- personal or copyrighted audio, or no
 source audio at all. Boards provisioned earlier keep those codes.)
 
-**`dialup.mp3`** (412, "Dial up modem") — public domain
-(Wikimedia Commons, `Dial_up_connection.ogg`), full length (~39s) rather
-than trimmed, encoded as MP3 instead of WAV -- see `CONFIG_PLAYER_MP3`
-(`components/player/Kconfig`) and `gen_prompt.py`'s `convert_to_mp3()`.
-A full song at 8kHz/16-bit PCM WAV runs 2-3MB; the same audio as ~40kbps
-mono MP3 is 3-4x smaller, which is the difference between "fits" and
-"doesn't" when clips share a few MB of flash with recordings. Any `--name`
-ending in `.mp3` (one-shot `gen_prompt.py`, or `Settings -> Dial Codes` /
-`Operator` uploads) gets this treatment automatically; `.wav` is unaffected
-and stays raw PCM.
+**`dialup.wav`** (412, "Dial up modem") — public domain
+(Wikimedia Commons, `Dial_up_connection.ogg`), full length (~39 s), stored
+as **8 kHz 8-bit µ-law WAV**: 314 KB, half the size of 16-bit PCM (630 KB,
+which wouldn't fit an 8 MB board's 1 MB `bundled` partition alongside the
+other clips) and the same quality a phone line carries anyway. The player
+plays mono 16-bit PCM and mono 8-bit µ-law WAVs. To make one:
+
+```bash
+ffmpeg -i in.wav -ac 1 -ar 8000 -c:a pcm_mulaw -map_metadata -1 -fflags +bitexact out.wav
+```
+
+MP3 clips still play (`CONFIG_PLAYER_MP3`; any `--name` ending in `.mp3`
+in `gen_prompt.py`), but each one needs a 28 KB task stack plus an 8 KB
+buffer while it plays, against about 6 KB for a WAV. Prefer µ-law WAV for
+anything long.
 
 ## Adding your own (fun clips, other prompts)
 
@@ -63,8 +68,8 @@ rights to:
 ```bash
 cd firmware/bringup
 ./sync_pi_audio.py --src /path/to/your/audio --out-dir ../assets
-# or convert one file at a time (name it *.mp3 for the compressed path):
-./gen_prompt.py --from your_song.mp3 --name your_song.mp3 --out-dir ../assets
+# or convert one file at a time:
+./gen_prompt.py --from your_song.mp3 --name your_song.wav --out-dir ../assets
 ```
 
 Everything except the three shipped files is gitignored — see
