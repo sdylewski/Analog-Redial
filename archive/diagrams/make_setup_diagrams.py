@@ -411,7 +411,7 @@ def compose_overview_content() -> Scene:
 
 # second layout: the three wired options on top, Bluetooth out to the right
 
-DW2, DH2 = 780, 772
+DW2, DH2 = 780, 838
 
 
 def compose_overview_top_content() -> Scene:
@@ -421,19 +421,26 @@ def compose_overview_top_content() -> Scene:
            DW2 / 2, 48, 14, 400, TEXT)
 
     # --- the three wired options, on a bar above the board (mirror of Wi-Fi below)
-    opt_bar_y = 232
+    opt_bar_y = 298
+    j5_for = {"line-2": ("j5-jumpers-on", "J5 jumpers on"),
+              "microsd": ("j5-jumpers-off-card", "J5 jumpers off, card in"),
+              "pins": ("j5-jumpers-off-wires", "J5 jumpers off, your wires")}
     options = [(key, part_, k_top, cx, title, sub, action)
                for (key, part_, _, title, sub, action), (k_top, cx)
                in zip(OPTIONS_SIDE, ((0.78, 130), (1.45, 390), (1.3, 650)))]
-    icon_top, icon_h = 138, 62
+    icon_top, icon_h = 124, 62
     for key, partname, k, cx, title, sub, action in options:
         w, h, _, body = PARTS_DEF[partname]
         ix, iy = cx - w * k / 2, icon_top + (icon_h - h * k) / 2
         s.add(f"option-{key}", title, f'<g transform="scale({k:g})">{body}</g>', ix, iy)
         s.text(f"label-{key}", title, cx, 86, 15, 600, INK)
         s.text(f"desc-{key}", sub, cx, 104, 12, 400, TEXT)
-        s.text(f"action-{key}", action, cx, 123, 12, 700, OLIVE_D)
-        s.line(f"link-{key}", f"Link from {title}", cx, icon_top + icon_h + 6, cx, opt_bar_y, OLIVE)
+        # what J5 looks like for this option, between the option and the bar
+        jname, jcap = j5_for[key]
+        jy = icon_top + icon_h + 14
+        s.place(f"j5-{key}", jname, cx - 50, jy)
+        s.text(f"j5-caption-{key}", jcap, cx, jy + 62 + 14, 12, 700, OLIVE_D)
+        s.line(f"link-{key}", f"Link from {title}", cx, jy + 62 + 22, cx, opt_bar_y, OLIVE)
     s.text("or-1", "or", 260, icon_top + icon_h / 2 + 5, 14, 700, OLIVE_D)
     s.text("or-2", "or", 520, icon_top + icon_h / 2 + 5, 14, 700, OLIVE_D)
     s.add("options-bar", "Wired option bar",
@@ -445,7 +452,7 @@ def compose_overview_top_content() -> Scene:
               f'fill="{PILL_COLORS["PICK ONE"]}"', f'fill="{PILL_COLORS["PICK ONE"]}"'))
 
     # --- board, with your phone on the left and the Bluetooth board on the right
-    bx, by = 190, 312
+    bx, by = 190, opt_bar_y + 80
     cx_board = bx + 115
     jack_y = by + 85
     s.place("board", "board-core", bx, by, "Analog Redial board")
@@ -581,6 +588,7 @@ def build_overview(kind: str, layout: str = "side") -> tuple[str, int, int]:
         content, dw, dh = compose_overview_top_content(), DW2, DH2
     body = "\n".join(content.items)
     k_land, k_port = SCALES[layout]
+    j5 = layout == "side"        # the top layout draws J5 under each option itself
     legend = ""
     if kind == "docs":
         m = 36
@@ -591,15 +599,15 @@ def build_overview(kind: str, layout: str = "side") -> tuple[str, int, int]:
         k = k_land
         ox, oy = 28, (H - dh * k) / 2
         lx = ox + dw * k + 30
-        _, lh = legend_markup(lx, 0, 36, 13)
+        _, lh = legend_markup(lx, 0, 36, 13, j5=j5)
         ly = min(oy + 26, H - 18 - lh)        # pull the key up if it would run off the page
-        legend, _ = legend_markup(lx, max(18, ly), 36, 13)
+        legend, _ = legend_markup(lx, max(18, ly), 36, 13, j5=j5)
     elif kind == "letter-portrait":       # 8.5 x 11 in at 96 dpi
         W, H = 816, 1056
-        _, lh = legend_markup(48, 0, 74, 13, inline=True)
+        _, lh = legend_markup(48, 0, 74, 13, inline=True, j5=j5)
         k = min(k_port, (H - 28 - 20 - lh - 16) / dh)   # shrink the diagram to make room for the key
         ox, oy = (W - dw * k) / 2, 28
-        legend, _ = legend_markup(48, oy + dh * k + 20, 74, 13, inline=True)
+        legend, _ = legend_markup(48, oy + dh * k + 20, 74, 13, inline=True, j5=j5)
     else:
         raise ValueError(kind)
     diagram = (f'<g id="diagram" inkscape:label="Diagram" '

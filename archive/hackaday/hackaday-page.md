@@ -408,8 +408,15 @@ buffer, so the dial plan doesn't care which kind of phone you have.
 - [ ] Pin dial code tried on the bench with a relay or an LED **[YOU]**
 - [ ] Home Assistant tried against a real instance, then drop "not yet
       against a real Home Assistant" from the page **[YOU]**
-- [ ] The duplicate Home Assistant paragraph removed from the live page
-      **[YOU]**
+- [ ] **Fix on the live page [YOU]** (noted 2026-10-14):
+  - [ ] Home Assistant is there twice (after "Bluetooth option" and again
+        after "The board (v5)"): delete the second.
+  - [ ] "Tick one box" skips a step: the MQTT card also needs the broker's
+        address (and user/password). Try "tick one box and give it your MQTT
+        broker's address".
+  - [ ] "Print the ready-made case" is for the v4 board; v5 is 5 mm longer.
+        Say which board the case fits, or add a v5 case.
+- [ ] Edit the live page and this file together, so they don't drift again
 - [ ] Photos: the yellow phone plugged in, the v5 board, the Bluetooth board
 - [ ] Re-check the cost line for v5, and add the Bluetooth parts
 - [ ] Attach the tested revision's files
