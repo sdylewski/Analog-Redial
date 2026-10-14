@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 852 834" width="852" height="834" role="img" aria-label="Everything the Analog Redial board can connect to: one phone always, then a second line or a microSD card or four pin outputs; Wi-Fi to the web interface, a VoIP server and Home Assistant; and Bluetooth through an extra adapter board">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 852 834" width="852" height="834" role="img" aria-label="Everything the Analog Redial board can connect to: one phone always, then a second line or a microSD card or your own gadgets on four spare pins, chosen with the J5 jumpers; Wi-Fi to the web interface, a VoIP server and Home Assistant; and Bluetooth through an extra adapter board">
 <rect id="background" width="852" height="834" fill="#f7f0e0"/>
 <g font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
 <g id="diagram" inkscape:label="Diagram" transform="translate(36,26) scale(1)">
 <g id="title" inkscape:label="text: Everything the board can connect to"><text x="390" y="24" text-anchor="middle" font-size="21" font-weight="700" fill="#2b2620">Everything the board can connect to</text></g>
 <g id="subtitle" inkscape:label="text: Every network option works on the same b"><text x="390" y="48" text-anchor="middle" font-size="14" font-weight="400" fill="#5c4a35">Every network option works on the same board. Only Bluetooth needs an extra board.</text></g>
-<g id="option-line-2" inkscape:label="Second phone line" transform="translate(94.9,121.8)"><g transform="scale(0.78)">
+<g id="option-line-2" inkscape:label="Second phone line" transform="translate(94.9,137.8)"><g transform="scale(0.78)">
   <g id="handset"><line x1="14" y1="16" x2="76" y2="16" stroke="#4d5a26" stroke-width="20" stroke-linecap="round"/>
     <circle cx="14" cy="16" r="13" fill="#7c8c45"/><circle cx="76" cy="16" r="13" fill="#7c8c45"/></g>
   <g id="body"><rect x="4" y="32" width="82" height="44" rx="8" fill="#2b2620"/>
@@ -12,28 +12,31 @@
     <circle cx="45" cy="54" r="3.5" fill="#7c8c45"/></g></g></g>
 <g id="label-line-2" inkscape:label="text: Second phone line"><text x="130" y="86" text-anchor="middle" font-size="15" font-weight="600" fill="#2b2620">Second phone line</text></g>
 <g id="desc-line-2" inkscape:label="text: a second analog phone"><text x="130" y="104" text-anchor="middle" font-size="12" font-weight="400" fill="#5c4a35">a second analog phone</text></g>
-<g id="link-line-2" inkscape:label="Link from Second phone line"><line x1="130" y1="190" x2="130" y2="232" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
-<g id="option-microsd" inkscape:label="microSD card" transform="translate(363.9,124)"><g transform="scale(1.45)">
+<g id="action-line-2" inkscape:label="text: Jumpers on"><text x="130" y="123" text-anchor="middle" font-size="12" font-weight="700" fill="#4d5a26">Jumpers on</text></g>
+<g id="link-line-2" inkscape:label="Link from Second phone line"><line x1="130" y1="206" x2="130" y2="232" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
+<g id="option-microsd" inkscape:label="microSD card" transform="translate(363.9,140)"><g transform="scale(1.45)">
   <path d="M 6 0 H 36 V 40 H 0 V 6 Z" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/>
   <rect x="6" y="10" width="4" height="12" fill="#d6c7a4"/><rect x="14" y="10" width="4" height="12" fill="#d6c7a4"/>
   <rect x="22" y="10" width="4" height="12" fill="#d6c7a4"/>
   <text x="18" y="34" text-anchor="middle" font-size="9" font-weight="600" fill="#7a6a52">SD</text></g></g>
 <g id="label-microsd" inkscape:label="text: microSD card"><text x="390" y="86" text-anchor="middle" font-size="15" font-weight="600" fill="#2b2620">microSD card</text></g>
 <g id="desc-microsd" inkscape:label="text: recordings and clips"><text x="390" y="104" text-anchor="middle" font-size="12" font-weight="400" fill="#5c4a35">recordings and clips</text></g>
-<g id="link-microsd" inkscape:label="Link from microSD card"><line x1="390" y1="190" x2="390" y2="232" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
-<g id="option-pins" inkscape:label="4 pin outputs" transform="translate(621.4,121.8)"><g transform="scale(1.3)">
+<g id="action-microsd" inkscape:label="text: Jumpers off, card in"><text x="390" y="123" text-anchor="middle" font-size="12" font-weight="700" fill="#4d5a26">Jumpers off, card in</text></g>
+<g id="link-microsd" inkscape:label="Link from microSD card"><line x1="390" y1="206" x2="390" y2="232" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
+<g id="option-pins" inkscape:label="Your own gadgets" transform="translate(621.4,137.8)"><g transform="scale(1.3)">
   <circle id="bulb" cx="22" cy="12" r="11" fill="#c78a2b"/>
   <rect id="bulb-base" x="15" y="22" width="14" height="6" rx="2" fill="#5c4a35"/>
   <rect id="header" x="0" y="34" width="44" height="14" rx="3" fill="#2b2620"/>
   <circle cx="8" cy="41" r="3" fill="#c78a2b"/><circle cx="18" cy="41" r="3" fill="#c78a2b"/>
   <circle cx="28" cy="41" r="3" fill="#c78a2b"/><circle cx="38" cy="41" r="3" fill="#c78a2b"/>
   <path d="M 22 28 V 34" stroke="#5c4a35" stroke-width="3"/></g></g>
-<g id="label-pins" inkscape:label="text: 4 pin outputs"><text x="650" y="86" text-anchor="middle" font-size="15" font-weight="600" fill="#2b2620">4 pin outputs</text></g>
-<g id="desc-pins" inkscape:label="text: relay, light, lock"><text x="650" y="104" text-anchor="middle" font-size="12" font-weight="400" fill="#5c4a35">relay, light, lock</text></g>
-<g id="link-pins" inkscape:label="Link from 4 pin outputs"><line x1="650" y1="190" x2="650" y2="232" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
-<g id="or-1" inkscape:label="text: or"><text x="260" y="158" text-anchor="middle" font-size="14" font-weight="700" fill="#4d5a26">or</text></g>
-<g id="or-2" inkscape:label="text: or"><text x="520" y="158" text-anchor="middle" font-size="14" font-weight="700" fill="#4d5a26">or</text></g>
-<g id="options-bar" inkscape:label="Wired option bar"><rect x="0" y="232" width="780" height="36" rx="18" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/><text x="390.0" y="255" text-anchor="middle" font-size="14" font-weight="600" fill="#423525">Wired to the board: pick one. They share the same pins.</text></g>
+<g id="label-pins" inkscape:label="text: Your own gadgets"><text x="650" y="86" text-anchor="middle" font-size="15" font-weight="600" fill="#2b2620">Your own gadgets</text></g>
+<g id="desc-pins" inkscape:label="text: relay, light, buzzer"><text x="650" y="104" text-anchor="middle" font-size="12" font-weight="400" fill="#5c4a35">relay, light, buzzer</text></g>
+<g id="action-pins" inkscape:label="text: Jumpers off, your wires"><text x="650" y="123" text-anchor="middle" font-size="12" font-weight="700" fill="#4d5a26">Jumpers off, your wires</text></g>
+<g id="link-pins" inkscape:label="Link from Your own gadgets"><line x1="650" y1="206" x2="650" y2="232" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
+<g id="or-1" inkscape:label="text: or"><text x="260" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#4d5a26">or</text></g>
+<g id="or-2" inkscape:label="text: or"><text x="520" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#4d5a26">or</text></g>
+<g id="options-bar" inkscape:label="Wired option bar"><rect x="0" y="232" width="780" height="36" rx="18" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/><text x="390.0" y="255" text-anchor="middle" font-size="14" font-weight="600" fill="#423525">Four spare pins, one job at a time: the jumpers pick.</text></g>
 <g id="tag-pick-one" inkscape:label="tag: PICK ONE"><rect x="29.8" y="239" width="80.4" height="22" rx="11" fill="#4d5a26"/><text x="70" y="254" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#f7f0e0">PICK ONE</text></g>
 <g id="board" inkscape:label="Analog Redial board" transform="translate(190,312)">
   <rect id="pcb" x="0" y="0" width="230" height="170" rx="10" fill="#2b2620"/>

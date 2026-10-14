@@ -20,19 +20,23 @@ line-1/microSD jumper header, **Card1** = microSD socket.
 |-------|-------|---------|------------|-------|
 | **Dual line** | **J9** + **J8** | No | All four pairs bridged | Base board **+ second line** |
 | **Single line + microSD** | **J9** only | **Card1** | Open, no shunts | Base board only |
-| **Single line + spare pins** | **J9** only | No | Open, no shunts | Base board only. **J5** pins 1, 3, 5 and 7 are free outputs: see below |
+| **Single line + your own gadgets** | **J9** only | No | Open, no shunts | Base board only. **J5** pins 1, 3, 5 and 7 are free for your wires: see below |
 
-**You can have a second line or microSD, not both.** Line 1's SLIC and the
-microSD socket share the same four ESP32 pins, and **J5** is the switch
-between them. The firmware checks: put a card in a board set up for two
-lines and it shuts line 1 off and shows a warning in the web interface until
-you remove the card or switch the board to single-line in Settings →
-Hardware.
+**Four spare pins, one job at a time.** The board has four spare pins that
+can do one job at a time, and the **J5** jumpers choose which. With the
+jumpers **on**, they run the second phone line. With the jumpers **off**,
+they read a microSD card if one is in the slot, or they're free for your own
+wires (a relay, a light, a buzzer) if not. So it's a second line, or
+microSD, or your own gadgets: one of the three.
+
+The firmware checks: put a card in a board set up for two lines and it shuts
+line 1 off and shows a warning in the web interface until you remove the
+card or switch the board to single-line in Settings → Hardware.
 
 Without microSD, recordings go to internal flash, about 4 MB.
 
-**Spare pins.** A one-line board that isn't using the microSD socket has four
-free GPIOs, wired out to the odd-numbered pins of **J5**:
+**Your own gadgets.** With the jumpers off and no card in the slot, the four
+pins (GPIO18–21) are free on the odd-numbered pins of **J5**:
 
 | J5 pin | GPIO |
 |--------|------|

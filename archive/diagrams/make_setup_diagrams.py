@@ -147,13 +147,38 @@ part("bluetooth-adapter-side", 140, 56, "Bluetooth adapter board (BM64), plugs i
   <text x="103" y="25" text-anchor="middle" font-size="12" font-weight="600" fill="#f5e4bf">Bluetooth</text>
   <text x="103" y="41" text-anchor="middle" font-size="12" font-weight="600" fill="#f5e4bf">board</text>''')
 
-part("pin-outputs", 44, 48, "Four pin outputs (relay, light, lock)", f'''
+part("pin-outputs", 44, 48, "Your own gadgets (relay, light, buzzer) on the spare pins", f'''
   <circle id="bulb" cx="22" cy="12" r="11" fill="{AMBER}"/>
   <rect id="bulb-base" x="15" y="22" width="14" height="6" rx="2" fill="{BROWN}"/>
   <rect id="header" x="0" y="34" width="44" height="14" rx="3" fill="{INK}"/>
   <circle cx="8" cy="41" r="3" fill="{AMBER}"/><circle cx="18" cy="41" r="3" fill="{AMBER}"/>
   <circle cx="28" cy="41" r="3" fill="{AMBER}"/><circle cx="38" cy="41" r="3" fill="{AMBER}"/>
   <path d="M 22 28 V 34" stroke="{BROWN}" stroke-width="3"/>''')
+
+def j5_header() -> str:
+    """J5, 2x4, drawn at (0,22): odd pins (the four ESP32 pins) on the top
+    row, even pins (line 2's chip) on the bottom row."""
+    pins = "".join(f'<rect x="{cx - 3}" y="{22 + ry - 3}" width="6" height="6" fill="{AMBER}"/>'
+                   for cx in (13, 27, 41, 55) for ry in (12, 28))
+    return (f'<rect id="header" x="0" y="22" width="68" height="40" rx="4" fill="{INK}"/>{pins}')
+
+
+part("j5-jumpers-on", 100, 62, "J5 with all four jumpers on (second phone line)",
+     j5_header() + "".join(
+         f'<rect x="{cx - 5}" y="27" width="10" height="30" rx="2" fill="{OLIVE_D}" stroke="{OLIVE}" stroke-width="1.5"/>'
+         for cx in (13, 27, 41, 55)))
+
+part("j5-jumpers-off-card", 100, 62, "J5 with no jumpers, card in the slot (microSD)",
+     j5_header() + f'<g transform="translate(76,22) scale(0.62)">' +
+     f'<path d="M 6 0 H 36 V 40 H 0 V 6 Z" fill="{PAPER}" stroke="{PAPER_D}" stroke-width="2"/>'
+     f'<rect x="6" y="10" width="4" height="12" fill="{PAPER_D}"/><rect x="14" y="10" width="4" height="12" fill="{PAPER_D}"/>'
+     f'<rect x="22" y="10" width="4" height="12" fill="{PAPER_D}"/></g>')
+
+part("j5-jumpers-off-wires", 100, 62, "J5 with no jumpers, your wires on the top row (your own gadgets)",
+     j5_header() + "".join(
+         f'<path d="M {cx} 34 C {cx} 14, {cx + 8} 8, {cx + 26} 4" fill="none" stroke="{col}" '
+         f'stroke-width="3" stroke-linecap="round"/>'
+         for cx, col in ((13, AMBER), (27, OLIVE), (41, TAN), (55, BROWN))))
 
 part("cord", 120, 24, "Curly cord", f'<g transform="translate(0,12)">{cord(120, 4)}</g>')
 
@@ -276,7 +301,15 @@ def compose_two_line_everything() -> Scene:
 
 # ---------------------------------------------------------------- overview (three sizes)
 
-DW, DH = 720, 750    # design size of the diagram itself, before any scaling
+# The four spare ESP32 pins do one job at a time; the J5 jumpers pick it.
+# (key, part, scale in the side layout's cards, title, what it is, what you do)
+OPTIONS_SIDE = [
+    ("line-2", "phone", 0.62, "Second phone line", "a second analog phone", "Jumpers on"),
+    ("microsd", "sd-card", 1.0, "microSD card", "recordings and clips", "Jumpers off, card in"),
+    ("pins", "pin-outputs", 1.0, "Your own gadgets", "relay, light, buzzer", "Jumpers off, your wires"),
+]
+
+DW, DH = 720, 778    # design size of the diagram itself, before any scaling
 
 PILL_COLORS = {"ALWAYS": OLIVE_D, "PICK ONE": OLIVE_D, "BUILT-IN WI-FI": BROWN_D, "EXTRA BOARD": AMBER_D}
 
@@ -307,19 +340,15 @@ def compose_overview_content() -> Scene:
     s.add("tag-always", "tag: ALWAYS", pill_markup(45, jack_y + 78, "ALWAYS", PILL_COLORS["ALWAYS"])[0])
 
     # pick one: three cards on the right, off the board's connector
-    card_w, card_h, gap = 230, 78, 20
+    card_w, card_h, gap = 242, 90, 14
     cx0 = DW - card_w
     top = jack_y - (3 * card_h + 2 * gap) / 2
     spine_x = bx + 237 + 31
     s.line("link-options", "Wire to the option cards", bx + 237, jack_y, spine_x, jack_y, OLIVE)
     s.line("link-options-spine", "Spine", spine_x, top + card_h / 2, spine_x,
            top + 2 * (card_h + gap) + card_h / 2, OLIVE)
-    cards = [
-        ("line-2", "phone", 0.62, "Second phone line", "a second analog phone"),
-        ("microsd", "sd-card", 1.0, "microSD card", "recordings and clips"),
-        ("pins", "pin-outputs", 1.0, "4 pin outputs", "relay, light, lock"),
-    ]
-    for i, (key, partname, k, title, sub) in enumerate(cards):
+    cards = OPTIONS_SIDE
+    for i, (key, partname, k, title, sub, action) in enumerate(cards):
         y = top + i * (card_h + gap)
         s.line(f"stub-{key}", f"Wire to {title}", spine_x, y + card_h / 2, cx0, y + card_h / 2, OLIVE)
         w, h, _, body = PARTS_DEF[partname]
@@ -328,12 +357,15 @@ def compose_overview_content() -> Scene:
         s.add(f"option-{key}", title,
               f'<rect width="{card_w}" height="{card_h}" rx="12" fill="{PAPER}" stroke="{PAPER_D}" stroke-width="2"/>'
               f'<g transform="translate({12 + (60 - w * k) / 2:g},{(card_h - h * k) / 2:g}) scale({k:g})">{body}</g>'
-              f'<text x="82" y="35" font-size="15" font-weight="600" fill="{INK}">{title}</text>'
-              f'<text x="82" y="56" font-size="12" fill="{TEXT}">{sub}</text>', cx0, y)
+              f'<text x="82" y="31" font-size="15" font-weight="600" fill="{INK}">{title}</text>'
+              f'<text x="82" y="51" font-size="12" fill="{TEXT}">{sub}</text>'
+              f'<text x="82" y="72" font-size="12" font-weight="700" fill="{OLIVE_D}">{action}</text>', cx0, y)
         if i < 2:
             s.text(f"or-{i + 1}", "or", spine_x + 62, y + card_h + gap / 2 + 4, 11, 700, OLIVE_D)
     s.add("tag-pick-one", "tag: PICK ONE",
-          pill_markup(cx0 + card_w / 2, top - 22, "PICK ONE", PILL_COLORS["PICK ONE"])[0])
+          pill_markup(cx0 + card_w / 2, top - 70, "PICK ONE", PILL_COLORS["PICK ONE"])[0])
+    s.text("pick-one-heading-1", "Four spare pins, one job at a time:", cx0 + card_w / 2, top - 34, 13, 700, INK)
+    s.text("pick-one-heading-2", "the jumpers pick.", cx0 + card_w / 2, top - 16, 13, 400, TEXT)
 
     # Bluetooth: an extra board plugged into the header, then the cell phone
     ax = cx_board - 75
@@ -352,7 +384,7 @@ def compose_overview_content() -> Scene:
     s.text("label-bluetooth", "Bluetooth", cx_board + 22, 222, 13, 600, AMBER_D, "start")
 
     # Wi-Fi: built in, three services hang off it
-    bar_y = 520
+    bar_y = 548
     s.line("link-wifi", "Wi-Fi link", cx_board, by + 170, cx_board, bar_y, OLIVE)
     s.add("wifi", "Wi-Fi", f'<rect x="-6" y="-2" width="72" height="44" rx="8" fill="{CREAM}"/>'
           + PARTS_DEF["wifi"][3], cx_board - 30, by + 170 + 8)
@@ -390,25 +422,24 @@ def compose_overview_top_content() -> Scene:
 
     # --- the three wired options, on a bar above the board (mirror of Wi-Fi below)
     opt_bar_y = 232
-    options = [
-        ("line-2", "phone", 0.78, 130, "Second phone line", "a second analog phone"),
-        ("microsd", "sd-card", 1.45, 390, "microSD card", "recordings and clips"),
-        ("pins", "pin-outputs", 1.3, 650, "4 pin outputs", "relay, light, lock"),
-    ]
-    icon_top, icon_h = 122, 62
-    for key, partname, k, cx, title, sub in options:
+    options = [(key, part_, k_top, cx, title, sub, action)
+               for (key, part_, _, title, sub, action), (k_top, cx)
+               in zip(OPTIONS_SIDE, ((0.78, 130), (1.45, 390), (1.3, 650)))]
+    icon_top, icon_h = 138, 62
+    for key, partname, k, cx, title, sub, action in options:
         w, h, _, body = PARTS_DEF[partname]
         ix, iy = cx - w * k / 2, icon_top + (icon_h - h * k) / 2
         s.add(f"option-{key}", title, f'<g transform="scale({k:g})">{body}</g>', ix, iy)
         s.text(f"label-{key}", title, cx, 86, 15, 600, INK)
         s.text(f"desc-{key}", sub, cx, 104, 12, 400, TEXT)
+        s.text(f"action-{key}", action, cx, 123, 12, 700, OLIVE_D)
         s.line(f"link-{key}", f"Link from {title}", cx, icon_top + icon_h + 6, cx, opt_bar_y, OLIVE)
     s.text("or-1", "or", 260, icon_top + icon_h / 2 + 5, 14, 700, OLIVE_D)
     s.text("or-2", "or", 520, icon_top + icon_h / 2 + 5, 14, 700, OLIVE_D)
     s.add("options-bar", "Wired option bar",
           f'<rect x="0" y="{opt_bar_y}" width="{DW2}" height="36" rx="18" fill="{PAPER}" stroke="{PAPER_D}" stroke-width="2"/>'
           f'<text x="{DW2 / 2}" y="{opt_bar_y + 23}" text-anchor="middle" font-size="14" font-weight="600" '
-          f'fill="{BROWN_D}">Wired to the board: pick one. They share the same pins.</text>')
+          f'fill="{BROWN_D}">Four spare pins, one job at a time: the jumpers pick.</text>')
     s.add("tag-pick-one", "tag: PICK ONE",
           pill_markup(70, opt_bar_y + 18, "PICK ONE", PILL_COLORS["PICK ONE"])[0].replace(
               f'fill="{PILL_COLORS["PICK ONE"]}"', f'fill="{PILL_COLORS["PICK ONE"]}"'))
@@ -470,8 +501,9 @@ def compose_overview_top_content() -> Scene:
 LEGEND = [
     ("ALWAYS", "One analog phone, wired to the board. It works with no network at all: dial tone, "
                "dial codes, audio clips and recordings."),
-    ("PICK ONE", "A second phone line, or a microSD card for hours of recordings, or four pins to switch a "
-                 "relay, light or lock. They share the same pins on the board, so you choose when you build."),
+    ("PICK ONE", "The board has four spare pins that do one job at a time, and the J5 jumpers pick which. "
+                 "Jumpers on: a second phone line. Jumpers off: a microSD card if one is in the slot, or your "
+                 "own wires to a relay, light or buzzer if not."),
     ("BUILT-IN WI-FI", "The web interface (with firmware updates), VoIP calls to a SIP server and Home Assistant "
                        "over MQTT all run over the board's own Wi-Fi. Nothing to add: set them up in the web interface."),
     ("EXTRA BOARD", "Bluetooth is the only option that needs more hardware: a BM64 adapter board that plugs "
@@ -490,8 +522,30 @@ def wrap(text: str, width: int) -> list[str]:
     return out + [line]
 
 
+J5_STATES = [
+    ("j5-jumpers-on", "Jumpers on", "2nd phone line"),
+    ("j5-jumpers-off-card", "Jumpers off", "+ microSD card"),
+    ("j5-jumpers-off-wires", "Jumpers off", "+ your wires"),
+]
+
+
+def j5_strip(x: float, y: float, step: float, k: float = 0.78) -> tuple[str, float]:
+    """The three J5 states side by side, each with a two-line caption."""
+    out = ['<g id="j5-states" inkscape:label="J5: the three jumper states">']
+    for i, (name, l1, l2) in enumerate(J5_STATES):
+        w, h, label, body = PARTS_DEF[name]
+        gx = x + i * step
+        out.append(f'<g id="{name}" inkscape:label="{label}" transform="translate({gx:g},{y:g}) scale({k:g})">'
+                   f'{body}</g>')
+        cy = y + h * k + 14
+        out.append(f'<text x="{gx:g}" y="{cy:g}" font-size="11" font-weight="700" fill="{OLIVE_D}">{l1}</text>')
+        out.append(f'<text x="{gx:g}" y="{cy + 14:g}" font-size="11" fill="{TEXT}">{l2}</text>')
+    out.append("</g>")
+    return "".join(out), 62 * k + 14 + 16
+
+
 def legend_markup(x: float, y: float, chars: int, size: float = 13,
-                  inline: bool = False) -> tuple[str, float]:
+                  inline: bool = False, j5: bool = True) -> tuple[str, float]:
     """The key. Stacked (tag above its paragraph) for a narrow column, or
     inline (tag left, paragraph right) for a full-width band. Returns
     (markup, height)."""
@@ -505,6 +559,10 @@ def legend_markup(x: float, y: float, chars: int, size: float = 13,
         for ln in lines:
             out.append(f'<text x="{tx:g}" y="{ty:g}" font-size="{size:g}" fill="{TEXT}">{ln}</text>')
             ty += size + 5
+        if j5 and tag == "PICK ONE":
+            mk, h = j5_strip(tx, ty + 2, 95 if not inline else 150)
+            out.append(mk)
+            ty += h + 6
         out.append("</g>")
         cy = max(ty, cy + 30) + (10 if inline else 14)
     return "\n".join(out), cy - y
@@ -532,10 +590,14 @@ def build_overview(kind: str, layout: str = "side") -> tuple[str, int, int]:
         W, H = 1056, 816
         k = k_land
         ox, oy = 28, (H - dh * k) / 2
-        legend, _ = legend_markup(ox + dw * k + 30, oy + 26, 36, 13)
+        lx = ox + dw * k + 30
+        _, lh = legend_markup(lx, 0, 36, 13)
+        ly = min(oy + 26, H - 18 - lh)        # pull the key up if it would run off the page
+        legend, _ = legend_markup(lx, max(18, ly), 36, 13)
     elif kind == "letter-portrait":       # 8.5 x 11 in at 96 dpi
         W, H = 816, 1056
-        k = k_port
+        _, lh = legend_markup(48, 0, 74, 13, inline=True)
+        k = min(k_port, (H - 28 - 20 - lh - 16) / dh)   # shrink the diagram to make room for the key
         ox, oy = (W - dw * k) / 2, 28
         legend, _ = legend_markup(48, oy + dh * k + 20, 74, 13, inline=True)
     else:
@@ -546,7 +608,7 @@ def build_overview(kind: str, layout: str = "side") -> tuple[str, int, int]:
         diagram += f'\n<g id="legend" inkscape:label="Legend">\n{legend}\n</g>'
     doc = svg_doc(W, H, diagram,
                   "Everything the Analog Redial board can connect to: one phone always, then a second line or a "
-                  "microSD card or four pin outputs; Wi-Fi to the web interface, a VoIP server and Home "
+                  "microSD card or your own gadgets on four spare pins, chosen with the J5 jumpers; Wi-Fi to the web interface, a VoIP server and Home "
                   "Assistant; and Bluetooth through an extra adapter board", bg=True)
     return doc, W, H
 

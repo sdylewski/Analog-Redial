@@ -51,14 +51,15 @@ DevKit.
 
 ## 4. Set the build jumpers
 
-**J5** chooses between a second phone line and microSD:
+The board has four spare pins that can do one job at a time, and the
+**J5** jumpers choose which:
 
-| | Dual line | Single line + microSD |
-|---|---|---|
-| Parts fitted | **U3**, **J8**, **C17** | Nothing extra |
-| **J5** | **Bridge all four pairs** with shunts | **Leave open**, no shunts |
+| | Second phone line | microSD card | Your own gadgets |
+|---|---|---|---|
+| Parts fitted | **U3**, **J8**, **C17** | Nothing extra | Nothing extra |
+| **J5** | **Jumpers on**: bridge all four pairs | **Jumpers off**, card in the slot | **Jumpers off**, your wires on pins 1, 3, 5 and 7 ([which pin is which](bom.md#build-options)) |
 
-Never a mix. If you get it wrong the firmware will tell you: a card in a
+Never a mix: all four jumpers on, or none. If you get it wrong the firmware will tell you: a card in a
 board set up for two lines shuts line 1 off and shows a warning in the web
 interface.
 
