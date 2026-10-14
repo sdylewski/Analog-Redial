@@ -28,6 +28,7 @@
 #include "activity.h"
 #include "webui.h"
 #include "webauth.h"
+#include "webhook.h"
 #include "bringup.h"
 #include "esp_log.h"
 #include "esp_err.h"
@@ -237,6 +238,7 @@ void app_main(void)
         sdcard_hotplug_start();
     }
     webauth_init();
+    webhook_init();
     if ((err = webui_start()) != ESP_OK) {
         ESP_LOGW(TAG, "webui_start failed: %s", esp_err_to_name(err));
         board_led_set_state(BOARD_LED_ERROR);

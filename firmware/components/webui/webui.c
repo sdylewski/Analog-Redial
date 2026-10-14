@@ -54,6 +54,7 @@
 #include <strings.h>
 #include <math.h>
 #include "webauth.h"
+#include "webhook.h"
 #include "auxpins.h"
 #include "esp_attr.h"
 #include "esp_rom_sys.h"
@@ -510,6 +511,8 @@ static cJSON *build_status_json(void)
     cJSON_AddNumberToObject(root, "reset_reason", (double)esp_reset_reason()); /* esp_reset_reason_t */
     cJSON_AddNumberToObject(root, "heap_free", (double)esp_get_free_heap_size());
     cJSON_AddNumberToObject(root, "heap_min_free", (double)esp_get_minimum_free_heap_size());
+    cJSON_AddNumberToObject(root, "heap_largest_block",
+                            (double)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
     cJSON_AddNumberToObject(root, "storage_used", (double)storage_used_bytes());
     cJSON_AddNumberToObject(root, "storage_cap", (double)storage_cap_bytes());
     cJSON_AddBoolToObject(root, "storage_on_sd", storage_using_sd());
@@ -537,6 +540,13 @@ static cJSON *build_status_json(void)
         board_bt_module_t m = bt_companion_module();
         cJSON_AddStringToObject(root, "bt_module",
                                 m == BOARD_BT_BM64 ? "bm64" : m == BOARD_BT_BK3266 ? "bk3266" : "none");
+    }
+
+    {
+        char wh[WEBHOOK_URL_MAX];
+        webhook_url_get(wh, sizeof(wh));
+        cJSON_AddBoolToObject(root, "webhook_on", wh[0] != '\0');
+        cJSON_AddNumberToObject(root, "webhook_last_status", webhook_last_status());
     }
 
     cJSON *lines = cJSON_AddArrayToObject(root, "lines");
@@ -1591,6 +1601,44 @@ static int append_mode_card_hint(char *buf, size_t cap, int off, const char *tit
                         "Persists to flash (NVS) and survives a reboot."));
 }
 
+/* Settings -> General: one URL the board POSTs line events to (webhook.h),
+ * meant for a Home Assistant webhook trigger. */
+static int append_webhook_card(char *buf, size_t cap, int off)
+{
+    char url[WEBHOOK_URL_MAX], eurl[WEBHOOK_URL_MAX * 6], st[64];
+    webhook_url_get(url, sizeof(url));
+    /* A Home Assistant webhook ID is the only thing guarding it: same rule as
+     * the other secrets on these pages. */
+    if (!s_viewer_signed_in) {
+        return appendf(buf, cap, off,
+            "<div class=\"card\"><h2>Webhook (Home Assistant)</h2>"
+            "<p class=\"muted\">%s. Sign in to see or change it.</p></div>",
+            url[0] ? "Set" : "Off");
+    }
+    html_escape(url, eurl, sizeof(eurl));
+    int ls = webhook_last_status();
+    if (!url[0])       snprintf(st, sizeof(st), "off");
+    else if (ls == 0)  snprintf(st, sizeof(st), "on, nothing sent yet");
+    else if (ls < 0)   snprintf(st, sizeof(st), "last send failed (%s)", esp_err_to_name(-ls));
+    else               snprintf(st, sizeof(st), "last answer HTTP %d, %u sent", ls, webhook_sent_count());
+    off = appendf(buf, cap, off,
+        "<div class=\"card\"><h2>Webhook (Home Assistant)</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">Current</span><span>%s</span></div>"
+        "<form method=\"POST\" action=\"/webhook\" class=\"settings-form\">"
+        "<label>URL <input type=\"text\" name=\"url\" value=\"%s\" maxlength=\"%d\" "
+        "placeholder=\"http://homeassistant.local:8123/api/webhook/redial\"></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button>"
+        "<button type=\"submit\" name=\"test\" value=\"1\">Send test event</button></div>"
+        "</form>", st, eurl, WEBHOOK_URL_MAX - 1);
+    off = append_hint(buf, cap, off,
+        "Each pickup, hang-up, dial code, incoming ring and saved recording is POSTed "
+        "here as JSON. Leave empty to turn it off.",
+        "Plain http:// only. Body: {\"board\",\"event\",\"line\",\"detail\",\"time\"}; "
+        "events are offhook, onhook, dial, wrong_number, ring, answering_machine, recording "
+        "and test. Experimental: see docs/home-assistant.md.");
+    return appendf(buf, cap, off, "</div>");
+}
+
 static int append_general_tab(char *buf, size_t cap, int off)
 {
     char raw_name[40], name[40 * 6], host[80];
@@ -1814,7 +1862,7 @@ static int append_general_tab(char *buf, size_t cap, int off)
                  "the window wraps past midnight. Takes effect on the next incoming call -- "
                  "no reboot."));
     off = appendf(buf, cap, off, "</div>");
-    return off;
+    return append_webhook_card(buf, cap, off);
 }
 
 /* Everything about how a call sounds/behaves on the phone itself, one tab:
@@ -6010,6 +6058,23 @@ static esp_err_t timezone_set_handler(httpd_req_t *req)
     return redirect_to(req, "/settings?tab=general");
 }
 
+/* POST /webhook -- url=<http://...|empty>[&test=1]. Saves the URL, then
+ * with test=1 queues a "test" event to it. */
+static esp_err_t webhook_handler(httpd_req_t *req)
+{
+    char body[WIFI_FORM_MAX_BODY];
+    READ_FORM_OR_RETURN(req, body);
+    char url[WEBHOOK_URL_MAX] = {0}, test[4] = {0};
+    form_field(body, "url", url, sizeof(url));
+    form_field(body, "test", test, sizeof(test));
+    if (webhook_url_set(url) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "URL must start with http:// (no https)");
+        return ESP_OK;
+    }
+    if (test[0] == '1') webhook_event("test", 0, "test from the web UI");
+    return redirect_to(req, "/settings?tab=general");
+}
+
 /* POST /quiet_hours -- form body [enabled=1&]start=HH:MM&end=HH:MM (the
  * values an <input type="time"> submits). An unchecked checkbox submits
  * nothing at all, same as offhook_alert_handler above -- missing `enabled`
@@ -9306,6 +9371,7 @@ esp_err_t webui_start(void)
         { .uri = "/timezone_auto",   .method = HTTP_POST, .handler = timezone_auto_handler },
         { .uri = "/tone_lang_set",   .method = HTTP_POST, .handler = tone_lang_set_handler },
         { .uri = "/quiet_hours",     .method = HTTP_POST, .handler = quiet_hours_handler },
+        { .uri = "/webhook",         .method = HTTP_POST, .handler = webhook_handler },
         { .uri = "/voip_enable",     .method = HTTP_POST, .handler = voip_enable_handler },
         { .uri = "/idle_power",      .method = HTTP_POST, .handler = idle_power_settings_handler },
         { .uri = "/answering_machine", .method = HTTP_POST, .handler = answering_machine_handler },

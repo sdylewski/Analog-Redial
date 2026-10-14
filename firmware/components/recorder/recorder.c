@@ -2,6 +2,7 @@
 #include "audio.h"
 #include "storage.h"
 #include "activity.h"
+#include "webhook.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -271,6 +272,8 @@ static void rec_task(void *arg)
              (double)data_bytes / 2.0 / (double)out_rate);
     activity_log("Line %d: recording saved (%.1fs)",
                   line, (double)data_bytes / 2.0 / (double)out_rate);
+    if (ok) webhook_eventf("recording", line, "%s %.1fs", a->name,
+                           (double)data_bytes / 2.0 / (double)out_rate);
 
 out:
     if (downlink_tap_added) {

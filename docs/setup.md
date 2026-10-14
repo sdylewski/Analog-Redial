@@ -80,6 +80,11 @@ says what to look for). Set the board to
 the microSD socket empty. The card shows what's in the way if it isn't
 active.
 
+**Home Assistant (experimental).** The board can POST every pickup,
+hang-up, dial code and incoming ring to a Home Assistant webhook (Settings →
+General → Webhook), and Home Assistant can ring a phone or fire a pin output
+over HTTP. Untested so far: see [Home Assistant](home-assistant.md).
+
 
 ## 4. The web interface
 

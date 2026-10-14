@@ -10,6 +10,7 @@
 #include "recorder.h"
 #include "storage.h"
 #include "activity.h"
+#include "webhook.h"
 #include "bt_companion.h"
 #include "auxpins.h"
 #include "esp_log.h"
@@ -604,6 +605,7 @@ static void start_local_call_ex(int caller, int target, voice_effect_t fx, bool 
     audio_tx_tone(caller, TONE_RINGBACK);
     ESP_LOGI(TAG, "line %d calling line %d (fx=%d)", caller, target, fx);
     activity_log(intercom ? "Line %d rang line %d (intercom)" : "Line %d called line %d", caller, target);
+    webhook_eventf("ring", target, "line %d", caller);
 }
 
 static void start_local_call(int caller, int target, voice_effect_t fx)
@@ -831,6 +833,7 @@ static void auto_answer(int line)
 
     activity_log("Line %d: answering machine picked up (%s)", line,
                  peer == PEER_VOIP ? "VoIP" : "other line");
+    webhook_event("answering_machine", line, peer == PEER_VOIP ? "VoIP" : "other line");
     s_line[rec_line].rec_purpose = REC_VOICEMAIL;
     s_line[rec_line].am_bargein = false;
     /* This line's own recording (dial 899) first, then the shared default
@@ -850,6 +853,11 @@ static void auto_answer(int line)
 /* ---- dial action dispatch ---- */
 static void handle_action(int line, const dialplan_action_t *a)
 {
+    /* Every code, before it runs: Home Assistant automations key on the
+     * digits (webhook.h), whatever the code does on the board. */
+    if (a->kind != ACT_NONE)
+        webhook_event(a->kind == ACT_WRONG_NUMBER ? "wrong_number" : "dial", line,
+                      s_line[line].coll.buf);
     switch (a->kind) {
         case ACT_NONE:
             return;
@@ -1122,6 +1130,7 @@ static void on_voip_incoming(int line)
     activity_log("Line %d: ringing -- caller %s <%s>", line,
                   s_line[line].caller_name[0] ? s_line[line].caller_name : "(no name)",
                   s_line[line].caller_number);
+    webhook_eventf("ring", line, "%s <%s>", s_line[line].caller_name, s_line[line].caller_number);
     s_line[line].state = TEL_RINGING;
     s_line[line].peer = PEER_VOIP;
     start_ring(line, false);
@@ -1154,6 +1163,7 @@ static void on_bt_call(int line, bt_call_state_t cs)
         strlcpy(s_line[line].caller_number, cid, sizeof(s_line[line].caller_number));
         ESP_LOGI(TAG, "line %d: ringing -- Bluetooth call%s%s", line, cid[0] ? " from " : "", cid);
         activity_log("Line %d: ringing -- Bluetooth call%s%s", line, cid[0] ? " from " : "", cid);
+        webhook_eventf("ring", line, "Bluetooth %s", cid);
         s_line[line].state = TEL_RINGING;
         s_line[line].peer = PEER_BT;
         start_ring(line, false);
@@ -1204,8 +1214,10 @@ static void fsm_task(void *arg)
              * board configured for fewer lines than the array width). */
             if (e.line < 0 || e.line >= NLINES_ACTIVE) continue;
             switch (e.type) {
-                case IN_OFFHOOK:        on_offhook(e.line); break;
-                case IN_ONHOOK:         on_onhook(e.line);  break;
+                case IN_OFFHOOK:        webhook_event("offhook", e.line, NULL);
+                                        on_offhook(e.line); break;
+                case IN_ONHOOK:         webhook_event("onhook", e.line, NULL);
+                                        on_onhook(e.line);  break;
                 case IN_DIGIT:          process_digit(e.line, e.digit); break;
                 case IN_VOIP_INCOMING:  on_voip_incoming(e.line); break;
                 case IN_BT_CALL:        on_bt_call(e.line, (bt_call_state_t)e.digit); break;
