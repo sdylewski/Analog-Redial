@@ -118,7 +118,7 @@ part("home", 76, 62, "Home automation (a generic house, not a product logo)", f'
   <circle cx="38" cy="25" r="5" fill="{AMBER}"/>''')
 
 part("sd-card", 36, 40, "microSD card", f'''
-  <path d="M 0 0 h 36 v 40 h -36 v -34 l 6 -6 z" fill="{PAPER}" stroke="{PAPER_D}" stroke-width="2"/>
+  <path d="M 6 0 H 36 V 40 H 0 V 6 Z" fill="{PAPER}" stroke="{PAPER_D}" stroke-width="2"/>
   <rect x="6" y="10" width="4" height="12" fill="{PAPER_D}"/><rect x="14" y="10" width="4" height="12" fill="{PAPER_D}"/>
   <rect x="22" y="10" width="4" height="12" fill="{PAPER_D}"/>
   <text x="18" y="34" text-anchor="middle" font-size="9" font-weight="600" fill="#7a6a52">SD</text>''')

@@ -21,7 +21,7 @@
       <text x="83" y="76" text-anchor="middle" font-size="12" fill="#8a6f4d">no network at all</text>
       <!-- microSD card slotted into the right edge -->
       <g transform="translate(150,26)">
-        <path d="M 0 0 h 36 v 40 h -36 v -34 l 6 -6 z" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/>
+        <path d="M 6 0 H 36 V 40 H 0 V 6 Z" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/>
         <rect x="6" y="10" width="4" height="12" fill="#d6c7a4"/>
         <rect x="14" y="10" width="4" height="12" fill="#d6c7a4"/>
         <rect x="22" y="10" width="4" height="12" fill="#d6c7a4"/>
