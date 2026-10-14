@@ -185,6 +185,10 @@ esp_err_t dialplan_clip_set_code(const char *old_code, const char *new_code);
  * set_filename above -- only dialplan_clip_remove() singles builtins out.
  * ESP_ERR_NOT_FOUND if code is unknown. */
 esp_err_t dialplan_clip_set_desc(const char *code, const char *desc);
+/* Points a code at a different file in storage (ESP_ERR_NOT_FOUND: no such
+ * code; ESP_ERR_INVALID_ARG: empty or too long). Doesn't check the file
+ * exists: a missing clip plays the confirmation tone, as everywhere. */
+esp_err_t dialplan_clip_set_filename(const char *code, const char *filename);
 /* Looks up a single entry's current filename by code, without needing to
  * pull the whole table into a caller-provided array first (keeps callers
  * from needing a DIALPLAN_MAX_CLIP_ENTRIES-sized local just to find one

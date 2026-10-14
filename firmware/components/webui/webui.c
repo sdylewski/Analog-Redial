@@ -2815,12 +2815,19 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 "<input name=\"desc\" value=\"%s\" maxlength=\"63\" class=\"dc-desc-input\">"
                 "<button type=\"submit\">%s</button></form>"
                 "</div>"
-                "<div class=\"dc-line\"><code class=\"dc-filename\">%s</code></div>"
+                "<div class=\"dc-line\">"
+                "<form method=\"POST\" action=\"/dialcode_set_file\" class=\"dc-inline dc-grow\">"
+                "<input type=\"hidden\" name=\"code\" value=\"%s\">"
+                "<input name=\"file\" value=\"%s\" maxlength=\"%d\" class=\"dc-desc-input\" "
+                "pattern=\"[A-Za-z0-9_.\\-]+\\.(wav|mp3|WAV|MP3)\" title=\"A .wav or .mp3 file in storage\">"
+                "<button type=\"submit\">%s</button></form>"
+                "</div>"
                 "<div class=\"dc-line\">"
                 "<audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio>"
                 "</div></div>",
                 clips[i].code, edesc, i18n_str("dialcodes.save", "save"),
-                fname_h, fname_u);
+                clips[i].code, fname_h, STORAGE_MAX_NAME - 1, i18n_str("dialcodes.save", "save"),
+                fname_u);
         }
         off = appendf(buf, cap, off, "</div>" /* .dialcode-list */);
     }
@@ -7600,6 +7607,36 @@ static esp_err_t dialcode_set_desc_handler(httpd_req_t *req)
     return redirect_to(req, "/settings?tab=dialcodes");
 }
 
+/* POST /dialcode_set_file -- code=..&file=name.wav : which file a code plays.
+ * Lets a built-in code move to a newer clip without removing the code. */
+static esp_err_t dialcode_set_file_handler(httpd_req_t *req)
+{
+    char body[WIFI_FORM_MAX_BODY];
+    READ_FORM_OR_RETURN(req, body);
+    char code[8] = {0}, file[STORAGE_MAX_NAME] = {0};
+    form_field(body, "code", code, sizeof(code));
+    form_field(body, "file", file, sizeof(file));
+    size_t n = strlen(file);
+    bool ok = n > 4 && (!strcasecmp(file + n - 4, ".wav") || !strcasecmp(file + n - 4, ".mp3"));
+    for (size_t i = 0; ok && i < n; i++) {
+        char c = file[i];
+        ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+             c == '_' || c == '-' || c == '.';
+    }
+    if (!ok) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                            "The file name must be letters, digits, _ - . and end in .wav or .mp3");
+        return ESP_OK;
+    }
+    esp_err_t err = dialplan_clip_set_filename(code, file);
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, esp_err_to_name(err));
+        return ESP_OK;
+    }
+    activity_log("Dial code %s now plays %s", code, file);
+    return redirect_to(req, "/settings?tab=dialcodes");
+}
+
 /* POST /dialcode_delete/<code> */
 /* POST /pin_action_set -- code=..&gpio=..&secs=..&desc=.. */
 static esp_err_t pin_action_set_handler(httpd_req_t *req)
@@ -9554,6 +9591,7 @@ esp_err_t webui_start(void)
         { .uri = "/record_max_ms",   .method = HTTP_POST, .handler = record_max_ms_handler },
         { .uri = "/dialcode_set_code",      .method = HTTP_POST, .handler = dialcode_set_code_handler },
         { .uri = "/dialcode_set_desc",      .method = HTTP_POST, .handler = dialcode_set_desc_handler },
+        { .uri = "/dialcode_set_file",      .method = HTTP_POST, .handler = dialcode_set_file_handler },
         { .uri = "/dialcode_delete/*",      .method = HTTP_POST, .handler = dialcode_delete_handler },
         { .uri = "/pin_action_set",         .method = HTTP_POST, .handler = pin_action_set_handler },
         { .uri = "/pin_action_delete/*",    .method = HTTP_POST, .handler = pin_action_delete_handler },

@@ -160,6 +160,9 @@ from an MP3 or from text (text-to-speech on your computer) and uploads it.
 To build your own clips into every firmware image instead, see
 [`firmware/assets/README.md`](https://github.com/sdylewski/Analog-Redial/blob/main/firmware/assets/README.md).
 
+Each dial code's file name is editable in Settings → Dial Codes, so a
+built-in code can point at a different clip without being removed.
+
 Use audio you have the rights to. The board ships with the operator message,
 the answering machine's default greeting and a public-domain modem sound.
 

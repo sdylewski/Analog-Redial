@@ -17,6 +17,8 @@ a PASS / WARN / FAIL / SKIP summary:
                record_prompt.wav     dial 211, before the beep
                am_greeting.wav       answering machine's default greeting
                digit_0..9.wav        (opt-in, --digits)
+  clips      upload the clips that ship with the project (dial-up modem,
+             assets/dialup.wav) and point their dial codes at them
   verify     read every uploaded file back from the board
   tests      (opt-in, --tests) the interactive hardware checklist
 
@@ -67,7 +69,16 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 STEP_NAMES = ("chip", "console", "codec", "network", "hardware",
-              "microsd", "audio", "verify", "tests")
+              "microsd", "audio", "clips", "verify", "tests")
+
+# Audio clips that ship with the project but aren't text-to-speech: uploaded
+# from firmware/assets/ and attached to a dial code. (The firmware also bakes
+# these into its bundled partition as a fallback for boards nobody runs this
+# script on; an upload to storage takes priority over the bundled copy.)
+CLIPS = (
+    # (dial code, file in firmware/assets/)
+    ("412", "dialup.wav"),
+)
 
 # Default prompt wording per language. English is the reference; the others
 # are plain translations of the same sentences, so a builder can diff them.
@@ -435,6 +446,31 @@ def step_audio(run: Run, host: str, args, status: dict) -> list[str]:
     return uploaded
 
 
+def step_clips(run: Run, host: str) -> list[str]:
+    run.header("clips", "shipped clips: upload and point their dial codes at them")
+    done = []
+    for code, name in CLIPS:
+        src = HERE.parent / "assets" / name
+        if not src.is_file():
+            run.record("clips", "FAIL", f"{name}: not found at {src}")
+            continue
+        c, body = curl(host, f"/media/{name}", wav=src, timeout=90)
+        if not ok_status(c):
+            run.record("clips", "FAIL", f"{name}: upload refused (HTTP {c}) "
+                       f"{body[:80].decode(errors='replace')}")
+            continue
+        # Moves the code to the file just uploaded; an older board's saved
+        # code still names the dialup.mp3 it shipped with.
+        c, body = curl(host, "/dialcode_set_file", form={"code": code, "file": name})
+        if not ok_status(c):
+            run.record("clips", "FAIL", f"{name}: uploaded, but dial code {code} wouldn't "
+                       f"switch to it (HTTP {c}) -- older firmware? {body[:60].decode(errors='replace')}")
+            continue
+        done.append(name)
+        run.record("clips", "PASS", f"{name}: uploaded, dial {code} plays it")
+    return done
+
+
 def step_verify(run: Run, host: str, names: list[str]) -> None:
     run.header("verify", "read the uploads back")
     if not names:
@@ -538,7 +574,7 @@ def main() -> int:
                 run.record("codec", "SKIP", "needs the serial console")
 
         status: dict = {}
-        if only & {"network", "hardware", "microsd", "audio", "verify"}:
+        if only & {"network", "hardware", "microsd", "audio", "clips", "verify"}:
             status = step_network(run, args.host)
         online = bool(status)
 
@@ -559,6 +595,12 @@ def main() -> int:
             else:
                 run.header("audio", "default prompts")
                 run.record("audio", "SKIP", "board not reachable over HTTP")
+        if run.wanted("clips"):
+            if online:
+                uploaded += step_clips(run, args.host)
+            else:
+                run.header("clips", "shipped clips")
+                run.record("clips", "SKIP", "board not reachable over HTTP")
         if run.wanted("verify"):
             if online:
                 names = uploaded or (["operator.wav", "record_prompt.wav", "am_greeting.wav"]
