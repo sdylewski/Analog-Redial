@@ -140,6 +140,12 @@ ground island.
 
 ## 6. AG1171 SLIC & RJ12 wiring
 
+> **Never connect the RJ12 jacks to a wall jack or a telephone-company line.**
+> Each one is a telephone-company side (FXS) interface, not a line input: it
+> supplies about 48 V DC off-hook and about 72 V when ringing, which can injure
+> someone and damage the telephone network. The board is only for connecting to
+> phones directly.
+
 Each SLIC (**U4** = line 0, **U3** = line 1) interfaces one RJ12 jack (**J9**
 line 0, **J8** line 1) with the following support network. This is the
 current, corrected wiring — earlier hand-soldered revisions had a SLIC
