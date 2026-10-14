@@ -55,6 +55,7 @@
 #include <math.h>
 #include "webauth.h"
 #include "webhook.h"
+#include "mqtt_ha.h"
 #include "auxpins.h"
 #include "esp_attr.h"
 #include "esp_rom_sys.h"
@@ -547,6 +548,10 @@ static cJSON *build_status_json(void)
         webhook_url_get(wh, sizeof(wh));
         cJSON_AddBoolToObject(root, "webhook_on", wh[0] != '\0');
         cJSON_AddNumberToObject(root, "webhook_last_status", webhook_last_status());
+        mqtt_ha_state_t ms = mqtt_ha_state();
+        cJSON_AddStringToObject(root, "mqtt",
+                                ms == MQTT_HA_CONNECTED ? "connected" : ms == MQTT_HA_CONNECTING ? "connecting" : "off");
+        cJSON_AddNumberToObject(root, "mqtt_heap_cost", mqtt_ha_heap_cost());
     }
 
     cJSON *lines = cJSON_AddArrayToObject(root, "lines");
@@ -1639,6 +1644,50 @@ static int append_webhook_card(char *buf, size_t cap, int off)
     return appendf(buf, cap, off, "</div>");
 }
 
+/* Settings -> General: optional MQTT client with Home Assistant discovery
+ * (mqtt_ha.h). Off by default; the checkbox starts and stops it at once. */
+static int append_mqtt_card(char *buf, size_t cap, int off)
+{
+    mqtt_ha_cfg_t c = mqtt_ha_get();
+    mqtt_ha_state_t ms = mqtt_ha_state();
+    char st[96];
+    if (!c.enabled)                snprintf(st, sizeof(st), "off");
+    else if (ms == MQTT_HA_CONNECTED)
+        { unsigned kb = (mqtt_ha_heap_cost() + 512) / 1024;
+          if (kb) snprintf(st, sizeof(st), "connected (uses about %u KB of memory)", kb);
+          else    snprintf(st, sizeof(st), "connected"); }
+    else                           snprintf(st, sizeof(st), "trying to connect...");
+    if (!s_viewer_signed_in) {
+        return appendf(buf, cap, off,
+            "<div class=\"card\"><h2>MQTT (Home Assistant)</h2>"
+            "<p class=\"muted\">%s. Sign in to see or change it.</p></div>", c.enabled ? "On" : "Off");
+    }
+    char ehost[MQTT_HA_HOST_MAX * 6], euser[MQTT_HA_USER_MAX * 6];
+    html_escape(c.host, ehost, sizeof(ehost));
+    html_escape(c.user, euser, sizeof(euser));
+    off = appendf(buf, cap, off,
+        "<div class=\"card\"><h2>MQTT (Home Assistant)</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">Current</span><span>%s</span></div>"
+        "<form method=\"POST\" action=\"/mqtt\" class=\"settings-form\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> Enabled</label>"
+        "<label>Broker <input type=\"text\" name=\"host\" value=\"%s\" maxlength=\"%d\" "
+        "placeholder=\"homeassistant.local  or  192.168.1.5:1883\"></label>"
+        "<label>User <input type=\"text\" name=\"user\" value=\"%s\" maxlength=\"%d\" autocomplete=\"off\"></label>"
+        "<label>Password <input type=\"password\" name=\"pass\" maxlength=\"%d\" autocomplete=\"new-password\" "
+        "placeholder=\"%s\"></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+        "</form>", st, c.enabled ? " checked" : "", ehost, MQTT_HA_HOST_MAX - 1, euser,
+        MQTT_HA_USER_MAX - 1, MQTT_HA_PASS_MAX - 1, c.pass[0] ? "(unchanged)" : "");
+    off = append_hint(buf, cap, off,
+        "Makes the board show up in Home Assistant by itself, with a sensor and a Ring button "
+        "per line, an event for each dial code, and a button for each pin output. Untick to turn "
+        "it off and free the memory.",
+        "Needs an MQTT broker (Home Assistant's Mosquitto add-on). Plain mqtt:// only, port 1883 "
+        "unless you add :port. Anyone who can publish to the broker can ring the phone and fire "
+        "your pin outputs, so give the broker a password. Experimental: see docs/home-assistant.md.");
+    return appendf(buf, cap, off, "</div>");
+}
+
 static int append_general_tab(char *buf, size_t cap, int off)
 {
     char raw_name[40], name[40 * 6], host[80];
@@ -1862,7 +1911,8 @@ static int append_general_tab(char *buf, size_t cap, int off)
                  "the window wraps past midnight. Takes effect on the next incoming call -- "
                  "no reboot."));
     off = appendf(buf, cap, off, "</div>");
-    return append_webhook_card(buf, cap, off);
+    off = append_webhook_card(buf, cap, off);
+    return append_mqtt_card(buf, cap, off);
 }
 
 /* Everything about how a call sounds/behaves on the phone itself, one tab:
@@ -6058,6 +6108,27 @@ static esp_err_t timezone_set_handler(httpd_req_t *req)
     return redirect_to(req, "/settings?tab=general");
 }
 
+/* POST /mqtt -- [enabled=1&]host=..&user=..&pass=.. . A blank password keeps
+ * the saved one unless the user is blank too. */
+static esp_err_t mqtt_handler(httpd_req_t *req)
+{
+    char body[WIFI_FORM_MAX_BODY];
+    READ_FORM_OR_RETURN(req, body);
+    mqtt_ha_cfg_t c = mqtt_ha_get(), n = {0};
+    char en[4] = {0};
+    form_field(body, "enabled", en, sizeof(en));
+    form_field(body, "host", n.host, sizeof(n.host));
+    form_field(body, "user", n.user, sizeof(n.user));
+    form_field(body, "pass", n.pass, sizeof(n.pass));
+    n.enabled = en[0] == '1';
+    if (!n.pass[0] && n.user[0]) strlcpy(n.pass, c.pass, sizeof(n.pass));
+    if (mqtt_ha_set(&n) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "enter a broker (letters, digits, . - : only)");
+        return ESP_OK;
+    }
+    return redirect_to(req, "/settings?tab=general");
+}
+
 /* POST /webhook -- url=<http://...|empty>[&test=1]. Saves the URL, then
  * with test=1 queues a "test" event to it. */
 static esp_err_t webhook_handler(httpd_req_t *req)
@@ -9372,6 +9443,7 @@ esp_err_t webui_start(void)
         { .uri = "/tone_lang_set",   .method = HTTP_POST, .handler = tone_lang_set_handler },
         { .uri = "/quiet_hours",     .method = HTTP_POST, .handler = quiet_hours_handler },
         { .uri = "/webhook",         .method = HTTP_POST, .handler = webhook_handler },
+        { .uri = "/mqtt",            .method = HTTP_POST, .handler = mqtt_handler },
         { .uri = "/voip_enable",     .method = HTTP_POST, .handler = voip_enable_handler },
         { .uri = "/idle_power",      .method = HTTP_POST, .handler = idle_power_settings_handler },
         { .uri = "/answering_machine", .method = HTTP_POST, .handler = answering_machine_handler },

@@ -34,6 +34,12 @@ void webhook_event(const char *event, int line, const char *detail);
 void webhook_eventf(const char *event, int line, const char *fmt, ...)
     __attribute__((format(printf, 3, 4)));
 
+/* Second consumer of the same events (the MQTT client): called, on the task
+ * that raised the event, for every event whether or not a URL is set. Must not
+ * block. NULL removes it. */
+typedef void (*webhook_tap_t)(const char *event, int line, const char *detail);
+void webhook_set_tap(webhook_tap_t tap);
+
 void webhook_url_get(char *out, size_t len);
 /* "" turns webhooks off. ESP_ERR_INVALID_ARG unless it starts with http://. */
 esp_err_t webhook_url_set(const char *url);

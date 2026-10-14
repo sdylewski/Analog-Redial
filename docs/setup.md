@@ -83,7 +83,8 @@ active.
 **Home Assistant (experimental).** The board can POST every pickup,
 hang-up, dial code and incoming ring to a Home Assistant webhook (Settings →
 General → Webhook), and Home Assistant can ring a phone or fire a pin output
-over HTTP. Untested so far: see [Home Assistant](home-assistant.md).
+over HTTP. Or tick Settings → General → MQTT and the board appears in Home
+Assistant as a device. Experimental: see [Home Assistant](home-assistant.md).
 
 
 ## 4. The web interface

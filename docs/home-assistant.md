@@ -2,9 +2,10 @@
 
 # Home Assistant
 
-> **Experimental: untested.** This is a proof of concept. The firmware side
-> builds, but nobody has run it against a real Home Assistant yet. Expect to
-> adjust the YAML. Reports welcome.
+> **Experimental.** The board side has been tested against a Mosquitto
+> broker (discovery messages, state, events, the ring command, switching it
+> on and off). Nobody has run any of this against a real Home Assistant yet,
+> and the YAML below is untested. Expect to adjust it. Reports welcome.
 
 There's no add-on or integration to install. The board already speaks plain
 HTTP, so Home Assistant talks to it with built-in pieces:
@@ -14,6 +15,7 @@ HTTP, so Home Assistant talks to it with built-in pieces:
 | HA reads the board | [`rest`](https://www.home-assistant.io/integrations/rest/) sensor polling `/api/status` | Line state, last caller, Wi-Fi, uptime |
 | HA tells the board | [`rest_command`](https://www.home-assistant.io/integrations/rest_command/) | Ring a phone, fire a pin output, quiet hours |
 | The board tells HA | A **webhook**: the board POSTs each event the moment it happens | "Someone dialed 42", "the phone is ringing", "new message" |
+| Both, with no YAML | **MQTT** with auto-discovery: the board shows up in Home Assistant as a device | Everything above, as ready-made entities (§4) |
 
 The examples assume the board is `phone.local` and Home Assistant is
 `homeassistant.local:8123`. Use IP addresses if `.local` names don't work on
@@ -184,6 +186,42 @@ Used from an automation:
 The board answers these with a redirect to its settings page; Home
 Assistant treats that as success.
 
+## 4. MQTT with auto-discovery
+
+Settings → General → **MQTT (Home Assistant)**. Tick **Enabled**, enter the
+broker (`homeassistant.local`, or `192.168.1.5:1883` for another port), the
+broker's user and password, and Save. It connects within a few seconds. Untick
+it and Save to switch it off again; nothing is allocated while it's off and
+there is no reboot either way.
+
+You need an MQTT broker; in Home Assistant that's the **Mosquitto broker**
+add-on plus the MQTT integration. The board then appears under
+Settings → Devices as one device, with:
+
+| Entity | What it is |
+|---|---|
+| **Line 1** (and Line 2) | Sensor: `IDLE`, `DIALTONE`, `RINGING`, `INCALL` and so on. Attributes: last number, caller name, caller number |
+| **Ring line 1** (and 2) | Button: rings the phone for 4 seconds, if it's on-hook and idle |
+| **Phone event** | Event entity: `offhook`, `onhook`, `dial`, `wrong_number`, `ring`, `answering_machine`, `recording`, with the line and the digits or caller |
+| **Pin output buttons** | One per pin dial code (Settings → Dial Codes → Pin outputs): press to fire it |
+| **Wi-Fi signal**, **Free memory** | Diagnostics, every 60 s |
+
+The topics are `redial/<id>/...`, where `<id>` is `redial_` plus the last six
+hex digits of the board's MAC address. Commands arrive on
+`redial/<id>/cmd/ring/<line>` (payload: seconds, 1 to 15) and
+`redial/<id>/cmd/pin/<code>`. Pin buttons are announced when the board
+connects, so save the MQTT card again after adding or removing a pin code.
+
+**Costs.** The MQTT code adds about 46 KB to the firmware image. While
+connected it holds about 21 KB of the board's free memory (around 72 KB when
+idle), and gives most of it back when switched off. Leave it off if you don't
+use it.
+
+**Safety.** Anyone who can publish to the broker can ring the phone and fire
+your pin outputs, so give the broker a password and don't expose it to the
+internet. Only plain `mqtt://` is supported, not TLS: the encrypted
+connection needs about 35 KB more memory than the board can spare.
+
 ## Limits
 
 - **Plain HTTP, both ways.** The password and webhook ID cross your network
@@ -192,8 +230,8 @@ Assistant treats that as success.
   rest; if Home Assistant is down, they're lost, not retried.
   `/api/status` shows `webhook_last_status`: the HTTP status of the last
   post, or a negative number if it never got an answer.
-- **No auto-discovery.** Entities are the YAML above, not a device that
-  appears by itself. That would need MQTT, which the firmware doesn't have.
+- **MQTT and the webhook are independent.** Use either or both; they send
+  the same events.
 
 ---
 

@@ -29,6 +29,7 @@ typedef struct {
 
 static char s_url[WEBHOOK_URL_MAX];
 static QueueHandle_t s_q;
+static volatile webhook_tap_t s_tap;
 static volatile int s_last_status;
 static volatile unsigned s_sent, s_dropped;
 
@@ -106,8 +107,12 @@ void webhook_init(void)
     if (s_url[0]) ensure_started();
 }
 
+void webhook_set_tap(webhook_tap_t tap) { s_tap = tap; }
+
 void webhook_event(const char *event, int line, const char *detail)
 {
+    webhook_tap_t tap = s_tap;
+    if (tap) tap(event, line, detail ? detail : "");
     if (!s_url[0] || !s_q) return;
     wh_evt_t e = { .line = (int8_t)line };
     strlcpy(e.event, event, sizeof(e.event));
@@ -119,7 +124,7 @@ void webhook_event(const char *event, int line, const char *detail)
 
 void webhook_eventf(const char *event, int line, const char *fmt, ...)
 {
-    if (!s_url[0] || !s_q) return;
+    if (!s_tap && (!s_url[0] || !s_q)) return;
     char d[72];
     va_list ap;
     va_start(ap, fmt);
