@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 60 64" width="60" height="64" role="img" aria-label="Four pin outputs (relay, light, lock)">
+<g font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+<g id="pin-outputs" inkscape:label="Four pin outputs (relay, light, lock)" transform="translate(8,8)">
+  <circle id="bulb" cx="22" cy="12" r="11" fill="#c78a2b"/>
+  <rect id="bulb-base" x="15" y="22" width="14" height="6" rx="2" fill="#5c4a35"/>
+  <rect id="header" x="0" y="34" width="44" height="14" rx="3" fill="#2b2620"/>
+  <circle cx="8" cy="41" r="3" fill="#c78a2b"/><circle cx="18" cy="41" r="3" fill="#c78a2b"/>
+  <circle cx="28" cy="41" r="3" fill="#c78a2b"/><circle cx="38" cy="41" r="3" fill="#c78a2b"/>
+  <path d="M 22 28 V 34" stroke="#5c4a35" stroke-width="3"/></g>
+</g>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 166 70" width="166" height="70" role="img" aria-label="Bluetooth adapter board (BM64)">
+<g font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+<g id="bluetooth-adapter" inkscape:label="Bluetooth adapter board (BM64)" transform="translate(8,8)">
+  <rect id="pcb" x="0" y="0" width="150" height="44" rx="8" fill="#9c6a1f"/>
+  <rect id="chip" x="10" y="10" width="40" height="24" rx="3" fill="#6f4a14"/>
+  <text x="30" y="26" text-anchor="middle" font-size="10" font-weight="600" fill="#f5e4bf">BM64</text>
+  <text x="100" y="26" text-anchor="middle" font-size="12" font-weight="600" fill="#f5e4bf">Bluetooth board</text>
+  <rect id="plug" x="62" y="44" width="26" height="10" rx="2" fill="#5c4a35"/></g>
+</g>
+</svg>

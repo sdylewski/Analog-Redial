@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 246 186" width="246" height="186" role="img" aria-label="Analog Redial board (one line, options on the right)">
+<g font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+<g id="board-core" inkscape:label="Analog Redial board (one line, options on the right)" transform="translate(8,8)">
+  <rect id="pcb" x="0" y="0" width="230" height="170" rx="10" fill="#2b2620"/>
+  <rect id="jack-line-1" x="-7" y="72" width="10" height="26" rx="2" fill="#5c4a35"/>
+  <rect id="options-connector" x="227" y="72" width="10" height="26" rx="2" fill="#5c4a35"/>
+  <rect id="adapter-header" x="102" y="-8" width="26" height="12" rx="2" fill="#5c4a35"/>
+  <circle id="led-1" cx="30" cy="18" r="4" fill="#c78a2b"/><circle id="led-2" cx="46" cy="18" r="4" fill="#7c8c45"/>
+  <text x="115" y="94" text-anchor="middle" font-size="17" font-weight="600" fill="#f7f0e0">ANALOG REDIAL</text>
+  <text x="115" y="116" text-anchor="middle" font-size="12" fill="#8a6f4d">Wi-Fi built in</text></g>
+</g>
+</svg>

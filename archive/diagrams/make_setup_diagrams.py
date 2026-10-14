@@ -123,6 +123,30 @@ part("sd-card", 36, 40, "microSD card", f'''
   <rect x="22" y="10" width="4" height="12" fill="{PAPER_D}"/>
   <text x="18" y="34" text-anchor="middle" font-size="9" font-weight="600" fill="#7a6a52">SD</text>''')
 
+part("board-core", 230, 170, "Analog Redial board (one line, options on the right)", f'''
+  <rect id="pcb" x="0" y="0" width="230" height="170" rx="10" fill="{INK}"/>
+  <rect id="jack-line-1" x="-7" y="72" width="10" height="26" rx="2" fill="{BROWN}"/>
+  <rect id="options-connector" x="227" y="72" width="10" height="26" rx="2" fill="{BROWN}"/>
+  <rect id="adapter-header" x="102" y="-8" width="26" height="12" rx="2" fill="{BROWN}"/>
+  <circle id="led-1" cx="30" cy="18" r="4" fill="{AMBER}"/><circle id="led-2" cx="46" cy="18" r="4" fill="{OLIVE}"/>
+  <text x="115" y="94" text-anchor="middle" font-size="17" font-weight="600" fill="{CREAM}">ANALOG REDIAL</text>
+  <text x="115" y="116" text-anchor="middle" font-size="12" fill="{TAN}">Wi-Fi built in</text>''')
+
+part("bluetooth-adapter", 150, 54, "Bluetooth adapter board (BM64)", f'''
+  <rect id="pcb" x="0" y="0" width="150" height="44" rx="8" fill="{AMBER_D}"/>
+  <rect id="chip" x="10" y="10" width="40" height="24" rx="3" fill="#6f4a14"/>
+  <text x="30" y="26" text-anchor="middle" font-size="10" font-weight="600" fill="#f5e4bf">BM64</text>
+  <text x="100" y="26" text-anchor="middle" font-size="12" font-weight="600" fill="#f5e4bf">Bluetooth board</text>
+  <rect id="plug" x="62" y="44" width="26" height="10" rx="2" fill="{BROWN}"/>''')
+
+part("pin-outputs", 44, 48, "Four pin outputs (relay, light, lock)", f'''
+  <circle id="bulb" cx="22" cy="12" r="11" fill="{AMBER}"/>
+  <rect id="bulb-base" x="15" y="22" width="14" height="6" rx="2" fill="{BROWN}"/>
+  <rect id="header" x="0" y="34" width="44" height="14" rx="3" fill="{INK}"/>
+  <circle cx="8" cy="41" r="3" fill="{AMBER}"/><circle cx="18" cy="41" r="3" fill="{AMBER}"/>
+  <circle cx="28" cy="41" r="3" fill="{AMBER}"/><circle cx="38" cy="41" r="3" fill="{AMBER}"/>
+  <path d="M 22 28 V 34" stroke="{BROWN}" stroke-width="3"/>''')
+
 part("cord", 120, 24, "Curly cord", f'<g transform="translate(0,12)">{cord(120, 4)}</g>')
 
 
@@ -242,6 +266,184 @@ def compose_two_line_everything() -> Scene:
     return s
 
 
+# ---------------------------------------------------------------- overview (three sizes)
+
+DW, DH = 720, 750    # design size of the diagram itself, before any scaling
+
+PILL_COLORS = {"ALWAYS": OLIVE_D, "PICK ONE": OLIVE_D, "BUILT-IN WI-FI": BROWN_D, "EXTRA BOARD": AMBER_D}
+
+
+def pill_markup(cx: float, cy: float, label: str, color: str) -> str:
+    w = 22 + 7.3 * len(label)
+    return (f'<rect x="{cx - w/2:g}" y="{cy - 11:g}" width="{w:g}" height="22" rx="11" fill="{color}"/>'
+            f'<text x="{cx:g}" y="{cy + 4:g}" text-anchor="middle" font-size="11" font-weight="700" '
+            f'letter-spacing="0.6" fill="{CREAM}">{label}</text>'), w
+
+
+def compose_overview_content() -> Scene:
+    s = Scene(DW, DH)
+    s.text("title", "Everything the board can connect to", 360, 24, 21, 700, INK)
+    s.text("subtitle", "Every network option works on the same board. Only Bluetooth needs an extra board.",
+           360, 48, 14, 400, TEXT)
+
+    # board in the middle of the wired row
+    bx, by = 190, 292
+    cx_board = bx + 115
+    s.place("board", "board-core", bx, by, "Analog Redial board")
+    jack_y = by + 85
+
+    # line 1: always
+    s.place("phone-line-1", "phone", 0, jack_y - 54, "Analog phone (always)")
+    s.add("cord-line-1", "Curly cord, line 1", cord(bx - 7 - 96, 4), 96, jack_y)
+    s.text("label-line-1", "Your phone", 45, jack_y + 52, 14, 600, INK)
+    s.add("tag-always", "tag: ALWAYS", pill_markup(45, jack_y + 78, "ALWAYS", PILL_COLORS["ALWAYS"])[0])
+
+    # pick one: three cards on the right, off the board's connector
+    card_w, card_h, gap = 230, 78, 20
+    cx0 = DW - card_w
+    top = jack_y - (3 * card_h + 2 * gap) / 2
+    spine_x = bx + 237 + 31
+    s.line("link-options", "Wire to the option cards", bx + 237, jack_y, spine_x, jack_y, OLIVE)
+    s.line("link-options-spine", "Spine", spine_x, top + card_h / 2, spine_x,
+           top + 2 * (card_h + gap) + card_h / 2, OLIVE)
+    cards = [
+        ("line-2", "phone", 0.62, "Second phone line", "a second analog phone"),
+        ("microsd", "sd-card", 1.0, "microSD card", "recordings and clips"),
+        ("pins", "pin-outputs", 1.0, "4 pin outputs", "relay, light, lock"),
+    ]
+    for i, (key, partname, k, title, sub) in enumerate(cards):
+        y = top + i * (card_h + gap)
+        s.line(f"stub-{key}", f"Wire to {title}", spine_x, y + card_h / 2, cx0, y + card_h / 2, OLIVE)
+        w, h, _, body = PARTS_DEF[partname]
+        ix = cx0 + 12 + (60 - w * k) / 2
+        iy = y + (card_h - h * k) / 2
+        s.add(f"option-{key}", title,
+              f'<rect width="{card_w}" height="{card_h}" rx="12" fill="{PAPER}" stroke="{PAPER_D}" stroke-width="2"/>'
+              f'<g transform="translate({12 + (60 - w * k) / 2:g},{(card_h - h * k) / 2:g}) scale({k:g})">{body}</g>'
+              f'<text x="82" y="35" font-size="15" font-weight="600" fill="{INK}">{title}</text>'
+              f'<text x="82" y="56" font-size="12" fill="{TEXT}">{sub}</text>', cx0, y)
+        if i < 2:
+            s.text(f"or-{i + 1}", "or", spine_x + 62, y + card_h + gap / 2 + 4, 11, 700, OLIVE_D)
+    s.add("tag-pick-one", "tag: PICK ONE",
+          pill_markup(cx0 + card_w / 2, top - 22, "PICK ONE", PILL_COLORS["PICK ONE"])[0])
+
+    # Bluetooth: an extra board plugged into the header, then the cell phone
+    ax = cx_board - 75
+    ay = by - 8 - 54 + 4
+    s.place("bluetooth-adapter", "bluetooth-adapter", ax, ay, "Bluetooth adapter board (BM64)")
+    s.add("tag-extra-board", "tag: EXTRA BOARD",
+          pill_markup(ax - 62, ay + 22, "EXTRA BOARD", PILL_COLORS["EXTRA BOARD"])[0])
+    s.place("cell-phone", "cell-phone", cx_board - 31, 78, "Your cell phone")
+    s.text("label-cell-phone", "Your cell phone", cx_board - 46, 140, 14, 400, BROWN_D, "end")
+    s.place("cellular", "cellular", cx_board + 44, 108)
+    s.text("label-cellular", "cellular calls", cx_board + 86, 156, 13, 600, OLIVE_D, "start")
+    s.line("link-bluetooth", "Bluetooth link", cx_board, 194, cx_board, ay, AMBER, dashed=True)
+    s.add("bluetooth-symbol", "Bluetooth rune",
+          f'<rect x="-6" y="-4" width="28" height="32" rx="6" fill="{CREAM}"/>' + PARTS_DEF["bluetooth-symbol"][3],
+          cx_board - 8, 204)
+    s.text("label-bluetooth", "Bluetooth", cx_board + 22, 222, 13, 600, AMBER_D, "start")
+
+    # Wi-Fi: built in, three services hang off it
+    bar_y = 520
+    s.line("link-wifi", "Wi-Fi link", cx_board, by + 170, cx_board, bar_y, OLIVE)
+    s.add("wifi", "Wi-Fi", f'<rect x="-6" y="-2" width="72" height="44" rx="8" fill="{CREAM}"/>'
+          + PARTS_DEF["wifi"][3], cx_board - 30, by + 170 + 8)
+    s.add("wifi-network", "Your Wi-Fi network",
+          f'<rect x="0" y="{bar_y}" width="{DW}" height="36" rx="18" fill="{PAPER}" stroke="{PAPER_D}" stroke-width="2"/>'
+          f'<text x="{DW / 2}" y="{bar_y + 23}" text-anchor="middle" font-size="14" font-weight="600" '
+          f'fill="{BROWN_D}">Your Wi-Fi network: built in, no extra hardware</text>')
+    services = [
+        ("web", "browser", 120, "Web interface", ["Settings, recordings, dial codes,", "and firmware updates"], "HTTP"),
+        ("voip", "server", 360, "VoIP server", ["Call other extensions"], "SIP + RTP"),
+        ("home", "home", 600, "Home Assistant", ["Events, buttons and sensors"], "MQTT"),
+    ]
+    stop = bar_y + 36 + 40
+    for key, partname, cx, name, desc, proto in services:
+        w, h, _, _ = PARTS_DEF[partname]
+        s.line(f"link-{key}", f"Link to {name}", cx, bar_y + 36, cx, stop, OLIVE)
+        s.pill(f"protocol-{key}", proto, cx, bar_y + 56)
+        s.place(f"service-{key}", partname, cx - w / 2, stop, name)
+        s.text(f"label-{key}", name, cx, stop + h + 24, 15, 600, INK)
+        for j, line in enumerate(desc):
+            s.text(f"desc-{key}-{j + 1}", line, cx, stop + h + 44 + 17 * j, 12, 400, TEXT)
+    return s
+
+
+LEGEND = [
+    ("ALWAYS", "One analog phone, wired to the board. It works with no network at all: dial tone, "
+               "dial codes, audio clips and recordings."),
+    ("PICK ONE", "A second phone line, or a microSD card for hours of recordings, or four pins to switch a "
+                 "relay, light or lock. They share the same pins on the board, so you choose when you build."),
+    ("BUILT-IN WI-FI", "The web interface (with firmware updates), VoIP calls to a SIP server and Home Assistant "
+                       "over MQTT all run over the board's own Wi-Fi. Nothing to add: set them up in the web interface."),
+    ("EXTRA BOARD", "Bluetooth is the only option that needs more hardware: a BM64 adapter board that plugs "
+                    "into the header. Your analog phone then rings and answers your cell phone's calls."),
+]
+
+
+def wrap(text: str, width: int) -> list[str]:
+    out, line = [], ""
+    for word in text.split():
+        if line and len(line) + 1 + len(word) > width:
+            out.append(line)
+            line = word
+        else:
+            line = f"{line} {word}".strip()
+    return out + [line]
+
+
+def legend_markup(x: float, y: float, chars: int, size: float = 13,
+                  inline: bool = False) -> tuple[str, float]:
+    """The key. Stacked (tag above its paragraph) for a narrow column, or
+    inline (tag left, paragraph right) for a full-width band. Returns
+    (markup, height)."""
+    out, cy = [], y
+    for tag, text in LEGEND:
+        pw = 22 + 7.3 * len(tag)
+        mk, _ = pill_markup(x + pw / 2, cy + 11, tag, PILL_COLORS[tag])
+        out.append(f'<g id="legend-{tag.lower().replace(" ", "-")}" inkscape:label="legend: {tag}">{mk}')
+        tx, ty = (x + 150, cy + 15) if inline else (x, cy + 40)
+        lines = wrap(text, chars)
+        for ln in lines:
+            out.append(f'<text x="{tx:g}" y="{ty:g}" font-size="{size:g}" fill="{TEXT}">{ln}</text>')
+            ty += size + 5
+        out.append("</g>")
+        cy = max(ty, cy + 30) + (10 if inline else 14)
+    return "\n".join(out), cy - y
+
+
+def build_overview(kind: str) -> tuple[str, int, int]:
+    content = compose_overview_content()
+    body = "\n".join(content.items)
+    if kind == "docs":
+        m = 36
+        W, H = DW + 2 * m, DH + 2 * m - 10
+        k, ox, oy, legend = 1.0, m, m - 10, ""
+    elif kind == "letter-landscape":      # 11 x 8.5 in at 96 dpi
+        W, H = 1056, 816
+        k = 0.96
+        ox, oy = 28, (H - DH * k) / 2
+        lm, _ = legend_markup(ox + DW * k + 36, oy + 26, 38, 13)
+        legend = lm
+    elif kind == "letter-portrait":       # 8.5 x 11 in at 96 dpi
+        W, H = 816, 1056
+        k = 0.93
+        ox, oy = (W - DW * k) / 2, 30
+        lm, _ = legend_markup(48, oy + DH * k + 22, 74, 13, inline=True)
+        legend = lm
+    else:
+        raise ValueError(kind)
+    doc = svg_doc(
+        W, H,
+        f'<g id="diagram" inkscape:label="Diagram" transform="translate({ox:g},{oy:g}) scale({k:g})">\n{body}\n</g>\n'
+        f'<g id="legend" inkscape:label="Legend">\n{legend}\n</g>' if legend else
+        f'<g id="diagram" inkscape:label="Diagram" transform="translate({ox:g},{oy:g}) scale({k:g})">\n{body}\n</g>',
+        "Everything the Analog Redial board can connect to: one phone always, then a second line or a microSD "
+        "card or four pin outputs; Wi-Fi to the web interface, a VoIP server and Home Assistant; and Bluetooth "
+        "through an extra adapter board", bg=True)
+    return doc, W, H
+
+
 def export_png(svg: Path, png: Path) -> None:
     exe = shutil.which("rsvg-convert")
     if not exe:
@@ -259,6 +461,12 @@ def main() -> None:
     out.write_text(scene.svg("Two phone lines on an Analog Redial board, with Bluetooth to a cell phone, "
                              "and Wi-Fi to the web interface, a VoIP server and Home Assistant"))
     export_png(out, out.with_suffix(".png"))
+    for kind in ("docs", "letter-landscape", "letter-portrait"):
+        doc, W, H = build_overview(kind)
+        path = ASSETS / f"setup-overview-{kind}.svg"
+        path.write_text(doc)
+        export_png(path, path.with_suffix(".png"))
+        print(f"  {path.name}  {W} x {H}")
     print(f"wrote {len(PARTS_DEF)} parts and {out.name}")
 
 
