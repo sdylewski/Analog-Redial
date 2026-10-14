@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 92 78" width="92" height="78" role="img" aria-label="VoIP server (Asterisk / PBX)">
+<g font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+<g id="server" inkscape:label="VoIP server (Asterisk / PBX)" transform="translate(8,8)">
+  <rect x="0" y="0" width="76" height="28" rx="6" fill="#2b2620"/>
+  <rect x="0" y="34" width="76" height="28" rx="6" fill="#2b2620"/>
+  <circle cx="14" cy="14" r="3.5" fill="#7c8c45"/><circle cx="26" cy="14" r="3.5" fill="#c78a2b"/>
+  <rect x="42" y="11" width="26" height="6" rx="3" fill="#5c4a35"/>
+  <circle cx="14" cy="48" r="3.5" fill="#7c8c45"/><circle cx="26" cy="48" r="3.5" fill="#7c8c45"/>
+  <rect x="42" y="45" width="26" height="6" rx="3" fill="#5c4a35"/></g>
+</g>
+</svg>

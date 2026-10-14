@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 92 78" width="92" height="78" role="img" aria-label="Home automation (a generic house, not a product logo)">
+<g font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+<g id="home" inkscape:label="Home automation (a generic house, not a product logo)" transform="translate(8,8)">
+  <path d="M 4 30 L 38 3 L 72 30" fill="none" stroke="#4d5a26" stroke-width="7"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 13 28 V 58 H 63 V 28 L 38 8 Z" fill="#7c8c45" stroke="#4d5a26" stroke-width="3"
+        stroke-linejoin="round"/>
+  <rect x="31" y="38" width="14" height="20" rx="2" fill="#f7f0e0"/>
+  <circle cx="38" cy="25" r="5" fill="#c78a2b"/></g>
+</g>
+</svg>

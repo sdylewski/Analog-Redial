@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 106 96" width="106" height="96" role="img" aria-label="Analog telephone">
+<g font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+<g id="phone" inkscape:label="Analog telephone" transform="translate(8,8)">
+  <g id="handset"><line x1="14" y1="16" x2="76" y2="16" stroke="#4d5a26" stroke-width="20" stroke-linecap="round"/>
+    <circle cx="14" cy="16" r="13" fill="#7c8c45"/><circle cx="76" cy="16" r="13" fill="#7c8c45"/></g>
+  <g id="body"><rect x="4" y="32" width="82" height="44" rx="8" fill="#2b2620"/>
+    <circle cx="45" cy="54" r="14" fill="none" stroke="#7c8c45" stroke-width="3"/>
+    <circle cx="45" cy="54" r="3.5" fill="#7c8c45"/></g></g>
+</g>
+</svg>
