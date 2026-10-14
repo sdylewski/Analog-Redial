@@ -38,7 +38,9 @@ make old phones ring again*
 
 > Old rotary phones get dial tone, dial codes and an answering machine. With Bluetooth, your rotary phone becomes a handset for your cell.
 
-Alternatives, also under 140: *Rotary phones get dial tone, dial codes and an
+Alternatives, also under 140: *Rotary phones get dial tone, dial codes, an
+answering machine and Home Assistant. Add Bluetooth and it's a handset for
+your cell.* (129) · *Rotary phones get dial tone, dial codes and an
 answering machine. Add Bluetooth: dial out on the old phone, ring the bell
 for cell calls.* (137) · *Open-source phone system for old rotary/touch-tone
 phones: dial codes, answering machine, VoIP, and Bluetooth to your cell
@@ -58,6 +60,7 @@ phone.* (129)
 | v5 board (until you have a photo) | `docs/pics/V5_board_front.png` | v5 front |
 | v5 board back | `docs/pics/V5_board_rear.png` | Solder jumpers for the genuine or clone ESP32-C6 module |
 | Bluetooth carrier **[YOU]** | photo of the BM64 board on the header | The BM64 Bluetooth board plugs onto the 8-pin header |
+| Overview | `docs/assets/setup-overview-top-docs.png` (or `-letter-portrait.png`) | Everything it connects to: one phone always, pick one of line 2 / microSD / your own gadgets, Wi-Fi, Home Assistant, Bluetooth |
 | Web UI | `docs/pics/status.png` | Status page: lines, activity, the dial guide |
 | Web UI | `docs/pics/settings-dialcodes.png` | Add your own dial codes and audio from the browser |
 | Web UI | `docs/pics/settings-bluetooth.png` | Pairing your cell phone |
@@ -72,11 +75,17 @@ The yellow phone is the picture people will click on.
 
 ## 4. Details (paste this)
 
+This is the text as it stands on the live page (synced 2026-10-14). Edit the
+page and this file together, or this file goes stale.
+
 **Analog Redial turns old analog phones into a little phone system you can
-hack.** Plug in one or two phones, rotary or touch-tone, and you get real dial
-tone, ringing, calls between the phones, an answering machine, and a bunch of
-dial codes that do fun things... all set up from a web page. Add the Bluetooth
-board and your rotary phone becomes a handset for your cell phone!
+hack.**
+Plug in one or two phones, rotary or touch-tone, and you get real dial tone,
+ringing, calls between the phones, an answering machine, and a bunch of dial
+codes that do fun things... all set up from a web page. It can also talk to
+Home Assistant, so a dial code can turn on a light, or the phone can ring when
+your doorbell does. Add the Bluetooth board and your rotary phone becomes a
+handset for your cell phone!
 
 Everything's open: KiCad hardware, ESP-IDF firmware in C (MIT license), and a
 serial console for poking at every part of the hardware.
@@ -86,22 +95,40 @@ serial console for poking at every part of the hardware.
 This project started as a way to use my family's yellow rotary-dial wall
 phone from when I was a child. One rotary phone could call another, and my
 kid liked playing with it. The first version ran on a Raspberry Pi and worked
-OK for years, but this ESP32-based version has more features and is cheaper
+ok for years, but this ESP32-based version has more features and is cheaper
 to build.
 
 Why not just buy a VoIP adapter? Most of them only understand touch-tone, so
 a rotary phone can't dial through them, and they need a SIP server before
-they'll do anything, even let two phones on the same box call each other.
-This is a whole phone system on its own.
+they'll do anything. This is a whole phone system on its own, with the
+ability to hack and extend it.
 
-### The best part: Bluetooth
+### Dial anything
+
+The ESP32 sees every digit you dial, so any number can do whatever you want.
+The dial plan is just a table. Defaults:
+
+| Number | What happens |
+|--------|--------------|
+| **321** | Ring the other phone, if enabled |
+| **211** | Record a message (download it from the web page later) |
+| **0** | Operator help (you set the message beforehand) |
+| **899** | Record your answering machine greeting |
+| **412** | A dial-up modem recording - why not? |
+| **1** + (area code) + (number) | Call out through your cell phone (Bluetooth) |
+
+Add your own codes and audio files from the browser, no reflashing: a joke
+line for the kids, a song, a museum exhibit, a wedding guestbook phone
+recorder...
+
+### Bluetooth option
 
 Plug the Bluetooth board (a BM64 module) onto the header and pair it with
 your cell phone. Then:
 
-- **Make calls from the rotary phone.** Pick it up and dial 1 + area code +
-  number. The call goes out on your cell phone, and the audio comes through
-  the old handset.
+- **Make calls from the rotary phone.** Pick it up and dial 1+(area
+  code)+(number). The call goes out on your cell phone, and the audio comes
+  through the old handset.
 - **Incoming calls ring the real bell.** Lift the handset to answer, hang up
   to end the call.
 - **Caller ID** shows up in the web page's activity log.
@@ -112,40 +139,40 @@ There's also a cheaper Bluetooth module, the BK3266, that fits the same
 header. It should ring and answer, but probably can't dial out. I'm still
 testing it.
 
-**[YOU: once tested, add a line on how well it works, e.g. call quality.]**
+### Home Assistant
 
-### Dial anything
+No add-on, no cloud. Tick one box in the settings and the board announces
+itself to Home Assistant over MQTT: each line's state, a "ring the phone"
+button, a "new messages" count, and an event every time someone lifts the
+handset or dials a code. You can add codes whose only job is to tell Home
+Assistant, like "dial 42 for the porch light".
 
-The ESP32 sees every digit you dial, so any number can do whatever you want.
-The dial plan is just a table. Out of the box:
+It also works with a plain webhook if you'd rather skip MQTT. It's
+experimental: I've tested it against a Mosquitto broker, not yet against a
+real Home Assistant, so tell me what breaks.
 
-| Dial | What happens |
-|------|--------------|
-| **321** | Ring the other phone |
-| **211** | Record a message (download it from the web page later) |
-| **0** | Operator help |
-| **899** | Record your answering machine greeting |
-| **412** | A dial-up modem sound, because why not |
-| **1** + area code + number | Call out through your cell phone (Bluetooth) |
+**[YOU: "tick one box" skips one step: the MQTT card also wants your
+broker's address (and its user and password). Maybe "tick one box and give
+it your MQTT broker's address".]**
 
-Add your own codes and audio files from the browser, no reflashing: a joke
-line for the kids, a song, a museum exhibit, a wedding guestbook phone...
+### Make a dial code switch something
 
-**Make a dial code switch something.** Two phone lines, or one line and four
-spare pins, your choice. On a one-line board the pins for the second line
-are wired out to ordinary 2.54 mm header pins, so you can tap in and do what
-you want. In the web page, pick a code, a pin and a time: dial it and the pin
-goes high for that many seconds (or toggles). Hook a relay or a MOSFET to it
-to unlock a door, sound a buzzer, flash a light. (The pins are 3.3 V and
-only a few mA: that often works for a 5 V relay module, but check yours, and
-switch a solenoid through the relay rather than from the pin.) The catch: the
-same four pins are the microSD socket, so a board used this way has no card.
+The board has four spare pins that do one job at a time, and a little header
+(J5) with jumpers picks which. Jumpers on: they run the second phone line.
+Jumpers off: they read a microSD card if one's in the slot, or they're free
+for your own wires if not.
+
+With your own wires, pick a code, a pin and a time on the web page: dial it
+and the pin goes high for that many seconds (or toggles). Hook a relay or a
+MOSFET to it to unlock a door, sound a buzzer, flash a light. A pin gives
+3.3 V and only a few milliamps, so a solenoid needs a relay in between. Most
+5 V relay modules will switch, but check yours.
 
 ### More things it does
 
 - **Rotary and touch-tone.** Both work on either line.
-- **Answering machine** per line, each with its own greeting. Messages go to
-  a microSD card.
+- **Answering machine** per line, each with its own greeting. Messages are
+  saved on the board or on a microSD card if enabled.
 - **Intercom mode:** lift one handset, wait a few seconds, and the other
   phone rings.
 - **VoIP:** register a line with Asterisk or FreePBX and call anything that
@@ -161,7 +188,7 @@ same four pins are the microSD socket, so a board used this way has no card.
 Each phone line goes through the same chain:
 
 ```
-phone ── RJ12 ── AG1171 SLIC ── ES8388 codec ── ESP32-C6 ── Wi-Fi / Bluetooth
+Phone - RJ12 - AG1171 SLIC - ES8388 codec - ESP32 - WIFI / Bluetooth
 ```
 
 - **The SLIC** (Silvertel AG1171) is what makes a phone think it's on a real
@@ -170,11 +197,11 @@ phone ── RJ12 ── AG1171 SLIC ── ES8388 codec ── ESP32-C6 ── 
 - **The codec** (ES8388) turns handset audio into digital audio and back. One
   codec handles both lines, as left and right channels.
 - **The ESP32-C6** does the rest: it counts the pulses from a rotary dial,
-  hears touch-tones, makes all the tones and the ring cadence, connects the
-  two lines, and runs the web page and VoIP.
-- **The Bluetooth board** connects straight to line 1's audio, so a cell
-  phone call never goes through the ESP32 at all. The ESP32 just tells it
-  what to do.
+  hears touch-tones, makes all the (internationalized) tones and the ring
+  cadence, connects the two lines, and runs the web page and VoIP.
+- **The Bluetooth board** connects straight to the first phone's audio, so a
+  cell phone call never goes through the ESP32 at all. The ESP32 just tells
+  it what to do.
 
 ### The board (v5)
 
@@ -182,44 +209,61 @@ A 2-layer board around an ESP32-C6 DevKit, the ES8388 codec, and one or two
 AG1171 SLICs. The fab places the surface-mount parts; you solder the DevKit,
 SLICs, jacks and a few headers.
 
-- **Genuine or cheap ESP32-C6 module.** The footprint takes either the real
-  Espressif DevKitC-1 or a cheaper clone; a couple of solder jumpers on the
-  back select which.
+- **Genuine 32-pin or cheap 30-pin ESP32-C6 module.** The footprint takes
+  either the real Espressif DevKitC-1 or a cheaper clone; a couple of solder
+  jumpers on the back select which.
 - **Bluetooth header** with its own 3.3 V regulator, for the BM64 board.
-- **Second phone line or microSD** (they share four pins), picked with a
-  header and a setting.
+- **Second phone line, microSD, or your own gadgets** (they share four
+  pins), picked with the J5 jumpers and a setting.
 
-**[YOU: confirm these once v5 is tested.]**
+*(The live page also has the Home Assistant paragraph a second time here,
+after the board section. It reads like a paste slip; one copy, above, is
+enough, so it isn't repeated in this file. **[YOU: remove the duplicate on
+the page.]**)*
 
 ### Setup
 
-No app and no account. On first boot the board makes its own Wi-Fi network
-with a setup page; pick your Wi-Fi, and after that it's at
-`http://phone.local` from any phone or laptop in the house.
+You don't need an app or account. On first boot the board makes its own Wi-Fi
+network with a setup page; pick your Wi-Fi, and after that it's at
+`http://phone.local` from any phone or laptop in the house. There's a
+complete web interface to check the board's recordings, in addition to
+extensive settings and options.
 
 ### Built with Claude Code
 
-I wrote a lot of this with Claude Code, an AI coding tool. The web UI is the
-part that really shows it: eight settings tabs, a file manager for your audio
-and recordings, browser firmware updates, a VoIP number provisioner. For a
-one-person hobby project that used to be way more work than I'd ever have time
-for, so a project like this would have stopped at "it rings." Now it can have
-the nice parts too.
+I wrote a lot of this with Claude Code. The web UI is the part that really
+shows it: eight settings tabs, a file manager for your audio and recordings,
+browser firmware updates, a VoIP number provisioner. For a one-person hobby
+project, AI helped me to do things quickly like tone dialing, an advanced web
+UI, and bluetooth connection... all based on my original hand-written python
+code from the raspberry pi.
 
 ### What it costs
 
 Ordering the minimum five assembled boards from JLCPCB comes to about **$86
 delivered (about $17 a board)**, plus about **$19 of parts you solder
-yourself** for each board you build. **[YOU: re-check for v5 and add the
-BM64 module and carrier cost.]**
+yourself** for each board you build. Bluetooth is $20 extra or a 2nd line is
+$10 for another SLIC board.
 
 If a few people want boards, ordering together gets a lot cheaper. **Want
 one? [Fill in the interest form](https://forms.gle/kVKHiXejV6M2ZxC17)**: no
-commitment, it just tells me how many to order.
+commitment, it just tells me if you want me to order a batch for people... if
+there's enough interest, I'll find a way to put it on CrowdSupply or
+something.
 
-### Get involved
+### 3d printed case
 
-Code, hardware and docs: **[GitHub: sdylewski/Analog-Redial](https://github.com/sdylewski/Analog-Redial)**
+There's a .step file for the board to make your own case, but you can also
+just print the ready-made case yourself from the files in the project.
+
+**[YOU: the ready-made cases in the repo
+(`hardware/3d-printed-case`) are for the v4 board, and v5 is 5 mm longer, so
+say which board the case fits, or add a v5 case.]**
+
+### Get more info or build one yourself
+
+Code, hardware and docs:
+**[GitHub: sdylewski/Analog-Redial](https://github.com/sdylewski/Analog-Redial)**
 
 ---
 
@@ -263,8 +307,9 @@ Bluetooth carrier's files, exported from the revision you tested.
    few through-hole parts, about $19 from DigiKey (there's a ready-made list).
 3. **Set the module jumpers.** Genuine Espressif DevKit: leave them alone.
    Cheaper clone: cut and re-bridge the two jumpers on the back.
-4. **Assemble.** Solder the through-hole parts. Pick a second phone line or
-   microSD: they share four pins, and a header selects.
+4. **Assemble.** Solder the through-hole parts. Choose what the four spare
+   pins do with the J5 jumpers: second phone line (jumpers on), or microSD
+   or your own gadgets (jumpers off).
 5. **Check before power.** No shorts between the supply rails; the assembly
    guide has the checks.
 6. **Flash.** Install ESP-IDF, build and flash over USB.
@@ -361,6 +406,10 @@ buffer, so the dial plan doesn't care which kind of phone you have.
 - [ ] v5 brought up and working **[YOU]**
 - [ ] BM64 board tested: pairing, dial-out, incoming ring **[YOU]**
 - [ ] Pin dial code tried on the bench with a relay or an LED **[YOU]**
+- [ ] Home Assistant tried against a real instance, then drop "not yet
+      against a real Home Assistant" from the page **[YOU]**
+- [ ] The duplicate Home Assistant paragraph removed from the live page
+      **[YOU]**
 - [ ] Photos: the yellow phone plugged in, the v5 board, the Bluetooth board
 - [ ] Re-check the cost line for v5, and add the Bluetooth parts
 - [ ] Attach the tested revision's files
@@ -375,5 +424,9 @@ buffer, so the dial plan doesn't care which kind of phone you have.
    microSD. The two header pads J3/J4 are *not* used for this: they depend on
    which ESP32 module and jumper setting you have. A photo of a door-strike
    or LED hooked to J5 would make a good log post.
-2. **Bluetooth dial-out format.** The firmware dials out on 1 + 10 digits
+2. **Home Assistant is untested against a real instance.** The MQTT part is
+   verified against Mosquitto on the bench (discovery, state, events, the
+   ring button, switching it on and off); the YAML in
+   `docs/home-assistant.md` and the entities' look in the UI are not.
+3. **Bluetooth dial-out format.** The firmware dials out on 1 + 10 digits
    today. Fine for the US; other countries would need a change.
