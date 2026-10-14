@@ -93,6 +93,31 @@ fractions of a cent. The KiCad BOM export lists them all.
 
 Budget about $2 in SMT parts, plus about $3 setup per unique Extended part.
 
+## Safety and regulatory notes
+
+**Never connect the phone ports to a wall jack or a telephone-company line.**
+Each phone port is a telephone-company side (FXS) interface, not a line
+input: it supplies about 48 V DC off-hook and about 72 V when ringing. That
+can injure someone and damage the telephone network. The board reaches the
+outside world over Wi-Fi (VoIP), and nothing on it connects to a telco line.
+
+- **Telephone-network rules (US FCC Part 68):** these cover equipment whose
+  port connects to the public telephone network. A board with only FXS ports
+  and no telco-side (FXO) port is the same kind of device as an analog
+  telephone adapter, which generally isn't treated as a network-connected
+  terminal. If you add an FXO port to a design, that changes.
+- **Radio and emissions (FCC Part 15, CE/UKCA):** a finished device with
+  Wi-Fi is subject to these. The ESP32 module carries its own radio
+  certification, but a finished product may still need its own testing.
+- **Safety:** the ring voltage is hazardous. Keep the clearances in
+  [`hardware-smd4.md`](hardware-smd4.md) and label the phone ports.
+- **Selling boards:** bare PCBs and kits for builders carry fewer obligations
+  than finished units, but not none, and the hazard warning above should go on
+  the board and in the documentation. Check the rules for your country before
+  selling assembled units.
+
+This is general information, not legal advice.
+
 ## The case
 
 3D-printable cases for v4, single-line and dual-line, are in
