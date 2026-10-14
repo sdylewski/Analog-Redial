@@ -7,8 +7,9 @@
  *     homeassistant/...) so it shows up as a device with no YAML,
  *   - publishes each line's state, the same events the webhook sends, Wi-Fi
  *     signal and free memory under redial/<id>/..., and
- *   - listens on redial/<id>/cmd/ring/<line> and redial/<id>/cmd/pin/<code>
- *     (the Ring and Pin output buttons in Home Assistant).
+ *   - listens on redial/<id>/cmd/ring/<line>, cmd/pin/<code> and
+ *     cmd/messages_seen (the Ring, Pin output and Mark messages heard buttons
+ *     in Home Assistant).
  *
  * Plain mqtt:// only (TLS would cost ~35 KB of heap).
  */
@@ -31,6 +32,7 @@ typedef struct {
     char host[MQTT_HA_HOST_MAX];   /* "host" or "host:port" */
     char user[MQTT_HA_USER_MAX];
     char pass[MQTT_HA_PASS_MAX];
+    bool ring_quiet;               /* ring commands obey quiet hours (default on) */
 } mqtt_ha_cfg_t;
 
 typedef enum { MQTT_HA_OFF = 0, MQTT_HA_CONNECTING, MQTT_HA_CONNECTED } mqtt_ha_state_t;

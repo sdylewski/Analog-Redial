@@ -47,7 +47,7 @@ Every event is a POST with a small JSON body:
 | `wrong_number` | Digits that match no code | The digits |
 | `ring` | A phone starts ringing | The caller: `name <number>`, `line N`, or `Bluetooth <number>` |
 | `answering_machine` | The answering machine picked up | `VoIP` or `other line` |
-| `recording` | A recording was saved | File name and length |
+| `recording` | A recording was saved | `message`, `voicemail` or `greeting`, then the file name |
 | `test` | The **Send test event** button | |
 
 `line` counts from 0. `time` is Unix seconds, or 0 if the board hasn't set
@@ -82,18 +82,19 @@ message:
       local_only: true
   conditions:
     - condition: template
-      value_template: "{{ trigger.json.event == 'recording' }}"
+      value_template: >
+        {{ trigger.json.event == 'recording' and not trigger.json.detail.startswith('greeting') }}
   actions:
     - action: notify.notify
       data:
         message: "New message on the rotary phone ({{ trigger.json.detail }})"
 ```
 
-A dialed code still does whatever it does on the board, so for a code that
-exists only for Home Assistant, add a short silent or "OK" clip under it in
-Settings → Dial Codes. Otherwise the caller hears "wrong number" (the
-automation still gets the `wrong_number` event, with the digits, so that
-works too).
+For a code that exists only for Home Assistant, add it under Settings → Dial
+Codes → **Home Assistant codes**: dialing it plays the OK tone and sends the
+`dial` event, and nothing else happens on the board. Its **Test** button sends
+the event without dialing. Every other dial code still does its own job as
+well as sending `dial`.
 
 ## 2. Reading the board (REST sensor)
 
@@ -120,6 +121,8 @@ rest:
       - name: "Rotary phone free memory"
         value_template: "{{ value_json.heap_free }}"
         unit_of_measurement: "B"
+      - name: "Rotary phone new messages"
+        value_template: "{{ value_json.new_messages }}"
     binary_sensor:
       - name: "Rotary phone line 1 in use"
         value_template: "{{ value_json.lines[0].state != 'IDLE' }}"
@@ -142,7 +145,8 @@ username can be anything). Otherwise delete them.
 # configuration.yaml
 rest_command:
   # Ring a phone like a doorbell: line 0 or 1, 1-15 seconds. Never rings a
-  # handset that's already lifted.
+  # handset that's already lifted, or a line in a call. Ignores quiet hours
+  # (it's the Diagnostics bench ring): add a time condition if you need one.
   redial_ring:
     url: http://phone.local/test/ring
     method: POST
@@ -155,6 +159,13 @@ rest_command:
   # dialing: e.g. code 7 opens the door relay.
   redial_pin:
     url: "http://phone.local/pin_action_test/{{ code }}"
+    method: POST
+    username: admin
+    password: !secret redial_password
+
+  # Set "New messages" back to 0 (opening the Recordings page does too).
+  redial_messages_heard:
+    url: http://phone.local/messages_seen
     method: POST
     username: admin
     password: !secret redial_password
@@ -201,18 +212,21 @@ Settings → Devices as one device, with:
 | Entity | What it is |
 |---|---|
 | **Line 1** (and Line 2) | Sensor: `IDLE`, `DIALTONE`, `RINGING`, `INCALL` and so on. Attributes: last number, caller name, caller number |
-| **Ring line 1** (and 2) | Button: rings the phone for 4 seconds, if it's on-hook and idle |
+| **Ring line 1** (and 2) | Button: rings the phone for 4 seconds, if it's on-hook and idle. Silent during quiet hours unless you untick **Ring buttons stay silent during quiet hours** on the MQTT card |
 | **Phone event** | Event entity: `offhook`, `onhook`, `dial`, `wrong_number`, `ring`, `answering_machine`, `recording`, with the line and the digits or caller |
-| **Pin output buttons** | One per pin dial code (Settings → Dial Codes → Pin outputs): press to fire it |
+| **New messages**, **Message waiting** | How many messages (dial 211 and answering machine) arrived since someone last opened the Recordings page, and whether that's more than zero. Greetings don't count |
+| **Mark messages heard** | Button: sets the count back to zero without opening the Recordings page |
+| **Pin output buttons** | One per pin dial code (Settings → Dial Codes → Pin outputs): press to fire it. Home Assistant codes don't get a button; they come in as `dial` events |
 | **Wi-Fi signal**, **Free memory** | Diagnostics, every 60 s |
 
 The topics are `redial/<id>/...`, where `<id>` is `redial_` plus the last six
 hex digits of the board's MAC address. Commands arrive on
-`redial/<id>/cmd/ring/<line>` (payload: seconds, 1 to 15) and
-`redial/<id>/cmd/pin/<code>`. Pin buttons are announced when the board
-connects, so save the MQTT card again after adding or removing a pin code.
+`redial/<id>/cmd/ring/<line>` (payload: seconds, 1 to 15),
+`redial/<id>/cmd/pin/<code>` and `redial/<id>/cmd/messages_seen`. Pin buttons
+are announced when the board connects, so save the MQTT card again after
+adding or removing a pin code.
 
-**Costs.** The MQTT code adds about 46 KB to the firmware image. While
+**Costs.** The MQTT code adds about 50 KB to the firmware image. While
 connected it holds about 21 KB of the board's free memory (around 72 KB when
 idle), and gives most of it back when switched off. Leave it off if you don't
 use it.

@@ -21,7 +21,7 @@ static const char *TAG = "webhook";
 #define TIMEOUT_MS  4000
 
 typedef struct {
-    char    event[16];
+    char    event[20];   /* longest is "answering_machine" */
     int8_t  line;
     char    detail[72];
     int64_t time;
@@ -65,7 +65,7 @@ static void post(const wh_evt_t *e)
         .buffer_size_tx = 512,
     };
     esp_http_client_handle_t c = esp_http_client_init(&cfg);
-    if (!c) { s_last_status = ESP_ERR_NO_MEM; return; }
+    if (!c) { s_last_status = -ESP_ERR_NO_MEM; return; }
     esp_http_client_set_header(c, "Content-Type", "application/json");
     esp_http_client_set_post_field(c, body, n);
     esp_err_t err = esp_http_client_perform(c);

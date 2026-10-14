@@ -552,6 +552,7 @@ static cJSON *build_status_json(void)
         cJSON_AddStringToObject(root, "mqtt",
                                 ms == MQTT_HA_CONNECTED ? "connected" : ms == MQTT_HA_CONNECTING ? "connecting" : "off");
         cJSON_AddNumberToObject(root, "mqtt_heap_cost", mqtt_ha_heap_cost());
+        cJSON_AddNumberToObject(root, "new_messages", telephony_new_messages());
     }
 
     cJSON *lines = cJSON_AddArrayToObject(root, "lines");
@@ -1413,6 +1414,7 @@ static esp_err_t recordings_page_handler(httpd_req_t *req)
      * sent to the sign-in page and comes back here). */
     if (!require_signed_in(req)) return ESP_OK;
     s_viewer_signed_in = true;
+    telephony_messages_seen();   /* someone has now seen the list */
     /* Both backends, not just primary: unlike Settings -> Storage files
      * (which shows microSD and internal flash as separate, clearly-labeled
      * cards for management), this is the casual "your messages" page --
@@ -1675,9 +1677,11 @@ static int append_mqtt_card(char *buf, size_t cap, int off)
         "<label>User <input type=\"text\" name=\"user\" value=\"%s\" maxlength=\"%d\" autocomplete=\"off\"></label>"
         "<label>Password <input type=\"password\" name=\"pass\" maxlength=\"%d\" autocomplete=\"new-password\" "
         "placeholder=\"%s\"></label>"
+        "<label><input type=\"checkbox\" name=\"rq\" value=\"1\"%s> Ring buttons stay silent during quiet hours</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
         "</form>", st, c.enabled ? " checked" : "", ehost, MQTT_HA_HOST_MAX - 1, euser,
-        MQTT_HA_USER_MAX - 1, MQTT_HA_PASS_MAX - 1, c.pass[0] ? "(unchanged)" : "");
+        MQTT_HA_USER_MAX - 1, MQTT_HA_PASS_MAX - 1, c.pass[0] ? "(unchanged)" : "",
+        c.ring_quiet ? " checked" : "");
     off = append_hint(buf, cap, off,
         "Makes the board show up in Home Assistant by itself, with a sensor and a Ring button "
         "per line, an event for each dial code, and a button for each pin output. Untick to turn "
@@ -2607,12 +2611,25 @@ static int append_web_password_card(char *buf, size_t cap, int off)
 /* Settings -> Dial Codes -> Pin outputs. A dial code that drives one of the
  * one-line board's four spare GPIOs (18-21, wired out to header J5) high for a
  * few seconds, or toggles it: switch a relay, a MOSFET, a buzzer. */
+/* Pin outputs and Home Assistant codes share one table (dialplan.h): a Home
+ * Assistant code is a pin code with no pin. Lists only entries of one kind. */
+static size_t list_code_entries(dialplan_pin_entry_t *out, bool ha, size_t *total)
+{
+    dialplan_pin_entry_t all[DIALPLAN_MAX_PIN_ACTIONS];
+    size_t n = dialplan_list_pin_entries(all, DIALPLAN_MAX_PIN_ACTIONS), k = 0;
+    for (size_t i = 0; i < n; i++)
+        if ((all[i].gpio == DIALPLAN_PIN_NONE) == ha) out[k++] = all[i];
+    if (total) *total = n;
+    return k;
+}
+
 static int append_pin_actions_card(char *buf, size_t cap, int off)
 {
     char why[160] = "";
     bool usable = auxpins_usable(why, sizeof(why));
     dialplan_pin_entry_t pins[DIALPLAN_MAX_PIN_ACTIONS];
-    size_t np = dialplan_list_pin_entries(pins, DIALPLAN_MAX_PIN_ACTIONS);
+    size_t used = 0;
+    size_t np = list_code_entries(pins, false, &used);
     int gp[AUXPINS_COUNT];
     size_t ng = auxpins_list(gp, AUXPINS_COUNT);
 
@@ -2663,7 +2680,7 @@ static int append_pin_actions_card(char *buf, size_t cap, int off)
         off = appendf(buf, cap, off, "</table>");
     }
 
-    if (np < DIALPLAN_MAX_PIN_ACTIONS) {
+    if (used < DIALPLAN_MAX_PIN_ACTIONS) {
         off = appendf(buf, cap, off,
             "<form method=\"POST\" action=\"/pin_action_set\" class=\"settings-form\">"
             "<label>Dial code (2&ndash;6 digits) <input name=\"code\" inputmode=\"numeric\" "
@@ -2681,8 +2698,51 @@ static int append_pin_actions_card(char *buf, size_t cap, int off)
             "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Add or update"
             "</button></div></form>");
     } else {
-        off = appendf(buf, cap, off, "<p class=\"hint\">All %d slots are in use.</p>",
-                      DIALPLAN_MAX_PIN_ACTIONS);
+        off = appendf(buf, cap, off, "<p class=\"hint\">All %d slots are in use (pin outputs and "
+                      "Home Assistant codes share them).</p>", DIALPLAN_MAX_PIN_ACTIONS);
+    }
+    return appendf(buf, cap, off, "</div>");
+}
+
+/* Settings -> Dial Codes: codes whose only job is to tell Home Assistant
+ * (the "dial" event, webhook.h / mqtt_ha.h). */
+static int append_ha_codes_card(char *buf, size_t cap, int off)
+{
+    dialplan_pin_entry_t codes[DIALPLAN_MAX_PIN_ACTIONS];
+    size_t used = 0;
+    size_t n = list_code_entries(codes, true, &used);
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\" id=\"hacodes\"><h2>Home Assistant codes</h2>"
+        "<p class=\"hint\">A code that does nothing on the board except play the OK tone and "
+        "tell Home Assistant it was dialed (the <b>dial</b> event, over the webhook or MQTT in "
+        "Settings &rarr; General). Turn on a light, start a scene, open the garage. Works on "
+        "every board.</p>");
+    if (n) {
+        off = appendf(buf, cap, off, "<table class=\"table\"><tr><th>Code</th><th>Note</th><th></th></tr>");
+        for (size_t i = 0; i < n; i++) {
+            char desc_esc[40 * 6];
+            html_escape(codes[i].desc, desc_esc, sizeof(desc_esc));
+            off = appendf(buf, cap, off,
+                "<tr><td><b>%s</b></td><td>%s</td><td>"
+                "<form method=\"POST\" action=\"/pin_action_test/%s\" style=\"display:inline\">"
+                "<button type=\"submit\" title=\"Send the dial event now\">Test</button></form> "
+                "<form method=\"POST\" action=\"/pin_action_delete/%s\" style=\"display:inline\" "
+                "onsubmit=\"return confirm('Remove dial code %s?')\">"
+                "<button type=\"submit\" class=\"danger\">Remove</button></form></td></tr>",
+                codes[i].code, desc_esc, codes[i].code, codes[i].code, codes[i].code);
+        }
+        off = appendf(buf, cap, off, "</table>");
+    }
+    if (used < DIALPLAN_MAX_PIN_ACTIONS) {
+        off = appendf(buf, cap, off,
+            "<form method=\"POST\" action=\"/ha_code_set\" class=\"settings-form\">"
+            "<label>Dial code (2&ndash;6 digits) <input name=\"code\" inputmode=\"numeric\" "
+            "pattern=\"[0-9]{2,6}\" maxlength=\"6\" required></label>"
+            "<label>Note <input name=\"desc\" maxlength=\"39\" placeholder=\"e.g. porch light\"></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Add</button></div></form>");
+    } else {
+        off = appendf(buf, cap, off, "<p class=\"hint\">All %d slots are in use (pin outputs and "
+                      "Home Assistant codes share them).</p>", DIALPLAN_MAX_PIN_ACTIONS);
     }
     return appendf(buf, cap, off, "</div>");
 }
@@ -5548,6 +5608,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     else if (strcmp(tab, "dialcodes") == 0) {
         off = append_dialcodes_tab(buf, cap, off);
         off = append_pin_actions_card(buf, cap, off);
+        off = append_ha_codes_card(buf, cap, off);
         off = append_operator_tab(buf, cap, off, entries, n);
         off = append_record_tab(buf, cap, off, entries, n);
     }
@@ -6115,15 +6176,28 @@ static esp_err_t mqtt_handler(httpd_req_t *req)
     char body[WIFI_FORM_MAX_BODY];
     READ_FORM_OR_RETURN(req, body);
     mqtt_ha_cfg_t c = mqtt_ha_get(), n = {0};
-    char en[4] = {0};
+    char en[4] = {0}, rq[4] = {0};
     form_field(body, "enabled", en, sizeof(en));
+    form_field(body, "rq", rq, sizeof(rq));
     form_field(body, "host", n.host, sizeof(n.host));
     form_field(body, "user", n.user, sizeof(n.user));
     form_field(body, "pass", n.pass, sizeof(n.pass));
     n.enabled = en[0] == '1';
-    if (!n.pass[0] && n.user[0]) strlcpy(n.pass, c.pass, sizeof(n.pass));
-    if (mqtt_ha_set(&n) != ESP_OK) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "enter a broker (letters, digits, . - : only)");
+    n.ring_quiet = rq[0] == '1';
+    /* A blank password keeps the saved one, but only for the same broker and
+     * user: never hand one broker's password to another. */
+    if (!n.pass[0] && n.user[0] && !strcmp(n.host, c.host) && !strcmp(n.user, c.user))
+        strlcpy(n.pass, c.pass, sizeof(n.pass));
+    esp_err_t err = mqtt_ha_set(&n);
+    if (err == ESP_ERR_INVALID_ARG) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Enter a broker: letters, digits, . - _ and :port only.");
+        return ESP_OK;
+    }
+    if (err != ESP_OK) {
+        char msg[96];
+        snprintf(msg, sizeof(msg), "Saved, but MQTT couldn't start (%s). Try again, or restart the board.",
+                 esp_err_to_name(err));
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, msg);
         return ESP_OK;
     }
     return redirect_to(req, "/settings?tab=general");
@@ -6700,14 +6774,6 @@ static bool read_form_body(httpd_req_t *req, char *body, size_t cap)
 /* Ringing is the one bench test that can't just be left running: it puts
  * ~60 Vrms on the line. One-shot timer stops it rather than blocking the
  * single httpd worker for the duration. */
-static esp_timer_handle_t s_ring_timer;
-static int s_ring_line;
-
-static void ring_stop_cb(void *arg)
-{
-    (void)arg;
-    ag1170_ring_stop(s_ring_line);
-}
 
 /* POST /wifi_forget -- drop one saved network. Deliberately does not touch
  * the live connection: forgetting the network you're currently on shouldn't
@@ -6738,18 +6804,11 @@ static esp_err_t test_ring_handler(httpd_req_t *req)
     if (secs < 1) secs = 1;
     if (secs > 15) secs = 15;
 
-    /* Never ring a handset that's already lifted, or one mid-call: the bell
-     * would blast straight into someone's ear. */
-    if (!ag1170_is_offhook(line)) {
-        if (!s_ring_timer) {
-            const esp_timer_create_args_t a = { .callback = ring_stop_cb, .name = "ringstop" };
-            esp_timer_create(&a, &s_ring_timer);
-        }
-        esp_timer_stop(s_ring_timer);
-        s_ring_line = line;
-        ag1170_ring_start(line);
-        esp_timer_start_once(s_ring_timer, (uint64_t)secs * 1000000);
-    }
+    /* Never rings a lifted handset or a line mid-call (telephony_bell()
+     * refuses): the bell would blast straight into someone's ear. A bench
+     * test, so quiet hours don't apply. */
+    esp_err_t err = telephony_bell(line, secs, false);
+    if (err != ESP_OK) ESP_LOGI(TAG, "test ring line %d refused: %s", line, esp_err_to_name(err));
     return redirect_to(req, "/settings?tab=diag");
 }
 
@@ -7566,12 +7625,42 @@ static esp_err_t pin_action_set_handler(httpd_req_t *req)
     }
     if (err != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
-            err == ESP_ERR_NO_MEM ? "All four pin slots are used."
+            err == ESP_ERR_NO_MEM ? "All slots are used (pin outputs and Home Assistant codes share them)."
                                    : "The code must be 2 to 6 digits, and seconds 0 to 3600.");
         return ESP_OK;
     }
     activity_log("Pin dial code %s set: GPIO%d, %s", code, gpio, secs ? "timed" : "toggle");
     return redirect_to(req, "/settings?tab=dialcodes#pins");
+}
+
+/* POST /messages_seen -- clears the new-message count (Home Assistant's
+ * "Mark messages heard"; opening the Recordings page does the same). */
+static esp_err_t messages_seen_handler(httpd_req_t *req)
+{
+    telephony_messages_seen();
+    return redirect_to(req, "/recordings");
+}
+
+/* POST /ha_code_set -- code=..&desc=.. : a Home Assistant code (a pin code
+ * with no pin). */
+static esp_err_t ha_code_set_handler(httpd_req_t *req)
+{
+    char body[256];
+    READ_FORM_OR_RETURN(req, body);
+    char code[8] = "", desc[40] = "";
+    form_field(body, "code", code, sizeof(code));
+    form_field(body, "desc", desc, sizeof(desc));
+    esp_err_t err = dialplan_pin_set(code, DIALPLAN_PIN_NONE, 0, desc);
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+            err == ESP_ERR_INVALID_STATE ? "That code overlaps another dial code (a code can't be "
+                                           "the start of another, or start with 1 or 555)."
+          : err == ESP_ERR_NO_MEM        ? "All slots are used (pin outputs and Home Assistant codes share them)."
+                                         : "The code must be 2 to 6 digits.");
+        return ESP_OK;
+    }
+    activity_log("Home Assistant code %s set", code);
+    return redirect_to(req, "/settings?tab=dialcodes#hacodes");
 }
 
 /* POST /pin_action_delete/<code> and /pin_action_test/<code> */
@@ -7592,6 +7681,11 @@ static esp_err_t pin_action_test_handler(httpd_req_t *req)
     size_t n = dialplan_list_pin_entries(pins, DIALPLAN_MAX_PIN_ACTIONS);
     for (size_t i = 0; i < n; i++) {
         if (strcmp(pins[i].code, code) == 0) {
+            if (pins[i].gpio == DIALPLAN_PIN_NONE) {
+                webhook_event("dial", 0, code);
+                activity_log("Home Assistant code %s tested", code);
+                return redirect_to(req, "/settings?tab=dialcodes#hacodes");
+            }
             esp_err_t err = auxpins_pulse(pins[i].gpio, pins[i].secs);
             if (err == ESP_OK) activity_log("Pin dial code %s tested: GPIO%u", code, pins[i].gpio);
             break;
@@ -7809,14 +7903,20 @@ static int append_guide_pins(char *buf, size_t cap, int off)
 {
     if (s_guide_pins_done || (size_t)off >= cap) return off;
     s_guide_pins_done = true;
-    dialplan_pin_entry_t pins[DIALPLAN_MAX_PIN_ACTIONS];
-    size_t n = dialplan_pins_active() ? dialplan_list_pin_entries(pins, DIALPLAN_MAX_PIN_ACTIONS) : 0;
+    dialplan_pin_entry_t all[DIALPLAN_MAX_PIN_ACTIONS], pins[DIALPLAN_MAX_PIN_ACTIONS];
+    size_t na = dialplan_list_pin_entries(all, DIALPLAN_MAX_PIN_ACTIONS), n = 0;
+    bool active = dialplan_pins_active();
+    for (size_t i = 0; i < na; i++)
+        if (all[i].gpio == DIALPLAN_PIN_NONE || active) pins[n++] = all[i];
     if (n == 0) return off;
-    off = appendf(buf, cap, off, "<div class=\"card\"><h2>Pin outputs</h2>");
+    off = appendf(buf, cap, off, "<div class=\"card\"><h2>Pin outputs &amp; Home Assistant</h2>");
     for (size_t i = 0; i < n; i++) {
         char d[96], desc_esc[96 * 6];
-        snprintf(d, sizeof(d), "GPIO%u, %s%s%s", pins[i].gpio, pins[i].secs ? "high for " : "toggle",
-                 pins[i].secs ? "a few s" : "", pins[i].desc[0] ? " - " : "");
+        if (pins[i].gpio == DIALPLAN_PIN_NONE)
+            snprintf(d, sizeof(d), "Home Assistant%s", pins[i].desc[0] ? " - " : "");
+        else
+            snprintf(d, sizeof(d), "GPIO%u, %s%s%s", pins[i].gpio, pins[i].secs ? "high for " : "toggle",
+                     pins[i].secs ? "a few s" : "", pins[i].desc[0] ? " - " : "");
         size_t dl = strlen(d);
         snprintf(d + dl, sizeof(d) - dl, "%s", pins[i].desc);
         html_escape(d, desc_esc, sizeof(desc_esc));
@@ -8454,7 +8554,11 @@ static esp_err_t ota_upload_handler(httpd_req_t *req)
                 break;
             }
             esp_ota_handle_t ota_handle = 0;
-            esp_err_t err = esp_ota_begin(target, OTA_SIZE_UNKNOWN, &ota_handle);
+            /* Erase each sector just before it's written, not the whole 2 MB
+             * slot up front: that took several seconds in this (the only web
+             * server) task, long enough to trip the task watchdog and for the
+             * uploading browser's connection to drop. */
+            esp_err_t err = esp_ota_begin(target, OTA_WITH_SEQUENTIAL_WRITES, &ota_handle);
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "esp_ota_begin failed: %s", esp_err_to_name(err));
                 err_msg = "failed to start writing to flash (see device log)";
@@ -9454,6 +9558,8 @@ esp_err_t webui_start(void)
         { .uri = "/pin_action_set",         .method = HTTP_POST, .handler = pin_action_set_handler },
         { .uri = "/pin_action_delete/*",    .method = HTTP_POST, .handler = pin_action_delete_handler },
         { .uri = "/pin_action_test/*",      .method = HTTP_POST, .handler = pin_action_test_handler },
+        { .uri = "/ha_code_set",            .method = HTTP_POST, .handler = ha_code_set_handler },
+        { .uri = "/messages_seen",          .method = HTTP_POST, .handler = messages_seen_handler },
         { .uri = "/dialcode_upload",        .method = HTTP_POST, .handler = dialcode_upload_handler },
         { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },
         { .uri = "/prompt_text_set",        .method = HTTP_POST, .handler = prompt_text_set_handler },

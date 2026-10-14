@@ -107,6 +107,20 @@ void telephony_force_recover(int line);
  * default; bringup toggles it around a monitor command's run. */
 void telephony_set_monitor_suppress(bool on);
 
+/* Rings a line's bell for `secs` (1-15) seconds, like a doorbell: for the
+ * web UI's test ring and Home Assistant. Refused (ESP_ERR_INVALID_STATE) if
+ * the line isn't idle and on-hook, and, when respect_quiet is set, during
+ * quiet hours (ESP_ERR_NOT_ALLOWED). Each line has its own timer, and the
+ * timer leaves the bell alone if a real call has started ringing meanwhile.
+ * Lifting the handset stops the bell at once (the SLIC's ring trip). */
+esp_err_t telephony_bell(int line, int secs, bool respect_quiet);
+
+/* Messages (dial 211 and answering-machine recordings) saved since someone
+ * last looked at the Recordings page or called telephony_messages_seen().
+ * Kept across restarts. */
+int  telephony_new_messages(void);
+void telephony_messages_seen(void);
+
 /* ---- Test/verification hooks (host-driven DVT harness) ----
  * Injection is gated behind test mode so it can never fire in normal
  * operation. Lets an automated harness simulate a handset: off-hook,

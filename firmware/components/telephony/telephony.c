@@ -15,6 +15,7 @@
 #include "auxpins.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "nvs.h"
 #include "board.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -91,6 +92,7 @@ typedef struct {
     int       line;
     in_type_t type;
     char      digit;
+    uint8_t   kind;     /* IN_REC_DONE: the rec_purpose_t it was started for */
 } in_evt_t;
 
 typedef struct {
@@ -253,11 +255,17 @@ static void clip_done_cb(int line, void *ctx)
     xQueueSend(s_q, &e, 0);
 }
 
+static void note_new_message(void);   /* message waiting, below */
+
 /* recorder_start()'s done_cb -- same pattern: enqueue so the FSM decides what
  * happens next (back to dial tone, or idle if the caller already hung up). */
 static void rec_done_cb(int line, bool ok, void *ctx)
 {
-    in_evt_t e = { .line = line, .type = IN_REC_DONE, .digit = 0 };
+    /* ctx carries the purpose the recording was started for: end_call()
+     * clears rec_purpose before this event arrives (a caller hanging up on
+     * the answering machine), so it can't be read back from the line. */
+    in_evt_t e = { .line = line, .type = IN_REC_DONE, .digit = ok ? 1 : 0,
+                   .kind = (uint8_t)(intptr_t)ctx };
     xQueueSend(s_q, &e, 0);
 }
 
@@ -508,7 +516,7 @@ static void start_recording_archive(int line)
     audio_tx_silence(line);
     uint32_t max_ms = board_record_max_ms_get(RECORD_MAX_MS_DEFAULT);
     if (recorder_start(line, s_line[line].rec_name, max_ms, RECORD_SILENCE_MS,
-                       rec_done_cb, NULL) == ESP_OK) {
+                       rec_done_cb, (void *)(intptr_t)REC_ARCHIVE) == ESP_OK) {
         s_line[line].state = TEL_RECORDING;
     } else {
         ESP_LOGW(TAG, "line %d: record-to-archive couldn't start", line);
@@ -525,7 +533,7 @@ static void start_recording_greeting(int line)
     telephony_am_greeting_name(s_line[line].rec_name, sizeof(s_line[line].rec_name), line);
     audio_tx_silence(line);
     if (recorder_start(line, s_line[line].rec_name, AM_GREETING_MAX_MS, RECORD_SILENCE_MS,
-                       rec_done_cb, NULL) == ESP_OK) {
+                       rec_done_cb, (void *)(intptr_t)REC_GREETING) == ESP_OK) {
         s_line[line].state = TEL_RECORDING;
     } else {
         ESP_LOGW(TAG, "line %d: greeting recording couldn't start", line);
@@ -781,9 +789,9 @@ static void start_recording_voicemail(int rec_line, int for_line)
     bool downlink = (s_line[rec_line].peer == PEER_VOIP);
     esp_err_t err = downlink
         ? recorder_start_downlink(rec_line, s_line[rec_line].rec_name, cfg.max_ms,
-                                  RECORD_SILENCE_MS, rec_done_cb, NULL)
+                                  RECORD_SILENCE_MS, rec_done_cb, (void *)(intptr_t)REC_VOICEMAIL)
         : recorder_start(rec_line, s_line[rec_line].rec_name, cfg.max_ms,
-                         RECORD_SILENCE_MS, rec_done_cb, NULL);
+                         RECORD_SILENCE_MS, rec_done_cb, (void *)(intptr_t)REC_VOICEMAIL);
     if (err == ESP_OK) {
         s_line[rec_line].state = TEL_RECORDING;
     } else {
@@ -889,7 +897,14 @@ static void handle_action(int line, const dialplan_action_t *a)
 
         case ACT_GPIO_OUT: {
             /* A pin dial code (Settings -> Dial Codes -> Pin outputs). a->arg
-             * is the GPIO, a->arg2 the seconds high (0 = toggle). */
+             * is the GPIO, a->arg2 the seconds high (0 = toggle). With no pin
+             * it's a Home Assistant code: the "dial" event sent above is the
+             * whole job, so just confirm. */
+            if (a->arg == DIALPLAN_PIN_NONE) {
+                activity_log("Line %d: dial code %s for Home Assistant", line, s_line[line].coll.buf);
+                play_transient(line, TONE_CONFIRM, 400, TEL_DIALTONE, TEL_DIALTONE);
+                break;
+            }
             esp_err_t pr = auxpins_pulse(a->arg, a->arg2);
             if (pr == ESP_OK) {
                 activity_log("Line %d: dial code -> GPIO%d %s", line, a->arg,
@@ -1283,6 +1298,15 @@ static void fsm_task(void *arg)
                     break;
                 case IN_REC_DONE: {
                     int l = e.line;
+                    /* Tell Home Assistant what was recorded; diagnostics mic
+                     * tests don't come through here. */
+                    if (e.digit && e.kind != REC_NONE) {
+                        const char *kind = e.kind == REC_GREETING  ? "greeting"
+                                         : e.kind == REC_VOICEMAIL ? "voicemail"
+                                                                   : "message";
+                        if (e.kind != REC_GREETING) note_new_message();
+                        webhook_eventf("recording", l, "%s %s", kind, s_line[l].rec_name);
+                    }
                     if (s_line[l].state != TEL_RECORDING) break; /* already moved on */
                     if (s_line[l].rec_purpose == REC_VOICEMAIL) {
                         int called = s_line[l].peer; /* local case only -- PEER_VOIP for the VoIP case */
@@ -1408,6 +1432,77 @@ static void fsm_task(void *arg)
         }
         vTaskDelay(tick);
     }
+}
+
+/* ---- doorbell ring (telephony_bell) ---- */
+static esp_timer_handle_t s_bell_timer[NLINES];
+
+static void bell_stop_cb(void *arg)
+{
+    int line = (int)(intptr_t)arg;
+    /* A real incoming call that started while the bell rang owns the bell
+     * now: its own answer/cancel path stops it. */
+    if (s_line[line].state != TEL_RINGING) ag1170_ring_stop(line);
+}
+
+esp_err_t telephony_bell(int line, int secs, bool respect_quiet)
+{
+    if (line < 0 || line >= NLINES_ACTIVE || line >= board_hw_config_get().num_lines)
+        return ESP_ERR_INVALID_ARG;
+    if (secs < 1) secs = 1;
+    if (secs > 15) secs = 15;
+    if (respect_quiet && board_quiet_hours_active()) return ESP_ERR_NOT_ALLOWED;
+    if (line_offhook(line) || s_line[line].state != TEL_IDLE) return ESP_ERR_INVALID_STATE;
+    if (!s_bell_timer[line]) {
+        const esp_timer_create_args_t a = { .callback = bell_stop_cb, .arg = (void *)(intptr_t)line,
+                                            .name = "bell" };
+        esp_err_t err = esp_timer_create(&a, &s_bell_timer[line]);
+        if (err != ESP_OK) return err;
+    }
+    esp_timer_stop(s_bell_timer[line]);
+    ag1170_ring_start(line);
+    return esp_timer_start_once(s_bell_timer[line], (uint64_t)secs * 1000000);
+}
+
+/* ---- message waiting ---- */
+#define MSG_NVS_NS  "telmsg"
+static volatile int s_new_msgs = -1;   /* -1 = not loaded yet */
+
+static void msgs_save(int n)
+{
+    nvs_handle_t h;
+    if (nvs_open(MSG_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    if (nvs_set_u16(h, "new", (uint16_t)n) == ESP_OK) nvs_commit(h);
+    nvs_close(h);
+}
+
+int telephony_new_messages(void)
+{
+    if (s_new_msgs < 0) {
+        uint16_t v = 0;
+        nvs_handle_t h;
+        if (nvs_open(MSG_NVS_NS, NVS_READONLY, &h) == ESP_OK) {
+            nvs_get_u16(h, "new", &v);
+            nvs_close(h);
+        }
+        s_new_msgs = v;
+    }
+    return s_new_msgs;
+}
+
+void telephony_messages_seen(void)
+{
+    if (telephony_new_messages() == 0) return;
+    s_new_msgs = 0;
+    msgs_save(0);
+}
+
+static void note_new_message(void)
+{
+    int n = telephony_new_messages();
+    if (n < 999) n++;
+    s_new_msgs = n;
+    msgs_save(n);
 }
 
 esp_err_t telephony_start(void)

@@ -37,6 +37,10 @@ static void finish(int line, bool call_cb, player_done_cb_t cb, void *ctx)
  * chunk before "data", observed at a 4096-byte offset). */
 #define HEADER_SCAN_BYTES 8192
 #define PLAYBACK_CHUNK_BYTES 4096
+/* Resample a read chunk this many input samples at a time. One pass over the
+ * whole chunk needed a single 24 KB block for an 8 kHz clip (x6 to 48 kHz),
+ * which a busy heap (MQTT connected, a few browsers) often doesn't have. */
+#define RESAMPLE_IN_SAMPLES 256
 
 #if defined(CONFIG_PLAYER_MP3)
 /* Streams and decodes an MP3 frame-by-frame, reusing `buf` (already primed
@@ -110,7 +114,7 @@ static bool play_mp3(int line, storage_reader_t *rd, uint8_t *buf, size_t have,
             need_resample = (out_rate != audio_sample_rate());
             if (need_resample) {
                 audio_resampler_init(&rs, out_rate, audio_sample_rate());
-                resampled_cap = audio_resampler_max_out(&rs, AUDIO_CONVERT_MP3_MAX_SAMPLES);
+                resampled_cap = audio_resampler_max_out(&rs, RESAMPLE_IN_SAMPLES);
                 resampled = malloc(resampled_cap * sizeof(int16_t));
                 if (!resampled) {
                     ESP_LOGE(TAG, "line %d: resample buffer alloc failed", line);
@@ -123,17 +127,23 @@ static bool play_mp3(int line, storage_reader_t *rd, uint8_t *buf, size_t have,
             rs_ready = true;
         }
 
-        int16_t *out_pcm = pcm;
-        size_t n_samples = (size_t)samples;
-        if (need_resample) {
-            n_samples = audio_resampler_push(&rs, pcm, n_samples, resampled, resampled_cap);
-            out_pcm = resampled;
-        }
-        size_t sent = 0;
-        while (sent < n_samples && !*stop_requested) {
-            size_t wrote = audio_ext_write(line, out_pcm + sent, n_samples - sent);
-            if (wrote == 0) { vTaskDelay(pdMS_TO_TICKS(5)); continue; }
-            sent += wrote;
+        /* Same small-piece resampling as the WAV path (RESAMPLE_IN_SAMPLES). */
+        for (size_t in_off = 0; in_off < (size_t)samples && !*stop_requested; ) {
+            size_t in_n = (size_t)samples - in_off;
+            int16_t *out_pcm = pcm + in_off;
+            size_t n_samples = in_n;
+            if (need_resample) {
+                if (in_n > RESAMPLE_IN_SAMPLES) in_n = RESAMPLE_IN_SAMPLES;
+                n_samples = audio_resampler_push(&rs, out_pcm, in_n, resampled, resampled_cap);
+                out_pcm = resampled;
+            }
+            in_off += in_n;
+            size_t sent = 0;
+            while (sent < n_samples && !*stop_requested) {
+                size_t wrote = audio_ext_write(line, out_pcm + sent, n_samples - sent);
+                if (wrote == 0) { vTaskDelay(pdMS_TO_TICKS(5)); continue; }
+                sent += wrote;
+            }
         }
     }
     free(resampled);
@@ -196,7 +206,7 @@ static void play_task(void *arg)
         size_t resampled_cap = 0;
         if (need_resample) {
             audio_resampler_init(&rs, wav.sample_rate, audio_sample_rate());
-            resampled_cap = audio_resampler_max_out(&rs, PLAYBACK_CHUNK_BYTES / sizeof(int16_t));
+            resampled_cap = audio_resampler_max_out(&rs, RESAMPLE_IN_SAMPLES);
             resampled = malloc(resampled_cap * sizeof(int16_t));
             if (!resampled) {
                 ESP_LOGE(TAG, "line %d: resample buffer alloc failed", line);
@@ -223,17 +233,24 @@ static void play_task(void *arg)
             if (got == 0) break; /* short file vs. its own data_bytes header field */
             remaining -= got;
 
-            size_t n_samples = got / sizeof(int16_t); /* drops a possible odd trailing byte */
-            const int16_t *pcm = (const int16_t *)buf;
-            if (need_resample) {
-                n_samples = audio_resampler_push(&rs, pcm, n_samples, resampled, resampled_cap);
-                pcm = resampled;
-            }
-            size_t sent = 0;
-            while (sent < n_samples && !s_line[line].stop_requested) {
-                size_t wrote = audio_ext_write(line, pcm + sent, n_samples - sent);
-                if (wrote == 0) { vTaskDelay(pdMS_TO_TICKS(5)); continue; }
-                sent += wrote;
+            size_t in_total = got / sizeof(int16_t); /* drops a possible odd trailing byte */
+            const int16_t *in = (const int16_t *)buf;
+            for (size_t in_off = 0; in_off < in_total && !s_line[line].stop_requested; ) {
+                size_t in_n = in_total - in_off;
+                const int16_t *pcm = in + in_off;
+                size_t n_samples = in_n;
+                if (need_resample) {
+                    if (in_n > RESAMPLE_IN_SAMPLES) in_n = RESAMPLE_IN_SAMPLES;
+                    n_samples = audio_resampler_push(&rs, pcm, in_n, resampled, resampled_cap);
+                    pcm = resampled;
+                }
+                in_off += in_n;
+                size_t sent = 0;
+                while (sent < n_samples && !s_line[line].stop_requested) {
+                    size_t wrote = audio_ext_write(line, pcm + sent, n_samples - sent);
+                    if (wrote == 0) { vTaskDelay(pdMS_TO_TICKS(5)); continue; }
+                    sent += wrote;
+                }
             }
         }
         free(resampled);
@@ -256,7 +273,10 @@ static void play_task(void *arg)
 out:
     storage_read_close(&rd);
     free(buf);
-    finish(line, ok, a->done_cb, a->ctx);
+    /* A clip that failed (no memory, a bad file) still has to end: without
+     * the callback the phone sits in "playing" forever. Only a deliberate
+     * stop stays silent -- whoever stopped it has moved the line on. */
+    finish(line, ok || !s_line[line].stop_requested, a->done_cb, a->ctx);
     free(a);
     vTaskDelete(NULL);
 }

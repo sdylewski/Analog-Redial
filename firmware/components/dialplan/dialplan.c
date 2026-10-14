@@ -229,7 +229,10 @@ static void pins_load(void)
     size_t len = 0;
     /* Same rule as the clip table: a size that isn't the table's means the
      * layout changed, and reading it would scramble every entry. */
-    if (nvs_get_blob(h, PINS_NVS_KEY, NULL, &len) == ESP_OK && len == sizeof(s_pin_actions)) {
+    if (nvs_get_blob(h, PINS_NVS_KEY, NULL, &len) == ESP_OK &&
+        (len == sizeof(s_pin_actions) || len == 4 * sizeof(s_pin_actions[0]))) {
+        /* 4 entries: the table before it grew to 8. Same entry layout, so it
+         * reads into the first four slots. */
         nvs_get_blob(h, PINS_NVS_KEY, s_pin_actions, &len);
     }
     nvs_close(h);
@@ -303,21 +306,28 @@ bool dialplan_pins_active(void)
     return cfg.num_lines == 1 && !cfg.has_microsd;
 }
 
+/* A pin code is live while the pins are free; a Home Assistant code always. */
+static bool pin_entry_live(const dialplan_pin_entry_t *p, bool pins_active)
+{
+    return p->code[0] && (p->gpio == DIALPLAN_PIN_NONE || pins_active);
+}
+
 static const dialplan_pin_entry_t *pin_exact_match(const char *buf)
 {
-    if (!dialplan_pins_active()) return NULL;
+    bool active = dialplan_pins_active();
     for (int i = 0; i < DIALPLAN_MAX_PIN_ACTIONS; i++) {
-        if (s_pin_actions[i].code[0] && strcmp(s_pin_actions[i].code, buf) == 0) return &s_pin_actions[i];
+        if (pin_entry_live(&s_pin_actions[i], active) && strcmp(s_pin_actions[i].code, buf) == 0)
+            return &s_pin_actions[i];
     }
     return NULL;
 }
 
 static bool pin_has_longer_prefix(const char *buf)
 {
-    if (!dialplan_pins_active()) return false;
+    bool active = dialplan_pins_active();
     size_t blen = strlen(buf);
     for (int i = 0; i < DIALPLAN_MAX_PIN_ACTIONS; i++) {
-        if (s_pin_actions[i].code[0] && strlen(s_pin_actions[i].code) > blen &&
+        if (pin_entry_live(&s_pin_actions[i], active) && strlen(s_pin_actions[i].code) > blen &&
             strncmp(s_pin_actions[i].code, buf, blen) == 0) {
             return true;
         }
@@ -701,7 +711,8 @@ esp_err_t dialplan_pin_check_new(const char *code)
 
 esp_err_t dialplan_pin_set(const char *code, int gpio, int secs, const char *desc)
 {
-    if (!code || !valid_code(code) || gpio < 0 || gpio > 48 || secs < 0 || secs > 3600) {
+    if (!code || !valid_code(code) || gpio < 0 || (gpio > 48 && gpio != DIALPLAN_PIN_NONE) ||
+        secs < 0 || secs > 3600) {
         return ESP_ERR_INVALID_ARG;
     }
     int idx = pin_find_idx(code);

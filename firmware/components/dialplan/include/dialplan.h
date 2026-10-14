@@ -204,7 +204,10 @@ size_t    dialplan_list_clip_entries(dialplan_clip_entry_t *out, size_t max);
  * table is just code -> (gpio, secs). Shares the code space with everything
  * else: the same prefix/conflict rules as clip codes apply in both
  * directions. Persisted to NVS. */
-#define DIALPLAN_MAX_PIN_ACTIONS 4
+#define DIALPLAN_MAX_PIN_ACTIONS 8
+/* gpio value of a Home Assistant code: no pin, the dial event is the action.
+ * Live on every board, unlike pin codes. */
+#define DIALPLAN_PIN_NONE 0xFF
 
 typedef struct {
     char     code[8];   /* 2-6 digits */
@@ -221,7 +224,7 @@ esp_err_t dialplan_pin_check_new(const char *code);
 esp_err_t dialplan_pin_set(const char *code, int gpio, int secs, const char *desc);
 esp_err_t dialplan_pin_remove(const char *code);   /* ESP_ERR_NOT_FOUND if unknown */
 size_t    dialplan_list_pin_entries(dialplan_pin_entry_t *out, size_t max);
-/* True while pin codes are live (one line, no microSD). */
+/* True while pin codes that drive a pin are live (one line, no microSD). */
 bool      dialplan_pins_active(void);
 
 #ifdef __cplusplus
