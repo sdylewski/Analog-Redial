@@ -156,3 +156,36 @@ MCLK input is high-impedance. Two indirect checks do work:
 clone's GPIO12 at runtime (what the `SMD5_CHEAP` build does at compile time)
 so one firmware self-corrects, at the cost of the USB console on that boot.
 
+
+## The four spare pins as inputs too (switch, door contact, doorbell)
+
+Idea (2026-10-14): GPIO18-21 on J5 are ordinary pins, so in hardware they
+could be inputs as well as outputs: a wall switch, a door or window contact,
+a doorbell button. Today they are **outputs only** (`auxpins.h`: "as
+outputs"; a dial code drives one high or toggles it). The overview diagrams
+therefore say "4 pin outputs"; rename to "4 spare I/O pins" only once this
+exists.
+
+What it would need:
+
+- **Per-pin mode** (output / input, and pull-up / pull-down for an input) in
+  the Pin outputs card, stored with the pin settings. All four pins are
+  floating inputs after boot today, so a pull has to be a deliberate choice.
+- **Debounce**: ~50 ms settle in a small poll or a GPIO interrupt that wakes
+  a task, so a bouncy switch doesn't send a burst.
+- **A `pin_input` event** (`pin`, high or low) sent through `webhook_event()`,
+  which feeds the webhook and MQTT together, as dial and hook events do.
+- **Home Assistant**: one `binary_sensor` per input pin in the MQTT discovery
+  (the output pins already get a button each), plus the state topic.
+- **Optional, more design**: a pin change triggers a dial-code-style action
+  on the phone (doorbell input rings the bell, door contact plays a clip).
+- **Electrical**: 3.3 V logic, not 5 V tolerant, no protection on the
+  header. A 5 V sensor or a long cable needs a divider or level shifter and
+  a series resistor; say so on the card, as the output note does for relays.
+- **Same conditions as outputs**: only live on a one-line board with no
+  microSD and the J5 shunts out (`auxpins_usable()`); otherwise the pins
+  belong to line 1's SLIC or the card.
+
+Scope is about the same as the pin outputs work: a small `auxpins` change,
+one card option, a few lines of discovery, and a test with a real switch on
+J5. Not started.
