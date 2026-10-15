@@ -132,6 +132,22 @@ part("board-core", 230, 170, "Analog Redial board (one line, options on the righ
   <text x="115" y="94" text-anchor="middle" font-size="17" font-weight="600" fill="{CREAM}">ANALOG REDIAL</text>
   <text x="115" y="116" text-anchor="middle" font-size="12" fill="{TAN}">Wi-Fi built in</text>''')
 
+part("board-core-down", 230, 178, "Analog Redial board (connector for the options on the bottom edge)", f'''
+  <rect id="pcb" x="0" y="0" width="230" height="170" rx="10" fill="{INK}"/>
+  <rect id="jack-line-1" x="-7" y="72" width="10" height="26" rx="2" fill="{BROWN}"/>
+  <rect id="options-connector" x="227" y="72" width="10" height="26" rx="2" fill="{BROWN}"/>
+  <rect id="adapter-header" x="102" y="166" width="26" height="12" rx="2" fill="{BROWN}"/>
+  <circle id="led-1" cx="30" cy="18" r="4" fill="{AMBER}"/><circle id="led-2" cx="46" cy="18" r="4" fill="{OLIVE}"/>
+  <text x="115" y="94" text-anchor="middle" font-size="17" font-weight="600" fill="{CREAM}">ANALOG REDIAL</text>
+  <text x="115" y="116" text-anchor="middle" font-size="12" fill="{TAN}">Wi-Fi built in</text>''')
+
+part("bluetooth-adapter-below", 150, 54, "Bluetooth adapter board (BM64), plugs in from above", f'''
+  <rect id="plug" x="62" y="0" width="26" height="12" rx="2" fill="{BROWN}"/>
+  <rect id="pcb" x="0" y="10" width="150" height="44" rx="8" fill="{AMBER_D}"/>
+  <rect id="chip" x="10" y="20" width="40" height="24" rx="3" fill="#6f4a14"/>
+  <text x="30" y="36" text-anchor="middle" font-size="10" font-weight="600" fill="#f5e4bf">BM64</text>
+  <text x="100" y="36" text-anchor="middle" font-size="12" font-weight="600" fill="#f5e4bf">Bluetooth board</text>''')
+
 part("bluetooth-adapter", 150, 54, "Bluetooth adapter board (BM64)", f'''
   <rect id="pcb" x="0" y="0" width="150" height="44" rx="8" fill="{AMBER_D}"/>
   <rect id="chip" x="10" y="10" width="40" height="24" rx="3" fill="#6f4a14"/>
@@ -309,7 +325,7 @@ OPTIONS_SIDE = [
     ("pins", "pin-outputs", 1.0, "Your own gadgets", "relay, light, buzzer", "Jumpers off, your wires"),
 ]
 
-DW, DH = 720, 778    # design size of the diagram itself, before any scaling
+DW, DH = 720, 780    # design size of the diagram itself, before any scaling
 
 PILL_COLORS = {"ALWAYS": OLIVE_D, "PICK ONE": OLIVE_D, "BUILT-IN WI-FI": BROWN_D, "EXTRA BOARD": AMBER_D}
 
@@ -321,17 +337,53 @@ def pill_markup(cx: float, cy: float, label: str, color: str) -> str:
             f'letter-spacing="0.6" fill="{CREAM}">{label}</text>'), w
 
 
+# Wi-Fi and its three services sit across the top of both layouts; the wired
+# options are below the board (top layout) or beside it (side layout).
+SVC_LABEL_Y, SVC_ICON_TOP, SVC_ICON_H, SVC_BAR_Y = 86, 138, 62, 246
+
+
+def services_row(s: Scene, dw: float, xs: tuple[float, float, float]) -> float:
+    """Label, icon, protocol pill and link down to the Wi-Fi bar. Returns the
+    y of the bar's bottom edge."""
+    services = [
+        ("web", "browser", xs[0], "Web interface", ["Settings, recordings, dial codes,", "and firmware updates"], "HTTP"),
+        ("voip", "server", xs[1], "VoIP server", ["Call other extensions"], "SIP + RTP"),
+        ("home", "home", xs[2], "Home Assistant", ["Events, buttons and sensors"], "MQTT"),
+    ]
+    for key, partname, cx, name, desc, proto in services:
+        w, h, _, _ = PARTS_DEF[partname]
+        s.text(f"label-{key}", name, cx, SVC_LABEL_Y, 15, 600, INK)
+        for j, line in enumerate(desc):
+            s.text(f"desc-{key}-{j + 1}", line, cx, SVC_LABEL_Y + 18 + 17 * j, 12, 400, TEXT)
+        s.place(f"service-{key}", partname, cx - w / 2, SVC_ICON_TOP + (SVC_ICON_H - h) / 2, name)
+        s.line(f"link-{key}", f"Link to {name}", cx, SVC_ICON_TOP + SVC_ICON_H + 4, cx, SVC_BAR_Y, OLIVE)
+        s.pill(f"protocol-{key}", proto, cx, SVC_BAR_Y - 22)
+    s.add("wifi-network", "Your Wi-Fi network",
+          f'<rect x="0" y="{SVC_BAR_Y}" width="{dw}" height="36" rx="18" fill="{PAPER}" stroke="{PAPER_D}" stroke-width="2"/>'
+          f'<text x="{dw / 2}" y="{SVC_BAR_Y + 23}" text-anchor="middle" font-size="14" font-weight="600" '
+          f'fill="{BROWN_D}">Your Wi-Fi network: built in, no extra hardware</text>')
+    return SVC_BAR_Y + 36
+
+
+def wifi_to_board(s: Scene, cx: float, bar_bottom: float, board_top: float) -> None:
+    s.line("link-wifi", "Wi-Fi link", cx, bar_bottom, cx, board_top, OLIVE)
+    s.add("wifi", "Wi-Fi", f'<rect x="-6" y="-2" width="72" height="44" rx="8" fill="{CREAM}"/>'
+          + PARTS_DEF["wifi"][3], cx - 30, bar_bottom + 12)
+
+
 def compose_overview_content() -> Scene:
+    """Side layout: options in cards on the right, Bluetooth below the board."""
     s = Scene(DW, DH)
     s.text("title", "Everything the board can connect to", 360, 24, 21, 700, INK)
     s.text("subtitle", "Every network option works on the same board. Only Bluetooth needs an extra board.",
            360, 48, 14, 400, TEXT)
+    bar_bottom = services_row(s, DW, (120, 360, 600))
 
-    # board in the middle of the wired row
-    bx, by = 190, 292
+    bx, by = 190, bar_bottom + 68
     cx_board = bx + 115
-    s.place("board", "board-core", bx, by, "Analog Redial board")
     jack_y = by + 85
+    s.place("board", "board-core-down", bx, by, "Analog Redial board")
+    wifi_to_board(s, cx_board, bar_bottom, by)
 
     # line 1: always
     s.place("phone-line-1", "phone", 0, jack_y - 54, "Analog phone (always)")
@@ -342,18 +394,17 @@ def compose_overview_content() -> Scene:
     # pick one: three cards on the right, off the board's connector
     card_w, card_h, gap = 242, 90, 14
     cx0 = DW - card_w
-    top = jack_y - (3 * card_h + 2 * gap) / 2
+    top = by
     spine_x = bx + 237 + 31
+    s.text("pick-one-heading-1", "Four spare pins, one job at a time:", cx0 + card_w / 2, top - 32, 13, 700, INK)
+    s.text("pick-one-heading-2", "the jumpers pick.", cx0 + card_w / 2, top - 14, 13, 400, TEXT)
     s.line("link-options", "Wire to the option cards", bx + 237, jack_y, spine_x, jack_y, OLIVE)
     s.line("link-options-spine", "Spine", spine_x, top + card_h / 2, spine_x,
            top + 2 * (card_h + gap) + card_h / 2, OLIVE)
-    cards = OPTIONS_SIDE
-    for i, (key, partname, k, title, sub, action) in enumerate(cards):
+    for i, (key, partname, k, title, sub, action) in enumerate(OPTIONS_SIDE):
         y = top + i * (card_h + gap)
         s.line(f"stub-{key}", f"Wire to {title}", spine_x, y + card_h / 2, cx0, y + card_h / 2, OLIVE)
         w, h, _, body = PARTS_DEF[partname]
-        ix = cx0 + 12 + (60 - w * k) / 2
-        iy = y + (card_h - h * k) / 2
         s.add(f"option-{key}", title,
               f'<rect width="{card_w}" height="{card_h}" rx="12" fill="{PAPER}" stroke="{PAPER_D}" stroke-width="2"/>'
               f'<g transform="translate({12 + (60 - w * k) / 2:g},{(card_h - h * k) / 2:g}) scale({k:g})">{body}</g>'
@@ -362,101 +413,44 @@ def compose_overview_content() -> Scene:
               f'<text x="82" y="72" font-size="12" font-weight="700" fill="{OLIVE_D}">{action}</text>', cx0, y)
         if i < 2:
             s.text(f"or-{i + 1}", "or", spine_x + 62, y + card_h + gap / 2 + 4, 11, 700, OLIVE_D)
-    s.add("tag-pick-one", "tag: PICK ONE",
-          pill_markup(cx0 + card_w / 2, top - 70, "PICK ONE", PILL_COLORS["PICK ONE"])[0])
-    s.text("pick-one-heading-1", "Four spare pins, one job at a time:", cx0 + card_w / 2, top - 34, 13, 700, INK)
-    s.text("pick-one-heading-2", "the jumpers pick.", cx0 + card_w / 2, top - 16, 13, 400, TEXT)
 
-    # Bluetooth: an extra board plugged into the header, then the cell phone
-    ax = cx_board - 75
-    ay = by - 8 - 54 + 4
-    s.place("bluetooth-adapter", "bluetooth-adapter", ax, ay, "Bluetooth adapter board (BM64)")
+    # Bluetooth: an extra board plugged into the header under the board, then the cell phone
+    ax, ay = cx_board - 75, by + 170
+    s.place("bluetooth-adapter", "bluetooth-adapter-below", ax, ay, "Bluetooth adapter board (BM64)")
     s.add("tag-extra-board", "tag: EXTRA BOARD",
-          pill_markup(ax - 62, ay + 22, "EXTRA BOARD", PILL_COLORS["EXTRA BOARD"])[0])
-    s.place("cell-phone", "cell-phone", cx_board - 31, 78, "Your cell phone")
-    s.text("label-cell-phone", "Your cell phone", cx_board - 46, 140, 14, 400, BROWN_D, "end")
-    s.place("cellular", "cellular", cx_board + 44, 108)
-    s.text("label-cellular", "cellular calls", cx_board + 86, 156, 13, 600, OLIVE_D, "start")
-    s.line("link-bluetooth", "Bluetooth link", cx_board, 194, cx_board, ay, AMBER, dashed=True)
+          pill_markup(ax - 62, ay + 32, "EXTRA BOARD", PILL_COLORS["EXTRA BOARD"])[0])
+    cell_y = ay + 54 + 62
+    s.line("link-bluetooth", "Bluetooth link", cx_board, ay + 54, cx_board, cell_y - 6, AMBER, dashed=True)
     s.add("bluetooth-symbol", "Bluetooth rune",
           f'<rect x="-6" y="-4" width="28" height="32" rx="6" fill="{CREAM}"/>' + PARTS_DEF["bluetooth-symbol"][3],
-          cx_board - 8, 204)
-    s.text("label-bluetooth", "Bluetooth", cx_board + 22, 222, 13, 600, AMBER_D, "start")
-
-    # Wi-Fi: built in, three services hang off it
-    bar_y = 548
-    s.line("link-wifi", "Wi-Fi link", cx_board, by + 170, cx_board, bar_y, OLIVE)
-    s.add("wifi", "Wi-Fi", f'<rect x="-6" y="-2" width="72" height="44" rx="8" fill="{CREAM}"/>'
-          + PARTS_DEF["wifi"][3], cx_board - 30, by + 170 + 8)
-    s.add("wifi-network", "Your Wi-Fi network",
-          f'<rect x="0" y="{bar_y}" width="{DW}" height="36" rx="18" fill="{PAPER}" stroke="{PAPER_D}" stroke-width="2"/>'
-          f'<text x="{DW / 2}" y="{bar_y + 23}" text-anchor="middle" font-size="14" font-weight="600" '
-          f'fill="{BROWN_D}">Your Wi-Fi network: built in, no extra hardware</text>')
-    services = [
-        ("web", "browser", 120, "Web interface", ["Settings, recordings, dial codes,", "and firmware updates"], "HTTP"),
-        ("voip", "server", 360, "VoIP server", ["Call other extensions"], "SIP + RTP"),
-        ("home", "home", 600, "Home Assistant", ["Events, buttons and sensors"], "MQTT"),
-    ]
-    stop = bar_y + 36 + 40
-    for key, partname, cx, name, desc, proto in services:
-        w, h, _, _ = PARTS_DEF[partname]
-        s.line(f"link-{key}", f"Link to {name}", cx, bar_y + 36, cx, stop, OLIVE)
-        s.pill(f"protocol-{key}", proto, cx, bar_y + 56)
-        s.place(f"service-{key}", partname, cx - w / 2, stop, name)
-        s.text(f"label-{key}", name, cx, stop + h + 24, 15, 600, INK)
-        for j, line in enumerate(desc):
-            s.text(f"desc-{key}-{j + 1}", line, cx, stop + h + 44 + 17 * j, 12, 400, TEXT)
+          cx_board - 8, ay + 54 + 14)
+    s.text("label-bluetooth", "Bluetooth", cx_board + 22, ay + 54 + 32, 13, 600, AMBER_D, "start")
+    s.place("cell-phone", "cell-phone", cx_board - 31, cell_y, "Your cell phone")
+    s.text("label-cell-phone", "Your cell phone", cx_board - 46, cell_y + 62, 14, 400, BROWN_D, "end")
+    s.place("cellular", "cellular", cx_board + 44, cell_y + 16)
+    s.text("label-cellular", "cellular calls", cx_board + 86, cell_y + 64, 13, 600, OLIVE_D, "start")
     return s
 
 
 # second layout: the three wired options on top, Bluetooth out to the right
 
-DW2, DH2 = 780, 838
+DW2, DH2 = 780, 858
 
 
 def compose_overview_top_content() -> Scene:
+    """Top layout: Wi-Fi services on top, the three wired options below the
+    board, Bluetooth out to the right."""
     s = Scene(DW2, DH2)
     s.text("title", "Everything the board can connect to", DW2 / 2, 24, 21, 700, INK)
     s.text("subtitle", "Every network option works on the same board. Only Bluetooth needs an extra board.",
            DW2 / 2, 48, 14, 400, TEXT)
+    bar_bottom = services_row(s, DW2, (130, 390, 650))
 
-    # --- the three wired options, on a bar above the board (mirror of Wi-Fi below)
-    opt_bar_y = 298
-    j5_for = {"line-2": ("j5-jumpers-on", "J5 jumpers on"),
-              "microsd": ("j5-jumpers-off-card", "J5 jumpers off, card in"),
-              "pins": ("j5-jumpers-off-wires", "J5 jumpers off, your wires")}
-    options = [(key, part_, k_top, cx, title, sub, action)
-               for (key, part_, _, title, sub, action), (k_top, cx)
-               in zip(OPTIONS_SIDE, ((0.78, 130), (1.45, 390), (1.3, 650)))]
-    icon_top, icon_h = 124, 62
-    for key, partname, k, cx, title, sub, action in options:
-        w, h, _, body = PARTS_DEF[partname]
-        ix, iy = cx - w * k / 2, icon_top + (icon_h - h * k) / 2
-        s.add(f"option-{key}", title, f'<g transform="scale({k:g})">{body}</g>', ix, iy)
-        s.text(f"label-{key}", title, cx, 86, 15, 600, INK)
-        s.text(f"desc-{key}", sub, cx, 104, 12, 400, TEXT)
-        # what J5 looks like for this option, between the option and the bar
-        jname, jcap = j5_for[key]
-        jy = icon_top + icon_h + 14
-        s.place(f"j5-{key}", jname, cx - 50, jy)
-        s.text(f"j5-caption-{key}", jcap, cx, jy + 62 + 14, 12, 700, OLIVE_D)
-        s.line(f"link-{key}", f"Link from {title}", cx, jy + 62 + 22, cx, opt_bar_y, OLIVE)
-    s.text("or-1", "or", 260, icon_top + icon_h / 2 + 5, 14, 700, OLIVE_D)
-    s.text("or-2", "or", 520, icon_top + icon_h / 2 + 5, 14, 700, OLIVE_D)
-    s.add("options-bar", "Wired option bar",
-          f'<rect x="0" y="{opt_bar_y}" width="{DW2}" height="36" rx="18" fill="{PAPER}" stroke="{PAPER_D}" stroke-width="2"/>'
-          f'<text x="{DW2 / 2}" y="{opt_bar_y + 23}" text-anchor="middle" font-size="14" font-weight="600" '
-          f'fill="{BROWN_D}">Four spare pins, one job at a time: the jumpers pick.</text>')
-    s.add("tag-pick-one", "tag: PICK ONE",
-          pill_markup(70, opt_bar_y + 18, "PICK ONE", PILL_COLORS["PICK ONE"])[0].replace(
-              f'fill="{PILL_COLORS["PICK ONE"]}"', f'fill="{PILL_COLORS["PICK ONE"]}"'))
-
-    # --- board, with your phone on the left and the Bluetooth board on the right
-    bx, by = 190, opt_bar_y + 80
+    bx, by = 190, bar_bottom + 66
     cx_board = bx + 115
     jack_y = by + 85
-    s.place("board", "board-core", bx, by, "Analog Redial board")
-    s.line("link-options", "Wire to the options", cx_board, opt_bar_y + 36, cx_board, by - 8, OLIVE)
+    s.place("board", "board-core-down", bx, by, "Analog Redial board")
+    wifi_to_board(s, cx_board, bar_bottom, by)
 
     s.place("phone-line-1", "phone", 0, jack_y - 54, "Analog phone (always)")
     s.add("cord-line-1", "Curly cord, line 1", cord(bx - 7 - 96, 4), 96, jack_y)
@@ -479,29 +473,32 @@ def compose_overview_top_content() -> Scene:
     s.text("label-cell-phone", "Your cell phone", cell_x + 31, jack_y + 76, 14, 600, INK)
     s.text("label-cellular", "cellular calls", cell_x + 31, jack_y + 95, 13, 600, OLIVE_D)
 
-    # --- Wi-Fi down to the network and its three services
-    bar_y = by + 170 + 70
-    s.line("link-wifi", "Wi-Fi link", cx_board, by + 170, cx_board, bar_y, OLIVE)
-    s.add("wifi", "Wi-Fi", f'<rect x="-6" y="-2" width="72" height="44" rx="8" fill="{CREAM}"/>'
-          + PARTS_DEF["wifi"][3], cx_board - 30, by + 170 + 14)
-    s.add("wifi-network", "Your Wi-Fi network",
-          f'<rect x="0" y="{bar_y}" width="{DW2}" height="36" rx="18" fill="{PAPER}" stroke="{PAPER_D}" stroke-width="2"/>'
-          f'<text x="{DW2 / 2}" y="{bar_y + 23}" text-anchor="middle" font-size="14" font-weight="600" '
-          f'fill="{BROWN_D}">Your Wi-Fi network: built in, no extra hardware</text>')
-    services = [
-        ("web", "browser", 130, "Web interface", ["Settings, recordings, dial codes,", "and firmware updates"], "HTTP"),
-        ("voip", "server", 390, "VoIP server", ["Call other extensions"], "SIP + RTP"),
-        ("home", "home", 650, "Home Assistant", ["Events, buttons and sensors"], "MQTT"),
-    ]
-    stop = bar_y + 36 + 40
-    for key, partname, cx, name, desc, proto in services:
-        w, h, _, _ = PARTS_DEF[partname]
-        s.line(f"link-{key}", f"Link to {name}", cx, bar_y + 36, cx, stop, OLIVE)
-        s.pill(f"protocol-{key}", proto, cx, bar_y + 56)
-        s.place(f"service-{key}", partname, cx - w / 2, stop, name)
-        s.text(f"label-{key}", name, cx, stop + h + 24, 15, 600, INK)
-        for j, line in enumerate(desc):
-            s.text(f"desc-{key}-{j + 1}", line, cx, stop + h + 44 + 17 * j, 12, 400, TEXT)
+    # --- the three wired options, below the board on a bar (mirror of Wi-Fi above)
+    j5_for = {"line-2": ("j5-jumpers-on", "J5 jumpers on"),
+              "microsd": ("j5-jumpers-off-card", "J5 jumpers off, card in"),
+              "pins": ("j5-jumpers-off-wires", "J5 jumpers off, your wires")}
+    opt_bar_y = by + 178 + 56
+    s.line("link-options", "Wire to the options", cx_board, by + 178, cx_board, opt_bar_y, OLIVE)
+    s.add("options-bar", "Wired option bar",
+          f'<rect x="0" y="{opt_bar_y}" width="{DW2}" height="36" rx="18" fill="{PAPER}" stroke="{PAPER_D}" stroke-width="2"/>'
+          f'<text x="{DW2 / 2}" y="{opt_bar_y + 23}" text-anchor="middle" font-size="14" font-weight="600" '
+          f'fill="{BROWN_D}">Four spare pins, one job at a time: the jumpers pick.</text>')
+    s.add("tag-pick-one", "tag: PICK ONE",
+          pill_markup(70, opt_bar_y + 18, "PICK ONE", PILL_COLORS["PICK ONE"])[0])
+    jy = opt_bar_y + 36 + 26
+    icon_top = jy + 62 + 30
+    for (key, partname, _, title, sub, _a), (k, cx) in zip(OPTIONS_SIDE, ((0.78, 130), (1.45, 390), (1.3, 650))):
+        w, h, _, body = PARTS_DEF[partname]
+        jname, jcap = j5_for[key]
+        s.line(f"link-{key}", f"Link to {title}", cx, opt_bar_y + 36, cx, jy + 4, OLIVE)
+        s.place(f"j5-{key}", jname, cx - 50, jy)
+        s.text(f"j5-caption-{key}", jcap, cx, jy + 62 + 14, 12, 700, OLIVE_D)
+        ix, iy = cx - w * k / 2, icon_top + (62 - h * k) / 2
+        s.add(f"option-{key}", title, f'<g transform="scale({k:g})">{body}</g>', ix, iy)
+        s.text(f"label-{key}", title, cx, icon_top + 62 + 24, 15, 600, INK)
+        s.text(f"desc-{key}", sub, cx, icon_top + 62 + 42, 12, 400, TEXT)
+    s.text("or-1", "or", 260, icon_top + 31 + 5, 14, 700, OLIVE_D)
+    s.text("or-2", "or", 520, icon_top + 31 + 5, 14, 700, OLIVE_D)
     return s
 
 

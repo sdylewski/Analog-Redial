@@ -1,86 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 816 1056" width="816" height="1056" role="img" aria-label="Everything the Analog Redial board can connect to: one phone always, then a second line or a microSD card or your own gadgets on four spare pins, chosen with the J5 jumpers; Wi-Fi to the web interface, a VoIP server and Home Assistant; and Bluetooth through an extra adapter board">
 <rect id="background" width="816" height="1056" fill="#f7f0e0"/>
 <g font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
-<g id="diagram" inkscape:label="Diagram" transform="translate(134.233,28) scale(0.760463)">
+<g id="diagram" inkscape:label="Diagram" transform="translate(134.935,28) scale(0.758513)">
 <g id="title" inkscape:label="text: Everything the board can connect to"><text x="360" y="24" text-anchor="middle" font-size="21" font-weight="700" fill="#2b2620">Everything the board can connect to</text></g>
 <g id="subtitle" inkscape:label="text: Every network option works on the same b"><text x="360" y="48" text-anchor="middle" font-size="14" font-weight="400" fill="#5c4a35">Every network option works on the same board. Only Bluetooth needs an extra board.</text></g>
-<g id="board" inkscape:label="Analog Redial board" transform="translate(190,292)">
-  <rect id="pcb" x="0" y="0" width="230" height="170" rx="10" fill="#2b2620"/>
-  <rect id="jack-line-1" x="-7" y="72" width="10" height="26" rx="2" fill="#5c4a35"/>
-  <rect id="options-connector" x="227" y="72" width="10" height="26" rx="2" fill="#5c4a35"/>
-  <rect id="adapter-header" x="102" y="-8" width="26" height="12" rx="2" fill="#5c4a35"/>
-  <circle id="led-1" cx="30" cy="18" r="4" fill="#c78a2b"/><circle id="led-2" cx="46" cy="18" r="4" fill="#7c8c45"/>
-  <text x="115" y="94" text-anchor="middle" font-size="17" font-weight="600" fill="#f7f0e0">ANALOG REDIAL</text>
-  <text x="115" y="116" text-anchor="middle" font-size="12" fill="#8a6f4d">Wi-Fi built in</text></g>
-<g id="phone-line-1" inkscape:label="Analog phone (always)" transform="translate(0,323)">
-  <g id="handset"><line x1="14" y1="16" x2="76" y2="16" stroke="#4d5a26" stroke-width="20" stroke-linecap="round"/>
-    <circle cx="14" cy="16" r="13" fill="#7c8c45"/><circle cx="76" cy="16" r="13" fill="#7c8c45"/></g>
-  <g id="body"><rect x="4" y="32" width="82" height="44" rx="8" fill="#2b2620"/>
-    <circle cx="45" cy="54" r="14" fill="none" stroke="#7c8c45" stroke-width="3"/>
-    <circle cx="45" cy="54" r="3.5" fill="#7c8c45"/></g></g>
-<g id="cord-line-1" inkscape:label="Curly cord, line 1" transform="translate(96,377)"><path d="M 0 0 q 10.88 -12 10.88 0 q 10.88 12 10.88 0 q 10.88 -12 10.88 0 q 10.88 12 10.88 0 q 10.88 -12 10.88 0 q 10.88 12 10.88 0 q 10.88 -12 10.88 0 q 10.88 12 10.88 0" fill="none" stroke="#8a6f4d" stroke-width="4" stroke-linecap="round"/></g>
-<g id="label-line-1" inkscape:label="text: Your phone"><text x="45" y="429" text-anchor="middle" font-size="14" font-weight="600" fill="#2b2620">Your phone</text></g>
-<g id="tag-always" inkscape:label="tag: ALWAYS"><rect x="12.1" y="444" width="65.8" height="22" rx="11" fill="#4d5a26"/><text x="45" y="459" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#f7f0e0">ALWAYS</text></g>
-<g id="link-options" inkscape:label="Wire to the option cards"><line x1="427" y1="377" x2="458" y2="377" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
-<g id="link-options-spine" inkscape:label="Spine"><line x1="458" y1="273" x2="458" y2="481" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
-<g id="stub-line-2" inkscape:label="Wire to Second phone line"><line x1="458" y1="273" x2="478" y2="273" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
-<g id="option-line-2" inkscape:label="Second phone line" transform="translate(478,228)"><rect width="242" height="90" rx="12" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/><g transform="translate(14.1,20.2) scale(0.62)">
-  <g id="handset"><line x1="14" y1="16" x2="76" y2="16" stroke="#4d5a26" stroke-width="20" stroke-linecap="round"/>
-    <circle cx="14" cy="16" r="13" fill="#7c8c45"/><circle cx="76" cy="16" r="13" fill="#7c8c45"/></g>
-  <g id="body"><rect x="4" y="32" width="82" height="44" rx="8" fill="#2b2620"/>
-    <circle cx="45" cy="54" r="14" fill="none" stroke="#7c8c45" stroke-width="3"/>
-    <circle cx="45" cy="54" r="3.5" fill="#7c8c45"/></g></g><text x="82" y="31" font-size="15" font-weight="600" fill="#2b2620">Second phone line</text><text x="82" y="51" font-size="12" fill="#5c4a35">a second analog phone</text><text x="82" y="72" font-size="12" font-weight="700" fill="#4d5a26">Jumpers on</text></g>
-<g id="or-1" inkscape:label="text: or"><text x="520" y="329" text-anchor="middle" font-size="11" font-weight="700" fill="#4d5a26">or</text></g>
-<g id="stub-microsd" inkscape:label="Wire to microSD card"><line x1="458" y1="377" x2="478" y2="377" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
-<g id="option-microsd" inkscape:label="microSD card" transform="translate(478,332)"><rect width="242" height="90" rx="12" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/><g transform="translate(24,25) scale(1)">
-  <path d="M 6 0 H 36 V 40 H 0 V 6 Z" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/>
-  <rect x="6" y="10" width="4" height="12" fill="#d6c7a4"/><rect x="14" y="10" width="4" height="12" fill="#d6c7a4"/>
-  <rect x="22" y="10" width="4" height="12" fill="#d6c7a4"/>
-  <text x="18" y="34" text-anchor="middle" font-size="9" font-weight="600" fill="#7a6a52">SD</text></g><text x="82" y="31" font-size="15" font-weight="600" fill="#2b2620">microSD card</text><text x="82" y="51" font-size="12" fill="#5c4a35">recordings and clips</text><text x="82" y="72" font-size="12" font-weight="700" fill="#4d5a26">Jumpers off, card in</text></g>
-<g id="or-2" inkscape:label="text: or"><text x="520" y="433" text-anchor="middle" font-size="11" font-weight="700" fill="#4d5a26">or</text></g>
-<g id="stub-pins" inkscape:label="Wire to Your own gadgets"><line x1="458" y1="481" x2="478" y2="481" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
-<g id="option-pins" inkscape:label="Your own gadgets" transform="translate(478,436)"><rect width="242" height="90" rx="12" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/><g transform="translate(20,21) scale(1)">
-  <circle id="bulb" cx="22" cy="12" r="11" fill="#c78a2b"/>
-  <rect id="bulb-base" x="15" y="22" width="14" height="6" rx="2" fill="#5c4a35"/>
-  <rect id="header" x="0" y="34" width="44" height="14" rx="3" fill="#2b2620"/>
-  <circle cx="8" cy="41" r="3" fill="#c78a2b"/><circle cx="18" cy="41" r="3" fill="#c78a2b"/>
-  <circle cx="28" cy="41" r="3" fill="#c78a2b"/><circle cx="38" cy="41" r="3" fill="#c78a2b"/>
-  <path d="M 22 28 V 34" stroke="#5c4a35" stroke-width="3"/></g><text x="82" y="31" font-size="15" font-weight="600" fill="#2b2620">Your own gadgets</text><text x="82" y="51" font-size="12" fill="#5c4a35">relay, light, buzzer</text><text x="82" y="72" font-size="12" font-weight="700" fill="#4d5a26">Jumpers off, your wires</text></g>
-<g id="tag-pick-one" inkscape:label="tag: PICK ONE"><rect x="558.8" y="147" width="80.4" height="22" rx="11" fill="#4d5a26"/><text x="599" y="162" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#f7f0e0">PICK ONE</text></g>
-<g id="pick-one-heading-1" inkscape:label="text: Four spare pins, one job at a time:"><text x="599" y="194" text-anchor="middle" font-size="13" font-weight="700" fill="#2b2620">Four spare pins, one job at a time:</text></g>
-<g id="pick-one-heading-2" inkscape:label="text: the jumpers pick."><text x="599" y="212" text-anchor="middle" font-size="13" font-weight="400" fill="#5c4a35">the jumpers pick.</text></g>
-<g id="bluetooth-adapter" inkscape:label="Bluetooth adapter board (BM64)" transform="translate(230,234)">
-  <rect id="pcb" x="0" y="0" width="150" height="44" rx="8" fill="#9c6a1f"/>
-  <rect id="chip" x="10" y="10" width="40" height="24" rx="3" fill="#6f4a14"/>
-  <text x="30" y="26" text-anchor="middle" font-size="10" font-weight="600" fill="#f5e4bf">BM64</text>
-  <text x="100" y="26" text-anchor="middle" font-size="12" font-weight="600" fill="#f5e4bf">Bluetooth board</text>
-  <rect id="plug" x="62" y="44" width="26" height="10" rx="2" fill="#5c4a35"/></g>
-<g id="tag-extra-board" inkscape:label="tag: EXTRA BOARD"><rect x="116.85" y="245" width="102.3" height="22" rx="11" fill="#9c6a1f"/><text x="168" y="260" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#f7f0e0">EXTRA BOARD</text></g>
-<g id="cell-phone" inkscape:label="Your cell phone" transform="translate(274,78)">
-  <rect x="0" y="0" width="62" height="112" rx="10" fill="#2b2620"/>
-  <rect x="6" y="11" width="50" height="84" rx="4" fill="#3a3128"/>
-  <circle cx="31" cy="103" r="4" fill="#5c4a35"/></g>
-<g id="label-cell-phone" inkscape:label="text: Your cell phone"><text x="259" y="140" text-anchor="end" font-size="14" font-weight="400" fill="#423525">Your cell phone</text></g>
-<g id="cellular" inkscape:label="Cellular signal arcs" transform="translate(349,108)">
-  <path d="M 0 56 A 30 30 0 0 0 0 0" fill="none" stroke="#5f7a2a" stroke-width="5" stroke-linecap="round"/>
-  <path d="M 8 66 A 48 48 0 0 0 8 -10" fill="none" stroke="#5f7a2a" stroke-width="5" stroke-linecap="round"
-        transform="translate(0,0)"/></g>
-<g id="label-cellular" inkscape:label="text: cellular calls"><text x="391" y="156" text-anchor="start" font-size="13" font-weight="600" fill="#4d5a26">cellular calls</text></g>
-<g id="link-bluetooth" inkscape:label="Bluetooth link"><line x1="305" y1="194" x2="305" y2="234" stroke="#c78a2b" stroke-width="4" stroke-linecap="round" stroke-dasharray="9 8"/></g>
-<g id="bluetooth-symbol" inkscape:label="Bluetooth rune" transform="translate(297,204)"><rect x="-6" y="-4" width="28" height="32" rx="6" fill="#f7f0e0"/>
-  <path d="M 1 7 L 15 17 L 8 23 L 8 1 L 15 7 L 1 17" fill="none" stroke="#c78a2b" stroke-width="3"
-        stroke-linecap="round" stroke-linejoin="round"/></g>
-<g id="label-bluetooth" inkscape:label="text: Bluetooth"><text x="327" y="222" text-anchor="start" font-size="13" font-weight="600" fill="#9c6a1f">Bluetooth</text></g>
-<g id="link-wifi" inkscape:label="Wi-Fi link"><line x1="305" y1="462" x2="305" y2="548" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
-<g id="wifi" inkscape:label="Wi-Fi" transform="translate(275,470)"><rect x="-6" y="-2" width="72" height="44" rx="8" fill="#f7f0e0"/>
-  <path d="M 6.4 22.5 A 34 34 0 0 1 53.6 22.5" fill="none" stroke="#c78a2b" stroke-width="5" stroke-linecap="round"/>
-  <path d="M 14.5 29.4 A 23 23 0 0 1 45.5 29.4" fill="none" stroke="#c78a2b" stroke-width="5" stroke-linecap="round"/>
-  <path d="M 22.4 36.2 A 12 12 0 0 1 37.6 36.2" fill="none" stroke="#c78a2b" stroke-width="5" stroke-linecap="round"/>
-  <circle cx="30" cy="40" r="4.5" fill="#c78a2b" transform="translate(0,-2)"/></g>
-<g id="wifi-network" inkscape:label="Your Wi-Fi network"><rect x="0" y="548" width="720" height="36" rx="18" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/><text x="360.0" y="571" text-anchor="middle" font-size="14" font-weight="600" fill="#423525">Your Wi-Fi network: built in, no extra hardware</text></g>
-<g id="link-web" inkscape:label="Link to Web interface"><line x1="120" y1="584" x2="120" y2="624" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
-<g id="protocol-web" inkscape:label="protocol: HTTP"><rect x="98.2" y="593" width="43.6" height="22" rx="11" fill="#f7f0e0" stroke="#9c6a1f" stroke-width="2"/><text x="120" y="608.5" text-anchor="middle" font-size="12" font-weight="600" fill="#9c6a1f">HTTP</text></g>
-<g id="service-web" inkscape:label="Web interface" transform="translate(78,624)">
+<g id="label-web" inkscape:label="text: Web interface"><text x="120" y="86" text-anchor="middle" font-size="15" font-weight="600" fill="#2b2620">Web interface</text></g>
+<g id="desc-web-1" inkscape:label="text: Settings, recordings, dial codes,"><text x="120" y="104" text-anchor="middle" font-size="12" font-weight="400" fill="#5c4a35">Settings, recordings, dial codes,</text></g>
+<g id="desc-web-2" inkscape:label="text: and firmware updates"><text x="120" y="121" text-anchor="middle" font-size="12" font-weight="400" fill="#5c4a35">and firmware updates</text></g>
+<g id="service-web" inkscape:label="Web interface" transform="translate(78,138)">
   <rect x="0" y="0" width="84" height="62" rx="7" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/>
   <path d="M 0 14 H 84 V 7 a 7 7 0 0 0 -7 -7 H 7 a 7 7 0 0 0 -7 7 Z" fill="#d6c7a4"/>
   <circle cx="9" cy="7" r="2.6" fill="#c78a2b"/><circle cx="18" cy="7" r="2.6" fill="#7c8c45"/>
@@ -88,31 +15,103 @@
   <rect x="8" y="34" width="68" height="4" rx="2" fill="#d6c7a4"/>
   <rect x="8" y="43" width="68" height="4" rx="2" fill="#d6c7a4"/>
   <rect x="8" y="52" width="44" height="4" rx="2" fill="#d6c7a4"/></g>
-<g id="label-web" inkscape:label="text: Web interface"><text x="120" y="710" text-anchor="middle" font-size="15" font-weight="600" fill="#2b2620">Web interface</text></g>
-<g id="desc-web-1" inkscape:label="text: Settings, recordings, dial codes,"><text x="120" y="730" text-anchor="middle" font-size="12" font-weight="400" fill="#5c4a35">Settings, recordings, dial codes,</text></g>
-<g id="desc-web-2" inkscape:label="text: and firmware updates"><text x="120" y="747" text-anchor="middle" font-size="12" font-weight="400" fill="#5c4a35">and firmware updates</text></g>
-<g id="link-voip" inkscape:label="Link to VoIP server"><line x1="360" y1="584" x2="360" y2="624" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
-<g id="protocol-voip" inkscape:label="protocol: SIP + RTP"><rect x="319.7" y="593" width="80.6" height="22" rx="11" fill="#f7f0e0" stroke="#9c6a1f" stroke-width="2"/><text x="360" y="608.5" text-anchor="middle" font-size="12" font-weight="600" fill="#9c6a1f">SIP + RTP</text></g>
-<g id="service-voip" inkscape:label="VoIP server" transform="translate(322,624)">
+<g id="link-web" inkscape:label="Link to Web interface"><line x1="120" y1="204" x2="120" y2="246" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
+<g id="protocol-web" inkscape:label="protocol: HTTP"><rect x="98.2" y="213" width="43.6" height="22" rx="11" fill="#f7f0e0" stroke="#9c6a1f" stroke-width="2"/><text x="120" y="228.5" text-anchor="middle" font-size="12" font-weight="600" fill="#9c6a1f">HTTP</text></g>
+<g id="label-voip" inkscape:label="text: VoIP server"><text x="360" y="86" text-anchor="middle" font-size="15" font-weight="600" fill="#2b2620">VoIP server</text></g>
+<g id="desc-voip-1" inkscape:label="text: Call other extensions"><text x="360" y="104" text-anchor="middle" font-size="12" font-weight="400" fill="#5c4a35">Call other extensions</text></g>
+<g id="service-voip" inkscape:label="VoIP server" transform="translate(322,138)">
   <rect x="0" y="0" width="76" height="28" rx="6" fill="#2b2620"/>
   <rect x="0" y="34" width="76" height="28" rx="6" fill="#2b2620"/>
   <circle cx="14" cy="14" r="3.5" fill="#7c8c45"/><circle cx="26" cy="14" r="3.5" fill="#c78a2b"/>
   <rect x="42" y="11" width="26" height="6" rx="3" fill="#5c4a35"/>
   <circle cx="14" cy="48" r="3.5" fill="#7c8c45"/><circle cx="26" cy="48" r="3.5" fill="#7c8c45"/>
   <rect x="42" y="45" width="26" height="6" rx="3" fill="#5c4a35"/></g>
-<g id="label-voip" inkscape:label="text: VoIP server"><text x="360" y="710" text-anchor="middle" font-size="15" font-weight="600" fill="#2b2620">VoIP server</text></g>
-<g id="desc-voip-1" inkscape:label="text: Call other extensions"><text x="360" y="730" text-anchor="middle" font-size="12" font-weight="400" fill="#5c4a35">Call other extensions</text></g>
-<g id="link-home" inkscape:label="Link to Home Assistant"><line x1="600" y1="584" x2="600" y2="624" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
-<g id="protocol-home" inkscape:label="protocol: MQTT"><rect x="578.2" y="593" width="43.6" height="22" rx="11" fill="#f7f0e0" stroke="#9c6a1f" stroke-width="2"/><text x="600" y="608.5" text-anchor="middle" font-size="12" font-weight="600" fill="#9c6a1f">MQTT</text></g>
-<g id="service-home" inkscape:label="Home Assistant" transform="translate(562,624)">
+<g id="link-voip" inkscape:label="Link to VoIP server"><line x1="360" y1="204" x2="360" y2="246" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
+<g id="protocol-voip" inkscape:label="protocol: SIP + RTP"><rect x="319.7" y="213" width="80.6" height="22" rx="11" fill="#f7f0e0" stroke="#9c6a1f" stroke-width="2"/><text x="360" y="228.5" text-anchor="middle" font-size="12" font-weight="600" fill="#9c6a1f">SIP + RTP</text></g>
+<g id="label-home" inkscape:label="text: Home Assistant"><text x="600" y="86" text-anchor="middle" font-size="15" font-weight="600" fill="#2b2620">Home Assistant</text></g>
+<g id="desc-home-1" inkscape:label="text: Events, buttons and sensors"><text x="600" y="104" text-anchor="middle" font-size="12" font-weight="400" fill="#5c4a35">Events, buttons and sensors</text></g>
+<g id="service-home" inkscape:label="Home Assistant" transform="translate(562,138)">
   <path d="M 4 30 L 38 3 L 72 30" fill="none" stroke="#4d5a26" stroke-width="7"
         stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M 13 28 V 58 H 63 V 28 L 38 8 Z" fill="#7c8c45" stroke="#4d5a26" stroke-width="3"
         stroke-linejoin="round"/>
   <rect x="31" y="38" width="14" height="20" rx="2" fill="#f7f0e0"/>
   <circle cx="38" cy="25" r="5" fill="#c78a2b"/></g>
-<g id="label-home" inkscape:label="text: Home Assistant"><text x="600" y="710" text-anchor="middle" font-size="15" font-weight="600" fill="#2b2620">Home Assistant</text></g>
-<g id="desc-home-1" inkscape:label="text: Events, buttons and sensors"><text x="600" y="730" text-anchor="middle" font-size="12" font-weight="400" fill="#5c4a35">Events, buttons and sensors</text></g>
+<g id="link-home" inkscape:label="Link to Home Assistant"><line x1="600" y1="204" x2="600" y2="246" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
+<g id="protocol-home" inkscape:label="protocol: MQTT"><rect x="578.2" y="213" width="43.6" height="22" rx="11" fill="#f7f0e0" stroke="#9c6a1f" stroke-width="2"/><text x="600" y="228.5" text-anchor="middle" font-size="12" font-weight="600" fill="#9c6a1f">MQTT</text></g>
+<g id="wifi-network" inkscape:label="Your Wi-Fi network"><rect x="0" y="246" width="720" height="36" rx="18" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/><text x="360.0" y="269" text-anchor="middle" font-size="14" font-weight="600" fill="#423525">Your Wi-Fi network: built in, no extra hardware</text></g>
+<g id="board" inkscape:label="Analog Redial board" transform="translate(190,350)">
+  <rect id="pcb" x="0" y="0" width="230" height="170" rx="10" fill="#2b2620"/>
+  <rect id="jack-line-1" x="-7" y="72" width="10" height="26" rx="2" fill="#5c4a35"/>
+  <rect id="options-connector" x="227" y="72" width="10" height="26" rx="2" fill="#5c4a35"/>
+  <rect id="adapter-header" x="102" y="166" width="26" height="12" rx="2" fill="#5c4a35"/>
+  <circle id="led-1" cx="30" cy="18" r="4" fill="#c78a2b"/><circle id="led-2" cx="46" cy="18" r="4" fill="#7c8c45"/>
+  <text x="115" y="94" text-anchor="middle" font-size="17" font-weight="600" fill="#f7f0e0">ANALOG REDIAL</text>
+  <text x="115" y="116" text-anchor="middle" font-size="12" fill="#8a6f4d">Wi-Fi built in</text></g>
+<g id="link-wifi" inkscape:label="Wi-Fi link"><line x1="305" y1="282" x2="305" y2="350" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
+<g id="wifi" inkscape:label="Wi-Fi" transform="translate(275,294)"><rect x="-6" y="-2" width="72" height="44" rx="8" fill="#f7f0e0"/>
+  <path d="M 6.4 22.5 A 34 34 0 0 1 53.6 22.5" fill="none" stroke="#c78a2b" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 14.5 29.4 A 23 23 0 0 1 45.5 29.4" fill="none" stroke="#c78a2b" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 22.4 36.2 A 12 12 0 0 1 37.6 36.2" fill="none" stroke="#c78a2b" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="30" cy="40" r="4.5" fill="#c78a2b" transform="translate(0,-2)"/></g>
+<g id="phone-line-1" inkscape:label="Analog phone (always)" transform="translate(0,381)">
+  <g id="handset"><line x1="14" y1="16" x2="76" y2="16" stroke="#4d5a26" stroke-width="20" stroke-linecap="round"/>
+    <circle cx="14" cy="16" r="13" fill="#7c8c45"/><circle cx="76" cy="16" r="13" fill="#7c8c45"/></g>
+  <g id="body"><rect x="4" y="32" width="82" height="44" rx="8" fill="#2b2620"/>
+    <circle cx="45" cy="54" r="14" fill="none" stroke="#7c8c45" stroke-width="3"/>
+    <circle cx="45" cy="54" r="3.5" fill="#7c8c45"/></g></g>
+<g id="cord-line-1" inkscape:label="Curly cord, line 1" transform="translate(96,435)"><path d="M 0 0 q 10.88 -12 10.88 0 q 10.88 12 10.88 0 q 10.88 -12 10.88 0 q 10.88 12 10.88 0 q 10.88 -12 10.88 0 q 10.88 12 10.88 0 q 10.88 -12 10.88 0 q 10.88 12 10.88 0" fill="none" stroke="#8a6f4d" stroke-width="4" stroke-linecap="round"/></g>
+<g id="label-line-1" inkscape:label="text: Your phone"><text x="45" y="487" text-anchor="middle" font-size="14" font-weight="600" fill="#2b2620">Your phone</text></g>
+<g id="tag-always" inkscape:label="tag: ALWAYS"><rect x="12.1" y="502" width="65.8" height="22" rx="11" fill="#4d5a26"/><text x="45" y="517" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#f7f0e0">ALWAYS</text></g>
+<g id="pick-one-heading-1" inkscape:label="text: Four spare pins, one job at a time:"><text x="599" y="318" text-anchor="middle" font-size="13" font-weight="700" fill="#2b2620">Four spare pins, one job at a time:</text></g>
+<g id="pick-one-heading-2" inkscape:label="text: the jumpers pick."><text x="599" y="336" text-anchor="middle" font-size="13" font-weight="400" fill="#5c4a35">the jumpers pick.</text></g>
+<g id="link-options" inkscape:label="Wire to the option cards"><line x1="427" y1="435" x2="458" y2="435" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
+<g id="link-options-spine" inkscape:label="Spine"><line x1="458" y1="395" x2="458" y2="603" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
+<g id="stub-line-2" inkscape:label="Wire to Second phone line"><line x1="458" y1="395" x2="478" y2="395" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
+<g id="option-line-2" inkscape:label="Second phone line" transform="translate(478,350)"><rect width="242" height="90" rx="12" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/><g transform="translate(14.1,20.2) scale(0.62)">
+  <g id="handset"><line x1="14" y1="16" x2="76" y2="16" stroke="#4d5a26" stroke-width="20" stroke-linecap="round"/>
+    <circle cx="14" cy="16" r="13" fill="#7c8c45"/><circle cx="76" cy="16" r="13" fill="#7c8c45"/></g>
+  <g id="body"><rect x="4" y="32" width="82" height="44" rx="8" fill="#2b2620"/>
+    <circle cx="45" cy="54" r="14" fill="none" stroke="#7c8c45" stroke-width="3"/>
+    <circle cx="45" cy="54" r="3.5" fill="#7c8c45"/></g></g><text x="82" y="31" font-size="15" font-weight="600" fill="#2b2620">Second phone line</text><text x="82" y="51" font-size="12" fill="#5c4a35">a second analog phone</text><text x="82" y="72" font-size="12" font-weight="700" fill="#4d5a26">Jumpers on</text></g>
+<g id="or-1" inkscape:label="text: or"><text x="520" y="451" text-anchor="middle" font-size="11" font-weight="700" fill="#4d5a26">or</text></g>
+<g id="stub-microsd" inkscape:label="Wire to microSD card"><line x1="458" y1="499" x2="478" y2="499" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
+<g id="option-microsd" inkscape:label="microSD card" transform="translate(478,454)"><rect width="242" height="90" rx="12" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/><g transform="translate(24,25) scale(1)">
+  <path d="M 6 0 H 36 V 40 H 0 V 6 Z" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/>
+  <rect x="6" y="10" width="4" height="12" fill="#d6c7a4"/><rect x="14" y="10" width="4" height="12" fill="#d6c7a4"/>
+  <rect x="22" y="10" width="4" height="12" fill="#d6c7a4"/>
+  <text x="18" y="34" text-anchor="middle" font-size="9" font-weight="600" fill="#7a6a52">SD</text></g><text x="82" y="31" font-size="15" font-weight="600" fill="#2b2620">microSD card</text><text x="82" y="51" font-size="12" fill="#5c4a35">recordings and clips</text><text x="82" y="72" font-size="12" font-weight="700" fill="#4d5a26">Jumpers off, card in</text></g>
+<g id="or-2" inkscape:label="text: or"><text x="520" y="555" text-anchor="middle" font-size="11" font-weight="700" fill="#4d5a26">or</text></g>
+<g id="stub-pins" inkscape:label="Wire to Your own gadgets"><line x1="458" y1="603" x2="478" y2="603" stroke="#7c8c45" stroke-width="4" stroke-linecap="round"/></g>
+<g id="option-pins" inkscape:label="Your own gadgets" transform="translate(478,558)"><rect width="242" height="90" rx="12" fill="#efe4cb" stroke="#d6c7a4" stroke-width="2"/><g transform="translate(20,21) scale(1)">
+  <circle id="bulb" cx="22" cy="12" r="11" fill="#c78a2b"/>
+  <rect id="bulb-base" x="15" y="22" width="14" height="6" rx="2" fill="#5c4a35"/>
+  <rect id="header" x="0" y="34" width="44" height="14" rx="3" fill="#2b2620"/>
+  <circle cx="8" cy="41" r="3" fill="#c78a2b"/><circle cx="18" cy="41" r="3" fill="#c78a2b"/>
+  <circle cx="28" cy="41" r="3" fill="#c78a2b"/><circle cx="38" cy="41" r="3" fill="#c78a2b"/>
+  <path d="M 22 28 V 34" stroke="#5c4a35" stroke-width="3"/></g><text x="82" y="31" font-size="15" font-weight="600" fill="#2b2620">Your own gadgets</text><text x="82" y="51" font-size="12" fill="#5c4a35">relay, light, buzzer</text><text x="82" y="72" font-size="12" font-weight="700" fill="#4d5a26">Jumpers off, your wires</text></g>
+<g id="bluetooth-adapter" inkscape:label="Bluetooth adapter board (BM64)" transform="translate(230,520)">
+  <rect id="plug" x="62" y="0" width="26" height="12" rx="2" fill="#5c4a35"/>
+  <rect id="pcb" x="0" y="10" width="150" height="44" rx="8" fill="#9c6a1f"/>
+  <rect id="chip" x="10" y="20" width="40" height="24" rx="3" fill="#6f4a14"/>
+  <text x="30" y="36" text-anchor="middle" font-size="10" font-weight="600" fill="#f5e4bf">BM64</text>
+  <text x="100" y="36" text-anchor="middle" font-size="12" font-weight="600" fill="#f5e4bf">Bluetooth board</text></g>
+<g id="tag-extra-board" inkscape:label="tag: EXTRA BOARD"><rect x="116.85" y="541" width="102.3" height="22" rx="11" fill="#9c6a1f"/><text x="168" y="556" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#f7f0e0">EXTRA BOARD</text></g>
+<g id="link-bluetooth" inkscape:label="Bluetooth link"><line x1="305" y1="574" x2="305" y2="630" stroke="#c78a2b" stroke-width="4" stroke-linecap="round" stroke-dasharray="9 8"/></g>
+<g id="bluetooth-symbol" inkscape:label="Bluetooth rune" transform="translate(297,588)"><rect x="-6" y="-4" width="28" height="32" rx="6" fill="#f7f0e0"/>
+  <path d="M 1 7 L 15 17 L 8 23 L 8 1 L 15 7 L 1 17" fill="none" stroke="#c78a2b" stroke-width="3"
+        stroke-linecap="round" stroke-linejoin="round"/></g>
+<g id="label-bluetooth" inkscape:label="text: Bluetooth"><text x="327" y="606" text-anchor="start" font-size="13" font-weight="600" fill="#9c6a1f">Bluetooth</text></g>
+<g id="cell-phone" inkscape:label="Your cell phone" transform="translate(274,636)">
+  <rect x="0" y="0" width="62" height="112" rx="10" fill="#2b2620"/>
+  <rect x="6" y="11" width="50" height="84" rx="4" fill="#3a3128"/>
+  <circle cx="31" cy="103" r="4" fill="#5c4a35"/></g>
+<g id="label-cell-phone" inkscape:label="text: Your cell phone"><text x="259" y="698" text-anchor="end" font-size="14" font-weight="400" fill="#423525">Your cell phone</text></g>
+<g id="cellular" inkscape:label="Cellular signal arcs" transform="translate(349,652)">
+  <path d="M 0 56 A 30 30 0 0 0 0 0" fill="none" stroke="#5f7a2a" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 8 66 A 48 48 0 0 0 8 -10" fill="none" stroke="#5f7a2a" stroke-width="5" stroke-linecap="round"
+        transform="translate(0,0)"/></g>
+<g id="label-cellular" inkscape:label="text: cellular calls"><text x="391" y="700" text-anchor="start" font-size="13" font-weight="600" fill="#4d5a26">cellular calls</text></g>
 </g>
 <g id="legend" inkscape:label="Legend">
 <g id="legend-always" inkscape:label="legend: ALWAYS"><rect x="48" y="639.64" width="65.8" height="22" rx="11" fill="#4d5a26"/><text x="80.9" y="654.64" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="0.6" fill="#f7f0e0">ALWAYS</text>
