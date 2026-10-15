@@ -86,6 +86,10 @@ def build_probes(number: str) -> list[Probe]:
         Probe("outer-0x02", "outer CMD 0x02 is 'outgoing number' in the module->MCU direction; "
                             "maybe it is bidirectional.",
               [f'bk_frame 02 "{d}"'], explore=True),
+        Probe("code-0x0C", "0x0C is listed as 'reserved' (BT_CMD_STOP) in the spreadsheets. The "
+                           "firmware has an HF VOICE DIAL action (ToolKit button table) with no "
+                           "documented serial code: watch the phone for Siri as well as a call.",
+              ['bk_frame 01 "0C"'], explore=True),
         Probe("code-0x26", "0x26 is undocumented (the table jumps 0x25 -> 0x29): bare",
               ['bk_frame 01 "26"'], explore=True),
         Probe("code-0x26+digits", "undocumented 0x26 carrying the number",
