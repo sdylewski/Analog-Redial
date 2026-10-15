@@ -47,17 +47,20 @@ The bare board plus SMT assembly, delivered to the US. **Assembly includes
 the SMT parts themselves**, so don't count the codec and passives again.
 Quoted October 2026: 1.6 mm, lead-free HASL, top-side assembly only.
 
-| | **5 boards** | **30 boards** | **160 boards** (20 panels × 8) |
-|---|---:|---:|---:|
-| PCB | $8.10 | $23.20 | $106.20 |
-| Assembly, incl. SMT parts | $26.92 (Economic) | $68.79 (Economic) | $296.12 (Standard) |
-| **Merchandise** | **$35.02** | **$91.99** | **$402.32** |
-| Shipping | $30.86 | $40.46 | $89.90 |
-| Sales tax, 8.625% | $3.02 | $7.93 | $34.70 |
-| Import tariff, about 47.5% of merchandise | $16.63 | $43.70 | $191.10 |
-| **Delivered total** | **$85.53** | **$184.08** | **$718.02** |
-| **Per board** | **$17.11** | **$6.14** | **$4.49** |
-| Per board with the hand-solder parts (about $19) | **about $36** | **about $25** | **about $24** |
+| | **5 boards** (the minimum) |
+|---|---:|
+| PCB | $8.10 |
+| Assembly, incl. SMT parts | $26.92 (Economic) |
+| **Merchandise** | **$35.02** |
+| Shipping | $30.86 |
+| Sales tax, 8.625% | $3.02 |
+| Import tariff, about 47.5% of merchandise | $16.63 |
+| **Delivered total** | **$85.53** |
+| **Per board** | **$17.11** |
+| Per board with the hand-solder parts (about $19) | **about $36** |
+
+JLCPCB's minimum order is 5, so you end up with four spare boards. Most of
+the price is fixed set-up and shipping.
 
 
 ## Ordering from JLCPCB

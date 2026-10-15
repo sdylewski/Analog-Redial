@@ -131,23 +131,23 @@ Click any picture for the full page. A guided tour is in
 Building a single-line board yourself, US prices from October 2026
 including shipping and import tariff:
 
-| | Just you | Pooled order (30 boards) |
-|---|---:|---:|
-| Assembled PCB from JLCPCB (5-board minimum) | $85.53 for 5, so $17.11 each | about $6 each |
-| Hand-solder parts from DigiKey ([parts list](docs/bom.md)) | about $19, plus shipping | about $19 |
-| **One single-line board** | **about $110 up front**, with 4 spare PCBs | **about $25** |
-| Second phone line (optional) | +$10 | +$10 |
+| | Cost |
+|---|---:|
+| Assembled PCB from JLCPCB (5-board minimum) | $85.53 for 5, so $17.11 each |
+| Hand-solder parts from DigiKey ([parts list](docs/bom.md)) | about $19, plus shipping |
+| **One single-line board** | **about $110 up front**, with 4 spare PCBs |
+| Second phone line (optional) | +$10 |
 
 You'll also want a 2A USB-C charger and one or two analog phones. Buying
 the hand-solder parts from AliExpress instead brings them to about $12 a
 board.
 
-**A pooled order makes boards much cheaper.** Most of a small order is fixed
-setup fees, so the price per board falls fast with quantity. If you'd like a
-board from a pooled order, **[register your interest](https://forms.gle/kVKHiXejV6M2ZxC17)**: no
-commitment, it just tells us how many to order.
+Most of a small order is fixed setup fees, so boards get cheaper when people
+order together. If you'd like a board from a group order,
+**[register your interest](https://forms.gle/kVKHiXejV6M2ZxC17)**: no
+commitment, it just tells us how many people want one.
 
-Price breakdown by quantity: [Get a board](docs/board.md#what-it-costs).
+Price breakdown: [Get a board](docs/board.md#what-it-costs).
 
 ---
 
