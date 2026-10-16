@@ -276,11 +276,15 @@ class Proxy(asyncio.DatagramProtocol):
         self.send(reply, addr)
 
     def lookup(self, user: str) -> dict | None:
-        reg = self.registry.get(self.resolve(user))
-        if reg and reg["until"] < time.time():
-            self.registry.pop(self.resolve(user), None)
-            return None
-        return reg
+        # a name that is registered itself wins; otherwise try its alias
+        for name in (user, self.resolve(user)):
+            reg = self.registry.get(name)
+            if reg and reg["until"] < time.time():
+                self.registry.pop(name, None)
+                reg = None
+            if reg:
+                return reg
+        return None
 
     def pop_own_route(self, m: Msg) -> None:
         routes = m.all("route")
