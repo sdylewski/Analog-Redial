@@ -43,6 +43,19 @@ each board claims its own number from its web interface:
 crosses the network; see the provisioner's README for how it stays secure
 and for running it on the internet.
 
+## Trying it without a PBX
+
+For a bench test from a laptop on the same network,
+`firmware/bringup/tiny_sip_proxy.py` is a small SIP registrar and proxy with no
+dependencies (Python 3). Run it, set the board's SIP server (Settings → VOIP)
+to the laptop's address and reboot the board, then register a softphone to the
+same address (any username, no password, UDP, G.711). Dial `1000` from the
+softphone to ring line 0 (`1001` for line 1), or dial `555` plus the
+softphone's extension on the phone. It has no authentication, so use it on a
+trusted network and only while testing. `firmware/bringup/sip_test_call.py`
+places a call at the board as a stand-in softphone and reports whether audio
+came back.
+
 ## Setting up a line by hand
 
 Without the provisioner, the board's web interface generates a ready-to-run
