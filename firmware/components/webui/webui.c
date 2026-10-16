@@ -288,6 +288,7 @@ static void url_encode_path(const char *in, char *out, size_t outsz);
 static int append_hint(char *buf, size_t cap, int off, const char *lead, const char *detail);
 static int append_setup_password_card(char *buf, size_t cap, int off);
 static int append_hw_config_tab(char *buf, size_t cap, int off);
+static int append_ha_other_systems_card(char *buf, size_t cap, int off);
 static int append_web_password_card(char *buf, size_t cap, int off);
 /* Whether the browser that asked for the page being rendered is signed in
  * (or no web password is set). Set by the page handlers before rendering;
@@ -1549,7 +1550,7 @@ static const settings_tab_t SETTINGS_TABS[] = {
     { "dialcodes",  "Dial Codes",           "settings.tab.dialcodes" },
     { "voip",       "VOIP",                 "settings.tab.voip" },
     { "bluetooth",  "Bluetooth",            "settings.tab.bluetooth" },
-    { "home",       "Home Assistant",       "settings.tab.home" },
+    { "home",       "HA",                   "settings.tab.home" },
     { "hardware",   "Hardware",             "settings.tab.hardware" },
     { "storage",    "Storage",              "settings.tab.storage" },
     { "diag",       "Diagnostics",          "settings.tab.diag" },
@@ -2749,6 +2750,31 @@ static int append_pin_actions_card(char *buf, size_t cap, int off)
                       "Home Assistant codes share them).</p>", DIALPLAN_MAX_PIN_ACTIONS);
     }
     return appendf(buf, cap, off, "</div>");
+}
+
+/* Settings -> HA: last card, for anyone not running Home Assistant. */
+static int append_ha_other_systems_card(char *buf, size_t cap, int off)
+{
+    return appendf(buf, cap, off,
+        "<div class=\"card wide\"><h2>Other home automation systems</h2>"
+        "<p class=\"hint\">Nothing here needs Home Assistant itself. The board speaks two "
+        "plain protocols, and anything that understands them works.</p>"
+        "<ul class=\"hint\">"
+        "<li><b>Webhook:</b> a plain HTTP POST with a small JSON body, to any <code>http://</code> "
+        "address that accepts one: Node-RED, n8n, openHAB, Domoticz, Hubitat, or a script of "
+        "your own.</li>"
+        "<li><b>MQTT:</b> plain MQTT on port 1883 to any broker (Mosquitto, for example). Any "
+        "client that can subscribe works: Node-RED, openHAB, ioBroker, Domoticz, Homey. Topics "
+        "are <code>redial/&lt;id&gt;/...</code>, listed in the project's "
+        "<code>docs/home-assistant.md</code>.</li>"
+        "<li><b>Auto-discovery</b> is the one Home Assistant-specific part: the board announces "
+        "its entities under <code>homeassistant/...</code>. A few other systems read that same "
+        "format; the rest can ignore it and use the topics directly.</li>"
+        "</ul>"
+        "<p class=\"hint\">Only tested against a Mosquitto broker, not against any other "
+        "system. Both links are plain, unencrypted HTTP and MQTT, so a service that needs "
+        "HTTPS (a cloud webhook) can't be called directly; put a local relay such as Node-RED "
+        "in between.</p></div>");
 }
 
 /* Settings -> Dial Codes: codes whose only job is to tell Home Assistant
@@ -5699,6 +5725,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         off = append_mqtt_card(buf, cap, off);
         off = append_webhook_card(buf, cap, off);
         off = append_ha_codes_card(buf, cap, off);
+        off = append_ha_other_systems_card(buf, cap, off);
     }
     else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off, checked, result, created, createresult);
     else if (strcmp(tab, "bluetooth") == 0) off = append_bluetooth_tab(buf, cap, off);

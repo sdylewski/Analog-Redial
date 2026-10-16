@@ -85,7 +85,7 @@ hang-up, dial code and incoming ring to a Home Assistant webhook, and Home
 Assistant can ring a phone or fire a pin output over HTTP. Or turn on MQTT and
 the board appears in Home Assistant as a device. Home Assistant codes are dial
 codes whose only job is to tell Home Assistant they were dialed. All three are
-on the **Settings → Home Assistant** tab, with its on/off switch at the top. Experimental: see [Home Assistant](home-assistant.md).
+on the **Settings → HA** tab, with its on/off switch at the top. It is not tied to Home Assistant: the webhook and MQTT work with any system that speaks plain HTTP or MQTT (see the end of [Home Assistant](home-assistant.md)). Experimental: see [Home Assistant](home-assistant.md).
 
 
 ## 4. The web interface

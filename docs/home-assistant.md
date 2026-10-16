@@ -23,7 +23,7 @@ your network.
 
 ## 1. Events from the board (webhook)
 
-On the board: **Settings → Home Assistant → Webhook** (turn Home Assistant on at the top of that tab first). Enter
+On the board: **Settings → HA → Webhook** (turn Home Assistant on at the top of that tab first). Enter
 
 ```
 http://homeassistant.local:8123/api/webhook/redial-phone
@@ -199,7 +199,7 @@ Assistant treats that as success.
 
 ## 4. MQTT with auto-discovery
 
-Settings → Home Assistant → **MQTT**. Tick **Enabled**, enter the
+Settings → HA → **MQTT**. Tick **Enabled**, enter the
 broker (`homeassistant.local`, or `192.168.1.5:1883` for another port), the
 broker's user and password, and Save. It connects within a few seconds. Untick
 it and Save to switch it off again; nothing is allocated while it's off and
@@ -235,6 +235,25 @@ use it.
 your pin outputs, so give the broker a password and don't expose it to the
 internet. Only plain `mqtt://` is supported, not TLS: the encrypted
 connection needs about 35 KB more memory than the board can spare.
+
+## Other systems
+
+Nothing above needs Home Assistant itself, only its pieces:
+
+- **The webhook** is a plain HTTP POST of the JSON shown in §1 to any
+  `http://` address. Node-RED, n8n, openHAB, Domoticz, Hubitat or a small
+  script can receive it.
+- **MQTT** is plain MQTT (port 1883, no TLS) to any broker. Any client that
+  can subscribe to `redial/<id>/#` works, e.g. Node-RED, openHAB, ioBroker,
+  Domoticz or Homey.
+- **Auto-discovery** is the Home Assistant-specific part: the board announces
+  its entities under `homeassistant/...`. A few other systems read that
+  format; the rest can ignore it and use the topics directly.
+- **REST** (§2 and §3) works from anything that can make an HTTP request.
+
+None of this has been tried against anything but a Mosquitto broker. Services
+that require HTTPS (cloud webhooks) can't be called directly, because the
+board only speaks plain HTTP; run a local relay such as Node-RED between them.
 
 ## Limits
 
