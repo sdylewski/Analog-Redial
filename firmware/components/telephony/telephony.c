@@ -20,6 +20,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <stdio.h>
@@ -127,6 +128,9 @@ typedef struct {
     uint16_t             seq_i;
     int64_t              seq_next_us;
     bool                 seq_playing;
+    /* A spoken readback digit was started (it ends by itself and then
+     * silences the line, so anything that sets new audio stops it first). */
+    bool                 rb_clip;
     /* active recording (211 archive, 212 greeting, or answering-machine
      * voicemail -- see rec_purpose_t) */
     char                 rec_name[STORAGE_MAX_NAME];
@@ -308,6 +312,7 @@ static void enter_idle(int line)
     }
     s_line[line].call_fx = FX_NORMAL;
     s_line[line].seq = NULL;
+    if (s_line[line].rb_clip) { player_stop(line); s_line[line].rb_clip = false; }
     audio_tx_silence(line);
     s_line[line].state = TEL_IDLE;
     s_line[line].peer = PEER_NONE;
@@ -329,6 +334,8 @@ static void enter_idle(int line)
 
 static void enter_dialtone(int line)
 {
+    /* A readback digit finishing now would silence the dial tone below. */
+    if (s_line[line].rb_clip) { player_stop_and_wait(line, 150); s_line[line].rb_clip = false; }
     ESP_LOGD(TAG, "line %d: %s -> DIALTONE", line, telephony_state_name(s_line[line].state));
     audio_tx_tone(line, TONE_DIAL);
     s_line[line].state = TEL_DIALTONE;
@@ -903,7 +910,8 @@ static void readback_digit(int line, char ch)
     char name[16];
     digit_clip_name(ch, name, sizeof(name));
     player_stop_and_wait(line, 100);
-    if (player_play(line, name, NULL, NULL) != ESP_OK) audio_tx_dtmf(line, ch, 120);
+    if (player_play(line, name, NULL, NULL) == ESP_OK) s_line[line].rb_clip = true;
+    else audio_tx_dtmf(line, ch, 120);
 }
 
 /* Pi, 3.1415...: dial 314. The leading 3, "point", then 100 decimals. */
@@ -929,7 +937,9 @@ static int64_t seq_gap_us(const char *seq, size_t played)
  * the same thing next to each code). Codes are kept either way. */
 void telephony_check_clip_files(void)
 {
-    dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
+    /* ~2.6 KB: on the heap, not app_main's stack. */
+    dialplan_clip_entry_t *clips = malloc(DIALPLAN_MAX_CLIP_ENTRIES * sizeof(*clips));
+    if (!clips) return;
     size_t n = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
     for (size_t i = 0; i < n; i++) {
         char alt[STORAGE_MAX_NAME];
@@ -946,6 +956,7 @@ void telephony_check_clip_files(void)
         if (ok) storage_read_close(&r);
         else ESP_LOGW(TAG, "dial code %s: audio file %s is not on this board", clips[i].code, clips[i].filename);
     }
+    free(clips);
 }
 
 /* ---- dial action dispatch ---- */
@@ -957,7 +968,10 @@ static void handle_action(int line, const dialplan_action_t *a)
         webhook_event(a->kind == ACT_WRONG_NUMBER ? "wrong_number" : "dial", line,
                       s_line[line].coll.buf);
     /* A spoken digit may still be playing (readback); it mustn't block what's next. */
-    if (a->kind != ACT_NONE && dialplan_modes()->readback_digits) player_stop_and_wait(line, 150);
+    if (a->kind != ACT_NONE && s_line[line].rb_clip) {
+        player_stop_and_wait(line, 150);
+        s_line[line].rb_clip = false;
+    }
     switch (a->kind) {
         case ACT_NONE:
             return;

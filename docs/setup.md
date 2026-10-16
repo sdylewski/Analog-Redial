@@ -68,7 +68,7 @@ defaults:
 | **821** / **822** | Digit readback off / on: each digit you dial is spoken back to you |
 | **899** | Record this line's answering-machine greeting |
 
-Add your own codes with your own audio in Settings → Dial Codes.
+Add your own codes with your own audio in Settings → Dial Codes. The built-in codes above can be given other codes there too (Built-in codes card); clear a box to put the original back.
 
 **Make a code switch something.** On a one-line board with no microSD card,
 four spare pins (GPIO18–21) are wired to header J5. Under Settings → Dial

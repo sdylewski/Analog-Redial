@@ -121,7 +121,8 @@ uint32_t dialplan_interdigit_ms(void);
  * against -- there is no separate hand-maintained copy of this list, so it
  * can't drift out of sync with what the phone really does. */
 typedef struct {
-    const char *code;
+    const char *code;          /* what to dial now (may have been changed) */
+    const char *default_code;  /* the code it ships with: a stable name for it */
     const char *desc;
     bool        implemented; /* false = telephony.c currently just logs a
                                * "(TODO)" and plays a confirm tone for this */
@@ -130,6 +131,20 @@ typedef struct {
 /* Fills `out` (definition order), returns the number of entries written
  * (<= max). */
 size_t dialplan_list(dialplan_entry_info_t *out, size_t max);
+
+/* Every built-in code, including ones this board can't use right now (the
+ * 3xx calls on a one-line board): `available` says which. */
+typedef struct {
+    dialplan_entry_info_t info;
+    bool available;
+} dialplan_fixed_info_t;
+size_t dialplan_list_fixed(dialplan_fixed_info_t *out, size_t max);
+
+/* Changes the code a built-in function answers to, named by its default code.
+ * new_code "" (or the default itself) puts it back. ESP_ERR_NOT_FOUND (no
+ * such built-in), ESP_ERR_INVALID_ARG (not 2-10 digits), ESP_ERR_INVALID_STATE
+ * (conflicts with another code). Saved; takes effect at once. */
+esp_err_t dialplan_fixed_set_code(const char *default_code, const char *new_code);
 
 /* ---- Clip dial codes (Settings -> Dial Codes) ----
  * A single mutable code<->filename lookup table, covering both the "silly

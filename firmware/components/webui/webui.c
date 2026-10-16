@@ -2885,8 +2885,8 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         i18n_str("dialcodes.hint",
                  "Recode which number plays a clip, edit its description, change the audio "
                  "file it plays, or remove it. A code is kept even if its file is missing or "
-                 "can't be read; the line under it says so. Built-in codes can be removed too "
-                 "and come back after a factory reset."));
+                 "can't be read; the line under it says so. Removed codes that came with the "
+                 "board come back after a factory reset."));
 
     /* Names of the audio files on the board, to pick from in each row's file box. */
     {
@@ -2939,10 +2939,6 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 "size=\"12\" required>"
                 "<button type=\"submit\">%s</button></form>",
                 clips[i].code, clips[i].code, i18n_str("dialcodes.save", "save"));
-            if (clips[i].builtin) {
-                off = appendf(buf, cap, off,
-                    "<span class=\"pill off\">%s</span>", i18n_str("dialcodes.builtin", "built-in"));
-            }
             {
                 char remove_confirm[64];
                 snprintf(remove_confirm, sizeof(remove_confirm),
@@ -3017,13 +3013,52 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
     return off;
 }
 
+/* Settings -> Dial Codes: the codes for what the phone does by itself (call
+ * the other phone, record a message, pi...). Each can be given another code;
+ * ones this board can't use right now are shown, greyed out. */
+static int append_fixed_codes_card(char *buf, size_t cap, int off)
+{
+    dialplan_fixed_info_t fx[32];
+    size_t n = dialplan_list_fixed(fx, 32);
+    int lines = board_hw_config_get().num_lines;
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\" id=\"builtin\"><h2>Built-in codes</h2>"
+        "<p class=\"hint\">What the phone does by itself. Change a code to anything free "
+        "(2&ndash;10 digits); clear the box and save to put the original back.</p>"
+        "<table class=\"table\"><tr><th>Code</th><th>What it does</th><th></th></tr>");
+    for (size_t i = 0; i < n; i++) {
+        const char *note = "";
+        bool usable = fx[i].available;
+        if (!fx[i].available && lines < 2) note = "needs a two-line board";
+        else if (!fx[i].available) note = "not available on this board";
+        else if (!fx[i].info.implemented) note = "not working yet";
+        bool changed = strcmp(fx[i].info.code, fx[i].info.default_code) != 0;
+        char was[48] = "";
+        if (changed) snprintf(was, sizeof(was), " (was %s)", fx[i].info.default_code);
+        off = appendf(buf, cap, off,
+            "<tr%s><td>"
+            "<form method=\"POST\" action=\"/fixed_code_set\" class=\"dc-inline\">"
+            "<input type=\"hidden\" name=\"def\" value=\"%s\">"
+            "<input name=\"new_code\" value=\"%s\" pattern=\"[0-9 \\(\\)\\-]{0,16}\" maxlength=\"16\" "
+            "size=\"12\"%s>"
+            "<button type=\"submit\"%s>save</button></form></td>"
+            "<td>%s%s</td><td>%s</td></tr>",
+            usable ? "" : " class=\"muted\"",
+            fx[i].info.default_code, fx[i].info.code, usable ? "" : " disabled",
+            usable ? "" : " disabled",
+            fx[i].info.desc, was,
+            note[0] ? note : "");
+    }
+    return appendf(buf, cap, off, "</table></div>");
+}
+
 static int append_operator_tab(char *buf, size_t cap, int off,
                                 dialplan_entry_info_t *entries, size_t n)
 {
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("operator.title", "Operator help"));
     for (size_t i = 0; i < n; i++) {
-        if (strcmp(entries[i].code, "0") != 0) continue;
+        if (strcmp(entries[i].default_code, "0") != 0) continue;
         off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
                                 entries[i].implemented);
     }
@@ -3835,7 +3870,7 @@ static int append_record_tab(char *buf, size_t cap, int off,
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("record.title", "Record message"));
     for (size_t i = 0; i < n; i++) {
-        if (strcmp(entries[i].code, "211") != 0) continue;
+        if (strcmp(entries[i].default_code, "211") != 0) continue;
         off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
                                 entries[i].implemented);
     }
@@ -5809,6 +5844,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         off = append_dialcodes_tab(buf, cap, off);
         off = append_operator_tab(buf, cap, off, entries, n);
         off = append_record_tab(buf, cap, off, entries, n);
+        off = append_fixed_codes_card(buf, cap, off);
         off = append_pin_actions_card(buf, cap, off);
     }
     else if (strcmp(tab, "home") == 0) {
@@ -7869,6 +7905,29 @@ static esp_err_t dialcode_set_file_handler(httpd_req_t *req)
     return redirect_to(req, "/settings?tab=dialcodes");
 }
 
+/* POST /fixed_code_set -- def=<default code>&new_code=<code, or empty to reset> */
+static esp_err_t fixed_code_set_handler(httpd_req_t *req)
+{
+    char body[WIFI_FORM_MAX_BODY];
+    READ_FORM_OR_RETURN(req, body);
+    char def[16] = {0}, new_code[24] = {0};
+    form_field(body, "def", def, sizeof(def));
+    form_field(body, "new_code", new_code, sizeof(new_code));
+    dialplan_code_normalize(new_code);
+    esp_err_t err = dialplan_fixed_set_code(def, new_code);
+    if (err != ESP_OK) {
+        const char *why =
+            (err == ESP_ERR_INVALID_ARG)   ? "code must be 2-10 digits" :
+            (err == ESP_ERR_INVALID_STATE) ? "that code conflicts with an existing one "
+                                             "(the same code, or one starts with the other)" :
+            (err == ESP_ERR_NOT_FOUND)     ? "no such built-in code" : esp_err_to_name(err);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, why);
+        return ESP_OK;
+    }
+    activity_log("Built-in code %s now answers to %s", def, new_code[0] ? new_code : def);
+    return redirect_to(req, "/settings?tab=dialcodes#builtin");
+}
+
 /* POST /dialcode_delete/<code> */
 /* POST /pin_action_set -- code=..&gpio=..&secs=..&desc=.. */
 static esp_err_t pin_action_set_handler(httpd_req_t *req)
@@ -8224,7 +8283,7 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
 
     /* 0 -- operator. Its own card: a single code with no prefix family. */
     for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
-        if (strcmp(entries[i].code, "0") != 0) continue;
+        if (strcmp(entries[i].default_code, "0") != 0) continue;
         off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>Operator</h2>");
         off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
@@ -8248,7 +8307,7 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
         /* Skip a category with no live codes (e.g. "call the other phone" on
          * a single-line build, where the 3xx entries are compiled out). */
         size_t in_cat = 0;
-        for (size_t i = 0; i < n; i++) if (entries[i].code[0] == GUIDE_CATS[g].prefix) in_cat++;
+        for (size_t i = 0; i < n; i++) if (entries[i].default_code[0] == GUIDE_CATS[g].prefix) in_cat++;
         if (in_cat == 0) continue;
 
         /* 4xx clips and 555 VoIP are interleaved here so the whole run stays
@@ -8262,7 +8321,7 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
         off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>%s</h2>", GUIDE_CATS[g].heading);
         for (size_t i = 0; i < n && (size_t)off < cap; i++) {
-            if (entries[i].code[0] != GUIDE_CATS[g].prefix) continue;
+            if (entries[i].default_code[0] != GUIDE_CATS[g].prefix) continue;
             off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
                                     entries[i].implemented);
         }
@@ -9830,6 +9889,7 @@ esp_err_t webui_start(void)
         { .uri = "/dialcode_set_desc",      .method = HTTP_POST, .handler = dialcode_set_desc_handler },
         { .uri = "/dialcode_set_file",      .method = HTTP_POST, .handler = dialcode_set_file_handler },
         { .uri = "/dialcode_delete/*",      .method = HTTP_POST, .handler = dialcode_delete_handler },
+        { .uri = "/fixed_code_set",         .method = HTTP_POST, .handler = fixed_code_set_handler },
         { .uri = "/pin_action_set",         .method = HTTP_POST, .handler = pin_action_set_handler },
         { .uri = "/pin_action_delete/*",    .method = HTTP_POST, .handler = pin_action_delete_handler },
         { .uri = "/pin_action_test/*",      .method = HTTP_POST, .handler = pin_action_test_handler },

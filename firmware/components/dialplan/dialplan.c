@@ -109,6 +109,29 @@ static const entry_t TABLE[] = {
 };
 #define TABLE_N (sizeof(TABLE) / sizeof(TABLE[0]))
 
+/* What each TABLE entry answers to right now: its default code unless it was
+ * changed from Settings -> Dial Codes (NVS "dialfixed", key "f" + default). */
+#define FIXED_NVS_NS "dialfixed"
+static char s_fixed_code[TABLE_N][DIALPLAN_CODE_MAX_DIGITS + 2];
+static const char *fcode(size_t i) { return s_fixed_code[i]; }
+
+static void fixed_load(void)
+{
+    nvs_handle_t h;
+    bool open = nvs_open(FIXED_NVS_NS, NVS_READONLY, &h) == ESP_OK;
+    for (size_t i = 0; i < TABLE_N; i++) {
+        snprintf(s_fixed_code[i], sizeof(s_fixed_code[i]), "%s", TABLE[i].code);
+        if (!open) continue;
+        char key[16], val[sizeof(s_fixed_code[i])];
+        size_t len = sizeof(val);
+        snprintf(key, sizeof(key), "f%s", TABLE[i].code);
+        if (nvs_get_str(h, key, val, &len) == ESP_OK && val[0]) {
+            snprintf(s_fixed_code[i], sizeof(s_fixed_code[i]), "%s", val);
+        }
+    }
+    if (open) nvs_close(h);
+}
+
 /* One-time seed data for the mutable clip table (see dialplan_clip_entry_t
  * in dialplan.h) -- codes and filenames match what this project has always
  * shipped/documented, but from first boot on, both live in NVS and are
@@ -362,6 +385,7 @@ void dialplan_init(void)
     memset(&s_modes, 0, sizeof(s_modes));
     modes_nvs_ready();
     modes_load();
+    fixed_load();
     clips_load();
     pins_load();
     clips_add_new_defaults();
@@ -460,15 +484,19 @@ static dialplan_action_t fire_pin(const dialplan_pin_entry_t *p)
 static const entry_t *exact_match(const char *buf)
 {
     for (size_t i = 0; i < TABLE_N; i++) {
-        if (strcmp(TABLE[i].code, buf) == 0 && entry_available(&TABLE[i])) return &TABLE[i];
+        if (strcmp(fcode(i), buf) == 0 && entry_available(&TABLE[i])) return &TABLE[i];
     }
     return NULL;
 }
 
 bool dialplan_set_mode_by_code(const char *code, int line)
 {
-    const entry_t *e = exact_match(code);
-    if (!e || e->kind != ACT_SET_MODE) return false;
+    const entry_t *e = NULL;
+    for (size_t i = 0; i < TABLE_N && !e; i++) {
+        if (TABLE[i].kind == ACT_SET_MODE &&
+            (strcmp(TABLE[i].code, code) == 0 || strcmp(fcode(i), code) == 0)) e = &TABLE[i];
+    }
+    if (!e) return false;
     dialplan_apply_mode(line, (dialplan_mode_change_t)e->arg);
     return true;
 }
@@ -477,8 +505,8 @@ static bool has_longer_prefix(const char *buf)
 {
     size_t blen = strlen(buf);
     for (size_t i = 0; i < TABLE_N; i++) {
-        if (strlen(TABLE[i].code) > blen &&
-            strncmp(TABLE[i].code, buf, blen) == 0 &&
+        if (strlen(fcode(i)) > blen &&
+            strncmp(fcode(i), buf, blen) == 0 &&
             entry_available(&TABLE[i])) {
             return true;
         }
@@ -637,12 +665,54 @@ size_t dialplan_list(dialplan_entry_info_t *out, size_t max)
     size_t n = 0;
     for (size_t i = 0; i < TABLE_N && n < max; i++) {
         if (!entry_available(&TABLE[i])) continue; /* e.g. 321-324 on a 1-line board */
-        out[n].code = TABLE[i].code;
+        out[n].code = fcode(i);
+        out[n].default_code = TABLE[i].code;
         out[n].desc = TABLE[i].desc;
         out[n].implemented = TABLE[i].implemented;
         n++;
     }
     return n;
+}
+
+size_t dialplan_list_fixed(dialplan_fixed_info_t *out, size_t max)
+{
+    size_t n = 0;
+    for (size_t i = 0; i < TABLE_N && n < max; i++, n++) {
+        out[n].info.code = fcode(i);
+        out[n].info.default_code = TABLE[i].code;
+        out[n].info.desc = TABLE[i].desc;
+        out[n].info.implemented = TABLE[i].implemented;
+        out[n].available = entry_available(&TABLE[i]);
+    }
+    return n;
+}
+
+static bool valid_code(const char *code);
+static bool code_conflicts_fx(const char *code, int except_idx, int except_pin, int except_fixed);
+
+esp_err_t dialplan_fixed_set_code(const char *default_code, const char *new_code)
+{
+    int idx = -1;
+    for (size_t i = 0; i < TABLE_N; i++) if (strcmp(TABLE[i].code, default_code) == 0) idx = (int)i;
+    if (idx < 0) return ESP_ERR_NOT_FOUND;
+    const char *want = (new_code && new_code[0]) ? new_code : TABLE[idx].code;
+    bool is_default = strcmp(want, TABLE[idx].code) == 0;
+    if (!is_default && !valid_code(want)) return ESP_ERR_INVALID_ARG;
+    if (!is_default && code_conflicts_fx(want, -1, -1, idx)) return ESP_ERR_INVALID_STATE;
+
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(FIXED_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    char key[16];
+    snprintf(key, sizeof(key), "f%s", TABLE[idx].code);
+    if (is_default) { nvs_erase_key(h, key); err = ESP_OK; }
+    else            err = nvs_set_str(h, key, want);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err != ESP_OK) return err;
+    snprintf(s_fixed_code[idx], sizeof(s_fixed_code[idx]), "%s", want);
+    ESP_LOGI(TAG, "built-in %s (%s) now answers to %s", TABLE[idx].code, TABLE[idx].desc, want);
+    return ESP_OK;
 }
 
 /* True if `code` exactly matches, or is a prefix of / has as a prefix, any
@@ -653,13 +723,17 @@ size_t dialplan_list(dialplan_entry_info_t *out, size_t max)
  * "555..." itself, so e.g. "501" is fine and must not be rejected here).
  * Comparing only the first min(lengths) characters catches both "equal" and
  * "one is a prefix of the other". */
-static bool code_conflicts_ex(const char *code, int except_idx, int except_pin);
+static bool code_conflicts_fx(const char *code, int except_idx, int except_pin, int except_fixed);
+static bool code_conflicts_ex(const char *code, int except_idx, int except_pin)
+{
+    return code_conflicts_fx(code, except_idx, except_pin, -1);
+}
 static bool code_conflicts_except(const char *code, int except_idx)
 {
     return code_conflicts_ex(code, except_idx, -1);
 }
 
-static bool code_conflicts_ex(const char *code, int except_idx, int except_pin)
+static bool code_conflicts_fx(const char *code, int except_idx, int except_pin, int except_fixed)
 {
     size_t clen = strlen(code);
     size_t vlen = (clen < 3) ? clen : 3;
@@ -667,9 +741,10 @@ static bool code_conflicts_ex(const char *code, int except_idx, int except_pin)
     if (code[0] == DIALPLAN_BT_PREFIX) return true;   /* reserved for Bluetooth dial-out */
 
     for (size_t i = 0; i < TABLE_N; i++) {
-        size_t tlen = strlen(TABLE[i].code);
+        if ((int)i == except_fixed) continue;
+        size_t tlen = strlen(fcode(i));
         size_t minlen = (clen < tlen) ? clen : tlen;
-        if (strncmp(TABLE[i].code, code, minlen) == 0) return true;
+        if (strncmp(fcode(i), code, minlen) == 0) return true;
     }
     for (int i = 0; i < DIALPLAN_MAX_CLIP_ENTRIES; i++) {
         if (i == except_idx || !s_clips[i].code[0]) continue;
