@@ -574,7 +574,7 @@ static bool code_conflicts_ex(const char *code, int except_idx, int except_pin)
 static bool valid_code(const char *code)
 {
     size_t len = strlen(code);
-    if (len < 2 || len > 6) return false;
+    if (len < 2 || len > DIALPLAN_CODE_MAX_DIGITS) return false;
     for (size_t i = 0; i < len; i++) {
         if (code[i] < '0' || code[i] > '9') return false;
     }
