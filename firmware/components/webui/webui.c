@@ -2820,6 +2820,68 @@ static int append_ha_codes_card(char *buf, size_t cap, int off)
     return appendf(buf, cap, off, "</div>");
 }
 
+/* Is a dial code's audio file on the board, and does it look playable? Looks
+ * the same way telephony's play_clip_any_ext() does: the name, or the same
+ * name with .wav/.mp3 swapped. `actual` gets the file found (what plays);
+ * `info` a short description: length and size, or what's wrong. */
+typedef enum { CLIP_FILE_OK = 0, CLIP_FILE_MISSING, CLIP_FILE_BAD } clip_file_state_t;
+
+static clip_file_state_t clip_file_check(const char *name, char *actual, size_t actual_len,
+                                         char *info, size_t info_len)
+{
+    snprintf(actual, actual_len, "%s", name);
+    storage_reader_t r;
+    esp_err_t err = storage_read_open(actual, &r);
+    size_t n = strlen(name);
+    if (err != ESP_OK && n >= 5 && n < STORAGE_MAX_NAME) {
+        char alt[STORAGE_MAX_NAME];
+        memcpy(alt, name, n + 1);
+        if (!strcasecmp(alt + n - 4, ".mp3"))      memcpy(alt + n - 4, ".wav", 4);
+        else if (!strcasecmp(alt + n - 4, ".wav")) memcpy(alt + n - 4, ".mp3", 4);
+        else alt[0] = '\0';
+        if (alt[0] && storage_read_open(alt, &r) == ESP_OK) {
+            snprintf(actual, actual_len, "%s", alt);
+            err = ESP_OK;
+        }
+    }
+    if (err != ESP_OK) {
+        snprintf(info, info_len, "not on this board");
+        return CLIP_FILE_MISSING;
+    }
+    size_t size = storage_read_size(&r);
+    uint8_t *head = malloc(4096);
+    size_t got = head ? storage_read_chunk(&r, head, 4096) : 0;
+    storage_read_close(&r);
+    clip_file_state_t st = CLIP_FILE_BAD;
+    size_t an = strlen(actual);
+    bool is_mp3 = an > 4 && !strcasecmp(actual + an - 4, ".mp3");
+    if (!head) {
+        snprintf(info, info_len, "no memory to check it");
+    } else if (size == 0 || got == 0) {
+        snprintf(info, info_len, "the file is empty");
+    } else if (is_mp3) {
+        bool ok = got >= 3 && ((head[0] == 'I' && head[1] == 'D' && head[2] == '3') ||
+                               (head[0] == 0xFF && (head[1] & 0xE0) == 0xE0));
+        if (ok) { snprintf(info, info_len, "MP3, %u KB", (unsigned)((size + 512) / 1024)); st = CLIP_FILE_OK; }
+        else    snprintf(info, info_len, "not a valid MP3 file");
+    } else {
+        audio_wav_info_t wav;
+        if (audio_wav_parse(head, got, &wav) && wav.sample_rate && wav.channels &&
+            wav.bits_per_sample >= 8 && wav.data_bytes) {
+            double secs = (double)wav.data_bytes /
+                          ((double)wav.sample_rate * wav.channels * (wav.bits_per_sample / 8));
+            if (secs >= 60.0) snprintf(info, info_len, "%u:%02u, %u KB", (unsigned)(secs / 60),
+                                       (unsigned)secs % 60, (unsigned)((size + 512) / 1024));
+            else              snprintf(info, info_len, "%.1f s, %u KB", secs, (unsigned)((size + 512) / 1024));
+            st = CLIP_FILE_OK;
+        } else {
+            snprintf(info, info_len, "not a valid WAV file");
+        }
+    }
+    free(head);
+    return st;
+}
+
 static int append_dialcodes_tab(char *buf, size_t cap, int off)
 {
     dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
@@ -2833,9 +2895,32 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         "<p class=\"hint\">%s</p>",
         dialcodes_h2,
         i18n_str("dialcodes.hint",
-                 "Recode which number plays a clip, edit its description, or remove it. "
-                 "\"Built-in\" entries can be recoded but not removed. To change what a code "
-                 "plays: remove it below, then add it again with the new audio."));
+                 "Recode which number plays a clip, edit its description, change the audio "
+                 "file it plays, or remove it. A code is kept even if its file is missing or "
+                 "can't be read; the line under it says so. Built-in codes can be removed too "
+                 "and come back after a factory reset."));
+
+    /* Names of the audio files on the board, to pick from in each row's file box. */
+    {
+        storage_entry_t *names = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
+        off = appendf(buf, cap, off, "<datalist id=\"audiofiles\">");
+        if (names) {
+            size_t nn = storage_list(names, STORAGE_LIST_MAX);
+            size_t nb = storage_list_bundled(names + nn, STORAGE_LIST_MAX - nn);
+            for (size_t i = 0; i < nn + nb; i++) {
+                size_t l = strlen(names[i].name);
+                if (l < 5 || (strcasecmp(names[i].name + l - 4, ".wav") && strcasecmp(names[i].name + l - 4, ".mp3"))) continue;
+                bool dup = false;
+                for (size_t k = 0; k < i && !dup; k++) dup = strcmp(names[k].name, names[i].name) == 0;
+                if (dup) continue;
+                char en[STORAGE_MAX_NAME * 6];
+                html_escape(names[i].name, en, sizeof(en));
+                off = appendf(buf, cap, off, "<option value=\"%s\">", en);
+            }
+            free(names);
+        }
+        off = appendf(buf, cap, off, "</datalist>");
+    }
 
     if (nclips == 0) {
         off = appendf(buf, cap, off,
@@ -2855,9 +2940,8 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         for (size_t i = 0; i < nclips && (size_t)off < cap; i++) {
             char edesc[64 * 6];
             html_escape(clips[i].desc, edesc, sizeof(edesc));
-            char fname_h[sizeof(clips[i].filename) * 6], fname_u[sizeof(clips[i].filename) * 3];
+            char fname_h[sizeof(clips[i].filename) * 6];
             html_escape(clips[i].filename, fname_h, sizeof(fname_h));
-            url_encode_path(clips[i].filename, fname_u, sizeof(fname_u));
             off = appendf(buf, cap, off,
                 "<div class=\"dialcode-item\">"
                 "<div class=\"dc-line dc-line-code\">"
@@ -2870,7 +2954,8 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
             if (clips[i].builtin) {
                 off = appendf(buf, cap, off,
                     "<span class=\"pill off\">%s</span>", i18n_str("dialcodes.builtin", "built-in"));
-            } else {
+            }
+            {
                 char remove_confirm[64];
                 snprintf(remove_confirm, sizeof(remove_confirm),
                          i18n_str("dialcodes.remove_confirm", "Remove dial code %s?"), clips[i].code);
@@ -2891,16 +2976,37 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 "<div class=\"dc-line\">"
                 "<form method=\"POST\" action=\"/dialcode_set_file\" class=\"dc-inline dc-grow\">"
                 "<input type=\"hidden\" name=\"code\" value=\"%s\">"
-                "<input name=\"file\" value=\"%s\" maxlength=\"%d\" class=\"dc-desc-input\" "
+                "<input name=\"file\" value=\"%s\" maxlength=\"%d\" class=\"dc-desc-input\" list=\"audiofiles\" "
                 "pattern=\"[A-Za-z0-9_.\\-]+\\.(wav|mp3|WAV|MP3)\" title=\"A .wav or .mp3 file in storage\">"
                 "<button type=\"submit\">%s</button></form>"
                 "</div>"
-                "<div class=\"dc-line\">"
-                "<audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio>"
-                "</div></div>",
+                "<div class=\"dc-line\">",
                 clips[i].code, edesc, i18n_str("dialcodes.save", "save"),
-                clips[i].code, fname_h, STORAGE_MAX_NAME - 1, i18n_str("dialcodes.save", "save"),
-                fname_u);
+                clips[i].code, fname_h, STORAGE_MAX_NAME - 1, i18n_str("dialcodes.save", "save"));
+            {
+                char actual[STORAGE_MAX_NAME], info[96], actual_h[STORAGE_MAX_NAME * 6], info_h[96 * 6];
+                clip_file_state_t fs = clip_file_check(clips[i].filename, actual, sizeof(actual),
+                                                       info, sizeof(info));
+                html_escape(actual, actual_h, sizeof(actual_h));
+                html_escape(info, info_h, sizeof(info_h));
+                if (fs == CLIP_FILE_OK) {
+                    char actual_u[STORAGE_MAX_NAME * 3];
+                    url_encode_path(actual, actual_u, sizeof(actual_u));
+                    off = appendf(buf, cap, off,
+                        "<span class=\"pill on\">ready</span> <span class=\"hint\">%s%s%s</span></div>"
+                        "<div class=\"dc-line\">"
+                        "<audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio>"
+                        "</div></div>",
+                        info_h, strcmp(actual, clips[i].filename) ? ", plays " : "",
+                        strcmp(actual, clips[i].filename) ? actual_h : "", actual_u);
+                } else {
+                    off = appendf(buf, cap, off,
+                        "<span class=\"pill off\">%s</span> <span class=\"hint\">%s: %s. The code is "
+                        "kept. Upload the file under Storage, or pick another one above.</span>"
+                        "</div></div>",
+                        fs == CLIP_FILE_MISSING ? "file missing" : "can't be played", fname_h, info_h);
+                }
+            }
         }
         off = appendf(buf, cap, off, "</div>" /* .dialcode-list */);
     }

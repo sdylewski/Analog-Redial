@@ -222,6 +222,8 @@ void app_main(void)
     if ((err = storage_init()) != ESP_OK) {
         ESP_LOGW(TAG, "storage_init failed: %s", esp_err_to_name(err));
         board_led_set_state(BOARD_LED_ERROR);
+    } else {
+        telephony_check_clip_files();
     }
     if (board_hw_config_get().has_microsd) {
         /* microSD configured (line 2 traded for the SD card, board.h): mount

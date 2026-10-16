@@ -877,6 +877,29 @@ static esp_err_t play_clip_any_ext(int line, const char *name)
     return player_play(line, alt, clip_done_cb, NULL);
 }
 
+/* Logs every dial code whose audio file isn't on the board (the web UI shows
+ * the same thing next to each code). Codes are kept either way. */
+void telephony_check_clip_files(void)
+{
+    dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
+    size_t n = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
+    for (size_t i = 0; i < n; i++) {
+        char alt[STORAGE_MAX_NAME];
+        storage_reader_t r;
+        size_t len = strlen(clips[i].filename);
+        bool ok = storage_read_open(clips[i].filename, &r) == ESP_OK;
+        if (!ok && len >= 5 && len < STORAGE_MAX_NAME) {
+            memcpy(alt, clips[i].filename, len + 1);
+            if (!strcasecmp(alt + len - 4, ".mp3"))      memcpy(alt + len - 4, ".wav", 4);
+            else if (!strcasecmp(alt + len - 4, ".wav")) memcpy(alt + len - 4, ".mp3", 4);
+            else alt[0] = '\0';
+            ok = alt[0] && storage_read_open(alt, &r) == ESP_OK;
+        }
+        if (ok) storage_read_close(&r);
+        else ESP_LOGW(TAG, "dial code %s: audio file %s is not on this board", clips[i].code, clips[i].filename);
+    }
+}
+
 /* ---- dial action dispatch ---- */
 static void handle_action(int line, const dialplan_action_t *a)
 {

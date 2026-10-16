@@ -16,6 +16,7 @@ static const char *TAG = "dialplan";
  * "entries" is the old single-blob table (code[8]), converted at first boot. */
 #define CLIPS_NVS_KEY_V1   "entries"
 #define CLIPS_NVS_SEEDED   "seeded"
+#define CLIPS_NVS_TABLE_SAVED "tbl"     /* table has been written at least once */
 #define CLIPS_NVS_SEEDED_N "seeded_n"   /* how many CLIP_DEFAULTS entries this board has had */
 /* Entries CLIP_DEFAULTS had before the counter above existed: a board seeded
  * back then has exactly these, and gets any later ones appended at boot. */
@@ -179,6 +180,7 @@ static esp_err_t clips_write(nvs_handle_t h)
             nvs_erase_key(h, key);
         }
     }
+    if (err == ESP_OK) nvs_set_u8(h, CLIPS_NVS_TABLE_SAVED, 1);   /* an empty table from here on is deliberate */
     esp_err_t c = nvs_commit(h);
     return err != ESP_OK ? err : c;
 }
@@ -254,11 +256,12 @@ static void clips_load(void)
         s_clips[i].desc[sizeof(s_clips[i].desc) - 1] = '\0';
     }
 
-    /* First boot, or an empty table (the built-in codes can't be deleted, so
-     * empty means the saved table was lost): put the defaults in. */
-    uint8_t seeded = 0;
+    /* First boot, or an empty table that was never saved empty on purpose
+     * (a lost table): put the defaults in. */
+    uint8_t seeded = 0, saved_once = 0;
     esp_err_t serr = nvs_get_u8(h, CLIPS_NVS_SEEDED, &seeded);
-    if (serr != ESP_OK || found == 0) {
+    nvs_get_u8(h, CLIPS_NVS_TABLE_SAVED, &saved_once);
+    if (serr != ESP_OK || (found == 0 && !saved_once)) {
         for (size_t i = 0; i < CLIP_DEFAULTS_N && i < DIALPLAN_MAX_CLIP_ENTRIES; i++) {
             strncpy(s_clips[i].code, CLIP_DEFAULTS[i].code, sizeof(s_clips[i].code) - 1);
             strncpy(s_clips[i].filename, CLIP_DEFAULTS[i].filename, sizeof(s_clips[i].filename) - 1);
@@ -822,21 +825,7 @@ esp_err_t dialplan_clip_remove(const char *code)
 {
     int idx = clip_find_idx(code);
     if (idx < 0) return ESP_ERR_NOT_FOUND;
-    if (s_clips[idx].builtin) {
-        /* `builtin` protects a CURRENTLY-supported default from an
-         * accidental UI delete -- but a board provisioned by an older
-         * firmware can carry a builtin flag for a code that's since been
-         * retired from CLIP_DEFAULTS entirely (e.g. 411/413/414, whose
-         * source audio never made it into this checkout and isn't coming).
-         * That's just a stale relic at that point, not something worth
-         * protecting forever -- only refuse if it's still a real default
-         * in the firmware actually running right now. */
-        bool still_default = false;
-        for (size_t i = 0; i < CLIP_DEFAULTS_N; i++) {
-            if (strcmp(CLIP_DEFAULTS[i].code, code) == 0) { still_default = true; break; }
-        }
-        if (still_default) return ESP_ERR_INVALID_STATE;
-    }
+    /* Built-in codes can go too: they only come back after a factory reset. */
     ESP_LOGI(TAG, "clip code removed: %s (was -> %s)", code, s_clips[idx].filename);
     memset(&s_clips[idx], 0, sizeof(s_clips[idx]));
     clips_save();

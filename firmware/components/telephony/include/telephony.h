@@ -76,6 +76,10 @@ typedef enum {
 void telephony_am_greeting_name(char *out, size_t len, int line);
 
 esp_err_t telephony_start(void);
+/* Warns (log) about any dial code whose audio file is missing. Call once storage is up. */
+void telephony_check_clip_files(void);
+/* Warns (log) about any dial code whose audio file is missing. Call once storage is up. */
+void telephony_check_clip_files(void);
 
 /* Inspection (for web UI / bring-up). */
 tel_state_t telephony_state(int line);
