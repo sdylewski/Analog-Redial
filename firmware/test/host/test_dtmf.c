@@ -75,6 +75,28 @@ int main(void)
         dial(keys, speeds[s][0], speeds[s][1], 0.3, 0, 0.01);
         dial("8675309", speeds[s][0], speeds[s][1], 0.3, 0, 0.01);
     }
+    /* Repeated digits (a handset's redial of 555-2000), at the standard's
+     * fastest 40/40 and at the 80/110 a real test set was measured at. */
+    for (size_t s = 0; s < sizeof(speeds) / sizeof(speeds[0]); s++) {
+        if (speeds[s][1] < 40) continue; /* a pause under 40 ms is indistinguishable from chatter */
+        dial("5552000", speeds[s][0], speeds[s][1], 0.3, 0, 0.01);
+        dial("11111", speeds[s][0], speeds[s][1], 0.3, 0, 0.01);
+    }
+    dial("5552000", 80, 110, 0.3, 0, 0.05);
+    dial("5552000", 80, 110, 0.9, 0, 0.01);
+
+    /* Contact chatter: one press with a dropout of up to 20 ms in the middle
+     * is one digit; a real 40 ms pause is two. */
+    for (int drop = 5; drop <= 20; drop += 5) {
+        n = 0; silence(300, 0.01); tone('5', 60, 0.3, 0, 0.01); silence(drop, 0.01);
+        tone('5', 60, 0.3, 0, 0.01); silence(300, 0.01);
+        char out[64]; detect(out);
+        if (strcmp(out, "5")) { printf("FAIL  %d ms dropout counted as '%s'\n", drop, out); fails++; }
+    }
+    n = 0; silence(300, 0.01); tone('5', 60, 0.3, 0, 0.01); silence(40, 0.01);
+    tone('5', 60, 0.3, 0, 0.01); silence(300, 0.01);
+    { char out[64]; detect(out); if (strcmp(out, "55")) { printf("FAIL  40 ms pause counted as '%s'\n", out); fails++; } }
+
     dial(keys, 70, 70, 0.3, 4, 0.05);      /* twist (the classifier rejects more than ~4.8 dB, same as before) */
     dial(keys, 70, 70, 0.3, -3, 0.05);
     dial(keys, 70, 70, 0.3, 0, 0.12);      /* noisy line */

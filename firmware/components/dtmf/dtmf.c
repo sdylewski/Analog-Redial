@@ -43,10 +43,16 @@ bool dtmf_make_osc(tone_osc_t *o, uint32_t sample_rate, char key, float amp)
     return true;
 }
 
-/* Minimum time before the *same* digit can be emitted again -- see
- * dtmf_detector_push()'s comment. Counted in windows (see DTMF_BANKS):
- * 32 windows =~ 205 ms. */
-#define SAME_DIGIT_LOCKOUT_WINDOWS 32
+/* The *same* digit is only counted again after this many windows in a row
+ * with no tone at all between the two presses -- see dtmf_detector_push()'s
+ * comment. Counted in windows (see DTMF_BANKS), ~6.4 ms each: 5 windows =~
+ * 32 ms of real silence, under the 40 ms pause the standard requires between
+ * digits but more than the contact bounce / dropout of a cheap keypad. (This
+ * was a flat 205 ms from the start of the previous press, which swallowed the
+ * repeated digits of a handset's redial: "555" came out "55".) */
+#ifndef SAME_DIGIT_MIN_GAP_WINDOWS
+#define SAME_DIGIT_MIN_GAP_WINDOWS 5
+#endif
 
 /* A key counts as pressed once this many windows in a row classify as the
  * same digit: 3 windows span ~38 ms of unbroken tone, the ITU minimum tone
@@ -259,15 +265,14 @@ char dtmf_detector_push(dtmf_detector_t *d, const int16_t *samples, size_t n)
              *    column: a handset whose '3' and '6' both ring at 697 and
              *    770 Hz -- measured on a real one -- flips between them
              *    inside one press.)
-             *  - since_emit: how long since we last emitted THIS digit. A
-             *    real analog phone/keypad can chatter -- contact bounce, or
-             *    a cheap keypad's own auto-repeat -- and drop the tone for
-             *    tens of ms mid-press, which looks exactly like "released,
-             *    pressed again". Gating same-digit re-emission on a longer,
-             *    dialing-speed window is what rejects that, without slowing
-             *    down a genuinely different next digit. */
-            if (d->since_emit < SAME_DIGIT_LOCKOUT_WINDOWS) d->since_emit++;
-
+             *  - gap_before: how long the silence was before this press began.
+             *    A real analog phone/keypad can chatter -- contact bounce,
+             *    or a cheap keypad's own auto-repeat -- and drop the tone
+             *    for a few ms mid-press, which looks exactly like "released,
+             *    pressed again". Requiring a real pause (not merely a
+             *    dropout) before the SAME digit counts again rejects that,
+             *    without slowing down a genuinely different next digit or a
+             *    redial's "555". */
             if (digit != 0) {
                 d->silence_n = 0;
                 if (digit == d->candidate) {
@@ -275,7 +280,9 @@ char dtmf_detector_push(dtmf_detector_t *d, const int16_t *samples, size_t n)
                 } else {
                     d->candidate = digit;
                     d->candidate_n = 1;
+                    d->gap_before = d->gap_run;
                 }
+                d->gap_run = 0;
                 bool unrelated_key = false;
                 if (d->in_tone && digit != d->press_digit) {
                     float r0, c0, r1, c1;
@@ -287,10 +294,9 @@ char dtmf_detector_push(dtmf_detector_t *d, const int16_t *samples, size_t n)
                     d->press_digit = digit;
                     d->press_start_us = esp_timer_get_time();
                     bool too_soon = (digit == d->last_emitted) &&
-                                     (d->since_emit < SAME_DIGIT_LOCKOUT_WINDOWS);
+                                     (d->gap_before < SAME_DIGIT_MIN_GAP_WINDOWS);
                     if (!too_soon) {
                         d->last_emitted = digit;
-                        d->since_emit = 0;
                         if (!emitted) emitted = digit;
                         ESP_LOGD(TAG, "'%c' START", digit);
                     } else {
@@ -304,6 +310,7 @@ char dtmf_detector_push(dtmf_detector_t *d, const int16_t *samples, size_t n)
                  * real release. */
                 d->candidate = 0;
                 d->candidate_n = 0;
+                if (d->gap_run < 1000) d->gap_run++;
                 if (d->in_tone && ++d->silence_n >= END_WINDOWS) {
                     d->in_tone = false;
                     d->silence_n = 0;

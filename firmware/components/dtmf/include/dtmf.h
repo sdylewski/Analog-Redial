@@ -46,7 +46,8 @@ typedef struct {
     /* debounce -- see dtmf_detector_push()'s comment. All counts are in
      * windows (~6.4 ms each). */
     char     last_emitted;
-    int      since_emit;     /* windows since the last emission */
+    int      gap_run;        /* consecutive windows with no tone, up to now */
+    int      gap_before;     /* ...as it stood when the current press began */
     char     candidate;
     int      candidate_n;    /* consecutive windows that classified as `candidate` */
     int      silence_n;      /* consecutive windows that classified as nothing */
