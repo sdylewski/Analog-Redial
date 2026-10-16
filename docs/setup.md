@@ -62,6 +62,7 @@ defaults:
 | **211** | Record a message after the beep. Play or download it under Recordings |
 | **321** | Ring the other phone (two-line boards) |
 | **412** | A dial-up modem sound, for old times' sake |
+| **8675309** | A short spoken message: "If you're trying to reach Jenny, she's not home right now." |
 | **555** + 4 digits | A VoIP call to that extension ([VoIP setup](voip-setup.md)) |
 | **821** / **822** | Digit readback off / on |
 | **899** | Record this line's answering-machine greeting |

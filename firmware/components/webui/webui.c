@@ -2731,8 +2731,8 @@ static int append_pin_actions_card(char *buf, size_t cap, int off)
     if (used < DIALPLAN_MAX_PIN_ACTIONS) {
         off = appendf(buf, cap, off,
             "<form method=\"POST\" action=\"/pin_action_set\" class=\"settings-form\">"
-            "<label>Dial code (2&ndash;7 digits) <input name=\"code\" inputmode=\"numeric\" "
-            "pattern=\"[0-9]{2,7}\" maxlength=\"7\" required></label>"
+            "<label>Dial code (2&ndash;7 digits; spaces and dashes are ignored) <input name=\"code\" inputmode=\"numeric\" "
+            "pattern=\"[0-9 \\(\\)\\-]{2,16}\" maxlength=\"16\" required></label>"
             "<label>Pin <select name=\"gpio\">");
         for (size_t i = 0; i < ng; i++) {
             off = appendf(buf, cap, off, "<option value=\"%d\">GPIO%d</option>", gp[i], gp[i]);
@@ -2809,8 +2809,8 @@ static int append_ha_codes_card(char *buf, size_t cap, int off)
     if (used < DIALPLAN_MAX_PIN_ACTIONS) {
         off = appendf(buf, cap, off,
             "<form method=\"POST\" action=\"/ha_code_set\" class=\"settings-form\">"
-            "<label>Dial code (2&ndash;7 digits) <input name=\"code\" inputmode=\"numeric\" "
-            "pattern=\"[0-9]{2,7}\" maxlength=\"7\" required></label>"
+            "<label>Dial code (2&ndash;7 digits; spaces and dashes are ignored) <input name=\"code\" inputmode=\"numeric\" "
+            "pattern=\"[0-9 \\(\\)\\-]{2,16}\" maxlength=\"16\" required></label>"
             "<label>Note <input name=\"desc\" maxlength=\"39\" placeholder=\"e.g. porch light\"></label>"
             "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Add</button></div></form>");
     } else {
@@ -2863,8 +2863,8 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 "<div class=\"dc-line dc-line-code\">"
                 "<form method=\"POST\" action=\"/dialcode_set_code\" class=\"dc-inline\">"
                 "<input type=\"hidden\" name=\"old_code\" value=\"%s\">"
-                "<input name=\"new_code\" value=\"%s\" pattern=\"[0-9]{2,7}\" maxlength=\"7\" "
-                "size=\"7\" required>"
+                "<input name=\"new_code\" value=\"%s\" pattern=\"[0-9 \\(\\)\\-]{2,16}\" maxlength=\"16\" "
+                "size=\"9\" required>"
                 "<button type=\"submit\">%s</button></form>",
                 clips[i].code, clips[i].code, i18n_str("dialcodes.save", "save"));
             if (clips[i].builtin) {
@@ -2909,14 +2909,14 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         "<form method=\"POST\" action=\"/dialcode_upload\" enctype=\"multipart/form-data\" class=\"settings-form\">"
         "<h3>%s</h3>"
         "<div class=\"grid2\">"
-        "<label>%s <input name=\"new_code\" pattern=\"[0-9]{2,7}\" "
-        "maxlength=\"7\" required></label>"
+        "<label>%s <input name=\"new_code\" pattern=\"[0-9 \\(\\)\\-]{2,16}\" "
+        "maxlength=\"16\" required></label>"
         "<label>%s <input name=\"desc\" maxlength=\"63\"></label></div>"
         "<label>%s <input type=\"file\" name=\"file\" accept=\"audio/wav\" required></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form></div>",
         i18n_str("dialcodes.add_title", "Add a code"),
-        i18n_str("dialcodes.new_code_label", "New code (2-7 digits)"),
+        i18n_str("dialcodes.new_code_label", "New code (2-7 digits; spaces and dashes are ignored)"),
         i18n_str("dialcodes.desc_label", "Description (optional)"),
         i18n_str("dialcodes.audio_label", "Audio file (WAV)"),
         i18n_str("dialcodes.upload_button", "Upload + add dial code"));
@@ -7702,9 +7702,11 @@ static esp_err_t dialcode_set_code_handler(httpd_req_t *req)
     char body[WIFI_FORM_MAX_BODY];
     READ_FORM_OR_RETURN(req, body);
 
-    char old_code[8] = {0}, new_code[8] = {0};
+    char old_code[24] = {0}, new_code[24] = {0};
     form_field(body, "old_code", old_code, sizeof(old_code));
     form_field(body, "new_code", new_code, sizeof(new_code));
+    dialplan_code_normalize(old_code);
+    dialplan_code_normalize(new_code);
 
     esp_err_t err = dialplan_clip_set_code(old_code, new_code);
     if (err != ESP_OK) {
@@ -7727,8 +7729,9 @@ static esp_err_t dialcode_set_desc_handler(httpd_req_t *req)
     char body[WIFI_FORM_MAX_BODY];
     READ_FORM_OR_RETURN(req, body);
 
-    char code[8] = {0}, desc[64] = {0};
+    char code[24] = {0}, desc[64] = {0};
     form_field(body, "code", code, sizeof(code));
+    dialplan_code_normalize(code);
     form_field(body, "desc", desc, sizeof(desc));
 
     esp_err_t err = dialplan_clip_set_desc(code, desc);
@@ -7747,8 +7750,9 @@ static esp_err_t dialcode_set_file_handler(httpd_req_t *req)
 {
     char body[WIFI_FORM_MAX_BODY];
     READ_FORM_OR_RETURN(req, body);
-    char code[8] = {0}, file[STORAGE_MAX_NAME] = {0};
+    char code[24] = {0}, file[STORAGE_MAX_NAME] = {0};
     form_field(body, "code", code, sizeof(code));
+    dialplan_code_normalize(code);
     form_field(body, "file", file, sizeof(file));
     size_t n = strlen(file);
     bool ok = n > 4 && (!strcasecmp(file + n - 4, ".wav") || !strcasecmp(file + n - 4, ".mp3"));
@@ -7777,8 +7781,9 @@ static esp_err_t pin_action_set_handler(httpd_req_t *req)
 {
     char body[256];
     READ_FORM_OR_RETURN(req, body);
-    char code[8] = "", gpio_s[8] = "", secs_s[8] = "", desc[40] = "";
+    char code[24] = "", gpio_s[8] = "", secs_s[8] = "", desc[40] = "";
     form_field(body, "code", code, sizeof(code));
+    dialplan_code_normalize(code);
     form_field(body, "gpio", gpio_s, sizeof(gpio_s));
     form_field(body, "secs", secs_s, sizeof(secs_s));
     form_field(body, "desc", desc, sizeof(desc));
@@ -7818,8 +7823,9 @@ static esp_err_t ha_code_set_handler(httpd_req_t *req)
 {
     char body[256];
     READ_FORM_OR_RETURN(req, body);
-    char code[8] = "", desc[40] = "";
+    char code[24] = "", desc[40] = "";
     form_field(body, "code", code, sizeof(code));
+    dialplan_code_normalize(code);
     form_field(body, "desc", desc, sizeof(desc));
     esp_err_t err = dialplan_pin_set(code, DIALPLAN_PIN_NONE, 0, desc);
     if (err != ESP_OK) {
@@ -8852,7 +8858,7 @@ static esp_err_t dialcode_upload_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    char code[8] = {0}, new_code[8] = {0}, desc[64] = {0};
+    char code[24] = {0}, new_code[24] = {0}, desc[64] = {0};
     char part_name[32], filename[64];
     char dest[STORAGE_MAX_NAME] = {0};
     bool wrote = false;
@@ -8866,6 +8872,8 @@ static esp_err_t dialcode_upload_handler(httpd_req_t *req)
         } else if (strcmp(part_name, "desc") == 0) {
             read_field_body(&mp, desc, sizeof(desc));
         } else if (strcmp(part_name, "file") == 0 && filename[0]) {
+            dialplan_code_normalize(code);
+            dialplan_code_normalize(new_code);
             if (new_code[0]) {
                 /* Check the code BEFORE writing anything: the file used to be
                  * written first, so a rejected code still left it behind. */
@@ -8876,7 +8884,7 @@ static esp_err_t dialcode_upload_handler(httpd_req_t *req)
                               "dial code limit reached";
                     break;
                 }
-                char fallback[24];
+                char fallback[40];
                 snprintf(fallback, sizeof(fallback), "clip_%s.wav", new_code);
                 sanitize_upload_name(filename, fallback, dest, sizeof(dest));
                 /* Never reuse a name that's taken: uploading "operator.wav"

@@ -1,8 +1,8 @@
 # firmware/assets/ — bundled audio (baked in at build/flash time)
 
 The files listed in `BUNDLED_AUDIO` in `firmware/main/CMakeLists.txt` —
-**`operator.wav`, `record_prompt.wav`, `am_greeting.wav` and `dialup.wav`,
-nothing else** — get
+**`operator.wav`, `record_prompt.wav`, `am_greeting.wav`, `dialup.wav` and
+`jenny.wav`, nothing else** — get
 baked into a **read-only-in-spirit `bundled` SPIFFS partition** at build time
 and flashed alongside the firmware image (see the `bundled` entry in
 `firmware/partitions.csv`). Anything else you keep in this directory
@@ -37,10 +37,17 @@ recorded by dialling 899). Replace the wording from Settings -> Phone
 Settings -> Answering machine -> Default greeting (text-to-speech), which
 uploads a same-named file that overrides this one.
 
-One 4xx "novelty clip" default remains, out of the box. (402 Burp,
+Two "novelty clip" defaults ship out of the box: 412 (below) and 8675309. (402 Burp,
 401/403/404 Ring of Fire / Crocodile Rock / Martians, and 411/413/414 were
 all retired from the defaults -- personal or copyrighted audio, or no
 source audio at all. Boards provisioned earlier keep those codes.)
+
+**`jenny.wav`** (8675309, "Jenny") -- "If you're trying to reach Jenny, she's
+not home right now. Please call back later.", an original message synthesized
+with `bringup/gen_prompt.py` (Piper) and stored as 8 kHz 8-bit µ-law WAV
+(38 KB; same `ffmpeg` command as below). It's a plain spoken line: no music,
+nothing from any recording. Boards set up before it existed get the code added
+at their next boot.
 
 **`dialup.wav`** (412, "Dial up modem") — public domain
 (Wikimedia Commons, `Dial_up_connection.ogg`), full length (~39 s), stored

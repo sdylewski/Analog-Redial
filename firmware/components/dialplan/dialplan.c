@@ -12,6 +12,10 @@ static const char *TAG = "dialplan";
 #define CLIPS_NVS_NS       "dialclips"
 #define CLIPS_NVS_KEY      "entries"
 #define CLIPS_NVS_SEEDED   "seeded"
+#define CLIPS_NVS_SEEDED_N "seeded_n"   /* how many CLIP_DEFAULTS entries this board has had */
+/* Entries CLIP_DEFAULTS had before the counter above existed: a board seeded
+ * back then has exactly these, and gets any later ones appended at boot. */
+#define CLIP_DEFAULTS_LEGACY_N 1
 #define PINS_NVS_NS        "dialpins"
 #define PINS_NVS_KEY       "entries"
 
@@ -202,6 +206,7 @@ static void clips_load(void)
         }
         nvs_set_blob(h, CLIPS_NVS_KEY, s_clips, sizeof(s_clips));
         nvs_set_u8(h, CLIPS_NVS_SEEDED, 1);
+        nvs_set_u8(h, CLIPS_NVS_SEEDED_N, (uint8_t)CLIP_DEFAULTS_N);
         nvs_commit(h);
         ESP_LOGI(TAG, "seeded %u builtin clip codes", (unsigned)CLIP_DEFAULTS_N);
     }
@@ -243,6 +248,8 @@ static void pins_load(void)
     }
 }
 
+static void clips_add_new_defaults(void);
+
 void dialplan_init(void)
 {
     memset(&s_modes, 0, sizeof(s_modes));
@@ -250,6 +257,7 @@ void dialplan_init(void)
     modes_load();
     clips_load();
     pins_load();
+    clips_add_new_defaults();
     ESP_LOGI(TAG, "loaded %u fixed codes", (unsigned)TABLE_N);
 }
 
@@ -569,6 +577,51 @@ static bool code_conflicts_ex(const char *code, int except_idx, int except_pin)
         if (strncmp(s_pin_actions[i].code, code, minlen) == 0) return true;
     }
     return false;
+}
+
+void dialplan_code_normalize(char *code)
+{
+    char *w = code;
+    for (const char *r = code; *r; r++) {
+        if (*r == ' ' || *r == '-' || *r == '.' || *r == '(' || *r == ')') continue;
+        *w++ = *r;
+    }
+    *w = '\0';
+}
+
+/* A default added to CLIP_DEFAULTS after a board was first set up never
+ * reached it (seeding runs once). Add each such entry, if its code is free
+ * and there's a slot; either way remember it was offered, so a user who later
+ * recodes it doesn't get it back. Fresh boards already have them all. */
+static void clips_add_new_defaults(void)
+{
+    nvs_handle_t h;
+    if (nvs_open(CLIPS_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    uint8_t have = 0;
+    if (nvs_get_u8(h, CLIPS_NVS_SEEDED_N, &have) != ESP_OK) have = CLIP_DEFAULTS_LEGACY_N;
+    bool changed = false;
+    for (size_t i = have; i < CLIP_DEFAULTS_N; i++) {
+        const clip_default_t *d = &CLIP_DEFAULTS[i];
+        int slot = -1;
+        for (int k = 0; k < DIALPLAN_MAX_CLIP_ENTRIES; k++) {
+            if (!s_clips[k].code[0]) { slot = k; break; }
+        }
+        if (slot < 0 || code_conflicts_ex(d->code, -1, -1)) {
+            ESP_LOGW(TAG, "new default %s (%s) not added: %s", d->code, d->filename,
+                     slot < 0 ? "no free slot" : "code already in use");
+            continue;
+        }
+        strncpy(s_clips[slot].code, d->code, sizeof(s_clips[slot].code) - 1);
+        strncpy(s_clips[slot].filename, d->filename, sizeof(s_clips[slot].filename) - 1);
+        strncpy(s_clips[slot].desc, d->desc, sizeof(s_clips[slot].desc) - 1);
+        s_clips[slot].builtin = true;
+        changed = true;
+        ESP_LOGI(TAG, "added new default clip code %s (%s)", d->code, d->filename);
+    }
+    if (changed) nvs_set_blob(h, CLIPS_NVS_KEY, s_clips, sizeof(s_clips));
+    if (have != CLIP_DEFAULTS_N) nvs_set_u8(h, CLIPS_NVS_SEEDED_N, (uint8_t)CLIP_DEFAULTS_N);
+    nvs_commit(h);
+    nvs_close(h);
 }
 
 static bool valid_code(const char *code)

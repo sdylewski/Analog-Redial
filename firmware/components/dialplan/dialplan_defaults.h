@@ -23,6 +23,10 @@ typedef struct {
 
 static const clip_default_t CLIP_DEFAULTS[] = {
     { "412", "dialup.wav",          "Dial up modem" },
+    /* Easter egg: an original spoken message (synthesized, not a recording of
+     * any song), 38 KB as 8 kHz u-law. Appended after the others so boards
+     * set up earlier pick it up at boot (see clips_add_new_defaults()). */
+    { "8675309", "jenny.wav",       "Jenny" },
     /* 412 used to be "Banana Boat" -- repurposed (Wikimedia Commons,
      * "Dial_up_connection.ogg", public domain). Shipped as 8 kHz u-law WAV
      * (314 KB full length; 16-bit PCM would be 630 KB and overflow an 8 MB

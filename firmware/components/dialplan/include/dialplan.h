@@ -148,6 +148,10 @@ size_t dialplan_list(dialplan_entry_info_t *out, size_t max);
 /* Longest dial code a user can add: code[8] holds 7 digits and the NUL. */
 #define DIALPLAN_CODE_MAX_DIGITS 7
 
+/* Removes the separators people type in a number (spaces, dashes, dots and
+ * parentheses) in place, so "(867) 530-9" and "8675309" are the same code. */
+void dialplan_code_normalize(char *code);
+
 #define DIALPLAN_MAX_CLIP_ENTRIES 24 /* 2 builtins + headroom for user-added */
 
 typedef struct {

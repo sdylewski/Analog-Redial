@@ -5,7 +5,8 @@
 # download. Generate your own from your own media library; only the
 # synthesized (not copyrighted) prompts and public-domain audio ship as real
 # defaults: the operator message, the answering machine's default greeting,
-# and the dial-up modem sound (Wikimedia Commons, public domain). These are
+# the dial-up modem sound (Wikimedia Commons, public domain) and the
+# 8675309 spoken message. These are
 # also the only files main/CMakeLists.txt builds into the firmware.
 *
 !.gitignore
@@ -14,3 +15,4 @@
 !record_prompt.wav
 !am_greeting.wav
 !dialup.wav
+!jenny.wav
