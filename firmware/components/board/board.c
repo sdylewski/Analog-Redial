@@ -250,17 +250,43 @@ esp_err_t board_name_set(const char *name)
     return err;
 }
 
+/* Every translated string on a web page asks for the language (i18n_str()),
+ * a page has hundreds of them, and each flash lookup cost a few ms: a page
+ * took a second to render, and the web server starved the audio meanwhile.
+ * So it's read from flash once and kept here; board_language_set() updates it. */
+static char s_lang_cache[BOARD_LANG_MAX];
+static bool s_lang_cached;
+static portMUX_TYPE s_lang_mux = portMUX_INITIALIZER_UNLOCKED;
+
 void board_language_get(char *out, size_t len)
 {
     if (len == 0) return;
+    portENTER_CRITICAL(&s_lang_mux);
+    bool have = s_lang_cached;
+    if (have) {
+        strncpy(out, s_lang_cache, len - 1);
+        out[len - 1] = '\0';
+    }
+    portEXIT_CRITICAL(&s_lang_mux);
+    if (have) return;
+
+    char found[BOARD_LANG_MAX] = "en";
     nvs_handle_t h;
     if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) == ESP_OK) {
-        size_t n = len;
-        esp_err_t err = nvs_get_str(h, BOARD_LANG_NVS_KEY, out, &n);
+        char tmp[BOARD_LANG_MAX];
+        size_t n = sizeof(tmp);
+        if (nvs_get_str(h, BOARD_LANG_NVS_KEY, tmp, &n) == ESP_OK && tmp[0]) {
+            strncpy(found, tmp, sizeof(found) - 1);
+            found[sizeof(found) - 1] = '\0';
+        }
         nvs_close(h);
-        if (err == ESP_OK && out[0]) return;
     }
-    strncpy(out, "en", len - 1);
+    portENTER_CRITICAL(&s_lang_mux);
+    strncpy(s_lang_cache, found, sizeof(s_lang_cache) - 1);
+    s_lang_cache[sizeof(s_lang_cache) - 1] = '\0';
+    s_lang_cached = true;
+    portEXIT_CRITICAL(&s_lang_mux);
+    strncpy(out, found, len - 1);
     out[len - 1] = '\0';
 }
 
@@ -277,7 +303,14 @@ esp_err_t board_language_set(const char *lang)
     err = nvs_set_str(h, BOARD_LANG_NVS_KEY, trimmed);
     if (err == ESP_OK) err = nvs_commit(h);
     nvs_close(h);
-    if (err == ESP_OK) ESP_LOGI(TAG, "phone language set to '%s'", trimmed);
+    if (err == ESP_OK) {
+        portENTER_CRITICAL(&s_lang_mux);
+        strncpy(s_lang_cache, trimmed, sizeof(s_lang_cache) - 1);
+        s_lang_cache[sizeof(s_lang_cache) - 1] = '\0';
+        s_lang_cached = true;
+        portEXIT_CRITICAL(&s_lang_mux);
+        ESP_LOGI(TAG, "phone language set to '%s'", trimmed);
+    }
     return err;
 }
 

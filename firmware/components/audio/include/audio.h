@@ -115,6 +115,10 @@ void audio_set_uplink_inject(int line, bool on);
 /* ---- external PCM (VoIP / file) ---- */
 /* Push engine-rate mono PCM to a line's external buffer. Returns bytes queued. */
 size_t audio_ext_write(int line, const int16_t *mono, size_t n);
+/* How many 10 ms frames, since boot, the engine played silence in place of
+ * external audio because the source (player, VoIP) was late. A clip ending
+ * adds one; a dropout adds several. */
+uint32_t audio_ext_underruns(int line);
 
 /* ---- receive ---- */
 void   audio_set_rx_tap(int line, audio_rx_tap_fn fn, void *ctx);

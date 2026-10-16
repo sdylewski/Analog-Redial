@@ -59,6 +59,9 @@ typedef struct {
      * (~2 ms of every 10 ms frame for pitch effects), so on a call between two
      * local phones, where nobody reads the uplink, it's skipped. */
     volatile int64_t uplink_read_us;
+    /* Frames of external audio (VoIP, player) the engine had to fill with
+     * silence because the source hadn't delivered in time; see audio_ext_underruns(). */
+    volatile uint32_t ext_underruns;
 } line_t;
 
 static line_t s_line[AUDIO_NUM_LINES];
@@ -218,6 +221,12 @@ void audio_set_uplink_inject(int line, bool on)
     if (on) audio_wake();
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
     s_line[line].inject_uplink = on; /* read in audio_task's RX-processing loop; no lock needed for a single bool */
+}
+
+uint32_t audio_ext_underruns(int line)
+{
+    if (line < 0 || line >= AUDIO_NUM_LINES) return 0;
+    return s_line[line].ext_underruns;
 }
 
 size_t audio_ext_write(int line, const int16_t *mono, size_t n)
@@ -483,6 +492,7 @@ static void fill_tx_line(int line, int16_t *out, size_t n)
                 got = xStreamBufferReceive(snap.ext, out, n * sizeof(int16_t), 0)
                       / sizeof(int16_t);
             }
+            if (got < n) s_line[line].ext_underruns++;
             for (size_t i = got; i < n; i++) out[i] = 0; /* underrun -> silence */
             voice_fx_process(snap.fx_down, snap.fx, out, n);
             break;

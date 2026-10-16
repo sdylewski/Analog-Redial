@@ -43,10 +43,30 @@ bool dtmf_make_osc(tone_osc_t *o, uint32_t sample_rate, char key, float amp)
     return true;
 }
 
-/* Minimum gap (in ~25.6ms Goertzel blocks -- see dtmf_detector_init()) before
- * the *same* digit can be emitted again -- see dtmf_detector_push()'s
- * comment. 8 blocks =~ 205ms. */
-#define SAME_DIGIT_LOCKOUT_BLOCKS 8
+/* Minimum time before the *same* digit can be emitted again -- see
+ * dtmf_detector_push()'s comment. Counted in windows (see DTMF_BANKS):
+ * 32 windows =~ 205 ms. */
+#define SAME_DIGIT_LOCKOUT_WINDOWS 32
+
+/* A key counts as pressed once this many windows in a row classify as the
+ * same digit: 3 windows span ~38 ms of unbroken tone, the ITU minimum tone
+ * length. (The old, non-overlapping detector needed two whole blocks, ~51 ms
+ * of tone plus whatever alignment it had.) */
+#ifndef START_WINDOWS
+#define START_WINDOWS 3
+#endif
+/* A real DTMF window holds nearly all of its energy in two bins; speech and
+ * music spread theirs. Percent of the ideal (all of it in the strongest row
+ * and column bin) that a window must reach to count as a key. 50 passes
+ * tones with 4 kHz-wide noise 14 dB under them, +-5 dB twist, and tones
+ * clipped flat by a 1.2x overdrive, and rejects the speech, music and modem
+ * clips this was tried on (tests in firmware/test/host). */
+#ifndef DTMF_MIN_CONC_PCT
+#define DTMF_MIN_CONC_PCT 50
+#endif
+/* ...and ends after this many in a row that classify as nothing. A pause of
+ * 40 ms always contains at least two windows with no tone in them at all. */
+#define END_WINDOWS 2
 
 /* ---- Goertzel detector ----
  *
@@ -60,7 +80,7 @@ bool dtmf_make_osc(tone_osc_t *o, uint32_t sample_rate, char key, float amp)
  * coeff multiply is scaled, then shifted back down), so MIN_MAG and the
  * ratio thresholds below are unchanged from the float version. */
 
-static char classify(const int64_t mags[8])
+static char classify(const int64_t mags[8], int64_t min_mag, int64_t energy, size_t block_n)
 {
     /* strongest row and strongest col */
     int rb = 0, cb = 0;
@@ -70,8 +90,12 @@ static char classify(const int64_t mags[8])
     int64_t rmag = mags[rb], cmag = mags[4 + cb];
 
     /* energy gate: ignore near-silence / noise */
-    const int64_t MIN_MAG = 500000;
-    if (rmag < MIN_MAG || cmag < MIN_MAG) return 0;
+    if (rmag < min_mag || cmag < min_mag) return 0;
+
+    /* tone-ness: two bins should hold most of the window's energy. For a pure
+     * pair, |Xr|^2 + |Xc|^2 = N * sum(x^2) / 2. */
+    if (DTMF_MIN_CONC_PCT > 0 &&
+        (rmag + cmag) * 200 < (int64_t)DTMF_MIN_CONC_PCT * (int64_t)block_n * energy) return 0;
 
     /* twist: row/col should be within a reasonable ratio (cross-multiplied
      * to avoid division). A single tight limit, not tiered by loudness --
@@ -121,32 +145,34 @@ void dtmf_detector_init(dtmf_detector_t *d, uint32_t sample_rate)
 {
     memset(d, 0, sizeof(*d));
     d->sample_rate = sample_rate;
-    /* 205 samples @ 8kHz (~25.6ms) is the standard Bellcore/ITU-T DTMF
-     * Goertzel block size -- ~39Hz bin spacing. A 10ms block (100Hz bins,
-     * what this used to be) can't resolve 852Hz and 941Hz: they're only
-     * 89Hz apart, so both round to the *same* bin, tie exactly, and the
-     * dominance check in classify() then rejects the ambiguous result as
-     * noise. That silently broke every row-3/row-4 key against each
-     * other -- '7'/'8'/'9' vs '*'/'0'/'#' -- not just '0'/'*'/'#' alone. */
-    d->block_n = (size_t)(((uint64_t)sample_rate * 205 + 4000) / 8000);
+    /* Analyse at 8 kHz: average groups of input samples (48 kHz -> 6 at a
+     * time). The windows are the standard 205 samples @ 8 kHz (~25.6 ms,
+     * ~39 Hz bins -- the Bellcore/ITU-T DTMF Goertzel block): a shorter one
+     * can't resolve 852 and 941 Hz, which round to the same bin and tie, and
+     * the dominance check in classify() then rejects the result as noise,
+     * silently breaking every row-3/row-4 key. Running at 8 kHz also keeps
+     * four staggered windows cheaper than the single 48 kHz one was. A rate
+     * that doesn't divide into 8 kHz is analysed as it comes. */
+    d->dec = (sample_rate >= 8000 && sample_rate % 8000 == 0) ? sample_rate / 8000 : 1;
+    uint32_t arate = sample_rate / d->dec;
+    d->block_n = (size_t)(((uint64_t)arate * 205 + 4000) / 8000);
     if (d->block_n < 64) d->block_n = 64;
+    /* The energy gate was 500000 for the old 1230-sample window; magnitudes
+     * grow with the square of the window length. */
+    d->min_mag = (int64_t)((double)500000 * (double)d->block_n * (double)d->block_n / (1230.0 * 1230.0));
+    if (d->min_mag < 1000) d->min_mag = 1000;
 
     /* One-time setup -- float/cosf here is fine, this isn't the hot loop. */
     for (int i = 0; i < 8; i++) {
         float f = (i < 4) ? ROWS[i] : COLS[i - 4];
-        int   k = (int)(0.5f + ((float)d->block_n * f) / (float)sample_rate);
+        int   k = (int)(0.5f + ((float)d->block_n * f) / (float)arate);
         float w = (2.0f * (float)M_PI / (float)d->block_n) * (float)k;
         d->coeff[i] = (int32_t)lroundf(2.0f * cosf(w) * 16384.0f); /* Q14 */
-        d->q1[i] = d->q2[i] = 0;
     }
+    /* Stagger the windows: window b starts b/DTMF_BANKS of a window late. */
+    for (int b = 0; b < DTMF_BANKS; b++) d->filled[b] = (size_t)b * d->block_n / DTMF_BANKS;
 
     d->agc_gain_q8 = 256; /* unity -- see dtmf_detector_push() */
-}
-
-static void block_reset(dtmf_detector_t *d)
-{
-    for (int i = 0; i < 8; i++) { d->q1[i] = 0; d->q2[i] = 0; }
-    d->filled = 0;
 }
 
 /* AGC tuning. Target/gate are raw int16 sample-amplitude units (peak, not
@@ -174,101 +200,116 @@ static void block_reset(dtmf_detector_t *d)
 #define AGC_GATE_PEAK    4000
 #define AGC_MIN_GAIN_Q8    64
 #define AGC_MAX_GAIN_Q8  2048
-#define AGC_SMOOTH_DIV      4
+#define AGC_SMOOTH_DIV     16
 
 char dtmf_detector_push(dtmf_detector_t *d, const int16_t *samples, size_t n)
 {
     char emitted = 0;
 
     for (size_t s = 0; s < n; s++) {
-        int32_t raw = samples[s];
+        d->dec_acc += samples[s];
+        if (++d->dec_n < d->dec) continue;
+        int32_t raw = d->dec_acc / (int32_t)d->dec;
+        d->dec_acc = 0;
+        d->dec_n = 0;
+
         int32_t a = raw < 0 ? -raw : raw;
-        if (a > d->agc_block_peak) d->agc_block_peak = a;
-
         int32_t in = (raw * d->agc_gain_q8) >> 8;
-        for (int i = 0; i < 8; i++) {
-            int32_t q0 = (int32_t)(((int64_t)d->coeff[i] * d->q1[i]) >> 14) - d->q2[i] + in;
-            d->q2[i] = d->q1[i];
-            d->q1[i] = q0;
-        }
-        if (++d->filled < d->block_n) {
-            continue;
-        }
-
-        /* block complete: compute magnitudes */
-        int64_t mags[8];
-        for (int i = 0; i < 8; i++) {
-            int64_t q1 = d->q1[i], q2 = d->q2[i];
-            int64_t cross = (((int64_t)d->coeff[i] * q1) >> 14) * q2;
-            mags[i] = q1 * q1 + q2 * q2 - cross;
-        }
-        char digit = classify(mags);
-
-        /* AGC: re-estimate gain for the *next* block from this block's
-         * peak (one-block lag is inherent -- the peak isn't known until
-         * the last sample of the block has been seen). Gated per the
-         * comment above AGC_TARGET_PEAK. */
-        if (d->agc_block_peak >= AGC_GATE_PEAK) {
-            int32_t target = (int32_t)(((int64_t)AGC_TARGET_PEAK << 8) / d->agc_block_peak);
-            if (target < AGC_MIN_GAIN_Q8) target = AGC_MIN_GAIN_Q8;
-            if (target > AGC_MAX_GAIN_Q8) target = AGC_MAX_GAIN_Q8;
-            d->agc_gain_q8 += (target - d->agc_gain_q8) / AGC_SMOOTH_DIV;
-        }
-        d->agc_block_peak = 0;
-
-        block_reset(d);
-
-        /* debounce + edge detection: emit once per key press.
-         * Two separate, deliberately-decoupled timers:
-         *  - in_tone/silence_blocks: is a tone (any digit) active right
-         *    now? Clears after a short (50ms) real quiet gap, so a
-         *    *different* next digit is still recognized promptly.
-         *  - since_emit_blocks: how long since we last emitted THIS
-         *    digit. A real analog phone/keypad can chatter -- contact
-         *    bounce, or a cheap keypad's own auto-repeat -- and drop the
-         *    tone entirely for tens of ms mid-press, which looks exactly
-         *    like "released, pressed again" to the block-level detector.
-         *    Gating same-digit re-emission on a longer, dialing-speed
-         *    window (not just "was there a brief quiet gap") is what
-         *    actually rejects that, without slowing down a genuinely
-         *    different next digit. */
-        if (d->since_emit_blocks < SAME_DIGIT_LOCKOUT_BLOCKS) d->since_emit_blocks++;
-
-        if (digit != 0) {
-            d->silence_blocks = 0;
-            if (digit == d->candidate) {
-                d->candidate_blocks++;
-            } else {
-                d->candidate = digit;
-                d->candidate_blocks = 1;
+        for (int b = 0; b < DTMF_BANKS; b++) {
+            if (a > d->peak[b]) d->peak[b] = a;
+            d->energy[b] += (int64_t)in * in;
+            for (int i = 0; i < 8; i++) {
+                int32_t q0 = (int32_t)(((int64_t)d->coeff[i] * d->q1[b][i]) >> 14) - d->q2[b][i] + in;
+                d->q2[b][i] = d->q1[b][i];
+                d->q1[b][i] = q0;
             }
-            if (!d->in_tone && d->candidate_blocks >= 2) {
-                d->in_tone = true; /* track this occurrence either way */
-                d->press_digit = digit;
-                d->press_start_us = esp_timer_get_time();
-                bool too_soon = (digit == d->last_emitted) &&
-                                 (d->since_emit_blocks < SAME_DIGIT_LOCKOUT_BLOCKS);
-                if (!too_soon) {
-                    d->last_emitted = digit;
-                    d->since_emit_blocks = 0;
-                    emitted = digit;
-                    ESP_LOGD(TAG, "'%c' START", digit);
+            if (++d->filled[b] < d->block_n) continue;
+
+            /* window complete: compute magnitudes */
+            int64_t mags[8];
+            for (int i = 0; i < 8; i++) {
+                int64_t q1 = d->q1[b][i], q2 = d->q2[b][i];
+                int64_t cross = (((int64_t)d->coeff[i] * q1) >> 14) * q2;
+                mags[i] = q1 * q1 + q2 * q2 - cross;
+            }
+            char digit = classify(mags, d->min_mag, d->energy[b], d->block_n);
+
+            /* AGC: re-estimate gain for the *next* window from this one's
+             * peak. Gated per the comment above AGC_TARGET_PEAK. */
+            if (d->peak[b] >= AGC_GATE_PEAK) {
+                int32_t target = (int32_t)(((int64_t)AGC_TARGET_PEAK << 8) / d->peak[b]);
+                if (target < AGC_MIN_GAIN_Q8) target = AGC_MIN_GAIN_Q8;
+                if (target > AGC_MAX_GAIN_Q8) target = AGC_MAX_GAIN_Q8;
+                d->agc_gain_q8 += (target - d->agc_gain_q8) / AGC_SMOOTH_DIV;
+            }
+            for (int i = 0; i < 8; i++) { d->q1[b][i] = 0; d->q2[b][i] = 0; }
+            d->filled[b] = 0;
+            d->peak[b] = 0;
+            d->energy[b] = 0;
+
+            /* debounce + edge detection: emit once per key press.
+             * Two separate, deliberately-decoupled timers:
+             *  - in_tone/silence_n: is a tone (any digit) active right
+             *    now? Clears after END_WINDOWS windows with no tone in
+             *    them, so the next key is recognised promptly. A
+             *    *different* digit that differs from the current one in
+             *    both its row and its column may start without waiting for
+             *    that: some handsets dial with pauses too short to leave
+             *    two clean windows. (Not for a digit sharing a row or
+             *    column: a handset whose '3' and '6' both ring at 697 and
+             *    770 Hz -- measured on a real one -- flips between them
+             *    inside one press.)
+             *  - since_emit: how long since we last emitted THIS digit. A
+             *    real analog phone/keypad can chatter -- contact bounce, or
+             *    a cheap keypad's own auto-repeat -- and drop the tone for
+             *    tens of ms mid-press, which looks exactly like "released,
+             *    pressed again". Gating same-digit re-emission on a longer,
+             *    dialing-speed window is what rejects that, without slowing
+             *    down a genuinely different next digit. */
+            if (d->since_emit < SAME_DIGIT_LOCKOUT_WINDOWS) d->since_emit++;
+
+            if (digit != 0) {
+                d->silence_n = 0;
+                if (digit == d->candidate) {
+                    d->candidate_n++;
                 } else {
-                    ESP_LOGD(TAG, "'%c' START (suppressed, repeat too soon)", digit);
+                    d->candidate = digit;
+                    d->candidate_n = 1;
                 }
-            }
-        } else {
-            /* non-classifying block: only declare the tone over after a
-             * couple of these in a row (~51ms) -- a single one is as likely
-             * to be a momentary dip mid-tone (line noise/echo) as a real
-             * release. */
-            d->candidate = 0;
-            d->candidate_blocks = 0;
-            if (d->in_tone && ++d->silence_blocks >= 2) {
-                d->in_tone = false;
-                d->silence_blocks = 0;
-                int64_t held_ms = (esp_timer_get_time() - d->press_start_us) / 1000;
-                ESP_LOGD(TAG, "'%c' END (held %lld ms)", d->press_digit, (long long)held_ms);
+                bool unrelated_key = false;
+                if (d->in_tone && digit != d->press_digit) {
+                    float r0, c0, r1, c1;
+                    unrelated_key = dtmf_key_freqs(d->press_digit, &r0, &c0) &&
+                                    dtmf_key_freqs(digit, &r1, &c1) && r0 != r1 && c0 != c1;
+                }
+                if (d->candidate_n >= START_WINDOWS && (!d->in_tone || unrelated_key)) {
+                    d->in_tone = true; /* track this occurrence either way */
+                    d->press_digit = digit;
+                    d->press_start_us = esp_timer_get_time();
+                    bool too_soon = (digit == d->last_emitted) &&
+                                     (d->since_emit < SAME_DIGIT_LOCKOUT_WINDOWS);
+                    if (!too_soon) {
+                        d->last_emitted = digit;
+                        d->since_emit = 0;
+                        if (!emitted) emitted = digit;
+                        ESP_LOGD(TAG, "'%c' START", digit);
+                    } else {
+                        ESP_LOGD(TAG, "'%c' START (suppressed, repeat too soon)", digit);
+                    }
+                }
+            } else {
+                /* a window with no valid key in it: only declare the tone
+                 * over after a couple in a row -- a single one is as likely
+                 * to be a momentary dip mid-tone (line noise/echo) as a
+                 * real release. */
+                d->candidate = 0;
+                d->candidate_n = 0;
+                if (d->in_tone && ++d->silence_n >= END_WINDOWS) {
+                    d->in_tone = false;
+                    d->silence_n = 0;
+                    int64_t held_ms = (esp_timer_get_time() - d->press_start_us) / 1000;
+                    ESP_LOGD(TAG, "'%c' END (held %lld ms)", d->press_digit, (long long)held_ms);
+                }
             }
         }
     }

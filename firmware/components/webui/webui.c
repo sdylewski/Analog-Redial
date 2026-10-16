@@ -174,6 +174,7 @@ typedef struct {
     size_t       len;     /* bytes waiting in buf */
     size_t       sent;
     bool         failed;  /* the client went away: keep rendering, send nothing */
+    int64_t      t0_us, first_us;  /* started / first data handed to the network, for slow-page log */
 } page_stream_t;
 
 static page_stream_t *s_ps;
@@ -186,6 +187,7 @@ volatile uint32_t g_webui_progress;
 static void page_stream_send(const char *data, size_t len)
 {
     if (s_ps->failed || len == 0) return;
+    if (!s_ps->first_us) s_ps->first_us = esp_timer_get_time();
     if (httpd_resp_send_chunk(s_ps->req, data, len) != ESP_OK) s_ps->failed = true;
     else { s_ps->sent += len; g_webui_progress++; }
 }
@@ -203,13 +205,23 @@ static void page_stream_begin(page_stream_t *ps, httpd_req_t *req, char *buf)
     memset(ps, 0, sizeof(*ps));
     ps->req = req;
     ps->buf = buf;
+    ps->t0_us = esp_timer_get_time();
     s_ps = ps;
 }
 
 static esp_err_t page_stream_end(page_stream_t *ps)
 {
     page_stream_flush();
+    int64_t t_render = esp_timer_get_time();
     if (!ps->failed) httpd_resp_send_chunk(ps->req, NULL, 0);
+    int64_t total_ms = (esp_timer_get_time() - ps->t0_us) / 1000;
+    if (total_ms > 300) {
+        /* A page that takes this long also holds the CPU for that long: say so. */
+        ESP_LOGI(TAG, "slow page %s: first data after %lld ms, last chunk handed over after %lld ms, "
+                      "finished after %lld ms (%u bytes)", ps->req->uri,
+                 (long long)((ps->first_us ? ps->first_us - ps->t0_us : 0) / 1000),
+                 (long long)((t_render - ps->t0_us) / 1000), (long long)total_ms, (unsigned)ps->sent);
+    }
     s_ps = NULL;
     return ps->failed ? ESP_FAIL : ESP_OK;
 }
@@ -801,11 +813,28 @@ static const ui_lang_t UI_LANGUAGES[] = {
 static bool ui_language_available(const char *code)
 {
     if (strcmp(code, "en") == 0) return true;
-    char name[24];
-    snprintf(name, sizeof(name), "i18n_%s.json", code);
-    uint8_t probe;
-    size_t got;
-    return storage_read(name, &probe, sizeof(probe), &got) == ESP_OK;
+    /* Every page's language picker asks about every language, and looking up
+     * a file that isn't there takes ~225 ms on this flash filesystem: four
+     * absent translations made every page a second slower to start, and the
+     * web server held the CPU that whole time. The answer only changes when
+     * a file does, so it's remembered until then. */
+    static uint32_t gen = UINT32_MAX;
+    static bool known[UI_LANGUAGES_N];
+    if (gen != storage_generation()) {
+        gen = storage_generation();
+        for (size_t i = 0; i < UI_LANGUAGES_N; i++) {
+            char name[24];
+            snprintf(name, sizeof(name), "i18n_%s.json", UI_LANGUAGES[i].code);
+            uint8_t probe;
+            size_t got;
+            known[i] = strcmp(UI_LANGUAGES[i].code, "en") == 0 ||
+                       storage_read(name, &probe, sizeof(probe), &got) == ESP_OK;
+        }
+    }
+    for (size_t i = 0; i < UI_LANGUAGES_N; i++) {
+        if (strcmp(UI_LANGUAGES[i].code, code) == 0) return known[i];
+    }
+    return false;
 }
 
 /* <option>s for a language picker. Languages with no string table on this
@@ -9747,6 +9776,11 @@ void webui_debug_hang(void)
 esp_err_t webui_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    /* Below the audio player (priority 3, see player.c): a web page is a lot of
+     * CPU for a moment, and at the default priority 5 it starved the player
+     * and cut the audio out every time a page loaded during a call. The web
+     * UI just gets slower while a clip plays. */
+    config.task_priority = tskIDLE_PRIORITY + 2;
     config.uri_match_fn = httpd_uri_match_wildcard;
     /* HTTPD_DEFAULT_CONFIG() leaves max_open_sockets at 7 (3 of which are
      * reserved for the server's own internal use, per that field's doc

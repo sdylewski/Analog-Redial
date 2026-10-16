@@ -1629,6 +1629,43 @@ static int cmd_pulsemon(int argc, char **argv)
 }
 
 /* ---------- tonemon ---------- */
+/* How long the DTMF detector takes per 10 ms frame (it runs for each line that's
+ * off-hook, inside the audio task, so this is time taken from the 10 ms budget). */
+static int cmd_audiostat(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    for (int l = 0; l < AUDIO_NUM_LINES; l++)
+        printf("line %d: external audio underruns since boot: %u frames\n", l, (unsigned)audio_ext_underruns(l));
+    return 0;
+}
+
+static int cmd_dtmfbench(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    static dtmf_detector_t d;
+    uint32_t fs = audio_sample_rate();
+    size_t n = fs / 100;
+    int16_t *frame = malloc(n * sizeof(int16_t));
+    if (!frame) { printf("no memory\n"); return 1; }
+    dtmf_detector_init(&d, fs);
+    uint32_t r = 12345;
+    int64_t sum = 0, worst = 0;
+    const int frames = 200;
+    for (int f = 0; f < frames; f++) {
+        for (size_t i = 0; i < n; i++) { r = r * 1664525u + 1013904223u; frame[i] = (int16_t)((int32_t)(r >> 17) - 16384) / 4; }
+        int64_t t0 = esp_timer_get_time();
+        dtmf_detector_push(&d, frame, n);
+        int64_t dt = esp_timer_get_time() - t0;
+        sum += dt;
+        if (dt > worst) worst = dt;
+        if ((f & 15) == 15) vTaskDelay(1);
+    }
+    printf("dtmf detector: %lld us average, %lld us worst per %u-sample (10 ms) frame\n",
+           (long long)(sum / frames), (long long)worst, (unsigned)n);
+    free(frame);
+    return 0;
+}
+
 static int cmd_tonemon(int argc, char **argv)
 {
     int secs = (argc > 1) ? atoi(argv[1]) : 15;
@@ -2905,6 +2942,8 @@ void bringup_console_start(void)
     register_cmd("ring", "Ring a line: ring [line] [secs]", cmd_ring);
     register_cmd("hookmon", "Watch SHK: hookmon [secs]", cmd_hookmon);
     register_cmd("pulsemon", "Watch raw pulse dialing + timing: pulsemon [secs] [line]", cmd_pulsemon);
+    register_cmd("audiostat", "Underruns in clip/VoIP playback since boot (dropouts)", cmd_audiostat);
+    register_cmd("dtmfbench", "Time the DTMF detector per 10 ms audio frame", cmd_dtmfbench);
     register_cmd("tonemon", "Watch DTMF (touch-tone) digits + timing: tonemon [secs] [line]", cmd_tonemon);
     register_cmd("txpower", "WiFi transmit power: txpower [dBm 2-20] -- for testing; the adaptive-TX setting may change it back", cmd_txpower);
     register_cmd("btcall", "Bluetooth phone call: btcall [accept|reject|end] -- no arg shows call state and caller ID", cmd_btcall);

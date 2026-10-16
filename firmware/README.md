@@ -263,6 +263,8 @@ step per subsystem, without typing each command by hand.
 | `fx <line> <0-7> [both]` | Set a voice effect by hand (1 Dalek, 2 chipmunk, 3 Vader, 4 8-bit, 5 robot, 6 tremolo, 7 distortion, 0 off). With `loopback <line> 1` you hear your own voice through it, no call needed |
 | `fxtest [Hz] [line] [effect]` | Deterministic effect check: a pure tone (default 1 kHz) through every effect, reporting the two strongest spectral lines out (chipmunk 1000 Hz → 1500 Hz, Dalek → 970 + 1030 Hz, …), levels, tremolo depth, and the CPU time per 10 ms frame. With a line (handset on-hook) it repeats the test through the real engine path, DAC, SLIC and back in through the hybrid; with an effect number it repeats just that effect three times |
 | `fxgain [percent]` | Output gain applied after every voice effect, 10–300% (default 100, resets on reboot) — for testing how much headroom the effects have |
+| `dtmfbench` | Times the touch-tone detector per 10 ms audio frame (the CPU it takes out of the audio task) |
+| `audiostat` | Counts the frames of clip/VoIP audio that were replaced by silence because the source was late (a dropout adds several; a clip starting and ending adds about 5) |
 | `fxstat [secs]` | Live levels through the effects, peak and rms in and out, and how often the peak limiter acted. The same numbers are on the Diagnostics page ("Voice effects: live levels") |
 | `silence [line]` | Stop audio on a line |
 | `loopback [line] [0\|1]` | Mic → own speaker round-trip |

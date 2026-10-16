@@ -349,9 +349,16 @@ static void writer_drop_sd(storage_writer_t *w)
     }
 }
 
+/* Bumped by anything that adds, changes or removes a file, so a caller that
+ * remembers something about the files (the web UI's list of installed
+ * languages) knows when to look again. */
+static volatile uint32_t s_generation;
+uint32_t storage_generation(void) { return s_generation; }
+
 esp_err_t storage_write_end(storage_writer_t *w)
 {
     if (!w->file) return ESP_ERR_INVALID_STATE;
+    s_generation++;
     int rc = fclose((FILE *)w->file);
     w->file = NULL;
     writer_drop_sd(w);
@@ -481,6 +488,7 @@ esp_err_t storage_delete(const char *name)
     }
     int rc = unlink(path);
     if (sd) sdcard_release();
+    s_generation++;
     if (rc == 0) return ESP_OK;
     /* Log the real errno -- collapsing every unlink() failure into
      * ESP_ERR_NOT_FOUND (the old behavior) hid whatever the actual SPIFFS/
@@ -493,6 +501,7 @@ esp_err_t storage_delete(const char *name)
 
 esp_err_t storage_patch(const char *name, size_t offset, const void *data, size_t len)
 {
+    s_generation++;
     char path[288];
     bool sd = sdcard_acquire();
     FILE *f = resolve_existing_path(name, path, sizeof(path), sd) ? fopen(path, "r+b") : NULL;

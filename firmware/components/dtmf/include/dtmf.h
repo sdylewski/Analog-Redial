@@ -25,32 +25,39 @@ bool dtmf_key_freqs(char key, float *row_hz, float *col_hz);
 bool dtmf_make_osc(tone_osc_t *o, uint32_t sample_rate, char key, float amp);
 
 /* ---- Detector ---- */
+
+/* Four Goertzel windows run staggered by a quarter of their length, so a
+ * decision comes every ~6.4 ms instead of every ~25.6 ms. That is what lets
+ * the detector follow a fast tone dialer (tones and pauses of 40-50 ms). */
+#define DTMF_BANKS 4
+
 typedef struct {
     uint32_t sample_rate;
-    size_t   block_n;          /* samples per Goertzel block (e.g. fs/100 = 10 ms) */
-    size_t   filled;
-    int32_t  coeff[8];  /* Q14 fixed-point: round(2*cos(w) * 16384) */
-    int32_t  q1[8], q2[8];
-    /* debounce -- see dtmf_detector_push()'s comment for what each of these
-     * actually gates: tone-active tracking (in_tone/silence_blocks, short)
-     * vs. same-digit re-emission lockout (last_emitted/since_emit_blocks,
-     * longer -- rejects contact bounce / keypad auto-repeat that looks like
-     * a real release + re-press to the block-level detector). */
+    uint32_t dec;            /* input samples averaged into one analysis sample (6 at 48 kHz -> 8 kHz) */
+    uint32_t dec_n;
+    int32_t  dec_acc;
+    size_t   block_n;        /* analysis samples per window (205 = 25.6 ms at 8 kHz) */
+    int64_t  min_mag;        /* energy gate, scaled to the window length */
+    int32_t  coeff[8];       /* Q14 fixed-point: round(2*cos(w) * 16384) */
+    int32_t  q1[DTMF_BANKS][8], q2[DTMF_BANKS][8];
+    size_t   filled[DTMF_BANKS];
+    int32_t  peak[DTMF_BANKS];  /* peak |sample| in each window, for the AGC */
+    int64_t  energy[DTMF_BANKS]; /* sum of squares of the (gain-scaled) samples in each window */
+    /* debounce -- see dtmf_detector_push()'s comment. All counts are in
+     * windows (~6.4 ms each). */
     char     last_emitted;
-    int      since_emit_blocks;
+    int      since_emit;     /* windows since the last emission */
     char     candidate;
-    int      candidate_blocks;
-    int      silence_blocks;
+    int      candidate_n;    /* consecutive windows that classified as `candidate` */
+    int      silence_n;      /* consecutive windows that classified as nothing */
     bool     in_tone;
     char     press_digit;    /* digit of the *current* press, START to END */
     int64_t  press_start_us; /* for start/end timing logs, see dtmf.c */
     /* AGC (automatic gain control) -- normalizes real signal content
      * toward a consistent level before Goertzel analysis, so one set of
      * amplitude-based thresholds works across different phones' natural
-     * DTMF loudness instead of needing per-phone tuning. See
-     * dtmf_detector_push()'s comment for the gating rationale. */
+     * DTMF loudness instead of needing per-phone tuning. */
     int32_t  agc_gain_q8;    /* current gain, Q8 (256 = 1.0x) */
-    int32_t  agc_block_peak; /* running peak |raw sample| for the block in progress */
 } dtmf_detector_t;
 
 void dtmf_detector_init(dtmf_detector_t *d, uint32_t sample_rate);

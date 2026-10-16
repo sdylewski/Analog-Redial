@@ -57,6 +57,9 @@ typedef struct {
 
 esp_err_t storage_init(void);
 
+/* Changes every time a file is written, patched or deleted. */
+uint32_t storage_generation(void);
+
 /* Evicts oldest files (by mtime) first if needed to fit within the cap.
  * Fails with ESP_ERR_INVALID_SIZE if len alone exceeds the cap. */
 esp_err_t storage_write(const char *name, const void *data, size_t len);
