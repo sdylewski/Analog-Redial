@@ -10,14 +10,24 @@ static const char *TAG = "dialplan";
 #define MODES_NVS_NS  "phone"
 #define MODES_NVS_KEY "modes"
 #define CLIPS_NVS_NS       "dialclips"
-#define CLIPS_NVS_KEY      "entries"
+/* One small blob per slot ("c00".."c23"), not one table-sized blob: NVS wants
+ * a whole free stretch of a page for a blob that size, and on a board whose
+ * settings area has filled up the write quietly failed, losing the table.
+ * "entries" is the old single-blob table (code[8]), converted at first boot. */
+#define CLIPS_NVS_KEY_V1   "entries"
 #define CLIPS_NVS_SEEDED   "seeded"
 #define CLIPS_NVS_SEEDED_N "seeded_n"   /* how many CLIP_DEFAULTS entries this board has had */
 /* Entries CLIP_DEFAULTS had before the counter above existed: a board seeded
  * back then has exactly these, and gets any later ones appended at boot. */
 #define CLIP_DEFAULTS_LEGACY_N 1
 #define PINS_NVS_NS        "dialpins"
-#define PINS_NVS_KEY       "entries"
+#define PINS_NVS_KEY_V1    "entries"    /* old single blob; slots are now "p0".."p7" */
+
+/* The saved layouts from before codes could be 10 digits (code[8]). Field
+ * order and types must stay exactly as they were, since they're read back
+ * byte for byte. */
+typedef struct { char code[8]; char filename[32]; char desc[64]; bool builtin; } clip_entry_v1_t;
+typedef struct { char code[8]; uint8_t gpio; uint16_t secs; char desc[40]; } pin_entry_v1_t;
 
 typedef struct {
     const char            *code;
@@ -151,14 +161,39 @@ static void modes_save(void)
  * whole array beats a per-entry key scheme. */
 static dialplan_clip_entry_t s_clips[DIALPLAN_MAX_CLIP_ENTRIES];
 
-static void clips_save(void)
+/* Writes every slot (empty ones are erased). Returns the first error, after
+ * trying them all, so one failure doesn't cost the rest. */
+static esp_err_t clips_write(nvs_handle_t h)
+{
+    esp_err_t err = ESP_OK;
+    char key[8];
+    for (int i = 0; i < DIALPLAN_MAX_CLIP_ENTRIES; i++) {
+        snprintf(key, sizeof(key), "c%02d", i);
+        if (s_clips[i].code[0]) {
+            esp_err_t e = nvs_set_blob(h, key, &s_clips[i], sizeof(s_clips[i]));
+            if (e != ESP_OK) {
+                ESP_LOGE(TAG, "saving dial code slot %d failed: %s", i, esp_err_to_name(e));
+                if (err == ESP_OK) err = e;
+            }
+        } else {
+            nvs_erase_key(h, key);
+        }
+    }
+    esp_err_t c = nvs_commit(h);
+    return err != ESP_OK ? err : c;
+}
+
+static esp_err_t clips_save(void)
 {
     nvs_handle_t h;
-    if (nvs_open(CLIPS_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
-    if (nvs_set_blob(h, CLIPS_NVS_KEY, s_clips, sizeof(s_clips)) == ESP_OK) {
-        nvs_commit(h);
+    esp_err_t err = nvs_open(CLIPS_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "can't open the dial code store: %s", esp_err_to_name(err));
+        return err;
     }
+    err = clips_write(h);
     nvs_close(h);
+    return err;
 }
 
 /* Seeds the 8 builtin clips exactly once, gated on an explicit "seeded"
@@ -175,19 +210,43 @@ static void clips_load(void)
     nvs_handle_t h;
     if (nvs_open(CLIPS_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
 
-    /* The saved table is a raw array of entries. Fewer entries than now
-     * (DIALPLAN_MAX_CLIP_ENTRIES grew) reads back fine; a size that isn't a
-     * whole number of entries means the entry layout changed, and reading
-     * it would scramble every code -- start from the defaults instead. */
-    size_t len = 0;
-    if (nvs_get_blob(h, CLIPS_NVS_KEY, NULL, &len) == ESP_OK && len > 0) {
-        if (len % sizeof(s_clips[0]) == 0 && len <= sizeof(s_clips)) {
-            nvs_get_blob(h, CLIPS_NVS_KEY, s_clips, &len);
+    int found = 0;
+    char key[8];
+    for (int i = 0; i < DIALPLAN_MAX_CLIP_ENTRIES; i++) {
+        snprintf(key, sizeof(key), "c%02d", i);
+        size_t len = sizeof(s_clips[i]);
+        if (nvs_get_blob(h, key, &s_clips[i], &len) == ESP_OK && len == sizeof(s_clips[i])) found++;
+        else memset(&s_clips[i], 0, sizeof(s_clips[i]));
+    }
+
+    /* Saved by firmware from before the per-slot layout and 10-digit codes:
+     * one blob of narrower entries. The old copy is deleted only once the new
+     * one is safely written, so a failed conversion can simply retry. */
+    size_t oldlen = 0;
+    if (!found && nvs_get_blob(h, CLIPS_NVS_KEY_V1, NULL, &oldlen) == ESP_OK && oldlen > 0) {
+        clip_entry_v1_t *old = (oldlen % sizeof(clip_entry_v1_t) == 0) ? malloc(oldlen) : NULL;
+        if (old && nvs_get_blob(h, CLIPS_NVS_KEY_V1, old, &oldlen) == ESP_OK) {
+            size_t n = oldlen / sizeof(clip_entry_v1_t);
+            for (size_t i = 0; i < n && i < DIALPLAN_MAX_CLIP_ENTRIES; i++) {
+                memcpy(s_clips[i].code, old[i].code, sizeof(old[i].code));
+                memcpy(s_clips[i].filename, old[i].filename, sizeof(old[i].filename));
+                memcpy(s_clips[i].desc, old[i].desc, sizeof(old[i].desc));
+                s_clips[i].builtin = old[i].builtin;
+                if (s_clips[i].code[0]) found++;
+            }
+            if (clips_write(h) == ESP_OK) {
+                nvs_erase_key(h, CLIPS_NVS_KEY_V1);
+                nvs_commit(h);
+                ESP_LOGI(TAG, "converted %d saved dial codes to the new layout", found);
+            } else {
+                ESP_LOGE(TAG, "couldn't save the converted dial codes; the old copy is kept "
+                              "and will be tried again next boot");
+            }
         } else {
-            ESP_LOGW(TAG, "saved dial codes (%u bytes) are from an incompatible firmware -- "
-                          "using the defaults", (unsigned)len);
-            nvs_erase_key(h, CLIPS_NVS_SEEDED);
+            ESP_LOGW(TAG, "saved dial codes (%u bytes) are from an incompatible firmware",
+                     (unsigned)oldlen);
         }
+        free(old);
     }
     for (int i = 0; i < DIALPLAN_MAX_CLIP_ENTRIES; i++) {
         s_clips[i].code[sizeof(s_clips[i].code) - 1] = '\0';
@@ -195,20 +254,24 @@ static void clips_load(void)
         s_clips[i].desc[sizeof(s_clips[i].desc) - 1] = '\0';
     }
 
+    /* First boot, or an empty table (the built-in codes can't be deleted, so
+     * empty means the saved table was lost): put the defaults in. */
     uint8_t seeded = 0;
     esp_err_t serr = nvs_get_u8(h, CLIPS_NVS_SEEDED, &seeded);
-    if (serr != ESP_OK) {
+    if (serr != ESP_OK || found == 0) {
         for (size_t i = 0; i < CLIP_DEFAULTS_N && i < DIALPLAN_MAX_CLIP_ENTRIES; i++) {
             strncpy(s_clips[i].code, CLIP_DEFAULTS[i].code, sizeof(s_clips[i].code) - 1);
             strncpy(s_clips[i].filename, CLIP_DEFAULTS[i].filename, sizeof(s_clips[i].filename) - 1);
             strncpy(s_clips[i].desc, CLIP_DEFAULTS[i].desc, sizeof(s_clips[i].desc) - 1);
             s_clips[i].builtin = true;
         }
-        nvs_set_blob(h, CLIPS_NVS_KEY, s_clips, sizeof(s_clips));
-        nvs_set_u8(h, CLIPS_NVS_SEEDED, 1);
-        nvs_set_u8(h, CLIPS_NVS_SEEDED_N, (uint8_t)CLIP_DEFAULTS_N);
-        nvs_commit(h);
-        ESP_LOGI(TAG, "seeded %u builtin clip codes", (unsigned)CLIP_DEFAULTS_N);
+        if (clips_write(h) == ESP_OK) {
+            nvs_set_u8(h, CLIPS_NVS_SEEDED, 1);
+            nvs_set_u8(h, CLIPS_NVS_SEEDED_N, (uint8_t)CLIP_DEFAULTS_N);
+            nvs_commit(h);
+        }
+        ESP_LOGI(TAG, "%s %u builtin clip codes", serr != ESP_OK ? "seeded" : "restored",
+                 (unsigned)CLIP_DEFAULTS_N);
     }
     nvs_close(h);
 }
@@ -216,29 +279,69 @@ static void clips_load(void)
 /* Pin dial codes: a small fixed table, empty slot = code[0] == '\0'. */
 static dialplan_pin_entry_t s_pin_actions[DIALPLAN_MAX_PIN_ACTIONS];
 
-static void pins_save(void)
+static esp_err_t pins_write(nvs_handle_t h)
+{
+    esp_err_t err = ESP_OK;
+    char key[8];
+    for (int i = 0; i < DIALPLAN_MAX_PIN_ACTIONS; i++) {
+        snprintf(key, sizeof(key), "p%d", i);
+        if (s_pin_actions[i].code[0]) {
+            esp_err_t e = nvs_set_blob(h, key, &s_pin_actions[i], sizeof(s_pin_actions[i]));
+            if (e != ESP_OK) {
+                ESP_LOGE(TAG, "saving pin code slot %d failed: %s", i, esp_err_to_name(e));
+                if (err == ESP_OK) err = e;
+            }
+        } else {
+            nvs_erase_key(h, key);
+        }
+    }
+    esp_err_t c = nvs_commit(h);
+    return err != ESP_OK ? err : c;
+}
+
+static esp_err_t pins_save(void)
 {
     nvs_handle_t h;
-    if (nvs_open(PINS_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
-    if (nvs_set_blob(h, PINS_NVS_KEY, s_pin_actions, sizeof(s_pin_actions)) == ESP_OK) {
-        nvs_commit(h);
-    }
+    esp_err_t err = nvs_open(PINS_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = pins_write(h);
     nvs_close(h);
+    return err;
 }
 
 static void pins_load(void)
 {
     memset(s_pin_actions, 0, sizeof(s_pin_actions));
     nvs_handle_t h;
-    if (nvs_open(PINS_NVS_NS, NVS_READONLY, &h) != ESP_OK) return;
-    size_t len = 0;
-    /* Same rule as the clip table: a size that isn't the table's means the
-     * layout changed, and reading it would scramble every entry. */
-    if (nvs_get_blob(h, PINS_NVS_KEY, NULL, &len) == ESP_OK &&
-        (len == sizeof(s_pin_actions) || len == 4 * sizeof(s_pin_actions[0]))) {
-        /* 4 entries: the table before it grew to 8. Same entry layout, so it
-         * reads into the first four slots. */
-        nvs_get_blob(h, PINS_NVS_KEY, s_pin_actions, &len);
+    if (nvs_open(PINS_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    int found = 0;
+    char key[8];
+    for (int i = 0; i < DIALPLAN_MAX_PIN_ACTIONS; i++) {
+        snprintf(key, sizeof(key), "p%d", i);
+        size_t len = sizeof(s_pin_actions[i]);
+        if (nvs_get_blob(h, key, &s_pin_actions[i], &len) == ESP_OK && len == sizeof(s_pin_actions[i])) found++;
+        else memset(&s_pin_actions[i], 0, sizeof(s_pin_actions[i]));
+    }
+    /* The old single blob (4 or 8 entries of the narrower layout). */
+    size_t oldlen = 0;
+    if (!found && nvs_get_blob(h, PINS_NVS_KEY_V1, NULL, &oldlen) == ESP_OK && oldlen > 0 &&
+        oldlen % sizeof(pin_entry_v1_t) == 0 && oldlen <= DIALPLAN_MAX_PIN_ACTIONS * sizeof(pin_entry_v1_t)) {
+        pin_entry_v1_t old[DIALPLAN_MAX_PIN_ACTIONS];
+        if (nvs_get_blob(h, PINS_NVS_KEY_V1, old, &oldlen) == ESP_OK) {
+            for (size_t i = 0; i < oldlen / sizeof(old[0]); i++) {
+                memcpy(s_pin_actions[i].code, old[i].code, sizeof(old[i].code));
+                s_pin_actions[i].gpio = old[i].gpio;
+                s_pin_actions[i].secs = old[i].secs;
+                memcpy(s_pin_actions[i].desc, old[i].desc, sizeof(old[i].desc));
+            }
+            if (pins_write(h) == ESP_OK) {
+                nvs_erase_key(h, PINS_NVS_KEY_V1);
+                nvs_commit(h);
+                ESP_LOGI(TAG, "converted saved pin codes to the new layout");
+            } else {
+                ESP_LOGE(TAG, "couldn't save the converted pin codes; the old copy is kept");
+            }
+        }
     }
     nvs_close(h);
     for (int i = 0; i < DIALPLAN_MAX_PIN_ACTIONS; i++) {
@@ -599,6 +702,7 @@ static void clips_add_new_defaults(void)
     if (nvs_open(CLIPS_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
     uint8_t have = 0;
     if (nvs_get_u8(h, CLIPS_NVS_SEEDED_N, &have) != ESP_OK) have = CLIP_DEFAULTS_LEGACY_N;
+    nvs_close(h);
     bool changed = false;
     for (size_t i = have; i < CLIP_DEFAULTS_N; i++) {
         const clip_default_t *d = &CLIP_DEFAULTS[i];
@@ -618,10 +722,12 @@ static void clips_add_new_defaults(void)
         changed = true;
         ESP_LOGI(TAG, "added new default clip code %s (%s)", d->code, d->filename);
     }
-    if (changed) nvs_set_blob(h, CLIPS_NVS_KEY, s_clips, sizeof(s_clips));
-    if (have != CLIP_DEFAULTS_N) nvs_set_u8(h, CLIPS_NVS_SEEDED_N, (uint8_t)CLIP_DEFAULTS_N);
-    nvs_commit(h);
-    nvs_close(h);
+    if (changed && clips_save() != ESP_OK) return;   /* try again next boot */
+    if (have != CLIP_DEFAULTS_N && nvs_open(CLIPS_NVS_NS, NVS_READWRITE, &h) == ESP_OK) {
+        nvs_set_u8(h, CLIPS_NVS_SEEDED_N, (uint8_t)CLIP_DEFAULTS_N);
+        nvs_commit(h);
+        nvs_close(h);
+    }
 }
 
 static bool valid_code(const char *code)

@@ -2731,7 +2731,7 @@ static int append_pin_actions_card(char *buf, size_t cap, int off)
     if (used < DIALPLAN_MAX_PIN_ACTIONS) {
         off = appendf(buf, cap, off,
             "<form method=\"POST\" action=\"/pin_action_set\" class=\"settings-form\">"
-            "<label>Dial code (2&ndash;7 digits; spaces and dashes are ignored) <input name=\"code\" inputmode=\"numeric\" "
+            "<label>Dial code (2&ndash;10 digits; spaces and dashes are ignored) <input name=\"code\" inputmode=\"numeric\" "
             "pattern=\"[0-9 \\(\\)\\-]{2,16}\" maxlength=\"16\" required></label>"
             "<label>Pin <select name=\"gpio\">");
         for (size_t i = 0; i < ng; i++) {
@@ -2809,7 +2809,7 @@ static int append_ha_codes_card(char *buf, size_t cap, int off)
     if (used < DIALPLAN_MAX_PIN_ACTIONS) {
         off = appendf(buf, cap, off,
             "<form method=\"POST\" action=\"/ha_code_set\" class=\"settings-form\">"
-            "<label>Dial code (2&ndash;7 digits; spaces and dashes are ignored) <input name=\"code\" inputmode=\"numeric\" "
+            "<label>Dial code (2&ndash;10 digits; spaces and dashes are ignored) <input name=\"code\" inputmode=\"numeric\" "
             "pattern=\"[0-9 \\(\\)\\-]{2,16}\" maxlength=\"16\" required></label>"
             "<label>Note <input name=\"desc\" maxlength=\"39\" placeholder=\"e.g. porch light\"></label>"
             "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Add</button></div></form>");
@@ -2864,7 +2864,7 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 "<form method=\"POST\" action=\"/dialcode_set_code\" class=\"dc-inline\">"
                 "<input type=\"hidden\" name=\"old_code\" value=\"%s\">"
                 "<input name=\"new_code\" value=\"%s\" pattern=\"[0-9 \\(\\)\\-]{2,16}\" maxlength=\"16\" "
-                "size=\"9\" required>"
+                "size=\"12\" required>"
                 "<button type=\"submit\">%s</button></form>",
                 clips[i].code, clips[i].code, i18n_str("dialcodes.save", "save"));
             if (clips[i].builtin) {
@@ -2916,7 +2916,7 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form></div>",
         i18n_str("dialcodes.add_title", "Add a code"),
-        i18n_str("dialcodes.new_code_label", "New code (2-7 digits; spaces and dashes are ignored)"),
+        i18n_str("dialcodes.new_code_label", "New code (2-10 digits; spaces and dashes are ignored)"),
         i18n_str("dialcodes.desc_label", "Description (optional)"),
         i18n_str("dialcodes.audio_label", "Audio file (WAV)"),
         i18n_str("dialcodes.upload_button", "Upload + add dial code"));
@@ -7711,7 +7711,7 @@ static esp_err_t dialcode_set_code_handler(httpd_req_t *req)
     esp_err_t err = dialplan_clip_set_code(old_code, new_code);
     if (err != ESP_OK) {
         const char *why =
-            (err == ESP_ERR_INVALID_ARG)   ? "code must be 2-7 digits" :
+            (err == ESP_ERR_INVALID_ARG)   ? "code must be 2-10 digits" :
             (err == ESP_ERR_INVALID_STATE) ? "that code conflicts with an existing one" :
             (err == ESP_ERR_NOT_FOUND)     ? "code not found" : esp_err_to_name(err);
         ESP_LOGW(TAG, "dialcode_set_code '%s' -> '%s' failed: %s", old_code, new_code, why);
@@ -8879,7 +8879,7 @@ static esp_err_t dialcode_upload_handler(httpd_req_t *req)
                  * written first, so a rejected code still left it behind. */
                 esp_err_t cerr = dialplan_clip_check_new(new_code);
                 if (cerr != ESP_OK) {
-                    err_msg = (cerr == ESP_ERR_INVALID_ARG) ? "code must be 2-7 digits" :
+                    err_msg = (cerr == ESP_ERR_INVALID_ARG) ? "code must be 2-10 digits" :
                               (cerr == ESP_ERR_INVALID_STATE) ? "that code conflicts with an existing one" :
                               "dial code limit reached";
                     break;
@@ -8916,7 +8916,7 @@ static esp_err_t dialcode_upload_handler(httpd_req_t *req)
                      * added (bad code / conflict / table full) -- still
                      * leave the file in storage; report the failure rather
                      * than silently dropping it. */
-                    err_msg = (aerr == ESP_ERR_INVALID_ARG) ? "code must be 2-7 digits" :
+                    err_msg = (aerr == ESP_ERR_INVALID_ARG) ? "code must be 2-10 digits" :
                               (aerr == ESP_ERR_INVALID_STATE) ? "that code conflicts with an existing one" :
                               "dial code limit reached";
                     break;

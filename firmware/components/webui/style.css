@@ -221,7 +221,7 @@ audio { height: 34px; vertical-align: middle; max-width: 100%; }
 .dc-line:last-child { margin-bottom: 0; }
 .dc-line-code { justify-content: space-between; } /* recode form left, pill/remove pinned right */
 .dc-inline { display: flex; align-items: center; gap: 8px; margin: 0; }
-.dc-inline input[name="new_code"] { width: 4.5em; flex: none; }
+.dc-inline input[name="new_code"] { width: 9.5em; flex: none; }
 .dc-grow { flex: 1; min-width: 0; }
 .dc-desc-input { flex: 1; min-width: 0; }
 /* Filename gets its own full-width line now (not shared with <audio>,

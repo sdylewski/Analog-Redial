@@ -16,7 +16,7 @@
 #pragma once
 
 typedef struct {
-    const char *code;      /* 2-7 digits */
+    const char *code;      /* 2-10 digits */
     const char *filename;  /* matches STORAGE_MAX_NAME (storage.h) */
     const char *desc;      /* shown in Settings -> Dial Codes and the Dial Guide */
 } clip_default_t;

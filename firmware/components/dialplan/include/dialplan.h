@@ -145,8 +145,9 @@ size_t dialplan_list(dialplan_entry_info_t *out, size_t max);
  * confirm tone, same as any other missing clip. Operator help (dial 0) is
  * NOT part of this table -- it's a fixed TABLE[] entry with a hardcoded
  * "operator.wav" filename, replaced from its own Settings -> Operator tab. */
-/* Longest dial code a user can add: code[8] holds 7 digits and the NUL. */
-#define DIALPLAN_CODE_MAX_DIGITS 7
+/* Longest dial code a user can add (a full phone number: 8675309, or ten
+ * digits with an area code). code[12] holds it and the NUL. */
+#define DIALPLAN_CODE_MAX_DIGITS 10
 
 /* Removes the separators people type in a number (spaces, dashes, dots and
  * parentheses) in place, so "(867) 530-9" and "8675309" are the same code. */
@@ -155,7 +156,7 @@ void dialplan_code_normalize(char *code);
 #define DIALPLAN_MAX_CLIP_ENTRIES 24 /* 2 builtins + headroom for user-added */
 
 typedef struct {
-    char code[8];      /* 2-7 digits */
+    char code[12];     /* 2-10 digits */
     char filename[32]; /* matches STORAGE_MAX_NAME, see dialplan_action_t */
     char desc[64];
     bool builtin;      /* seeded default -- recodable/re-uploadable, not deletable */
@@ -163,7 +164,7 @@ typedef struct {
 
 /*
  *   ESP_OK
- *   ESP_ERR_INVALID_ARG    -- code isn't 2-7 digits, or filename is empty
+ *   ESP_ERR_INVALID_ARG    -- code isn't 2-10 digits, or filename is empty
  *   ESP_ERR_INVALID_STATE  -- code conflicts (exact match or a prefix
  *                             relationship, either direction) with the fixed
  *                             table, another clip entry, or the 555 VoIP
@@ -171,14 +172,14 @@ typedef struct {
  *   ESP_ERR_NO_MEM         -- DIALPLAN_MAX_CLIP_ENTRIES already used
  */
 /* What dialplan_clip_add() would say about `code`, without adding it:
- * ESP_ERR_INVALID_ARG (not 2-7 digits), ESP_ERR_INVALID_STATE (conflicts with
+ * ESP_ERR_INVALID_ARG (not 2-10 digits), ESP_ERR_INVALID_STATE (conflicts with
  * an existing code), ESP_ERR_NO_MEM (table full), or ESP_OK. Lets an upload
  * be refused before its audio is written anywhere. */
 esp_err_t dialplan_clip_check_new(const char *code);
 esp_err_t dialplan_clip_add(const char *code, const char *filename, const char *desc);
 /*
  *   ESP_ERR_NOT_FOUND      -- no entry has old_code
- *   ESP_ERR_INVALID_ARG    -- new_code isn't 2-7 digits
+ *   ESP_ERR_INVALID_ARG    -- new_code isn't 2-10 digits
  *   ESP_ERR_INVALID_STATE  -- new_code conflicts with something else (not
  *                             counting the entry being renamed)
  */
@@ -221,13 +222,13 @@ size_t    dialplan_list_clip_entries(dialplan_clip_entry_t *out, size_t max);
 #define DIALPLAN_PIN_NONE 0xFF
 
 typedef struct {
-    char     code[8];   /* 2-7 digits */
+    char     code[12];  /* 2-10 digits */
     uint8_t  gpio;
     uint16_t secs;      /* 0 = toggle on each dial */
     char     desc[40];
 } dialplan_pin_entry_t;
 
-/* ESP_OK; ESP_ERR_INVALID_ARG (not 2-7 digits); ESP_ERR_INVALID_STATE
+/* ESP_OK; ESP_ERR_INVALID_ARG (not 2-10 digits); ESP_ERR_INVALID_STATE
  * (conflicts with an existing code); ESP_ERR_NO_MEM (table full). */
 esp_err_t dialplan_pin_check_new(const char *code);
 /* Adds the code, or replaces its pin/secs/desc if it already is a pin code.
