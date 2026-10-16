@@ -43,11 +43,11 @@ bool auxpins_usable(char *why, size_t why_len)
     const char *r = NULL;
     board_hw_config_t cfg = board_hw_config_get();
     if (cfg.num_lines != 1) {
-        r = "this board is set to two phone lines, which use these pins "
-            "(Settings -> Hardware)";
+        r = "J5 is set to a second phone line, which uses these pins "
+            "(Settings -> General -> Board hardware: choose \"Pin outputs\")";
     } else if (cfg.has_microsd) {
-        r = "this board is set to use the microSD slot, which uses these pins "
-            "(Settings -> General -> Board hardware: choose \"Neither\")";
+        r = "J5 is set to the microSD card, which uses these pins "
+            "(Settings -> General -> Board hardware: choose \"Pin outputs\")";
     } else if (bt_companion_ibdk_ready()) {
         r = "the Bluetooth module is being configured over these pins";
     }

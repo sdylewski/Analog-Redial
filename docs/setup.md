@@ -66,7 +66,7 @@ defaults:
 | **821** / **822** | Digit readback off / on |
 | **899** | Record this line's answering-machine greeting |
 
-Add your own codes with your own audio in Settings → Dial Codes & Prompts.
+Add your own codes with your own audio in Settings → Dial Codes.
 
 **Make a code switch something.** On a one-line board with no microSD card,
 four spare pins (GPIO18–21) are wired to header J5. Under Settings → Dial
@@ -76,7 +76,7 @@ a MOSFET to it to unlock a door, sound a buzzer, switch a lamp. The output
 is 3.3 V at only a few mA, so don't connect a solenoid directly. It will
 often switch a 5 V relay module, but check that yours does (the parts page
 says what to look for). Set the board to
-"Neither" under Settings → General → Board hardware, take the four shunts off J5, and leave
+"Pin outputs" under Settings → General → Board hardware, take the four shunts off J5, and leave
 the microSD socket empty. The card shows what's in the way if it isn't
 active.
 
@@ -84,9 +84,8 @@ active.
 hang-up, dial code and incoming ring to a Home Assistant webhook, and Home
 Assistant can ring a phone or fire a pin output over HTTP. Or turn on MQTT and
 the board appears in Home Assistant as a device. Home Assistant codes are dial
-codes whose only job is to tell Home Assistant they were dialed. Tick **Home
-Assistant** under Settings → General → Features, and all three are on the
-**Settings → Home Assistant** tab. Experimental: see [Home Assistant](home-assistant.md).
+codes whose only job is to tell Home Assistant they were dialed. All three are
+on the **Settings → Home Assistant** tab, with its on/off switch at the top. Experimental: see [Home Assistant](home-assistant.md).
 
 
 ## 4. The web interface
@@ -109,21 +108,20 @@ Click any picture for the full page.
   <tr>
     <td><a href="pics/settings-general.png"><img src="pics/thumbs/settings-general.png" alt="General settings"></a></td>
     <td valign="top"><b>Settings → General.</b> Board name, saved Wi-Fi
-    networks, the board's hardware (one or two lines, microSD, Bluetooth
-    module), which optional features are on (VoIP, Bluetooth, Home
-    Assistant: each gets its own tab), time zone, quiet hours that keep the
-    bell silent overnight, and the passwords.</td>
+    networks, the board's hardware (what J5 is used for: a second line,
+    microSD or pin outputs; and the Bluetooth module), time zone, quiet
+    hours that keep the bell silent overnight, and the passwords.</td>
   </tr>
   <tr>
     <td><a href="pics/settings-phone.png"><img src="pics/thumbs/settings-phone.png" alt="Phone settings"></a></td>
-    <td valign="top"><b>Settings → Phone Settings.</b> The answering machine
+    <td valign="top"><b>Settings → Phone.</b> The answering machine
     per line, your country's dial tone, the off-hook alert, echo
     cancellation, digit readback, voice effects, intercom mode and earpiece
     volume.</td>
   </tr>
   <tr>
     <td><a href="pics/settings-dialcodes.png"><img src="pics/thumbs/settings-dialcodes.png" alt="Dial codes and prompts"></a></td>
-    <td valign="top"><b>Settings → Dial Codes & Prompts.</b> Every clip code
+    <td valign="top"><b>Settings → Dial Codes.</b> Every clip code
     and its audio, editable: change a code, upload new audio, or add a new
     one. Also the operator message, the record-message prompt and the pin
     outputs.</td>
@@ -152,13 +150,15 @@ Click any picture for the full page.
   </tr>
 </table>
 
-**Settings → Bluetooth** and **Settings → Home Assistant** appear once
-those features are ticked under Settings → General → Features. Bluetooth
-arrives with the v5 board.
+Optional features (VoIP, Bluetooth, Home Assistant) always have their tab, so
+you can read how they work first. A bar at the top says whether the feature
+is on: VoIP and Home Assistant have their switch there, and Bluetooth turns on
+when you choose its module in Board hardware. Settings are kept while a
+feature is off. Bluetooth arrives with the v5 board.
 
 ## 5. Your own audio
 
-**From the browser:** Settings → Dial Codes & Prompts takes a WAV upload in
+**From the browser:** Settings → Dial Codes takes a WAV upload in
 almost any format (any sample rate, 8 to 32 bit, mono or stereo) and
 converts it on the board. Changes take effect immediately, no rebuild.
 

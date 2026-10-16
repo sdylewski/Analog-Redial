@@ -23,7 +23,7 @@ your network.
 
 ## 1. Events from the board (webhook)
 
-On the board: **Settings → Home Assistant → Webhook** (tick Home Assistant under Settings → General → Features first). Enter
+On the board: **Settings → Home Assistant → Webhook** (turn Home Assistant on at the top of that tab first). Enter
 
 ```
 http://homeassistant.local:8123/api/webhook/redial-phone

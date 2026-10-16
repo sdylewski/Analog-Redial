@@ -46,8 +46,8 @@ pins (GPIO18–21) are free on the odd-numbered pins of **J5**:
 | 7 | 18 |
 
 Leave the shunts off (with one in, the pin is wired to line 1's chip), leave
-the microSD socket empty, and set the board to "Neither" in Settings →
-Hardware. Then **Settings → Dial Codes → Pin outputs** connects a dial code to
+the microSD socket empty, and set J5 to "Pin outputs" in Settings → General →
+Board hardware. Then **Settings → Dial Codes → Pin outputs** connects a dial code to
 a pin: it goes high for a few seconds, or toggles. The output is **3.3 V**
 and only a few mA, so switch a relay or MOSFET with it rather than a load
 directly; take ground from any GND on the board.

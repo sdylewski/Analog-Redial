@@ -193,13 +193,13 @@ static void clear_all_calls_locked(void)
     merge_call_state_locked();
 }
 
+/* Bluetooth is on whenever a module is chosen in Settings -> General -> Board
+ * hardware: the module choice is the switch. bt_companion_set_enabled(false)
+ * (console `bt_enable 0`, needed by the bm64_* bench commands) pauses it
+ * until the next reboot. */
 static void load_config(void)
 {
-    nvs_handle_t h;
-    if (nvs_open(BT_COMPANION_NVS_NS, NVS_READONLY, &h) != ESP_OK) return;
-    uint8_t en;
-    if (nvs_get_u8(h, "enabled", &en) == ESP_OK) s_enabled = (en != 0);
-    nvs_close(h);
+    s_enabled = board_hw_config_get().has_bt_module;
 }
 
 /* Which module is on the header. Fixed at boot (Settings -> Hardware takes
