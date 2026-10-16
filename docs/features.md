@@ -54,7 +54,8 @@ Legend: ✅ working · 🧪 experimental, off by default · 🔜 coming soon
 | **Answering machine** (dial 899 to record a greeting) | ✅ | Per line: rings N times, plays that line's own greeting (or the shared default if none is recorded), then records the caller. Needs VOIP or a second line to actually be reachable |
 | **Bluetooth (BM64 companion)** | 🔜 | Arrives with the v5 board: pair a mobile and the analog phone becomes its handset. The firmware side is written; see [`hardware-smd5.md`](hardware-smd5.md) §9 |
 | **Language** | ✅ | One language for the whole phone, set at setup time — no in-use switching. UI string translations are plumbed in (`i18n_str()`) but only English ships; the language picker greys out any language without a translation file on the board |
-| **Digit readback on/off** | ✅ | Explicit setting |
+| **Digit readback on/off** | ✅ | Explicit setting (dial 821/822). Each dialled digit is spoken from the bundled `0.wav`..`9.wav`, or a touch-tone burst if those are missing |
+| **Pi (dial 314)** | ✅ | Reads "three point one four one five..." aloud, 3 and the first 100 decimals, one digit clip at a time (about a second per digit, so ~1m40s). A fixed built-in code; hang up to stop |
 | **Wrong-number handling** | ✅ | Unmatched 3+ digit → prompt + dial tone |
 | **VoIP outbound (555-xxxx)** | ✅ | Embedded SIP UA + RTP/G.711; digest auth |
 | **VoIP inbound** | ✅ | Inbound INVITE rings the line; answer on off-hook |

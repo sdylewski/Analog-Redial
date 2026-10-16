@@ -18,6 +18,8 @@ set(BUNDLED_AUDIO
     am_greeting.wav     # answering machine's default greeting
     dialup.wav          # 412, public domain (8-bit u-law: full length in 314 KB)
     jenny.wav           # 8675309, spoken message (8-bit u-law, 38 KB)
+    0.wav 1.wav 2.wav 3.wav 4.wav 5.wav 6.wav 7.wav 8.wav 9.wav point.wav
+                        # spoken digits: digit readback, and dial 314 (pi); ~38 KB in all
 )
 set(BUNDLED_STAGE "${CMAKE_BINARY_DIR}/bundled_assets")
 file(REMOVE_RECURSE "${BUNDLED_STAGE}")

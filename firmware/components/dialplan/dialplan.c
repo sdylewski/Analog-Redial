@@ -74,6 +74,7 @@ static const entry_t TABLE[] = {
      * currently configured for 1 line -- dialing 3xx -> wrong number, and
      * the web UI's inter-phone card/tab drop out with them, same observable
      * behavior as when this used to be #if CONFIG_BOARD_NUM_LINES > 1. */
+    { "314", ACT_PI_DIGITS, 0, 0, "Read pi aloud (first 100 decimals)", true },
     { "321", ACT_CALL_LINE, -1, FX_NORMAL, "Call other phone (normal voice)", true },
     { "322", ACT_CALL_LINE, -1, FX_HIGH,   "Call other phone (chipmunk)", true },
     { "323", ACT_CALL_LINE, -1, FX_LOW,    "Call other phone (Vader)", true },

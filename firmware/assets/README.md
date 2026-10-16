@@ -2,7 +2,7 @@
 
 The files listed in `BUNDLED_AUDIO` in `firmware/main/CMakeLists.txt` —
 **`operator.wav`, `record_prompt.wav`, `am_greeting.wav`, `dialup.wav` and
-`jenny.wav`, nothing else** — get
+`jenny.wav` and the spoken digits `0.wav`-`9.wav` and `point.wav`, nothing else** — get
 baked into a **read-only-in-spirit `bundled` SPIFFS partition** at build time
 and flashed alongside the firmware image (see the `bundled` entry in
 `firmware/partitions.csv`). Anything else you keep in this directory
@@ -41,6 +41,14 @@ Two "novelty clip" defaults ship out of the box: 412 (below) and 8675309. (402 B
 401/403/404 Ring of Fire / Crocodile Rock / Martians, and 411/413/414 were
 all retired from the defaults -- personal or copyrighted audio, or no
 source audio at all. Boards provisioned earlier keep those codes.)
+
+**`0.wav` ... `9.wav`, `point.wav`** -- the digits spoken one at a time
+(about 0.4 s each, 8 kHz 8-bit µ-law, 38 KB in all), made with
+`bringup/gen_prompt.py` (Piper, the same voice as the other prompts) and
+trimmed with `ffmpeg`. Digit readback (dial 822) says each digit you dial with
+them, and dial 314 reads pi aloud: "three point one four one five...", the first
+100 decimals. Without them readback falls back to a touch-tone burst. Replace a
+digit by uploading a same-named file under Settings -> Storage.
 
 **`jenny.wav`** (8675309, "Jenny") -- "If you're trying to reach Jenny, she's
 not home right now. Please call back later.", an original message synthesized

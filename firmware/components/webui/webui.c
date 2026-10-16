@@ -1568,16 +1568,6 @@ static bool ha_feature_on(void)
     return url[0] || mqtt_ha_get().enabled;
 }
 
-/* Optional features keep their tab when off (so how they work can be read
- * first); the tab just gets a dot. */
-static bool settings_tab_off(const char *id)
-{
-    if (strcmp(id, "voip") == 0) return !voip_is_enabled();
-    if (strcmp(id, "bluetooth") == 0) return !bt_companion_active();
-    if (strcmp(id, "home") == 0) return !ha_feature_on();
-    return false;
-}
-
 /* Top of an optional feature's tab: whether it's on, and either its switch
  * (`action` posts enabled=1 or nothing) or, for a feature that depends on
  * fitted hardware (`action` NULL), what turns it on. */
@@ -1606,11 +1596,9 @@ static int append_settings_tabs(char *buf, size_t cap, int off, const char *acti
     for (size_t i = 0; i < SETTINGS_TABS_N; i++) {
         bool is_active = strcmp(SETTINGS_TABS[i].id, active) == 0;
         off = appendf(buf, cap, off,
-            "<a class=\"tab-btn%s\" href=\"/settings?tab=%s\">%s%s</a>",
+            "<a class=\"tab-btn%s\" href=\"/settings?tab=%s\">%s</a>",
             is_active ? " active" : "", SETTINGS_TABS[i].id,
-            i18n_str(SETTINGS_TABS[i].i18n_key, SETTINGS_TABS[i].label),
-            settings_tab_off(SETTINGS_TABS[i].id)
-                ? " <span class=\"tabdot\" title=\"Off\"></span>" : "");
+            i18n_str(SETTINGS_TABS[i].i18n_key, SETTINGS_TABS[i].label));
     }
     off = appendf(buf, cap, off, "</nav>");
     return off;
@@ -8117,7 +8105,7 @@ static esp_err_t media_delete_bulk_handler(httpd_req_t *req)
 typedef struct { char prefix; const char *heading; } guide_cat_t;
 static const guide_cat_t GUIDE_CATS[] = {
     { '2', "2xx -- messages" },
-    { '3', "3xx -- call the other phone" },
+    { '3', "3xx -- call the other phone, and pi" },
     { '8', "8xx -- radio &amp; settings" },
 };
 #define GUIDE_CATS_N (sizeof(GUIDE_CATS) / sizeof(GUIDE_CATS[0]))

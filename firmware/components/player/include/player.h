@@ -11,6 +11,7 @@
 
 #include "esp_err.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,6 +42,10 @@ esp_err_t player_play(int line, const char *storage_name, player_done_cb_t done_
 /* Stops playback on `line` if active (e.g. on hangup mid-clip). done_cb is
  * NOT invoked. Safe to call even if nothing is playing. */
 void player_stop(int line);
+
+/* player_stop(), then waits up to `wait_ms` for the playback task to finish, so
+ * a new player_play() on the line right after won't see it busy. */
+void player_stop_and_wait(int line, uint32_t wait_ms);
 
 
 #ifdef __cplusplus

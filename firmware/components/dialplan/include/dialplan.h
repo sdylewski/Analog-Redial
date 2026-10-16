@@ -32,6 +32,7 @@ typedef enum {
     ACT_BT_DIAL,        /* number[] holds 1 + 10 digits, placed via the paired phone */
     ACT_SET_MODE,       /* arg = dialplan_mode_change_t */
     ACT_GPIO_OUT,       /* arg = GPIO number, arg2 = seconds high (0 = toggle) */
+    ACT_PI_DIGITS,      /* dial 314: read the first 100 decimals of pi aloud */
 } dialplan_action_kind_t;
 
 typedef enum {

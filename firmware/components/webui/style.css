@@ -126,7 +126,6 @@ hr.sep { border: 0; border-top: 1px solid var(--border); margin: 18px 0 14px; }
 .card.wide { grid-column: 1 / -1; }
 /* Top of an optional feature's tab; tinted while the feature is off. */
 .card.featurebar.off { border-color: var(--accent); background: var(--accent-bg); }
-.tabdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); vertical-align: middle; margin-left: 4px; opacity: .7; }
 /* Answering machine: one column per line plus the shared default greeting. */
 .amcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
 .amcol { min-width: 0; }

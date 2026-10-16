@@ -397,3 +397,12 @@ void player_stop(int line)
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
     s_line[line].stop_requested = true;
 }
+
+void player_stop_and_wait(int line, uint32_t wait_ms)
+{
+    if (line < 0 || line >= AUDIO_NUM_LINES || !s_line[line].active) return;
+    s_line[line].stop_requested = true;
+    for (uint32_t waited = 0; s_line[line].active && waited < wait_ms; waited += 5) {
+        vTaskDelay(pdMS_TO_TICKS(5) ? pdMS_TO_TICKS(5) : 1);
+    }
+}

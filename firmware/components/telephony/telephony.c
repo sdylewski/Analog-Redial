@@ -120,6 +120,13 @@ typedef struct {
     int64_t              offhook_alert_at_us;
     /* intercom: when dial tone has gone unused long enough to ring the other line (0 = not armed) */
     int64_t              intercom_at_us;
+    /* Reading a string of digits aloud (dial 314, pi): the string, how far
+     * through it we are, when to start the next clip, and whether one is
+     * playing right now. NULL = not reading. */
+    const char          *seq;
+    uint16_t             seq_i;
+    int64_t              seq_next_us;
+    bool                 seq_playing;
     /* active recording (211 archive, 212 greeting, or answering-machine
      * voicemail -- see rec_purpose_t) */
     char                 rec_name[STORAGE_MAX_NAME];
@@ -300,6 +307,7 @@ static void enter_idle(int line)
         audio_set_voice_fx(line, VOICE_FX_NONE);
     }
     s_line[line].call_fx = FX_NORMAL;
+    s_line[line].seq = NULL;
     audio_tx_silence(line);
     s_line[line].state = TEL_IDLE;
     s_line[line].peer = PEER_NONE;
@@ -710,6 +718,7 @@ static void end_call(int line)
 {
     int peer = s_line[line].peer;
 
+    s_line[line].seq = NULL;
     log_fx_stats(line, "call ended");
     if (peer >= 0 && peer < NLINES) log_fx_stats(peer, "call ended");
     audio_set_voice_fx(line, VOICE_FX_NONE);
@@ -877,6 +886,45 @@ static esp_err_t play_clip_any_ext(int line, const char *name)
     return player_play(line, alt, clip_done_cb, NULL);
 }
 
+/* ---- spoken digits ---- */
+
+/* The clip for a digit ("5" -> 5.wav, "." -> point.wav). */
+static void digit_clip_name(char ch, char *out, size_t len)
+{
+    if (ch == '.') snprintf(out, len, "point.wav");
+    else           snprintf(out, len, "%c.wav", ch);
+}
+
+/* Digit readback: say the digit just dialled. A clip already playing (the
+ * last digit) is cut short; with no digit clips on the board, or no memory to
+ * play one, it's the touch-tone burst it used to be. */
+static void readback_digit(int line, char ch)
+{
+    char name[16];
+    digit_clip_name(ch, name, sizeof(name));
+    player_stop_and_wait(line, 100);
+    if (player_play(line, name, NULL, NULL) != ESP_OK) audio_tx_dtmf(line, ch, 120);
+}
+
+/* Pi, 3.1415...: dial 314. The leading 3, "point", then 100 decimals. */
+static const char PI_DIGITS[] =
+    "3."
+    "1415926535" "8979323846" "2643383279" "5028841971" "6939937510"
+    "5820974944" "5923078164" "0628620899" "8628034825" "3421170679";
+_Static_assert(sizeof(PI_DIGITS) - 1 == 102, "pi: 3. plus 100 decimals");
+
+/* Pause after the clip just played: a breath between groups of 5 and 10. */
+static int64_t seq_gap_us(const char *seq, size_t played)
+{
+    if (played == 1) return 120000;                /* after the 3 */
+    if (played == 2) return 150000;                /* after "point" */
+    size_t decimals = played - 2;
+    if (decimals % 10 == 0) return 900000;
+    if (decimals % 5 == 0)  return 450000;
+    (void)seq;
+    return 80000;
+}
+
 /* Logs every dial code whose audio file isn't on the board (the web UI shows
  * the same thing next to each code). Codes are kept either way. */
 void telephony_check_clip_files(void)
@@ -908,9 +956,21 @@ static void handle_action(int line, const dialplan_action_t *a)
     if (a->kind != ACT_NONE)
         webhook_event(a->kind == ACT_WRONG_NUMBER ? "wrong_number" : "dial", line,
                       s_line[line].coll.buf);
+    /* A spoken digit may still be playing (readback); it mustn't block what's next. */
+    if (a->kind != ACT_NONE && dialplan_modes()->readback_digits) player_stop_and_wait(line, 150);
     switch (a->kind) {
         case ACT_NONE:
             return;
+
+        case ACT_PI_DIGITS:
+            audio_tx_silence(line);
+            s_line[line].seq = PI_DIGITS;
+            s_line[line].seq_i = 0;
+            s_line[line].seq_playing = false;
+            s_line[line].seq_next_us = esp_timer_get_time();
+            s_line[line].state = TEL_PLAYING;
+            activity_log("Line %d: reading pi aloud", line);
+            break;
 
         case ACT_SET_MODE:
             dialplan_apply_mode(line, (dialplan_mode_change_t)a->arg);
@@ -1054,10 +1114,10 @@ static void process_digit(int line, char ch)
     s_line[line].dialing = true;
     s_line[line].last_digit_us = esp_timer_get_time();
 
-    /* optional digit readback: short DTMF feedback burst (ESP adaptation of the
-     * Pi's spoken-digit readback; auto-returns to silence, collection unaffected) */
+    /* optional digit readback: the digit spoken (0.wav..9.wav), or a short
+     * touch-tone burst without them; collection is unaffected */
     if (dialplan_modes()->readback_digits) {
-        audio_tx_dtmf(line, ch, 120);
+        readback_digit(line, ch);
     }
 
     dialplan_set_bt_dialout(line == bt_companion_line() && bt_companion_active() &&
@@ -1320,7 +1380,13 @@ static void fsm_task(void *arg)
                 case IN_CLIP_DONE:
                     /* Ignore if we've already moved on (e.g. hung up mid-clip --
                      * end_call() already handled state via player_stop()). */
-                    if (s_line[e.line].state == TEL_PLAYING) {
+                    if (s_line[e.line].state == TEL_PLAYING && s_line[e.line].seq &&
+                        s_line[e.line].seq_i < strlen(s_line[e.line].seq)) {
+                        s_line[e.line].seq_playing = false;
+                        s_line[e.line].seq_next_us = esp_timer_get_time() +
+                            seq_gap_us(s_line[e.line].seq, s_line[e.line].seq_i);
+                    } else if (s_line[e.line].state == TEL_PLAYING) {
+                        s_line[e.line].seq = NULL;
                         if (line_offhook(e.line)) enter_dialtone(e.line);
                         else enter_idle(e.line);
                     } else if (s_line[e.line].state == TEL_PLAYING_RECORD_PROMPT) {
@@ -1382,6 +1448,23 @@ static void fsm_task(void *arg)
                 dialplan_action_t a = dialplan_timeout(&s_line[line].coll, line);
                 s_line[line].dialing = false;
                 if (a.kind != ACT_NONE) handle_action(line, &a);
+            }
+            /* Reading digits aloud: start the next clip when its pause is up. */
+            if (s_line[line].seq && s_line[line].state == TEL_PLAYING &&
+                !s_line[line].seq_playing && now >= s_line[line].seq_next_us) {
+                char name[16];
+                digit_clip_name(s_line[line].seq[s_line[line].seq_i], name, sizeof(name));
+                esp_err_t pe = player_play(line, name, clip_done_cb, NULL);
+                if (pe == ESP_OK) {
+                    s_line[line].seq_playing = true;
+                    s_line[line].seq_i++;
+                } else if (pe == ESP_ERR_INVALID_STATE) {
+                    s_line[line].seq_next_us = now + 20000;   /* the last clip is still winding down */
+                } else {
+                    ESP_LOGW(TAG, "line %d: can't read digit clip %s: %s", line, name, esp_err_to_name(pe));
+                    s_line[line].seq = NULL;
+                    play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+                }
             }
             /* transient tone auto-return */
             if (s_line[line].tone_return_us &&
