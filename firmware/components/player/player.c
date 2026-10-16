@@ -23,6 +23,7 @@ typedef struct {
     int    line;
     char   name[STORAGE_MAX_NAME];
     bool   is_mp3;   /* decided in player_play(): sets the task's stack size */
+    bool   chained;  /* another clip follows at once: don't wait out the tail or silence the line */
     player_done_cb_t done_cb;
     void  *ctx;
 } play_args_t;
@@ -305,7 +306,7 @@ static void play_task(void *arg)
         }
         free(resampled);
         bool stopped = s_line[line].stop_requested;
-        if (!stopped) {
+        if (!stopped && !a->chained) {
             /* let what's still queued in the ext stream buffer actually
              * play out before switching the line's audio source away. */
             vTaskDelay(pdMS_TO_TICKS(120));
@@ -331,7 +332,21 @@ out:
     vTaskDelete(NULL);
 }
 
+static esp_err_t play_start(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx,
+                            bool chained);
+
 esp_err_t player_play(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx)
+{
+    return play_start(line, storage_name, done_cb, ctx, false);
+}
+
+esp_err_t player_play_chained(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx)
+{
+    return play_start(line, storage_name, done_cb, ctx, true);
+}
+
+static esp_err_t play_start(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx,
+                            bool chained)
 {
     if (line < 0 || line >= AUDIO_NUM_LINES) return ESP_ERR_INVALID_ARG;
     if (s_line[line].active) return ESP_ERR_INVALID_STATE;
@@ -375,6 +390,7 @@ esp_err_t player_play(int line, const char *storage_name, player_done_cb_t done_
     a->done_cb = done_cb;
     a->ctx = ctx;
     a->is_mp3 = is_mp3;
+    a->chained = chained && !is_mp3;
 
     s_line[line].active = true;
     s_line[line].stop_requested = false;

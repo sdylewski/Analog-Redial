@@ -39,6 +39,13 @@ typedef void (*player_done_cb_t)(int line, void *ctx);
  */
 esp_err_t player_play(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx);
 
+/* Like player_play(), for a clip that is followed by another started right
+ * away (reading digits aloud): it ends as soon as its audio is queued, without
+ * the short wait and the silencing that let a final clip play out. The caller
+ * must play the last clip with player_play(), or silence the line itself.
+ * (A WAV; an MP3 plays as with player_play().) */
+esp_err_t player_play_chained(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx);
+
 /* Stops playback on `line` if active (e.g. on hangup mid-clip). done_cb is
  * NOT invoked. Safe to call even if nothing is playing. */
 void player_stop(int line);

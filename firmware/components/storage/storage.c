@@ -1,3 +1,5 @@
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "storage.h"
 #include "sdcard.h"
 #include "esp_spiffs.h"
@@ -410,6 +412,41 @@ esp_err_t storage_read(const char *name, void *buf, size_t buf_len, size_t *out_
     return err;
 }
 
+/* Looking up a name that isn't in writable storage costs ~225 ms on the flash
+ * filesystem (it has to walk its whole index to be sure), and nearly every
+ * built-in clip (the spoken digits, the operator prompt) is a name that isn't
+ * there: it lives in the bundled partition. Remembering the miss until
+ * something is written or deleted makes the second and later opens of those
+ * clips fast. */
+#define NEG_CACHE_N 24
+static struct { char name[STORAGE_MAX_NAME]; uint32_t gen; bool sd; bool used; } s_neg[NEG_CACHE_N];
+static int s_neg_next;
+static portMUX_TYPE s_neg_mux = portMUX_INITIALIZER_UNLOCKED;
+
+static bool neg_known(const char *name, uint32_t gen, bool sd)
+{
+    bool hit = false;
+    portENTER_CRITICAL(&s_neg_mux);
+    for (int i = 0; i < NEG_CACHE_N && !hit; i++) {
+        hit = s_neg[i].used && s_neg[i].gen == gen && s_neg[i].sd == sd && strcmp(s_neg[i].name, name) == 0;
+    }
+    portEXIT_CRITICAL(&s_neg_mux);
+    return hit;
+}
+
+static void neg_remember(const char *name, uint32_t gen, bool sd)
+{
+    if (strlen(name) >= STORAGE_MAX_NAME) return;
+    portENTER_CRITICAL(&s_neg_mux);
+    int i = s_neg_next;
+    s_neg_next = (s_neg_next + 1) % NEG_CACHE_N;
+    strcpy(s_neg[i].name, name);
+    s_neg[i].gen = gen;
+    s_neg[i].sd = sd;
+    s_neg[i].used = true;
+    portEXIT_CRITICAL(&s_neg_mux);
+}
+
 esp_err_t storage_read_open(const char *name, storage_reader_t *r)
 {
     /* Writable storage first (primary backend, then the other one -- see
@@ -420,9 +457,12 @@ esp_err_t storage_read_open(const char *name, storage_reader_t *r)
     r->file = NULL;
     r->sd_held = false;
     bool sd = sdcard_acquire();
-    if (resolve_existing_path(name, path, sizeof(path), sd)) {
+    uint32_t gen = s_generation;
+    bool known_absent = s_bundled_mounted && neg_known(name, gen, sd);
+    if (!known_absent && resolve_existing_path(name, path, sizeof(path), sd)) {
         f = fopen(path, "rb");
     } else if (s_bundled_mounted) {
+        if (!known_absent) neg_remember(name, gen, sd);
         bundled_path(path, sizeof(path), name);
         f = fopen(path, "rb");
     }

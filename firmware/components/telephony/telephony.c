@@ -924,13 +924,12 @@ _Static_assert(sizeof(PI_DIGITS) - 1 == 102, "pi: 3. plus 100 decimals");
 /* Pause after the clip just played: a breath between groups of 5 and 10. */
 static int64_t seq_gap_us(const char *seq, size_t played)
 {
-    if (played == 1) return 120000;                /* after the 3 */
-    if (played == 2) return 150000;                /* after "point" */
+    if (played <= 2) return 20000;                 /* "3", "point", then straight on */
     size_t decimals = played - 2;
-    if (decimals % 10 == 0) return 900000;
-    if (decimals % 5 == 0)  return 450000;
+    if (decimals % 10 == 0) return 500000;
+    if (decimals % 5 == 0)  return 250000;
     (void)seq;
-    return 80000;
+    return 20000;
 }
 
 /* Logs every dial code whose audio file isn't on the board (the web UI shows
@@ -981,7 +980,7 @@ static void handle_action(int line, const dialplan_action_t *a)
             s_line[line].seq = PI_DIGITS;
             s_line[line].seq_i = 0;
             s_line[line].seq_playing = false;
-            s_line[line].seq_next_us = esp_timer_get_time();
+            s_line[line].seq_next_us = esp_timer_get_time() + 1000000;   /* a moment of quiet first */
             s_line[line].state = TEL_PLAYING;
             activity_log("Line %d: reading pi aloud", line);
             break;
@@ -1468,7 +1467,9 @@ static void fsm_task(void *arg)
                 !s_line[line].seq_playing && now >= s_line[line].seq_next_us) {
                 char name[16];
                 digit_clip_name(s_line[line].seq[s_line[line].seq_i], name, sizeof(name));
-                esp_err_t pe = player_play(line, name, clip_done_cb, NULL);
+                bool last = s_line[line].seq_i + 1 >= strlen(s_line[line].seq);
+                esp_err_t pe = last ? player_play(line, name, clip_done_cb, NULL)
+                                    : player_play_chained(line, name, clip_done_cb, NULL);
                 if (pe == ESP_OK) {
                     s_line[line].seq_playing = true;
                     s_line[line].seq_i++;
