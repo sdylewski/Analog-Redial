@@ -25,6 +25,9 @@ remaining 4 digits. Pick a numbering scheme for your own extensions (e.g.
 your server — there's no central registry, your PBX's own config is the
 source of truth.
 
+First turn VoIP on: tick **VoIP** under Settings → General → Features and
+reboot. The **Settings → VOIP** tab then appears.
+
 ## Automatic setup
 
 If you run the [VoIP provisioner](https://github.com/sdylewski/Analog-Redial/blob/main/server/voip-provisioner/README.md) next to Asterisk (one install script),

@@ -287,6 +287,8 @@ static void url_encode_path(const char *in, char *out, size_t outsz);
 /* Defined right after html_escape -- forward-declared for the same reason. */
 static int append_hint(char *buf, size_t cap, int off, const char *lead, const char *detail);
 static int append_setup_password_card(char *buf, size_t cap, int off);
+static int append_hw_config_tab(char *buf, size_t cap, int off);
+static int append_features_card(char *buf, size_t cap, int off);
 static int append_web_password_card(char *buf, size_t cap, int off);
 /* Whether the browser that asked for the page being rendered is signed in
  * (or no web password is set). Set by the page handlers before rendering;
@@ -952,7 +954,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
                      "&#128246; Rescue mode: this board is running its own setup Wi-Fi network "
                      "instead of joining yours, because the BOOT button was held. Everything here "
                      "works normally. Your saved Wi-Fi is untouched &mdash; reboot "
-                     "(Settings &rarr; Hardware) to rejoin it."));
+                     "(Settings &rarr; Hardware &rarr; Reset, or unplug it) to rejoin it."));
     }
     if (board_sd_line1_conflict()) {
         off = appendf(buf, cap, off,
@@ -961,8 +963,8 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
                      "&#9888; microSD card detected, but this board is configured for 2 lines "
                      "-- microSD and line 1 share the same wiring and can't both be active. "
                      "Line 1 has been disabled until this is fixed: remove the card, or "
-                     "reconfigure this board in <a href=\"/settings?tab=hardware\">Settings "
-                     "&rarr; Hardware</a> if it's actually meant to be single-line + microSD."));
+                     "reconfigure this board in <a href=\"/settings?tab=general\">Settings "
+                     "&rarr; General &rarr; Board hardware</a> if it's actually meant to be single-line + microSD."));
     }
     if (board_type_mismatch()) {
         char recorded[16];
@@ -974,7 +976,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
                      "confirmed booting as <b>%s</b> -- GPIO pin routing differs between board "
                      "types, so things like microSD or line 1 may silently misbehave. Reflash "
                      "the correct firmware, or if this board genuinely changed, confirm it in "
-                     "<a href=\"/settings?tab=hardware\">Settings &rarr; Hardware</a>."),
+                     "<a href=\"/settings?tab=hardware\">Settings &rarr; Hardware</a> (Board type mismatch)."),
             board_pcb_variant_name(), recorded[0] ? recorded : "(unknown)");
         off = appendf(buf, cap, off,
             "<div class=\"hazard-banner\">%s</div>", mismatch_hint);
@@ -1548,11 +1550,33 @@ static const settings_tab_t SETTINGS_TABS[] = {
     { "dialcodes",  "Dial Codes & Prompts", "settings.tab.dialcodes" },
     { "voip",       "VOIP",                 "settings.tab.voip" },
     { "bluetooth",  "Bluetooth",            "settings.tab.bluetooth" },
+    { "home",       "Home Assistant",       "settings.tab.home" },
     { "hardware",   "Hardware",             "settings.tab.hardware" },
     { "storage",    "Storage",              "settings.tab.storage" },
     { "diag",       "Diagnostics",          "settings.tab.diag" },
 };
 #define SETTINGS_TABS_N (sizeof(SETTINGS_TABS) / sizeof(SETTINGS_TABS[0]))
+
+/* Home Assistant is on if ticked under Features, or (never chosen) if a
+ * webhook or MQTT was already set up before that switch existed. */
+static bool ha_feature_on(void)
+{
+    int f = board_feature_get("feat_ha");
+    if (f >= 0) return f;
+    char url[8];
+    webhook_url_get(url, sizeof(url));
+    return url[0] || mqtt_ha_get().enabled;
+}
+
+/* Optional features only get a tab while they're switched on (Features card
+ * on General); a direct link still opens one. */
+static bool settings_tab_shown(const char *id)
+{
+    if (strcmp(id, "voip") == 0) return voip_is_enabled();
+    if (strcmp(id, "bluetooth") == 0) return bt_companion_enabled();
+    if (strcmp(id, "home") == 0) return ha_feature_on();
+    return true;
+}
 
 static int append_settings_tabs(char *buf, size_t cap, int off, const char *active)
 {
@@ -1560,6 +1584,7 @@ static int append_settings_tabs(char *buf, size_t cap, int off, const char *acti
         "<nav class=\"settings-tabs\">");
     for (size_t i = 0; i < SETTINGS_TABS_N; i++) {
         bool is_active = strcmp(SETTINGS_TABS[i].id, active) == 0;
+        if (!is_active && !settings_tab_shown(SETTINGS_TABS[i].id)) continue;
         off = appendf(buf, cap, off,
             "<a class=\"tab-btn%s\" href=\"/settings?tab=%s\">%s</a>",
             is_active ? " active" : "", SETTINGS_TABS[i].id,
@@ -1723,9 +1748,6 @@ static int append_general_tab(char *buf, size_t cap, int off)
         i18n_str("general.boardname.button", "Save name"),
         boardname_hint);
 
-    off = append_setup_password_card(buf, cap, off);
-    off = append_web_password_card(buf, cap, off);
-
     char ssid[33];
     strncpy(ssid, wifi_get_ssid(), sizeof(ssid) - 1);
     ssid[sizeof(ssid) - 1] = '\0';
@@ -1793,6 +1815,7 @@ static int append_general_tab(char *buf, size_t cap, int off)
         i18n_str("general.wifi.ssid_label", "SSID"), ssid_esc,
         i18n_str("general.wifi.password_label", "Password"),
         i18n_str("general.wifi.password_placeholder", "leave blank for an open network"),
+        i18n_str("general.wifi.button", "Connect"),
         i18n_str("general.wifi.saved_title", "Saved networks"),
         i18n_str("general.wifi.saved_col", "Network"), saved_rows,
         i18n_str("general.wifi.saved_hint",
@@ -1800,10 +1823,12 @@ static int append_general_tab(char *buf, size_t cap, int off)
                  "board scans and joins whichever saved network has the strongest signal, so "
                  "carrying it somewhere else works as soon as that network is saved once. "
                  "&#9679; marks the one currently in use; up to 5 are kept."),
-        i18n_str("general.wifi.button", "Connect"),
         i18n_str("general.wifi.hint",
                  "Saved to flash (NVS); the device reconnects immediately, no reboot needed."),
         WIFI_SCAN_JS);
+
+    off = append_hw_config_tab(buf, cap, off);
+    off = append_features_card(buf, cap, off);
 
     /* Timezone folded into this card as a curated dropdown (UI_TIMEZONES)
      * instead of its own separate card with a freeform POSIX TZ string --
@@ -1915,8 +1940,35 @@ static int append_general_tab(char *buf, size_t cap, int off)
                  "the window wraps past midnight. Takes effect on the next incoming call -- "
                  "no reboot."));
     off = appendf(buf, cap, off, "</div>");
-    off = append_webhook_card(buf, cap, off);
-    return append_mqtt_card(buf, cap, off);
+    off = append_setup_password_card(buf, cap, off);
+    return append_web_password_card(buf, cap, off);
+}
+
+/* Settings -> General: which optional features are in use. Each one ticked
+ * gets its own Settings tab; unticked, its tab is hidden and the feature is
+ * off (its saved settings are kept). */
+static int append_features_card(char *buf, size_t cap, int off)
+{
+    bool voip_on = voip_is_enabled(), bt_on = bt_companion_enabled(), ha_on = ha_feature_on();
+    off = appendf(buf, cap, off,
+        "<div class=\"card\"><h2>Features</h2>"
+        "<form method=\"POST\" action=\"/features\" class=\"settings-form\">"
+        "<label><input type=\"checkbox\" name=\"voip\" value=\"1\"%s> <b>VoIP</b> "
+        "(calls through a SIP server)</label>"
+        "<label><input type=\"checkbox\" name=\"bt\" value=\"1\"%s> <b>Bluetooth</b> "
+        "(a cell phone through a companion module)</label>"
+        "<label><input type=\"checkbox\" name=\"ha\" value=\"1\"%s> <b>Home Assistant</b> "
+        "(webhook, MQTT and dial codes)</label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+        "</form>",
+        voip_on ? " checked" : "", bt_on ? " checked" : "", ha_on ? " checked" : "");
+    off = append_hint(buf, cap, off,
+        "Each feature ticked here gets its own tab above. Unticking one turns it off and "
+        "hides its tab; its settings are kept for next time.",
+        "VoIP starts or stops after a reboot. Bluetooth also needs the module chosen in "
+        "<b>Board hardware</b>. Turning Home Assistant off stops webhook events and "
+        "disconnects MQTT.");
+    return appendf(buf, cap, off, "</div>");
 }
 
 /* Everything about how a call sounds/behaves on the phone itself, one tab:
@@ -2086,97 +2138,6 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "input distorts, which you hear as a harsh dial tone; the default is 30 (0 dB). "
                  "Same scale as the bring-up <code>spkamp</code> console command, and "
                  "<code>tonetest</code> measures the distortion at a given level."));
-    bool fx_on = board_voice_fx_enabled_get();
-    off = appendf(buf, cap, off,
-        "<div class=\"card\"><h2>%s</h2>"
-        "<form method=\"POST\" action=\"/voice_fx_enabled\" class=\"settings-form\">"
-        "<input type=\"hidden\" name=\"form\" value=\"1\">"
-        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-        "</form>",
-        i18n_str("voicefx.title", "Voice effects (experimental)"),
-        fx_on ? " checked" : "",
-        i18n_str("voicefx.enabled", "Enable audio effects during calls (experimental, off by default)"),
-        i18n_str("general.button.save", "Save"));
-    off = append_hint(buf, cap, off,
-        i18n_str("voicefx.hint_lead",
-                 "During a call, press or dial 1 Dalek, 2 chipmunk, 3 Darth Vader, 4 8-bit, "
-                 "5 robot, 6 tremolo, 7 distortion, 0 normal. Both phones hear it."),
-        i18n_str("voicefx.hint_detail",
-                 "Works on calls between this board's two phones and on VoIP calls: the board "
-                 "where the key is pressed changes both voices, so the far end needs nothing "
-                 "special. The key's tone also reaches the other phone as a short beep. On a "
-                 "VoIP call to an automated phone menu, turn this off so menu choices don't "
-                 "change your voice. Also applies to dialling 322-324."));
-    off = appendf(buf, cap, off, "</div>");
-
-    if (num_lines > 1) {
-        board_intercom_t ic = board_intercom_get();
-        off = appendf(buf, cap, off,
-            "<div class=\"card\"><h2>%s</h2>"
-            "<form method=\"POST\" action=\"/intercom\" class=\"settings-form\">"
-            "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
-            "<label>%s "
-            "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
-            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-            "</form>",
-            i18n_str("intercom.title", "Intercom"),
-            ic.enabled ? " checked" : "", i18n_str("intercom.enabled", "Ring the other line when I pick up and don't dial"),
-            i18n_str("intercom.seconds_label", "Seconds to wait on dial tone first"),
-            (unsigned)ic.seconds, BOARD_INTERCOM_MIN_S, BOARD_INTERCOM_MAX_S,
-            i18n_str("general.button.save", "Save"));
-        off = append_hint(buf, cap, off,
-            i18n_str("intercom.hint_lead",
-                     "Pick up and wait: the other phone rings with a short double ring. Dial a "
-                     "number first and it's a normal call."),
-            i18n_str("intercom.hint_detail",
-                     "After the wait, the other line rings two short bursts, a pause, and "
-                     "repeats (a distinctive ring, so it's recognisably the other room and not an "
-                     "outside call). If the other handset is already up and idle, the two "
-                     "lines are connected straight away. If it's busy you hear busy. Nothing "
-                     "to switch off or on in the moment: dialling any digit before the wait "
-                     "ends gives the usual dial plan. Applies from the next dial tone."));
-        off = appendf(buf, cap, off, "</div>");
-    }
-
-    board_offhook_alert_t roh = board_offhook_alert_get();
-    char roh_status[48];
-    if (roh.enabled) {
-        snprintf(roh_status, sizeof(roh_status),
-                 i18n_str("general.offhook.status_on", "on, after %u s"), (unsigned)roh.seconds);
-    } else {
-        snprintf(roh_status, sizeof(roh_status), "%s", i18n_str("general.offhook.status_off", "off"));
-    }
-    off = appendf(buf, cap, off,
-        "<div class=\"card\"><h2>%s</h2>"
-        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
-        "<form method=\"POST\" action=\"/offhook_alert\" class=\"settings-form\">"
-        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
-        "<label>%s "
-        "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-        "</form>",
-        i18n_str("general.offhook.title", "Off-hook alert"),
-        i18n_str("general.current", "Current"), roh_status,
-        roh.enabled ? " checked" : "", i18n_str("general.offhook.enabled", "Enabled"),
-        i18n_str("general.offhook.seconds_label", "Seconds on dial tone before the alert"),
-        (unsigned)roh.seconds, BOARD_OFFHOOK_ALERT_MIN_S, BOARD_OFFHOOK_ALERT_MAX_S,
-        i18n_str("general.button.save", "Save"));
-    off = append_hint(buf, cap, off,
-        i18n_str("general.offhook.hint_lead",
-                 "Plays the standard \"receiver off-hook\" alert if dial tone sits untouched "
-                 "too long."),
-        i18n_str("general.offhook.hint_detail",
-                 "A handset left off the hook sits on dial tone forever, and the line is "
-                 "unreachable the whole time (callers get busy) with nothing to draw attention "
-                 "to it. This plays the loud, warbling \"receiver off-hook\" alert real phone "
-                 "switches use (1400+2060+2450+2600&nbsp;Hz, 100&nbsp;ms on/off, per Telcordia "
-                 "GR-506-CORE) once dial tone has gone untouched this long. Hanging up stops "
-                 "it. The clock restarts on every return to dial tone, so only a genuinely "
-                 "forgotten handset ever reaches it. Takes effect on the next dial tone -- no "
-                 "reboot."));
-    off = appendf(buf, cap, off, "</div>");
-
     bool tone_follow_lang = board_tone_follow_language_get();
     char cur_lang[8], cur_region[8];
     board_language_get(cur_lang, sizeof(cur_lang));
@@ -2257,6 +2218,86 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "&mdash; English especially, which could mean the US, the UK, Australia or "
                  "India &mdash; falls back to North America, so untick the box and pick a region "
                  "if that's not what you want."));
+
+    board_offhook_alert_t roh = board_offhook_alert_get();
+    char roh_status[48];
+    if (roh.enabled) {
+        snprintf(roh_status, sizeof(roh_status),
+                 i18n_str("general.offhook.status_on", "on, after %u s"), (unsigned)roh.seconds);
+    } else {
+        snprintf(roh_status, sizeof(roh_status), "%s", i18n_str("general.offhook.status_off", "off"));
+    }
+    off = appendf(buf, cap, off,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<form method=\"POST\" action=\"/offhook_alert\" class=\"settings-form\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
+        "<label>%s "
+        "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form>",
+        i18n_str("general.offhook.title", "Off-hook alert"),
+        i18n_str("general.current", "Current"), roh_status,
+        roh.enabled ? " checked" : "", i18n_str("general.offhook.enabled", "Enabled"),
+        i18n_str("general.offhook.seconds_label", "Seconds on dial tone before the alert"),
+        (unsigned)roh.seconds, BOARD_OFFHOOK_ALERT_MIN_S, BOARD_OFFHOOK_ALERT_MAX_S,
+        i18n_str("general.button.save", "Save"));
+    off = append_hint(buf, cap, off,
+        i18n_str("general.offhook.hint_lead",
+                 "Plays the standard \"receiver off-hook\" alert if dial tone sits untouched "
+                 "too long."),
+        i18n_str("general.offhook.hint_detail",
+                 "A handset left off the hook sits on dial tone forever, and the line is "
+                 "unreachable the whole time (callers get busy) with nothing to draw attention "
+                 "to it. This plays the loud, warbling \"receiver off-hook\" alert real phone "
+                 "switches use (1400+2060+2450+2600&nbsp;Hz, 100&nbsp;ms on/off, per Telcordia "
+                 "GR-506-CORE) once dial tone has gone untouched this long. Hanging up stops "
+                 "it. The clock restarts on every return to dial tone, so only a genuinely "
+                 "forgotten handset ever reaches it. Takes effect on the next dial tone -- no "
+                 "reboot."));
+    off = appendf(buf, cap, off, "</div>");
+
+    if (num_lines > 1) {
+        board_intercom_t ic = board_intercom_get();
+        off = appendf(buf, cap, off,
+            "<div class=\"card\"><h2>%s</h2>"
+            "<form method=\"POST\" action=\"/intercom\" class=\"settings-form\">"
+            "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
+            "<label>%s "
+            "<input type=\"number\" name=\"seconds\" value=\"%u\" min=\"%d\" max=\"%d\" required></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+            "</form>",
+            i18n_str("intercom.title", "Intercom"),
+            ic.enabled ? " checked" : "", i18n_str("intercom.enabled", "Ring the other line when I pick up and don't dial"),
+            i18n_str("intercom.seconds_label", "Seconds to wait on dial tone first"),
+            (unsigned)ic.seconds, BOARD_INTERCOM_MIN_S, BOARD_INTERCOM_MAX_S,
+            i18n_str("general.button.save", "Save"));
+        off = append_hint(buf, cap, off,
+            i18n_str("intercom.hint_lead",
+                     "Pick up and wait: the other phone rings with a short double ring. Dial a "
+                     "number first and it's a normal call."),
+            i18n_str("intercom.hint_detail",
+                     "After the wait, the other line rings two short bursts, a pause, and "
+                     "repeats (a distinctive ring, so it's recognisably the other room and not an "
+                     "outside call). If the other handset is already up and idle, the two "
+                     "lines are connected straight away. If it's busy you hear busy. Nothing "
+                     "to switch off or on in the moment: dialling any digit before the wait "
+                     "ends gives the usual dial plan. Applies from the next dial tone."));
+        off = appendf(buf, cap, off, "</div>");
+    }
+
+    dialplan_modes_t *m = dialplan_modes();
+    off = append_mode_card_hint(buf, cap, off, i18n_str("general.readback.title", "Digit readback"),
+        m->readback_digits ? "on" : "off",
+        m->readback_digits ? i18n_str("general.readback.on", "On") : i18n_str("general.readback.off", "Off"),
+        i18n_str("general.button.turn_off", "Turn off"), "821",
+        i18n_str("general.button.turn_on", "Turn on"), "822", -1,
+        i18n_str("general.readback.hint",
+                 "Echoes each digit back as you dial it. Useful well beyond debugging: a "
+                 "preschool phone where children hear the number they just dialled, or a "
+                 "visually impaired user confirming a digit without a display. Today each "
+                 "digit answers with its own touch-tone pair; <b>spoken digits are planned</b> "
+                 "and need a set of number recordings per language. Persists to flash."));
 
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("aec.title", "Echo cancellation"));
@@ -2344,18 +2385,30 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         i18n_str("aec.js.apply", "Apply %1ms as default"),
         i18n_str("aec.js.failed", "Measurement failed."));
 
-    dialplan_modes_t *m = dialplan_modes();
-    off = append_mode_card_hint(buf, cap, off, i18n_str("general.readback.title", "Digit readback"),
-        m->readback_digits ? "on" : "off",
-        m->readback_digits ? i18n_str("general.readback.on", "On") : i18n_str("general.readback.off", "Off"),
-        i18n_str("general.button.turn_off", "Turn off"), "821",
-        i18n_str("general.button.turn_on", "Turn on"), "822", -1,
-        i18n_str("general.readback.hint",
-                 "Echoes each digit back as you dial it. Useful well beyond debugging: a "
-                 "preschool phone where children hear the number they just dialled, or a "
-                 "visually impaired user confirming a digit without a display. Today each "
-                 "digit answers with its own touch-tone pair; <b>spoken digits are planned</b> "
-                 "and need a set of number recordings per language. Persists to flash."));
+    bool fx_on = board_voice_fx_enabled_get();
+    off = appendf(buf, cap, off,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<form method=\"POST\" action=\"/voice_fx_enabled\" class=\"settings-form\">"
+        "<input type=\"hidden\" name=\"form\" value=\"1\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+        "</form>",
+        i18n_str("voicefx.title", "Voice effects (experimental)"),
+        fx_on ? " checked" : "",
+        i18n_str("voicefx.enabled", "Enable audio effects during calls (experimental, off by default)"),
+        i18n_str("general.button.save", "Save"));
+    off = append_hint(buf, cap, off,
+        i18n_str("voicefx.hint_lead",
+                 "During a call, press or dial 1 Dalek, 2 chipmunk, 3 Darth Vader, 4 8-bit, "
+                 "5 robot, 6 tremolo, 7 distortion, 0 normal. Both phones hear it."),
+        i18n_str("voicefx.hint_detail",
+                 "Works on calls between this board's two phones and on VoIP calls: the board "
+                 "where the key is pressed changes both voices, so the far end needs nothing "
+                 "special. The key's tone also reaches the other phone as a short beep. On a "
+                 "VoIP call to an automated phone menu, turn this off so menu choices don't "
+                 "change your voice. Also applies to dialling 322-324."));
+    off = appendf(buf, cap, off, "</div>");
+
 
     return off;
 }
@@ -2712,10 +2765,10 @@ static int append_ha_codes_card(char *buf, size_t cap, int off)
     size_t used = 0;
     size_t n = list_code_entries(codes, true, &used);
     off = appendf(buf, cap, off,
-        "<div class=\"card wide\" id=\"hacodes\"><h2>Home Assistant codes</h2>"
+        "<div class=\"card\" id=\"hacodes\"><h2>Home Assistant codes</h2>"
         "<p class=\"hint\">A code that does nothing on the board except play the OK tone and "
-        "tell Home Assistant it was dialed (the <b>dial</b> event, over the webhook or MQTT in "
-        "Settings &rarr; General). Turn on a light, start a scene, open the garage. Works on "
+        "tell Home Assistant it was dialed (the <b>dial</b> event, over MQTT or the webhook "
+        "on this tab). Turn on a light, start a scene, open the garage. Works on "
         "every board.</p>");
     if (n) {
         off = appendf(buf, cap, off, "<table class=\"table\"><tr><th>Code</th><th>Note</th><th></th></tr>");
@@ -3032,16 +3085,13 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     bool voip_on = voip_is_enabled();
     off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>SIP server</h2>"
-        "<form method=\"POST\" action=\"/voip_enable\" class=\"settings-form\">"
-        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\" "
-        "onchange=\"toggleSection(this,'voip-extra')\"%s> <b>Enable VOIP</b></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
-        "</form>"
-        "<p class=\"hint\">Takes effect on reboot. Turning this off doesn't erase anything "
-        "you've saved -- it just stops the board registering with your SIP server until you "
-        "turn it back on.</p>"
-        "<div id=\"voip-extra\"%s><hr class=\"sep\">",
-        voip_on ? " checked" : "", voip_on ? "" : " hidden");
+        "<p class=\"hint\">%s</p>"
+        "<div id=\"voip-extra\"><hr class=\"sep\">",
+        voip_on ? "VoIP is on. It's switched on and off under <a href=\"/settings?tab=general\">"
+                  "General &rarr; Features</a> (takes effect on reboot); your settings are kept."
+                : "<b>VoIP is off.</b> Turn it on under <a href=\"/settings?tab=general\">"
+                  "General &rarr; Features</a>, then reboot. The settings below can be filled in "
+                  "either way.");
 
     off = append_voip_prov_section(buf, cap, off);
 
@@ -3454,7 +3504,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
     board_bt_module_t bt_mod = bt_companion_module();
 
     /* Which module the board booted with, and what it can't do. The choice
-     * itself is under Settings -> Hardware, since it needs a reboot. */
+     * itself is the Board hardware card on General, since it needs a reboot. */
     const char *mod_text;
     if (bt_mod == BOARD_BT_BM64) {
         mod_text = i18n_str("bt.module_bm64",
@@ -3468,12 +3518,9 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
     } else {
         mod_text = i18n_str("bt.module_none",
             "No Bluetooth module is selected. Choose the one you fitted under "
-            "<a href=\"/settings?tab=hardware\">Settings &rarr; Hardware</a> (takes effect after "
+            "<a href=\"/settings?tab=general\">Settings &rarr; General &rarr; Board hardware</a> (takes effect after "
             "a reboot).");
     }
-    off = appendf(buf, cap, off,
-        "<div class=\"card wide\"><h2>%s</h2><p class=\"hint\">%s</p></div>",
-        i18n_str("bt.module_title", "Module"), mod_text);
     const char *bk_features = (bt_mod == BOARD_BT_BK3266)
         ? i18n_str("bt.features_bk3266_html",
             "<p class=\"hint\">Pair a cell phone or laptop and the rotary phone on line 1 "
@@ -3505,28 +3552,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
     off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2><p class=\"warn-text\">%s</p></div>",
         i18n_str("bt.experimental_title", "Experimental: not mainstream yet"), bt_status);
-    off = appendf(buf, cap, off,
-        "<div class=\"card wide\"><h2>%s</h2>"
-        "<form method=\"POST\" action=\"/bt_enable_set\" class=\"settings-form\">"
-        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\" "
-        "onchange=\"toggleSection(this,'bt-extra')\"%s> <b>%s</b></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-        "</form>"
-        "<p class=\"hint\">%s</p>"
-        "</div>"
-        "<div class=\"card wide\"><h2>%s</h2>%s</div>"
-        "<div id=\"bt-extra\"%s>",
-        i18n_str("settings.tab.bluetooth", "Bluetooth"),
-        bt_on ? " checked" : "", i18n_str("bt.enable_label", "I have a Bluetooth companion board wired in"),
-        i18n_str("general.button.save", "Save"),
-        i18n_str("bt.enable_hint",
-                 "Turn this on once a Bluetooth Classic audio companion board (see "
-                 "<code>archive/BLUETOOTH_AUDIO_UPGRADE.md</code> in the repo) is actually wired "
-                 "to this board's GPIO16/17 UART header -- leave it off until then. Unlike VOIP's "
-                 "switch, this takes effect immediately, no reboot: it just starts or stops "
-                 "talking over that UART."),
-        i18n_str("bt.features_title", "What Bluetooth can do"),
-        bk_features ? bk_features : i18n_str("bt.features_html",
+    const char *features_html = bk_features ? bk_features : i18n_str("bt.features_html",
             "<p class=\"hint\">Pair a cell phone or laptop and the rotary phone on line 1 "
             "acts as its handset, like a Bluetooth headset.</p>"
             "<ul>"
@@ -3549,8 +3575,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
             "</ul>"
             "<p class=\"hint\">Not supported: music playback controls, dialing out on line 2, "
             "and numbers that aren't 1 + 10 digits (7-digit local or international). "
-            "Bluetooth audio is always wired to line 1.</p>"),
-        bt_on ? "" : " hidden");
+            "Bluetooth audio is always wired to line 1.</p>");
 
     bt_companion_status_t st = bt_companion_get_status();
     const char *link_pill = st.link_up ? "on" : "off";
@@ -3667,10 +3692,17 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
         js_link_up, js_link_down, js_connected, js_not_connected, js_none_paired,
         js_pair_btn, js_pairing, js_paired);
 
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\"><h2>%s</h2><p class=\"hint\">%s</p>%s</div>",
+        i18n_str("bt.module_title", "Module"), mod_text,
+        bt_on ? "" : "<p class=\"hint warn-text\">Bluetooth is off. Turn it on under "
+                     "<a href=\"/settings?tab=general\">General &rarr; Features</a>.</p>");
+    off = appendf(buf, cap, off, "<div class=\"card wide\"><h2>%s</h2>%s</div>",
+        i18n_str("bt.features_title", "What Bluetooth can do"), features_html);
+
     /* The EEPROM step is a BM64 thing; the BK3266 has no equivalent. */
     if (bt_mod != BOARD_BT_BK3266) off = append_bt_config_card(buf, cap, off, &st);
 
-    off = appendf(buf, cap, off, "</div>"); /* closes #bt-extra */
     return off;
 }
 
@@ -3845,6 +3877,33 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         }
     }
 
+    if (board_type_mismatch()) {
+        char recorded[16];
+        board_type_recorded(recorded, sizeof(recorded));
+        char confirm_msg[300];
+        snprintf(confirm_msg, sizeof(confirm_msg),
+            i18n_str("hardware.board_type_confirm",
+                     "Confirm this board is really %s now (was %s)? Only do this if the "
+                     "hardware itself genuinely changed -- if you flashed the wrong firmware "
+                     "by mistake, reflash the correct build instead."),
+            board_pcb_variant_name(), recorded[0] ? recorded : "(unknown)");
+        off = appendf(buf, cap, off,
+            "<div class=\"card wide\"><h2>%s</h2>"
+            "<p class=\"hint warn-text\">%s</p>"
+            "<form method=\"POST\" action=\"/board_type_confirm\" class=\"settings-form\" "
+            "onsubmit=\"return confirm('%s')\">"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"danger\">%s</button></div>"
+            "</form></div>",
+            i18n_str("hardware.board_type_mismatch_title", "Board type mismatch"),
+            i18n_str("hardware.board_type_mismatch_hint",
+                     "This is only safe to confirm if this physical board genuinely is the type "
+                     "this firmware was built for -- e.g. old hardware retired and replaced with "
+                     "a different variant. If this firmware just got flashed onto the wrong "
+                     "board by mistake, reflash the correct build instead of confirming."),
+            confirm_msg,
+            i18n_str("hardware.board_type_confirm_button", "Confirm board type changed"));
+    }
+
     char fl[16], ru[16], rf[16], su[16], sf[16];
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
@@ -3883,33 +3942,6 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                  "separately. RAM is live internal heap. Uptime/WiFi are on the <a href=\"/\">"
                  "Status</a> page."));
     off = appendf(buf, cap, off, "</div>");
-
-    if (board_type_mismatch()) {
-        char recorded[16];
-        board_type_recorded(recorded, sizeof(recorded));
-        char confirm_msg[300];
-        snprintf(confirm_msg, sizeof(confirm_msg),
-            i18n_str("hardware.board_type_confirm",
-                     "Confirm this board is really %s now (was %s)? Only do this if the "
-                     "hardware itself genuinely changed -- if you flashed the wrong firmware "
-                     "by mistake, reflash the correct build instead."),
-            board_pcb_variant_name(), recorded[0] ? recorded : "(unknown)");
-        off = appendf(buf, cap, off,
-            "<div class=\"card\"><h2>%s</h2>"
-            "<p class=\"hint warn-text\">%s</p>"
-            "<form method=\"POST\" action=\"/board_type_confirm\" class=\"settings-form\" "
-            "onsubmit=\"return confirm('%s')\">"
-            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"danger\">%s</button></div>"
-            "</form></div>",
-            i18n_str("hardware.board_type_mismatch_title", "Board type mismatch"),
-            i18n_str("hardware.board_type_mismatch_hint",
-                     "This is only safe to confirm if this physical board genuinely is the type "
-                     "this firmware was built for -- e.g. old hardware retired and replaced with "
-                     "a different variant. If this firmware just got flashed onto the wrong "
-                     "board by mistake, reflash the correct build instead of confirming."),
-            confirm_msg,
-            i18n_str("hardware.board_type_confirm_button", "Confirm board type changed"));
-    }
 
     idle_power_cfg_t ip = idle_power_get();
     char ip_status[64];
@@ -4053,6 +4085,12 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
 
     off = append_firmware_card(buf, cap, off);
 
+    return off;
+}
+
+/* Settings -> Hardware: Reset WiFi and factory reset, last on the tab. */
+static int append_reset_card(char *buf, size_t cap, int off)
+{
     char setup_ap[33], setup_ap_esc[100];
     wifi_setup_ap_name(setup_ap, sizeof(setup_ap));
     html_escape(setup_ap, setup_ap_esc, sizeof(setup_ap_esc));
@@ -4185,17 +4223,38 @@ static int append_memory_map_card(char *buf, size_t cap, int off)
     }
     if (lowest_addr > 0 && lowest_addr < flash_bytes) allocated += lowest_addr;
 
-    if (lowest_addr > 0) {
-        char ls[16];
-        off = appendf(buf, cap, off,
-            "<div class=\"statusrow indent\"><span class=\"label\">%s</span>"
-            "<span>%s (%s)</span></div>",
-            i18n_str("memmap.bootloader", "Bootloader + partition table"),
-            fmt_bytes(lowest_addr, ls, sizeof(ls)), i18n_str("memmap.fixed", "fixed"));
+    /* Rows in order of size and interest: both app slots together, then the
+     * other big partitions largest first, then settings (NVS). Everything
+     * small (bootloader + partition table, OTA data, radio calibration) is
+     * folded into one "Other" row at the end. */
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    size_t order[MEMORY_MAP_MAX_PARTS], n_order = 0;
+    uint32_t other_bytes = (lowest_addr < flash_bytes) ? lowest_addr : 0;
+    for (size_t i = 0; i < n_parts; i++) {
+        if (parts[i].size < 64 * 1024 && strcmp(parts[i].label, "nvs") != 0) other_bytes += parts[i].size;
+        else order[n_order++] = i;
+    }
+    for (size_t i = 1; i < n_order; i++) {
+        for (size_t j = i; j > 0; j--) {
+            const esp_partition_t *x = &parts[order[j - 1]], *y = &parts[order[j]];
+            int rx = x->type == ESP_PARTITION_TYPE_APP ? 0 : strcmp(x->label, "nvs") == 0 ? 2 : 1;
+            int ry = y->type == ESP_PARTITION_TYPE_APP ? 0 : strcmp(y->label, "nvs") == 0 ? 2 : 1;
+            bool swap = ry < rx ||
+                        (ry == rx && (rx == 0 ? y->address < x->address : y->size > x->size));
+            if (!swap) break;
+            size_t t = order[j]; order[j] = order[j - 1]; order[j - 1] = t;
+        }
     }
 
-    for (size_t i = 0; i < n_parts; i++) {
-        const esp_partition_t *p = &parts[i];
+    for (size_t oi = 0; oi < n_order; oi++) {
+        const esp_partition_t *p = &parts[order[oi]];
+        char pname[64];
+        if (p->type == ESP_PARTITION_TYPE_APP) {
+            snprintf(pname, sizeof(pname), "App code, %s%s", p->label,
+                     (running && running->address == p->address) ? " (running)" : "");
+        } else {
+            snprintf(pname, sizeof(pname), "%s", partition_friendly_name(p->label));
+        }
         bool have_used = false;
         uint64_t used = 0;
 
@@ -4247,15 +4306,24 @@ static int append_memory_map_card(char *buf, size_t cap, int off)
                 "<div class=\"statusrow indent\"><span class=\"label\">%s</span>"
                 "<span>%s / %s (%u%%)</span></div>"
                 "<div class=\"membar\"><div class=\"membarfill\" style=\"width:%u%%\"></div></div>",
-                partition_friendly_name(p->label), fmt_bytes((size_t)used, us, sizeof(us)),
+                pname, fmt_bytes((size_t)used, us, sizeof(us)),
                 fmt_bytes(p->size, cs, sizeof(cs)), pct, pct);
         } else {
             off = appendf(buf, cap, off,
                 "<div class=\"statusrow indent\"><span class=\"label\">%s</span>"
                 "<span>%s %s</span></div>",
-                partition_friendly_name(p->label), fmt_bytes(p->size, cs, sizeof(cs)),
+                pname, fmt_bytes(p->size, cs, sizeof(cs)),
                 i18n_str("memmap.capacity", "capacity"));
         }
+    }
+
+    if (other_bytes) {
+        char os[16];
+        off = appendf(buf, cap, off,
+            "<div class=\"statusrow indent\"><span class=\"label\">%s</span>"
+            "<span>%s</span></div>",
+            i18n_str("memmap.other", "Other (bootloader, partition table, OTA data, radio calibration)"),
+            fmt_bytes(other_bytes, os, sizeof(os)));
     }
 
     uint32_t unallocated = (flash_bytes > allocated) ? flash_bytes - allocated : 0;
@@ -4298,7 +4366,7 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s%s</span></div>",
-        i18n_str("hwconfig.title", "Line 2 / microSD configuration"),
+        i18n_str("hwconfig.title", "Board hardware"),
         i18n_str("hwconfig.current", "Current setting"),
         cfg.num_lines > 1 ? i18n_str("hwconfig.2line", "2-line board (jumpers + 2nd AG1171 populated)")
                            : (cfg.has_microsd ? i18n_str("hwconfig.1line_sd", "1-line board, microSD populated")
@@ -4380,7 +4448,7 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
     off = append_hint(buf, cap, off,
         i18n_str("hwconfig.bt_hint_lead",
                  "Bluetooth here means the module is physically fitted -- turn the feature on "
-                 "in Settings &rarr; Bluetooth."),
+                 "under Features."),
         i18n_str("hwconfig.bt_hint_detail",
                  "The companion's audio is always line 0 and its UART is always GPIO16/17, so "
                  "it works alongside either choice above. On SMD4 its control pins share line "
@@ -4603,7 +4671,7 @@ static int append_flash_help_card(char *buf, size_t cap, int off)
     }
 
     off = appendf(buf, cap, off,
-        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"card wide\"><h2>%s</h2>"
         "<p class=\"hint-lead\">%s <b>%s</b>, %u MB flash.</p>"
         "<script>function copyCmd(b){var t=b.parentNode.querySelector('pre').innerText;"
         "function fb(){var a=document.createElement('textarea');a.value=t;a.style.position='fixed';"
@@ -4701,8 +4769,6 @@ static int append_diag_tab(char *buf, size_t cap, int off)
     esp_log_level_t cur = logctl_get_level();
 
     off = append_selftest_card(buf, cap, off);
-    off = append_fx_diag_card(buf, cap, off);
-    off = append_flash_help_card(buf, cap, off);
 
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
@@ -4922,6 +4988,9 @@ static int append_diag_tab(char *buf, size_t cap, int off)
                  "digital loop &mdash; it does <i>not</i> test the codec's analog path. Leave "
                  "<b>off</b> for normal use. Protocol and host runner: <code>firmware/test/</code>."),
         i18n_str("aec.enable", "Enable"), i18n_str("aec.disable", "Disable"));
+
+    off = append_flash_help_card(buf, cap, off);
+    off = append_fx_diag_card(buf, cap, off);
 
     /* Full debug log -- moved here from the Status page (which now only
      * shows the much shorter activity panel, see append_activity_panel())
@@ -5614,10 +5683,14 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * Used to be three separate tabs. */
     else if (strcmp(tab, "dialcodes") == 0) {
         off = append_dialcodes_tab(buf, cap, off);
-        off = append_pin_actions_card(buf, cap, off);
-        off = append_ha_codes_card(buf, cap, off);
         off = append_operator_tab(buf, cap, off, entries, n);
         off = append_record_tab(buf, cap, off, entries, n);
+        off = append_pin_actions_card(buf, cap, off);
+    }
+    else if (strcmp(tab, "home") == 0) {
+        off = append_mqtt_card(buf, cap, off);
+        off = append_webhook_card(buf, cap, off);
+        off = append_ha_codes_card(buf, cap, off);
     }
     else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off, checked, result, created, createresult);
     else if (strcmp(tab, "bluetooth") == 0) off = append_bluetooth_tab(buf, cap, off);
@@ -5632,9 +5705,9 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * else that landed here (Answering Machine, Speaker, Echo, idle-power)
      * is cheap NVS-backed config, not file I/O. */
     else {
-        off = append_hw_config_tab(buf, cap, off);
         off = append_hardware_tab(buf, cap, off);
         off = append_memory_map_card(buf, cap, off);
+        off = append_reset_card(buf, cap, off);
     }
 
     off = appendf(buf, cap, off, "</div>" /* .cards */);
@@ -6266,6 +6339,35 @@ static esp_err_t quiet_hours_handler(httpd_req_t *req)
     return redirect_to(req, "/settings?tab=general");
 }
 
+/* POST /features -- form body [voip=1][&bt=1][&ha=1] (the Features card on
+ * General). An all-off submit is an empty body. */
+static esp_err_t features_handler(httpd_req_t *req)
+{
+    char body[64] = {0};
+    if (req->content_len >= sizeof(body)) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    if (req->content_len > 0) {
+        int r = httpd_req_recv(req, body, req->content_len);
+        if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+        body[r] = '\0';
+    }
+    char v[4] = {0}, b[4] = {0}, h[4] = {0};
+    form_field(body, "voip", v, sizeof(v));
+    form_field(body, "bt", b, sizeof(b));
+    form_field(body, "ha", h, sizeof(h));
+    bool voip = v[0] == '1', bt = b[0] == '1', ha = h[0] == '1';
+    if (voip != voip_is_enabled()) voip_set_enabled(voip);
+    if (bt != bt_companion_enabled()) bt_companion_set_enabled(bt);
+    board_feature_set("feat_ha", ha);
+    if (!ha) {
+        mqtt_ha_cfg_t c = mqtt_ha_get();
+        if (c.enabled) { c.enabled = false; mqtt_ha_set(&c); }
+    }
+    return redirect_to(req, "/settings?tab=general");
+}
+
 /* POST /voip_enable -- form body enabled=1 (checkbox present) or nothing at
  * all (unchecked, with no other field on this form -- unlike idle_power/
  * quiet_hours/offhook_alert below, an all-off submit here is a genuinely
@@ -6358,7 +6460,7 @@ static esp_err_t answering_machine_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    return redirect_to(req, "/settings?tab=hardware");
+    return redirect_to(req, "/settings?tab=phone");
 }
 
 /* POST /record_max_ms -- form body seconds=N (whole seconds; board.h stores
@@ -6420,7 +6522,7 @@ static esp_err_t board_hw_set_handler(httpd_req_t *req)
 
     /* Also appears on the Status page's first-boot banner -- see
      * board_name_handler's matching comment just above. */
-    redirect_to_referer_or(req, "/settings?tab=hardware");
+    redirect_to_referer_or(req, "/settings?tab=general");
     return ESP_OK;
 }
 
@@ -9586,6 +9688,7 @@ esp_err_t webui_start(void)
         { .uri = "/webhook",         .method = HTTP_POST, .handler = webhook_handler },
         { .uri = "/mqtt",            .method = HTTP_POST, .handler = mqtt_handler },
         { .uri = "/voip_enable",     .method = HTTP_POST, .handler = voip_enable_handler },
+        { .uri = "/features",        .method = HTTP_POST, .handler = features_handler },
         { .uri = "/idle_power",      .method = HTTP_POST, .handler = idle_power_settings_handler },
         { .uri = "/answering_machine", .method = HTTP_POST, .handler = answering_machine_handler },
         { .uri = "/record_max_ms",   .method = HTTP_POST, .handler = record_max_ms_handler },

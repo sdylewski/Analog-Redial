@@ -31,7 +31,7 @@ microSD, or your own gadgets: one of the three.
 
 The firmware checks: put a card in a board set up for two lines and it shuts
 line 1 off and shows a warning in the web interface until you remove the
-card or switch the board to single-line in Settings → Hardware.
+card or switch the board to single-line in Settings → General → Board hardware.
 
 Without microSD, recordings go to internal flash, about 4 MB.
 

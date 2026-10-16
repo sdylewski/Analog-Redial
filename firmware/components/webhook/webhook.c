@@ -111,6 +111,8 @@ void webhook_set_tap(webhook_tap_t tap) { s_tap = tap; }
 
 void webhook_event(const char *event, int line, const char *detail)
 {
+    /* Settings -> General -> Features: Home Assistant unticked. */
+    if (board_feature_get("feat_ha") == 0) return;
     webhook_tap_t tap = s_tap;
     if (tap) tap(event, line, detail ? detail : "");
     if (!s_url[0] || !s_q) return;

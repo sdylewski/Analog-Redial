@@ -167,6 +167,10 @@ bool      board_tone_follow_language_get(void); /* defaults to true */
 esp_err_t board_tone_follow_language_set(bool follow);
 
 /* In-call voice effects (keys 1-7 during a call, 322-324). On by default. */
+/* Optional features that get their own Settings tab (Settings -> General ->
+ * Features). 1 on, 0 off, -1 never set (callers pick the default). */
+int       board_feature_get(const char *key);
+esp_err_t board_feature_set(const char *key, bool on);
 bool      board_voice_fx_enabled_get(void);
 esp_err_t board_voice_fx_enabled_set(bool enabled);
 

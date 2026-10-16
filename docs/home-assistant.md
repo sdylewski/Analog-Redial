@@ -23,7 +23,7 @@ your network.
 
 ## 1. Events from the board (webhook)
 
-On the board: **Settings → General → Webhook (Home Assistant)**. Enter
+On the board: **Settings → Home Assistant → Webhook** (tick Home Assistant under Settings → General → Features first). Enter
 
 ```
 http://homeassistant.local:8123/api/webhook/redial-phone
@@ -199,7 +199,7 @@ Assistant treats that as success.
 
 ## 4. MQTT with auto-discovery
 
-Settings → General → **MQTT (Home Assistant)**. Tick **Enabled**, enter the
+Settings → Home Assistant → **MQTT**. Tick **Enabled**, enter the
 broker (`homeassistant.local`, or `192.168.1.5:1883` for another port), the
 broker's user and password, and Save. It connects within a few seconds. Untick
 it and Save to switch it off again; nothing is allocated while it's off and

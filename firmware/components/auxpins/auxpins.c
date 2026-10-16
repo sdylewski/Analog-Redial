@@ -47,7 +47,7 @@ bool auxpins_usable(char *why, size_t why_len)
             "(Settings -> Hardware)";
     } else if (cfg.has_microsd) {
         r = "this board is set to use the microSD slot, which uses these pins "
-            "(Settings -> Hardware: choose \"Neither\")";
+            "(Settings -> General -> Board hardware: choose \"Neither\")";
     } else if (bt_companion_ibdk_ready()) {
         r = "the Bluetooth module is being configured over these pins";
     }

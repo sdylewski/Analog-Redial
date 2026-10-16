@@ -316,6 +316,27 @@ esp_err_t board_tone_region_set(const char *code)
     return err;
 }
 
+int board_feature_get(const char *key)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return -1;
+    uint8_t v;
+    esp_err_t err = nvs_get_u8(h, key, &v);
+    nvs_close(h);
+    return err == ESP_OK ? (v != 0) : -1;
+}
+
+esp_err_t board_feature_set(const char *key, bool on)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, key, on ? 1 : 0);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
+
 bool board_voice_fx_enabled_get(void)
 {
     nvs_handle_t h;

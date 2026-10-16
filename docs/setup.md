@@ -76,16 +76,17 @@ a MOSFET to it to unlock a door, sound a buzzer, switch a lamp. The output
 is 3.3 V at only a few mA, so don't connect a solenoid directly. It will
 often switch a 5 V relay module, but check that yours does (the parts page
 says what to look for). Set the board to
-"Neither" under Settings → Hardware, take the four shunts off J5, and leave
+"Neither" under Settings → General → Board hardware, take the four shunts off J5, and leave
 the microSD socket empty. The card shows what's in the way if it isn't
 active.
 
 **Home Assistant (experimental).** The board can POST every pickup,
-hang-up, dial code and incoming ring to a Home Assistant webhook (Settings →
-General → Webhook), and Home Assistant can ring a phone or fire a pin output
-over HTTP. Or tick Settings → General → MQTT and the board appears in Home
-Assistant as a device. Settings → Dial Codes → Home Assistant codes adds codes
-whose only job is to tell Home Assistant they were dialed. Experimental: see [Home Assistant](home-assistant.md).
+hang-up, dial code and incoming ring to a Home Assistant webhook, and Home
+Assistant can ring a phone or fire a pin output over HTTP. Or turn on MQTT and
+the board appears in Home Assistant as a device. Home Assistant codes are dial
+codes whose only job is to tell Home Assistant they were dialed. Tick **Home
+Assistant** under Settings → General → Features, and all three are on the
+**Settings → Home Assistant** tab. Experimental: see [Home Assistant](home-assistant.md).
 
 
 ## 4. The web interface
@@ -108,8 +109,10 @@ Click any picture for the full page.
   <tr>
     <td><a href="pics/settings-general.png"><img src="pics/thumbs/settings-general.png" alt="General settings"></a></td>
     <td valign="top"><b>Settings → General.</b> Board name, saved Wi-Fi
-    networks, the optional web password, interface language, and quiet
-    hours that keep the bell silent overnight.</td>
+    networks, the board's hardware (one or two lines, microSD, Bluetooth
+    module), which optional features are on (VoIP, Bluetooth, Home
+    Assistant: each gets its own tab), time zone, quiet hours that keep the
+    bell silent overnight, and the passwords.</td>
   </tr>
   <tr>
     <td><a href="pics/settings-phone.png"><img src="pics/thumbs/settings-phone.png" alt="Phone settings"></a></td>
@@ -122,7 +125,8 @@ Click any picture for the full page.
     <td><a href="pics/settings-dialcodes.png"><img src="pics/thumbs/settings-dialcodes.png" alt="Dial codes and prompts"></a></td>
     <td valign="top"><b>Settings → Dial Codes & Prompts.</b> Every clip code
     and its audio, editable: change a code, upload new audio, or add a new
-    one. Also the operator message and the record-message prompt.</td>
+    one. Also the operator message, the record-message prompt and the pin
+    outputs.</td>
   </tr>
   <tr>
     <td><a href="pics/settings-voip.png"><img src="pics/thumbs/settings-voip.png" alt="VoIP settings"></a></td>
@@ -132,8 +136,9 @@ Click any picture for the full page.
   </tr>
   <tr>
     <td><a href="pics/settings-hardware.png"><img src="pics/thumbs/settings-hardware.png" alt="Hardware settings"></a></td>
-    <td valign="top"><b>Settings → Hardware.</b> One or two lines,
-    microSD, board and chip details, firmware updates, and resets.</td>
+    <td valign="top"><b>Settings → Hardware.</b> Board and chip
+    details, low-power idle mode, firmware updates, the memory map, and
+    resets.</td>
   </tr>
   <tr>
     <td><a href="pics/settings-storage.png"><img src="pics/thumbs/settings-storage.png" alt="Storage settings"></a></td>
@@ -147,7 +152,9 @@ Click any picture for the full page.
   </tr>
 </table>
 
-**Settings → Bluetooth** arrives with the v5 board.
+**Settings → Bluetooth** and **Settings → Home Assistant** appear once
+those features are ticked under Settings → General → Features. Bluetooth
+arrives with the v5 board.
 
 ## 5. Your own audio
 
