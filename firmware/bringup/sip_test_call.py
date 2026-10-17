@@ -54,6 +54,7 @@ def main() -> int:
     ap.add_argument("--user", default="2000", help="extension to register as")
     ap.add_argument("--wait", type=float, default=30, help="seconds to wait for the call to be answered")
     ap.add_argument("--talk", type=float, default=4, help="seconds of audio to exchange once answered")
+    ap.add_argument("--mute", action="store_true", help="send no audio packets (a caller whose mic sends nothing)")
     ap.add_argument("--save", metavar="FILE.wav", help="write the audio the board sends to a 8 kHz mono WAV file")
     args = ap.parse_args()
 
@@ -137,7 +138,7 @@ def main() -> int:
     pcm = bytearray()
     seq, ts, t_end = 0, 0, time.time() + args.talk
     while time.time() < t_end:
-        if remote_rtp:
+        if remote_rtp and not args.mute:
             rtp.sendto(bytes([0x80, 0x00]) + seq.to_bytes(2, "big") + ts.to_bytes(4, "big") + (0x1234).to_bytes(4, "big") + b"\xff" * 160, remote_rtp)
             sent += 1
             seq, ts = (seq + 1) & 0xFFFF, ts + 160

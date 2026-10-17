@@ -158,7 +158,7 @@ static void rx_task(void *arg)
             }
             r->up_prev = cur;
         }
-        if (oo) audio_ext_write(line, out, oo);
+        if (oo) audio_ext_write_downlink(line, out, oo);
     }
 out:
     free(buf);

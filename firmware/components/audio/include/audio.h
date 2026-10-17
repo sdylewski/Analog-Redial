@@ -115,6 +115,12 @@ void audio_set_uplink_inject(int line, bool on);
 /* ---- external PCM (VoIP / file) ---- */
 /* Push engine-rate mono PCM to a line's external buffer. Returns bytes queued. */
 size_t audio_ext_write(int line, const int16_t *mono, size_t n);
+/* Like audio_ext_write(), for the far end's decoded voice (rtp.c). Identical
+ * except while the answering machine is answering a VoIP call
+ * (audio_set_uplink_inject()): then the audio only reaches the extwrite tap
+ * (the recorder) and is not queued, so it can't interleave with the
+ * greeting the player is queueing into the same buffer. */
+size_t audio_ext_write_downlink(int line, const int16_t *mono, size_t n);
 /* How many 10 ms frames, since boot, the engine played silence in place of
  * external audio because the source (player, VoIP) was late. A clip ending
  * adds one; a dropout adds several. */

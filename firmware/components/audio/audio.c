@@ -239,6 +239,21 @@ size_t audio_ext_write(int line, const int16_t *mono, size_t n)
            / sizeof(int16_t);
 }
 
+size_t audio_ext_write_downlink(int line, const int16_t *mono, size_t n)
+{
+    if (line < 0 || line >= AUDIO_NUM_LINES || !s_line[line].ext) return 0;
+    if (s_line[line].inject_uplink) {
+        /* Answering machine on a VoIP call: the greeting/beep are being
+         * queued by the player, and this is the CALLER'S voice. Queuing it
+         * too would interleave the two in one buffer (the caller hears the
+         * greeting chopped up and their own voice echoed back). The
+         * recorder still gets it, through the tap. */
+        if (s_line[line].extwrite_tap) s_line[line].extwrite_tap(line, mono, n, s_line[line].extwrite_ctx);
+        return n;
+    }
+    return audio_ext_write(line, mono, n);
+}
+
 void audio_set_rx_tap(int line, audio_rx_tap_fn fn, void *ctx)
 {
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
