@@ -14,6 +14,7 @@ audio path works.
 from __future__ import annotations
 
 import argparse
+import struct
 import random
 import re
 import select
@@ -21,6 +22,16 @@ import socket
 import string
 import sys
 import time
+import wave
+
+
+def _ulaw(b: int) -> int:
+    b = ~b & 0xFF
+    t = (((b & 0x0F) << 3) + 0x84) << ((b & 0x70) >> 4)
+    return (0x84 - t) if b & 0x80 else (t - 0x84)
+
+
+ULAW = [_ulaw(i) for i in range(256)]
 
 
 def tok(n: int = 10) -> str:
@@ -43,6 +54,7 @@ def main() -> int:
     ap.add_argument("--user", default="2000", help="extension to register as")
     ap.add_argument("--wait", type=float, default=30, help="seconds to wait for the call to be answered")
     ap.add_argument("--talk", type=float, default=4, help="seconds of audio to exchange once answered")
+    ap.add_argument("--save", metavar="FILE.wav", help="write the audio the board sends to a 8 kHz mono WAV file")
     args = ap.parse_args()
 
     me = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -122,6 +134,7 @@ def main() -> int:
     print("answered; route set:", routes or "(none)", "| board audio at", remote_rtp)
 
     sent = got = 0
+    pcm = bytearray()
     seq, ts, t_end = 0, 0, time.time() + args.talk
     while time.time() < t_end:
         if remote_rtp:
@@ -131,8 +144,10 @@ def main() -> int:
         r, _, _ = select.select([rtp, sip], [], [], 0.02)
         for s in r:
             if s is rtp:
-                rtp.recvfrom(2048)
+                pkt = rtp.recvfrom(2048)[0]
                 got += 1
+                if len(pkt) > 12 and pkt[1] & 0x7F == 0:
+                    pcm += struct.pack(f"<{len(pkt) - 12}h", *(ULAW[b] for b in pkt[12:]))
             else:
                 msg = sip.recvfrom(4096)[0].decode("latin-1")
                 if msg.startswith("BYE"):
@@ -148,6 +163,13 @@ def main() -> int:
     r = recv(3)
     print("BYE ->", r.split("\r\n")[0] if r else "no answer")
     print(f"audio: sent {sent} packets, received {got} from the board")
+    if args.save:
+        with wave.open(args.save, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(8000)
+            w.writeframes(bytes(pcm))
+        print("saved", args.save)
     return 0 if got else 3
 
 

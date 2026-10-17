@@ -657,7 +657,12 @@ static void audio_task(void *arg)
                     }
                 }
                 if (m) {
-                    aec_process(line, ref8, near8, near8, m); /* in-place */
+                    /* While the answering machine injects its own TX as the
+                     * uplink, "mic" and "speaker" are the same signal: the
+                     * canceller would subtract the greeting from itself and
+                     * the caller would hear it chopped and ~25 dB down. */
+                    if (!s_line[line].inject_uplink)
+                        aec_process(line, ref8, near8, near8, m); /* in-place */
                     if (esp_timer_get_time() - s_line[line].uplink_read_us < 500000)
                         voice_fx_process(s_line[line].fx_up8, s_line[line].fx, near8, m);
                     xStreamBufferSend(s_line[line].aec_out, near8, m * sizeof(int16_t), 0);
