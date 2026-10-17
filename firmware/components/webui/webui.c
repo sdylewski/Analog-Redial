@@ -56,6 +56,7 @@
 #include "webauth.h"
 #include "webhook.h"
 #include "mqtt_ha.h"
+#include "callcap.h"
 #include "auxpins.h"
 #include "esp_attr.h"
 #include "esp_rom_sys.h"
@@ -567,6 +568,11 @@ static cJSON *build_status_json(void)
                                 ms == MQTT_HA_CONNECTED ? "connected" : ms == MQTT_HA_CONNECTING ? "connecting" : "off");
         cJSON_AddNumberToObject(root, "mqtt_heap_cost", mqtt_ha_heap_cost());
         cJSON_AddNumberToObject(root, "new_messages", telephony_new_messages());
+        {
+            static const char *const cs[] = { "idle", "armed", "recording", "saving" };
+            cJSON_AddStringToObject(root, "callcap", cs[callcap_state() & 3]);
+            cJSON_AddStringToObject(root, "callcap_last", callcap_last_name());
+        }
     }
 
     cJSON *lines = cJSON_AddArrayToObject(root, "lines");
@@ -4951,12 +4957,59 @@ static int append_fx_diag_card(char *buf, size_t cap, int off)
     return off;
 }
 
+/* Diagnostics: record the next call, both directions, to the microSD card
+ * (callcap.h). One-shot: arm it, lift the handset, hang up. */
+static int append_callcap_card(char *buf, size_t cap, int off)
+{
+    callcap_state_t st = callcap_state();
+    bool sd = storage_using_sd();
+    char status[120], last[STORAGE_MAX_NAME * 6] = "", last_u[STORAGE_MAX_NAME * 3] = "";
+    switch (st) {
+        case CALLCAP_ARMED:     snprintf(status, sizeof(status), "armed: lift a handset to start"); break;
+        case CALLCAP_RECORDING: snprintf(status, sizeof(status), "recording, %u s", callcap_elapsed_secs()); break;
+        case CALLCAP_SAVING:    snprintf(status, sizeof(status), "saving..."); break;
+        default:                snprintf(status, sizeof(status), sd ? "off" : "off (needs a microSD card)");
+    }
+    if (callcap_last_name()[0]) {
+        html_escape(callcap_last_name(), last, sizeof(last));
+        url_encode_path(callcap_last_name(), last_u, sizeof(last_u));
+    }
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\"><h2>Call recording</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">Status</span><span>%s</span></div>",
+        status);
+    if (last[0]) {
+        off = appendf(buf, cap, off,
+            "<div class=\"statusrow\"><span class=\"label\">Last recording</span>"
+            "<span><a href=\"/media/%s\">%s</a> (%u s%s)</span></div>",
+            last_u, last, callcap_last_secs(),
+            callcap_last_dropped_ms() ? ", some audio lost to a slow card" : "");
+    }
+    off = appendf(buf, cap, off,
+        "<form method=\"POST\" action=\"/callcap_%s\" class=\"settings-form\">"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\"%s>%s</button></div></form>",
+        st == CALLCAP_IDLE ? "arm" : "cancel", (st == CALLCAP_IDLE && !sd) ? " disabled" : "",
+        st == CALLCAP_IDLE ? "Record the next call"
+                           : st == CALLCAP_ARMED ? "Cancel" : "Stop and save");
+    off = append_hint(buf, cap, off,
+        "Records everything on the line for the next call, from the moment you pick up until you hang "
+        "up, and switches itself off again. Left channel: what the phone sends (your voice, touch-tone "
+        "dialing). Right channel: what the earpiece hears (dial tone, ringback, clips, the other "
+        "person). For demos and bug reports.",
+        "Saved to the microSD card as \"call record YYMMDD HHMMSS.wav\", 16 kHz stereo, about 4 MB a "
+        "minute, 20 minutes at most. The bell ringing isn't on the line as sound (the board makes ring "
+        "voltage), and rotary dial clicks may not show: pick those up with a microphone. Needs a microSD "
+        "card and about 50 KB of free memory.");
+    return appendf(buf, cap, off, "</div>");
+}
+
 static int append_diag_tab(char *buf, size_t cap, int off)
 {
     static const char *LEVELS[] = { "none", "error", "warn", "info", "debug", "verbose" };
     esp_log_level_t cur = logctl_get_level();
 
     off = append_selftest_card(buf, cap, off);
+    off = append_callcap_card(buf, cap, off);
 
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
@@ -7991,6 +8044,27 @@ static esp_err_t pin_action_set_handler(httpd_req_t *req)
     return redirect_to(req, "/settings?tab=dialcodes#pins");
 }
 
+/* POST /callcap_arm and /callcap_cancel -- see callcap.h. */
+static esp_err_t callcap_arm_handler(httpd_req_t *req)
+{
+    esp_err_t err = callcap_arm();
+    if (err == ESP_ERR_NOT_FOUND) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Call recording needs a microSD card in the slot.");
+        return ESP_OK;
+    }
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "A call recording is already armed or running.");
+        return ESP_OK;
+    }
+    return redirect_to(req, "/settings?tab=diag");
+}
+
+static esp_err_t callcap_cancel_handler(httpd_req_t *req)
+{
+    callcap_cancel();
+    return redirect_to(req, "/settings?tab=diag");
+}
+
 /* POST /messages_seen -- clears the new-message count (Home Assistant's
  * "Mark messages heard"; opening the Recordings page does the same). */
 static esp_err_t messages_seen_handler(httpd_req_t *req)
@@ -9929,6 +10003,8 @@ esp_err_t webui_start(void)
         { .uri = "/pin_action_test/*",      .method = HTTP_POST, .handler = pin_action_test_handler },
         { .uri = "/ha_code_set",            .method = HTTP_POST, .handler = ha_code_set_handler },
         { .uri = "/messages_seen",          .method = HTTP_POST, .handler = messages_seen_handler },
+        { .uri = "/callcap_arm",            .method = HTTP_POST, .handler = callcap_arm_handler },
+        { .uri = "/callcap_cancel",         .method = HTTP_POST, .handler = callcap_cancel_handler },
         { .uri = "/dialcode_upload",        .method = HTTP_POST, .handler = dialcode_upload_handler },
         { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },
         { .uri = "/prompt_text_set",        .method = HTTP_POST, .handler = prompt_text_set_handler },

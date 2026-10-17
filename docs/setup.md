@@ -148,7 +148,9 @@ Click any picture for the full page.
   <tr>
     <td><a href="pics/settings-diag.png"><img src="pics/thumbs/settings-diag.png" alt="Diagnostics"></a></td>
     <td valign="top"><b>Settings → Diagnostics.</b> The full log, log
-    level, and the hardware self-test.</td>
+    level, the hardware self-test, and a one-shot <b>call recording</b>: arm
+    it, lift the handset, and the whole call (dial tone, dialing, voice) is
+    saved to the microSD card as a stereo WAV.</td>
   </tr>
 </table>
 
