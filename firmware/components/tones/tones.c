@@ -205,6 +205,9 @@ void progress_tone_start(progress_tone_t *p, uint32_t sample_rate, call_progress
             resolve_cadence(p, &TONE_ROH_CADENCE);
             tone_osc_init_multi(&p->osc, sample_rate, TONE_ROH_FREQS, 4, 1.0f);
             return;
+        case TONE_LOW_POWER:
+            f1 = 880; f2 = 0; /* the frequency glides in progress_tone_fill() */
+            break;
         case TONE_ANSWERING_BEEP:
             /* Continuous for its whole duration (n_phases stays 0, i.e.
              * "always on") -- telephony.c's play_transient() times the
@@ -229,7 +232,18 @@ void progress_tone_fill(progress_tone_t *p, int16_t *out, size_t n)
     /* Generate sample-by-sample so on/off transitions land mid-buffer. */
     for (size_t i = 0; i < n; i++) {
         bool on;
-        if (p->kind == TONE_CONFIRM) {
+        if (p->kind == TONE_LOW_POWER) {
+            /* Two 1.2 s glides 880 -> 220 Hz, 0.25 s apart, then silence.
+             * The oscillator's phase increment is stepped per sample, so the
+             * slide is smooth and click-free. */
+            uint32_t glide = p->sample_rate * 6 / 5, gap = p->sample_rate / 4;
+            uint32_t k = p->pos % (glide + gap);
+            on = p->pos < 2 * (glide + gap) && k < glide;
+            if (on) {
+                uint64_t hi = ((uint64_t)880 << 32) / p->sample_rate, lo = ((uint64_t)220 << 32) / p->sample_rate;
+                p->osc.inc[0] = (uint32_t)(hi - (hi - lo) * k / glide);
+            }
+        } else if (p->kind == TONE_CONFIRM) {
             /* three 100 ms beeps, 100 ms gaps, then silence -- a one-shot
              * sequence, not a repeating cadence, so it can't use the
              * generic cadence_on() (which always loops via modulo). */

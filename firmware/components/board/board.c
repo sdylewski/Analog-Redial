@@ -12,6 +12,7 @@
 #include "esp_idf_version.h"
 #include "nvs_flash.h"
 #include "nvs.h"
+#include "esp_system.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "led_strip.h"
@@ -368,6 +369,85 @@ esp_err_t board_feature_set(const char *key, bool on)
     if (err == ESP_OK) err = nvs_commit(h);
     nvs_close(h);
     return err;
+}
+
+/* ---- restart record ---- */
+static volatile bool s_power_warn;
+static bool s_power_announced;
+
+static uint32_t nvs_u32(nvs_handle_t h, const char *key, uint32_t dflt)
+{
+    uint32_t v;
+    return nvs_get_u32(h, key, &v) == ESP_OK ? v : dflt;
+}
+
+void board_restart_record(void)
+{
+    esp_reset_reason_t rr = esp_reset_reason();
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    uint32_t boots = nvs_u32(h, "rst_boots", 0) + 1;
+    nvs_set_u32(h, "rst_boots", boots);
+    if (rr == ESP_RST_BROWNOUT) {
+        nvs_set_u32(h, "rst_bo", nvs_u32(h, "rst_bo", 0) + 1);
+        nvs_set_u32(h, "rst_bo_at", boots);
+        nvs_set_u8(h, "pwr_warn", 1);
+    } else if (rr == ESP_RST_PANIC) {
+        nvs_set_u32(h, "rst_crash", nvs_u32(h, "rst_crash", 0) + 1);
+    } else if (rr == ESP_RST_INT_WDT || rr == ESP_RST_TASK_WDT || rr == ESP_RST_WDT) {
+        nvs_set_u32(h, "rst_wdt", nvs_u32(h, "rst_wdt", 0) + 1);
+    }
+    uint8_t w = 0;
+    nvs_get_u8(h, "pwr_warn", &w);
+    s_power_warn = w != 0;
+    nvs_commit(h);
+    nvs_close(h);
+}
+
+void board_restart_stats_get(board_restart_stats_t *out)
+{
+    memset(out, 0, sizeof(*out));
+    out->boots_since_brownout = UINT32_MAX;
+    out->power_warning = s_power_warn;
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return;
+    out->boots = nvs_u32(h, "rst_boots", 0);
+    out->brownouts = nvs_u32(h, "rst_bo", 0);
+    out->crashes = nvs_u32(h, "rst_crash", 0);
+    out->watchdogs = nvs_u32(h, "rst_wdt", 0);
+    uint32_t at = nvs_u32(h, "rst_bo_at", 0);
+    if (out->brownouts && at && at <= out->boots) out->boots_since_brownout = out->boots - at;
+    nvs_close(h);
+}
+
+bool board_power_warning(void) { return s_power_warn; }
+
+void board_power_warning_clear(void)
+{
+    s_power_warn = false;
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    nvs_set_u8(h, "pwr_warn", 0);
+    nvs_commit(h);
+    nvs_close(h);
+}
+
+void board_restart_stats_clear(void)
+{
+    s_power_warn = false;
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    const char *keys[] = { "rst_boots", "rst_bo", "rst_bo_at", "rst_crash", "rst_wdt", "pwr_warn" };
+    for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) nvs_erase_key(h, keys[i]);
+    nvs_commit(h);
+    nvs_close(h);
+}
+
+bool board_power_warning_announce(void)
+{
+    if (!s_power_warn || s_power_announced) return false;
+    s_power_announced = true;
+    return true;
 }
 
 bool board_voice_fx_enabled_get(void)
@@ -1142,7 +1222,16 @@ static void led_timer_cb(void *arg)
          * off is easy to stop noticing is even there, and by this point
          * the web UI/console are the real source of truth anyway. */
         s_ok_ticks++;
-        led_set_rgb(0, (s_ok_ticks * LED_TICK_MS < LED_OK_HOLD_MS) ? LED_DIM : 0, 0);
+        if (s_ok_ticks * LED_TICK_MS < LED_OK_HOLD_MS) {
+            led_set_rgb(0, LED_DIM, 0);
+        } else if (s_power_warn) {
+            /* Unacknowledged brownout: amber double blink every 2 s. */
+            unsigned t = tick % 20;
+            bool on = t == 0 || t == 3;
+            led_set_rgb(on ? LED_DIM : 0, on ? 1 : 0, 0);
+        } else {
+            led_set_rgb(0, 0, 0);
+        }
         break;
     case BOARD_LED_ERROR:
         led_set_rgb(((tick / 5) % 2) ? LED_DIM : 0, 0, 0); /* red, ~500ms half-period */

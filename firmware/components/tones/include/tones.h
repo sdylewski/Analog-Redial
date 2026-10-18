@@ -72,7 +72,14 @@ typedef enum {
      * "wasn't like an answering machine, very different"). Not
      * regionalized -- same reasoning as REORDER/CONFIRM. */
     TONE_ANSWERING_BEEP,
+    /* "Power problem": a tone sliding down from 880 to 220 Hz over 1.2 s,
+     * twice -- a battery running flat. Played once on the first pickup after
+     * a brownout restart (see board_power_warning_announce()). One-shot,
+     * TONE_LOW_POWER_MS long. */
+    TONE_LOW_POWER,
 } call_progress_t;
+
+#define TONE_LOW_POWER_MS 2900
 
 /* A cadence is an alternating on/off/on/off/... sequence of phase lengths
  * (ms) that repeats; n_phases == 0 means continuous (always on, e.g. most

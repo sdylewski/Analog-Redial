@@ -1229,7 +1229,12 @@ static void on_offhook(int line)
         activity_log("Line %d: picked up during answering machine -- live", line);
         return;
     }
-    /* normal pickup */
+    /* normal pickup -- after an unacknowledged brownout restart, the first
+     * pickup hears the "battery running flat" tone, then dial tone. */
+    if (board_power_warning_announce()) {
+        play_transient(line, TONE_LOW_POWER, TONE_LOW_POWER_MS, TEL_REORDER, TEL_DIALTONE);
+        return;
+    }
     enter_dialtone(line);
 }
 

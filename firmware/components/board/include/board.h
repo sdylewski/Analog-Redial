@@ -73,6 +73,30 @@ typedef enum {
     BOARD_LED_BT_CONNECTED,     /* solid blue (brief) -- BT link established */
 } board_led_state_t;
 
+/* ---- Restart record (kept in NVS, so a power cycle or a boot loop can't
+ * erase it the way it erases the RAM log) ---- */
+typedef struct {
+    uint32_t boots;          /* every boot since the counters were cleared */
+    uint32_t brownouts;      /* restarts because the supply dipped too low */
+    uint32_t crashes;
+    uint32_t watchdogs;
+    uint32_t boots_since_brownout; /* 0 = this boot was one; UINT32_MAX = never */
+    bool     power_warning;  /* a brownout nobody has acknowledged yet */
+} board_restart_stats_t;
+
+/* Call once at boot, after NVS is up: counts this boot and why it happened.
+ * After a brownout it also raises the power warning (amber LED, Status page
+ * banner, the low-battery tone on the next pickup). */
+void board_restart_record(void);
+void board_restart_stats_get(board_restart_stats_t *out);
+bool board_power_warning(void);
+/* Acknowledge the warning (LED and banner off; counts kept). */
+void board_power_warning_clear(void);
+/* Zero all counts and the warning. */
+void board_restart_stats_clear(void);
+/* True once per boot while the warning is up: the first pickup hears it. */
+bool board_power_warning_announce(void);
+
 /* Configures the status LED (SMD only -- GPIO11 on SMD2, the DevKitC-1
  * module's own onboard addressable RGB on SMD4/GPIO8) and starts it blinking fast (BOARD_LED_BOOTING). Call once,
  * early in app_main(), before other subsystem init so there's visible boot

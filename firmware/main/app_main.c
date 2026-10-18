@@ -34,6 +34,7 @@
 #include "esp_log.h"
 #include "esp_err.h"
 #include "esp_system.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -104,6 +105,12 @@ static void sd_line1_conflict_task(void *arg)
     }
 }
 
+static void power_event_cb(void *arg)
+{
+    (void)arg;
+    webhook_event("power", 0, "restarted after a brownout");
+}
+
 void app_main(void)
 {
     /* Before anything else logs, so the ring buffer catches the whole boot
@@ -130,6 +137,9 @@ void app_main(void)
      * start logging -- lets a DEBUG level chosen from the web UI/console
      * persist across reboots (watch pulse/hook timing, etc.). */
     logctl_init();
+    /* Count this boot and its reason in NVS (needs NVS, which logctl_init()
+     * brought up): the RAM log above doesn't survive a power cycle. */
+    board_restart_record();
 
     /* Applies the saved TZ string (Settings -> General) to the C library's
      * timezone, if any -- board_quiet_hours_active() is the only thing that
@@ -243,6 +253,14 @@ void app_main(void)
     webauth_init();
     webhook_init();
     mqtt_ha_init();
+    if (esp_reset_reason() == ESP_RST_BROWNOUT) {
+        /* Tell Home Assistant & co. once the network has had time to come
+         * up: the webhook doesn't retry, so an event queued now would be
+         * lost before Wi-Fi connects. */
+        static esp_timer_handle_t t;
+        const esp_timer_create_args_t a = { .callback = power_event_cb, .name = "pwr_evt" };
+        if (esp_timer_create(&a, &t) == ESP_OK) esp_timer_start_once(t, 20 * 1000000ULL);
+    }
     if ((err = webui_start()) != ESP_OK) {
         ESP_LOGW(TAG, "webui_start failed: %s", esp_err_to_name(err));
         board_led_set_state(BOARD_LED_ERROR);

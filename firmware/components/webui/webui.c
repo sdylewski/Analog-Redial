@@ -525,6 +525,12 @@ static cJSON *build_status_json(void)
     cJSON_AddNumberToObject(root, "wifi_rssi", wifi_rssi());
     cJSON_AddNumberToObject(root, "uptime_s", (double)(esp_timer_get_time() / 1000000));
     cJSON_AddNumberToObject(root, "reset_reason", (double)esp_reset_reason()); /* esp_reset_reason_t */
+    {
+        board_restart_stats_t rs;
+        board_restart_stats_get(&rs);
+        cJSON_AddNumberToObject(root, "restarts_brownout", (double)rs.brownouts);
+        cJSON_AddBoolToObject(root, "power_warning", rs.power_warning);
+    }
     cJSON_AddNumberToObject(root, "heap_free", (double)esp_get_free_heap_size());
     cJSON_AddNumberToObject(root, "heap_min_free", (double)esp_get_minimum_free_heap_size());
     cJSON_AddNumberToObject(root, "heap_largest_block",
@@ -990,6 +996,25 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
                      "instead of joining yours, because the BOOT button was held. Everything here "
                      "works normally. Your saved Wi-Fi is untouched &mdash; reboot "
                      "(Settings &rarr; Hardware &rarr; Reset, or unplug it) to rejoin it."));
+    }
+    if (board_power_warning()) {
+        board_restart_stats_t rs;
+        board_restart_stats_get(&rs);
+        char msg[480];
+        snprintf(msg, sizeof(msg),
+            i18n_str("hazard.brownout",
+                     "&#128267; This board restarted because its power supply dipped too low "
+                     "(a brownout) -- %u time(s) so far. Calls and clips can cut out before that "
+                     "happens. Use a 5 V supply rated 2 A or more; some battery packs and weak "
+                     "USB ports can't keep up. Details in <a href=\"/settings?tab=hardware\">"
+                     "Settings &rarr; Hardware</a>."),
+            (unsigned)rs.brownouts);
+        off = appendf(buf, cap, off,
+            "<div class=\"hazard-banner\">%s"
+            "<form method=\"POST\" action=\"/power_warning\" style=\"display:inline;margin-left:.5em\">"
+            "<input type=\"hidden\" name=\"action\" value=\"dismiss\">"
+            "<button type=\"submit\">%s</button></form></div>",
+            msg, i18n_str("hazard.brownout_dismiss", "Dismiss"));
     }
     if (board_sd_line1_conflict()) {
         off = appendf(buf, cap, off,
@@ -4070,6 +4095,37 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         }
     }
 
+    {
+        board_restart_stats_t rs;
+        board_restart_stats_get(&rs);
+        char last[64];
+        if (!rs.brownouts) snprintf(last, sizeof(last), "%s", i18n_str("hardware.restarts.never", "never"));
+        else if (rs.boots_since_brownout == 0) snprintf(last, sizeof(last), "%s", i18n_str("hardware.restarts.this_boot", "this start-up"));
+        else snprintf(last, sizeof(last), i18n_str("hardware.restarts.ago", "%u start-up(s) ago"), (unsigned)rs.boots_since_brownout);
+        off = appendf(buf, cap, off,
+            "<div class=\"card\"><h2>%s</h2>"
+            "<p class=\"hint\">%s</p>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%u</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span class=\"pill%s\">%u</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%u</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%u</span></div>"
+            "<form method=\"POST\" action=\"/power_warning\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"action\" value=\"clear\">"
+            "<div class=\"toolbar sub\"><button type=\"submit\">%s</button></div></form></div>",
+            i18n_str("hardware.restarts", "Restarts"),
+            i18n_str("hardware.restarts.hint",
+                     "Counted in flash, so they survive unplugging. A brownout means the power "
+                     "supply dipped too low and the chip reset itself."),
+            i18n_str("hardware.restarts.boots", "Start-ups"), (unsigned)rs.boots,
+            i18n_str("hardware.restarts.brownouts", "Brownouts (power dipped)"),
+            rs.brownouts ? " off" : " on", (unsigned)rs.brownouts,
+            i18n_str("hardware.restarts.last_brownout", "Last brownout"), last,
+            i18n_str("hardware.restarts.crashes", "Crashes"), (unsigned)rs.crashes,
+            i18n_str("hardware.restarts.watchdogs", "Watchdog resets"), (unsigned)rs.watchdogs,
+            i18n_str("hardware.restarts.clear", "Clear counts"));
+    }
+
     if (board_type_mismatch()) {
         char recorded[16];
         board_type_recorded(recorded, sizeof(recorded));
@@ -6609,6 +6665,31 @@ static esp_err_t ha_enable_handler(httpd_req_t *req)
         if (c.enabled) { c.enabled = false; mqtt_ha_set(&c); }
     }
     return redirect_to(req, "/settings?tab=home");
+}
+
+/* POST /power_warning -- action=dismiss (acknowledge the brownout warning:
+ * banner and amber LED off, counts kept) or action=clear (zero the restart
+ * counts on Settings -> Hardware too). */
+static esp_err_t power_warning_handler(httpd_req_t *req)
+{
+    char body[64] = {0};
+    if (req->content_len >= sizeof(body)) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad form body");
+        return ESP_OK;
+    }
+    if (req->content_len > 0) {
+        int r = httpd_req_recv(req, body, req->content_len);
+        if (r <= 0) { httpd_resp_send_500(req); return ESP_FAIL; }
+        body[r] = '\0';
+    }
+    char action[12] = {0};
+    form_field(body, "action", action, sizeof(action));
+    if (!strcmp(action, "clear")) {
+        board_restart_stats_clear();
+        return redirect_to(req, "/settings?tab=hardware");
+    }
+    board_power_warning_clear();
+    return redirect_to(req, "/");
 }
 
 /* POST /voip_enable -- form body enabled=1 (checkbox present) or nothing at
@@ -9893,8 +9974,9 @@ esp_err_t webui_start(void)
      * routes -- the Bluetooth companion merge plus one new small feature
      * pushed it over with zero warning until a live boot log showed
      * ESP_ERR_HTTPD_HANDLERS_FULL). Leaving real headroom this time instead
-     * of matching the count exactly. */
-    config.max_uri_handlers = 96;
+     * of matching the count exactly. (Blown through again at 96 with 97
+     * routes, losing the catch-all route -- each slot is only a few bytes.) */
+    config.max_uri_handlers = 128;
     /* Default httpd task stack is 4 KB. Our page handlers stack a few
      * storage_entry_t[32]/dialplan_entry_info_t[40] arrays and then descend
      * into SPIFFS readdir -> esp_flash_read, which is itself stack-hungry;
@@ -9990,6 +10072,7 @@ esp_err_t webui_start(void)
         { .uri = "/mqtt",            .method = HTTP_POST, .handler = mqtt_handler },
         { .uri = "/voip_enable",     .method = HTTP_POST, .handler = voip_enable_handler },
         { .uri = "/ha_enable",       .method = HTTP_POST, .handler = ha_enable_handler },
+        { .uri = "/power_warning",   .method = HTTP_POST, .handler = power_warning_handler },
         { .uri = "/idle_power",      .method = HTTP_POST, .handler = idle_power_settings_handler },
         { .uri = "/answering_machine", .method = HTTP_POST, .handler = answering_machine_handler },
         { .uri = "/record_max_ms",   .method = HTTP_POST, .handler = record_max_ms_handler },
