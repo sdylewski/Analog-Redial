@@ -5,7 +5,7 @@
   <rect id="pcb" x="10" y="0" width="130" height="56" rx="8" fill="#9c6a1f"/>
   <rect id="chip" x="20" y="14" width="42" height="28" rx="3" fill="#6f4a14"/>
   <text x="41" y="32" text-anchor="middle" font-size="10" font-weight="600" fill="#f5e4bf">BM64</text>
-  <text x="103" y="25" text-anchor="middle" font-size="12" font-weight="600" fill="#f5e4bf">Bluetooth</text>
-  <text x="103" y="41" text-anchor="middle" font-size="12" font-weight="600" fill="#f5e4bf">board</text></g>
+  <text x="98" y="25" text-anchor="middle" font-size="12" font-weight="600" fill="#f5e4bf">Bluetooth</text>
+  <text x="98" y="41" text-anchor="middle" font-size="12" font-weight="600" fill="#f5e4bf">board</text></g>
 </g>
 </svg>

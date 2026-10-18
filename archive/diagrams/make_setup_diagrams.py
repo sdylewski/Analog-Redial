@@ -17,6 +17,7 @@ the generator never reads them back.
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -160,8 +161,8 @@ part("bluetooth-adapter-side", 140, 56, "Bluetooth adapter board (BM64), plugs i
   <rect id="pcb" x="10" y="0" width="130" height="56" rx="8" fill="{AMBER_D}"/>
   <rect id="chip" x="20" y="14" width="42" height="28" rx="3" fill="#6f4a14"/>
   <text x="41" y="32" text-anchor="middle" font-size="10" font-weight="600" fill="#f5e4bf">BM64</text>
-  <text x="103" y="25" text-anchor="middle" font-size="12" font-weight="600" fill="#f5e4bf">Bluetooth</text>
-  <text x="103" y="41" text-anchor="middle" font-size="12" font-weight="600" fill="#f5e4bf">board</text>''')
+  <text x="98" y="25" text-anchor="middle" font-size="12" font-weight="600" fill="#f5e4bf">Bluetooth</text>
+  <text x="98" y="41" text-anchor="middle" font-size="12" font-weight="600" fill="#f5e4bf">board</text>''')
 
 part("pin-outputs", 44, 48, "Your own gadgets (relay, light, buzzer) on the spare pins", f'''
   <circle id="bulb" cx="22" cy="12" r="11" fill="{AMBER}"/>
@@ -246,7 +247,7 @@ class Scene:
                              f'stroke-width="{width:g}" stroke-linecap="round"{dash}/>')
 
     def pill(self, gid: str, s: str, cx: float, cy: float, color: str = AMBER_D) -> None:
-        w = 14 + 7.4 * len(s)
+        w = 18 + 8.4 * len(s)
         self.add(gid, f"protocol: {s}",
                  f'<rect x="{cx - w/2:g}" y="{cy - 11:g}" width="{w:g}" height="22" rx="11" fill="{CREAM}" '
                  f'stroke="{color}" stroke-width="2"/>'
@@ -572,6 +573,8 @@ def legend_markup(x: float, y: float, chars: int, size: float = 13,
     return "\n".join(out), cy - y
 
 
+WEB_TEXT_SCALE = 1.12   # the "web" size draws all text this much larger
+
 SCALES = {   # per layout: (landscape k, portrait k)
     "side": (0.96, 0.93),
     "top": (0.885, 0.90),
@@ -587,7 +590,16 @@ def build_overview(kind: str, layout: str = "side", with_legend: bool = True) ->
     k_land, k_port = SCALES[layout]
     j5 = layout == "side"        # the top layout draws J5 under each option itself
     legend = ""
-    if not with_legend and kind != "docs":
+    if kind == "web":
+        # For embedding in a web page (the README): no legend, tight margins,
+        # and text a little larger than the print versions so it stays
+        # readable when the page scales the image down.
+        body = re.sub(r'font-size="([\d.]+)"',
+                      lambda m: f'font-size="{float(m.group(1)) * WEB_TEXT_SCALE:g}"', body)
+        mt, mb, mx = 4, 14, 14
+        W, H = dw + 2 * mx, dh + mt + mb
+        k, ox, oy = 1.0, mx, mt
+    elif not with_legend and kind != "docs":
         # The diagram alone, as large as the page allows, centred.
         W, H = (1056, 816) if kind == "letter-landscape" else (816, 1056)
         m = 28
@@ -642,13 +654,13 @@ def main() -> None:
                              "and Wi-Fi to the web interface, a VoIP server and Home Assistant"))
     export_png(out, out.with_suffix(".png"))
     for layout, prefix in (("side", "setup-overview"), ("top", "setup-overview-top")):
-        for kind in ("docs", "letter-landscape", "letter-portrait"):
+        for kind in ("docs", "letter-landscape", "letter-portrait", "web"):
             doc, W, H = build_overview(kind, layout)
             path = ASSETS / f"{prefix}-{kind}.svg"
             path.write_text(doc)
             export_png(path, path.with_suffix(".png"))
             print(f"  {path.name}  {W} x {H}")
-            if kind != "docs":          # the docs size has no legend to begin with
+            if kind not in ("docs", "web"):     # those two have no legend to begin with
                 doc, W, H = build_overview(kind, layout, with_legend=False)
                 path = ASSETS / f"{prefix}-{kind}-notext.svg"
                 path.write_text(doc)

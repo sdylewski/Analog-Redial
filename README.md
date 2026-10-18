@@ -37,7 +37,7 @@
 ## Everything it connects to
 
 <p align="center">
-  <img src="docs/assets/setup-overview-top-letter-landscape-notext.png" alt="Everything the Analog Redial board can connect to: one phone always, then a second phone line or a microSD card or your own gadgets on four spare pins chosen with the J5 jumpers; Wi-Fi to the web interface, a VoIP server and Home Assistant; and Bluetooth to a cell phone through an extra adapter board">
+  <img src="docs/assets/setup-overview-top-web.png" alt="Everything the Analog Redial board can connect to: one phone always, then a second phone line or a microSD card or your own gadgets on four spare pins chosen with the J5 jumpers; Wi-Fi to the web interface, a VoIP server and Home Assistant; and Bluetooth to a cell phone through an extra adapter board">
 </p>
 
 Every network option runs on the board's own Wi-Fi, with nothing to add.
@@ -66,21 +66,40 @@ and it is a complete hackable phone exchange on its own.
 
 ### The finer print
 
-- **Dialing.** Rotary pulse and touch-tone. Add your own dial codes and
-  audio clips from the browser, no rebuild. Optional digit readback.
+- **Dialing.** Rotary pulse and touch-tone, on either line. Dial codes can be
+  up to 10 digits (spaces, dashes and parentheses are ignored). Add your own
+  codes and audio clips from the browser, no rebuild, and give any built-in
+  code a different number. Digit readback speaks each digit you dial (**822**
+  on, **821** off), and **314** reads pi aloud.
 - **Calls.** Line-to-line calls with ringback and busy tones. Optional
-  intercom mode: lift one handset, wait, and the other phone rings.
-  VoIP in and out (G.711, on your network).
+  intercom mode: lift one handset, wait, and the other phone rings with its
+  own double ring. VoIP in and out (G.711, on your network).
 - **Sound.** Dial tone, ringback and busy that match your country (North
   America, several European countries, Japan, China, or a generic
   international set). Echo cancellation and earpiece volume per line. An
-  off-hook alert if a handset is left off.
+  off-hook alert if a handset is left off. Experimental voice effects
+  (Dalek, chipmunk, robot) mid-call, off by default.
 - **Messages.** Record a message with **211** and download it from the
-  browser. A per-line answering machine, each line with its own greeting.
-  Insert a microSD card for hours of storage (1-line version only).
+  browser. A per-line answering machine, each line with its own greeting,
+  that also answers VoIP calls. Insert a microSD card for hours of storage
+  (1-line version only). A one-shot **call recording** (Settings →
+  Diagnostics) saves a whole call to the card, for demos and bug reports.
+- **Home automation.** Every pickup, hang-up, dial code and incoming ring
+  can go to Home Assistant, or any system that takes a webhook or MQTT. Home
+  Assistant can ring a phone or fire a pin output back. Experimental; see
+  [Home Assistant](docs/home-assistant.md).
+- **Things on the pins.** A dial code can switch one of four spare pins
+  (a relay, a buzzer, a lamp) for a set number of seconds, or toggle it.
+- **VoIP.** Claim a number from the Asterisk-side
+  [provisioner](https://github.com/sdylewski/Analog-Redial/blob/main/server/voip-provisioner/README.md) with one button, or fill
+  in the form. No PBX handy? A tiny SIP proxy for trying it from a laptop
+  softphone is in [VoIP setup](docs/voip-setup.md).
 - **Day to day.** Quiet hours that silence the bell overnight. Remembers
-  several Wi-Fi networks. Firmware updates from the browser. A one-button
-  rescue mode for when it can't find its network.
+  several Wi-Fi networks. An optional web password. Firmware updates from
+  the browser. A one-button rescue mode for when it can't find its network.
+  If the board restarts because its power supply dipped, it says so: an
+  amber blink, a banner in the web page and a falling tone when you next lift
+  a handset.
 - **Open.** ESP-IDF C firmware under the MIT license, KiCad hardware files,
   and a serial console for poking at every part of the hardware.
 
@@ -124,10 +143,11 @@ US prices from October 2026, including shipping and import tariff:
 | DigiKey shipping, about $5 an order | $1 | $5 |
 | **Total, one phone line** | **about $37** | **about $186** |
 | Second phone line (optional) | +$10 | +$50 |
-| Bluetooth board (optional, v5) | +$20 | +$100 |
+| Bluetooth board (optional, v5) | +$15 | +$80 |
 
 **Five boards cost about $186 in all, about $37 each.** Want just one?
 JLCPCB's minimum is five, so it's about $110 up front, with four spare PCBs.
+The five-board Bluetooth figure is $15 a board plus about $5 shipping.
 
 You'll also want a 2A USB-C charger and one or two analog phones. Buying
 the hand-solder parts from AliExpress instead brings them to about $12 a
@@ -156,6 +176,7 @@ few commands in a terminal, you can build one.
 | **4** | [Set up & use](docs/setup.md) | Wi-Fi, the web interface, dial codes, your own audio |
 
 Going further: [VoIP setup](docs/voip-setup.md) ·
+[Home Assistant](docs/home-assistant.md) ·
 [Board reference (v4)](docs/hardware-smd4.md) ·
 [Board reference (v5)](docs/hardware-smd5.md) ·
 [Features & firmware architecture](docs/features.md) ·

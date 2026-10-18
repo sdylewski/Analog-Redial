@@ -157,18 +157,28 @@ real Home Assistant, so tell me what breaks.
 broker's address (and its user and password). Maybe "tick one box and give
 it your MQTT broker's address".]**
 
-### Make a dial code switch something
+### One header, three ways to use it
 
-The board has four spare pins that do one job at a time, and a little header
-(J5) with jumpers picks which. Jumpers on: they run the second phone line.
-Jumpers off: they read a microSD card if one's in the slot, or they're free
-for your own wires if not.
+The board has four spare pins, and a little header (J5) with jumpers picks
+what they do. They do one job at a time, so you choose when you build it:
 
-With your own wires, pick a code, a pin and a time on the web page: dial it
-and the pin goes high for that many seconds (or toggles). Hook a relay or a
-MOSFET to it to unlock a door, sound a buzzer, flash a light. A pin gives
-3.3 V and only a few milliamps, so a solenoid needs a relay in between. Most
-5 V relay modules will switch, but check yours.
+- **A second phone line.** Put the four jumpers on and the pins run the
+  second line: another SLIC, another RJ12 jack, and both phones can call each
+  other, run an intercom, or each have its own answering machine. (The second
+  line costs about $10 more per board.)
+- **A microSD card.** Take the jumpers off, add a card in the slot, and
+  recordings, messages and your own audio go to the card instead of the
+  board's 4 MB of flash: hours of storage, and you can pull the card out and
+  copy things off. It's a one-line board then, because the card and line 2
+  share the pins. If you insert a card into a board set up for two lines, the
+  firmware turns line 2 off and warns you on the web page.
+- **Your own gadgets.** Jumpers off and no card, and the four pins (GPIO18 to
+  GPIO21) are free for your own wires. Pick a dial code, a pin and a time on
+  the web page: dial it and the pin goes high for that many seconds (or
+  toggles). Hook a relay or a MOSFET to it to unlock a door, sound a buzzer or
+  flash a light. A pin gives 3.3 V and only a few milliamps, so a solenoid
+  needs a relay in between. Most 5 V relay modules will switch, but check
+  yours.
 
 ### More things it does
 
@@ -244,7 +254,7 @@ code from the raspberry pi.
 
 Ordering the minimum five assembled boards from JLCPCB comes to about **$86
 delivered (about $17 a board)**, plus about **$19 of parts you solder
-yourself** for each board you build. Bluetooth is $20 extra or a 2nd line is
+yourself** for each board you build. Bluetooth is $15 extra or a 2nd line is
 $10 for another SLIC board.
 
 If a few people want boards, ordering together gets a lot cheaper. **Want
