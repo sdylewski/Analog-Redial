@@ -3,6 +3,10 @@
 #include "freertos/FreeRTOS.h"
 #include <stdarg.h>
 #include <stdio.h>
+#include "sdkconfig.h"
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+#include "driver/usb_serial_jtag.h"
+#endif
 
 #define LOGBUF_SIZE 8192
 
@@ -31,6 +35,12 @@ static int logbuf_vprintf(const char *fmt, va_list args)
         portEXIT_CRITICAL(&s_mux);
     }
 
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+    /* The console is the native USB port. With no computer on it (a phone
+     * charger or battery pack), nothing ever drains it, so don't write to it:
+     * the log still lands in the ring above. */
+    if (!usb_serial_jtag_is_connected()) return n;
+#endif
     return s_orig ? s_orig(fmt, args) : vprintf(fmt, args);
 }
 

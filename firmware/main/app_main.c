@@ -34,6 +34,9 @@
 #include "esp_log.h"
 #include "esp_err.h"
 #include "esp_system.h"
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+#include "driver/usb_serial_jtag.h"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include "esp_heap_caps.h"
@@ -122,7 +125,7 @@ static void sd_line1_conflict_task(void *arg)
 #define BLACKBOX_EARLY_MS    (10 * 60 * 1000)
 #define BLACKBOX_EARLY_EVERY 30000
 #define BLACKBOX_DOWN_EVERY  60000
-#define BLACKBOX_CAP         (8192 + 256)
+#define BLACKBOX_CAP         (8192 + 256 + 1536)
 
 static bool blackbox_write(const char *name, const char *buf, size_t n)
 {
@@ -130,6 +133,48 @@ static bool blackbox_write(const char *name, const char *buf, size_t n)
     if (storage_write_begin_local(name, n, &w) != ESP_OK) return false;
     if (storage_write_chunk(&w, buf, n) != ESP_OK) { storage_write_abort(&w); return false; }
     return storage_write_end(&w) == ESP_OK;
+}
+
+/* CPU use per task since the previous save -- if something hogs the CPU
+ * (the symptom: low-priority work like the web server just stops), this
+ * names it. Also whether a computer is on the USB port. */
+static size_t blackbox_task_stats(char *out, size_t cap)
+{
+    static struct { TaskHandle_t h; uint32_t rt; } prev[40];
+    static uint32_t prev_total;
+    size_t off = 0;
+#if CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
+    UBaseType_t n = uxTaskGetNumberOfTasks();
+    TaskStatus_t *ts = malloc(sizeof(TaskStatus_t) * (n + 4));
+    if (!ts) return 0;
+    uint32_t total = 0;
+    n = uxTaskGetSystemState(ts, n + 4, &total);
+    uint32_t dt = total - prev_total;
+    off += snprintf(out + off, cap - off, "usb host: %s; cpu since last save:",
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+                    usb_serial_jtag_is_connected() ? "yes" : "no"
+#else
+                    "?"
+#endif
+                    );
+    for (UBaseType_t i = 0; i < n && off < cap - 40; i++) {
+        uint32_t before = 0;
+        for (size_t k = 0; k < sizeof(prev) / sizeof(prev[0]); k++)
+            if (prev[k].h == ts[i].xHandle) { before = prev[k].rt; break; }
+        uint32_t used = ts[i].ulRunTimeCounter - before;
+        unsigned pct = dt ? (unsigned)((uint64_t)used * 100 / dt) : 0;
+        if (pct >= 1) off += snprintf(out + off, cap - off, " %s %u%%", ts[i].pcTaskName, pct);
+    }
+    off += snprintf(out + off, cap - off, "\n");
+    for (UBaseType_t i = 0; i < n && i < sizeof(prev) / sizeof(prev[0]); i++) {
+        prev[i].h = ts[i].xHandle;
+        prev[i].rt = ts[i].ulRunTimeCounter;
+    }
+    prev_total = total;
+    free(ts);
+#endif
+    if (off >= cap) off = cap - 1;
+    return off;
 }
 
 static void blackbox_save(const char *why)
@@ -146,6 +191,7 @@ static void blackbox_save(const char *why)
         (unsigned)esp_get_free_heap_size(), (unsigned)esp_get_minimum_free_heap_size(),
         (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
     if (hn < 0 || hn >= 256) hn = 0;
+    hn += blackbox_task_stats(buf + hn, 1536);
     size_t n = hn + logbuf_snapshot(buf + hn, BLACKBOX_CAP - hn);
     blackbox_write(BLACKBOX_NAME, buf, n);
     free(buf);
@@ -368,7 +414,9 @@ void app_main(void)
      * configured) has already claimed its GPIO before this might power it
      * back down/up. */
     xTaskCreate(sd_line1_conflict_task, "sd_line1_guard", 3072, NULL, tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(blackbox_task, "blackbox", 3584, NULL, tskIDLE_PRIORITY + 1, NULL);
+    /* High priority so it still runs if something lower is hogging the CPU;
+     * it only wakes once a second and writes every 30 s at most. */
+    xTaskCreate(blackbox_task, "blackbox", 4096, NULL, tskIDLE_PRIORITY + 15, NULL);
 
     /* Confirms this image is good, canceling CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE's
      * pending auto-revert -- everything that could plausibly fail to come up

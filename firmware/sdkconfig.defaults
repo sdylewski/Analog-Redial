@@ -96,3 +96,7 @@ CONFIG_PM_ENABLE=y
 # Common root certificates only (half the size of the full bundle, ~99% of
 # sites incl. Let's Encrypt) -- keeps the HTTPS client inside the OTA slot.
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN=y
+
+# Per-task CPU use in the black box log (main/app_main.c)
+CONFIG_FREERTOS_USE_TRACE_FACILITY=y
+CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS=y
