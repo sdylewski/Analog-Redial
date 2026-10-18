@@ -75,7 +75,7 @@ The yellow phone is the picture people will click on.
 
 ## 4. Details (paste this)
 
-This is the text as it stands on the live page (synced 2026-10-14). Edit the
+This is the text as it stands on the live page (synced 2026-10-18). Edit the
 page and this file together, or this file goes stale.
 
 **Analog Redial turns old analog phones into a little phone system you can
@@ -98,10 +98,10 @@ kid liked playing with it. The first version ran on a Raspberry Pi and worked
 ok for years, but this ESP32-based version has more features and is cheaper
 to build.
 
-Why not just buy a VoIP adapter? Most of them only understand touch-tone, so
-a rotary phone can't dial through them, and they need a SIP server before
-they'll do anything. This is a whole phone system on its own, with the
-ability to hack and extend it.
+Why not just buy a VoIP adapter? Flexibility and packability. On a
+Grandstream device, you need to dial *47 then the other phone address... not
+exactly simple. Analog Redial is a whole phone system on its own, with the
+ability to hack and extend it as you wish.
 
 ### Dial anything
 
@@ -115,10 +115,12 @@ The dial plan is just a table. Defaults:
 | **0** | Operator help (you set the message beforehand) |
 | **899** | Record your answering machine greeting |
 | **412** | A dial-up modem recording - why not? |
-| **1** + (area code) + (number) | Call out through your cell phone (Bluetooth) |
+| **314** | Speaks the first 100 digits of pi |
+| **8675309** | Calls Jenny |
+| **1** + (area code) + (number) | Call out through your cell phone (needs the Bluetooth board) |
 
-Add your own codes and audio files from the browser, no reflashing: a joke
-line for the kids, a song, a museum exhibit, a wedding guestbook phone
+Add your own codes and audio files from the browser. This could be a joke
+line for the kids, a song, a museum exhibit, or a wedding guestbook phone
 recorder...
 
 ### Bluetooth option

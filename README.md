@@ -57,11 +57,12 @@ Bluetooth is the only one that needs an extra board.
 
 ### Why not just buy a VoIP adapter?
 
-Off-the-shelf analog telephone adapters (ATAs) only understand touch-tone,
-so a rotary phone can't dial through them, and they need a SIP server before
-they do anything at all, even to let two phones on the same box call each
-other. Analog Redial reads rotary pulses as well as touch-tone, and it is a
-complete hackable phone exchange on its own.
+Flexibility and packability. Off-the-shelf analog telephone adapters (ATAs)
+only understand touch-tone, so a rotary phone can't dial through them, and
+they need a SIP server before they do anything at all. Even calling the
+phone next to it can mean dialing something like `*47` and then the other
+phone's address. Analog Redial reads rotary pulses as well as touch-tone,
+and it is a complete hackable phone exchange on its own.
 
 ### The finer print
 
