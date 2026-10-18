@@ -109,60 +109,79 @@ static void sd_line1_conflict_task(void *arg)
 }
 
 /* ---- Black box ----
- * The log lives in RAM, so whatever happened while the board was off the
- * network (a weak supply knocking Wi-Fi out, say) is gone by the time it's
- * plugged back in somewhere it can be read. So: while Wi-Fi is down after
- * having been up, save the log to internal flash as blackbox.log, 15 s after
- * the drop and then once a minute. Download it from Settings -> Storage. Internal flash,
- * not the SD card, because a sagging supply is exactly what upsets the card. */
+ * The log lives in RAM, so whatever happened during a session the board
+ * couldn't report from (off the network, then unplugged) is gone by the time
+ * it's plugged in somewhere it can be read. So the log is also saved to
+ * internal flash as blackbox.log: every 30 s for the first 10 minutes after
+ * start-up (where power-supply trouble shows up), and once a minute while
+ * Wi-Fi is down. At start-up the previous session's copy is kept as
+ * blackbox_prev.log. Both download from Settings -> Storage. Internal flash,
+ * not the SD card: a sagging supply is exactly what upsets the card. */
 #define BLACKBOX_NAME        "blackbox.log"
-#define BLACKBOX_FIRST_MS    15000
-#define BLACKBOX_EVERY_MS    60000
+#define BLACKBOX_PREV_NAME   "blackbox_prev.log"
+#define BLACKBOX_EARLY_MS    (10 * 60 * 1000)
+#define BLACKBOX_EARLY_EVERY 30000
+#define BLACKBOX_DOWN_EVERY  60000
+#define BLACKBOX_CAP         (8192 + 256)
+
+static bool blackbox_write(const char *name, const char *buf, size_t n)
+{
+    storage_writer_t w;
+    if (storage_write_begin_local(name, n, &w) != ESP_OK) return false;
+    if (storage_write_chunk(&w, buf, n) != ESP_OK) { storage_write_abort(&w); return false; }
+    return storage_write_end(&w) == ESP_OK;
+}
 
 static void blackbox_save(const char *why)
 {
-    const size_t cap = 8192 + 256;
-    char *buf = malloc(cap);
+    char *buf = malloc(BLACKBOX_CAP);
     if (!buf) return;
     board_restart_stats_t rs;
     board_restart_stats_get(&rs);
     int hn = snprintf(buf, 256,
-        "=== black box: %s; start-up #%u, up %lld s, heap %u free (min %u, largest %u) ===\n",
+        "=== black box (%s): start-up #%u, up %lld s, Wi-Fi %s (RSSI %d, TX %d dBm), "
+        "heap %u free (min %u, largest %u) ===\n",
         why, (unsigned)rs.boots, (long long)(esp_timer_get_time() / 1000000),
+        wifi_is_connected() ? "connected" : "down", wifi_rssi(), wifi_get_tx_power_dbm(),
         (unsigned)esp_get_free_heap_size(), (unsigned)esp_get_minimum_free_heap_size(),
         (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
     if (hn < 0 || hn >= 256) hn = 0;
-    size_t n = hn + logbuf_snapshot(buf + hn, cap - hn);
-    storage_writer_t w;
-    if (storage_write_begin_local(BLACKBOX_NAME, n, &w) == ESP_OK) {
-        if (storage_write_chunk(&w, buf, n) == ESP_OK) storage_write_end(&w);
-        else storage_write_abort(&w);
-    }
+    size_t n = hn + logbuf_snapshot(buf + hn, BLACKBOX_CAP - hn);
+    blackbox_write(BLACKBOX_NAME, buf, n);
+    free(buf);
+}
+
+/* The previous session's black box becomes blackbox_prev.log, before this
+ * session's first save overwrites it. */
+static void blackbox_rotate(void)
+{
+    char *buf = malloc(BLACKBOX_CAP);
+    if (!buf) return;
+    size_t n = 0;
+    if (storage_read(BLACKBOX_NAME, buf, BLACKBOX_CAP, &n) == ESP_OK && n > 0)
+        blackbox_write(BLACKBOX_PREV_NAME, buf, n);
     free(buf);
 }
 
 static void blackbox_task(void *arg)
 {
+    blackbox_rotate();
     bool was_up = false;
     int64_t down_since = 0, last_save = 0;
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));
         int64_t now = esp_timer_get_time() / 1000;
-        if (wifi_is_connected()) {
-            if (was_up == false) ESP_LOGD(TAG, "black box: Wi-Fi up");
-            was_up = true;
-            down_since = 0;
-            continue;
-        }
-        if (!was_up) continue;           /* never connected yet this boot */
-        if (!down_since) {
+        bool up = wifi_is_connected();
+        if (up) { was_up = true; down_since = 0; }
+        else if (was_up && !down_since) {
             down_since = now;
-            last_save = 0;
-            ESP_LOGW(TAG, "Wi-Fi lost; saving the log to %s in %d s", BLACKBOX_NAME, BLACKBOX_FIRST_MS / 1000);
+            ESP_LOGW(TAG, "Wi-Fi lost; saving the log to %s", BLACKBOX_NAME);
         }
-        if ((!last_save && now - down_since >= BLACKBOX_FIRST_MS) ||
-            (last_save && now - last_save >= BLACKBOX_EVERY_MS)) {
-            blackbox_save("Wi-Fi down");
+        int64_t every = 0;
+        if (now < BLACKBOX_EARLY_MS) every = BLACKBOX_EARLY_EVERY;
+        else if (down_since) every = BLACKBOX_DOWN_EVERY;
+        if (every && now - last_save >= every) {
+            blackbox_save(down_since ? "Wi-Fi down" : "periodic");
             last_save = now;
         }
     }
