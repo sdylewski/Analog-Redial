@@ -27,6 +27,10 @@
 #include "driver/gpio.h"
 #include "logctl.h"
 #include "esp_console.h"
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+#include "driver/usb_serial_jtag.h"
+#include "linenoise/linenoise.h"
+#endif
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_system.h"
@@ -2838,6 +2842,38 @@ static int cmd_help(int argc, char **argv)
     return 0;
 }
 
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+static void console_task(void *arg)
+{
+    const char *prompt = arg;
+    setvbuf(stdin, NULL, _IONBF, 0);
+    printf("\r\nType 'help' to get the list of commands.\r\n");
+    linenoiseSetMaxLineLen(128);
+    while (1) {
+        if (!usb_serial_jtag_is_connected()) {
+            vTaskDelay(pdMS_TO_TICKS(500));
+            continue;
+        }
+        char *line = linenoise(prompt);
+        if (!line) {
+            vTaskDelay(pdMS_TO_TICKS(20)); /* never spin, whatever stdin does */
+            continue;
+        }
+        if (line[0]) linenoiseHistoryAdd(line);
+        int ret;
+        esp_err_t err = esp_console_run(line, &ret);
+        if (err == ESP_ERR_NOT_FOUND) {
+            printf("Unrecognized command\n");
+        } else if (err == ESP_OK && ret != ESP_OK) {
+            printf("Command returned non-zero error code: 0x%x (%s)\n", ret, esp_err_to_name(ret));
+        } else if (err != ESP_OK && err != ESP_ERR_INVALID_ARG) {
+            printf("Internal error: %s\n", esp_err_to_name(err));
+        }
+        linenoiseFree(line);
+    }
+}
+#endif
+
 void bringup_console_start(void)
 {
     esp_console_repl_t *repl = NULL;
@@ -2857,6 +2893,9 @@ void bringup_console_start(void)
     s_prompt[i] = '\0';
     repl_cfg.prompt = s_prompt;
     repl_cfg.max_cmdline_length = 128;
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+    repl_cfg.task_stack_size = 1536; /* its task never runs: see console_task() */
+#endif
 
     /* esp_console_new_repl_*() below calls esp_console_common_init()
      * internally, which unconditionally registers ESP-IDF's own "help"
@@ -3002,6 +3041,19 @@ void bringup_console_start(void)
         fcntl(fd, F_SETFL, flags);
     }
 
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+    /* Our own read loop instead of esp_console_start_repl(): ESP-IDF's goes
+     * straight back to linenoise() whenever it returns NULL, and with no
+     * computer on the USB port (a charger or battery pack) it returns NULL
+     * at once, every time -- measured at ~80% of the CPU, starving the web
+     * server, clip playback and Wi-Fi traffic. This one sleeps until a host
+     * is there. The REPL object above is still created for its driver/VFS
+     * setup; its own task just never gets started (it waits forever on a
+     * notification, on the small stack set above). */
+    (void)repl;
+    xTaskCreate(console_task, "console", 4096, s_prompt, tskIDLE_PRIORITY + 2, NULL);
+#else
     ESP_ERROR_CHECK(esp_console_start_repl(repl));
+#endif
     ESP_LOGI(TAG, "bring-up console ready — type 'help'");
 }
