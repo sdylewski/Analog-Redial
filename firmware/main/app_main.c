@@ -34,12 +34,6 @@
 #include "esp_log.h"
 #include "esp_err.h"
 #include "esp_system.h"
-#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
-#include "driver/usb_serial_jtag.h"
-#endif
-#include <stdio.h>
-#include <stdlib.h>
-#include "esp_heap_caps.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -108,128 +102,6 @@ static void sd_line1_conflict_task(void *arg)
         }
         was_active = active;
         vTaskDelay(pdMS_TO_TICKS(SD_LINE1_CONFLICT_POLL_MS));
-    }
-}
-
-/* ---- Black box ----
- * The log lives in RAM, so whatever happened during a session the board
- * couldn't report from (off the network, then unplugged) is gone by the time
- * it's plugged in somewhere it can be read. So the log is also saved to
- * internal flash as blackbox.log: every 30 s for the first 10 minutes after
- * start-up (where power-supply trouble shows up), and once a minute while
- * Wi-Fi is down. At start-up the previous session's copy is kept as
- * blackbox_prev.log. Both download from Settings -> Storage. Internal flash,
- * not the SD card: a sagging supply is exactly what upsets the card. */
-#define BLACKBOX_NAME        "blackbox.log"
-#define BLACKBOX_PREV_NAME   "blackbox_prev.log"
-#define BLACKBOX_EARLY_MS    (10 * 60 * 1000)
-#define BLACKBOX_EARLY_EVERY 30000
-#define BLACKBOX_DOWN_EVERY  60000
-#define BLACKBOX_CAP         (8192 + 256 + 1536)
-
-static bool blackbox_write(const char *name, const char *buf, size_t n)
-{
-    storage_writer_t w;
-    if (storage_write_begin_local(name, n, &w) != ESP_OK) return false;
-    if (storage_write_chunk(&w, buf, n) != ESP_OK) { storage_write_abort(&w); return false; }
-    return storage_write_end(&w) == ESP_OK;
-}
-
-/* CPU use per task since the previous save -- if something hogs the CPU
- * (the symptom: low-priority work like the web server just stops), this
- * names it. Also whether a computer is on the USB port. */
-static size_t blackbox_task_stats(char *out, size_t cap)
-{
-    static struct { TaskHandle_t h; uint32_t rt; } prev[40];
-    static uint32_t prev_total;
-    size_t off = 0;
-#if CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
-    UBaseType_t n = uxTaskGetNumberOfTasks();
-    TaskStatus_t *ts = malloc(sizeof(TaskStatus_t) * (n + 4));
-    if (!ts) return 0;
-    uint32_t total = 0;
-    n = uxTaskGetSystemState(ts, n + 4, &total);
-    uint32_t dt = total - prev_total;
-    off += snprintf(out + off, cap - off, "usb host: %s; cpu since last save:",
-#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
-                    usb_serial_jtag_is_connected() ? "yes" : "no"
-#else
-                    "?"
-#endif
-                    );
-    for (UBaseType_t i = 0; i < n && off < cap - 40; i++) {
-        uint32_t before = 0;
-        for (size_t k = 0; k < sizeof(prev) / sizeof(prev[0]); k++)
-            if (prev[k].h == ts[i].xHandle) { before = prev[k].rt; break; }
-        uint32_t used = ts[i].ulRunTimeCounter - before;
-        unsigned pct = dt ? (unsigned)((uint64_t)used * 100 / dt) : 0;
-        if (pct >= 1) off += snprintf(out + off, cap - off, " %s %u%%", ts[i].pcTaskName, pct);
-    }
-    off += snprintf(out + off, cap - off, "\n");
-    for (UBaseType_t i = 0; i < n && i < sizeof(prev) / sizeof(prev[0]); i++) {
-        prev[i].h = ts[i].xHandle;
-        prev[i].rt = ts[i].ulRunTimeCounter;
-    }
-    prev_total = total;
-    free(ts);
-#endif
-    if (off >= cap) off = cap - 1;
-    return off;
-}
-
-static void blackbox_save(const char *why)
-{
-    char *buf = malloc(BLACKBOX_CAP);
-    if (!buf) return;
-    board_restart_stats_t rs;
-    board_restart_stats_get(&rs);
-    int hn = snprintf(buf, 256,
-        "=== black box (%s): start-up #%u, up %lld s, Wi-Fi %s (RSSI %d, TX %d dBm), "
-        "heap %u free (min %u, largest %u) ===\n",
-        why, (unsigned)rs.boots, (long long)(esp_timer_get_time() / 1000000),
-        wifi_is_connected() ? "connected" : "down", wifi_rssi(), wifi_get_tx_power_dbm(),
-        (unsigned)esp_get_free_heap_size(), (unsigned)esp_get_minimum_free_heap_size(),
-        (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
-    if (hn < 0 || hn >= 256) hn = 0;
-    hn += blackbox_task_stats(buf + hn, 1536);
-    size_t n = hn + logbuf_snapshot(buf + hn, BLACKBOX_CAP - hn);
-    blackbox_write(BLACKBOX_NAME, buf, n);
-    free(buf);
-}
-
-/* The previous session's black box becomes blackbox_prev.log, before this
- * session's first save overwrites it. */
-static void blackbox_rotate(void)
-{
-    char *buf = malloc(BLACKBOX_CAP);
-    if (!buf) return;
-    size_t n = 0;
-    if (storage_read(BLACKBOX_NAME, buf, BLACKBOX_CAP, &n) == ESP_OK && n > 0)
-        blackbox_write(BLACKBOX_PREV_NAME, buf, n);
-    free(buf);
-}
-
-static void blackbox_task(void *arg)
-{
-    blackbox_rotate();
-    bool was_up = false;
-    int64_t down_since = 0, last_save = 0;
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        int64_t now = esp_timer_get_time() / 1000;
-        bool up = wifi_is_connected();
-        if (up) { was_up = true; down_since = 0; }
-        else if (was_up && !down_since) {
-            down_since = now;
-            ESP_LOGW(TAG, "Wi-Fi lost; saving the log to %s", BLACKBOX_NAME);
-        }
-        int64_t every = 0;
-        if (now < BLACKBOX_EARLY_MS) every = BLACKBOX_EARLY_EVERY;
-        else if (down_since) every = BLACKBOX_DOWN_EVERY;
-        if (every && now - last_save >= every) {
-            blackbox_save(down_since ? "Wi-Fi down" : "periodic");
-            last_save = now;
-        }
     }
 }
 
@@ -414,9 +286,6 @@ void app_main(void)
      * configured) has already claimed its GPIO before this might power it
      * back down/up. */
     xTaskCreate(sd_line1_conflict_task, "sd_line1_guard", 3072, NULL, tskIDLE_PRIORITY + 1, NULL);
-    /* High priority so it still runs if something lower is hogging the CPU;
-     * it only wakes once a second and writes every 30 s at most. */
-    xTaskCreate(blackbox_task, "blackbox", 4096, NULL, tskIDLE_PRIORITY + 15, NULL);
 
     /* Confirms this image is good, canceling CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE's
      * pending auto-revert -- everything that could plausibly fail to come up
