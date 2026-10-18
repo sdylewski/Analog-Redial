@@ -9,10 +9,11 @@
 <p align="center">
   <b>Bring old telephones back to life.</b><br>
   Plug in one or two analog phones, rotary or touch-tone, and they get real
-  dial tone, ringing, operator recording, and answering machine- a complete phone system!<br>
+  dial tone, ringing, an operator recording and an answering machine: a complete phone system!<br>
   Hackable open source hardware and software with a working web UI for configuration.</p>
 
 <p align="center">
+  <a href="#everything-it-connects-to">Overview</a> ·
   <a href="#what-can-i-do-with-it">What it does</a> ·
   <a href="#set-it-up-from-your-browser">Web interface</a> ·
   <a href="#what-does-one-cost">Cost</a> ·
@@ -33,41 +34,26 @@
 
 ---
 
+## Everything it connects to
+
+<p align="center">
+  <img src="docs/assets/setup-overview-top-letter-landscape-notext.png" alt="Everything the Analog Redial board can connect to: one phone always, then a second phone line or a microSD card or your own gadgets on four spare pins chosen with the J5 jumpers; Wi-Fi to the web interface, a VoIP server and Home Assistant; and Bluetooth to a cell phone through an extra adapter board">
+</p>
+
+Every network option runs on the board's own Wi-Fi, with nothing to add.
+Bluetooth is the only one that needs an extra board.
+
 ## What can I do with it?
 
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/assets/use-intercom.svg" alt="Two analog phones on one board">
-      <h3>Intercom</h3>
-      Two phones, one board. Dial <b>321</b> and the other phone rings. Or intercom mode. Works with no Wi-Fi and no internet. Use it between 2 rooms in your house,
-      kids' rooms, etc.
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/assets/use-standalone.svg" alt="One phone playing clips and recording messages">
-      <h3>A phone that does things</h3>
-      Dial a code and something happens: play a clip, leave a message, reach the
-      answering machine. Museum exhibits, art pieces, a wedding guestbook phone,
-      a phone that tells kids jokes. Saves messages to uSD card. 
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/assets/use-voip.svg" alt="The board registered with a SIP server">
-      <h3>VoIP</h3>
-      Register a line with Asterisk, FreePBX or any SIP server and call anything
-      that server can reach. If the server goes down, the two phones can still
-      call each other.
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/assets/use-bluetooth.svg" alt="The board paired with a mobile phone">
-      <h3>Bluetooth <i>(coming soon)</i></h3>
-      Pair your mobile and the rotary phone becomes its handset: the bell rings
-      for incoming calls, lift to answer, dial out on the rotary dial. Arrives
-      with the next board revision.
-    </td>
-  </tr>
-</table>
+| | What you get | What you need |
+|---|---|---|
+| **Intercom** | Two phones, one board. Dial **321** and the other phone rings, or turn on intercom mode: lift one handset, wait, and the other rings. No Wi-Fi, no internet. Rooms in a house, kids' rooms. | A second phone line |
+| **A phone that does things** | Dial a code and something happens: play a clip, leave a message, hear a joke. Museum exhibits, art pieces, a wedding guestbook phone. Add your own codes and audio from the browser. | One phone |
+| **Answering machine** | Each line has its own greeting. Messages save on the board, or on a microSD card for hours of storage. Play or download them from the web page. | One phone (microSD for the most room) |
+| **VoIP** | Register a line with Asterisk, FreePBX or any SIP server and call anything that server can reach. If the server goes down, the two phones can still call each other. | Wi-Fi and a SIP server |
+| **Home Assistant** | Every pickup, hang-up and dial code becomes an event, so a dial code can turn on a light and the phone can ring when your doorbell does. Over MQTT or a plain webhook. *Experimental.* | Wi-Fi and Home Assistant (or any MQTT broker) |
+| **Switch things** | Dial a code and a pin goes high for a few seconds: a relay, a buzzer, a lamp. | One line, no microSD, and a relay |
+| **Your cell phone** *(coming soon)* | Pair your mobile and the rotary phone becomes its handset: the bell rings for incoming calls, lift to answer, dial out on the rotary dial. | The Bluetooth board, with the v5 board |
 
 ### Why not just buy a VoIP adapter?
 
@@ -128,19 +114,23 @@ Click any picture for the full page. A guided tour is in
 
 ## What does one cost?
 
-Building a single-line board yourself, US prices from October 2026
-including shipping and import tariff:
+US prices from October 2026, including shipping and import tariff:
 
-| | Cost |
-|---|---:|
-| Assembled PCB from JLCPCB (5-board minimum) | $85.53 for 5, so $17.11 each |
-| Hand-solder parts from DigiKey ([parts list](docs/bom.md)) | about $19, plus shipping |
-| **One single-line board** | **about $110 up front**, with 4 spare PCBs |
-| Second phone line (optional) | +$10 |
+| | Per board | 5 boards |
+|---|---:|---:|
+| Assembled PCB from JLCPCB, delivered (5-board minimum) | $17.11 | $85.53 |
+| Parts you solder, from DigiKey ([parts list](docs/bom.md)) | $19 | $95 |
+| DigiKey shipping, about $5 an order | $1 | $5 |
+| **Total, one phone line** | **about $37** | **about $186** |
+| Second phone line (optional) | +$10 | +$50 |
+| Bluetooth board (optional, v5) | +$20 | +$100 |
+
+**Five boards cost about $186 in all, about $37 each.** Want just one?
+JLCPCB's minimum is five, so it's about $110 up front, with four spare PCBs.
 
 You'll also want a 2A USB-C charger and one or two analog phones. Buying
 the hand-solder parts from AliExpress instead brings them to about $12 a
-board.
+board, or about $30 each for the whole board.
 
 Most of a small order is fixed setup fees, so boards get cheaper when people
 order together. If you'd like a board from a group order,
@@ -194,7 +184,7 @@ Going further: [VoIP setup](docs/voip-setup.md) ·
 | Aug 2020 | **Raspberry Pi** <br><img src="docs/pics/pi_version.jpg" width="220" alt="Raspberry Pi version in its project box"> | A Raspberry Pi 4 in a project box, two SLIC modules hand-wired on breadboard to the GPIO header, and a USB sound dongle per phone line. Hand written python software and shell scripts. No web UI, but it worked!|
 | Jun 2026 | **v1** | The first ESP32 board: through-hole, with a WM8731 codec and two AG1170 SLICs. The Pi's job on a $5 microcontroller. Never built because boards got lost in the mail.|
 | Jul 2026 | **v2** <br><img src="docs/pics/smd2_board.jpg" width="220" alt="Analog Redial v2 board"> | First surface-mount board: ESP32-C6 module, ES8388 codec, AG1171 SLICs, microSD. Required rework on audio lines and usb connection but it worked. |
-| Sep 2026 | **v4** <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | The current board: 2-layer, built around an cheaper 32-pin ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. |
+| Sep 2026 | **v4** <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | The current board: 2-layer, built around a cheaper 32-pin ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. |
 | Oct 2026 | **v5** | At the fab: takes a genuine or clone ESP32-C6 module, and adds the Bluetooth companion. |
 
 ## License
