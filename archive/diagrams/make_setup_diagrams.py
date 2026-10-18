@@ -578,7 +578,7 @@ SCALES = {   # per layout: (landscape k, portrait k)
 }
 
 
-def build_overview(kind: str, layout: str = "side") -> tuple[str, int, int]:
+def build_overview(kind: str, layout: str = "side", with_legend: bool = True) -> tuple[str, int, int]:
     if layout == "side":
         content, dw, dh = compose_overview_content(), DW, DH
     else:
@@ -587,7 +587,13 @@ def build_overview(kind: str, layout: str = "side") -> tuple[str, int, int]:
     k_land, k_port = SCALES[layout]
     j5 = layout == "side"        # the top layout draws J5 under each option itself
     legend = ""
-    if kind == "docs":
+    if not with_legend and kind != "docs":
+        # The diagram alone, as large as the page allows, centred.
+        W, H = (1056, 816) if kind == "letter-landscape" else (816, 1056)
+        m = 28
+        k = min((W - 2 * m) / dw, (H - 2 * m) / dh)
+        ox, oy = (W - dw * k) / 2, (H - dh * k) / 2
+    elif kind == "docs":
         m = 36
         W, H = dw + 2 * m, dh + 2 * m - 10
         k, ox, oy = 1.0, m, m - 10
@@ -642,6 +648,12 @@ def main() -> None:
             path.write_text(doc)
             export_png(path, path.with_suffix(".png"))
             print(f"  {path.name}  {W} x {H}")
+            if kind != "docs":          # the docs size has no legend to begin with
+                doc, W, H = build_overview(kind, layout, with_legend=False)
+                path = ASSETS / f"{prefix}-{kind}-notext.svg"
+                path.write_text(doc)
+                export_png(path, path.with_suffix(".png"))
+                print(f"  {path.name}  {W} x {H}")
     print(f"wrote {len(PARTS_DEF)} parts and {out.name}")
 
 
