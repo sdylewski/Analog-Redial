@@ -34,6 +34,9 @@
 #include "esp_log.h"
 #include "esp_err.h"
 #include "esp_system.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include "esp_heap_caps.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -102,6 +105,66 @@ static void sd_line1_conflict_task(void *arg)
         }
         was_active = active;
         vTaskDelay(pdMS_TO_TICKS(SD_LINE1_CONFLICT_POLL_MS));
+    }
+}
+
+/* ---- Black box ----
+ * The log lives in RAM, so whatever happened while the board was off the
+ * network (a weak supply knocking Wi-Fi out, say) is gone by the time it's
+ * plugged back in somewhere it can be read. So: while Wi-Fi is down after
+ * having been up, save the log to internal flash as blackbox.log, 15 s after
+ * the drop and then once a minute. Download it from Settings -> Storage. Internal flash,
+ * not the SD card, because a sagging supply is exactly what upsets the card. */
+#define BLACKBOX_NAME        "blackbox.log"
+#define BLACKBOX_FIRST_MS    15000
+#define BLACKBOX_EVERY_MS    60000
+
+static void blackbox_save(const char *why)
+{
+    const size_t cap = 8192 + 256;
+    char *buf = malloc(cap);
+    if (!buf) return;
+    board_restart_stats_t rs;
+    board_restart_stats_get(&rs);
+    int hn = snprintf(buf, 256,
+        "=== black box: %s; start-up #%u, up %lld s, heap %u free (min %u, largest %u) ===\n",
+        why, (unsigned)rs.boots, (long long)(esp_timer_get_time() / 1000000),
+        (unsigned)esp_get_free_heap_size(), (unsigned)esp_get_minimum_free_heap_size(),
+        (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+    if (hn < 0 || hn >= 256) hn = 0;
+    size_t n = hn + logbuf_snapshot(buf + hn, cap - hn);
+    storage_writer_t w;
+    if (storage_write_begin_local(BLACKBOX_NAME, n, &w) == ESP_OK) {
+        if (storage_write_chunk(&w, buf, n) == ESP_OK) storage_write_end(&w);
+        else storage_write_abort(&w);
+    }
+    free(buf);
+}
+
+static void blackbox_task(void *arg)
+{
+    bool was_up = false;
+    int64_t down_since = 0, last_save = 0;
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        int64_t now = esp_timer_get_time() / 1000;
+        if (wifi_is_connected()) {
+            if (was_up == false) ESP_LOGD(TAG, "black box: Wi-Fi up");
+            was_up = true;
+            down_since = 0;
+            continue;
+        }
+        if (!was_up) continue;           /* never connected yet this boot */
+        if (!down_since) {
+            down_since = now;
+            last_save = 0;
+            ESP_LOGW(TAG, "Wi-Fi lost; saving the log to %s in %d s", BLACKBOX_NAME, BLACKBOX_FIRST_MS / 1000);
+        }
+        if ((!last_save && now - down_since >= BLACKBOX_FIRST_MS) ||
+            (last_save && now - last_save >= BLACKBOX_EVERY_MS)) {
+            blackbox_save("Wi-Fi down");
+            last_save = now;
+        }
     }
 }
 
@@ -286,6 +349,7 @@ void app_main(void)
      * configured) has already claimed its GPIO before this might power it
      * back down/up. */
     xTaskCreate(sd_line1_conflict_task, "sd_line1_guard", 3072, NULL, tskIDLE_PRIORITY + 1, NULL);
+    xTaskCreate(blackbox_task, "blackbox", 3584, NULL, tskIDLE_PRIORITY + 1, NULL);
 
     /* Confirms this image is good, canceling CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE's
      * pending auto-revert -- everything that could plausibly fail to come up
