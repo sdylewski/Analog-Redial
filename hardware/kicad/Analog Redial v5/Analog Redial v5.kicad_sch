@@ -6442,6 +6442,17 @@
 		)
 		(uuid "2b9892be-5825-4729-a1f5-bff6a0db654a")
 	)
+	(text "Issues with SMD5:\nMajor flaw in dual ESP32 footprint:  the 2nd 5V pad was tied to ground. \nFix:  don't populate that pin (18)"
+		(exclude_from_sim no)
+		(at 199.39 60.706 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "3d722f60-835c-42d5-91e1-97671d3ea112")
+	)
 	(text "Diode\n1N4148 or BAS16"
 		(exclude_from_sim no)
 		(at 330.454 98.044 0)
@@ -6616,7 +6627,7 @@
 	)
 	(text "Changes from SMD4:\ncapacitor silkscreen needs to show capacitance value and line\nsilkscreen note to add jumpbers for 2nd AG1171\nsilkscreen note to only use uSD OR SLIC #2\nincrease capacitor clearance and update footprint clearance to AG1171 board\nNew esp32-c6 wide version option. (big change)\n	add cuttable jumpers to select correct pinout for wide/cheap esp32-c6\n\nchange SHK voltage divider so it's closer to 3.3V output (currently it's measuring 1.8V)\n	by swapping the 15k for 100k to gnd.\n\nadd 8-pin header for bluetooth module.\nadd pull-down 100k to MFB line, connected to GPIO15\nAdd 3.3V regulator for optional bluetooth module\n\n"
 		(exclude_from_sim no)
-		(at 198.628 61.214 0)
+		(at 199.136 38.1 0)
 		(effects
 			(font
 				(size 1.27 1.27)
