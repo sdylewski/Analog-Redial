@@ -1,6 +1,6 @@
 # Analog Redial v5 (SMD5) — dev notes
 
-> **Status: sent to fab, not yet tested.** Ordered together with the BM64
+> **Status: boards back (2026-10-19), first bring-up under way** — see [Bring-up log](#bring-up-log) at the end. Originally sent to fab untested. Ordered together with the BM64
 > Bluetooth carrier (`Bluetooth/Bluetooth_board/`) and a BK3266 test board
 > (`Bluetooth/BK3266_board_v1/`) for a first look at that module as a BM64
 > alternative.
@@ -269,3 +269,34 @@ misbehaves.
   to forget Wi-Fi — the same gestures `board_boot_button_start()` already
   handles for BOOT. A side-mounted tactile switch, reachable through the
   enclosure wall.
+
+
+## Bring-up log
+
+**2026-10-19, first two boards, no phone attached, one line, no microSD.** Both
+flashed with the `smd5` build over native USB (16 MB flash each). Boards
+named by MAC: `…b1:14` = genuine DevKitC-1 + BM64 carrier, `…b4:64` = 30-pin
+clone + BK3266 board. Settings set from the console with `hwcfg` (new) since a
+board in Wi-Fi setup mode can't reach Settings -> Hardware without moving the
+laptop off its network.
+
+| Check | Genuine + BM64 | Clone + BK3266 |
+|--|--|--|
+| Boots, console, `board_info` = SMD5 | ok | ok |
+| ES8388 at 0x10 (I²C) | ok | ok |
+| Codec -> SLIC -> codec (`tonetest`) | tone returns, -31 dBFS | **no tone**; both ADC inputs read rms ~80 (genuine: 1-3) |
+| BT module on UART | BM64 answers at 115200, BD address 3C:BC:32:D0:B7:44; pairing mode (discoverable) starts | **silent** at every baud tried (`bk_baudscan`), binary and text |
+| BT EEPROM check | **can't verify**: IBDK entry fails (no P2_0/RST_N leads fitted); the module is "unverified" until they are | n/a |
+
+- Clone + `smd5` firmware and no audio is the documented "clone, jumpers left
+  at default" row: MCLK is on the wrong pad. Either move JP2/JP3 to the clone
+  side (then `smd5` works with the USB console) or run `smd5_cheap`, which
+  has no USB console and puts the console on the same UART0 pins the Bluetooth
+  module uses, so serial bring-up of the BK3266 can't be done in that mode.
+  Which the jumpers are: unconfirmed, the symptoms point at default.
+- BM64 `config check: 6/6 correct, 0 written, error: couldn't enter IBDK`
+  prints "6/6 correct" even though nothing could be read: the count is
+  misleading when IBDK entry fails.
+- Wi-Fi: `the home Wi-Fi` was not in a scan from where the boards sit
+  (11 networks seen, not that one); credentials are saved and they will join
+  when it is in range.
