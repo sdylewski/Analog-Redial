@@ -62,6 +62,8 @@ void      bk3266_print_state(void);
 
 /* Listens for listen_ms, printing raw bytes and decoded frames. */
 esp_err_t bk3266_listen(int listen_ms);
+/* Version query (binary and text) at every common baud rate: what answers? */
+esp_err_t bk3266_baudscan(void);
 /* Sends raw bytes (any framing, or text), then listens. With the driver
  * running it only sends: the reply shows up in its log and bk_state. */
 esp_err_t bk3266_send_raw(const uint8_t *tx, size_t n, int listen_ms);

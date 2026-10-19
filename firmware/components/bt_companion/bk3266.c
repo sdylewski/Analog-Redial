@@ -392,6 +392,40 @@ esp_err_t bk3266_listen(int listen_ms)
     return ESP_OK;
 }
 
+/* Tries the module at every common baud rate with a binary version query
+ * and two text queries, and says what (if anything) came back. */
+esp_err_t bk3266_baudscan(void)
+{
+    esp_err_t err = bring_up_ready();
+    if (err != ESP_OK) return err;
+    static const int bauds[] = { 9600, 115200, 38400, 57600, 19200, 4800, 2400, 230400, 460800, 1200 };
+    static const uint8_t bin_q[] = { 0x52, 0x42, 0x23, 0x04, 0x01, 0x14, 0x19, 0x23, 0x42, 0x52 };
+    static const char *txt_q[] = { "BT+GNM\r\n", "AT\r\n" };
+    for (size_t i = 0; i < sizeof(bauds) / sizeof(bauds[0]); i++) {
+        uart_set_baudrate(BK_UART, bauds[i]);
+        uart_flush_input(BK_UART);
+        uart_write_bytes(BK_UART, (const char *)bin_q, sizeof(bin_q));
+        uart_wait_tx_done(BK_UART, pdMS_TO_TICKS(100));
+        uint8_t buf[48];
+        int got = uart_read_bytes(BK_UART, buf, sizeof(buf), pdMS_TO_TICKS(500));
+        for (size_t t = 0; t < 2 && got <= 0; t++) {
+            uart_flush_input(BK_UART);
+            uart_write_bytes(BK_UART, txt_q[t], strlen(txt_q[t]));
+            uart_wait_tx_done(BK_UART, pdMS_TO_TICKS(100));
+            got = uart_read_bytes(BK_UART, buf, sizeof(buf), pdMS_TO_TICKS(500));
+        }
+        printf("%6d baud: ", bauds[i]);
+        if (got <= 0) { printf("nothing\n"); continue; }
+        printf("%d byte(s):", got);
+        for (int k = 0; k < got; k++) printf(" %02x", buf[k]);
+        printf("  \"");
+        for (int k = 0; k < got; k++) putchar(buf[k] >= 32 && buf[k] < 127 ? buf[k] : '.');
+        printf("\"\n");
+    }
+    uart_set_baudrate(BK_UART, BK_BAUD);
+    return ESP_OK;
+}
+
 esp_err_t bk3266_send_raw(const uint8_t *tx, size_t n, int listen_ms)
 {
     if (s_task) {

@@ -2658,6 +2658,14 @@ static int cmd_bk_probe(int argc, char **argv)
     return err == ESP_OK ? 0 : 1;
 }
 
+static int cmd_bk_baudscan(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    esp_err_t err = bk3266_baudscan();
+    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
+    return err == ESP_OK ? 0 : 1;
+}
+
 static int cmd_bk_listen(int argc, char **argv)
 {
     int ms = (argc > 1) ? atoi(argv[1]) : 5000;
@@ -2874,6 +2882,72 @@ static void console_task(void *arg)
 }
 #endif
 
+/* gpiotest <gpio>: is something driving this pin? Reads it with the internal
+ * pull-down, then the pull-up. A pin that follows the pull is floating; one
+ * that reads the same both ways is being driven (high or low) from outside.
+ * For a UART RX line: idle-high from a powered module reads high both times. */
+static int cmd_gpiotest(int argc, char **argv)
+{
+    if (argc < 2) { printf("usage: gpiotest <gpio>   (bt_enable 0 first for GPIO16/17)\n"); return 1; }
+    int pin = atoi(argv[1]);
+    if (pin < 0 || pin > 23) { printf("gpiotest: pin out of range\n"); return 1; }
+    gpio_config_t io = {
+        .pin_bit_mask = 1ULL << pin, .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE, .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&io);
+    vTaskDelay(pdMS_TO_TICKS(20));
+    int with_pd = gpio_get_level(pin);
+    io.pull_up_en = GPIO_PULLUP_ENABLE; io.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    gpio_config(&io);
+    vTaskDelay(pdMS_TO_TICKS(20));
+    int with_pu = gpio_get_level(pin);
+    printf("GPIO%d: %d with pull-down, %d with pull-up -> %s\n", pin, with_pd, with_pu,
+           with_pd == with_pu ? (with_pd ? "driven HIGH from outside" : "driven LOW from outside")
+                              : "floating (nothing drives it)");
+    io.pull_up_en = GPIO_PULLUP_DISABLE;
+    gpio_config(&io);
+    return 0;
+}
+
+/* hwcfg: the console's version of Settings -> Hardware, for a board that
+ * isn't on Wi-Fi yet. hwcfg [bt none|bm64|bk3266] [lines 1|2] [sd 0|1] */
+static int cmd_hwcfg(int argc, char **argv)
+{
+    board_hw_config_t cfg = board_hw_config_get();
+    bool change = false;
+    for (int i = 1; i + 1 < argc; i += 2) {
+        const char *k = argv[i], *v = argv[i + 1];
+        if (!strcmp(k, "bt")) {
+            if (!strcmp(v, "bk3266")) cfg.bt_module = BOARD_BT_BK3266;
+            else if (!strcmp(v, "bm64")) cfg.bt_module = BOARD_BT_BM64;
+            else if (!strcmp(v, "none")) cfg.bt_module = BOARD_BT_NONE;
+            else { printf("hwcfg: bt wants none, bm64 or bk3266\n"); return 1; }
+            cfg.has_bt_module = cfg.bt_module != BOARD_BT_NONE;
+        } else if (!strcmp(k, "lines")) {
+            cfg.num_lines = atoi(v);
+        } else if (!strcmp(k, "sd")) {
+            cfg.has_microsd = atoi(v) != 0;
+        } else {
+            printf("hwcfg: unknown '%s' (want bt, lines or sd)\n", k);
+            return 1;
+        }
+        change = true;
+    }
+    if (change) {
+        esp_err_t err = board_hw_config_set(cfg);
+        if (err != ESP_OK) { printf("hwcfg: refused (%s)\n", esp_err_to_name(err)); return 1; }
+        printf("hwcfg: saved; reboot to apply\n");
+    }
+    cfg = board_hw_config_get();
+    printf("lines %d, microSD %s, Bluetooth module %s, config confirmed %s\n", cfg.num_lines,
+           cfg.has_microsd ? "yes" : "no",
+           cfg.bt_module == BOARD_BT_BM64 ? "BM64" : cfg.bt_module == BOARD_BT_BK3266 ? "BK3266" : "none",
+           board_hw_config_is_set() ? "yes" : "no");
+    return 0;
+}
+
 void bringup_console_start(void)
 {
     esp_console_repl_t *repl = NULL;
@@ -2921,6 +2995,7 @@ void bringup_console_start(void)
 
     register_cmd("board_info", "Print detected board type and pin map", cmd_board_info);
     register_cmd("bk_probe", "BK3266: is anything answering? listens, sends a version query", cmd_bk_probe);
+    register_cmd("bk_baudscan", "BK3266: version query (binary + text) at every common baud rate", cmd_bk_baudscan);
     register_cmd("bk_listen", "BK3266: print raw bytes + decoded frames: bk_listen [ms]", cmd_bk_listen);
     register_cmd("bk_cmd", "BK3266: send one command code: bk_cmd <hex> [listen_ms]", cmd_bk_cmd);
     register_cmd("bk_frame", "BK3266: build + send a frame: bk_frame <cmd> [data] [ms]", cmd_bk_frame);
@@ -3020,6 +3095,8 @@ void bringup_console_start(void)
     register_cmd("bm64_mmi", "Send a raw MMI action code: bm64_mmi <hex, e.g. 51> -- bt_companion must be ENABLED (opposite of bm64_test/addr/snoop)", cmd_bm64_mmi);
     register_cmd("bm64_cmd", "Send a real command-set command with hex param bytes (e.g. 23 00 01 03 0F 0F 00 for Set_Overall_Gain): bm64_cmd <hex opcode> [params...] -- bt_companion must be ENABLED, log_level debug to see the reply", cmd_bm64_cmd);
 #ifdef BOARD_BT_MFB_PIN
+    register_cmd("gpiotest", "Is something driving this pin? gpiotest <gpio> (reads with pull-down, then pull-up)", cmd_gpiotest);
+    register_cmd("hwcfg", "Hardware config (like Settings -> Hardware): hwcfg [bt none|bm64|bk3266] [lines 1|2] [sd 0|1], then reboot", cmd_hwcfg);
     register_cmd("bm64_pin", "Bit-bang BM64's MFB/RST_N/P2_0 over GPIO18-20 (bench-wired only): bm64_pin <mfb|rst|p20> <0|1> -- single-line, no-microSD boards only", cmd_bm64_pin);
 #endif
 
