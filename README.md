@@ -24,7 +24,7 @@
 <table>
   <tr>
     <td width="50%"><img src="docs/pics/smd4_board.jpg" alt="The Analog Redial board"></td>
-    <td width="50%"><img src="docs/assets/photo-placeholder.svg" alt="The board in its 3D-printed case (photo coming soon)"></td>
+    <td width="50%"><img src="docs/pics/v4_case.jpg" alt="The board in its 3D-printed case (photo coming soon)"></td>
   </tr>
   <tr>
     <td align="center">The board: an ESP32-C6, an audio codec, with dual phone lines.</td>
