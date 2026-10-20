@@ -262,8 +262,7 @@ not a drop-in option.
 
 **Which module.** The **BM64** carrier is the tested, supported choice (about $14). The next option
 to try is the **DFRobot DFR0781 (BT401)** module, about $3.50, hand-wired to the same header; it has a
-text command set with call control, and is not yet tested here. A cheaper BK3266-type module was tried
-and did not work as intended (see `Bluetooth/BK3266/` in the repository).
+text command set with call control, and is not yet tested here.
 
 The status LED shows pairing/connection state once this is fitted and
 working — see [the status light reference](setup.md#7-the-status-light).
