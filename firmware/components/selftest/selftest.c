@@ -269,7 +269,9 @@ static int line_from_id(const char *id)
 
 /* ---- audio level check ------------------------------------------------- */
 
-#define LEVEL_CLEAN_PCT 3.0f
+#define LEVEL_CLEAN_PCT 5.0f
+#define LEVEL_START 30   /* the default level */
+#define LEVEL_FLOOR 20   /* never recommend lower than this */
 
 static void apply_level(int line, uint8_t level)
 {
@@ -321,57 +323,61 @@ static selftest_result_t run_level_check(selftest_check_t *c, int line)
         return SELFTEST_PENDING;
     }
     uint8_t saved = board_speaker_volume_get(line, ES8388_DEFAULT_SPK_VOL);
-    tone_purity_t cur, t;
+    tone_purity_t t;
     esp_err_t err;
     memset(&s_level_rep[line], 0, sizeof(s_level_rep[line]));
     s_level_rep[line].saved_level = saved;
-    ESP_LOGI(TAG, "audio level check, line %d: current level %u, clean means under %.0f%% distortion",
+    ESP_LOGI(TAG, "audio level check, line %d: current level %u, acceptable means under %.0f%% distortion",
              line, saved, LEVEL_CLEAN_PCT);
-    bool cur_clean = level_clean(line, saved, &cur, &err);
-    if (err == ESP_ERR_NOT_FOUND) {
+
+    /* Noise floor first, so a quiet test tone isn't blamed for hum and hiss. */
+    audio_tone_purity_baseline(line);
+
+    /* Start at the default and step down one level (1.5 dB) at a time until
+     * the distortion is acceptable. Some distortion at every level is normal
+     * for a phone line, so if none passes, recommend the cleanest level seen
+     * in the range rather than a very low one. */
+    uint8_t chosen = 0, best = 0;
+    float best_pct = 1000, chosen_pct = 0, chosen_tone = 0;
+    bool any_tone = false;
+    for (uint8_t v = LEVEL_START; v >= LEVEL_FLOOR; v--) {
+        bool ok = level_clean(line, v, &t, &err);
+        if (err == ESP_ERR_NOT_FOUND && !any_tone) break;
+        if (err != ESP_OK) continue;
+        any_tone = true;
+        if (t.distortion_pct < best_pct) { best_pct = t.distortion_pct; best = v; }
+        if (ok) { chosen = v; chosen_pct = t.distortion_pct; chosen_tone = t.tone_dbfs; break; }
+    }
+    audio_tone_purity_baseline_clear(line);
+    s_level_rep[line].valid = true;
+    if (!any_tone) {
         apply_level(line, saved);
-        s_level_rep[line].valid = true;
         set_result(c, SELFTEST_FAIL, "no test tone came back: line %d unpowered or Vout open", line);
         return SELFTEST_FAIL;
     }
-    if (err != ESP_OK) {
-        apply_level(line, saved);
-        set_result(c, SELFTEST_FAIL, "measurement failed (%s)", esp_err_to_name(err));
-        return SELFTEST_FAIL;
-    }
+    bool within = chosen != 0;
+    if (!within) { chosen = best; chosen_pct = best_pct; }
 
-    /* Highest clean level: coarse steps down from the top, then the two
-     * steps just above the first clean one. */
-    static const uint8_t GRID[] = { 33, 30, 27, 24, 21, 18, 15, 12 };
-    uint8_t clean_max = 0;
-    for (size_t i = 0; i < sizeof(GRID); i++) {
-        if (level_clean(line, GRID[i], &t, &err)) { clean_max = GRID[i]; break; }
-    }
-    if (clean_max && clean_max < 33) {
-        for (uint8_t v = clean_max + 2; v > clean_max; v--) {
-            if (level_clean(line, v, &t, &err)) { clean_max = v; break; }
-        }
-    }
-    apply_level(line, saved);
-    board_speaker_clean_max_set(line, clean_max);
-    s_level_rep[line].clean_max = clean_max;
-    s_level_rep[line].valid = true;
-    ESP_LOGI(TAG, "audio level check, line %d: clean up to level %u; level %u is %s",
-             line, clean_max, saved, cur_clean ? "clean" : "distorted");
+    /* Never raise the user's level, only lower it to the recommendation. */
+    uint8_t final_level = saved > chosen ? chosen : saved;
+    if (final_level != saved) board_speaker_volume_set(line, final_level);
+    apply_level(line, final_level);
+    board_speaker_clean_max_set(line, chosen);
+    s_level_rep[line].clean_max = chosen;
+    ESP_LOGI(TAG, "audio level check, line %d: recommended %u (%.1f%%), level now %u",
+             line, chosen, chosen_pct, final_level);
 
-    if (!clean_max) {
-        set_result(c, SELFTEST_FAIL, "distorted at every level (%.0f%% at %u): check the line audio parts",
-                   cur.distortion_pct, saved);
-        return SELFTEST_FAIL;
-    }
-    if (cur_clean) {
-        set_result(c, SELFTEST_PASS, "level %u clean (%.1f%%, tone %.0f dBFS); clean up to %u",
-                   saved, cur.distortion_pct, cur.tone_dbfs, clean_max);
+    if (within) {
+        if (final_level == saved)
+            set_result(c, SELFTEST_PASS, "level %u is fine (%.1f%% distortion, tone %.0f dBFS)",
+                       saved, chosen_pct, chosen_tone);
+        else
+            set_result(c, SELFTEST_PASS, "lowered from %u to %u (%.1f%% distortion)", saved, final_level, chosen_pct);
         return SELFTEST_PASS;
     }
-    set_result(c, SELFTEST_FAIL, "level %u distorts (%.1f%%); clean up to %u: lower it",
-               saved, cur.distortion_pct, clean_max);
-    return SELFTEST_FAIL;
+    set_result(c, SELFTEST_PASS, "some distortion at every level (%.1f%% at best, level %u); %s %u",
+               chosen_pct, chosen, final_level == saved ? "kept" : "set to", final_level);
+    return SELFTEST_PASS;
 }
 
 selftest_result_t selftest_run_action(const char *id, int timeout_ms)

@@ -73,6 +73,10 @@ typedef struct {
     float top_hz[3], top_dbfs[3];    /* strongest distortion products */
 } tone_purity_t;
 esp_err_t audio_tone_purity(int line, bool digital, tone_purity_t *out);
+/* Measures the line's noise floor with no tone playing (~0.8 s); later analog
+ * audio_tone_purity() calls on that line subtract it. Clear when done. */
+esp_err_t audio_tone_purity_baseline(int line);
+void audio_tone_purity_baseline_clear(int line);
 
 /* Deterministic voice-effect measurement (fx_test.c): a pure tone through an
  * effect, then the strongest two spectral lines out. */

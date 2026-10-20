@@ -30,12 +30,16 @@ static void capture_tap(int line, const int16_t *mono, size_t n, void *ctx)
     if (c->n >= c->target) c->done = true;
 }
 
+/* Per-line noise floor (hum, hiss, SLIC spurs) at each analysis frequency,
+ * measured with no tone playing; subtracted in power so that a quiet test
+ * tone is not blamed for noise that is there regardless of level. */
+static float s_base[AUDIO_NUM_LINES][N_FREQS];
+static bool s_base_ok[AUDIO_NUM_LINES];
+
 static float to_db(float v) { return 20.0f * log10f(v + 1e-9f); }
 
-esp_err_t audio_tone_purity(int line, bool digital, tone_purity_t *out)
+static esp_err_t measure(int line, bool digital, bool tone_on, float amp[N_FREQS], int32_t *peak_out, uint32_t *clipped_out)
 {
-    if (!out || line < 0 || line >= AUDIO_NUM_LINES) return ESP_ERR_INVALID_ARG;
-    memset(out, 0, sizeof(*out));
     uint32_t fs = audio_sample_rate();
 
     /* 0.5 s is plenty, but a fragmented heap (the Diagnostics page is big) may
@@ -45,19 +49,19 @@ esp_err_t audio_tone_purity(int line, bool digital, tone_purity_t *out)
     while (!(cap.buf = malloc(cap.target * sizeof(int16_t))) && cap.target > fs / 8) cap.target /= 2;
     if (!cap.buf) return ESP_ERR_NO_MEM;
 
-    /* 1.5 s burst: 0.6 s for the line to settle, 0.5 s captured. Same level as
-     * the dial tone (0.6 of full scale, split across the two tones). */
-    audio_tx_burst(line, FREQS[0], FREQS[1], 0.6f, 1500);
-    vTaskDelay(pdMS_TO_TICKS(600));
+    /* 2.2 s burst, same level as the dial tone (0.6 of full scale, split
+     * across the two tones). The first 0.9 s holds the SLIC's start-up pop and
+     * settling, so only the following 0.5 s is captured. */
+    if (tone_on) audio_tx_burst(line, FREQS[0], FREQS[1], 0.6f, 2200);
+    vTaskDelay(pdMS_TO_TICKS(tone_on ? 900 : 300));
     if (digital) audio_add_downlink_tap(line, capture_tap, &cap);
     else         audio_add_diag_tap(line, capture_tap, &cap);
     for (int i = 0; i < 30 && !cap.done; i++) vTaskDelay(pdMS_TO_TICKS(100));
     if (digital) audio_remove_downlink_tap(line);
     else         audio_remove_diag_tap(line);
-    audio_tx_silence(line);
+    if (tone_on) audio_tx_silence(line);
     if (!cap.done) { free(cap.buf); return ESP_ERR_TIMEOUT; }
 
-    float amp[N_FREQS];
     for (int k = 0; k < N_FREQS; k++) {
         float coeff = 2.0f * cosf(2.0f * (float)M_PI * FREQS[k] / (float)fs), q1 = 0, q2 = 0;
         for (uint32_t i = 0; i < cap.n; i++) {
@@ -68,12 +72,49 @@ esp_err_t audio_tone_purity(int line, bool digital, tone_purity_t *out)
         amp[k] = 2.0f * sqrtf(p > 0 ? p : 0) / (float)cap.n;    /* peak amplitude, 1.0 = full scale */
     }
     int32_t peak = 0;
+    uint32_t clipped = 0;
     for (uint32_t i = 0; i < cap.n; i++) {
         int32_t a = cap.buf[i] < 0 ? -cap.buf[i] : cap.buf[i];
         if (a > peak) peak = a;
-        if (a >= 32767) out->clipped++;
+        if (a >= 32767) clipped++;
     }
     free(cap.buf);
+    *peak_out = peak;
+    *clipped_out = clipped;
+    return ESP_OK;
+}
+
+esp_err_t audio_tone_purity_baseline(int line)
+{
+    if (line < 0 || line >= AUDIO_NUM_LINES) return ESP_ERR_INVALID_ARG;
+    s_base_ok[line] = false;
+    float amp[N_FREQS]; int32_t pk; uint32_t cl;
+    esp_err_t e = measure(line, false, false, amp, &pk, &cl);
+    if (e != ESP_OK) return e;
+    memcpy(s_base[line], amp, sizeof(amp));
+    s_base_ok[line] = true;
+    return ESP_OK;
+}
+
+void audio_tone_purity_baseline_clear(int line)
+{
+    if (line >= 0 && line < AUDIO_NUM_LINES) s_base_ok[line] = false;
+}
+
+esp_err_t audio_tone_purity(int line, bool digital, tone_purity_t *out)
+{
+    if (!out || line < 0 || line >= AUDIO_NUM_LINES) return ESP_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    float amp[N_FREQS]; int32_t peak; uint32_t clipped;
+    esp_err_t e = measure(line, digital, true, amp, &peak, &clipped);
+    if (e != ESP_OK) return e;
+    out->clipped = clipped;
+    if (!digital && s_base_ok[line]) {
+        for (int k = 2; k < N_FREQS; k++) {
+            float d = amp[k] * amp[k] - s_base[line][k] * s_base[line][k];
+            amp[k] = d > 0 ? sqrtf(d) : 0;
+        }
+    }
 
     float tone = sqrtf(amp[0] * amp[0] + amp[1] * amp[1]);
     float dist = 0;

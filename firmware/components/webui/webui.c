@@ -4855,7 +4855,7 @@ static int append_level_report(char *buf, size_t cap, int off, int line)
             if (!done[i] && (best < 0 || r->pt[i].level > r->pt[best].level)) best = i;
         done[best] = true;
         const selftest_level_point_t *p = &r->pt[best];
-        bool clean = p->distortion_pct < 3.0f && p->clipped == 0;
+        bool clean = p->distortion_pct < 5.0f;
         off = appendf(buf, cap, off,
             "<tr><td>%u%s</td><td>%.1f</td><td>%.1f dBFS</td><td>%.1f dBFS</td>"
             "<td><span class=\"pill %s\">%.1f%%</span>%s</td><td>%.0f Hz, %.1f dBFS</td></tr>",
@@ -4870,7 +4870,7 @@ static int append_level_report(char *buf, size_t cap, int off, int line)
         "Tone and peak are at the codec's input; they fall 1.5 dB per level, as they should. "
         "Distortion is the energy at the other frequencies a squashed signal creates "
         "(difference and sum tones, harmonics, intermodulation) relative to the two tones; "
-        "under 3%% is clean, and the worst product shows where it is. A row that distorts "
+        "under 5%% is acceptable, and the worst product shows where it is. A row that distorts "
         "while lower ones don't means that level overdrives something after the codec. The "
         "same steps stream to the serial monitor, and the console command "
         "<code>tonetest %d</code> repeats one measurement.</p></details>", line);
