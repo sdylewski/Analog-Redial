@@ -35,3 +35,39 @@ needs its own carrier board. Not worth the $1.80 saving unless the BM64 becomes 
 ## Other candidate (not for hands-free): BH519 / BK3266-style module
 
 See `../BK3266/` and `archive/hardware/bk3266.md`: powers on and pairs but its UART never answered.
+
+## Adapter board for the J2 header (BM64 / BK3266 style)
+
+Reference: DFRobot's schematic `DFR0781_bt401-module_schematics_V1.0.pdf` (the "DAC output" version) and
+datasheet page 41 (footprint). Bookmarks in `LINKS.md`. Module pad numbers below are the BT401's own.
+
+| J2 pin | Main board net | BT401 pad | Name | Notes |
+|--|--|--|--|--|
+| 1 | +3.3V_BM (U5) | 13 | VCC | 3.3-5.2 V accepted; the vendor says 4.2 V is best, and 5 V through a diode is fine. A 3.7 V U5 suits it. Do **not** power pad 6 (3V3 is the module's own LDO **output**, 80 mA max) |
+| 2 | GPIO17 (ESP receives) | 26 | PB0 / UART TX | Module TX, 3.3 V level, 115200 8N1 by default |
+| 3 | GPIO16 (ESP transmits) | 25 | PB1 / UART RX | Module RX; a 1 kohm series resistor is only for 5 V hosts |
+| 4 | GPIO15 / MFB (R17 pulls it low) | none | | Not needed. Optional later: pad 18 (PR2, "ENABLE / RESET") if a reset line is wanted |
+| 5 | Line 0 Vout through C22 1 uF | 8 | PA0 / MIC | The call microphone pin, fixed. The vendor biases it from pad 7 (DACVDD) through 6.2 kohm and couples with 1 uF; copy that: 6.2 kohm from pad 7 to pad 8, 1 uF series (C22 on the main board already is one). Check the level: it expects an electret microphone |
+| 6 | GND through C24 1 uF (MIC_N) | none | | Unused: the module's mic input is single-ended; leave this unconnected |
+| 7 | to Line 0 Vin through C23 1 uF and R16 1 kohm | 10 | DACL | Left channel speaker/headphone output (a headphone amplifier). Vendor adds 22 ohm + 10 uF for headphones; we already have C23 + R16. DACR (pad 9) left open |
+| 8 | GND | 12 and 11 | GND, SGND | Join analog (SGND, pad 11) and digital (GND, pad 12) ground **at the supply entry point only**, one star point (the vendor stresses this) |
+
+Leave everything else unconnected; the vendor says to leave unused pins floating, no pull-ups or pull-downs:
+pads 1-5 (AUX, ADKEY, USB), 14-24 (GPIO, TF card, MUTE, LED), 27/28 (antenna: the module has its own PCB antenna,
+nothing to connect). Pad 19 (PR1, LED, high = on, through 1 kohm) and pad 14 (PC1, BLE LED) are handy for a status
+LED. Pad 23 (PB3, MUTE) auto-detects a pull-up/pull-down at power-up: leave it open.
+
+Layout: antenna keep-out. The PCB antenna is the right-hand end of the module in the vendor drawing (pads 27/28
+side): let that end overhang the board edge or leave it free of copper and metal on every layer.
+
+Footprint (from the datasheet drawing, **verify on a real module before drawing the board**): body 23.0 x 15.5 mm;
+stamp-hole (castellated) pads 0.8 mm wide on a 1.27 mm pitch; pads 1-13 along one long edge with pad 1 at the antenna
+end, pads 14-26 along the opposite edge starting at the end away from the antenna, pads 27 and 28 on that bottom
+edge at the antenna end, 4.9 mm past pad 26; the drawing shows four larger round holes on the left short edge
+(unlabeled, probably USB/test). Dimension labels in the drawing: 7.2 mm from the antenna-end edge to pad 1,
+15.5 mm board width, 17.5 mm across the pad tips.
+
+Software: AT text protocol, replies end in CRLF. Answer `AT+BA04`, hang up `AT+BA03`, reject `AT+BA02`, call back
+`AT+BA00`, dial `AT+BT<number>` (reply `OK`), status `AT+TS` (`TS+00` .. `TS+04`), caller number `AT+TT` or the unsolicited
+`TT+<number>` every 2 s while ringing. Confirmed against the code in `DFRobot_BT401/DFRobot_BT401.cpp`.
+Enable calls with `AT+B201`.
