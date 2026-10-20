@@ -1,6 +1,6 @@
 # DFRobot DFR0781 (BT401 module) as a cheap hands-free module: candidate notes
 
-**Part number to order: DFR0781** (DFRobot's SKU; Digikey lists it under that number, about $3.50). The module itself is the BT401. Product page: https://www.dfrobot.com/product-2177.html . Wiki: https://wiki.dfrobot.com/dfr0781/ . Datasheet (translated, saved here): `DFR0781_BT401_datasheet_english-translated.pdf` (a plain-text extraction sits next to it).
+**Part number to order: DFR0781** (DFRobot's SKU; Digikey lists it under that number, about $3.50). The module itself is the BT401. Product page: https://www.dfrobot.com/product-2177.html . Wiki: https://wiki.dfrobot.com/dfr0781/ . Datasheet (translated, saved here): `DFR0781_BT401_datasheet_english-translated.pdf`.
 
 2026-10-20, from DFRobot's translated datasheet (BT401 V1.5).
 Not bought or tested. Why it is interesting: a **text** UART protocol with the call control we need,

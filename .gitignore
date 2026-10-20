@@ -120,3 +120,4 @@ credentials.json
 voice_prompts/**/*.wav
 firmware/release/out/
 node_modules/
+Bluetooth/BM64/DSPK v2.1.5 Package/

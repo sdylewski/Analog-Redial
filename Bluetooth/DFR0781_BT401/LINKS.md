@@ -5,7 +5,7 @@
 - Product page: https://www.dfrobot.com/product-2177.html (SKU DFR0781, about $3.50; also on Digikey as DFR0781)
 - Wiki: https://wiki.dfrobot.com/dfr0781/
   - Schematic (vendor reference design): https://dfimg.dfrobot.com/wiki/21085/DFR0781_bt401-module_schematics_V1.0.pdf
-  - Datasheet (Chinese, 46 pages): https://dfimg.dfrobot.com/wiki/21085/DFR0781_bt401-module_datasheet_V1.0.pdf
+  - Datasheet (Chinese original, 46 pages, not kept in the repo): https://dfimg.dfrobot.com/wiki/21085/DFR0781_bt401-module_datasheet_V1.0.pdf
   - AT command reference: https://dfrobot.com/dfr0781/docs/21721
   - Example, incoming call control: https://dfrobot.com/dfr0781/docs/21722
   - Example, playback: https://dfrobot.com/dfr0781/docs/21723
