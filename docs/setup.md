@@ -59,7 +59,7 @@ defaults:
 | Dial | What happens |
 |------|--------------|
 | **0** | Operator: a spoken help message |
-| **211** | Record a message after the beep. Play or download it under Recordings |
+| **211** | Record a message after the beep. Play or download it under Recordings. Spoken prompts start about a second after you dial, so you have time to get the handset to your ear |
 | **314** | Reads pi aloud: "three point one four one five...", the first 100 decimals. Hang up to stop |
 | **321** | Ring the other phone (two-line boards) |
 | **412** | A dial-up modem sound, for old times' sake |
@@ -137,7 +137,8 @@ Click any picture for the full page.
   <tr>
     <td><a href="pics/settings-hardware.png"><img src="pics/thumbs/settings-hardware.png" alt="Hardware settings"></a></td>
     <td valign="top"><b>Settings → Hardware.</b> Board and chip
-    details, low-power idle mode, firmware updates (with a check for new
+    details, low-power idle mode (on by default; it saves power when the
+    phones have been idle for a few minutes), firmware updates (with a check for new
     releases), restart counts, the memory map, and resets.</td>
   </tr>
   <tr>
@@ -148,7 +149,8 @@ Click any picture for the full page.
   <tr>
     <td><a href="pics/settings-diag.png"><img src="pics/thumbs/settings-diag.png" alt="Diagnostics"></a></td>
     <td valign="top"><b>Settings → Diagnostics.</b> The full log, log
-    level, the hardware self-test, and a one-shot <b>call recording</b>: arm
+    level, the hardware self-test (including a line audio level check that
+    recommends an earpiece level, with a button to apply it), and a one-shot <b>call recording</b>: arm
     it, lift the handset, and the whole call (dial tone, dialing, voice) is
     saved to the microSD card as a stereo WAV.</td>
   </tr>
