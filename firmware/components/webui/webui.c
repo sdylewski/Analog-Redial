@@ -4843,6 +4843,13 @@ static int append_level_report(char *buf, size_t cap, int off, int line)
 {
     const selftest_level_report_t *r = selftest_level_report(line);
     if (!r || !r->valid || r->n == 0) return off;
+    if (r->recommended && r->recommended < r->saved_level)
+        off = appendf(buf, cap, off,
+            "<form method=\"POST\" action=\"/speaker_volume\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<input type=\"hidden\" name=\"vol\" value=\"%u\">"
+            "<button type=\"submit\">Set line %d to level %u</button></form>",
+            line, r->recommended, line, r->recommended);
     off = appendf(buf, cap, off,
         "<details class=\"hint-detail\"><summary></summary>"
         "<table class=\"mini\"><thead><tr><th>Level</th><th>dB</th><th>Tone</th><th>Peak</th>"
@@ -7794,7 +7801,8 @@ static esp_err_t speaker_volume_handler(httpd_req_t *req)
     speaker_volume_apply(line, (uint8_t)vol);
     board_speaker_volume_set(line, (uint8_t)vol);
 
-    return redirect_to(req, "/settings?tab=phone");
+    redirect_to_referer_or(req, "/settings?tab=phone");
+    return ESP_OK;
 }
 
 /* ---- AEC calibration wizard ----

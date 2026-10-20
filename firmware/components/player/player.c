@@ -19,10 +19,17 @@ typedef struct {
 
 static line_state_t s_line[AUDIO_NUM_LINES];
 
+/* Pause before a prompt or greeting starts, so nothing is missed while the
+ * handset is still on its way to an ear. Applies to every clip started with a
+ * done callback (prompts, greetings, voicemail playback); ringback clips and
+ * chained follow-on clips start at once. */
+#define PROMPT_LEAD_IN_MS 1000
+
 typedef struct {
     int    line;
     char   name[STORAGE_MAX_NAME];
     bool   is_mp3;   /* decided in player_play(): sets the task's stack size */
+    bool   lead_in;  /* wait PROMPT_LEAD_IN_MS first: the caller may still be lifting the handset to an ear */
     bool   chained;  /* another clip follows at once: don't wait out the tail or silence the line */
     player_done_cb_t done_cb;
     void  *ctx;
@@ -217,6 +224,10 @@ static void play_task(void *arg)
         goto out;
     }
 
+    for (int waited = 0; a->lead_in && waited < PROMPT_LEAD_IN_MS && !s_line[line].stop_requested; waited += 20)
+        vTaskDelay(pdMS_TO_TICKS(20));
+    if (s_line[line].stop_requested) goto out;
+
     if (storage_read_open(a->name, &rd) != ESP_OK) {
         ESP_LOGW(TAG, "line %d: '%s' not found in storage", line, a->name);
         goto out;
@@ -391,6 +402,7 @@ static esp_err_t play_start(int line, const char *storage_name, player_done_cb_t
     a->ctx = ctx;
     a->is_mp3 = is_mp3;
     a->chained = chained && !is_mp3;
+    a->lead_in = !chained && done_cb != NULL;
 
     s_line[line].active = true;
     s_line[line].stop_requested = false;

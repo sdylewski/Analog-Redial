@@ -358,25 +358,25 @@ static selftest_result_t run_level_check(selftest_check_t *c, int line)
     bool within = chosen != 0;
     if (!within) { chosen = best; chosen_pct = best_pct; }
 
-    /* Never raise the user's level, only lower it to the recommendation. */
-    uint8_t final_level = saved > chosen ? chosen : saved;
-    if (final_level != saved) board_speaker_volume_set(line, final_level);
-    apply_level(line, final_level);
+    /* Only a recommendation: the Diagnostics page offers a button to apply it. */
+    apply_level(line, saved);
     board_speaker_clean_max_set(line, chosen);
     s_level_rep[line].clean_max = chosen;
-    ESP_LOGI(TAG, "audio level check, line %d: recommended %u (%.1f%%), level now %u",
-             line, chosen, chosen_pct, final_level);
+    s_level_rep[line].recommended = chosen;
+    ESP_LOGI(TAG, "audio level check, line %d: recommended %u (%.1f%%), level in use %u",
+             line, chosen, chosen_pct, saved);
 
     if (within) {
-        if (final_level == saved)
+        if (chosen >= saved)
             set_result(c, SELFTEST_PASS, "level %u is fine (%.1f%% distortion, tone %.0f dBFS)",
                        saved, chosen_pct, chosen_tone);
         else
-            set_result(c, SELFTEST_PASS, "lowered from %u to %u (%.1f%% distortion)", saved, final_level, chosen_pct);
+            set_result(c, SELFTEST_PASS, "recommended level %u (%.1f%% distortion); level %u is in use",
+                       chosen, chosen_pct, saved);
         return SELFTEST_PASS;
     }
-    set_result(c, SELFTEST_PASS, "some distortion at every level (%.1f%% at best, level %u); %s %u",
-               chosen_pct, chosen, final_level == saved ? "kept" : "set to", final_level);
+    set_result(c, SELFTEST_PASS, "some distortion at every level (%.1f%% at best, level %u); recommended level %u",
+               chosen_pct, chosen, chosen);
     return SELFTEST_PASS;
 }
 

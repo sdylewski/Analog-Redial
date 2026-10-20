@@ -219,7 +219,8 @@ void progress_tone_start(progress_tone_t *p, uint32_t sample_rate, call_progress
             break;
     }
     float amp = 0.6f;
-    if (kind == TONE_ANSWERING_BEEP) amp = 0.8f; /* clearly audible "go" cue */
+    if (kind == TONE_ANSWERING_BEEP) amp = 0.4f; /* a clear "go" cue, not a loud one */
+    if (kind == TONE_CONFIRM) amp = 0.4f;
     tone_osc_init(&p->osc, sample_rate, f1, f2, amp);
 }
 

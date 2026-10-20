@@ -123,6 +123,7 @@ typedef struct {
 typedef struct {
     bool    valid;
     uint8_t saved_level;     /* level in use when the check started */
+    uint8_t recommended;     /* level to suggest (0 = no recommendation) */
     uint8_t clean_max;       /* highest clean level found, 0 = none */
     int     n;
     selftest_level_point_t pt[SELFTEST_LEVEL_MAX_POINTS];
