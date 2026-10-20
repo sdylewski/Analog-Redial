@@ -317,3 +317,5 @@ regulated rail. So 5 V straight onto `BAT_IN` is out of range: keep the LDO (U5)
 the BM64's typical 3.8 V than 3.3 V is to its 3.2 V minimum, and meets the BK3266 listing's 3.6 V minimum too.
 Two series diodes from 5 V (about 3.8 V under 15 mA) would also work but sag with load; the LDO costs the same.
 The BM64's EEPROM audio config lives in the module, so the RST_N / P2_0 leads are only needed to program a new one.
+
+**v5 PCB error, clone module (2026-10-20):** the footprint ties the clone's bottom-right 5V pin to GND; remove that pin (the bottom-left 5V pin supplies 5 V). v6 has the footprint fixed, its 5V wiring for that pad not done yet. Public docs carry the warning (README, board.md, bom.md, hardware-smd5.md).

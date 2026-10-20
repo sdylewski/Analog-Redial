@@ -6,6 +6,13 @@
 > [v4](hardware-smd4.md). Everything here that isn't listed as new against
 > v4 carries over from v4 unchanged.
 
+> ⚠️ **v5 board error with the 30-pin clone module: read before soldering.** On the v5 PCB the clone's
+> **bottom-right 5V pin** is wired to **GND** (the footprint is wrong for the clone's pinout). If you fit a
+> clone, **take that pin out**: cut it off the module, or leave it unsoldered, so it doesn't connect to the
+> board at all. The **bottom-left 5V pin** is then the module's only 5 V connection, and it is enough. Left
+> in, the pin shorts the 5 V rail to ground. With the power off, check with a meter that the 5 V pin has no
+> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The next board revision (v6) fixes the footprint.
+
 Design reference for the next-generation board: a 2-layer, ESP32-C6-based
 analog-phone-line gateway carrying one or two POTS lines through Silvertel
 AG1171 SLICs and an Everest ES8388 stereo codec, plus an optional Bluetooth
@@ -253,6 +260,11 @@ yet tested — the web UI's Bluetooth tab marks the feature "experimental, not
 mainstream yet" for that reason. Fitting this on SMD4 instead means serious hand-wiring,
 not a drop-in option.
 
+**Which module.** The **BM64** carrier is the tested, supported choice (about $14). The next option
+to try is the **DFRobot DFR0781 (BT401)** module, about $3.50, hand-wired to the same header; it has a
+text command set with call control, and is not yet tested here. A cheaper BK3266-type module was tried
+and did not work as intended (see `Bluetooth/BK3266/` in the repository).
+
 The status LED shows pairing/connection state once this is fitted and
 working — see [the status light reference](setup.md#7-the-status-light).
 
@@ -279,6 +291,14 @@ modifications, which is why [`hardware-smd4.md`](hardware-smd4.md) doesn't
 describe it.
 
 ## 10. MCU module variants
+
+> ⚠️ **v5 board error with the 30-pin clone module: read before soldering.** On the v5 PCB the clone's
+> **bottom-right 5V pin** is wired to **GND** (the footprint is wrong for the clone's pinout). If you fit a
+> clone, **take that pin out**: cut it off the module, or leave it unsoldered, so it doesn't connect to the
+> board at all. The **bottom-left 5V pin** is then the module's only 5 V connection, and it is enough. Left
+> in, the pin shorts the 5 V rail to ground. With the power off, check with a meter that the 5 V pin has no
+> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The next board revision (v6) fixes the footprint.
+
 
 The footprint accepts two modules, and they are **not** pin-compatible:
 pad positions 12/13 and 19/20 swap between vendors.

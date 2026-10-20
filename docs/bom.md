@@ -147,8 +147,9 @@ the codec** (U2) and − toward J7. Left empty, J7 carries no signal.
 ## Bluetooth companion · coming soon
 
 Arrives with the v5 board: an 8-pin header (**J2**) on the main board and a
-small companion board carrying a BM64 or BK3266 Bluetooth module. Parts and assembly
-will be listed here once v5 is tested.
+small companion board carrying a **BM64** Bluetooth module (the tested choice, about $14).
+The next option to try is the **DFRobot DFR0781** (BT401 module), about $3.50: cheaper, with call
+control over a text command set, but not yet tested here. Parts and assembly will be listed here once v5 is tested.
 
 ---
 
@@ -156,12 +157,20 @@ will be listed here once v5 is tested.
 
 The v5 board also takes a cheap 30-pin clone. They aren't equivalent:
 
+> ⚠️ **v5 board error with the 30-pin clone module: read before soldering.** On the v5 PCB the clone's
+> **bottom-right 5V pin** is wired to **GND** (the footprint is wrong for the clone's pinout). If you fit a
+> clone, **take that pin out**: cut it off the module, or leave it unsoldered, so it doesn't connect to the
+> board at all. The **bottom-left 5V pin** is then the module's only 5 V connection, and it is enough. Left
+> in, the pin shorts the 5 V rail to ground. With the power off, check with a meter that the 5 V pin has no
+> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The next board revision (v6) fixes the footprint.
+
+
 | | **32-pin (recommended)** | **30-pin clone (v5 only)** |
 |----|----|----|
 | Part | Genuine ESP32-C6-DevKitC-1 | AliExpress clone, about $4 |
 | Fitting | Drops straight in | Move two solder jumpers on back of board, **JP2** and **JP3** |
 | USB flashing and console | Works | Works once the jumpers are set |
-| Status | Known good | **Untested** |
+| Status | Known good | Works with one rework (see the warning below) |
 
 <table>
   <tr>

@@ -26,15 +26,22 @@ The original through-hole board (WM8731 codec, `CONFIG_BOARD_TYPE_THT`) was
 pin map and Kconfig choice all gone. Last commit that still builds it:
 `2fdde5e`. Its docs remain under `archive/hardware/through-hole-wm8731/`.
 
-**SMD5 ("Analog Redial 5")** is the next-generation board — **sent to fab
-(early October 2026) together with the BM64 carrier and a BK3266 test board,
-not yet tested** — `hardware/kicad/Analog Redial v5/`, dev notes at
-[`archive/hardware/smd5.md`](archive/hardware/smd5.md).
+**SMD5 ("Analog Redial 5")** is the next-generation board — boards back from
+the fab and in bring-up since 2026-10-19 (BM64 carrier works; see
+`archive/hardware/smd5.md`'s Bring-up log) — `hardware/kicad/Analog Redial v5/`,
+dev notes at [`archive/hardware/smd5.md`](archive/hardware/smd5.md).
 Headline changes: a dual-compatible MCU footprint (real ESP32-C6-DevKitC-1 or
 a cheaper clone, selected by solder jumpers JP2/JP3), and an 8-pin J2 header
-for a Bluetooth companion — the BM64 carrier or the BK3266 daughter board,
-chosen in Settings → Hardware (`board_bt_module_t`), MFB/WAKEUP on GPIO15. Firmware reuses SMD4's
-pin map for it.
+for a Bluetooth companion, MFB/WAKEUP on GPIO15, chosen in Settings → Hardware
+(`board_bt_module_t`). Firmware reuses SMD4's pin map for it. The BM64 carrier is
+the supported module; a BK3266 module was tried and its UART never answered (notes in
+`Bluetooth/BK3266/` and `archive/hardware/bk3266.md`); the next candidate is the DFRobot
+DFR0781 / BT401 (`Bluetooth/DFR0781_BT401/`), untested.
+
+**⚠️ v5 PCB error with 30-pin clone modules:** the footprint ties the clone's bottom-right
+5V pin to GND. That pin must be removed (not connected to the board); the bottom-left 5V pin
+carries the 5V. Documented as a warning in README/docs (board.md, bom.md, hardware-smd5.md);
+fixed in v6. Keep that warning in any doc that describes fitting a clone.
 
 ## Building/flashing for a specific board type (SMD2 vs SMD4 vs SMD5)
 

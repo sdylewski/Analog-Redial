@@ -33,6 +33,14 @@ capacitors and diodes). You add the larger through-hole parts with a soldering i
 Build **v4** for now. Both take the same parts, so the parts list and
 assembly guide cover either one.
 
+> ⚠️ **v5 board error with the 30-pin clone module: read before soldering.** On the v5 PCB the clone's
+> **bottom-right 5V pin** is wired to **GND** (the footprint is wrong for the clone's pinout). If you fit a
+> clone, **take that pin out**: cut it off the module, or leave it unsoldered, so it doesn't connect to the
+> board at all. The **bottom-left 5V pin** is then the module's only 5 V connection, and it is enough. Left
+> in, the pin shorts the 5 V rail to ground. With the power off, check with a meter that the 5 V pin has no
+> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The next board revision (v6) fixes the footprint.
+
+
 ## Three ways to get one
 
 | Route | What you do |

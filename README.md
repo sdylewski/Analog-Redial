@@ -53,7 +53,7 @@ Bluetooth is the only one that needs an extra board.
 | **VoIP** | Register a line with Asterisk, FreePBX or any SIP server and call anything that server can reach. If the server goes down, the two phones can still call each other. | Wi-Fi and a SIP server |
 | **Home Assistant** | Every pickup, hang-up and dial code becomes an event, so a dial code can turn on a light and the phone can ring when your doorbell does. Over MQTT or a plain webhook. *Experimental.* | Wi-Fi and Home Assistant (or any MQTT broker) |
 | **Switch things** | Dial a code and a pin goes high for a few seconds: a relay, a buzzer, a lamp. | One line, no microSD, and a relay |
-| **Your cell phone** *(coming soon)* | Pair your mobile and the rotary phone becomes its handset: the bell rings for incoming calls, lift to answer, dial out on the rotary dial. | The Bluetooth board, with the v5 board |
+| **Your cell phone** *(coming soon)* | Pair your mobile and the rotary phone becomes its handset: the bell rings for incoming calls, lift to answer, dial out on the rotary dial. | The BM64 Bluetooth board, with the v5 board. A cheaper DFRobot BT401 module is next to be tried |
 
 ### Why not just buy a VoIP adapter?
 
@@ -207,7 +207,7 @@ Going further: [VoIP setup](docs/voip-setup.md) ·
 | Jun 2026 | **v1** | The first ESP32 board: through-hole, with a WM8731 codec and two AG1170 SLICs. The Pi's job on a $5 microcontroller. Never built because boards got lost in the mail.|
 | Jul 2026 | **v2** <br><img src="docs/pics/smd2_board.jpg" width="220" alt="Analog Redial v2 board"> | First surface-mount board: ESP32-C6 module, ES8388 codec, AG1171 SLICs, microSD. Required rework on audio lines and usb connection but it worked. |
 | Sep 2026 | **v4** <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | The current board: 2-layer, built around a cheaper 32-pin ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. |
-| Oct 2026 | **v5** | At the fab: takes a genuine or clone ESP32-C6 module, and adds the Bluetooth companion. |
+| Oct 2026 | **v5** | Boards back from the fab, being brought up: takes a genuine or clone ESP32-C6 module, and adds the Bluetooth companion. **Known error: with a clone module, the clone's bottom-right 5V pin must be removed** (see [Get a board](docs/board.md)). |
 
 ## License
 
