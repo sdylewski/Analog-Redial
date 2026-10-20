@@ -64,6 +64,8 @@ void      bk3266_print_state(void);
 esp_err_t bk3266_listen(int listen_ms);
 /* Version query (binary and text) at every common baud rate: what answers? */
 esp_err_t bk3266_baudscan(void);
+/* Drive WAKEUP in a pattern ("H1000,L300,H8000"; H/L/Z + ms), listening during the last step. */
+esp_err_t bk3266_wake_experiment(const char *pattern);
 /* Sends raw bytes (any framing, or text), then listens. With the driver
  * running it only sends: the reply shows up in its log and bk_state. */
 esp_err_t bk3266_send_raw(const uint8_t *tx, size_t n, int listen_ms);

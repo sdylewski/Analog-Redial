@@ -392,6 +392,53 @@ esp_err_t bk3266_listen(int listen_ms)
     return ESP_OK;
 }
 
+/* WAKEUP experiments: a pattern like "H1000,L300,H8000" drives GPIO15 high /
+ * low / floats it (Z) for the given milliseconds each; the LAST step holds
+ * its level while listening on the UART, so boot chatter is caught. The
+ * documents don't say whether the module's WAKEUP is an active-high button
+ * (assumed: R17 holds it low) or active-low (then R17 would be pressing it
+ * all the time). Try both and watch the module's LED / a meter on pin 7. */
+esp_err_t bk3266_wake_experiment(const char *pat)
+{
+#ifdef BOARD_BT_MFB_DEDICATED
+    esp_err_t err = bring_up_ready();
+    if (err != ESP_OK) return err;
+    gpio_config_t out = {
+        .pin_bit_mask = 1ULL << BOARD_BT_MFB_PIN, .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE, .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    const char *p = pat;
+    while (*p) {
+        char lvl = *p++;
+        int ms = atoi(p);
+        while (*p && *p != ',') p++;
+        bool last = !*p || !p[1];
+        if (*p == ',') p++;
+        if (ms <= 0) ms = 100;
+        if (lvl == 'Z' || lvl == 'z') {
+            wake_release();
+        } else {
+            gpio_hold_dis(BOARD_BT_MFB_PIN);
+            gpio_config(&out);
+            gpio_set_level(BOARD_BT_MFB_PIN, (lvl == 'H' || lvl == 'h') ? 1 : 0);
+        }
+        printf("  GPIO%d %c for %d ms%s\n", (int)BOARD_BT_MFB_PIN, lvl, ms, last ? ", listening:" : "");
+        if (last) {
+            int n = listen_print(ms, NULL);
+            printf("%d byte%s received\n", n, n == 1 ? "" : "s");
+        } else {
+            vTaskDelay(pdMS_TO_TICKS(ms));
+        }
+    }
+    wake_release();
+    return ESP_OK;
+#else
+    (void)pat;
+    return ESP_ERR_NOT_SUPPORTED;
+#endif
+}
+
 /* Tries the module at every common baud rate with a binary version query
  * and two text queries, and says what (if anything) came back. */
 esp_err_t bk3266_baudscan(void)

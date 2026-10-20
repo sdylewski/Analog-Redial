@@ -202,6 +202,56 @@ static void load_config(void)
     s_enabled = board_hw_config_get().has_bt_module;
 }
 
+/* The two EEPROM-programming leads (carrier J2 pin 1 = P2_0, pin 2 = RST_N)
+ * are documented on GPIO20 / GPIO19 (header J5's odd pins 3 and 5), but a
+ * wire can land on the wrong pin. The pins are runtime values kept in NVS
+ * (`bm64_diagpins` sets them; `bm64_findwire` finds RST_N). If IBDK entry
+ * fails the documented way it is tried once with the two swapped, and a swap
+ * that works is remembered. */
+static int  s_rst_pin = -1, s_p20_pin = -1;
+static bool s_diag_tried_swap;
+static void diag_pins_load(void)
+{
+    if (s_rst_pin >= 0) return;
+    s_rst_pin = BOARD_BT_RST_PIN;
+    s_p20_pin = BOARD_BT_P20_PIN;
+    nvs_handle_t h;
+    if (nvs_open("board", NVS_READONLY, &h) == ESP_OK) {
+        uint8_t r, p;
+        if (nvs_get_u8(h, "bt_rst_pin", &r) == ESP_OK && nvs_get_u8(h, "bt_p20_pin", &p) == ESP_OK &&
+            r >= 18 && r <= 21 && p >= 18 && p <= 21 && r != p) {
+            s_rst_pin = r;
+            s_p20_pin = p;
+        }
+        nvs_close(h);
+    }
+}
+static int diag_rst_pin(void) { diag_pins_load(); return s_rst_pin; }
+static int diag_p20_pin(void) { diag_pins_load(); return s_p20_pin; }
+static void diag_pins_save(void)
+{
+    nvs_handle_t h;
+    if (nvs_open("board", NVS_READWRITE, &h) != ESP_OK) return;
+    nvs_set_u8(h, "bt_rst_pin", (uint8_t)s_rst_pin);
+    nvs_set_u8(h, "bt_p20_pin", (uint8_t)s_p20_pin);
+    nvs_commit(h);
+    nvs_close(h);
+}
+esp_err_t bt_companion_diag_pins_set(int rst, int p20)
+{
+    if (rst < 18 || rst > 21 || p20 < 18 || p20 > 21 || rst == p20) return ESP_ERR_INVALID_ARG;
+    diag_pins_load();
+    s_rst_pin = rst;
+    s_p20_pin = p20;
+    diag_pins_save();
+    return ESP_OK;
+}
+void bt_companion_diag_pins_get(int *rst, int *p20)
+{
+    if (rst) *rst = diag_rst_pin();
+    if (p20) *p20 = diag_p20_pin();
+}
+
 /* Which module is on the header. Fixed at boot (Settings -> Hardware takes
  * effect on reboot), so the BM64 and BK3266 backends never have to share the
  * UART or hand over mid-run. */
@@ -1259,21 +1309,21 @@ static void assert_bm64_control_pins(void)
         s_mfb_ctrl = true;
     }
     if (shared_pads_free) {
-        gpio_hold_dis(BOARD_BT_RST_PIN);
-        gpio_hold_dis(BOARD_BT_P20_PIN);
+        gpio_hold_dis(diag_rst_pin());
+        gpio_hold_dis(diag_p20_pin());
         gpio_config_t ctl_cfg = {
-            .pin_bit_mask = (1ULL << BOARD_BT_RST_PIN) | (1ULL << BOARD_BT_P20_PIN),
+            .pin_bit_mask = (1ULL << diag_rst_pin()) | (1ULL << diag_p20_pin()),
             .mode = GPIO_MODE_OUTPUT,
             .pull_up_en = GPIO_PULLUP_DISABLE,
             .pull_down_en = GPIO_PULLDOWN_DISABLE,
             .intr_type = GPIO_INTR_DISABLE,
         };
         gpio_config(&ctl_cfg);
-        gpio_sleep_sel_dis(BOARD_BT_RST_PIN);
-        gpio_sleep_sel_dis(BOARD_BT_P20_PIN);
+        gpio_sleep_sel_dis(diag_rst_pin());
+        gpio_sleep_sel_dis(diag_p20_pin());
         /* High = out of reset, normal (not ROM/IBDK) mode. */
-        gpio_set_level(BOARD_BT_RST_PIN, 1);
-        gpio_set_level(BOARD_BT_P20_PIN, 1);
+        gpio_set_level(diag_rst_pin(), 1);
+        gpio_set_level(diag_p20_pin(), 1);
     }
     if (mfb_free || shared_pads_free) vTaskDelay(pdMS_TO_TICKS(200));
 }
@@ -1401,11 +1451,11 @@ esp_err_t bt_companion_ibdk_enter(bool toggle_pins)
          * each (the module needs it; manual testing had seconds of typing
          * delay between steps and that's what worked). */
         gpio_hold_dis(BOARD_BT_MFB_PIN);
-        gpio_hold_dis(BOARD_BT_RST_PIN);
-        gpio_hold_dis(BOARD_BT_P20_PIN);
+        gpio_hold_dis(diag_rst_pin());
+        gpio_hold_dis(diag_p20_pin());
         gpio_config_t gpio_cfg = {
-            .pin_bit_mask = (1ULL << BOARD_BT_MFB_PIN) | (1ULL << BOARD_BT_RST_PIN) |
-                            (1ULL << BOARD_BT_P20_PIN),
+            .pin_bit_mask = (1ULL << BOARD_BT_MFB_PIN) | (1ULL << diag_rst_pin()) |
+                            (1ULL << diag_p20_pin()),
             .mode = GPIO_MODE_OUTPUT,
             .pull_up_en = GPIO_PULLUP_DISABLE,
             .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -1413,16 +1463,16 @@ esp_err_t bt_companion_ibdk_enter(bool toggle_pins)
         };
         gpio_config(&gpio_cfg);
         gpio_sleep_sel_dis(BOARD_BT_MFB_PIN);
-        gpio_sleep_sel_dis(BOARD_BT_RST_PIN);
-        gpio_sleep_sel_dis(BOARD_BT_P20_PIN);
+        gpio_sleep_sel_dis(diag_rst_pin());
+        gpio_sleep_sel_dis(diag_p20_pin());
 
         ESP_LOGI(TAG, "IBDK: entering (P2_0 low across reset)");
-        gpio_set_level(BOARD_BT_P20_PIN, 0);
+        gpio_set_level(diag_p20_pin(), 0);
         gpio_set_level(BOARD_BT_MFB_PIN, 0);
         vTaskDelay(pdMS_TO_TICKS(200));
-        gpio_set_level(BOARD_BT_RST_PIN, 0);
+        gpio_set_level(diag_rst_pin(), 0);
         vTaskDelay(pdMS_TO_TICKS(200));
-        gpio_set_level(BOARD_BT_RST_PIN, 1);
+        gpio_set_level(diag_rst_pin(), 1);
         vTaskDelay(pdMS_TO_TICKS(1000));
         gpio_set_level(BOARD_BT_MFB_PIN, 1);
         s_mfb_held = true; s_mfb_high = true;   /* poll_task's startup hands it back to idle-low */
@@ -1443,6 +1493,32 @@ esp_err_t bt_companion_ibdk_enter(bool toggle_pins)
     }
     if (n < 7 || rx[0] != 0x04 || rx[1] != 0x0E) {
         ESP_LOGE(TAG, "IBDK: vendor init (0xFC31) failed (%d bytes)", n);
+        if (toggle_pins && !s_diag_tried_swap) {
+            /* Maybe the two leads are on each other's pins. Try them swapped,
+             * once: the worst a wrong guess does is pull RST_N low where P2_0
+             * was meant (a reset) or toggle P2_0 (an input that doesn't matter
+             * once running). */
+            s_diag_tried_swap = true;
+            int r0 = s_rst_pin, p0 = s_p20_pin;
+            s_rst_pin = p0;
+            s_p20_pin = r0;
+            ESP_LOGW(TAG, "IBDK: trying the leads the other way round (RST_N on GPIO%d, P2_0 on GPIO%d)",
+                     s_rst_pin, s_p20_pin);
+            esp_err_t e = bt_companion_ibdk_enter(true);
+            s_diag_tried_swap = false;
+            if (e == ESP_OK) {
+                ESP_LOGW(TAG, "IBDK: worked swapped -- the leads are crossed; remembering that");
+                diag_pins_save();
+            } else {
+                s_rst_pin = r0;
+                s_p20_pin = p0;
+                ESP_LOGE(TAG, "IBDK: neither way worked. Check the leads reach the carrier's J2 and the "
+                              "module has power. `bm64_findwire <gpio>` finds which of GPIO18-21 is RST_N; "
+                              "`bm64_diagpins <rst> <p20>` tells the firmware (now RST_N=GPIO%d, P2_0=GPIO%d)",
+                         s_rst_pin, s_p20_pin);
+            }
+            return e;
+        }
         return ESP_FAIL;
     }
 
@@ -1501,19 +1577,19 @@ esp_err_t bt_companion_ibdk_exit(void)
 
     ESP_LOGI(TAG, "IBDK: exiting -> normal Flash Application mode");
     gpio_config_t gpio_cfg = {
-        .pin_bit_mask = (1ULL << BOARD_BT_MFB_PIN) | (1ULL << BOARD_BT_RST_PIN) |
-                        (1ULL << BOARD_BT_P20_PIN),
+        .pin_bit_mask = (1ULL << BOARD_BT_MFB_PIN) | (1ULL << diag_rst_pin()) |
+                        (1ULL << diag_p20_pin()),
         .mode = GPIO_MODE_OUTPUT,
         .pull_up_en = GPIO_PULLUP_DISABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_DISABLE,
     };
     gpio_config(&gpio_cfg);
-    gpio_set_level(BOARD_BT_P20_PIN, 1);   /* high across reset = normal mode */
+    gpio_set_level(diag_p20_pin(), 1);   /* high across reset = normal mode */
     gpio_set_level(BOARD_BT_MFB_PIN, 0);
-    gpio_set_level(BOARD_BT_RST_PIN, 0);
+    gpio_set_level(diag_rst_pin(), 0);
     vTaskDelay(pdMS_TO_TICKS(200));
-    gpio_set_level(BOARD_BT_RST_PIN, 1);
+    gpio_set_level(diag_rst_pin(), 1);
     vTaskDelay(pdMS_TO_TICKS(500));
     gpio_set_level(BOARD_BT_MFB_PIN, 1);
     s_mfb_held = true; s_mfb_high = true;   /* poll_task's startup hands it back to idle-low */
@@ -1577,6 +1653,15 @@ esp_err_t bt_companion_ibdk_enter(bool toggle_pins)
     (void)toggle_pins; return ESP_ERR_NOT_SUPPORTED;
 }
 esp_err_t bt_companion_ibdk_exit(void) { return ESP_ERR_NOT_SUPPORTED; }
+esp_err_t bt_companion_diag_pins_set(int rst_gpio, int p20_gpio)
+{
+    (void)rst_gpio; (void)p20_gpio; return ESP_ERR_NOT_SUPPORTED;
+}
+void bt_companion_diag_pins_get(int *rst_gpio, int *p20_gpio)
+{
+    if (rst_gpio) *rst_gpio = -1;
+    if (p20_gpio) *p20_gpio = -1;
+}
 esp_err_t bt_companion_eeprom_read(uint16_t addr, uint8_t *out, size_t len)
 {
     (void)addr; (void)out; (void)len; return ESP_ERR_NOT_SUPPORTED;

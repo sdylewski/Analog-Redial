@@ -950,6 +950,23 @@ static const char TZ_AUTO_JS[] =
  * file by hand -- with the same checks: a valid image, built for this board,
  * and automatic rollback if it doesn't boot. release/release.py in the
  * firmware folder builds and publishes the manifest and images. */
+/* The update slots grew (partitions.csv: 2 MB -> 3 MB on 16 MB boards, 2.25 MB
+ * on 8 MB). A board still on the old table can't take web-page updates --
+ * the table can't change over the air -- until it is reflashed over USB. */
+static uint32_t ota_slot_bytes(void)
+{
+    const esp_partition_t *run = esp_ota_get_running_partition();
+    return run ? run->size : 0;
+}
+
+static bool ota_layout_current(void)
+{
+    uint32_t flash = 0;
+    esp_flash_get_size(NULL, &flash);
+    uint32_t need = flash >= (16u << 20) ? 0x300000u : 0x240000u;
+    return ota_slot_bytes() >= need;
+}
+
 #define FW_MANIFEST_URL "https://raw.githubusercontent.com/sdylewski/Analog-Redial/firmware/latest.json"
 
 static const char FW_UPDATE_JS[] =
@@ -990,6 +1007,7 @@ static const char FW_UPDATE_JS[] =
 
 static int append_fw_update_script(char *buf, size_t cap, int off)
 {
+    if (!ota_layout_current()) return off;   /* no banner: it couldn't be acted on */
     off = appendf(buf, cap, off, "<div id=\"fwnotice\" class=\"hazard-banner\" style=\"display:none\"></div>");
     return appendf(buf, cap, off, FW_UPDATE_JS, esp_app_get_description()->version, BOARD_IMAGE_ID, FW_MANIFEST_URL);
 }
@@ -4083,13 +4101,14 @@ static int append_firmware_card(char *buf, size_t cap, int off)
             i18n_str("firmware.revert_button", "Revert to previous version"));
     }
 
+    const bool layout_ok = ota_layout_current();
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
-        "<div class=\"statusrow\"><span class=\"label\">%s</span><span id=\"fwstat\">...</span></div>"
-        "<div class=\"toolbar sub\"><button type=\"button\" id=\"fwcheck\">%s</button> "
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span id=\"fwstat\">%s</span></div>"
+        "<div class=\"toolbar sub\"><button type=\"button\" id=\"fwcheck\"%s>%s</button> "
         "<button type=\"button\" class=\"primary\" id=\"fwinstall\" style=\"display:none\"></button></div>"
         "<div id=\"fwnotes\" class=\"hint\"></div>%s"
         "<form method=\"POST\" action=\"/ota_upload\" enctype=\"multipart/form-data\" "
@@ -4103,14 +4122,30 @@ static int append_firmware_card(char *buf, size_t cap, int off)
         i18n_str("firmware.built_label", "Built"), built,
         i18n_str("firmware.slot_label", "Running from"), running ? running->label : "?",
         i18n_str("firmware.updates_label", "Updates"),
+        layout_ok ? "..." : i18n_str("firmware.old_layout_short",
+                                      "Not available until this board is reflashed over USB once (see below)"),
+        layout_ok ? "" : " disabled",
         i18n_str("firmware.check_button", "Check for updates"),
-        FW_CARD_JS,
+        layout_ok ? FW_CARD_JS : "",
         i18n_str("firmware.confirm",
                  "Upload this firmware image and reboot into it? Make sure it's a build of "
                  "this same board type -- there's no way to check that before writing it."),
         i18n_str("firmware.file_label", "Firmware file (.bin, from idf.py build)"),
         i18n_str("firmware.button", "Upload and reboot"),
         revert_form);
+    if (!layout_ok) {
+        char note[640];
+        snprintf(note, sizeof(note),
+            i18n_str("firmware.old_layout",
+                     "This board still has the old flash layout: its firmware slots are %.2f MB, and "
+                     "updates from the web page need the newer, larger ones. A layout change can't be "
+                     "done over the air, so reflash this board over USB once (the flashing guide's "
+                     "step 3; <code>firmware/bringup/flash_board.py</code> does it). Recordings, "
+                     "clips and settings are kept. Uploading a file by hand below still works until "
+                     "then."),
+            (double)ota_slot_bytes() / (1024.0 * 1024.0));
+        off = appendf(buf, cap, off, "<p class=\"hint warn-text\">%s</p>", note);
+    }
     off = append_hint(buf, cap, off,
         i18n_str("firmware.hint_lead",
                  "Uploads a build output and reboots into it -- no USB cable needed."),

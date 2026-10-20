@@ -251,6 +251,9 @@ int bt_companion_raw_xfer(const uint8_t *tx, size_t tx_len,
  * init handshake, for when the module is already sitting in IBDK mode (or
  * the pins are being driven by hand). */
 esp_err_t bt_companion_ibdk_enter(bool toggle_pins);
+/* Which spare pins (18-21) the two EEPROM-programming leads are on; kept in NVS. */
+esp_err_t bt_companion_diag_pins_set(int rst_gpio, int p20_gpio);
+void      bt_companion_diag_pins_get(int *rst_gpio, int *p20_gpio);
 /* Resets the module back into normal Flash Application mode. Leaves
  * bt_companion itself disabled -- re-enable separately. */
 esp_err_t bt_companion_ibdk_exit(void);

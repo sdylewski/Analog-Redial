@@ -2278,6 +2278,65 @@ static int cmd_bm64_test(int argc, char **argv)
     return err == ESP_OK ? 0 : 1;
 }
 
+/* bm64_findwire: which spare pin (GPIO18-21, header J5's odd pins) is the
+ * carrier's RST_N lead? Pulls each low in turn; a module in reset stops
+ * answering the UART. (P2_0 can't be found this way: it only matters during
+ * a reset.) bt_enable 0 first. */
+static int cmd_bm64_findwire(int argc, char **argv)
+{
+    /* One pin per run (bm64_findwire <gpio>): a module that has been reset
+     * stays off until the MFB power-on sequence runs again (reboot), so a
+     * second pin tested in the same run would always look "stopped". */
+    board_hw_config_t cfg = board_hw_config_get();
+    if (cfg.num_lines != 1 || cfg.has_microsd) {
+        printf("bm64_findwire: refusing -- GPIO18-21 are claimed by line 2 / microSD on this config\n");
+        return 1;
+    }
+    static const int pins[] = { 18, 19, 20, 21 };
+    gpio_config_t io = { .mode = GPIO_MODE_OUTPUT, .pull_up_en = GPIO_PULLUP_DISABLE,
+                         .pull_down_en = GPIO_PULLDOWN_DISABLE, .intr_type = GPIO_INTR_DISABLE };
+    for (int i = 0; i < 4; i++) {
+        io.pin_bit_mask = 1ULL << pins[i];
+        gpio_hold_dis(pins[i]);
+        gpio_config(&io);
+        gpio_set_level(pins[i], 1);
+    }
+    esp_err_t base = bt_companion_raw_ping_at_baud(1000, 0);
+    if (base == ESP_ERR_INVALID_STATE) { printf("bm64_findwire: bt_enable 0 first\n"); return 1; }
+    printf("baseline (all high): %s\n", base == ESP_OK ? "module answers" : "module silent -- nothing to compare against");
+    int found = -1;
+    for (int i = 0; i < 4; i++) {
+        if (argc > 1 && atoi(argv[1]) != pins[i]) continue;
+        gpio_set_level(pins[i], 0);
+        vTaskDelay(pdMS_TO_TICKS(400));
+        esp_err_t r = bt_companion_raw_ping_at_baud(800, 0);
+        gpio_set_level(pins[i], 1);
+        printf("  GPIO%d low: %s\n", pins[i], r == ESP_OK ? "module still answers" : "module STOPPED answering -> this is RST_N");
+        if (r != ESP_OK && found < 0) found = pins[i];
+        if (argc <= 1) vTaskDelay(pdMS_TO_TICKS(1500));
+    }
+    if (found < 0) printf("that pin did not reset the module (reboot, then try the next: 18, 19, 20, 21). If none do, "
+                          "RST_N isn't connected to any of them -- check the lead is on J5's odd pins 1/3/5/7, not the even ones\n");
+    else printf("RST_N is on GPIO%d (firmware expects GPIO%d)\n", found, (int)BOARD_BT_RST_PIN);
+    return 0;
+}
+
+/* bm64_diagpins [rst p20]: show or set which spare pins the carrier's RST_N and
+ * P2_0 leads are on (kept in NVS; the documented wiring is RST_N = GPIO19,
+ * P2_0 = GPIO20). */
+static int cmd_bm64_diagpins(int argc, char **argv)
+{
+    if (argc >= 3) {
+        esp_err_t err = bt_companion_diag_pins_set(atoi(argv[1]), atoi(argv[2]));
+        if (err != ESP_OK) { printf("bm64_diagpins: want two different pins from 18-21\n"); return 1; }
+        printf("saved; reboot (the EEPROM check runs at start-up)\n");
+    }
+    int r, p;
+    bt_companion_diag_pins_get(&r, &p);
+    printf("RST_N lead on GPIO%d, P2_0 lead on GPIO%d\n", r, p);
+    return 0;
+}
+
 static int cmd_bm64_addr(int argc, char **argv)
 {
     int timeout_ms = (argc > 1) ? atoi(argv[1]) : 2000;
@@ -2666,6 +2725,36 @@ static int cmd_bk_baudscan(int argc, char **argv)
     return err == ESP_OK ? 0 : 1;
 }
 
+/* Power the module off (WAKEUP held 6.5 s) and on again (a short press), then
+ * listen at 9600 baud right away: whatever a BK3266 says while it boots is
+ * the quickest proof that it, and the UART wiring, are alive. */
+static int cmd_bk_powercycle(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    printf("1/3 WAKEUP held 6.5 s (power off)...\n");
+    esp_err_t err = bk3266_wake_pulse(6500);
+    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
+    vTaskDelay(pdMS_TO_TICKS(1500));
+    printf("2/3 short press (power on), then listening 10 s at 9600 baud...\n");
+    bk3266_wake_pulse(300);
+    err = bk3266_listen(10000);
+    printf("3/3 done. Nothing printed above means the module said nothing while booting.\n");
+    return err == ESP_OK ? 0 : 1;
+}
+
+static int cmd_bk_wakeseq(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("usage: bk_wakeseq <H|L|Z><ms>,...   e.g. bk_wakeseq H1000,L300,H8000\n"
+               "  drives WAKEUP (GPIO15) high / low / floating for each step; listens during the\n"
+               "  last. R17 holds it low when floating. Try an active-low press:  H1000,L300,H8000\n");
+        return 1;
+    }
+    esp_err_t err = bk3266_wake_experiment(argv[1]);
+    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
+    return err == ESP_OK ? 0 : 1;
+}
+
 static int cmd_bk_listen(int argc, char **argv)
 {
     int ms = (argc > 1) ? atoi(argv[1]) : 5000;
@@ -2996,6 +3085,8 @@ void bringup_console_start(void)
     register_cmd("board_info", "Print detected board type and pin map", cmd_board_info);
     register_cmd("bk_probe", "BK3266: is anything answering? listens, sends a version query", cmd_bk_probe);
     register_cmd("bk_baudscan", "BK3266: version query (binary + text) at every common baud rate", cmd_bk_baudscan);
+    register_cmd("bk_powercycle", "BK3266: power off + on through WAKEUP, then listen for its boot chatter", cmd_bk_powercycle);
+    register_cmd("bk_wakeseq", "BK3266: drive WAKEUP in a pattern, listen during the last step: bk_wakeseq H1000,L300,H8000", cmd_bk_wakeseq);
     register_cmd("bk_listen", "BK3266: print raw bytes + decoded frames: bk_listen [ms]", cmd_bk_listen);
     register_cmd("bk_cmd", "BK3266: send one command code: bk_cmd <hex> [listen_ms]", cmd_bk_cmd);
     register_cmd("bk_frame", "BK3266: build + send a frame: bk_frame <cmd> [data] [ms]", cmd_bk_frame);
@@ -3097,6 +3188,8 @@ void bringup_console_start(void)
 #ifdef BOARD_BT_MFB_PIN
     register_cmd("gpiotest", "Is something driving this pin? gpiotest <gpio> (reads with pull-down, then pull-up)", cmd_gpiotest);
     register_cmd("hwcfg", "Hardware config (like Settings -> Hardware): hwcfg [bt none|bm64|bk3266] [lines 1|2] [sd 0|1], then reboot", cmd_hwcfg);
+    register_cmd("bm64_diagpins", "Which pins the carrier's RST_N / P2_0 leads are on: bm64_diagpins [rst_gpio p20_gpio] (18-21)", cmd_bm64_diagpins);
+    register_cmd("bm64_findwire", "Which of GPIO18-21 is the carrier's RST_N lead? Pulls each low and pings the module (bt_enable 0 first)", cmd_bm64_findwire);
     register_cmd("bm64_pin", "Bit-bang BM64's MFB/RST_N/P2_0 over GPIO18-20 (bench-wired only): bm64_pin <mfb|rst|p20> <0|1> -- single-line, no-microSD boards only", cmd_bm64_pin);
 #endif
 
