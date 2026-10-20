@@ -1,0 +1,3208 @@
+                  BT401 Module User Manual
+
+
+
+
+  File status:         File ID:                           Externally open
+
+
+    [] Draft           current version:                        V1.5
+[√] Official release   Author:                            Qingyue Electronics
+
+
+[ ] under revision
+                       Completion Date:                  2019‑09‑25
+
+
+
+
+                                          First 1 page
+                                                                                                                                                                                               BT401‑ V1.5
+
+
+                                                                                                   Item
+                                                                                                   Item record
+                                                                                                           record
+
+
+
+1 Overview............................................... .................................................. .................................................. .....................................5
+
+
+    1.1 Introduction ... .................................................. .................................................. ..............................5
+    The BT401 module is a 5‑in‑1 solution that supports Bluetooth, U disk, and TF card playback. The highlight of the module is the support for dual‑mode Bluetooth, that is, Bluetooth audio +
+
+
+    Bluetooth data running at the same time, as well as the simple and clear serial port control function, support for BLE transparent transmission, and SPP transparent transmission. This greatly
+
+
+    reduces the difficulty of developing embedded Bluetooth in other products. Remarks: The module adopts the stamp hole method, with holes on both sides, see "Chapter 11" for details. With
+
+
+    For the interface which is very convenient to upgrade the firmware, please refer to "Chapter 9".......................... .................................................. ................... 5
+
+    1.2 Brief description of functions and features ‑‑‑ Support AT serial port command control............ .................................................. ................... 5
+
+    1.3 Description of professional terms ... .................................................. .................................................. ...............5
+    1.4 Product application scenarios ... .................................................. .................................................. ...............5
+    1.5 The pin definition and hardware description of the module... .................................................. .............................................6
+
+    1.6 Quick start instructions for modules............................................ .................................................. .................................................. ....8
+
+2. Program description.............................................. .................................................. .................................................. .............................9
+
+
+    2.1 Parameter description... .................................................. .................................................. ............ 9
+
+3. Serial communication protocol................................... .................................................. .................................................. ................... 10
+
+
+    3.1 Communication format ... .................................................. .................................................. .................... 10
+    3.2 Communication command............................................ .................................................. .................................................. .................... 11
+
+    3.2.1 Control instructions related to public functions......................................... .................................................. ..........................................11
+
+    3.2.2 Music‑related control instructions ... .................................................. ................................................. 13
+    3.2.3 Bluetooth‑related control commands... .................................................. ................................................. 14
+    3.2.4 Inquiry instructions related to common functions......................................... .................................................. ..........................................15
+
+    3.2.5 Music‑related query instructions.......................................... .................................................. ................................................. 16
+
+    3.2.6 Inquiry commands related to Bluetooth... .................................................. ................................................. 17
+
+4. Detailed description of the serial port command‑common part....................................... .................................................. .........................................18
+
+
+    4.1 The data returned by the module... .................................................. .................................................. ..18
+    4.4.1 Data returned from chip power on [QA][QT][QM]................................ .................................................. ................................. 18
+
+    4.1.2 The response of the chip receiving the serial port command successfully returned [OK].......................... .................................................. .....................18
+
+    4.1.3 Return of chip error information [ER]...................................... .................................................. ........................................ 18
+
+    4.2 Detailed description of the common part‑control instructions ‑............ .................................................. ................................ 19
+
+    4.2.1 Specify the playing volume of the chip [CA][CB][CC][CD][CE][CF]........................ .................................................. ......19
+
+    4.2.2 Specify the baud rate of the chip [CT]...................................... .................................................. .................................................19
+
+    4.2.3 Specify the working mode of the chip [CM]....................................... .................................................. ............................................19
+
+    4.2.4 Set the module mute and turn off the DAC in detail [CU][CS]............................... .................................................. .... 20
+    4.2.5 Set the mode description for the chip to automatically enter after power‑on [CP]................................... .................................................. ............20
+
+    4.2.6 Set the function of the chip to automatically return data. Turn off and turn on [CR]....................... .................................................. ...........20
+
+    4.2.7 Set TF card U disk playback to stop once or to loop playback in sequence[CJ]................................ .................................................. ..... twenty one
+                                                                                               2 page
+                                                                                                                                                                                                           BT401‑ V1.5
+    4.2.8 Set whether the TF card U disk recording function is turned on [RE]‑‑not supported............................... .................................................. ........... twenty one
+
+    4.2.9 Set whether to turn on the prompt tone [CN]....................................... .................................................. ............................................ twenty one
+
+    4.2.10 Set the audio EQ[CQ] ‑‑‑ Not currently supported....................... .................................................. ............... twenty one
+
+    4.2.11 Set Bluetooth to automatically switch to the background [CK]...................................... .................................................. ...................................twenty two
+
+    4.2.12 Set whether to enable the background of Bluetooth [CG]....................................... .................................................. ............................twenty two
+
+    4.2.13 Set whether the key function is closed and open [C1][C2][C3][C4]............................ .................................................. .......... twenty two
+
+    4.3 Detailed description of the common part‑query command ‑............ .................................................. ................................ twenty three
+
+    4.3.1 Common status query return description [QA][QT][QN][QK]............................. .................................................. ................... twenty three
+
+    4.3.2 Query of working mode and description of return [QM].................................... .................................................. ......................... twenty three
+
+
+5. Detailed description of the serial port command‑music part....................................... .................................................. .........................................twenty four
+
+
+    5.1 Detailed description of music‑related‑control commands‑............ .................................................. .................................. twenty four
+
+    5.1.1 The data returned after initialization of the U disk or TF card [M1][M2][MT][MK][MF]............ .............................................twenty four
+
+    5.1.2 The information returned after the U disk or TF card is played [MV][MD][MO]........................... .................................................. .......twenty four
+
+    5.1.3 Information returned when TF card or U disk is inserted and removed [MU]................................. .................................................. ............ 25
+
+    5.1.4 TF card or U disk command‑some common basic functions [AA]............................... .................................................. ........... 25
+
+    5.1.5 TF card or U disk command‑‑song number play [AB]....................... .................................................. ............ 25
+    5.1.6 TF card or U disk command‑loop playback of the folder in the specified path [AF]............................. .................................................. .26
+
+    5.1.7 TF card or U disk command‑play the file in the specified path once [AJ].............................. .................................................. ....26
+
+    5.1.8 TF card or U disk command‑‑specify the play mode Single_All_Random[AC].......................... .............................................27
+
+    5.1.9 TF card or U disk‑‑recording function [RC]‑‑not supported............................... .................................................. ........................ 28
+
+    5.2 Detailed description of music‑related‑query command‑.............................. .................................................. .................................. 29
+
+    5.2.1 Query the name of the currently playing file with TF or U disk [MF]... .................................................. ..................... 29
+    5.2.2 TF or U disk to query the time processing of the currently playing file [MT][MK]............................. .................................................. .30
+
+6. A detailed description of the serial port command‑Bluetooth part... .................................................. .........................................31
+
+
+    6.1 Detailed description of Bluetooth‑related‑control commands‑........................................ .................................................. .................................. 31
+
+    6.1.1 Set the name and password of Bluetooth [BD][BE][BM]................................ .................................................. ............................. 31
+
+    6.1.2 Set the protocol function of Bluetooth [B1][B2][B3]................................. .................................................. ................................. 31
+
+    6.1.3 Setting up Bluetooth BLE with EDR Enable [B4][B5]......................................... .................................................. ................... 32
+
+    6.1.4 Dial [BT] by designated phone number........................................ .................................................. ................................................32
+
+    6.1.5 Related control commands of Bluetooth audio [BA]...................................... .................................................. .....................................32
+
+    6.1.6 Bluetooth MAC setting‑‑EDR‑‑BLE[BS]........................ .................................................. .................................... 32
+    6.2 Detailed description of Bluetooth‑related‑query command‑.............................. .................................................. .................................. 33
+
+    6.2.1 Bluetooth current status return‑EDR simple status [TS]................................... .................................................. .....................33
+
+    6.2.2 Bluetooth current status return‑BLE simple status [TL]................................... .................................................. .....................33
+
+    6.2.3 Bluetooth call number return [TT]....................................... .................................................. ............................................33
+
+7. Detailed description of Bluetooth transparent transmission‑‑‑BLE...................................... .................................................. ................................................34
+
+
+    7.1 Description of BLE transparent transmission............................................ .................................................. .................................................. ...........34
+
+
+                                                                                                    3 page
+                                                                                                                                                                                               BT401‑ V1.5
+    7.2 Description of UUID of BLE... .................................................. .................................................. ........34
+    7.3 BLE effect demonstration description............................................ .................................................. .................................................. .. 34
+
+    1. Demonstration of BLE transparent transmission effect:HTTPS://V.QQ.COM/X/PAGE/Q07660M1BTA.HTML............................................... ......................... 34
+
+    7.4 BLE test description............................................ .................................................. .................................................. ..........34
+    7.5 Test instructions for BLE's mobile phone control Bluetooth chip... .................................................. .......................35
+    7.6 Instructions for modifying the UUID of BLE through AT commands....................................... .................................................. .......................35
+
+    7.7 The time interval for BLE's data transparent transmission of data packets... .................................................. ............................... 36
+
+    7.8 Description of BLE Broadcast Packet Modification [UR][TR].................................... .................................................. .............................. 36
+
+
+8. Detailed description of Bluetooth transparent transmission ‑‑‑ SPP...................................... .................................................. ..............................................37
+
+
+    8.1 SPP transparent transmission description............................................ .................................................. .................................................. ...........37
+
+    8.2 Demonstration of transparent transmission effect of SPP... .................................................. ..............................................37
+
+    1. Demonstration of SPP transparent transmission effect:HTTPS://V.QQ.COM/X/PAGE/B0766JQW0P5.HTML................................................. ............37
+
+    8.3 SPP transparent transmission test description... .................................................. .................................................. ... 37
+
+9. Module update firmware program and serial port test instructions... .................................................. ...............................38
+
+    9.1 Instructions for module update firmware............................................ .................................................. .................................................. .. 38
+
+    9.2 Possible doubts or problems in the module update‑the update is unsuccessful............ .................................................. ....38
+
+    9.3 Description of module serial port debugging assistant... .................................................. .............................................39
+
+10. Frequently Asked Questions............................. .................................................. .................................................. .................40
+
+
+11. Module package size and parameter description... .................................................. ..........................................41
+
+12. Reference program example............................ .................................................. .................................................. ..............42
+
+13. Need to modify the description of the prompt sound... .................................................. .................................................. ...43
+
+14. BQB certificate and FCC test instructions......................................... .................................................. ..........................................44
+
+
+    14.1 Bluetooth BQB certification description............................................. .................................................. .................................................. ... 44
+
+    14.2 Description of Bluetooth FCC fixed frequency test... .................................................. ...............................................44
+
+15. Disclaimer... .................................................. .................................................. .........................45
+
+
+
+
+                                                                                              4 page
+                                                                                                                                                                                                                              BT401‑ V1.5
+
+1 Overview
+
+
+
+1.1 Introduction
+
+
+
+
+           BT401 moduleIt is a 5‑in‑1 solution that supports Bluetooth, U disk, TF card playback. The highlight of the module is the support of dual‑mode Bluetooth, that is, Bluetooth audio + Bluetooth data running at the same time, and the
+
+
+simple and clearSerial control function,Support BLE transparent transmission, and SPP transparent transmission function. This greatly reduces the difficulty of developing embedded Bluetooth in other products.Remarks: The module
+
+
+adopts the stamp hole method, with holes on both sides, see "Chapter 11" for details. Have a very convenient interface to upgrade the firmware, you can see "Chapter 9"
+
+
+
+
+1.2 Brief description of functions and features‑‑‑ Support AT serial port command control
+
+
+
+
+       Functional division                                                                                                                Function description
+
+
+
+
+Public function                           1, 16‑bit Stereo DAC with headphone amplifier, SNR >= 95dB
+
+                                          2,    No crystal oscillator load capacitance, the chip automatically generates the Bluetooth MAC address, no need to scroll to burn
+
+
+
+Music function                            1,    Support MP3, WAV, WMA, FLAC, AAC, APE format lossless full decoding
+
+                                          2,    Maximum support 128G U disk and TF card                                     Support breakpoint memory and track memory function
+
+
+
+Bluetooth features                        1,    Support Bluetooth audio          Transmission connects mobile phone to transmit music, supports playback pause, upper and lower song switching
+
+
+
+                                          2,    Support Bluetooth call           Function, users can set up cancellation, support answer, hang up, call back, reject and other functions
+
+
+                                          3.    Bluetooth version 5.0 , Support HFP/A2DP/AVRCP/HSP/GAVDP/IOP/SPP/BLE, distance is about 10M
+
+
+                                          4. Class2 4dbM                            The frequency range is 2.4G‑‑2.480G
+
+
+                                          5.                                     Function, separate connection "BT401‑BLE"
+                                                stand by BLE transparent transmission                                                                            stand by SPP transparent transmissionFeatures
+
+
+
+
+1.3 Description of professional terms
+
+
+
+
+                  Features                                                                                                                          Remarks
+
+
+
+              Public function                        Refers to the functions that all modes have, such as adjusting volume, mute, switching modes, resetting, etc.
+
+
+ Music, MUSIC, equipment                             Refers to the playback function of inserting TF and inserting U disk
+
+
+
+              Bluetooth mode                         Our Bluetooth here not only supports audio, but also supports BLE and SPP data transmission
+
+
+            BLE and SPP                              A standard protocol for Bluetooth communication, and Bluetooth audio are independent of each other.
+
+
+
+                   Penetrate                         Refers to what the mobile phone sends to Bluetooth, Bluetooth will send it out through the serial port, and vice versa
+
+
+
+                   Serial port                       Refers to the external interface of the Bluetooth chip, which is the UART port
+
+
+                   Backstage                         This means that when playing music, Bluetooth resources are not released, and Bluetooth data communication can still be carried out.
+
+
+
+
+1.4 Product application scenarios
+
+
+
+
+1. Bluetooth audio products                                   Such as: Bluetooth speakers, Bluetooth headsets, car Bluetooth, etc.
+
+
+2. Bluetooth data transmission products                       Such as: smart door lock, vehicle OBD detection, smart car, printer, medical equipment data collection
+
+
+3. Bluetooth digital transmission + audio products            Such as: bluetooth music lights, bluetooth radio, electronic piano and other musical instruments
+
+
+
+Remarks:If ultra‑low power consumption is required, this solution is not suitable
+
+
+
+
+                                                                                                                            5 page
+                                                                                                                                                                           BT401‑ V1.5
+1.5 Module pin definition and hardware description
+
+
+
+
+  Pin            definition                IO features                                                          Description
+
+
+
+ 1            PA3               AUX1L/PWM0/UART‑TX       External audio input channel 1‑left channel, can be used as a serial port
+
+
+ 2            PA4               AUX1R/UART‑RX            External sound input channel 1‑right channel, can be used as a serial port
+
+
+ 3            PA5               ADKEY                    AD button, 22K pull‑up resistor. Don’t need to be suspended, please refer to the description for details
+
+
+ 4            USBDM             USBD‑
+
+ 5            USBDP             USBD+
+
+ 6            + 3V3             Power Output             The internal LDO output of the chip, pay attention to the output. The external load
+
+                                                         cannot exceed 80mA. Try not to use
+
+
+ 7            DVDD              POWER                    For the paranoid voltage of the chip DAC, this IO can be connected to an
+
+
+ 8            PA0               MIC                      external 105, which is fixed as the IO of the call MIC. Not replaceable
+
+
+ 9            DACR              Right channel output
+
+
+ 10           DACL              Left channel output
+
+
+ 11           SGND              Analog ground            It must be connected to the ground of the power supply separately, and not mixed with the digital ground. Single‑point
+
+
+                                                         grounding is the best
+
+
+
+ 12           GND               Digitally
+
+ 13           VCC               power input              Between 3.3V and 5.2V, suitable for lithium battery power supply
+
+
+ 14           PC1               GPIO / PWM1
+
+ 15           PC3               SDDAT                    Data pin of external TF card
+
+ 16           PC4               SDCMD                    See the reference schematic for details
+
+
+
+ 17           PC5               SDCLK                    See the reference schematic for details
+
+
+
+ 18           PR2               GPIO/RESET               This IO can be used as a normal Io or as a reset pin. It is currently suspended
+
+                                                             6 page
+                                                                                                                                                                                        BT401‑ V1.5
+
+                                                                                         Just empty
+
+
+19             PR1                    led                                                This IO external indicator light, high level light, debugging indicator light, it is best to connect
+
+
+                                                                                         it out
+
+
+20             PB6                    GPIO                                               Do ordinary GPIO
+
+twenty one     PB5                    GPIO                                               Do ordinary GPIO
+
+twenty two     PB4                    GPIO                                               Do ordinary GPIO
+
+twenty three   PB3                    GPIO /MUTE                                         Automatic MUTE pin. The module automatically powers on and detects once, and then outputs the
+
+
+                                                                                         corresponding shop. The detection method is as follows:
+
+
+                                                                                         [Pull up 10K, high MUTE and low work]
+
+                                                                                         [Pull down 10K, low MUTE for work] Do
+
+twenty four    PB2                    GPIO /                                             ordinary GPIO
+
+25             PB1                    UART‑RX0 /                                         Connect MCU TX, 3.3V level, 5V level, please connect 1K resistor to MCU
+
+26             PB0                    UART‑TX0 /                                         RX, 3.3V level, compatible with 5V level, don’t need an external antenna,
+
+27             ANT‑                   Bluetooth antenna negative                         just hang it directly
+
+28             ANT+                   Bluetooth antenna positive                         Don’t need an external antenna, just hang it in the air
+
+
+
+
+                                                                             Remarks: attention to details
+
+1              The BT401 module has many functions, so there are many IO ports, and we will reuse many other functions. We will extend
+
+               many versions to meet the different needs of customers,Subject to the reference schematic diagram given by us
+
+
+2              We will introduce the demand for I2S output, which is defined as the BT401‑IIS version. So the above pin introduction is just a reference,Actually subject to
+
+               our functional plan drawing IO definition
+
+
+3.             In actual test, you must connect the 19‑pin indicator light interface of the module to facilitate the test and see the phenomenon
+
+
+4.             If you are on the board, you must lead out the 2 pins of the USB, and you need to use it for subsequent upgrades or certification.Remember to remember
+
+
+5.             The BT401 module is programmable, the hardware is fully compatible, and the difference is the module's firmware
+
+
+
+
+                                                                                             7 page
+                                                                                                                                                                           BT401‑ V1.5
+1.6 Quick start instructions for the module
+
+
+
+
+Please directly match our test demo board for testing                          test. If only the ordinary function is a pure Bluetooth player, just ignore the multiple
+
+The rest of the function is enough, what we do is fully compatible
+
+
+
+
+                    mode                                                                 Module 19 Foot indicator light description [High level lights up]
+
+
+Play U plate,TF card,spiflash                         1, Play isSlow flashing, The period is
+
+                                                      1HZ 2, Pause or stopChang Liang
+
+Bluetooth status                                      1, The search status is flashing, and the period is 5HZ
+
+                                                      2、It is always on if the connection is successful [note that it is connected EDR]   Playing music is slow flashing
+
+
+
+
+test demo There is a function button on it. Short press to play and pause, long press to switch mode [switch between device and Bluetooth]
+
+
+
+
+                                                                                               8 page
+                                                                                                                                                                     BT401‑ V1.5
+
+2. Program description
+
+
+
+
+The chip uses the SOC solution, which integrates a 32‑bit MCU and an aDSP dedicated to audio decoding. The hard decoding method is used to ensure the
+
+stability and sound quality of the system. Small package size better meets the needs of embedding other products
+
+
+
+2.1 Parameter description
+
+
+
+
+           Product number                                                                                                          BT401
+
+                                        1. The Bluetooth version is 5.0
+
+
+        Bluetooth parameters            2. Dual‑mode Bluetooth, supports audio and digital transmission
+
+
+
+                                        3. Support call, audio, BLE, SPP
+
+           USB interface                2.0 standard, support read U disk playback, support USB connected to the computer as a sound card, support update firmware
+
+
+          UART interface                3.3V TTL level, baud rate can be set, PC test recommendation: CH340G‑‑USB to TTL small board
+
+
+           Input voltage                3.3V‑5V [A diode in series after 7805 is the best],Lithium battery power is the best
+
+
+           Rated current                20MA[static]
+
+        Low power consumption current   Need low power consumption, please use the mos tube to control the power supply of BT401
+
+
+
+     DAC features and drivers           A 24‑bit DAC can only drive headphones.The module supports I2S master‑slave output mode
+
+
+       SMT patch temperature
+
+
+
+    Working temperature and humidity    Temperature: [‑40 degrees] ‑ [80 degrees]                                                  Humidity: 5% ~ 95%
+
+        Main chip model                 KT1026A‑QFN32[4*4mm]
+
+
+
+
+                                                                                                           9 page
+                                                                                                                                                                                                                           BT401‑ V1.5
+3. Serial communication protocol
+
+
+
+        As a common communication in the control field, the AT serial port command has been optimized and customized, which greatly simplifies the user’s difficulty in use. Please operate strictly in accordance with the
+
+
+command format given by us.
+
+
+
+
+3.1 Communication format
+
+
+
+
+  Support asynchronous serial port communication mode, accept commands sent by the host computer through the serial port
+
+
+
+           Communication standard:115200 bps                   ‑‑‑The user can set through the serial port command. For details, please refer to 4.2.2
+
+
+
+           Data bit                  :8
+           Stop bit                  :1
+           Check Digit               :none
+
+           Flow control              :none
+
+
+  Control command format: AT               + <CMD>[< param>]\r\n                                     ‑‑‑‑All are characters, not hexadecimal numbers
+
+
+  Data feedback format: <I                 ND>[<par am>]\r\n
+
+              Data characteristics
+                                                                                                                                         Detailed description
+
+
+
+
+                     AT+                          The control command is the control command given to BT201 by the control host, starting with "AT+"
+
+
+
+                  <CMD>                           Followed by <CMD> control, usually 2 characters
+
+
+            [<param>]                             If there are parameters after CMD, it is followed by [<param>]
+
+
+                   \r\n                           Finally, it ends with "\r\n", the character type is line feed, and windows is the enter key.Hexadecimal is 0x0D, 0x0A
+
+                                                  1. Data feedbackIt is Bluetooth that feedbacks various status and data information to the host, so as to <IND> as the beginning
+
+                  <IND>
+                                                  2. Followed by the parameters returned by BT401
+
+
+
+
+  Here<CMD>Highlights:
+
+          Functional division                            command                                                                                                Remarks
+
+
+       Common command characteristics                   AT+C?                      The public command starts with AT+C, the following "?" is the detailed function command. The
+
+       Music command characteristics                    AT+A?                      music command starts with AT+A, and the following "?" is the detailed function command. The
+
+       Bluetooth command characteristics                AT+B?                      Bluetooth command starts with AT+B. , The "?" is the detailed function command
+
+
+
+
+  Here<CMD>Highlights:
+
+                 For example                             command                                                                                                Remarks
+
+
+          Control command 1                        AT+CB\r\n                       Represents playback pause
+
+
+          Control instruction 2                  AT+CA20\r\n                       Means to set the volume to 20 levels
+
+
+   The result returned by the query 1                   QA+01                      For details, see 4.4.1 The query information returned is always Qn+xx where n corresponds to the previous one. Please refer to 4.2.12
+
+
+   Result returned by the query 2                       QG+01                      for details
+
+
+
+
+                                                                                                           First 10 page
+                                                                                                                                                                                         BT401‑ V1.5
+3.2 Communication commands
+
+
+
+
+Our communication is divided into the following two parts
+
+
+
+           Control commands and reference commands ‑‑‑ see 3.2.1 and 3.2.2 and 3.2.3
+
+           query commands and reference commands ‑‑‑ see 3.2.4 and 3.2.5 and 3.2.6
+
+
+
+3.2.1 Control instructions related to public functions
+
+
+
+
+                                                                                              Common part‑control instructions‑                       Description
+
+
+
+
+           CMD                              Corresponding function                                                                                                Detailed description
+
+
+
+         AT+CA                   Specify volume                                       There are parameters behind. See 4.2.1 for details
+
+
+
+         AT+CB                   play / Pause                                         See 4.2.1 for details
+
+
+         AT+CC                   next track                                           See 4.2.1 for details
+
+
+         AT+CD                   previous piece                                       See 4.2.1 for details
+
+
+         AT+CE                   Volume+                                              See 4.2.1 for details
+
+
+         AT+CF                   volume‑                                              See 4.2.1 for details
+
+
+         AT+CT                   Set the baud rate                                    There are parameters behind, See 4.2.2 for details
+
+
+
+         AT+CM                   Set mode                                             There are parameters behind, See 4.2.3 for details
+
+
+
+         AT+CU                   Set mute                                             There are parameters behind, see 4.2.4 for details
+
+
+
+         AT+CS                   Set DAC high impedance                               There are parameters behind, see 4.2.4 for details
+
+
+
+         AT+CZ                   Chip reset                                           Chip soft reset
+
+         AT+CW                   Chip reset to factory settings                       Restore factory settings, clear all previously memorized parameters
+
+
+         AT+CP                   Power‑up mode                                        There are parameters behind, see 4.2.5 for details
+
+
+
+         AT+CR                   Automatic return function                            The key parameters of the chip will be automatically returned, here you can turn off
+
+
+         AT+CJ                   Single trigger play                                  See 4.2.7 for details
+
+
+         AT+CN                   Set the alert tone                                   See 4.2.9 for details
+
+
+         AT+CQ                   Set playback EQ                                      See 4.2.10 for details
+
+
+         AT+CK                   Set up Bluetooth switch background                   See 4.2.11 for details
+
+
+         AT+C1                   Set button function off                              See 4.2.13 for details
+
+
+         AT+C2                   The chip actively returns data                       See 4.2.14 for details
+
+
+         AT+C3                   Keep                                                 See 4.2.15 for details
+
+
+         AT+C4                   Whether Bluetooth is powered on and connected back   See 4.2.16 for details
+
+
+
+
+                                                                                              Common part‑control instructions‑example
+
+
+                  CMD                                                                                                                      Detailed description
+
+
+
+        AT+CA30\r\n                               Set the volume to 30 levels
+
+
+           AT+CB\r\n                              Pause when playing, and play when pause
+
+           AT+CC\r\n                              next track
+
+           AT+CD\r\n                              previous piece
+
+
+
+           AT+CE\r\n                              Volume +, can't be added when it reaches level 30
+
+
+
+                                                                                                                         11 page
+                                                                                 BT401‑ V1.5
+ AT+CF\r\n    volume‑
+
+AT+CM00\r\n   Switch mode, the next mode, see 4.2.3 for details
+
+ AT+CZ\r\n    Chip reset
+
+ AT+CW\r\n    The chip restores the factory default parameters
+
+
+ AT+CR\r\n
+
+AT+CJ01\r\n   Set to single trigger playback
+
+
+
+
+                                                                 First 12 page
+                                                                                                                                                                                  BT401‑ V1.5
+3.2.2 Music‑related control commands
+
+
+
+
+                                                                  Music‑related control instructions‑description
+
+
+          CMD                                Corresponding function                                                                                        Detailed description
+
+
+
+         AT+AA            Set the playback mode                                                   There are parameters behind. See 5 for details   . 1.4
+
+         AT+AB            Specify physical order to play                                          See 5.1.5 for details
+
+
+         AT+AC            Specify play mode                                                       See 5.1.6 for details
+
+
+         AT+AD            Specify the playback device                                             To be determined
+
+
+
+         AT+AE            Specify the EQ for playback                                             To be determined ‑ not supported
+
+
+
+         AT+AS            Specify the speed of playback                                           To be determined ‑ not supported
+
+
+
+         AT+AF            Loop playback in specified folder                                       See 5.1.6 for details
+
+
+         AT+AJ            Specify the folder file name to play once                               See 5.1.7 for details
+
+
+
+
+                                                                  Music‑related control commands‑example
+
+
+                 CMD                                                                                                             Detailed description
+
+
+
+           AT+AA00\r\n                        Stop play
+
+           AT+AB01\r\n                        Music playback of designated physical serial number 1
+
+
+
+           AT+AC01\r\n                        Designated as a single loop playback mode
+
+
+     AT+AF/USB_UPDA/*.???                     Specify "USB_UPDA" folder to play in loop
+
+     AT+AJ/02*/011_11.???                     Specify the "011_11" file under the "02xxx" folder to play once and stop
+
+
+
+
+                                                                                      First 13 page
+                                                                                                                                                                                                                 BT401‑ V1.5
+3.2.3 Bluetooth‑related control commands
+
+
+
+
+                                                                      Bluetooth‑‑‑related control commands‑‑‑say                     Bright
+
+
+
+
+           CMD                         Corresponding function                                                                                 Detailed description
+
+
+
+         AT+BA               Bluetooth control related commands             See 6.1.5 for details
+
+
+         AT+BD               Set EDR Bluetooth name                         Here EDR refers to Bluetooth audio and SPP                                      There are parameters behind, see 6.1.2 for details
+
+
+
+         AT+BE               Set EDR connection password                    There are parameters behind, see 6.1.3 for details
+
+
+
+         AT+BM               Set BLE Bluetooth name                         BLE here refers to "Bluetooth Low Energy"
+
+         AT+BN               Set BLE connection password
+
+
+         AT+BS               Set the MAC address of EDR                     See 6.1.6 for details.BLE address does not need to be set，On the basis of EDR, there are only 00 or 01 after it
+
+
+         AT+B1               Simple password setting                        is automatically generated. 00 represents closed, 01 represents open. Same as above
+
+
+         AT+B2               Call settings
+
+         AT+B3               Bluetooth audio settings                       Same as above
+
+
+
+         AT+B4               Control the opening and closing of BLE         See 6.1.3 for details
+
+
+         AT+B5               Control the opening and closing of EDR
+
+
+         AT+BT               Dial by designated number                      See 6.1.3 for details
+
+
+         AT+U0               Specify service UUID                           See 7.6 for details
+
+
+
+         AT+U1               Designated feature code 1
+
+
+
+         AT+U2               Designated feature code 2
+
+
+
+         AT+U3               Designated feature code 3
+
+
+
+
+                                                                      Bluetooth‑‑‑related control commands‑‑example
+
+
+
+           CMD                                                                                                     Detailed description
+
+
+
+ AT+BAxx\r\n                 See 6.1.5 for details
+
+
+ AT+BD1234\r\n               Here is to set the Bluetooth name of EDR to "1234"
+
+ AT+BE5432\r\n               Here set the connection password of EDR to "5432"
+
+ AT+BM2345\r\n               Here is to set the Bluetooth name of BLE as "2345"
+
+ AT+B100\r\n                 This 00 represents 0x00, close the pairing password, that is, the next connection does not require a password to connect directly. This 01 represents
+
+
+ AT+B201\r\n                 0x01, which represents the Bluetooth call is turned on, if it is 00, this is the Bluetooth call function is turned off. This 00 represents 0x00, which means
+
+
+ AT+B300\r\n                 that the Bluetooth audio is turned off. If the connection is successful, the music cannot be played. On the contrary, 00 means 0x00, which means ble is
+
+
+ AT+B400\r\n                 closed, otherwise 01 means open, see 6.1.3 for details
+
+
+ AT+B501\r\n                 This 01 represents 0x01, which means edr is turned on, otherwise 00 is turned off. For details, please
+
+
+ AT+BT10086\r\n              refer to 6.1.3 Specify the phone number to call "10086"
+
+
+   AT+U0F000\r\n             Designated service UUID is F000
+
+
+   AT+U1F001\r\n             Designated feature code 1 is F001
+
+
+   AT+U2F002\r\n             Specify feature code 2 as F002
+
+
+   AT+U3F003\r\n             Specify feature code 3 as F003
+
+
+
+
+                                                                                        First 14 page
+                                                                                                                                                                                           BT401‑ V1.5
+3.2.4 Inquiry instructions related to public functions
+
+
+
+
+                                                                       Common part‑‑query instruction‑‑description
+
+
+            CMD                         Corresponding function                                                                 Detailed description
+
+
+
+          AT+QA                 Query volume                             See 4.3.1 for details
+
+
+          AT+QT                 Query baud rate                          See 4.3.2 for details
+
+
+          AT+QM                 Query working mode                       For details, see 4.3.3 [0: Bluetooth] [1: MP3. If you need to know the device, just query the device AT+MD] See
+
+
+          AT+QN                 Query whether there is a prompt tone     4.3.4 for details
+
+
+
+
+                                                                       Common part‑query command‑example
+
+
+            CMD                                                                                         Detailed description
+
+
+
+       AT+QA\r\n                The chip will return "QA+30\r\n", which means that the volume chip of 30 returned to the host will return
+
+       AT+QT\r\n                "QT+03\r\n", which means that the baud rate is 38400. The chip will return "QM+01\" r\n", it means that the
+
+       AT+QM\r\n                working mode is "Play U disk or TF card". The chip will return "QN+01\r\n", which means that the chip has a
+
+       AT+QN\r\n                beep
+
+
+
+
+                                                                                       First 15 page
+                                                                                                                                                                                                BT401‑ V1.5
+3.2.5 Music‑related query commands
+
+
+
+                                                                       Music part‑query command‑description
+
+
+         CMD                                            Corresponding function                                                                  Detailed description
+
+
+
+        AT+M1           The physical serial number of the playing file of the current device
+
+
+
+        AT+M2           The total number of files on the current device
+
+
+
+        AT+MC           Currently playing mode                                                              Is it a single or a loop or a folder loop, etc.
+
+        AT+MD           Currently playing device                                                            Refers to U disk or TF card
+
+        AT+MF           The "long file name" of the currently playing file                                  See 5.2.1 for details
+
+
+        AT+MP           Current playback status
+
+
+        AT+MT           The total playing time of the current file
+
+
+        AT+MK           The time that the current file has been played
+
+
+        AT+MV           Devices currently online                                                            See 5.1.2 for details
+
+
+        AT+MO           Data returned after the current playback                                            This is the chip's initiative to return, no need to query, see 5.1.2 for details,
+
+
+        AT+MU           Messages for plugging and unplugging devices                                        see 5.1.3 for details
+
+
+
+
+                                                                       Music part‑query command‑example
+
+
+         CMD                                                                                               Detailed description
+
+
+
+     AT+M1\r\n          The chip will return "M1+000002\r\n", which means that the physical serial number of the currently playing file is 2. The chip will
+
+
+     AT+M2\r\n          return "M2+000010\r\n", which means that the total number of files returned to the current device is 16 chips Will return
+
+
+     AT+MD\r\n          "MD+01\r\n", which means that the USB flash drive is currently playing
+
+
+     AT+MF\r\n          The chip will return "MF+/Andy Lau~1MP3", which represents the short file name of the music currently being
+
+     AT+MP\r\n          played. The chip will return to the current state, stop [0], play [1], pause [2]
+
+     AT+MT\r\n          The chip will return the current total time of the file being played
+
+
+     AT+MK\r\n          The chip will return to the currently played time
+
+
+
+
+                                                                                           First 16 page
+                                                                                                                                                                                           BT401‑ V1.5
+3.2.6 Inquiry commands related to Bluetooth
+
+
+
+
+                                                                                        Bluetooth part‑query command‑description
+
+
+              CMD                                                           Corresponding function                                                                  Detailed description
+
+
+
+           AT+TE                              Bluetooth query       ‑‑Query password
+
+
+           AT+TD                              Bluetooth query       ‑‑Query name‑‑EDR
+
+           AT+TA                              Bluetooth query       ‑‑Query address‑‑EDR
+
+           AT+TM                              Bluetooth query       ‑‑Query name‑‑BLE
+
+           AT+TB                              Bluetooth query       ‑‑Query address‑‑BLE
+
+           AT+TI                              Bluetooth query       ‑‑Query whether to connect to IOS                      To be determined
+
+
+
+           AT+TS                              Bluetooth query       ‑‑Query the current status
+
+           AT+TT                              Check the number of the incoming call                                        See
+           AT+T1                              Bluetooth query ‑ query whether it is a simple password                      The default is to enter the password "0000"
+
+           AT+T2                              Bluetooth Inquiry ‑ Inquire whether there is a call                          The default is with hfp, that is, Bluetooth call
+
+           AT+T3                              Bluetooth query‑query whether to bring a2dp                                  The default is with a2dp, which is Bluetooth audio
+
+
+           AT+T4                              Bluetooth query‑query whether to bring ble                                   To be determined, the default is with ble function
+
+
+           AT+T5                              Bluetooth query‑query whether to bring edr                                   To be determined, the default is with edr function
+
+
+           AT+T6                              query service UUID                                                           See 7.6 for details
+
+
+
+           AT+T7                              Query feature code 1
+
+
+           AT+T8                              Query feature code 2
+
+
+           AT+T9                              Query feature code 3
+
+
+           AT+TS                              Query the status of audio Bluetooth                                          See 6.2.1 for details
+
+
+           AT+TL                              Query the status of BLE                                                      See 6.2.2 for details
+
+
+
+
+                                                                                        Bluetooth part‑query command‑example
+
+
+       Return instructions from the machine                                                                                   Detailed description
+
+
+
+ TE+0000                                               The password of the current Bluetooth connection is "0000"
+
+
+ TD+BT201‑AUDIO                                        Returns the name of the current Bluetooth EDR as "BT201‑AUDIO"
+
+ TA+9EE884AB8BCC                                       Returns the MAC address of the current Bluetooth EDR as "9E E8 84 AB 8B CC", a total of 6 bytes, returns
+
+ TM+BT201_BLE                                          the name of the current Bluetooth BLE as "BT201‑AUDIO"
+
+ TB+9EE884AB8BCD                                       Return the MAC address of the current Bluetooth BLE as "9E E8 84 AB 8B CC", a total of 6 bytes. This status means that the
+
+
+ TS+01                                                 current Bluetooth has been connected successfully, but the music has not yet been played.
+
+
+ T1+01                                                 The representative default is to enter the password as "0000"
+
+
+ T2+01                                                 Representative chip supports HFP
+
+
+ T3+01                                                 Representative chip supports A2DP
+
+
+ T4+01                                                 Representative chip supports BLE
+
+
+ T5+01                                                 Representative chip supports EDR
+
+
+ TT+13510250437                                        The number currently dialed is 13510250437
+
+
+
+
+                                                                                                     First 17 page
+                                                                                                                                                                                          BT401‑ V1.5
+
+
+4. Detailed description of the serial port command‑common part
+
+
+
+
+4.1 The data returned by the module
+
+
+
+The chip will return data in key places. For users to control the working status of the chip
+
+
+   Data of successful initialization of the chip after power‑on                                                                          See 4.4.1 for details
+
+
+   The chip successfully received the ACK (acknowledgement) returned by the command                                                      See 4.4.2 for details
+
+
+   Wrong information returned                                                                                                            See 4.4.3 for details
+
+
+   Bluetooth will actively return when the status changes                                                                                See 6.2.1 and 6.2.2 for details
+
+
+
+
+4.4.1 Data returned from chip power on [QA][QT][QM]
+
+
+
+   QA+30\r\n                                                      The volume returned by the module is 30 levels
+
+   QM+00\r\n                                                      When the module is powered on, it returns to the "Bluetooth Mode" mode
+
+
+
+
+  1. The above parameters are automatically returned when the chip is powered on, letting the user know that the chip is initialized successfully and is normal
+
+
+
+  2. The above data chip will only return once after power‑on
+
+
+  3. If the user sends a control command, it is best to wait for the above command to be received before starting
+
+
+
+
+4.1.2 The response of the chip receiving the serial port command successfully returned [OK]
+
+
+
+
+   OK\r\n                                                         The chip receives the command and returns the response to the host‑‑ Contend for sending control commands to the host
+
+
+
+
+  1. This data is only the response returned by the chip to the host, generally it is the response of the host sending the control command, the query command will not be returned
+
+
+  4. If the host sends a query command, the query result will be returned. The host sends a control command, and responds with "OK"
+
+
+
+
+4.1.3 Return of chip error information [ER]
+
+
+
+   ER+1\r\n                                                                       The received data frame is incorrect
+
+
+   ER+2\r\n                                                                       The received command does not exist, that is, when the string like AT+KK you sent cannot find
+
+   ER+3\r\n                                                                       the recording, the device is not online, or other errors
+
+   ER+4\r\n                                                                       The command sent is out of range, or the format of the command is incorrect
+
+
+   ER+5\r\n                                                                       The specified device [TF or U Disk], but the device is offline or abnormal
+
+   ER+6\r\n                                                                       Specify the path of the device [TF or U Disk], but the path does not exist, return an error
+
+   ER+7\r\n                                                                       To be determined
+
+
+
+   ER+8\r\n                                                                       To be determined
+
+
+
+The chip will provide real‑time feedback on some error states. For specifics, please refer to the table above
+
+
+
+
+                                                                                                                  First 18 page
+                                                                                                                                                                                                                   BT401‑ V1.5
+4.2 Detailed description of the common part‑control instructions‑
+
+
+
+
+   The following is a detailed description of the possible misunderstanding of the public function. The public function means that each task will be processed at the same time, and the priority is the highest.
+
+
+
+
+4.2.1 Specify the playing volume of the chip [CA][CB][CC][CD][CE][CF]
+
+
+
+  AT+CA30\r\n                          The specified volume is 30 levels [If it is sent: AT+CA15\r\n, the specified volume is 15 levels]
+
+  AT+CB\r\n                            No parameters are required afterwards. This command is to play and pause. If Bluetooth is not connected, it will be
+
+  AT+CC\r\n                            invalid. There is no need to carry parameters. The function is the next song. No parameter is required after the
+
+  AT+CD\r\n                            Bluetooth connection is not successful and invalid. The function is the previous song. If the Bluetooth connection is not
+
+  AT+CE\r\n                            successful and invalid, there is no need to carry parameters. The function is volume + [note the maximum 30]. Any state
+
+  AT+CF\r\n                            is valid without parameters. The function is volume‑[note minimum 0]. Any state is valid
+
+
+
+
+  1. The maximum volume of the system is level 30, and the minimum is level 0.The chip will automatically remember when power off.
+
+
+
+  2. Each mode has the same volume, which means that the volume is the volume of the entire system, not the volume of a single mode
+
+
+  3. The user has two choices, you can directly use the volume + [CE] and volume‑[CF] commands, or you can specify the volume [CA] by yourself, both are fine.
+
+
+  1. The CB command is only valid when the Bluetooth connection is successful, or the TF card U disk playback mode. If the Bluetooth connection is not successful, sending this
+
+
+  command is invalid. Under Bluetooth music, if the mobile phone does not open the player, sending this command may have no effect.
+
+
+
+
+4.2.2 Specify the baud rate of the chip [CT]
+
+
+
+  AT+CT01\r\n                            Baud rate 9600                                                                 AT+CT04\r\n                Baud rate 57600
+
+  AT+CT02\r\n                            Baud rate 19200                                                                AT+CT05\r\n                Baud rate 115200
+
+  AT+CT03\r\n                            Baud rate 38400                                                                AT+CT06\r\n                Baud rate 256000
+
+
+
+
+  1. Once the baud rate is set, the chip will remember it. The next time you turn on the computer, the baud rate will become the one you set
+
+
+  2. After setting the baud rate, please wait for 1 second before sending a reset command, or power off and restart
+
+
+  3. If you want to restore the default baud rate, please send the command to restore factory settings, and the chip will automatically erase all configurations at this time
+
+
+  4. Due to the high frequency of our chip,So try to increase the baud rate of the serial port, the higher the betterThe baud rate is low. When sending commands when playing music, there will be
+
+
+  slight noises, because the serial port preempts the decoding interrupt
+
+
+
+
+4.2.3 Specify the working mode of the chip [CM]
+
+
+
+  AT+CM00\r\n                        Switch to the next working mode
+
+  AT+CM01\r\n                        Specify the working mode as Bluetooth
+
+
+  AT+CM02\r\n                        The designated working mode is "U disk" playback, if the U disk is not online, an error message will be returned, and the designated
+
+  AT+CM03\r\n                        working mode is "TF card" playback, the same as above
+
+  AT+CM04\r\n                        The designated working mode is music mode, which is used for scenes with only a single device. The
+
+  AT+CM05\r\n                        designated working mode is external sound input AUX
+
+  AT+CM07\r\n                        The designated working mode is "sound card", that is, the USB of the chip is connected to the audio played by the computer. At the same time, the designated chip of the TF
+
+
+  AT+CM08\r\n                        card can be copied into the idle mode, all resources are released, and it is in a waiting state.
+
+
+
+
+                                                                                                           First 19 page
+                                                                                                                                                                                                                               BT401‑ V1.5
+1. If there is no mode, please do not switch to this mode. After switching the mode, check whether the mode is successfully switched. This is based on the return data given by each mode, which is
+
+
+introduced in the previous section. See the QM command for details.
+
+
+2. Since the internal processing of the U disk and TF card in the chip is under the same task, it is relatively troublesome to switch between the two.If you only use one of the U disk or
+
+SD card, then it is recommended that you use AT+CM4\r\n This command,
+
+3. After switching to AUX, there are only two options for mute and play, refer to "AT+CB" or "AT+CU[4.2.4]". The mute of AUX actually sets the volume to 0
+
+
+
+4.2.4 Set module mute and DAC                                    Detailed instructions for closing and opening [CU][CS]
+
+
+
+
+   AT+CU00\r\n                                                           Unmute
+   AT+CU01\r\n                                                           Mute
+   AT+CU02\r\n                                                           If it is currently muted, it will be released. Otherwise mute
+
+   AT+CS00\r\n                                                           Turn off the DAC, at this time the DAC output is high‑impedance,
+
+
+   AT+CS01\r\n                                                           turn on the DAC, at this time the DAC will play sound
+
+
+
+
+    1. The mute of the chip means that the current playback continues, but the mute is adjusted to 0, you can't hear the sound.
+
+
+    2. Turning off the DAC is equivalent to completely disconnecting the DAC. The purpose of this is that if the user needs to perform the external sound input function, then the sound source of the external sound input can be
+
+
+    directly connected to the DAC of the chip. Turn off the DAC, then the chip will not There will be any absorption or interference with the external sound input
+
+
+
+    3. The purpose of turning off the DAC function is to facilitate the user to hook up the FM chip or input external sound
+
+
+    4. Note that after turning off the DAC, if the chip needs to resume playback, you need to turn on the DAC or send to specify other modes
+
+
+
+
+4.2.5 Description of setting the mode that the chip automatically enters after power‑on [CP]
+
+
+
+
+   AT+CP00\r\n                                                           Automatically enter Bluetooth after power‑on
+
+
+
+   AT+CP01\r\n                                                           Power on and enter the waiting state, the user needs to send mode commands
+
+   AT+CP02\r\n                                                           Power on to make a judgment, if there is a device, it will play the device, and if there is no device, it will enter Bluetooth
+
+
+
+   AT+CP03\r\n                                                           Reserved
+
+
+   AT+CP04\r\n                                                           Reserved
+
+
+
+
+    1. Similarly, the setting here will take effect only when the power is turned on next time
+
+
+    2. The purpose of adding this command is to facilitate users. Some customers need to use Bluetooth directly, while some customers need to have equipment to enter the equipment.
+
+
+    3. Note that if you do not enter the Bluetooth once power on, the Bluetooth data transmission is invalid, because Bluetooth must be initialized once before it will run in the background.
+
+
+
+
+4.2.6 Set the function of the chip to automatically return data Turn off and turn on [CR]
+
+
+
+
+   AT+CR01\r\n                                                           Turn on automatic return function
+
+
+   AT+CR00\r\n                                                           Turn off automatic return function
+
+
+
+
+1. If you don't want to return a message every half second in the Bluetooth state, you can turn it off with this command. 2. If you
+
+
+don’t want TF card or U disk, the message will be returned every second, or you can turn it off by this command
+
+
+
+
+                                                                                                                 First 20 page
+                                                                                                                                                                                         BT401‑ V1.5
+4.2.7 Set TF card U disk playback to stop once or to loop playback in sequence [CJ]
+
+
+
+  AT+CJ01\r\n                                                              On‑single trigger play
+  AT+CJ00\r\n                                                              Off‑play in loop sequence
+
+
+
+  1. For the playback of MUSIC, we give two application methods here
+
+  (1). Basically, when entering the music, it is played in a loop sequence, playing and then playing, without stopping. This is called "Loop Sequential Play"
+
+  (2) In a personalized way, when entering the music, it stops, waiting for the user to specify to play, and when the play is complete, it stops. This is called "Single Trigger Play"
+
+
+  2. This setting is memorized. After the setting is completed, it will take effect at that time, and it will be saved automatically when power is off.
+
+
+
+
+4.2.8 Set whether the recording function of TF card and U disk is turned on [RE]‑‑not supported
+
+
+
+
+Need recording function, please select BT201
+
+  AT+RE01\r\n                                                              On ‑ now the chip has the recording function
+
+  AT+RE00\r\n                                                              Off ‑ the chip recording function is off at this time
+
+
+
+
+  1. The recording function is a niche application, so we adopt a hidden scheme. If you don’t set it on, it will be off by default.
+
+  2. After opening through the command setting, the chip will be saved after power‑off, so there is no need to set it next time
+
+
+
+
+4.2.9 Set whether to turn on the prompt tone [CN]
+
+
+
+
+  AT+CN01\r\n                                                              Turn on ‑ the chip will automatically play a tone at this time
+
+  AT+CN00\r\n                                                              Turn off‑the chip will turn off the prompt tone at this time‑save power
+
+
+
+
+  1. Our default chip is with a prompt tone, that is, with a prompt tone when turning on or switching modes, if you don’t need it, you can turn it off
+
+
+  2. After opening through the command setting, the chip will be saved after power‑off, so there is no need to set it next time
+
+
+
+
+4.2.10 Set the audio EQ[CQ] ‑‑‑ not currently supported
+
+
+
+  AT+CQ00\r\n                           default                                                                              AT+CQ03\r\n                       CLASSIC
+  AT+CQ01\r\n                           ROCK                                                                                 AT+CQ04\r\n                       JAZZ
+  AT+CQ02\r\n                           POP                                                                                  AT+CQ05\r\n                       COUNTRY
+
+
+
+  1. The sound effect is fixed, the setting is not saved, and the default sound effect is the first one every time the power is turned on.
+
+
+
+  2. The sound effect is globally effective, and it is effective when playing MP3 or Bluetooth                    Description:This feature is temporarily reserved
+
+
+
+
+                                                                                                          First twenty one page
+                                                                                                                                                                                                                                                       BT401‑ V1.5
+4.2.11 Set Bluetooth to automatically switch to the background [CK]
+
+
+
+
+    AT+CK00\r\n                                                          Off‑does not automatically switch to Bluetooth
+
+    AT+CK01\r\n                                                          On ‑ The TF card is currently playing, if Bluetooth has audio or a phone call, it will automatically switch to Bluetooth
+
+
+
+
+   1. If the TF card is currently playing, if Bluetooth has audio or phone calls, we will switch to Bluetooth by default, because our Bluetooth is running in the background and the memory
+
+
+   resources have not been released.
+
+
+   2. This new command is added to meet the requirement of not switching to Bluetooth audio or calling under the premise of TF card playback
+
+
+   3. The TF card is currently playing. If Bluetooth is connected, the sound of the TF card will be interrupted slightly. 4. This
+
+
+   function does not affect the BLE and SPP functions of Bluetooth
+
+
+
+
+4.2.12 Set whether to enable the background of Bluetooth [CG]
+
+
+
+
+    AT+CG00\r\n                                                          Off ‑ Bluetooth does not run in the background
+
+
+    AT+CG01\r\n                                                          On ‑ Bluetooth running background
+
+
+
+
+   1. Our basic function, Bluetooth actually exists in the memory for a long time, so even if you are playing a TF card, you can search for Bluetooth normally.
+
+
+   2. The purpose of this is for Bluetooth data transmission to be effective in all modes
+
+
+   3. In order to meet the requirement of "Bluetooth running in the background" conveniently, we add this command, and it will take effect after the power is turned off. 4. In this way,
+
+
+   the Bluetooth is completely released when the TF card is played. The same Bluetooth data transmission is only available in Effective in Bluetooth mode
+
+
+
+
+4.2.13 Set whether the key function is turned off and on [C1][C2][C3][C4]
+
+
+
+    AT+C100\r\n                                                          Turn off the AD button‑‑‑pin 14 of the chip does not need to pull up 22K. Turn on the AD button‑‑‑ 14 of the chip must be pulled up 22K. When the chip is turned off, the
+
+
+    AT+C101\r\n                                                          information will be returned automatically, and the information will be returned automatically when the chip is powered on or the state is switched. This is to turn off the
+
+
+    AT+C200\r\n                                                          chip Turn on the active return information, the chip will automatically return the information when it is powered on or the state is switched, the default is this reserved
+
+
+    AT+C201\r\n
+    AT+C300\r\n
+    AT+C301\r\n                                                          Keep
+    AT+C400\r\n                                                          Bluetooth is set to not connect back after power on
+
+
+    AT+C401\r\n                                                          Bluetooth is set to connect to the last paired device after power‑on, the main competition audio default is this
+
+
+And save when power off, it will take effect next time when power on
+
+
+
+
+                                                                                                           First twenty two page
+                                                                                                                                                                                                         BT401‑ V1.5
+4.3 Detailed description of the common part‑query command‑
+
+
+
+
+See below for details 3.2.4 chapter
+
+
+
+
+4.3.1 Common symptoms State query return description [QA][QT][QN][QK]
+
+
+
+
+                                                                                            Examples of query commands sent by the host
+
+
+
+                 CMD                                                                                                               Detailed description
+
+
+
+         AT+QA\r\n                            The chip will return "QA+30\r\n", which means that the volume chip of 30 returned to the host will return
+
+         AT+QT\r\n                            "QT+03\r\n", which means that the baud rate is 38400. The chip will return "QM+01\" r\n", it means that the
+
+         AT+QM\r\n                            working mode is "Play U disk or TF card". The chip will return "QN+01\r\n", which means that the chip has a
+
+         AT+QN\r\n                            beep
+
+         AT+QK\r\n                            The chip will return "QK+01\r\n", which means that the chip actively returns to Bluetooth. For details, please refer to chapter 4.2.11 for understanding
+
+
+
+
+  1. The query command AT+QA is easy to understand. For details, please refer to the volume setting section in 4.2.1.
+
+
+  2. The query command AT+QT is well understood, please refer to chapter 4.2.2 for details.
+
+
+  3. AT+QK is the same as the above understanding
+
+
+
+
+4.3.2 Working Mode                     The query and the description returned [QM]
+
+
+
+
+         AT+QM\r\n                            The chip will return "QM+01\r\n", which means it returns to the working mode as "Bluetooth Mode"
+
+
+
+
+              QM+00                           The chip is in empty mode when it is powered on, so it returns 00
+
+
+              QM+01                           Represents Bluetooth mode
+
+
+
+              QM+02                           U disk playback representing music mode
+
+
+              QM+03                           TF card playback representing music mode
+
+
+              QM+04                           SPIFLASH playback of the representative music mode ‑‑‑ This version does not support the
+
+
+              QM+05                           representative sound AUX external sound input mode ‑‑‑ This version does not support the
+
+
+              QM+06                           representative sound PC sound card input mode
+
+
+              QM+07                           Representative tone FM radio mode
+
+
+              QM+08                           Representative sound REC recording mode
+
+
+
+              QM+09                           Represents false shutdown mode, which is idle mode
+
+
+
+
+Cooperate 4.2.3 To understand the chapters together, it will be clearer
+
+
+
+
+                                                                                                         First twenty three page
+                                                                                                                                                                                                          BT401‑ V1.5
+5. Detailed description of the serial port command‑music part
+
+
+
+Details are as follows:
+
+
+
+
+5.1 Detailed description of music‑related‑control instructions‑
+
+
+
+
+         The function of MUSIC only includes reading U disk and TF card playback. The chip has its own power‑down storage part, which can store the following information: 1. The physical number of
+
+
+the song played on the U disk and the current breakpoint information
+
+
+2. The physical number of the song played by the TF card, the current breakpoint information, that is, every time the power is turned off and then on, the chip will automatically go to the breakpoint
+
+
+and start playing 3. And U disk and SD card, these two devices , Both support insert and start playing. Post‑insertion priority
+
+
+
+
+5.1.1 Data returned after initialization of U disk or TF card [M1][M2][MT][MK][MF]
+
+
+
+
+1. When the chip starts playing, it will return the above information
+
+  M1+0000000E                                                   The file played by the current device is 0x0E
+
+
+  M2+0000000F                                                   The total number of files on the current device is 0x0F. Note that it is a legal audio file. The total
+
+
+  MT+0000001E                                                   time of the current file is 0x1E seconds.
+
+
+  MK+00000004                                                   The current file has been played to 0x04 seconds
+
+
+  MF+XXXXXXX                                                    The name of the currently playing file is xxxxxx. Here the file name is complete
+
+
+
+
+5.1.2 The information returned after playing the U disk or TF card [MV][MD][MO]
+
+
+
+  MV+04                                                         This refers to the online device, refers to the TF card is online, that is, BIT(2) This
+
+  MD+04                                                         refers to the TF card that is currently working, that is, BIT(2) The currently played
+
+  MO+00000005                                                   track is the 5th track
+
+
+
+
+1. The U disk here occupies the 0th position, and TF occupies the 2nd position.
+
+
+=1 means online, =0 means offline. Only one device is working and playing music at any time. And online is just physical online
+
+
+                                                                                                    First twenty four page
+                                                                                                                                                                                        BT401‑ V1.5
+5.1.3 Information returned when TF card or U disk is inserted and removed [MU]
+
+
+
+
+  MU+01                                                            U Disk Unplug
+
+
+  MU+02                                                            U Disk Insert
+
+  MU+03                                                            TF card removal
+
+
+  MU+04                                                            TF card insertion
+
+
+When the device is inserted and unplugged, the above information is actively returned to the host.
+
+
+
+
+5.1.4 TF card or U disk command‑some common basic functions [AA]
+
+
+
+  AT+AA00                          Stop                                                                                       AT+AA04               Fast forward
+
+
+
+  AT+AA01                          Play [Send to start playing in the paused state, otherwise invalid]                        AT+AA05               Rewind
+
+
+  AT+AA02                          Pause [Send to start pause under the playing state, otherwise invalid]                     AT+AA06               Next folder
+
+  AT+AA03                          Play, pause [Cyclic switching between two states]                                          AT+AA07               Previous folder
+
+                                                                                                                              AT+AA08               Delete the currently playing file
+
+
+
+
+  1. "Stop" means to stop the current file, and start from the beginning during playback. "Pause" is to stop at the current position, and then to play is to start from this position
+
+
+  2. The upper and lower folders are valid only if there are folders in your device, otherwise they are invalid
+
+
+
+  3.AT+AA08 This command refers to delete the currently playing file
+
+
+
+
+5.1.5 TF card or U disk command‑‑song number play [AB]
+
+
+
+  AT+AB1                                                           Specify the first file of the device to play
+
+  AT+AB11                                                          Specify the 11th file of the device to play
+
+  AT+AB111                                                         Specify the 111th file of the device to play
+
+  AT+AB65536                                                       Specify the 65536th file of the device to play
+
+1. In order to facilitate users to write programs, they can be unified
+
+(1). Here, if you send AT+AB1 to specify the first play, sending AT+AB000001 is also the first play. We did it internally
+
+(2) So the user is very flexible when using it. You can specify a fixed number of characters in this string. 1. The order of playback here, pay attention to the physical order,That is, the
+
+sequence of copying to the device is not based on the number 01/02 you gave.You can refer to Document No. 09 in the 11 folder for detailed reference
+
+
+
+
+2. All files inside the chip, all searches, and sorting are in physical order, please be sure to figure it out
+
+
+
+
+                                                                                                         First 25 page
+                                                                                                                                                                BT401‑ V1.5
+5.1.6 TF card or U disk command‑loop playback of the folder in the specified path [AF]
+
+
+
+
+ AT+AF/01*/*.???                                                           Specify the "01 Welcome Mode" folder to play in loop
+
+ AT+AF/02*/*.???                                                           Specify the "02 Forest Mode" folder to play in loop
+
+ AT+AF/03*/*.???                                                           Specify the "03 Seascape Mode" folder for loop playback
+
+
+ AT+AF/USB_UPDA/*.???                                                      Specify "USB_UPDA" folder to play in loop
+
+
+
+
+ 1. Here we give a complete path to specify the playback, for example AT+AF/01*/*.???
+
+ (1). Among them, AT+AF is not explained, it is a command
+
+ (2),Immediately after /01* This represents the folder with the 01 prefix under the root directory, which means that as long as your folder is                 01,
+ prefixed, it can be recognized. The * here stands for "wildcard", which means anything is OK
+
+ (3) The purpose of this is actually to facilitate some applications that customers need to name in Chinese, and Chinese is not so easy to write programs
+
+
+ (4),Immediately after /*.??? This represents any file under the folder, which is the first one. In fact, you can also specify a name here.                 Weigh
+
+
+
+
+ (5). Note that the ??? at the back represents all files, here you can change it to MP3 or WAV, so it will only search for MP3 or
+
+ WAV suffix files
+
+ 2. It is recommended to use "wildcard" and prefix if the name is in Chinese. If you order in English, you can be very flexible
+
+ 3. No empty folders are allowed in the device
+
+ 4. After the folder is specified here, the content in this folder will be played in a loop automatically.
+
+
+
+
+5.1.7 TF card or U disk command‑play the file in the specified path once [AJ]
+
+
+
+ AT+AJ/01*/011_11.???                                                      Specify the 011_11.??? file in the "01???" folder to play once
+
+ AT+AJ/02*/011*.???                                                        Specify the 011???.??? file in the "02???" folder to play once
+
+
+
+ 1. Please refer to 5.1.6 for the principle, which will not be explained here.
+
+
+
+ 2. The folder and file name specified here to play must be under the folder, the root directory is not supported
+
+
+
+
+See the video demo for details:https://v.qq.com/x/page/y08649mgh1l.html
+
+
+
+
+                                                                                                        First 26 page
+                                                                                                                                                           BT401‑ V1.5
+5.1.8 TF card or U disk command‑‑specify the play mode Single_All_Random[AC]
+
+
+
+ AT+AC00                                      Set to all loops
+
+ AT+AC01                                      Set to single device loop
+
+ AT+AC02                                      Set as single loop
+
+ AT+AC03                                      Set to single device random play
+
+ AT+AC04                                      Set as folder loop
+
+
+
+ 1. If only neededSingle cyclewithLoop all, You only need to choose what you need. You can ignore the extra
+
+ 2,Loop allRefers to two device cycles. The prerequisite is that you have two devices online. If there is only one device, it is still one device cycle.
+
+ 3.Single device, Refers to a device. Circulate only in this device
+
+ 4.Folder loop,If the currently playing track is in the folder, then it will play this folder in a loop, otherwise it will be invalid
+
+
+
+
+                                                                          First 27 page
+                                                                                                                                                                                                             BT401‑ V1.5
+5.1.9 TF card or U disk‑‑recording function [RC]‑‑not support
+
+
+
+Need recording function, please select BT201
+
+  AT+RC00                  Enter the recording state and wait, that is, the stop state                                     AT+RC03                            Stop recording
+
+
+  AT+RC01                  start recording                                                                                 AT+RC04                            Play the current recording
+
+
+  AT+RC02                  Recording pause and resume recording                                                            AT+RC06                            Delete the current recording
+
+
+
+
+   1. Note that the recording function is turned off by default, and this function needs to be turned on through instructions. It will be turned on by default next time the power is turned on, see 4.2.8
+
+
+   2. Recording is required, the device must be online, and a TF card or U disk is inserted to take effect. You can also see the indicator light for the recording status,Refer to BT201 module
+
+
+   (1) The recording is flashing fast, the stop state is slow flashing, and the pause state is always on
+
+
+   (2), The PP button of the test board is to start recording and pause. Mode key is short press to switch the mode, long press to delete the recording
+
+
+
+   2. You must first specify to enter the recording state and wait, and then send the start recording command, and the recording will start automatically at this time
+
+
+   (1), the recording format is MP3, 128KBS sampling rate
+
+   (2) The recording file is generated under the "KT_REC" folder
+
+   3. You can pause during recording, and then continue recording, send RT02
+
+   4. If you do not need to play after the recording is completed, just send the 03 command and it will stop at this time.
+
+
+   (1) If you want to play, send the 04 command, and it will stop automatically at this time, and then play the recording file just now
+
+
+   (2). After recording, you must specify to switch to the working mode you need, otherwise the current resources are still reserved for the recording thread to use
+
+
+   (3). After entering MUSIC, you can specify the path to play the previous recording, check the generated recording file in detail and find the rules.
+
+   After entering the music, you can still delete the file, see 5.1.4. Note that all recordings must be in the playback state.
+
+
+   5. During the recording process, the chip will automatically return to the current recording state when the state changes
+
+
+   (1), RC+00 ‑ represents the stop state of recording                                       RC+01 ‑ represents the start state of recording
+
+
+   (2), RC+02 ‑ represents the recording pause state                                         RC+03 ‑ Represents recording playback status
+
+
+   (3), RC+04 ‑ represents the completion status of the recording and playback               RC+05 ‑ represents the completion status of the recording and playback
+
+
+
+   (4), RC+06 ‑ to delete the recording state just now                                       RC+07 ‑ represents the completion of recording initialization ‑ enters the state of recording return
+
+
+   6. The recording is in accordance withRules for folder and file name generation, The recording file will be fixed under the folder KT_REC and cannot be changed. The newly added
+
+
+   files may be numbered FILE0001 ‑‑‑‑ FILE9999 in sequence.
+
+
+   7. Each time the recording is turned on, the file in KT_REC will be retrieved, starting from 0001, if 0001 exists, it will generate 0002, if 0002 exists,
+
+   it will generate 0003. Repeat this judgment until it finds a non‑existent file name , Then start recording and generate a recording file
+
+
+
+
+At the same time, when generating the recording file, there will be some information
+
+
+1. Existing file name RF+
+
+2. The newly generated file name, RN+ is shown in the screenshot below
+
+
+
+
+                                                                                                         First 28 page
+                                                                                                                                                                                                               BT401‑ V1.5
+5.2 Detailed description of music related‑query command‑
+
+
+
+
+For details, please refer to chapter 3.2.5
+
+
+
+
+5.2.1 Query the name of the currently playing file with TF or U disk [MF]
+
+
+
+
+  MF+001_Chen0Punch‑Everytime‑脭餢 Hr.mp3 001_Chen、Punch‑Everytime‑Ringtones version.mp3
+
+
+
+1. The left side is the information printed by the serial port debugging assistant, and the right side is the actual information. 2. If you use the serial port debugging assistant, the printed information
+
+
+will be garbled for Chinese characters or other characters. On the contrary, the English and numbers are correct. 3. Analyze the data and convert The data obtained in hexadecimal is as follows
+
+
+
+
+30 00 30 00 31 00 5F 00 43 00 68 00 65 00 6E 00 01 30 50 00
+
+75 00 6E 00 63 00 68 00 20 00 2D 00 20 00 45 00 76 00 65 00
+
+72 00 79 00 74 00 69 00 6D 00 65 00 20 00 2D 00 20 00 C3
+
+94 F0 58 48 72
+
+2E 00 6D 00 70 00 33 00
+
+(1) The place marked in red is the encoding of Chinese characters. There are three Chinese characters "ringtone version" in total, one Chinese character is 2 bytes, and "UNICODE code" is used.
+
+
+(2) Even the initial 0 occupies 2 bytes, namely:00 30 [noteThe code of the Chinese character "bell" == 0x94C3]
+
+(3) The following website can be inquired:https://bianma.supfree.net/chaye.asp?id=94C3
+
+4. For non‑Chinese or English text, it is not clear at present, whether it is supported or not, you can communicate if you know
+
+
+
+
+4. The screenshot above is the information printed by the serial debugging assistant. The actual corresponding file name is as follows
+
+
+001_Chen, Punch‑Everytime‑Ringtone version.mp3
+
+002_K.Will‑ 말해! 뭐해#‑ Ringtone Version.mp3 003_Li
+
+Ronghao‑Not Will You‑Ringtone Version.mp3 004_Liang
+
+Jingru‑Question‑Ringtone Version.mp3
+
+Dragon Plum‑Drinking Spirits and Singing Love Songs‑DJ Version Ringtones.mp3
+
+
+
+
+                                                                                                           First 29 page
+                                                                                                                                                                           BT401‑ V1.5
+5.2.2 TF or U disk query the time processing of the currently playing file [MT][MK]
+
+
+
+ MT+0000001D                                      The total time of the current file is 0x1D seconds
+
+
+ MK+00000000                                      The current playing time is 0 seconds
+
+
+
+
+1. Here we will give the total time of the current file and the playing time 2. When the user is using it, he only needs to know the total time, and then the playing time can be timed by
+
+himself 3. Because we are audio bluetooth, audio The playback is interrupted, and UART is also interrupted. If you frequently check the current time, it may cause the playback sound to
+
+have a slight noise.
+
+
+
+
+                                                                                    First 30 page
+                                                                                                                                                                                                        BT401‑ V1.5
+6. Detailed description of the serial port command‑Bluetooth part
+
+
+
+
+6.1 Detailed description of Bluetooth‑related‑control commands‑
+
+
+
+
+1. Please refer to chapter 3.2.3 for details. There are many examples in it, and the explanation is very clear. You can take a closer look.
+
+
+  1. AT+B1 set a simple password here, in fact, when the mobile phone is connected, you do not need to manually enter the password
+
+
+  2. AT+B2 Here is to set the call. If your product does not need to call, you can turn it off here, and there will be no call function next time it is powered on.
+
+
+  3. AT+B3 here is to set the audio, if you don’t need to play music, you can also turn it off here
+
+
+
+
+6.1.1 Set Bluetooth name and password [BD][BE][BM]
+
+
+   AT+BDAUDIO\r\n                                                   Set the Bluetooth name to "AUDIO"
+
+   AT+BE1234\r\n                                                    Set the Bluetooth connection password to "1234"
+
+   AT+BM2345\r\n                                                    Here is to set the Bluetooth name of BLE as "2345"
+
+
+
+
+  1. After setting the Bluetooth name, you need to reset the chip, send a command or power off, and the new Bluetooth name will be displayed. Our default
+
+  Bluetooth name is "BT201‑AUDIO".
+
+  2. The longest Bluetooth name set is "32" bytes, please do not exceed this range
+
+  3. After setting the Bluetooth password,Need to reset the chip, issue instructions or power off, Will ask for a password, our default Bluetooth name is "0000".
+
+
+  4. The longest Bluetooth password set is "4" bytes, please do not exceed this range
+
+  5. After the AT command changes the Bluetooth name, please note that your mobile phone may not be updated synchronously, or the previous name will be displayed
+
+
+  (1). Because you only modified the name of the Bluetooth, the MAC address of the Bluetooth has not changed, so the name will not be updated on the mobile phone.
+
+
+  (2) What you have to do is try to search for another phone, or delete the pairing information from the previous phone and search again
+
+
+  (3) As long as the Bluetooth name is set, the Bluetooth name must be updated, so there is no doubt. When the chip is powered on, it will return the Bluetooth name for you to check
+
+
+
+
+6.1.2 Set the protocol function of Bluetooth [B1][B2][B3]
+
+
+
+
+  AT+B100\r\n                            The 00 represents 0x00, close the pairing password, that is, the next connection does not require a password to connect directly. This 01 represents
+
+
+  AT+B201\r\n                            0x01, which represents the Bluetooth call is turned on, if it is 00, this is the Bluetooth call function is turned off. This 00 represents 0x00, which means
+
+
+  AT+B300\r\n                            that the Bluetooth audio is turned off. The connection is successful, the music cannot be played, otherwise the default is 0x01 as above
+
+
+  AT+B401\r\n
+
+
+
+This is a personalized function, which is not used by general customers. You can take a closer look when you need it.
+
+
+
+
+                                                                                                First 31 page
+                                                                                                                                                                                                             BT401‑ V1.5
+6.1.3 Set the enablement of Bluetooth ble and edr [B4][B5]
+
+
+
+
+  AT+B400\r\n                           Here is the function of turning off BLE. This default is 0x01,
+
+  AT+B501\r\n                           here is the function to open EDR. This default is 0x01
+
+
+
+
+This is a personalized function, which is not used by general customers. You can take a closer look when you need it.
+
+
+  1. Turning on and off the BLE function here is convenient for customers who only need audio and don’t need data transmission
+
+
+  2. After BLE is turned off, you will not be able to search for the BLE name, and the chip will not broadcast to the outside. After setting, the next power‑on is valid
+
+
+  3. If you turn off EDR, your mobile phone will only search for the BLE name and can only do data communication. The same is valid next power‑on
+
+  (1) This chip does not have the Bluetooth audio playback function, and your mobile phone can't search for the name of the audio Bluetooth.
+
+
+
+
+6.1.4 Dial [BT] from a designated phone number
+
+
+
+
+  AT+BT13510250437\r\n                                   Designate to call the phone number "13510250437"
+
+  AT+BT10086\r\n                                         Designate to call the phone number "10086"
+
+To use here, the call function must be enabled by the software. At the same time, it is currently in a successfully connected state and is currently in a non‑calling state. These three conditions must be met, this
+
+
+Function can be used
+
+
+
+
+6.1.5 Related control commands for Bluetooth audio [BA]
+
+
+
+
+  AT+BA00/r/n                      Call back the last call                                      AT+BA05/r/n                    Scanning device
+
+
+  AT+BA01/r/n                      Disconnect                                                   AT+BA06/r/n                    Turn on Bluetooth audio to discover
+
+
+  AT+BA02/r/n                      Reject                                                       AT+BA07/r/n                    Turn off Bluetooth audio to discover
+
+
+  AT+BA03/r/n                      hang up the phone                                            AT+BA08/r/n                    Open BLE to discover
+
+  AT+BA04/r/n                      answer the phone                                             AT+BA09/r/n                    Turn off BLE to discover
+
+
+
+
+6.1.6 Bluetooth MAC setting‑‑EDR‑‑BLE[BS]
+
+
+                                                         Set the MAC address of EDR to0x12 0x34 0 x56 0x78 0x12 0x34
+  AT+BS123456781234\r\n
+                                                         The address of BLE is                    0x13 0x34 0x56 0x78 0x12 0x34
+
+  AT+BSABCDEF123456\r\n                                  Set the MAC address of EDR to 0xAB 0xCD 0xEF 0x12 0x34 0x56
+
+
+
+This is a personalized function, which is not used by general customers. You can take a closer look when you need it.
+
+
+  1. If the MAC address is not set, the chip will default to a Bluetooth MAC address
+
+  2. After the user has set the MAC address, the chip will give priority to the set MAC address
+
+  3. Since the chip is dual‑mode, there are two Bluetooth names, that is, there are two Bluetooth MAC addresses. The address of BLE is related to the address of EDR and
+
+  processed at the first byte of the MAC address of EDR+1.
+
+
+
+
+                                                                                              First 32 page
+                                                                                                                                                                                  BT401‑ V1.5
+6.2 Detailed description of Bluetooth‑related‑query command‑
+
+
+
+
+Many Bluetooth statuses will be actively returned to the user, so there is basically no need for the user to actively inquire, unless there is a special need
+
+
+
+
+6.2.1 Bluetooth current status return‑EDR simple status [TS]
+
+
+
+  TS+00                                               Bluetooth has not been successfully connected, and is waiting for pairing
+
+
+  TS+01                                               Bluetooth has been successfully connected, but music has not yet been played. idle
+
+
+  TS+02                                               Playing music
+
+  TS+03                                               There is a call out, or a call comes in. But not answering
+
+  TS+04                                               Calling status, the representative has been connected
+
+
+
+
+1, Here we give 5                           This state is very simple.EDR Refers to the Bluetooth audio and call parts
+
+2, You can choose to inquire or not to inquire. The user can also turn off the chip's automatic return function, see4.2.6
+
+3, For Bluetooth, there is no concept of pause. Bluetooth only above5 Kind of state. Even if pause is manually pressed on the mobile phone, the status of the Bluetooth chip is shown here
+
+
+Is "TS+01"That is idle.Of course users can also send AT+TS Carry on the master                                                        Dynamic query.
+
+
+
+
+6.2.2 Bluetooth current status return‑BLE simple status [TL]
+
+
+
+  TL+00                         BLE is in empty state                                                   TL+04                              BLE disconnect
+
+  TL+01                         BLE is in idle state                                                    TL+05                              BLE open monitoring state
+
+
+  TL+02                         BLE is in broadcast state                                               TL+06                              BLE is in scanning state ‑ host BLE
+
+  TL+03                         BLE connection is successful                                            TL+07                              search completed ‑ host
+
+
+
+1, Here we give 8 This state is very simple. before6 One represents the slave state, the back 2 One is the status as the host. Of course users can also send
+
+AT+TL Conduct active queries.
+
+2, The chip will automatically return, and the user can turn it off, see 4.2.6.Only when the chip status changes will be actively sent back, otherwise it will not be sent back
+
+
+
+
+6.2.3 Bluetooth call number return [TT]
+
+
+
+  TT+13510250437                                      The phone number of the other party is 13510250437
+
+
+  TT+10086                                            The phone number of the other party is 10086
+
+
+
+
+1. Here we actively return to the user, and return once every 2 seconds until the call is connected or hang up. 2. You can
+
+choose to inquire or not to inquire. You can also turn off the chip's automatic return function, see 4.2.6
+
+
+
+
+                                                                                                       First 33 page
+                                                                                                                                                                                                                BT401‑ V1.5
+7. Detailed description of Bluetooth transparent transmission‑‑‑BLE
+
+
+
+
+          Currently, it supports BLE and SPP dual‑mode digital transmission, and the module can realize transparent transmission. But both BLE and SPP can only be used as slaves, that is, the "SERVER" side
+
+
+
+
+7.1 Description of BLE transparent transmission
+
+
+
+
+  1. The maximum data of a single throughput is 128 bytes, and it supports 16‑bit or 128‑bit UUID ‑‑‑ 128‑bit needs special customization
+
+  2. If you use BLE as data transmission, please connect the Bluetooth name "BT201‑BLE" of the module
+
+
+  3. You can use BLE alone without audio function, see 6.1.3 for details
+
+  4. Of course, you can also turn off the BLE function, see 6.1.3 for details
+
+
+
+
+7.2 BLE UUID description
+
+
+
+  1. The main UUID is "FFF0"
+
+  2. The UUID of feature 1 is "FFF1", and the feature is "WRITE" and "NOTIFY"
+
+  3. The UUID of feature 2 is "FFF2", and the feature is "READ" and "NOTIFY"
+
+  4. The UUID of feature 2 is "FFF3", and the feature is "WRITE" ‑ This feature is dedicated to the mobile phone to control the Bluetooth chip, See section 7.5 for details
+
+
+  5. If you need a special UUID, you can contact us to customize and modify the underlying settings of the module. But generally 16‑bit UUID users can set it by
+
+  themselves. No problem, see section 7.6 for details
+
+
+
+
+7.3 BLE effect demonstration description
+
+
+
+
+1. Demonstration of BLE transparent transmission effect:https://v.qq.com/x/page/q07660m1bta.html
+
+
+
+
+7.4 BLE test description
+
+
+
+  1. For ios phones of Android phones [Apple], "Lightblue" software is recommended
+
+  2. Apple can search and download directly in "APP Store"
+
+  3. Android,We will provide the installation procedure in the data package
+
+
+  4. Please note that BLE can also be tested on Android phones, and BLE testing is not necessarily limited to Apple phones
+
+
+  5. Android BLE is not unavailable, but not easy to use. The Android version must be version 4.3 or higher to support BLE
+
+
+  6. Because Android's BLE is not easy to use, there will be dual‑mode, and Android uses SPP. Apple uses BLE
+
+
+  7. Because if Apple wants to use SPP, it needs to buy an MFI certified chip, which is super expensive and no one uses it anymore.
+
+
+  8. If the Bluetooth name has not been modified by default, connect to the Bluetooth name "BT201‑BLE"
+
+
+  9. Demonstration video of BLE test description:https://v.qq.com/x/page/o0766ubm78n.html
+
+
+
+
+                                                                                                     First 34 page
+                                                                                                                                                                BT401‑ V1.5
+7.5 Test instructions for BLE's mobile phone control Bluetooth chip
+
+
+
+
+  1. The test of this function uses lightblue, and the mobile phone can only be an iphone
+
+
+  2. Because only the lightblue software in iphone can send strings. And Android’s won’t work
+
+  3. AT+BD66667 here is to set the name of EDR to "66667". Note that there is no need to add "\r\n" here. Because this is not available on the
+
+  mobile phone, we automatically added "\r\n" internally
+
+  4. This function can be used or not used.
+
+
+
+
+7.6 Description of UUID of BLE to be modified by AT command
+
+
+
+
+    AT+U0F000\r\n                       Specify the service UUID as F000
+
+    AT+U1F001\r\n                       Specify feature code 1 as F001, and its feature is "write" + "monitor"
+
+    AT+U2F002\r\n                       Specify feature code 2 as F002, and its feature is "read" + "monitor"
+
+    AT+U3F003\r\n                       Specify feature code 3 as F003, and its feature is "write"
+
+
+
+
+  1. Here we give three characteristics, the purpose is to be compatible with the different needs of many customers
+
+
+  (1) Some customers want to write and monitor on different features, so that the interaction between mobile phones and Bluetooth can make data more reliable
+
+
+  (2) Some customers only need to transmit a small amount of data, so they need to be simple, just put writing and monitoring on one feature code
+
+
+  2. When setting up by the user, it is best to set all 4, whether you use it or not
+
+  2. If there is no APP customer, it is recommended to use feature code 1 and feature code 2. Separate two different characteristics
+
+
+  4. If you want to change our chip for a mass‑produced product, you only need to modify this UUID
+
+  5.Feature 3 is dedicated to the mobile phone directly sending AT commands to control the Bluetooth chip,
+
+
+
+
+                                                                                              First 35 page
+                                                                                                                                                               BT401‑ V1.5
+7.7 Time interval for BLE's data transparent transmission of data packets
+
+
+
+
+  Uart baud rate 9600                                           The minimum data packet interval is 20 milliseconds and the best setting is 30 milliseconds
+
+
+
+  Uart baud rate 19200                                          The minimum packet interval is 16 milliseconds, and the best setting is 20 milliseconds
+
+
+
+  Uart baud rate 38400                                          The minimum packet interval is 10 milliseconds, and the best setting is 15 milliseconds
+
+
+
+  Uart baud rate 57600                                          The minimum packet interval is 8 milliseconds and the best setting is 10 milliseconds
+
+
+
+  Uart baud rate 115200                                         The minimum data packet interval is 6 milliseconds and the best setting is 8 milliseconds
+
+
+
+  Uart baud rate 256000                                         The minimum data packet interval is 4 milliseconds and the best setting is 6 milliseconds
+
+
+
+
+Demonstration video of transparent transmission of large data volume of BLE:
+
+
+
+https://v.qq.com/x/page/c0843j975hl.html
+
+
+
+
+7.8 BLE broadcast data packet modification instructions [UR][TR]
+
+
+
+
+  AT+UR9988776655\r\n                                           Set the data of the Bluetooth BLE broadcast packet to "9988776655", note that it is a string
+
+  AT+UR123456789A\r\n                                           Set the data of the Bluetooth BLE broadcast packet to "123456789A", note that it is a string
+
+
+
+
+  AT+TR\r\n                                                     Query the broadcast packet data of the chip, the chip will return "TR+9988776655"
+
+
+
+
+  1. The broadcast packet of Bluetooth BLE is actually a bit complicated, but users don’t need to care. We reserve 10 bytes of space for customers to fill.
+
+  2. When setting by the user, be sure to set 10 bytes, even if you only use 1 byte, you need to fill all 10 bytes
+
+  3. Once the setting is successful, the data of the broadcast packet will be changed next time the chip is powered on
+
+
+  4. For details, please refer to our other document, the 17xxxx document in the 02 folder. The mobile app uses
+
+
+
+
+  Install NRF connect APP on mobile phone and Android. Apple installs lightblue.
+
+
+
+
+                                                                                                             First 36 page
+                                                                                                                                                                       BT401‑ V1.5
+8. Detailed description of Bluetooth transparent transmission ‑‑‑ SPP
+
+
+
+
+Spp I'm still using classic Bluetooth 2.1 The agreement is not recommended, new products are recommended to be used directly BLE
+
+
+
+
+8.1 SPP transparent transmission description
+
+
+
+
+  1. The maximum data throughput for a single time is 256 bytes
+
+
+  2. If SPP is used for data transmission, please do not actively connect to the Bluetooth name "BT201‑BLE" of the module, or the BLE Bluetooth name set by yourself
+
+
+  3. Note that SPP belongs to a sub‑link in EDR.
+
+  4. SPP data transmission and BLE are mutually exclusive. If you only use SPP data transmission, please turn off BLE.
+
+
+
+
+8.2 Demonstration of SPP transparent transmission effect
+
+
+
+
+1. Demonstration of SPP transparent transmission effect:https://v.qq.com/x/page/b0766jqw0p5.html
+
+
+
+
+8.3 SPP transparent transmission test description
+
+
+
+
+  1. Use the "Bluetooth Serial Port" app for testing Android phones, which can be downloaded in the "App Store"
+
+
+  2. If the Bluetooth name has not been modified by default, connect to the Bluetooth "BT201‑AUDIO"
+
+
+  3. Demonstration video of SPP test description:https://v.qq.com/x/page/e0766bz15fw.html
+
+
+
+
+Demonstration video of transparent transmission of large data volume of SPP:
+
+
+
+https://v.qq.com/x/page/c0843j975hl.html
+
+
+
+
+                                                                                   First 37 page
+                                                                                                                                                                                 BT401‑ V1.5
+9. Module update firmware program and serial port test instructions
+
+
+
+9.1 Instructions for module update firmware
+
+
+
+
+  1. Since what we are doing is a test board, users directly test the functions, so we did not do it very small. 2. We
+
+  will launch supporting module products later
+
+  3. The chip has many functions, and there is no way to achieve a standard firmware. Therefore, for the BT201 module, we reserve an interface for the upgrade program. The upgrade
+
+  method is as follows:
+
+
+
+
+  1. Copy the file "updata.bfu" to the TF card and U disk. There must be at least 3 MP3 audio files in the TF card or U disk for reading
+
+  from the file system
+
+  2. Turn on the prototype, then insert the U disk, the program will be updated automatically at this time, and it will be completed after about 30 seconds
+
+
+
+  3. The phenomenon of successful upgrade. If there is an indicator light, the phenomenon is. Always on during the upgrade, and off after the upgrade
+
+
+
+  4. After the introduction of this method, the machine that has made the prompt sound normally, if the U disk or TF card is inserted, there will be a prompt sound
+
+
+
+  5. Note that after the upgrade, you must delete the upgrade file in the card, or you will repeat the upgrade process. Do not unplug the TF card
+
+
+  or USB flash drive, otherwise the module will crash completely and you can only return it to the factory for repair.
+
+
+  6. Video demonstration of firmware update:https://v.qq.com/x/page/f0766kfjzob.html
+
+
+
+
+9.2 Possible doubts or problems in the module update‑the update is unsuccessful
+
+
+
+
+  Question 1             Are there any requirements for this TF card and U disk?
+
+
+
+  Q&A                    TF card and U disk must have FAT or FAT32 file system, and the maximum support is 32G.
+
+
+
+
+  Question 2             Why did I copy the "updata.bfu" file to the TF card to upgrade, and then insert the prototype to upgrade, and then I started playing music directly
+
+
+  Q&A                    1. Please pay attention to "updata.bfu". The file name must match one by one, no more than one letter, and no less than one letter. 2.
+
+                         Updata is the file name, and bfu is the suffix of the file.
+
+                         3. When you are on windows, please be sure to turn on "Display File Suffix".
+
+
+
+  Question 2             Why do I copy the "updata.bfu" file to the TF card to upgrade. Then power on the sample board, but did not enter the upgrade?
+
+
+  Q&A                    1. The necessary method for our upgrade is to power on the sample board first, and then insert the TF card. 2. The principle of the
+
+
+                         upgrade is as follows [the same applies to the U disk]
+
+
+                         (1) After the chip detects that the TF is inserted, it will automatically initialize the TF card and initialize the file system
+
+
+                         (2) If these are all OK, go to find the file "updata.bfu", if found, enter the upgrade
+
+                         (3) Any error in any of the above links will cause the upgrade to be unsuccessful
+
+
+
+
+                                                                                                      First 38 page
+                                                                                                                                                                         BT401‑ V1.5
+9.3 Description of module serial port debugging assistant
+
+
+
+
+                                                                       Serial
+  test environment：BT401 test the DEMO board 1, the receiving window, the data port  software：Serial
+                                                                              returned by the chip          debugging
+                                                                                                   to the computer.         assistant_aithinker_serial_tool_v1.2.3
+                                                                                                                    This is the version of
+
+
+  the firmware and the date of the last modification
+
+  2. For the return of some public parameters, see section 4.3 for      contain    Volume mode, whether Bluetooth is running in the background, etc.
+
+
+  details. 3. For some Bluetooth parameters such as uuid, see 4. For   Chapter 6
+
+  details, the factory default baud rate of the chip is 115200.
+
+
+
+
+There is a lot of returned information, users do not need to pay attention, because the purpose of this existence is to facilitate the customer to read when first debugging
+
+
+
+
+                                                                                   First 39 page
+                                                                                                                                                                                    BT401‑ V1.5
+10. FAQ Collection
+
+
+ problem   1. Can this module be connected to a mobile phone to play music? Do you have a call?
+
+
+
+
+ Q&A       Yes, the module supports Bluetooth audio and Bluetooth calls. On this basis, it also supports data transparent transmission
+
+
+
+
+ problem   2. Your board is too big to be embedded in our products. I want to buy the chip myself, can I? Is the periphery complicated?
+
+
+
+
+ Q&A       It is best to use our BT401 module directly, because we will test and calibrate it at the factory to ensure the consistency of the module is very good
+
+
+
+
+           If you need to use the chip directly, you can contact us
+
+
+
+
+ problem   3. I see so many information introductions, but I don’t understand, I only need one that can be connected to a mobile phone to play music, with a call, and button control.
+
+
+
+
+ Q&A       Yes, our default function is fine, and other things that are not understood can be ignored, because we are a full‑featured product
+
+
+
+           There will be no rejection of multiple functions
+
+
+
+
+ problem   4. I don't need the call function, how should I deal with this?
+
+
+
+
+ Q&A       You can turn off the call function through the serial port command, the Bluetooth will not be able to call after the next power‑on, and vice versa
+
+
+
+
+ problem   5. I don't need the BLE data function, how can I block it?
+
+
+
+
+ Q&A       You can send AT, just turn off the BLE function, see section 6.1.3 for details
+
+
+
+
+ problem   6. I don't need the music function, but only need the BLE and SPP transparent transmission function, how can I do it?
+
+
+
+
+ Q&A       This can be done through the serial AT command to turn off the Bluetooth A2DP, and vice versa. See section 6.1.3 for details
+
+
+
+
+                                                                                       First 40 page
+                                                                                                                 BT401‑ V1.5
+
+
+
+11. Module package size and parameter description
+
+
+
+
+1, Use the on‑board antenna, you don’t need to do any processing
+
+
+2, Use an external antenna, you need to pay attention, the antenna part is hollowed out, there can be no metal
+
+
+
+
+                                                                                      First 41 page
+                                                BT401‑ V1.5
+12. Reference program example
+
+
+
+
+                                First 42 page
+                                                                                                                                                               BT401‑ V1.5
+13. Need to modify the description of the prompt tone
+
+
+
+
+1. There are currently 5 prompt tones supported by the chip
+
+  Music mode                                music.mp3
+
+  Bluetooth mode                            bt.mp3
+
+  connection succeeded                      connect.mp3
+
+  Disconnect                                disconnect.mp3
+
+  Incoming call                             ring.mp3
+
+
+2. If you need to replace the prompt sound, please provide the above files. The file must be compressed. The size of the 3 or 5 files cannot exceed 17KB.
+
+This is limited by the internal storage space of the chip. 4. The volume of the prompt sound, please pass it by yourself Software editing. You can put it in
+
+the TF card to play it, whether the sound is suitable
+
+
+
+
+                                                                                      First 43 page
+                                                                                                                                                                                                            BT401‑ V1.5
+14. BQB certificate and FCC test instructions
+
+
+
+
+14.1 Description of Bluetooth BQB certification
+
+
+
+
+  1. At present, the BQB certificate of the original chip has long been down, so there is no need to worry about the BQB certification problem. We will sort out the information in great detail and publish it
+
+
+  again.
+
+
+  2. The form of release is a separate document, an explanatory video, and certification‑related certificates and tools
+
+
+
+
+to be continued. . . . . .
+
+
+
+
+14.2 Description of Bluetooth FCC Fixed Frequency Test
+
+
+
+
+  1. FCC fixed frequency, the original factory provides special software, which uses USB to TTL connection
+
+
+  2. The serial port is the two USB ports of our chip
+
+  (1) So when you are designing the hardware. These two IO ports must be reserved for pads. Suggestion: VCC TX RX GND four pins
+
+  (2) When passing FCC certification at the same time, the chip will have to burn a separate program, and we will also provide it to you
+
+
+  3. The form of release is a separate document, an explanatory video, and certification‑related certificates and
+
+tools to be continued. . . . . . .
+
+
+
+
+                                                                                              First 44 page
+                                                                                                                                                                                                                              BT401‑ V1.5
+15. Disclaimer
+
+
+
+          Development pre‑knowledge
+
+
+
+Qingyue Electronics series products will provide as comprehensive development templates, drivers and application documents as possible for the convenience of users, but users also need to be familiar with the hardware platform used by their
+
+
+design products and the knowledge of the relevant C language.
+
+
+
+
+          EMI and EMC
+
+The mechanical structure of Qingyue electronic series modules determines that its EMI performance must be different from the integrated circuit design. The EMI of Qianle series modules can meet most applications. If
+
+
+users have special requirements, they must consult with us in advance.
+
+
+The EMC performance of the BT401 module is closely related to the design of the user backplane, especially the power supply circuit, I/O isolation, and reset circuit. The user must fully consider the above factors when designing the backplane. We
+
+
+will work hard to improve the electromagnetic compatibility characteristics of the Qingyue series of modules, but we do not provide any guarantee for the EMC performance of the user's final application product.
+
+
+
+
+          Right to modify documents
+
+
+Qingyue Electronics reserves the right to modify the relevant documents of BT401 module series products at any time without prior declaration.
+
+
+
+
+          ESD electrostatic discharge point protection
+
+
+
+
+Some components of Qingyue Electronics series products have built‑in ESD protection circuits, but in harsh environments, users are still advised to provide ESD protection measures when designing the backplane,
+
+
+especially the power supply and IO design, to ensure the stable operation of the product, and install the BT401 module To ensure the safety of the product, please discharge the static electricity accumulated on the body
+
+
+first, such as wearing a reliable grounded static ring, touching the tap water pipe connected to the earth, etc.
+
+
+
+
+                                                                                                      First 45 page
+                                                                                                                                                                                                BT401‑ V1.5
+
+                                                                       Version history
+
+                                                                         Version history
+
+
+version      date                                                                                        the reason
+
+
+
+
+V1.0      2018‑04‑27   1. Beta version
+
+                       1. Add AT command to modify the Bluetooth name, see 3.2.3 for details. 2. Add AT
+
+
+V1.2      2018‑10‑25   command to modify the serial port baud rate, see 4.2.2 for details                                        Increase the return of some information played by the device
+
+
+
+                       1. Refer to the BT201 stable version to modify the document, and add the relevant introduction of
+
+
+                       BT401 2. Add the pin introduction of chapter 1.5
+
+
+V1.3      2019‑03‑12   3. Introduction of new module chapter 11
+
+
+                       1. Some status queries of the new mode
+
+                       2. Added I2S output description
+
+V1.4      2019‑05‑24   3. Improve some descriptive issues in the documentation
+
+
+
+                       1. Add the status of Bluetooth audio to increase the distinction between in‑call and incoming calls. 2.
+
+
+V1.5      2019‑09‑25   Modify the antenna of the module to support an external antenna
+
+
+
+
+                                                                     First 46 page
+
