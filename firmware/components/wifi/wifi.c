@@ -87,21 +87,45 @@ static esp_err_t known_put(int slot, const char *ssid, const char *pass)
     return err;
 }
 
-/* One-time: fold a pre-list "ssid"/"pass" pair into slot 0. */
+/* One-time: fold a pre-list "ssid"/"pass" pair into slot 0. Every successful
+ * connect still writes that legacy pair (the last network used), so this must
+ * only ever run once -- otherwise forgetting slot 0 made the next list call
+ * copy the legacy pair straight back in, showing the same network twice. */
 static void migrate_legacy_creds(void)
 {
-    char s0[33] = {0};
-    if (known_get(0, s0, sizeof(s0), NULL, 0) == ESP_OK && s0[0]) return; /* already migrated */
-    char ssid[33] = {0}, pass[65] = {0};
     nvs_handle_t h;
+    uint8_t done = 0;
+    if (nvs_open(NVS_NS, NVS_READONLY, &h) == ESP_OK) {
+        nvs_get_u8(h, "mig_done", &done);
+        nvs_close(h);
+    }
+    if (done) return;
+    char ssid[33] = {0}, pass[65] = {0};
     if (nvs_open(NVS_NS, NVS_READONLY, &h) != ESP_OK) return;
     size_t n = sizeof(ssid);
     bool have = (nvs_get_str(h, "ssid", ssid, &n) == ESP_OK) && ssid[0];
     if (have) { n = sizeof(pass); if (nvs_get_str(h, "pass", pass, &n) != ESP_OK) pass[0] = '\0'; }
     nvs_close(h);
     if (have) {
-        known_put(0, ssid, pass);
-        ESP_LOGI(TAG, "migrated saved network '%s' into the known-networks list", ssid);
+        bool listed = false;
+        int free_slot = -1;
+        for (int i = 0; i < WIFI_MAX_NETWORKS; i++) {
+            char si[33] = {0};
+            if (known_get(i, si, sizeof(si), NULL, 0) == ESP_OK && si[0]) {
+                if (strcmp(si, ssid) == 0) listed = true;
+            } else if (free_slot < 0) {
+                free_slot = i;
+            }
+        }
+        if (!listed && free_slot >= 0) {
+            known_put(free_slot, ssid, pass);
+            ESP_LOGI(TAG, "migrated saved network '%s' into the known-networks list", ssid);
+        }
+    }
+    if (nvs_open(NVS_NS, NVS_READWRITE, &h) == ESP_OK) {
+        nvs_set_u8(h, "mig_done", 1);
+        nvs_commit(h);
+        nvs_close(h);
     }
 }
 

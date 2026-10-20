@@ -10,7 +10,7 @@ header pinout, MFB, LDO) and
 [`../BLUETOOTH_AUDIO_UPGRADE.md`](../BLUETOOTH_AUDIO_UPGRADE.md) (why each
 coupling cap and the series resistor are the values they are).
 
-**U5 voltage (2026-10-20):** v5 has the 3.3 V XC6206P332MR (works with the BM64, 3.2 V minimum); v6 already uses XC6206P362MR (3.6 V). Digikey carries the 3.6 V UMW part; the 3.7 V Torex XC6206P372MR-G is on LCSC.
+**U5 on the next board (v6):** the 3.3 V XC6206P332MR becomes the 3.6 V XC6206P362MR, to support a wider range of future Bluetooth modules (the schematic already has it). v5 stays as built.
 
 **Prices last checked 2026-09-30.** DigiKey prices can be re-read
 automatically from the product pages; **AliExpress and Amazon block
