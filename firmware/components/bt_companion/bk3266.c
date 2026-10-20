@@ -457,7 +457,10 @@ esp_err_t bk3266_baudscan(void)
     if (err != ESP_OK) return err;
     static const int bauds[] = { 9600, 115200, 38400, 57600, 19200, 4800, 2400, 230400, 460800, 1200 };
     static const uint8_t bin_q[] = { 0x52, 0x42, 0x23, 0x04, 0x01, 0x14, 0x19, 0x23, 0x42, 0x52 };
-    static const char *txt_q[] = { "BT+GNM\r\n", "AT\r\n" };
+    /* Text vocabularies seen on BK-family modules: the BT+ set (araczkowski), plain AT, and the
+     * "AT+" / "OK+" set of the KCX_BT_EMITTER firmware (reference_docs/BK3266SR_module_photo.jpg,
+     * which is really that AT command sheet), with and without a line ending. */
+    static const char *txt_q[] = { "AT+\r\n", "AT+", "AT+GMR\r\n", "AT+STATUS\r\n", "BT+GNM\r\n", "AT\r\n" };
     for (size_t i = 0; i < sizeof(bauds) / sizeof(bauds[0]); i++) {
         uart_set_baudrate(BK_UART, bauds[i]);
         uart_flush_input(BK_UART);
@@ -465,11 +468,11 @@ esp_err_t bk3266_baudscan(void)
         uart_wait_tx_done(BK_UART, pdMS_TO_TICKS(100));
         uint8_t buf[48];
         int got = uart_read_bytes(BK_UART, buf, sizeof(buf), pdMS_TO_TICKS(500));
-        for (size_t t = 0; t < 2 && got <= 0; t++) {
+        for (size_t t = 0; t < sizeof(txt_q) / sizeof(txt_q[0]) && got <= 0; t++) {
             uart_flush_input(BK_UART);
             uart_write_bytes(BK_UART, txt_q[t], strlen(txt_q[t]));
             uart_wait_tx_done(BK_UART, pdMS_TO_TICKS(100));
-            got = uart_read_bytes(BK_UART, buf, sizeof(buf), pdMS_TO_TICKS(500));
+            got = uart_read_bytes(BK_UART, buf, sizeof(buf), pdMS_TO_TICKS(400));
         }
         printf("%6d baud: ", bauds[i]);
         if (got <= 0) { printf("nothing\n"); continue; }

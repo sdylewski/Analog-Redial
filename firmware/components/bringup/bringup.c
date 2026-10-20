@@ -3009,6 +3009,40 @@ static int cmd_gpiotest(int argc, char **argv)
     return 0;
 }
 
+/* pinshort <a> <b>: are two pins connected to each other? Drives a low and high
+ * through its output driver and watches b with the opposite internal pull. A
+ * pin that follows a is joined to it (a solder bridge, or a real net).
+ * Run bt_enable 0 first for GPIO16/17. Each pin is left as a plain input. */
+static int cmd_pinshort(int argc, char **argv)
+{
+    if (argc < 3) { printf("usage: pinshort <gpio a> <gpio b>\n"); return 1; }
+    int a = atoi(argv[1]), b = atoi(argv[2]);
+    if (a < 0 || a > 23 || b < 0 || b > 23 || a == b) { printf("pinshort: two different pins 0-23\n"); return 1; }
+    gpio_config_t ci = { .pin_bit_mask = 1ULL << b, .mode = GPIO_MODE_INPUT, .pull_up_en = GPIO_PULLUP_ENABLE,
+                         .pull_down_en = GPIO_PULLDOWN_DISABLE, .intr_type = GPIO_INTR_DISABLE };
+    gpio_config_t co = { .pin_bit_mask = 1ULL << a, .mode = GPIO_MODE_OUTPUT, .pull_up_en = GPIO_PULLUP_DISABLE,
+                         .pull_down_en = GPIO_PULLDOWN_DISABLE, .intr_type = GPIO_INTR_DISABLE };
+    gpio_hold_dis(a); gpio_hold_dis(b);
+    gpio_config(&ci);            /* b: pulled up, so a low on a must pull it down to count */
+    gpio_config(&co);
+    gpio_set_level(a, 0);
+    vTaskDelay(pdMS_TO_TICKS(30));
+    int b_when_a_low = gpio_get_level(b);
+    ci.pull_up_en = GPIO_PULLUP_DISABLE; ci.pull_down_en = GPIO_PULLDOWN_ENABLE;
+    gpio_config(&ci);            /* b: pulled down, so a high on a must pull it up */
+    gpio_set_level(a, 1);
+    vTaskDelay(pdMS_TO_TICKS(30));
+    int b_when_a_high = gpio_get_level(b);
+    ci.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    gpio_config(&ci);
+    co.mode = GPIO_MODE_INPUT; co.pull_up_en = GPIO_PULLUP_DISABLE;
+    gpio_config(&co);
+    bool joined = (b_when_a_low == 0 && b_when_a_high == 1);
+    printf("GPIO%d low -> GPIO%d reads %d; GPIO%d high -> GPIO%d reads %d  =>  %s\n", a, b, b_when_a_low, a, b,
+           b_when_a_high, joined ? "JOINED (they follow each other)" : "not joined");
+    return 0;
+}
+
 /* hwcfg: the console's version of Settings -> Hardware, for a board that
  * isn't on Wi-Fi yet. hwcfg [bt none|bm64|bk3266] [lines 1|2] [sd 0|1] */
 static int cmd_hwcfg(int argc, char **argv)
@@ -3196,6 +3230,7 @@ void bringup_console_start(void)
     register_cmd("bm64_mmi", "Send a raw MMI action code: bm64_mmi <hex, e.g. 51> -- bt_companion must be ENABLED (opposite of bm64_test/addr/snoop)", cmd_bm64_mmi);
     register_cmd("bm64_cmd", "Send a real command-set command with hex param bytes (e.g. 23 00 01 03 0F 0F 00 for Set_Overall_Gain): bm64_cmd <hex opcode> [params...] -- bt_companion must be ENABLED, log_level debug to see the reply", cmd_bm64_cmd);
 #ifdef BOARD_BT_MFB_PIN
+    register_cmd("pinshort", "Are two pins joined? pinshort <gpio a> <gpio b> (drives a, watches b)", cmd_pinshort);
     register_cmd("gpiotest", "Is something driving this pin? gpiotest <gpio> (reads with pull-down, then pull-up)", cmd_gpiotest);
     register_cmd("hwcfg", "Hardware config (like Settings -> Hardware): hwcfg [bt none|bm64|bk3266] [lines 1|2] [sd 0|1], then reboot", cmd_hwcfg);
     register_cmd("bm64_diagpins", "Which pins the carrier's RST_N / P2_0 leads are on: bm64_diagpins [rst_gpio p20_gpio] (18-21)", cmd_bm64_diagpins);
