@@ -310,3 +310,10 @@ runtime setting (NVS), and a failed IBDK entry tries RST/P2_0 swapped once.
 Clone + BK3266 and both boards on Wi-Fi (the home Wi-Fi, 2.4 GHz works). OTA over
 Wi-Fi of a release image to a 3 MB slot worked; the old-layout gate in the web
 UI renders as intended.
+
+**BM64 supply, 2026-10-20 (datasheet DS60001403F).** `BAT_IN` takes 3.2-4.2 V (typical 3.8 V); `ADAP_IN` (4.5-5.5 V) is the
+battery-charger input, not a way to run the module, and the datasheet says to power `BAT_IN` from a battery or a
+regulated rail. So 5 V straight onto `BAT_IN` is out of range: keep the LDO (U5). The XC6206P372MR-G (3.7 V) is closer to
+the BM64's typical 3.8 V than 3.3 V is to its 3.2 V minimum, and meets the BK3266 listing's 3.6 V minimum too.
+Two series diodes from 5 V (about 3.8 V under 15 mA) would also work but sag with load; the LDO costs the same.
+The BM64's EEPROM audio config lives in the module, so the RST_N / P2_0 leads are only needed to program a new one.
