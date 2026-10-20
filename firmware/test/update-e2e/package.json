@@ -1,0 +1,6 @@
+{
+  "name": "update-e2e",
+  "private": true,
+  "description": "Browser test of the web UI's firmware update flow against a real board",
+  "dependencies": { "playwright-core": "^1.50.0" }
+}

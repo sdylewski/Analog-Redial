@@ -949,7 +949,9 @@ static const char TZ_AUTO_JS[] =
  * right image and posts it to /ota_upload, the same upload as picking the
  * file by hand -- with the same checks: a valid image, built for this board,
  * and automatic rollback if it doesn't boot. release/release.py in the
- * firmware folder builds and publishes the manifest and images. */
+ * firmware folder builds and publishes the manifest and images. For testing, or
+ * hosting your own builds, localStorage.arFwUrl overrides the manifest address
+ * (set it from the browser's console). */
 /* The update slots grew (partitions.csv: 2 MB -> 3 MB on 16 MB boards, 2.25 MB
  * on 8 MB). A board still on the old table can't take web-page updates --
  * the table can't change over the air -- until it is reflashed over USB. */
@@ -972,6 +974,7 @@ static bool ota_layout_current(void)
 static const char FW_UPDATE_JS[] =
 "<script>(function(){"
 "var A=window.arFw={ver:'%s',id:'%s',url:'%s'};"
+"try{var u0=localStorage.getItem('arFwUrl');if(u0)A.url=u0;}catch(e){}"
 "A.parse=function(s){var m=/^v?(\\d+)\\.(\\d+)\\.(\\d+)/.exec(s||'');return m?[+m[1],+m[2],+m[3]]:null;};"
 "A.newer=function(a,b){for(var i=0;i<3;i++){if(a[i]!==b[i])return a[i]>b[i];}return false;};"
 "A.check=function(cb){fetch(A.url,{cache:'no-store'}).then(function(r){"
