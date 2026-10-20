@@ -1,3 +1,5 @@
+> **2026-10-20:** the probing scripts, the Arduino bridge sketch and the analysis scripts mentioned below were deleted from the repo once the firmware (`firmware/components/bt_companion`, IBDK entry and EEPROM read/write) took over; this file is kept as the record of how the protocol was worked out.
+
 # BM64 EEPROM Write — Procedure & Standalone ESP32 Writer Plan
 
 ## CONFIRMED 2026-09-25: Full EEPROM read/write protocol (HCI ACL Data)

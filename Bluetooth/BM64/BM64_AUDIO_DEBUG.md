@@ -283,7 +283,7 @@ from the phone rather than well in advance.
 | File | Purpose |
 |------|---------|
 | `BM64/BM64_Analog_Audio_Setup.md` | Main setup doc (pin numbers + table labels being fixed) |
-| `BM64/eeprom_write/eeprom_write.md` | EEPROM protocol reverse-engineering notes |
+| `BM64/BM64_EEPROM_PROTOCOL.md` | EEPROM protocol reverse-engineering notes |
 | `DSPK+v2.1.7+Package/Tools/UI Tool/.../BT5506_012UI_Parameter_Table_R0.xls` | Official parameter table |
 | `DSPK+v2.1.7+Package/Software/EEPROM Table/MCHP_DSPKv2.1.7_BM64CLS1.txt` | I2S config (was flashed) |
 | `DSPK+v2.1.7+Package/Software/EEPROM Table/MCHP_DSPKv2.1.7_BM64CLS1_SPKOUT.txt` | Analog config (need these 3 bytes) |
