@@ -518,6 +518,8 @@ static cJSON *build_status_json(void)
     cJSON_AddStringToObject(root, "board_name", name);
     cJSON_AddStringToObject(root, "hardware", hw);
     cJSON_AddStringToObject(root, "serial", serial);
+    cJSON_AddStringToObject(root, "fw_version", esp_app_get_description()->version);
+    cJSON_AddStringToObject(root, "board_image", BOARD_IMAGE_ID); /* "smd4/16MB": which firmware file fits this board */
 
     cJSON_AddBoolToObject(root, "wifi_connected", wifi_is_connected());
     cJSON_AddStringToObject(root, "wifi_ssid", wifi_get_ssid());
@@ -939,6 +941,59 @@ static const char TZ_AUTO_JS[] =
     "body:'iana='+encodeURIComponent(z)}).then(function(r){return r.text()})"
     ".then(function(t){if(t=='set')location.reload()})}}catch(e){}</script>";
 
+/* ---- Firmware updates from GitHub ----
+ * The board never talks to GitHub itself (a TLS connection plus the
+ * certificate list doesn't fit the firmware slot or the free RAM). Your
+ * browser does: it reads a small manifest (latest.json) from the repo's
+ * `firmware` branch, compares versions, and on "Install" downloads the
+ * right image and posts it to /ota_upload, the same upload as picking the
+ * file by hand -- with the same checks: a valid image, built for this board,
+ * and automatic rollback if it doesn't boot. release/release.py in the
+ * firmware folder builds and publishes the manifest and images. */
+#define FW_MANIFEST_URL "https://raw.githubusercontent.com/sdylewski/Analog-Redial/firmware/latest.json"
+
+static const char FW_UPDATE_JS[] =
+"<script>(function(){"
+"var A=window.arFw={ver:'%s',id:'%s',url:'%s'};"
+"A.parse=function(s){var m=/^v?(\\d+)\\.(\\d+)\\.(\\d+)/.exec(s||'');return m?[+m[1],+m[2],+m[3]]:null;};"
+"A.newer=function(a,b){for(var i=0;i<3;i++){if(a[i]!==b[i])return a[i]>b[i];}return false;};"
+"A.check=function(cb){fetch(A.url,{cache:'no-store'}).then(function(r){"
+"if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(m){"
+"var img=m.images&&m.images[A.id],lat=A.parse(m.version),cur=A.parse(A.ver);"
+"cb(null,{manifest:m,image:img,latest:m.version,current:A.ver,"
+"newer:!!(img&&lat&&(!cur||A.newer(lat,cur))),dev:!cur});}).catch(function(e){cb(e);});};"
+"A.install=function(res,prog,done){var base=res.manifest.base||A.url.replace(/[^\\/]*$/,'');"
+"fetch(base+res.image.file,{cache:'no-store'}).then(function(r){"
+"if(!r.ok)throw new Error('download failed: HTTP '+r.status);return r.blob();}).then(function(b){"
+"if(res.image.size&&b.size!==res.image.size)throw new Error('download incomplete');"
+"var fd=new FormData();fd.append('file',b,res.image.file);var x=new XMLHttpRequest(),sent=false;"
+"x.open('POST','/ota_upload');"
+"x.upload.onprogress=function(e){if(e.lengthComputable)prog(e.loaded/e.total);};"
+"x.upload.onload=function(){sent=true;};"
+"x.onload=function(){x.status===200?done(null):done(new Error(x.responseText||('HTTP '+x.status)));};"
+"x.onerror=function(){sent?done(null):done(new Error('connection lost'));};x.send(fd);"
+"}).catch(function(e){done(e);});};"
+"A.waitBack=function(old,cb){var n=0,t=setInterval(function(){n++;"
+"fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(s){"
+"clearInterval(t);cb(s.fw_version!==old,s.fw_version);}).catch(function(){});"
+"if(n>45){clearInterval(t);cb(false,null);}},3000);};"
+"var b=document.getElementById('fwnotice');if(!b||/\\/settings/.test(location.pathname)&&/tab=hardware/.test(location.search))return;"
+"var K='arFwSeen',seen={};try{seen=JSON.parse(localStorage.getItem(K)||'{}');}catch(e){}"
+"function show(v){if(seen.dismissed===v)return;b.innerHTML='Firmware '+v+' is available (this board has '+A.ver+'). "
+"<a href=\\'/settings?tab=hardware\\'>Update</a> <a href=\\'#\\' id=\\'fwdismiss\\'>Not now</a>';"
+"b.style.display='block';document.getElementById('fwdismiss').onclick=function(ev){ev.preventDefault();"
+"seen.dismissed=v;try{localStorage.setItem(K,JSON.stringify(seen));}catch(e){}b.style.display='none';};}"
+"if(seen.t&&Date.now()-seen.t<43200000&&seen.id===A.id&&seen.cur===A.ver){if(seen.newer)show(seen.latest);return;}"
+"A.check(function(e,r){if(e)return;seen.t=Date.now();seen.id=A.id;seen.cur=A.ver;seen.newer=r.newer;seen.latest=r.latest;"
+"try{localStorage.setItem(K,JSON.stringify(seen));}catch(x){}if(r.newer)show(r.latest);});"
+"})();</script>";
+
+static int append_fw_update_script(char *buf, size_t cap, int off)
+{
+    off = appendf(buf, cap, off, "<div id=\"fwnotice\" class=\"hazard-banner\" style=\"display:none\"></div>");
+    return appendf(buf, cap, off, FW_UPDATE_JS, esp_app_get_description()->version, BOARD_IMAGE_ID, FW_MANIFEST_URL);
+}
+
 static int append_page_head(char *buf, size_t cap, int off, const char *page_title,
                              const char *active_href, bool auto_refresh)
 {
@@ -1041,6 +1096,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
         off = appendf(buf, cap, off,
             "<div class=\"hazard-banner\">%s</div>", mismatch_hint);
     }
+    off = append_fw_update_script(buf, cap, off);
     return off;
 }
 
@@ -3961,6 +4017,27 @@ static int append_record_tab(char *buf, size_t cap, int off,
     return off;
 }
 
+static const char FW_CARD_JS[] =
+"<script>(function(){var A=window.arFw,st=document.getElementById('fwstat'),"
+"bt=document.getElementById('fwinstall'),nt=document.getElementById('fwnotes'),"
+"ck=document.getElementById('fwcheck'),R=null;if(!A||!st)return;"
+"function run(){st.textContent='Checking...';bt.style.display='none';nt.textContent='';"
+"A.check(function(e,r){if(e){st.textContent='Could not check ('+e.message+'). Is this browser online?';return;}"
+"R=r;if(!r.image){st.textContent='Latest is '+r.latest+', but it has no build for this board ('+A.id+').';return;}"
+"if(r.newer){st.textContent=r.latest+' is available'+(r.dev?' (this is a development build)':'');"
+"bt.textContent='Install '+r.latest;bt.style.display='';nt.textContent=r.manifest.notes||'';}"
+"else st.textContent='Up to date ('+r.current+')';});}"
+"ck.onclick=run;"
+"bt.onclick=function(){if(!confirm('Install '+R.latest+' and restart the board? It goes back to this version "
+"by itself if the new one fails to start.'))return;bt.disabled=true;ck.disabled=true;var old=A.ver;"
+"A.install(R,function(f){st.textContent='Uploading... '+Math.round(f*100)+' percent';},function(e){"
+"if(e){st.textContent='Failed: '+e.message;bt.disabled=false;ck.disabled=false;return;}"
+"st.textContent='Restarting...';A.waitBack(old,function(changed,v){"
+"if(changed){st.textContent='Updated to '+v+'. Reloading...';setTimeout(function(){location.reload();},1500);}"
+"else st.textContent=v?'The board came back on '+v+' (it rolled back, or the same version was installed).':"
+"'The board did not come back within 2 minutes. Check it.';bt.disabled=false;ck.disabled=false;});});};"
+"run();})();</script>";
+
 /* Firmware version + OTA upload -- pushes a .bin (the exact same file
  * `idf.py build` already produces, that you'd otherwise flash over USB)
  * into the inactive OTA slot and reboots into it. See ota_upload_handler()
@@ -4011,6 +4088,10 @@ static int append_firmware_card(char *buf, size_t cap, int off)
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+        "<div class=\"statusrow\"><span class=\"label\">%s</span><span id=\"fwstat\">...</span></div>"
+        "<div class=\"toolbar sub\"><button type=\"button\" id=\"fwcheck\">%s</button> "
+        "<button type=\"button\" class=\"primary\" id=\"fwinstall\" style=\"display:none\"></button></div>"
+        "<div id=\"fwnotes\" class=\"hint\"></div>%s"
         "<form method=\"POST\" action=\"/ota_upload\" enctype=\"multipart/form-data\" "
         "class=\"settings-form\" onsubmit=\"return confirm('%s')\">"
         "<label>%s <input type=\"file\" name=\"file\" accept=\".bin\" required></label>"
@@ -4021,6 +4102,9 @@ static int append_firmware_card(char *buf, size_t cap, int off)
         i18n_str("firmware.version_label", "Version"), app->version,
         i18n_str("firmware.built_label", "Built"), built,
         i18n_str("firmware.slot_label", "Running from"), running ? running->label : "?",
+        i18n_str("firmware.updates_label", "Updates"),
+        i18n_str("firmware.check_button", "Check for updates"),
+        FW_CARD_JS,
         i18n_str("firmware.confirm",
                  "Upload this firmware image and reboot into it? Make sure it's a build of "
                  "this same board type -- there's no way to check that before writing it."),

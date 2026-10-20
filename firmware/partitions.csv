@@ -4,7 +4,8 @@ nvs,      data, nvs,     0x9000,  0x6000,
 # ESP-IDF size (0x2000) -- required for OTA support (esp_ota_ops.h).
 otadata,  data, ota,     0xf000,  0x2000,
 phy_init, data, phy,     0x11000, 0x1000,
-# Two 2 MB OTA slots so a web-UI firmware upload (Settings -> Hardware ->
+# Two 3 MB OTA slots (the image is ~1.9 MB and growing; it used to be 2 MB
+# slots, a few percent from full) so a web-UI firmware upload (Settings -> Hardware ->
 # Firmware) can write the new image into the *inactive* slot while the
 # current one keeps running, then switch on success -- see
 # firmware/components/webui's ota_upload_handler and
@@ -13,9 +14,11 @@ phy_init, data, phy,     0x11000, 0x1000,
 #
 # Offsets are explicit so `storage` and `bundled` keep the addresses they
 # had when the slots were 1.75 MB: reflashing over USB doesn't touch the
-# recordings and uploaded clips in `storage`. ota_1 lives at the end, in
-# space that used to be unused; 0x220000-0x3A0000 is a free gap.
-ota_0,    app,  ota_0,   0x20000, 0x200000,
+# recordings and uploaded clips in `storage`. ota_0 now fills the old gap up
+# to 0x320000 (storage starts at 0x3A0000); ota_1 lives at the end, in space
+# that used to be unused. A board with the old table keeps working until it is
+# reflashed over USB once: an OTA update can't change the table.
+ota_0,    app,  ota_0,   0x20000, 0x300000,
 # Writable SPIFFS: recordings, uploaded prompts/clips, greetings. Without a
 # microSD card recordings are capped (CONFIG_STORAGE_RECORDING_CAP_BYTES)
 # so they can't crowd out prompts.
@@ -24,4 +27,4 @@ storage,  data, spiffs,  0x3A0000, 0x600000,
 # BUNDLED_AUDIO), reflashed by every `idf.py flash`; a same-named file in
 # `storage` overrides it.
 bundled,  data, spiffs,  0x9A0000, 0x200000,
-ota_1,    app,  ota_1,   0xBA0000, 0x200000,
+ota_1,    app,  ota_1,   0xBA0000, 0x300000,

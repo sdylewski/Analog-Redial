@@ -49,7 +49,7 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 # that isn't physically reachable stuck on bad firmware.
 CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 
-# 16 MB flash -- partition table totals ~11.5MB (two 1.75MB OTA slots +
+# 16 MB flash -- partition table totals ~15.5MB (two 3MB OTA slots +
 # 6MB writable storage + 2MB bundled assets + NVS/otadata/phy); see
 # partitions.csv's own sizing comment.
 CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
