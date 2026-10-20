@@ -46,8 +46,8 @@ Lowest parts first, tallest last.
 **Keeping the DevKit square:** tack one pin at each far corner, check the
 module sits flat and square against the board, then solder the rest.
 
-**v5 Bluetooth header (J2)**, when that option arrives: fit it before the
-DevKit.
+**v5 Bluetooth header (J2)**, if you're adding the BM64 companion: fit it before the
+DevKit, with pin 1 matching the silkscreen (rotated 180° it shorts the regulator to ground).
 
 ## 4. Set the build jumpers
 

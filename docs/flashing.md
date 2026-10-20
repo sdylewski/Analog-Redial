@@ -53,7 +53,7 @@ cd bringup
 ./flash_board.py --board smd4 --yes
 ```
 
-Use `--board smd5` for a v5 board. The script reads the chip's flash size,
+Use `--board smd5` for a v5 board (including a 30-pin clone whose two solder jumpers were moved, see [the v5 reference](hardware-smd5.md#10-mcu-module-variants)); a clone with the jumpers left at the default needs `--board smd5_cheap`, which has no USB console. The script reads the chip's flash size,
 builds the matching image and flashes it. Later flashes don't need
 `--board`: the script asks the running firmware what it is.
 

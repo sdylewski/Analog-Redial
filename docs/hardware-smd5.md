@@ -1,10 +1,12 @@
 [Home](../README.md) · [1 · Get a board](board.md) · [2 · Parts & assembly](bom.md) · [3 · Flash & test](flashing.md) · [4 · Set up & use](setup.md)
 
-# Board reference: v5 (SMD5) · coming soon
+# Board reference: v5 (SMD5)
 
-> **v5 is at the fab and not yet tested.** For a proven board, build
-> [v4](hardware-smd4.md). Everything here that isn't listed as new against
-> v4 carries over from v4 unchanged.
+> **v5 is built and working.** The first boards (a genuine DevKitC-1 and a 30-pin
+> clone, both with the BM64 companion) came up on the bench: audio path, microSD,
+> Wi-Fi, over-the-air updates and Bluetooth. v4 remains the board with the longest
+> track record. Everything here that isn't listed as new against v4 carries over from
+> v4 unchanged.
 
 > ⚠️ **v5 board error with the 30-pin clone module: read before soldering.** On the v5 PCB the clone's
 > **bottom-right 5V pin** is wired to **GND** (the footprint is wrong for the clone's pinout). If you fit a
@@ -255,14 +257,12 @@ modifying the layout:
 
 **SMD5 addition.** An 8-pin board-to-board header links a BM64 Bluetooth
 Classic audio carrier to the main board. The carrier is a separate PCB
-(`Bluetooth/Bluetooth_board/`), sent to fabrication alongside SMD5 and not
-yet tested — the web UI's Bluetooth tab marks the feature "experimental, not
-mainstream yet" for that reason. Fitting this on SMD4 instead means serious hand-wiring,
-not a drop-in option.
+(`Bluetooth/BM64/BM64_Board_v1/` in the repository) that plugs onto it. Fitting this on SMD4 instead
+means serious hand-wiring, not a drop-in option.
 
-**Which module.** The **BM64** carrier is the tested, supported choice (about $14). The next option
+**Which module.** The **BM64** carrier is the supported choice (about $14, working). The next option
 to try is the **DFRobot DFR0781 (BT401)** module, about $3.50, hand-wired to the same header; it has a
-text command set with call control, and is not yet tested here.
+text command set with call control, and has not been tried yet.
 
 The status LED shows pairing/connection state once this is fitted and
 working — see [the status light reference](setup.md#7-the-status-light).

@@ -137,8 +137,8 @@ Click any picture for the full page.
   <tr>
     <td><a href="pics/settings-hardware.png"><img src="pics/thumbs/settings-hardware.png" alt="Hardware settings"></a></td>
     <td valign="top"><b>Settings → Hardware.</b> Board and chip
-    details, low-power idle mode, firmware updates, the memory map, and
-    resets.</td>
+    details, low-power idle mode, firmware updates (with a check for new
+    releases), restart counts, the memory map, and resets.</td>
   </tr>
   <tr>
     <td><a href="pics/settings-storage.png"><img src="pics/thumbs/settings-storage.png" alt="Storage settings"></a></td>
@@ -158,7 +158,7 @@ Optional features (VoIP, Bluetooth, Home Assistant) always have their tab, so
 you can read how they work first. A bar at the top says whether the feature
 is on: VoIP and Home Assistant have their switch there, and Bluetooth turns on
 when you choose its module in Board hardware. Settings are kept while a
-feature is off. Bluetooth arrives with the v5 board.
+feature is off. Bluetooth needs the v5 board with the BM64 companion.
 
 ## 5. Your own audio
 
@@ -198,6 +198,7 @@ The DevKit's RGB LED shows what the board is doing. It's deliberately dim.
 | **Green, solid** (30 s) | Just joined Wi-Fi |
 | **Off** | Running normally |
 | **Yellow, fast blink** | Installing a firmware update. Don't unplug it |
+| **Amber, double blink every 2 s** | The board restarted because its power supply dipped (a brownout). Dismiss the banner on any page; use a 5 V, 2 A supply |
 | **Blue** | Bluetooth pairing (v5) |
 
 ## 8. The BOOT button: rescue and reset

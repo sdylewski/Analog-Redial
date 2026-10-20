@@ -9,12 +9,13 @@ using these features day to day, see [Set up & use](setup.md).
 
 ## 1. Hardware
 
-| | SMD4 |
-|--|------|
-| MCU | ESP32-C6-DevKit |
-| Codec | ES8388 @ I²C 0x10 |
-| SLIC | AG1171 ×1–2 |
-| Pin map | `board_pins_smd4.h` (SMD2 uses `board_pins_smd.h` instead) |
+| | SMD4 (v4) | SMD5 (v5) |
+|--|------|------|
+| MCU | ESP32-C6-DevKitC-1 | ESP32-C6-DevKitC-1, or a 30-pin clone (see the warning in [`hardware-smd5.md`](hardware-smd5.md#10-mcu-module-variants)) |
+| Codec | ES8388 @ I²C 0x10 | same |
+| SLIC | AG1171 ×1–2 | same |
+| Bluetooth | none | 8-pin header **J2** for the BM64 companion board |
+| Pin map | `board_pins_smd4.h` (SMD2 uses `board_pins_smd.h` instead) | reuses SMD4's |
 
 Two phone lines as codec **Left / Right** (stereo interleaved in firmware).
 A single-line build can trade line 2 for **microSD** (GPIO 18–21 shared).
@@ -25,7 +26,7 @@ A single-line build can trade line 2 for **microSD** (GPIO 18–21 shared).
 | Ring | **RM** + **F/R** toggle (~20 Hz) |
 | Net | Wi-Fi → SIP |
 
-See [`hardware-smd4.md`](hardware-smd4.md) and [`signal-levels.md`](https://github.com/sdylewski/Analog-Redial/blob/main/archive/signal-levels.md).
+See [`hardware-smd4.md`](hardware-smd4.md), [`hardware-smd5.md`](hardware-smd5.md) and [`signal-levels.md`](https://github.com/sdylewski/Analog-Redial/blob/main/archive/signal-levels.md).
 
 ---
 
@@ -52,7 +53,11 @@ Legend: ✅ working · 🧪 experimental, off by default · 🔜 coming soon
 | **Internet radio (8xx)** | 🔜 | Dial codes are reserved; streaming isn't implemented yet |
 | **Operator help / TTS (dial 0)** | ✅ | No on-device TTS; `operator.wav` ships pre-rendered by default. Text-to-speech generation (`gen_prompt.py`, host-side) can re-render it, the record-message prompt, and the answering machine's default greeting from edited text |
 | **Answering machine** (dial 899 to record a greeting) | ✅ | Per line: rings N times, plays that line's own greeting (or the shared default if none is recorded), then records the caller. Needs VOIP or a second line to actually be reachable |
-| **Bluetooth (BM64 companion)** | 🔜 | Arrives with the v5 board: pair a mobile and the analog phone becomes its handset. The firmware side is written; see [`hardware-smd5.md`](hardware-smd5.md) §9 |
+| **Bluetooth (BM64 companion)** | ✅ v5 board | Pair a mobile and the analog phone becomes its handset: the bell rings for an incoming call, lift to answer, hang up to end it, caller ID in the activity log, and dial out with 1 + area code + number. The BM64's audio configuration is written to the module automatically the first time (needs its two programming leads once; see [`hardware-smd5.md`](hardware-smd5.md) §9). A cheaper module, the DFRobot BT401, is next to be tried |
+| **Home Assistant** (Settings → HA) | 🧪 | Webhook and MQTT auto-discovery: every pickup, hang-up, dial code and ring becomes an event; Home Assistant can ring a phone or fire a pin output back. Verified against Home Assistant Core (events, discovery, the ring button); the REST sensor and command examples are untested. See [Home Assistant](home-assistant.md) |
+| **Firmware updates from the web page** | ✅ | Settings → Hardware → Firmware: **Check for updates** reads the release list from GitHub (through your browser) and **Install** hands the right image to the board, which installs it into the spare slot and reverts by itself if it fails to start. A board with the old flash layout needs one USB reflash first. Uploading a .bin by hand still works |
+| **Call recording** (Settings → Diagnostics) | ✅ | Arm it, lift a handset: the whole call (dial tone, dialing, voice) is saved to the microSD card as a stereo WAV, then it switches itself off |
+| **Power-supply warning** | ✅ | Restarts are counted in flash (Settings → Hardware → Restarts). After a brownout restart: an amber blink on the status LED, a banner on every page, and a falling tone on the next pickup |
 | **Language** | ✅ | One language for the whole phone, set at setup time — no in-use switching. UI string translations are plumbed in (`i18n_str()`) but only English ships; the language picker greys out any language without a translation file on the board |
 | **Digit readback on/off** | ✅ | Explicit setting (dial 821/822). Each dialled digit is spoken from the bundled `0.wav`..`9.wav`, or a touch-tone burst if those are missing |
 | **Pi (dial 314)** | ✅ | Reads "three point one four one five..." aloud, 3 and the first 100 decimals, one digit clip at a time after a one-second pause, with a short breath after every 5 digits (about 50 seconds in all). A built-in code (recodable under Dial Codes); hang up to stop |
@@ -123,9 +128,9 @@ on that signal path: `webui` (HTTP server, all settings pages) / `webauth`
 (station/AP mode, the multi-network connection manager, mDNS), `storage` /
 `sdcard` (internal flash + microSD, both behind one API), `prompts` / `i18n`
 (text-to-speech prompt tracking, UI string translation), `bt_companion`
-(BM64 UART bridge), `idle_power` (Wi-Fi/CPU power saving), and
+(BM64 UART link, pairing, call control and the one-time audio setup), `idle_power` (Wi-Fi/CPU power saving), and
 `activity`/`logbuf`/`logctl` (the Status page's activity feed, the full
-debug log, and runtime log-level control).
+debug log, and runtime log-level control), `webhook` / `mqtt_ha` (Home Assistant), `callcap` (call recording), `player` / `recorder` (clips and messages), `aec` (echo cancellation) and `voip_prov` (number provisioning).
 
 ### Threading model (FreeRTOS tasks)
 

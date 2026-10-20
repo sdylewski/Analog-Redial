@@ -21,7 +21,7 @@ capacitors and diodes). You add the larger through-hole parts with a soldering i
 
 | | **v4** (SMD4) | **v5** (SMD5) |
 |---|---|---|
-| Status | **Current.** Built and in daily use | Coming soon: at the fab, not yet tested |
+| Status | **Proven.** Built and in daily use | **Working.** First boards bench-tested; adds Bluetooth and the clone-module option |
 | Microcontroller | ESP32-C6-DevKitC-1 | ESP32-C6-DevKitC-1, or a cheaper 30-pin clone |
 | Phone lines | 1 or 2 | 1 or 2 |
 | microSD | Single-line build | Single-line build |
@@ -30,7 +30,7 @@ capacitors and diodes). You add the larger through-hole parts with a soldering i
 | Reference | [Board reference (v4)](hardware-smd4.md) | [Board reference (v5)](hardware-smd5.md) |
 | KiCad project | [`Analog Redial v4`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v4) | [`Analog Redial v5`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5) |
 
-Build **v4** for now. Both take the same parts, so the parts list and
+**v4** has the longest track record; **v5** adds the Bluetooth header and takes a cheaper clone ESP32 module. Both take the same parts, so the parts list and
 assembly guide cover either one.
 
 > ⚠️ **v5 board error with the 30-pin clone module: read before soldering.** On the v5 PCB the clone's

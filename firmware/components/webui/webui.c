@@ -3831,23 +3831,17 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
                                  NULL, note);
     }
 
-    /* Not mainstream yet -- say so before anything else on the tab. */
-#if CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
-    const char *bt_status = i18n_str("bt.experimental_v5",
-        "This is a V5 (SMD5) board, which has the header for the BM64 Bluetooth companion "
-        "board -- but V5 hasn't been built and tested yet, so treat Bluetooth as "
-        "experimental.");
-#else
-    const char *bt_status = i18n_str("bt.experimental_v4",
-        "Bluetooth needs a <b>V5 (SMD5) board</b> with the BM64 companion board -- and V5 "
-        "hasn't been built and tested yet. On a V4 (SMD4) or older board it means serious "
-        "hand modification: wiring the BM64 module's power, both audio directions and its "
-        "UART to this board, plus a spare GPIO for its power button. Fine for "
-        "experimenting, not something to plan a build around yet.");
-#endif
+#if !(CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP)
+    /* Only a V5 board has the Bluetooth header: say so before anything else on the tab. */
     off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2><p class=\"warn-text\">%s</p></div>",
-        i18n_str("bt.experimental_title", "Experimental: not mainstream yet"), bt_status);
+        i18n_str("bt.needs_v5_title", "Needs a V5 board"),
+        i18n_str("bt.needs_v5",
+            "Bluetooth needs a <b>V5 (SMD5) board</b> with the BM64 companion board. On a V4 "
+            "(SMD4) or older board it means serious hand modification: wiring the BM64 module's "
+            "power, both audio directions and its UART to this board, plus a spare GPIO for its "
+            "power button."));
+#endif
     const char *features_html = bk_features ? bk_features : i18n_str("bt.features_html",
             "<p class=\"hint\">Pair a cell phone or laptop and the rotary phone on line 1 "
             "acts as its handset, like a Bluetooth headset.</p>"

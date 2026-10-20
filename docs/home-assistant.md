@@ -2,10 +2,11 @@
 
 # Home Assistant
 
-> **Experimental.** The board side has been tested against a Mosquitto
-> broker (discovery messages, state, events, the ring command, switching it
-> on and off). Nobody has run any of this against a real Home Assistant yet,
-> and the YAML below is untested. Expect to adjust it. Reports welcome.
+> **Experimental.** Tested against Mosquitto and a Home Assistant Core
+> install: the webhook, MQTT discovery (the board shows up as a device with
+> line state, events, the ring button and the message counters), events, and
+> the ring button. The REST sensor and `rest_command` YAML in §2 and §3 is
+> untested. Expect to adjust it. Reports welcome.
 
 There's no add-on or integration to install. The board already speaks plain
 HTTP, so Home Assistant talks to it with built-in pieces:

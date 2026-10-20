@@ -26,8 +26,8 @@ The original through-hole board (WM8731 codec, `CONFIG_BOARD_TYPE_THT`) was
 pin map and Kconfig choice all gone. Last commit that still builds it:
 `2fdde5e`. Its docs remain under `archive/hardware/through-hole-wm8731/`.
 
-**SMD5 ("Analog Redial 5")** is the next-generation board — boards back from
-the fab and in bring-up since 2026-10-19 (BM64 carrier works; see
+**SMD5 ("Analog Redial 5")** is the current-generation board — boards back from
+the fab 2026-10-19; documented as working (BM64 carrier, microSD, audio, OTA verified on the first two boards; see
 `archive/hardware/smd5.md`'s Bring-up log) — `hardware/kicad/Analog Redial v5/`,
 dev notes at [`archive/hardware/smd5.md`](archive/hardware/smd5.md).
 Headline changes: a dual-compatible MCU footprint (real ESP32-C6-DevKitC-1 or

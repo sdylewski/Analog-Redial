@@ -181,8 +181,8 @@ safe: SHK can't exceed its own ~3.3 V internal pull-up, under the ESP32's
 **Which parts to lift:** the 15 kΩ pull-downs are **R14** (line 0) and
 **R12** (line 1). The 10 kΩ series resistors — **R15** (line 0) and **R13**
 (line 1) — stay put. Removing both 15 kΩ resistors is **confirmed working on
-real hardware** (2026-09-27): a board where line 1 had never registered a
-handset lift read both lines correctly afterwards, with no other change.
+real hardware**: a board where line 1 had never registered a handset lift
+read both lines correctly afterwards, with no other change.
 
 **SMD5 fixes this in the design** (10 kΩ / 100 kΩ), so no rework there.
 

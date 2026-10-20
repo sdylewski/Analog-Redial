@@ -144,12 +144,22 @@ capacitors in the 5 mm disc footprints. That passes the whole phone band.
 To drive headphones directly, use 47 µF electrolytics instead, **+ toward
 the codec** (U2) and − toward J7. Left empty, J7 carries no signal.
 
-## Bluetooth companion · coming soon
+## Bluetooth companion (v5 board, optional)
 
-Arrives with the v5 board: an 8-pin header (**J2**) on the main board and a
-small companion board carrying a **BM64** Bluetooth module (the tested choice, about $14).
-The next option to try is the **DFRobot DFR0781** (BT401 module), about $3.50: cheaper, with call
-control over a text command set, but not yet tested here. Parts and assembly will be listed here once v5 is tested.
+An 8-pin header (**J2**) on the v5 board takes a small companion board carrying a **BM64** Bluetooth
+module (about $14, **working**). The companion's KiCad project is `Bluetooth/BM64/BM64_Board_v1`
+in the repository; the main board adds one 3.3 V regulator (**U5**) and a handful of 1 µF capacitors
+and resistors that are already on the board.
+
+- **BM64 module:** Microchip `BM64SPKS1MC2-0003AA`, about $14 on
+  [DigiKey](https://www.digikey.com/en/products/detail/microchip-technology/BM64SPKS1MC2-0003AA/13252265).
+- **Headers:** an 8-pin 2.54 mm female header on the companion, a male one on the main board.
+- **One-time setup:** the BM64's audio settings are written to the module by the firmware the first
+  time it runs. That needs two thin wires from the companion's 2-pin programming pads to the main
+  board's J5 header (the firmware looks for them on GPIO19/20; `bm64_diagpins` in the console tells it
+  if they're elsewhere), and the board configured as one line with no microSD. After that the wires come off.
+- **Cheaper option, not yet tried:** the DFRobot **DFR0781** (BT401 module), about $3.50, with call control over a
+  simple text command set. It would be hand-wired to the same header.
 
 ---
 
@@ -170,7 +180,7 @@ The v5 board also takes a cheap 30-pin clone. They aren't equivalent:
 | Part | Genuine ESP32-C6-DevKitC-1 | AliExpress clone, about $4 |
 | Fitting | Drops straight in | Move two solder jumpers on back of board, **JP2** and **JP3** |
 | USB flashing and console | Works | Works once the jumpers are set |
-| Status | Known good | Works with one rework (see the warning below) |
+| Status | Known good | Works, with one rework (see the warning below) |
 
 <table>
   <tr>
