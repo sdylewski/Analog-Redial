@@ -64,6 +64,8 @@ void      bk3266_print_state(void);
 esp_err_t bk3266_listen(int listen_ms);
 /* Version query (binary and text) at every common baud rate: what answers? */
 esp_err_t bk3266_baudscan(void);
+/* Bench: swap which GPIO is TX and which is RX (for probing a crossed UART). */
+void bk3266_set_pins_swapped(bool swapped);
 /* Drive WAKEUP in a pattern ("H1000,L300,H8000"; H/L/Z + ms), listening during the last step. */
 esp_err_t bk3266_wake_experiment(const char *pattern);
 /* Sends raw bytes (any framing, or text), then listens. With the driver

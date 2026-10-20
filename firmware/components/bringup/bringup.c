@@ -2755,6 +2755,15 @@ static int cmd_bk_wakeseq(int argc, char **argv)
     return err == ESP_OK ? 0 : 1;
 }
 
+static int cmd_bk_swap(int argc, char **argv)
+{
+    bool on = argc < 2 || atoi(argv[1]) != 0;
+    bk3266_set_pins_swapped(on);
+    printf("BK3266 UART now: TX=GPIO%d RX=GPIO%d (until reboot). Try bk_baudscan / bk_listen.\n",
+           on ? (int)BOARD_UART_RX : (int)BOARD_UART_TX, on ? (int)BOARD_UART_TX : (int)BOARD_UART_RX);
+    return 0;
+}
+
 static int cmd_bk_listen(int argc, char **argv)
 {
     int ms = (argc > 1) ? atoi(argv[1]) : 5000;
@@ -3087,6 +3096,7 @@ void bringup_console_start(void)
     register_cmd("bk_baudscan", "BK3266: version query (binary + text) at every common baud rate", cmd_bk_baudscan);
     register_cmd("bk_powercycle", "BK3266: power off + on through WAKEUP, then listen for its boot chatter", cmd_bk_powercycle);
     register_cmd("bk_wakeseq", "BK3266: drive WAKEUP in a pattern, listen during the last step: bk_wakeseq H1000,L300,H8000", cmd_bk_wakeseq);
+    register_cmd("bk_swap", "BK3266: use GPIO17 as TX and GPIO16 as RX (probe a crossed UART): bk_swap [0|1]", cmd_bk_swap);
     register_cmd("bk_listen", "BK3266: print raw bytes + decoded frames: bk_listen [ms]", cmd_bk_listen);
     register_cmd("bk_cmd", "BK3266: send one command code: bk_cmd <hex> [listen_ms]", cmd_bk_cmd);
     register_cmd("bk_frame", "BK3266: build + send a frame: bk_frame <cmd> [data] [ms]", cmd_bk_frame);

@@ -39,6 +39,15 @@ static int64_t now_us(void) { return esp_timer_get_time(); }
 
 /* ---- UART ---------------------------------------------------------------- */
 
+/* Bench option: use GPIO17 as TX and GPIO16 as RX, in case the daughter board
+ * (or this module's pinout) has the two UART lines the other way round. */
+static bool s_pins_swapped;
+void bk3266_set_pins_swapped(bool swapped)
+{
+    s_pins_swapped = swapped;
+    s_uart_ready = false;   /* re-run uart_param_config / uart_set_pin on next use */
+}
+
 static esp_err_t uart_ready(void)
 {
     if (s_uart_ready) return ESP_OK;
@@ -56,7 +65,8 @@ static esp_err_t uart_ready(void)
     }
     if (err == ESP_OK) err = uart_param_config(BK_UART, &cfg);   /* also fixes the baud rate */
     if (err == ESP_OK) {
-        err = uart_set_pin(BK_UART, BOARD_UART_TX, BOARD_UART_RX,
+        err = uart_set_pin(BK_UART, s_pins_swapped ? BOARD_UART_RX : BOARD_UART_TX,
+                            s_pins_swapped ? BOARD_UART_TX : BOARD_UART_RX,
                             UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
     }
     if (err != ESP_OK) {
