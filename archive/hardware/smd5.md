@@ -300,3 +300,13 @@ laptop off its network.
 - Wi-Fi: `the home Wi-Fi` was not in a scan from where the boards sit
   (11 networks seen, not that one); credentials are saved and they will join
   when it is in range.
+
+**2026-10-20.** Genuine + BM64: the carrier's RST_N and P2_0 leads were fitted
+on J5 pins 7 and 5 (GPIO18 and GPIO19), one pin off the documented pins 5 and
+3 (GPIO19, GPIO20). `bm64_findwire 18` found RST_N; `bm64_diagpins 18 19` told the
+firmware; the EEPROM check then ran: 2/6 correct, `bm64_config apply` wrote 4,
+6/6 correct, self-test "Bluetooth audio EEPROM" PASS. The pin numbers are now a
+runtime setting (NVS), and a failed IBDK entry tries RST/P2_0 swapped once.
+Clone + BK3266 and both boards on Wi-Fi (the home Wi-Fi, 2.4 GHz works). OTA over
+Wi-Fi of a release image to a 3 MB slot worked; the old-layout gate in the web
+UI renders as intended.
