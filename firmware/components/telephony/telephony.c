@@ -101,6 +101,8 @@ typedef struct {
 typedef struct {
     tel_state_t          state;
     dialplan_collector_t coll;
+    bool                 bt_music_pass; /* in BT_PASSTHROUGH only because the paired phone is playing music */
+    int64_t              bt_music_seen_us; /* last time that music was seen playing */
     bool                 dialing;
     int64_t              last_digit_us;
     int                  peer;          /* local peer line, PEER_VOIP, or PEER_NONE */
@@ -312,6 +314,7 @@ static void enter_idle(int line)
         audio_set_voice_fx(line, VOICE_FX_NONE);
     }
     s_line[line].call_fx = FX_NORMAL;
+    s_line[line].bt_music_pass = false;
     s_line[line].seq = NULL;
     if (s_line[line].rb_clip) { player_stop(line); s_line[line].rb_clip = false; }
     audio_tx_silence(line);
@@ -405,10 +408,13 @@ static bool bt_companion_should_intercept(int line)
      * phone happened to be paired. */
     if (s_line[line].state != TEL_IDLE) return false;
     /* And only while the paired phone has a call up (e.g. placed from the
-     * phone itself, audio routed here). With a phone merely connected the
+     * phone itself, audio routed here) or is playing music, whose audio
+     * arrives on this line's earpiece directly and must not be mixed with
+     * dial tone. With a phone merely connected the
      * pickup gets normal dial tone, so local codes and 1 + number dial-out
      * work -- a connected-but-idle passthrough was just dead air. */
-    return bt_companion_get_status().bt_connected && bt_companion_call_live();
+    return bt_companion_get_status().bt_connected &&
+           (bt_companion_call_live() || bt_companion_music_playing());
 }
 
 /* Confirmed 2026-09-15 on real bench hardware (then still on line 0 -- see
@@ -428,6 +434,7 @@ static void enter_bt_passthrough(int line)
 {
     ESP_LOGD(TAG, "line %d: %s -> BT_PASSTHROUGH", line, telephony_state_name(s_line[line].state));
     audio_tx_silence(line);
+    s_line[line].bt_music_pass = false;
     s_line[line].state = TEL_BT_PASSTHROUGH;
     s_line[line].peer = PEER_NONE;
     s_line[line].dialing = false;
@@ -1159,8 +1166,12 @@ static bool am_active(int line)
 static void on_offhook(int line)
 {
     if (bt_companion_should_intercept(line)) {
-        activity_log("Line %d: picked up the paired phone's call", line);
+        bool music_only = !bt_companion_call_live();
+        activity_log(music_only ? "Line %d: picked up while the paired phone plays audio"
+                                : "Line %d: picked up the paired phone's call", line);
         enter_bt_passthrough(line);
+        s_line[line].bt_music_pass = music_only;
+        s_line[line].bt_music_seen_us = esp_timer_get_time();
         return;
     }
     tel_state_t st = s_line[line].state;
@@ -1469,6 +1480,23 @@ static void fsm_task(void *arg)
                 dialplan_action_t a = dialplan_timeout(&s_line[line].coll, line);
                 s_line[line].dialing = false;
                 if (a.kind != ACT_NONE) handle_action(line, &a);
+            }
+            /* Bluetooth music: it reaches the earpiece straight from the module, so the handset
+             * joins it (no dial tone) while it plays, and goes back to dial tone a few seconds
+             * after it stops (the gap between two tracks must not flip it). */
+            if (line == bt_companion_line() && bt_companion_active() && line_offhook(line)) {
+                bool music = bt_companion_music_playing();
+                if (music) s_line[line].bt_music_seen_us = now;
+                if (music && s_line[line].state == TEL_DIALTONE && s_line[line].coll.len == 0) {
+                    activity_log("Line %d: the paired phone is playing audio: handset joins it", line);
+                    enter_bt_passthrough(line);
+                    s_line[line].bt_music_pass = true;
+                } else if (s_line[line].state == TEL_BT_PASSTHROUGH && s_line[line].bt_music_pass &&
+                           !music && !bt_companion_call_live() &&
+                           now - s_line[line].bt_music_seen_us > 5000000) {
+                    activity_log("Line %d: the music stopped: dial tone", line);
+                    enter_dialtone(line);
+                }
             }
             /* Reading digits aloud: start the next clip when its pause is up. */
             if (s_line[line].seq && s_line[line].state == TEL_PLAYING &&

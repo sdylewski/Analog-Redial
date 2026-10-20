@@ -531,6 +531,8 @@ void bt_companion_set_call_cb(bt_companion_call_cb cb, void *ctx)
  * Read_Link_Status_Reply (0x1E, Database0/1_Connect_Status bit 3). Make_Call
  * has to name a device, and a call needs HF (A2DP alone can't place one). */
 static bool s_dev_hf[BT_MAX_DEVICES];
+/* Per database: the phone is streaming audio (Read_Link_Status_Reply's Stream_Status). */
+static bool s_dev_stream[BT_MAX_DEVICES];
 
 esp_err_t bt_companion_make_call(const char *number)
 {
@@ -599,6 +601,15 @@ esp_err_t bt_companion_end_call(void)
     if (module() == BOARD_BT_BK3266) return s_enabled ? bk3266_end_call() : ESP_ERR_INVALID_STATE;
     int d = find_device(call_is_live);
     return d < 0 ? ESP_ERR_NOT_FOUND : send_mmi_to(d, BM64_MMI_END_CALL);
+}
+
+bool bt_companion_music_playing(void)
+{
+    if (module() == BOARD_BT_BK3266) return false;
+    portENTER_CRITICAL(&s_lock);
+    bool r = s_status.bt_connected && (s_dev_stream[0] || s_dev_stream[1]);
+    portEXIT_CRITICAL(&s_lock);
+    return r;
 }
 
 bool bt_companion_call_live(void)
@@ -963,6 +974,8 @@ static void handle_event(uint8_t event_code, const uint8_t *param, uint8_t param
             portENTER_CRITICAL(&s_lock);
             s_dev_hf[0] = (param[1] & 0x08) != 0;
             s_dev_hf[1] = (param[2] & 0x08) != 0;
+            s_dev_stream[0] = param_len >= 7 && conn && param[5] == 0x01;
+            s_dev_stream[1] = param_len >= 7 && conn && param[6] == 0x01;
             bool was = s_status.bt_connected;
             s_status.bt_connected = conn;
             if (!conn) s_status.paired_name[0] = '\0';

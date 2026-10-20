@@ -133,6 +133,10 @@ esp_err_t bt_companion_end_call(void);
  * device mid-call and another ringing, the merged state reports the ringing
  * one. */
 bool bt_companion_call_live(void);
+/* True while a connected phone is streaming music (A2DP) to the module. The module's analog output
+ * reaches the line's earpiece directly, so telephony joins the handset to it instead of playing dial
+ * tone over it. Refreshed with each link-status poll, so it can lag by a couple of seconds. */
+bool bt_companion_music_playing(void);
 
 /* Places an outgoing call on the paired phone (BM64 Make_Call): `number` is
  * ASCII digits, max 19. Picks the connected device with its HF profile up.
