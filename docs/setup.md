@@ -218,10 +218,24 @@ With the board plugged into a computer, the serial console command
 
 ## 9. Updating the firmware
 
-Build a new image ([step 3](flashing.md)) and either flash it over USB, or
-upload the `rotary_phone_gateway.bin` from your build directory in Settings → Hardware → Firmware. The
-board installs it and restarts; if the new version fails to start, it goes
-back to the old one.
+**From the web page.** Settings → Hardware → Firmware shows the version this
+board runs and a **Check for updates** button. When a newer release exists for
+this board type it says so, shows what changed, and **Install** does the rest:
+your browser downloads the release and hands it to the board, which writes it
+to the spare slot and restarts into it. If the new version doesn't start, the
+board goes back to the old one by itself. A banner on every page tells you when
+an update is out; "Not now" hides it for that version. It needs a browser
+that's online (the board itself never connects to GitHub).
+
+**By hand.** Build a new image ([step 3](flashing.md)) and either flash it over
+USB, or upload the `rotary_phone_gateway.bin` from your build directory in the
+same Firmware card. The board checks that the file is a firmware image for this
+board type before it will use it.
+
+**When USB is still needed.** A board's first flash, and any release that
+changes the flash layout (the update slots grew from 2 MB to 3 MB on 16 MB
+boards; the board keeps working on the old layout until it's reflashed once).
+Reflashing over USB keeps your recordings, clips and settings.
 
 ---
 

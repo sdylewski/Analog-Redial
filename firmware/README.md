@@ -384,3 +384,13 @@ name are cleared.
   (256fs). VoIP will resample to 8 kHz G.711 in the `voip` component.
 - The SLIC's `PD` pin is driven through a diode: GPIO low = power-down,
   released (input) = run (`set_pd_run()` in `ag1170.c`).
+
+## Releasing a firmware update
+
+The web UI's "Check for updates" reads `latest.json` from the repo's `firmware`
+branch. To cut a release: tag the commit (`git tag -a v1.2.3 -m v1.2.3`), run
+`firmware/release/release.py --version v1.2.3 --notes "..."` from an ESP-IDF
+shell (builds every board type in `build.release/`, writes
+`release/out/v1.2.3/`), then `--publish --no-build` to force-push the branch.
+Details in the script's header. The manifest is readable from a browser only
+once the repository is public.
