@@ -153,6 +153,7 @@ and resistors that are already on the board.
 
 - **BM64 module:** Microchip `BM64SPKS1MC2-0003AA`, about $14 on
   [DigiKey](https://www.digikey.com/en/products/detail/microchip-technology/BM64SPKS1MC2-0003AA/13252265).
+- **Regulator:** the 3.3 V regulator on v5 (U5) works; v6 moves to 3.6 V for margin, and a 3.6 or 3.7 V XC6206 can be swapped in on v5 (same footprint).
 - **Headers:** an 8-pin 2.54 mm female header on the companion, a male one on the main board.
 - **One-time setup:** the BM64's audio settings are written to the module by the firmware the first
   time it runs. That needs two thin wires from the companion's 2-pin programming pads to the main

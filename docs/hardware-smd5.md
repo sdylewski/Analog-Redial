@@ -281,6 +281,8 @@ working — see [the status light reference](setup.md#7-the-status-light).
 Audio never passes through firmware — both directions are analog, between
 the BM64 and line 0's SLIC. The ESP32 only carries control over the UART.
 
+**U5's voltage.** On v5, U5 is a 3.3 V part (XC6206P332MR). The BM64 accepts 3.2–4.2 V (3.8 V typical), so 3.3 V sits near the bottom of its range, and it works as built. The next board revision (v6) uses a 3.6 V part (XC6206P362MR) for more margin, which also suits modules that need 3.6 V or more. On a v5 board you can swap U5 for a 3.6 or 3.7 V XC6206 (same SOT-23-3 footprint); don't feed the module 5 V directly.
+
 **Orientation matters.** Pin 1 is +3.3 V and pin 8 is GND, so mating the two
 boards rotated 180° shorts the LDO output straight to ground. Mark pin 1 on
 both silkscreens and dry-fit before applying power.
