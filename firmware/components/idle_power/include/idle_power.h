@@ -9,7 +9,8 @@
  * archive/POWER_SAVING.md for the datasheet numbers and reasoning behind
  * the duty-cycle timing and the VoIP gating.
  *
- * Disabled by default -- this is an opt-in tradeoff (a small added delay on
+ * Enabled by default, with every option on (a small added delay on the first pickup after a long idle
+ * stretch is the cost; each can be turned off in Settings -> Hardware). Previously this was an opt-in tradeoff -- (a small added delay on
  * the first pickup after a long idle stretch), not a change to default
  * behavior.
  */

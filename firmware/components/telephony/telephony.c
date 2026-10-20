@@ -1059,10 +1059,6 @@ static void handle_action(int line, const dialplan_action_t *a)
             start_record_beep(line);
             break;
 
-        case ACT_RADIO:
-            ESP_LOGI(TAG, "line %d: radio station %d (stream TODO)", line, a->arg);
-            play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
-            break;
 
         case ACT_CALL_LINE:
             start_local_call(line, a->arg, (voice_effect_t)a->arg2);

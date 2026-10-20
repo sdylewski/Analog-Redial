@@ -80,8 +80,6 @@ static const entry_t TABLE[] = {
     { "323", ACT_CALL_LINE, -1, FX_LOW,    "Call other phone (Vader)", true },
     { "324", ACT_CALL_LINE, -1, FX_DALEK,  "Call other phone (Dalek)", true },
 
-    /* 8xx -- internet radio; only 811/812 are configured on the Pi today,
-     * 813-819 are documented gaps, not real codes yet */
     /* 8xx holds the mode/greeting codes that used to be 9xx (921/922/999,
      * moved 2026-10-01). The whole 9xx block is now reserved: "9" is the
      * candidate prefix for Bluetooth dial-out, PBX-style, and a code
@@ -89,9 +87,6 @@ static const entry_t TABLE[] = {
      * number. See archive/BLUETOOTH_AUDIO_UPGRADE.md for why that change
      * isn't made yet -- variable-length numbers need an inter-digit timeout
      * a rotary phone can't shortcut. */
-    { "811", ACT_RADIO, 1, 0, "KXSF 102.5 SF alt-rock (KFOG successor)", false },
-    { "812", ACT_RADIO, 2, 0, "KQED NPR 88.5", false },
-
     /* 9xx -- settings. No 901/902: language is set once at configuration
      * time (board_language_set), not switched in use -- see dialplan.h. No
      * 931/932 either: Play/Call-only mode was removed as redundant (Play

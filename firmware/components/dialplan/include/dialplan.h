@@ -27,7 +27,6 @@ typedef enum {
     ACT_RECORD_ARCHIVE, /* dial 211 */
     ACT_RECORD_GREETING, /* dial 999: record this line's answering-machine greeting */
     ACT_CALL_LINE,      /* arg = target line index; effect in arg2 */
-    ACT_RADIO,          /* arg = station index */
     ACT_VOIP_DIAL,      /* number[] holds digits (e.g. 555xxxx) */
     ACT_BT_DIAL,        /* number[] holds 1 + 10 digits, placed via the paired phone */
     ACT_SET_MODE,       /* arg = dialplan_mode_change_t */

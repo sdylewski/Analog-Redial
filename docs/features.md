@@ -32,7 +32,7 @@ See [`hardware-smd4.md`](hardware-smd4.md), [`hardware-smd5.md`](hardware-smd5.m
 
 ## 2. Feature list
 
-Legend: ✅ working · 🧪 experimental, off by default · 🔜 coming soon
+Legend: ✅ working · 🧪 experimental, off by default · 🔜 coming soon · 💡 idea, not built
 
 | Feature | Status | Notes |
 |------------|--------------|-------|
@@ -50,7 +50,7 @@ Legend: ✅ working · 🧪 experimental, off by default · 🔜 coming soon
 | **Intercom** | 🧪 off by default (Settings → Phone, 2-line boards) | Pick up and don't dial: after a wait (default 4 s, 1–30) the other line rings with a short double ring (0.4 s, 0.2 s gap, 0.4 s, 2 s pause), distinct from an outside call. Dial a digit first and it's a normal call, so there is no mode to switch. If the other handset is already up and idle the lines connect at once; if it is busy you hear busy |
 | **Voice effects during a call** | 🧪 experimental, off by default (Settings → Phone) | Press or dial **1** Dalek, **2** chipmunk, **3** Darth Vader, **4** 8-bit, **5** robot, **6** tremolo, **7** distortion, **0** normal — mid-call, on either phone; both hear it. Works on local and VoIP calls (the board where the key is pressed changes both voices). Or dial 322–324 to start a call as chipmunk, Vader or Dalek. Chipmunk and Vader add ~15 ms; the rest add no delay. On/off in Settings → Phone |
 | **Pin dial codes** (Settings → Dial Codes → Pin outputs) | ✅ one-line boards without microSD | Up to four codes, each drives one of GPIO18–21 (header J5) high for 0–3600 s, or toggles it: relay, MOSFET, buzzer, light. Refused while a card is in the socket, the board is set to two lines or microSD, or a J5 shunt could connect the pin to line 1's chip (shown on the card). Same code rules as clip codes, in both directions |
-| **Internet radio (8xx)** | 🔜 | Dial codes are reserved; streaming isn't implemented yet |
+| **Internet radio** | 💡 | An idea, not built: dial a code and stream a station. No dial codes are assigned |
 | **Operator help / TTS (dial 0)** | ✅ | No on-device TTS; `operator.wav` ships pre-rendered by default. Text-to-speech generation (`gen_prompt.py`, host-side) can re-render it, the record-message prompt, and the answering machine's default greeting from edited text |
 | **Answering machine** (dial 899 to record a greeting) | ✅ | Per line: rings N times, plays that line's own greeting (or the shared default if none is recorded), then records the caller. Needs VOIP or a second line to actually be reachable |
 | **Bluetooth (BM64 companion)** | ✅ v5 board | Pair a mobile and the analog phone becomes its handset: the bell rings for an incoming call, lift to answer, hang up to end it, caller ID in the activity log, and dial out with 1 + area code + number. The BM64's audio configuration is written to the module automatically the first time (needs its two programming leads once; see [`hardware-smd5.md`](hardware-smd5.md) §9). A cheaper module, the DFRobot BT401, is next to be tried |

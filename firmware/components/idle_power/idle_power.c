@@ -46,7 +46,9 @@ static const char *TAG = "idle_power";
 
 static bool all_lines_idle(int num_lines);
 
-static idle_power_cfg_t s_cfg = { .enabled = false, .minutes = 5, .max_savings = false };
+/* On by default, every option (the user can switch any of them off in Settings -> Hardware). */
+static idle_power_cfg_t s_cfg = { .enabled = true, .minutes = 5, .max_savings = false,
+                                  .adaptive_tx = true, .pause_audio = true, .cpu_scale = true };
 static bool             s_sleeping;
 static bool             s_wifi_eco;
 static bool             s_slic_on[BOARD_NUM_LINES];

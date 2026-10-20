@@ -119,7 +119,7 @@ static const char *fmt_bytes(uint64_t n, char *out, size_t outsz)
  * here so the settings-tab renderers, which come first in this file, can
  * reuse the same dial-code-row markup instead of duplicating it. */
 static int append_guide_row(char *buf, size_t cap, int off, const char *code,
-                             const char *desc, bool implemented);
+                             const char *desc, int pill);
 
 /* Defined below, next to append_guide_row() -- the dial-guide card set
  * (formerly its own /guide page) is now rendered inline on the Status page
@@ -3196,8 +3196,7 @@ static int append_operator_tab(char *buf, size_t cap, int off,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("operator.title", "Operator help"));
     for (size_t i = 0; i < n; i++) {
         if (strcmp(entries[i].default_code, "0") != 0) continue;
-        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
-                                entries[i].implemented);
+        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);
     }
     off = append_prompt_field(buf, cap, off, "operator.wav",
         i18n_str("operator.default_prompt",
@@ -4002,8 +4001,7 @@ static int append_record_tab(char *buf, size_t cap, int off,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("record.title", "Record message"));
     for (size_t i = 0; i < n; i++) {
         if (strcmp(entries[i].default_code, "211") != 0) continue;
-        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
-                                entries[i].implemented);
+        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);
     }
     uint32_t max_ms = board_record_max_ms_get(120000);
     off = append_hint(buf, cap, off,
@@ -4169,6 +4167,39 @@ static void fmt_duration(uint32_t secs, char *out, size_t len)
                                    (unsigned long)((secs / 60) % 60));
 }
 
+static int append_restarts_card(char *buf, size_t cap, int off)
+{
+        board_restart_stats_t rs;
+        board_restart_stats_get(&rs);
+        char last[64];
+        if (!rs.brownouts) snprintf(last, sizeof(last), "%s", i18n_str("hardware.restarts.never", "never"));
+        else if (rs.boots_since_brownout == 0) snprintf(last, sizeof(last), "%s", i18n_str("hardware.restarts.this_boot", "this start-up"));
+        else snprintf(last, sizeof(last), i18n_str("hardware.restarts.ago", "%u start-up(s) ago"), (unsigned)rs.boots_since_brownout);
+        off = appendf(buf, cap, off,
+            "<div class=\"card\"><h2>%s</h2>"
+            "<p class=\"hint\">%s</p>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%u</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span class=\"pill%s\">%u</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%u</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%u</span></div>"
+            "<form method=\"POST\" action=\"/power_warning\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"action\" value=\"clear\">"
+            "<div class=\"toolbar sub\"><button type=\"submit\">%s</button></div></form></div>",
+            i18n_str("hardware.restarts", "Restarts"),
+            i18n_str("hardware.restarts.hint",
+                     "Counted in flash, so they survive unplugging. A brownout means the power "
+                     "supply dipped too low and the chip reset itself."),
+            i18n_str("hardware.restarts.boots", "Start-ups"), (unsigned)rs.boots,
+            i18n_str("hardware.restarts.brownouts", "Brownouts (power dipped)"),
+            rs.brownouts ? " off" : " on", (unsigned)rs.brownouts,
+            i18n_str("hardware.restarts.last_brownout", "Last brownout"), last,
+            i18n_str("hardware.restarts.crashes", "Crashes"), (unsigned)rs.crashes,
+            i18n_str("hardware.restarts.watchdogs", "Watchdog resets"), (unsigned)rs.watchdogs,
+            i18n_str("hardware.restarts.clear", "Clear counts"));
+    return off;
+}
+
 static int append_hardware_tab(char *buf, size_t cap, int off)
 {
     char hw[64], serial[16];
@@ -4209,37 +4240,6 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                 i18n_str("hardware.microsd", "microSD"),
                 i18n_str("hardware.microsd.absent", "not detected -- inserted &amp; FAT-formatted?"));
         }
-    }
-
-    {
-        board_restart_stats_t rs;
-        board_restart_stats_get(&rs);
-        char last[64];
-        if (!rs.brownouts) snprintf(last, sizeof(last), "%s", i18n_str("hardware.restarts.never", "never"));
-        else if (rs.boots_since_brownout == 0) snprintf(last, sizeof(last), "%s", i18n_str("hardware.restarts.this_boot", "this start-up"));
-        else snprintf(last, sizeof(last), i18n_str("hardware.restarts.ago", "%u start-up(s) ago"), (unsigned)rs.boots_since_brownout);
-        off = appendf(buf, cap, off,
-            "<div class=\"card\"><h2>%s</h2>"
-            "<p class=\"hint\">%s</p>"
-            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%u</span></div>"
-            "<div class=\"statusrow\"><span class=\"label\">%s</span><span class=\"pill%s\">%u</span></div>"
-            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
-            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%u</span></div>"
-            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%u</span></div>"
-            "<form method=\"POST\" action=\"/power_warning\" class=\"settings-form\">"
-            "<input type=\"hidden\" name=\"action\" value=\"clear\">"
-            "<div class=\"toolbar sub\"><button type=\"submit\">%s</button></div></form></div>",
-            i18n_str("hardware.restarts", "Restarts"),
-            i18n_str("hardware.restarts.hint",
-                     "Counted in flash, so they survive unplugging. A brownout means the power "
-                     "supply dipped too low and the chip reset itself."),
-            i18n_str("hardware.restarts.boots", "Start-ups"), (unsigned)rs.boots,
-            i18n_str("hardware.restarts.brownouts", "Brownouts (power dipped)"),
-            rs.brownouts ? " off" : " on", (unsigned)rs.brownouts,
-            i18n_str("hardware.restarts.last_brownout", "Last brownout"), last,
-            i18n_str("hardware.restarts.crashes", "Crashes"), (unsigned)rs.crashes,
-            i18n_str("hardware.restarts.watchdogs", "Watchdog resets"), (unsigned)rs.watchdogs,
-            i18n_str("hardware.restarts.clear", "Clear counts"));
     }
 
     if (board_type_mismatch()) {
@@ -4428,25 +4428,28 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                                          "(applies all the time, not just when idle)"),
         ip.pause_audio ? " checked" : "",
         i18n_str("idlepower.pause_audio", "Pause audio processing while every phone is hung up "
-                                         "(resumes on pickup; not yet tested by ear)"),
+                                         "(resumes on pickup)"),
         ip.cpu_scale ? " checked" : "",
         i18n_str("idlepower.cpu_scale", "Slow the CPU clock to 80 MHz between tasks (full speed "
                                        "whenever there's work to do)"),
         i18n_str("general.button.save", "Save"));
 
-    char idlepower_hint[420];
+    char idlepower_hint[160], idlepower_more[520];
     snprintf(idlepower_hint, sizeof(idlepower_hint),
+        i18n_str("idlepower.hint_short",
+                 "Saves about %.2f&nbsp;W. The first pickup after %u idle minutes can take up to ~%d&nbsp;ms."),
+        (double)idle_power_estimated_savings_w(), (unsigned)ip.minutes, idle_power_worst_case_latency_ms());
+    snprintf(idlepower_more, sizeof(idlepower_more),
         i18n_str("idlepower.hint",
-                 "Approximately %.2f&nbsp;W of power savings in the selected preset, but expect "
-                 "up to ~%dms delay the first time you pick up the handset after %u idle "
-                 "minutes; fully responsive for the rest of that call and for %u minutes after. "
-                 "Both presets use the same idle-time trigger above -- only the delay/savings "
-                 "tradeoff while asleep changes, so it's safe to switch and compare without "
-                 "waiting out the idle timer again."),
-        (double)idle_power_estimated_savings_w(), idle_power_worst_case_latency_ms(),
-        (unsigned)ip.minutes, (unsigned)ip.minutes);
+                 "Fully responsive for the rest of that call and for %u minutes after. Both presets "
+                 "use the same idle-time trigger; only the delay/savings tradeoff while asleep "
+                 "changes, so it's safe to switch and compare without waiting out the idle timer "
+                 "again."),
+        (unsigned)ip.minutes);
     off = appendf(buf, cap, off,
-        "<p class=\"hint\">%s</p></div>", idlepower_hint);
+        "<p class=\"hint\">%s</p>"
+        "<details class=\"hint-detail\"><summary>%s</summary><p class=\"hint\">%s</p></details></div>",
+        idlepower_hint, i18n_str("idlepower.details", "Details"), idlepower_more);
 
     off = append_firmware_card(buf, cap, off);
 
@@ -6124,9 +6127,10 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
      * else that landed here (Answering Machine, Speaker, Echo, idle-power)
      * is cheap NVS-backed config, not file I/O. */
     else {
-        off = append_hardware_tab(buf, cap, off);
-        off = append_memory_map_card(buf, cap, off);
+        off = append_hardware_tab(buf, cap, off);   /* Hardware, Low-power idle, Firmware: row 1 */
+        off = append_restarts_card(buf, cap, off);  /* row 2: Restarts and Reset */
         off = append_reset_card(buf, cap, off);
+        off = append_memory_map_card(buf, cap, off); /* wide, last */
     }
 
     off = appendf(buf, cap, off, "</div>" /* .cards */);
@@ -8465,7 +8469,7 @@ typedef struct { char prefix; const char *heading; } guide_cat_t;
 static const guide_cat_t GUIDE_CATS[] = {
     { '2', "2xx -- messages" },
     { '3', "3xx -- call the other phone, and pi" },
-    { '8', "8xx -- radio &amp; settings" },
+    { '8', "8xx -- settings" },
 };
 #define GUIDE_CATS_N (sizeof(GUIDE_CATS) / sizeof(GUIDE_CATS[0]))
 
@@ -8480,8 +8484,10 @@ static void hyphenate_code(const char *code, char *out, size_t outsz)
     out[o] = '\0';
 }
 
+/* pill: 0 = none, 1 = "enabled", 2 = "disabled" -- only for the codes that belong to an optional feature
+ * with its own on/off switch (Bluetooth, VoIP, Home Assistant). */
 static int append_guide_row(char *buf, size_t cap, int off, const char *code,
-                             const char *desc, bool implemented)
+                             const char *desc, int pill)
 {
     char hy[24];
     hyphenate_code(code, hy, sizeof(hy));
@@ -8489,9 +8495,12 @@ static int append_guide_row(char *buf, size_t cap, int off, const char *code,
     html_escape(desc ? desc : "", edesc, sizeof(edesc));
     return appendf(buf, cap, off,
         "<div class=\"code-row\"><span class=\"code\">%s</span>"
-        "<span class=\"desc\">%s</span>"
-        "<span class=\"pill %s\">%s</span></div>",
-        hy, edesc, implemented ? "on" : "off", implemented ? "working" : "not yet");
+        "%s%s%s"
+        "<span class=\"desc\">%s</span></div>",
+        hy,
+        pill ? (pill == 1 ? "<span class=\"pill on\">" : "<span class=\"pill off\">") : "",
+        pill ? (pill == 1 ? "enabled" : "disabled") : "",
+        pill ? "</span>" : "", edesc);
 }
 
 /* Card-rendering for the dial-code guide -- formerly its own /guide page
@@ -8521,7 +8530,7 @@ static int append_guide_clips(char *buf, size_t cap, int off)
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>Clips</h2>");
     for (size_t i = 0; i < nclips && (size_t)off < cap; i++)
-        off = append_guide_row(buf, cap, off, clips[i].code, clips[i].desc, true);
+        off = append_guide_row(buf, cap, off, clips[i].code, clips[i].desc, 0);
     return appendf(buf, cap, off, "</div>");
 }
 
@@ -8552,8 +8561,12 @@ static int append_guide_pins(char *buf, size_t cap, int off)
         html_escape(d, desc_esc, sizeof(desc_esc));
         off = appendf(buf, cap, off,
             "<div class=\"code-row\"><span class=\"code\">%s</span>"
-            "<span class=\"desc\">%s</span><span class=\"pill on\">working</span></div>",
-            pins[i].code, desc_esc);
+            "%s<span class=\"desc\">%s</span></div>",
+            pins[i].code,
+            pins[i].gpio == DIALPLAN_PIN_NONE
+                ? (ha_feature_on() ? "<span class=\"pill on\">enabled</span>" : "<span class=\"pill off\">disabled</span>")
+                : "",
+            desc_esc);
     }
     return appendf(buf, cap, off, "</div>");
 }
@@ -8566,8 +8579,8 @@ static int append_guide_voip(char *buf, size_t cap, int off)
     return appendf(buf, cap, off,
         "<div class=\"card\"><h2>VoIP</h2>"
         "<div class=\"code-row\"><span class=\"code\">5-5-5-x-x-x-x</span>"
-        "<span class=\"desc\">7-digit extension</span>"
-        "<span class=\"pill on\">working</span></div></div>");
+        "%s<span class=\"desc\">7-digit extension</span></div></div>",
+        voip_is_enabled() ? "<span class=\"pill on\">enabled</span>" : "<span class=\"pill off\">disabled</span>");
 }
 
 static int append_dialguide_cards(char *buf, size_t cap, int off,
@@ -8586,20 +8599,19 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
         if (strcmp(entries[i].default_code, "0") != 0) continue;
         off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>Operator</h2>");
-        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
-                                entries[i].implemented);
+        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);
         off = appendf(buf, cap, off, "</div>");
     }
 
     /* 1 -- Bluetooth dial-out. Matched directly in dialplan_feed(), only
      * while the companion is enabled (dialplan_set_bt_dialout()), so it's
      * synthetic rather than a TABLE entry. */
-    if (bt_companion_active() && off > 0 && (size_t)off < cap) {
+    if (board_hw_config_get().has_bt_module && off > 0 && (size_t)off < cap) {
         off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>Bluetooth</h2>"
             "<div class=\"code-row\"><span class=\"code\">1 - x x x - x x x - x x x x</span>"
-            "<span class=\"desc\">Call out via the paired phone</span>"
-            "<span class=\"pill on\">working</span></div></div>");
+            "%s<span class=\"desc\">Call out via the paired phone</span></div></div>",
+            bt_companion_active() ? "<span class=\"pill on\">enabled</span>" : "<span class=\"pill off\">disabled</span>");
     }
 
     /* 2xx, 3xx, 8xx -- straight from the dial-plan table. */
@@ -8622,8 +8634,7 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
             "<div class=\"card\"><h2>%s</h2>", GUIDE_CATS[g].heading);
         for (size_t i = 0; i < n && (size_t)off < cap; i++) {
             if (entries[i].default_code[0] != GUIDE_CATS[g].prefix) continue;
-            off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc,
-                                    entries[i].implemented);
+            off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);
         }
         off = appendf(buf, cap, off, "</div>");
     }
@@ -8645,7 +8656,7 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
         off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>During a call</h2>");
         for (size_t i = 0; i < sizeof(IN_CALL) / sizeof(IN_CALL[0]); i++)
-            off = append_guide_row(buf, cap, off, IN_CALL[i].key, IN_CALL[i].desc, true);
+            off = append_guide_row(buf, cap, off, IN_CALL[i].key, IN_CALL[i].desc, 0);
         off = appendf(buf, cap, off,
             "<p class=\"hint\">Press or dial during a call. Both phones hear the change, "
             "whoever presses it.</p></div>");
