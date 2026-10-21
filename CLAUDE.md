@@ -43,6 +43,11 @@ DFR0781 / BT401 (`Bluetooth/DFR0781_BT401/`), untested.
 carries the 5V. Documented as a warning in README/docs (board.md, bom.md, hardware-smd5.md);
 fixed in v6. Keep that warning in any doc that describes fitting a clone.
 
+**v6 (SMD6, `hardware/kicad/Analog Redial v6/`) is in progress and untested.** The public
+docs say **build v5 for now** (README history table, docs/board.md version table and
+callout, and a README in the v6 KiCad folder). Don't describe v6 as working or
+recommend ordering it until the user has tested it and says so.
+
 ## Building/flashing for a specific board type (SMD2 vs SMD4 vs SMD5)
 
 Each board type is a separate build directory with its own `sdkconfig`, not

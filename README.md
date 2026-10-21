@@ -207,6 +207,7 @@ Going further: [VoIP setup](docs/voip-setup.md) ·
 | Jul 2026 | **v2** <br><img src="docs/pics/smd2_board.jpg" width="220" alt="Analog Redial v2 board"> | First surface-mount board: ESP32-C6 module, ES8388 codec, AG1171 SLICs, microSD. Required rework on audio lines and usb connection but it worked. |
 | Sep 2026 | **v4** <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | The current board: 2-layer, built around a cheaper 32-pin ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. |
 | Oct 2026 | **v5** | Working: takes a genuine or clone ESP32-C6 module, and adds the Bluetooth companion. **Known error: with a clone module, the clone's bottom-right 5V pin must be removed** (see [Get a board](docs/board.md)). |
+| Next | **v6** | **In progress, not built or tested yet.** The next generation: corrects the clone-module footprint error and adjusts the Bluetooth supply. The design files are in the repository; **build v5 for now**. |
 
 ## License
 

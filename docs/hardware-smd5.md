@@ -13,7 +13,7 @@
 > clone, **take that pin out**: cut it off the module, or leave it unsoldered, so it doesn't connect to the
 > board at all. The **bottom-left 5V pin** is then the module's only 5 V connection, and it is enough. Left
 > in, the pin shorts the 5 V rail to ground. With the power off, check with a meter that the 5 V pin has no
-> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The next board revision (v6) fixes the footprint.
+> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The next-generation board (v6) fixes the footprint, but it is still in progress and untested: build v5 for now.
 
 Design reference for the next-generation board: a 2-layer, ESP32-C6-based
 analog-phone-line gateway carrying one or two POTS lines through Silvertel
@@ -296,7 +296,7 @@ describe it.
 > clone, **take that pin out**: cut it off the module, or leave it unsoldered, so it doesn't connect to the
 > board at all. The **bottom-left 5V pin** is then the module's only 5 V connection, and it is enough. Left
 > in, the pin shorts the 5 V rail to ground. With the power off, check with a meter that the 5 V pin has no
-> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The next board revision (v6) fixes the footprint.
+> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The next-generation board (v6) fixes the footprint, but it is still in progress and untested: build v5 for now.
 
 
 The footprint accepts two modules, and they are **not** pin-compatible:

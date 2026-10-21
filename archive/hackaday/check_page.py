@@ -163,7 +163,7 @@ def fetch_all(base: str | None, auth: str | None, pid: str, key: str) -> dict:
     if project is None:
         for b, e in errors:
             print(f"  {b}: {e.message}", file=sys.stderr)
-        wrong_key = any("key" in e.message.lower() for _, e in errors)
+        wrong_key = any(e.code in (401, 403) or "key" in e.message.lower() for _, e in errors)
         sys.exit("Couldn't read the project." + (
             "\nHackaday says the API key is wrong or missing. Use the value labelled \"API Key\" "
             "on your app's page at dev.hackaday.io, not the client secret." if wrong_key else
