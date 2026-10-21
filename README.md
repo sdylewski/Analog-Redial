@@ -191,7 +191,7 @@ Going further: [VoIP setup](docs/voip-setup.md) ·
 
 ## Community
 
-- **Discord:** coming soon <!-- TODO: Discord invite link -->
+- **Discord:** [join the server](https://discord.gg/zEZkqfcxqE) for questions, build help and show-and-tell
 - **Want a board from a pooled order?** [Interest form](https://forms.gle/kVKHiXejV6M2ZxC17)
 - **Bugs and questions:** [GitHub Issues](https://github.com/sdylewski/Analog-Redial/issues)
 - **Built one?** Post a picture in the Discord channel! We'd love to see it.

@@ -6,8 +6,7 @@ contributions of every size are welcome: a bug report, a typo fix, a note that
 
 ## Talk to us
 
-- **Questions, show-and-tell, build help:** Discord: *(invite link coming soon)*
-  <!-- TODO: add the Discord invite link here once the server exists. -->
+- **Questions, show-and-tell, build help:** [Discord](https://discord.gg/zEZkqfcxqE)
 - **Bugs and feature requests:** [GitHub Issues](https://github.com/sdylewski/Analog-Redial/issues)
 - **Not sure whether something is a bug?** Ask first. It's fine to be wrong.
 
