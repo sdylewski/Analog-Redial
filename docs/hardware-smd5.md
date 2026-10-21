@@ -322,11 +322,11 @@ the normal `CONFIG_BOARD_TYPE_SMD5` build with native USB working.
 
 <table>
   <tr>
-    <td width="50%"><img src="pics/v6_esp32_solder_jumpers.png" alt="The Analog Redial board"></td>
+    <td width="50%"><img src="pics/v6_esp32_solder_jumpers.png" alt="The Analog Redial v5 board: solder jumpers for the 30-pin clone module"></td>
     <td width="50%"><img src="../docs/assets/photo-placeholder.svg" alt=" (photo coming soon)"></td>
   </tr>
   <tr>
-    <td align="center">Modification needed for cheap 30-pin esp32-c6-devkit</td>
+    <td align="center">v5 board: modification needed for the cheap 30-pin esp32-c6-devkit</td>
     <td align="center">add photo of finished rework</td>
   </tr>
 </table>
