@@ -23,12 +23,12 @@
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/pics/smd4_board.jpg" alt="The Analog Redial board"></td>
+    <td width="50%"><img src="docs/pics/V5_board.jpg" alt="The Analog Redial board"></td>
     <td width="50%"><img src="docs/pics/v4_case.jpg" alt="The board in its 3D-printed case (photo coming soon)"></td>
   </tr>
   <tr>
-    <td align="center">The board: an ESP32-C6, an audio codec, with dual phone lines.</td>
-    <td align="center">In its 3D-printed case (<a href="https://github.com/sdylewski/Analog-Redial/tree/main/hardware/3d-printed-case">print files</a>)</td>
+    <td align="center">The board: an ESP32-C6, an audio codec, with dual phone lines and the bluetooth module.</td>
+    <td align="center">In its 3D-printed case (<a href="https://github.com/sdylewski/Analog-Redial/blob/main/docs/case.md">case guide and print files</a>)</td>
   </tr>
 </table>
 
@@ -47,9 +47,9 @@ Bluetooth is the only one that needs an extra board.
 
 | | What you get | What you need |
 |---|---|---|
-| **Intercom** | Two phones, one board. Dial **321** and the other phone rings, or turn on intercom mode: lift one handset, wait, and the other rings. No Wi-Fi, no internet. Rooms in a house, kids' rooms. | A second phone line |
-| **A phone that does things** | Dial a code and something happens: play a clip, leave a message, hear a joke. Museum exhibits, art pieces, a wedding guestbook phone. Add your own codes and audio from the browser. | One phone |
-| **Answering machine** | Each line has its own greeting. Messages save on the board, or on a microSD card for hours of storage. Play or download them from the web page. | One phone (microSD for the most room) |
+| **Intercom** | Two phones, one board. Dial **321** and the other phone rings, or turn on intercom mode: lift one handset, wait, and the other rings. No Wi-Fi, no internet. Use in 2 rooms of a house, etc. | A second phone line |
+| **A phone that does things** | Dial a code and something happens: play a clip, leave a message, hear a joke. For museum exhibits, art pieces, a wedding guestbook phone. Add your own codes and audio from the browser. | One phone |
+| **Answering machine** | Each line has its own greeting. Messages save on the board, or on a microSD card for hours of storage. Play or download them from the web page. | One phone (microSD for the most space) |
 | **VoIP** | Register a line with Asterisk, FreePBX or any SIP server and call anything that server can reach. If the server goes down, the two phones can still call each other. | Wi-Fi and a SIP server |
 | **Home Assistant** | Every pickup, hang-up and dial code becomes an event, so a dial code can turn on a light and the phone can ring when your doorbell does. Over MQTT or a plain webhook. *Experimental.* | Wi-Fi and Home Assistant (or any MQTT broker) |
 | **Switch things** | Dial a code and a pin goes high for a few seconds: a relay, a buzzer, a lamp. | One line, no microSD, and a relay |
@@ -205,8 +205,8 @@ Going further: [VoIP setup](docs/voip-setup.md) ·
 | Aug 2020 | **Raspberry Pi** <br><img src="docs/pics/pi_version.jpg" width="220" alt="Raspberry Pi version in its project box"> | A Raspberry Pi 4 in a project box, two SLIC modules hand-wired on breadboard to the GPIO header, and a USB sound dongle per phone line. Hand written python software and shell scripts. No web UI, but it worked!|
 | Jun 2026 | **v1** | The first ESP32 board: through-hole, with a WM8731 codec and two AG1170 SLICs. The Pi's job on a $5 microcontroller. Never built because boards got lost in the mail.|
 | Jul 2026 | **v2** <br><img src="docs/pics/smd2_board.jpg" width="220" alt="Analog Redial v2 board"> | First surface-mount board: ESP32-C6 module, ES8388 codec, AG1171 SLICs, microSD. Required rework on audio lines and usb connection but it worked. |
-| Sep 2026 | **v4** <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | The current board: 2-layer, built around a cheaper 32-pin ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. |
-| Oct 2026 | **v5** | Working: takes a genuine or clone ESP32-C6 module, and adds the Bluetooth companion. **Known error: with a clone module, the clone's bottom-right 5V pin must be removed** (see [Get a board](docs/board.md)). |
+| Sep 2026 | **v4** <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | 2-layer, built around a cheaper 32-pin ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. |
+| Oct 2026 | **v5** <br><img src="docs/pics/V5_board.jpg" width="220" alt="Analog Redial v5 board">| Working: takes a genuine or clone ESP32-C6 module, and adds the Bluetooth companion. <br>**Known error: with a clone module, the clone's bottom-right 5V pin must be removed** (see [Get a board](docs/board.md)). |
 | Next | **v6** | **In progress, not built or tested yet.** The next generation: corrects the clone-module footprint error and adjusts the Bluetooth supply. The design files are in the repository; **build v5 for now**. |
 
 ## License

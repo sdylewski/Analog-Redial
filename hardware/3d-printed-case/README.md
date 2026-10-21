@@ -21,7 +21,5 @@ The `.step` files are the same parts, for editing in CAD.
 
 ## Other boards
 
-- **v5** is 5 mm longer than v4, so the v4 case won't fit it. Its case will
-  be added here.
-- [`Analog Redial v2/`](Analog%20Redial%20v2/) holds the case for the
-  earlier v2 board.
+- **v5** is 5 mm longer than v4, so the v4 case won't fit it. Its case is
+  being designed and will be added here.
