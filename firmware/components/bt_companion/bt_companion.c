@@ -477,7 +477,7 @@ esp_err_t bt_companion_start_pairing(void)
     /* Confirmed 2026-09-22 on real hardware: sending the pairing MMI action
      * (0x5D) alone gets ACKed (status 0x00) but the module never actually
      * broadcasts as discoverable -- no BM64_EVENT_DEVICE_STATE follows at
-     * all. The missing piece, straight from reference/BM64_arduino's own
+     * all. The missing piece, straight from the BM64_arduino library's (https://github.com/konikoni428/BM64_arduino) own
      * powerOn(): a POWERON_BUTTON_PRESS (0x51) then POWERON_BUTTON_RELEASE
      * (0x52) MMI action pair first. Doing that (even with MFB itself just
      * tied high on the bench, no GPIO control) is what got the module to

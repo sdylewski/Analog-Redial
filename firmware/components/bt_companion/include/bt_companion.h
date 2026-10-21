@@ -13,7 +13,7 @@
  * frame layout. Confirmed against Microchip's actual "Audio UART Command
  * Set" document and BM62/64 datasheet (datasheets/ in this repo) as of
  * 2026-09-22 — cross-checked against a working open-source Arduino library
- * too, konikoni428/BM64_arduino, vendored locally at reference/BM64_arduino.
+ * too, konikoni428/BM64_arduino (https://github.com/konikoni428/BM64_arduino).
  *
  * REWRITTEN 2026-09-21, confirmed working end-to-end 2026-09-22: an earlier
  * version of this file spoke an invented ASCII line protocol ("STATUS?\n",
@@ -155,7 +155,7 @@ esp_err_t bt_companion_start_pairing(void);
  * really just this, hardcoded to the pairing action). For testing MMI
  * codes the reference library sends as part of its own powerOn() sequence
  * (0x51 POWERON_BUTTON_PRESS, 0x52 POWERON_BUTTON_RELEASE) that this
- * component doesn't send anywhere yet -- see reference/BM64_arduino. */
+ * component doesn't send anywhere yet -- see https://github.com/konikoni428/BM64_arduino. */
 esp_err_t bt_companion_send_mmi(uint8_t action);
 
 /* Bring-up/diagnostic only, same link-must-be-up precondition: sends any

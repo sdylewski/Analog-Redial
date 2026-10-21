@@ -25,7 +25,7 @@ The pairing mystery took a while to run down: sending the pairing MMI
 action (`0x5D`) alone got ACKed (status 0x00, i.e. accepted) but the module
 never actually broadcast as discoverable -- no state-change event followed
 at all, and no phone/laptop ever saw it, even across a full power cycle and
-several clean re-tries. The fix, found in `reference/BM64_arduino`'s own
+several clean re-tries. The fix, found in the open-source BM64_arduino library's (https://github.com/konikoni428/BM64_arduino) own
 `powerOn()`: the module needs an MMI `POWERON_BUTTON_PRESS` (`0x51`) then
 `POWERON_BUTTON_RELEASE` (`0x52`) sent first -- only after that handshake
 did the module start emitting real `BTM_Status` events (Power ON -> Standby
@@ -526,7 +526,7 @@ a real gap found while writing this up.
 This all rides on the standard Bluetooth **Hands-Free Profile (HFP)** --
 BM64 implements the AT-command side of HFP internally and exposes it to the
 host MCU as simple UART events/commands (confirmed real, not guessed --
-`reference/BM64_arduino/src/BM64_enum.h`), so none of this needs any custom
+`src/BM64_enum.h` in https://github.com/konikoni428/BM64_arduino), so none of this needs any custom
 iPhone app or new pairing work. It's the exact same mechanism a Bluetooth
 car kit or AirPods already use to ring/answer a call.
 
