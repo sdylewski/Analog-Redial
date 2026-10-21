@@ -14,7 +14,9 @@ looks for the mistakes that are easy to miss in the web editor:
 
 SETUP (once)
   1. Log in at https://dev.hackaday.io and register an application. That gives
-     you an API key (use the one labelled "API Key", not the client secret). (The docs don't spell out the button names; look for
+     you an API key (use the one labelled "API Key", not the client secret).
+     A key alone only sees PUBLISHED projects. For a draft, either publish it,
+     or copy its text into a file and use --text (no key needed). (The docs don't spell out the button names; look for
      "Apps", "Applications" or "Create app" after logging in.)
   2. Save the key in a file OUTSIDE the repo, readable only by you:
          mkdir -p ~/.config/hackaday && cd ~/.config/hackaday
@@ -28,6 +30,7 @@ RUN
   ./check_page.py --project 206945                 # or the full project URL
   ./check_page.py --project 123456 --dump page.json   # also save the raw reply
   ./check_page.py --offline page.json              # re-check a saved reply
+  ./check_page.py --text mypage.txt                # check text copied from the web editor
   ./check_page.py --project 123456 --no-links      # skip the link check
 
 The first run prints which fields the API returned, because the docs don't
@@ -58,10 +61,12 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-# Hackaday has two API generations. The new developer platform documents /v2 with
-# an X-API-Key header; the long-standing one is /v1 with ?api_key=. Both live on
-# api.hackaday.io (hackaday.io itself is the website and answers HTML), so try both.
-BASES = [("https://api.hackaday.io/v2", "header"), ("https://api.hackaday.io/v1", "query")]
+# What actually works (found by trying it, the docs are wrong on both counts):
+# the developer platform's /v2 is served from dev.hackaday.io, not hackaday.io
+# (which is the website and answers HTML), and it reads the key from ?api_key=,
+# not the X-API-Key header the docs describe. The older /v1 on api.hackaday.io
+# also takes ?api_key=. Try both.
+BASES = [("https://dev.hackaday.io/v2", "query"), ("https://api.hackaday.io/v1", "query")]
 DEFAULT_BASE = None
 DEFAULT_DRAFT = HERE / "hackaday-page.md"
 DICTIONARY = HERE / "dictionary.txt"
@@ -163,11 +168,20 @@ def fetch_all(base: str | None, auth: str | None, pid: str, key: str) -> dict:
     if project is None:
         for b, e in errors:
             print(f"  {b}: {e.message}", file=sys.stderr)
-        wrong_key = any(e.code in (401, 403) or "key" in e.message.lower() for _, e in errors)
-        sys.exit("Couldn't read the project." + (
-            "\nHackaday says the API key is wrong or missing. Use the value labelled \"API Key\" "
-            "on your app's page at dev.hackaday.io, not the client secret." if wrong_key else
-            "\nCheck the project number."))
+        # The first address is the one this key is for; the legacy /v1 one always
+        # complains about a v2 key, so only the first answer decides what to tell you.
+        first = errors[0][1]
+        wrong_key = first.code in (401, 403) or "key" in first.message.lower()
+        not_found = first.code == 404 or "not found" in first.message.lower()
+        if wrong_key:
+            sys.exit("Couldn't read the project.\nHackaday says the API key is wrong or missing. Use the "
+                     "value labelled \"API Key\" on your app's page at dev.hackaday.io, not the client secret.")
+        if not_found:
+            sys.exit("Couldn't read the project: the API says it doesn't exist.\n"
+                     "If the number is right, the project is probably still an unpublished draft. A key alone "
+                     "only sees published projects (drafts need OAuth with the private-apis:read scope).\n"
+                     "Until it's published, copy the page text into a file and run:  ./check_page.py --text FILE")
+        sys.exit("Couldn't read the project. Check the project number.")
     base, auth = used
     print(f"Connected: {base}")
     logs, page = [], 1
@@ -387,6 +401,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Read-only check of a hackaday.io project page.")
     ap.add_argument("--project", help="project number or URL")
     ap.add_argument("--offline", metavar="FILE", help="check a saved reply instead of fetching")
+    ap.add_argument("--text", metavar="FILE", help="check a plain text or Markdown file (e.g. the page text "
+                                                   "copied out of the web editor); no API key needed")
     ap.add_argument("--dump", metavar="FILE", help="save the raw reply (it holds no key)")
     ap.add_argument("--base-url", default=DEFAULT_BASE, help=argparse.SUPPRESS)
     ap.add_argument("--auth", choices=("header", "query"), help=argparse.SUPPRESS)
@@ -395,7 +411,9 @@ def main() -> int:
     ap.add_argument("--no-spell", action="store_true")
     args = ap.parse_args()
 
-    if args.offline:
+    if args.text:
+        data = {"project": {"description": Path(args.text).read_text()}, "logs": []}
+    elif args.offline:
         data = json.loads(Path(args.offline).read_text())
     else:
         pid = project_id(args.project or os.environ.get("HACKADAY_PROJECT_ID", ""))
