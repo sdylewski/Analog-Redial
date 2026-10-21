@@ -208,6 +208,7 @@ static void load_config(void)
  * (`bm64_diagpins` sets them; `bm64_findwire` finds RST_N). If IBDK entry
  * fails the documented way it is tried once with the two swapped, and a swap
  * that works is remembered. */
+#ifdef BOARD_BT_MFB_PIN
 static int  s_rst_pin = -1, s_p20_pin = -1;
 static bool s_diag_tried_swap;
 static void diag_pins_load(void)
@@ -251,6 +252,7 @@ void bt_companion_diag_pins_get(int *rst, int *p20)
     if (rst) *rst = diag_rst_pin();
     if (p20) *p20 = diag_p20_pin();
 }
+#endif /* BOARD_BT_MFB_PIN: boards without the mode-pin wiring get stubs further down */
 
 /* Which module is on the header. Fixed at boot (Settings -> Hardware takes
  * effect on reboot), so the BM64 and BK3266 backends never have to share the

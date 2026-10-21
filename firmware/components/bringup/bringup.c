@@ -2278,6 +2278,7 @@ static int cmd_bm64_test(int argc, char **argv)
     return err == ESP_OK ? 0 : 1;
 }
 
+#ifdef BOARD_BT_MFB_PIN   /* SMD4/SMD5 pin maps only */
 /* bm64_findwire: which spare pin (GPIO18-21, header J5's odd pins) is the
  * carrier's RST_N lead? Pulls each low in turn; a module in reset stops
  * answering the UART. (P2_0 can't be found this way: it only matters during
@@ -2336,6 +2337,7 @@ static int cmd_bm64_diagpins(int argc, char **argv)
     printf("RST_N lead on GPIO%d, P2_0 lead on GPIO%d\n", r, p);
     return 0;
 }
+#endif
 
 static int cmd_bm64_addr(int argc, char **argv)
 {
