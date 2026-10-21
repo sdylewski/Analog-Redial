@@ -1,6 +1,8 @@
 # 3D-printed case
 
-A two-part case, box and lid, for the Analog Redial board.
+A two-part case, box and lid, for the Analog Redial board. The build guide
+(which one to print, screws, assembly) is the
+[case page](../../docs/case.md).
 
 <!-- TODO: replace with a photo of the board in its case, e.g. ../../docs/pics/board_in_case.jpg -->
 ![Photo coming soon: the board in its 3D-printed case](../../docs/assets/photo-placeholder.svg)

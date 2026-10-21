@@ -119,9 +119,8 @@ connecting to phones directly; it reaches the outside world over Wi-Fi
 
 ## The case
 
-3D-printable cases for v4, single-line and dual-line, are in
-[`hardware/3d-printed-case`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/3d-printed-case).
-v5 is 5 mm longer and needs its own case.
+3D-printable cases for v4, single-line and dual-line, are described on the
+[case page](case.md). v5 is 5 mm longer and needs its own case.
 
 ---
 
