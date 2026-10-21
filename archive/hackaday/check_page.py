@@ -14,7 +14,7 @@ looks for the mistakes that are easy to miss in the web editor:
 
 SETUP (once)
   1. Log in at https://dev.hackaday.io and register an application. That gives
-     you an API key. (The docs don't spell out the button names; look for
+     you an API key (use the one labelled "API Key", not the client secret). (The docs don't spell out the button names; look for
      "Apps", "Applications" or "Create app" after logging in.)
   2. Save the key in a file OUTSIDE the repo, readable only by you:
          mkdir -p ~/.config/hackaday && cd ~/.config/hackaday
@@ -25,7 +25,7 @@ SETUP (once)
      hackaday.io/project/<NUMBER>-name.
 
 RUN
-  ./check_page.py --project 123456                 # or the full project URL
+  ./check_page.py --project 206945                 # or the full project URL
   ./check_page.py --project 123456 --dump page.json   # also save the raw reply
   ./check_page.py --offline page.json              # re-check a saved reply
   ./check_page.py --project 123456 --no-links      # skip the link check
@@ -58,7 +58,11 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_BASE = "https://hackaday.io/v2"
+# Hackaday has two API generations. The new developer platform documents /v2 with
+# an X-API-Key header; the long-standing one is /v1 with ?api_key=. Both live on
+# api.hackaday.io (hackaday.io itself is the website and answers HTML), so try both.
+BASES = [("https://api.hackaday.io/v2", "header"), ("https://api.hackaday.io/v1", "query")]
+DEFAULT_BASE = None
 DEFAULT_DRAFT = HERE / "hackaday-page.md"
 DICTIONARY = HERE / "dictionary.txt"
 KEY_FILE = Path.home() / ".config" / "hackaday" / "api_key"
@@ -89,26 +93,41 @@ def project_id(arg: str) -> str:
     return m.group(1)
 
 
-def get(base: str, path: str, key: str, params: dict | None = None):
-    url = base.rstrip("/") + path
-    if params:
-        url += "?" + urllib.parse.urlencode(params)
-    req = urllib.request.Request(url, headers={"X-API-Key": key, "Accept": "application/json",
-                                               "User-Agent": UA})
+class ApiError(Exception):
+    def __init__(self, code: int, message: str):
+        super().__init__(message)
+        self.code, self.message = code, message
+
+
+def get(base: str, auth: str, path: str, key: str, params: dict | None = None):
+    params = dict(params or {})
+    headers = {"Accept": "application/json", "User-Agent": UA}
+    if auth == "header":
+        headers["X-API-Key"] = key
+    else:
+        params["api_key"] = key
+    url = base.rstrip("/") + path + ("?" + urllib.parse.urlencode(params) if params else "")
+    req = urllib.request.Request(url, headers=headers)
     for attempt in range(3):
         try:
             with urllib.request.urlopen(req, timeout=20) as r:
-                return json.load(r)
+                body = r.read()
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt < 2:
                 time.sleep(5 * (attempt + 1))
                 continue
-            why = {401: "the API key was refused: check it", 403: "not allowed: check the key",
-                   404: "not found: check the project number",
-                   429: "rate limited: try again in a minute"}.get(e.code, f"HTTP {e.code}")
-            sys.exit(f"{path}: {why}")
+            msg = ""
+            try:
+                msg = json.loads(e.read().decode("utf-8", "replace")).get("message", "")
+            except Exception:
+                pass
+            raise ApiError(e.code, (msg or f"HTTP {e.code}").replace(key, "<key>"))
         except (urllib.error.URLError, TimeoutError, ssl.SSLError) as e:
             sys.exit(f"{path}: couldn't reach the server ({e})")
+        try:
+            return json.loads(body)
+        except ValueError:
+            raise ApiError(404, "the reply wasn't JSON (wrong address?)")
     sys.exit(f"{path}: gave up")
 
 
@@ -123,16 +142,48 @@ def list_of_dicts(js):
     return []
 
 
-def fetch_all(base: str, pid: str, key: str) -> dict:
-    project = get(base, f"/projects/{pid}", key)
-    logs, page, limit = [], 1, 100
-    while True:
-        batch = list_of_dicts(get(base, f"/projects/{pid}/logs", key, {"page": page, "limit": limit}))
+def optional(base, auth, path, key, params=None):
+    """A section that may not exist on this API version."""
+    try:
+        return get(base, auth, path, key, params)
+    except ApiError:
+        return None
+
+
+def fetch_all(base: str | None, auth: str | None, pid: str, key: str) -> dict:
+    combos = [(base, auth or "header")] if base else BASES
+    project, used, errors = None, None, []
+    for b, a in combos:
+        try:
+            project = get(b, a, f"/projects/{pid}", key)
+            used = (b, a)
+            break
+        except ApiError as e:
+            errors.append((b, e))
+    if project is None:
+        for b, e in errors:
+            print(f"  {b}: {e.message}", file=sys.stderr)
+        wrong_key = any("key" in e.message.lower() for _, e in errors)
+        sys.exit("Couldn't read the project." + (
+            "\nHackaday says the API key is wrong or missing. Use the value labelled \"API Key\" "
+            "on your app's page at dev.hackaday.io, not the client secret." if wrong_key else
+            "\nCheck the project number."))
+    base, auth = used
+    print(f"Connected: {base}")
+    logs, page = [], 1
+    while page <= 50:
+        js = optional(base, auth, f"/projects/{pid}/logs", key, {"page": page, "per_page": 50, "limit": 50})
+        batch = list_of_dicts(js) if js else []
         logs += batch
-        if len(batch) < limit or page >= 50:
+        if len(batch) < 50:
             break
         page += 1
-    return {"project": project, "logs": logs}
+    out = {"project": project, "logs": logs}
+    for extra in ("details", "instructions"):      # sections the older API serves separately
+        js = optional(base, auth, f"/projects/{pid}/{extra}", key)
+        if js:
+            out[extra] = js
+    return out
 
 
 # ---------------------------------------------------------------- extracting
@@ -338,6 +389,7 @@ def main() -> int:
     ap.add_argument("--offline", metavar="FILE", help="check a saved reply instead of fetching")
     ap.add_argument("--dump", metavar="FILE", help="save the raw reply (it holds no key)")
     ap.add_argument("--base-url", default=DEFAULT_BASE, help=argparse.SUPPRESS)
+    ap.add_argument("--auth", choices=("header", "query"), help=argparse.SUPPRESS)
     ap.add_argument("--draft", type=Path, default=DEFAULT_DRAFT)
     ap.add_argument("--no-links", action="store_true")
     ap.add_argument("--no-spell", action="store_true")
@@ -347,7 +399,7 @@ def main() -> int:
         data = json.loads(Path(args.offline).read_text())
     else:
         pid = project_id(args.project or os.environ.get("HACKADAY_PROJECT_ID", ""))
-        data = fetch_all(args.base_url, pid, load_key())
+        data = fetch_all(args.base_url, args.auth, pid, load_key())
         if args.dump:
             Path(args.dump).write_text(json.dumps(data, indent=2))
             print(f"saved the reply to {args.dump}")
