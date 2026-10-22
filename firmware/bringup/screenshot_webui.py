@@ -2,7 +2,10 @@
 """Capture full-page screenshots of the board's web UI into docs/pics/.
 
 Each page is saved as <page-name>.png (status.png, recordings.png,
-settings-<tab>.png), so re-running overwrites the previous set in place.
+settings-<tab>.png) in the dark theme, which is what the docs show, and as
+<page-name>-light.png in the light theme. A 400x250 thumbnail of each goes in
+docs/pics/thumbs/ (macOS `sips`). The Wi-Fi name, the board's name and the
+serial number are replaced with generic ones. Re-running overwrites the previous set.
 
 How: curl fetches each page and its stylesheet into a temp folder, and
 headless Chrome renders that local copy. Chrome is never pointed at the
@@ -39,6 +42,7 @@ PAGES = {
     "settings-dialcodes": "/settings?tab=dialcodes",
     "settings-voip": "/settings?tab=voip",
     "settings-bluetooth": "/settings?tab=bluetooth",
+    "settings-home": "/settings?tab=home",
     "settings-hardware": "/settings?tab=hardware",
     "settings-storage": "/settings?tab=storage",
     "settings-diag": "/settings?tab=diag",
@@ -48,6 +52,9 @@ STATIC_FILES = ["static/style.css", "static/favicon.svg"]
 
 HEIGHT_PROBE = ("<script>window.addEventListener('load',function(){"
                 "document.title='H='+document.documentElement.scrollHeight;});</script>")
+
+
+THEMES = {"dark": "", "light": "-light"}
 
 
 def curl(url: str) -> bytes:
@@ -114,6 +121,8 @@ def main() -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("host", help="board IP or hostname")
     ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "..", "..", "docs", "pics"))
+    ap.add_argument("--themes", nargs="+", choices=THEMES.keys(), default=list(THEMES),
+                    help="which themes to capture (default: both)")
     ap.add_argument("--only", nargs="+", choices=PAGES.keys(), help="capture just these pages")
     args = ap.parse_args()
 
@@ -135,6 +144,10 @@ def main() -> None:
         status = json.loads(curl(f"{base}/api/status"))
         ssids = [htmllib.escape(s) for s in [status.get("wifi_ssid", "")] if s]
 
+        # Neither should the board's own name; the docs show the default one.
+        board_name = status.get("board_name", "")
+        serial = status.get("serial", "")
+
         for name in (args.only or PAGES):
             html = curl(base + PAGES[name]).decode("utf-8", "replace")
             html = re.sub(r'(href|src)="/static/', r'\1="static/', html)
@@ -145,21 +158,32 @@ def main() -> None:
             html = re.sub(r'(--secret &quot;)[^&]*(&quot;)', r'\1your-setup-password\2', html)
             html = re.sub(r'(id="setup_pw_input" name="password" value=")[^"]*"',
                           r'\1your-setup-password"', html)
+            if board_name and board_name != "phone":
+                html = re.sub(re.escape(board_name), "phone", html, flags=re.I)
+            if len(serial) >= 12:
+                html = html.replace(serial, serial[:6] + "XXXXXX")
             for ssid in ssids:
                 html = html.replace(ssid, "MyHomeWiFi")
             html = re.sub(r"(<tr><td>)[^<]*?( \u25cf)?(</td><td>(?:\U0001f512|\u2014)</td>)",
                           r"\1MyHomeWiFi\2\3", html)
-            page = os.path.join(work, f"{name}.html")
-            with open(page, "w") as fh:
-                fh.write(html.replace("</body>", HEIGHT_PROBE + "</body>", 1))
+            for theme in args.themes:
+                themed = re.sub(r"<html\b", f'<html data-theme="{theme}"', html, count=1)
+                page = os.path.join(work, f"{name}{THEMES[theme]}.html")
+                with open(page, "w") as fh:
+                    fh.write(themed.replace("</body>", HEIGHT_PROBE + "</body>", 1))
 
-            dom = chrome_dump_dom(page, profile)
-            m = re.search(r"<title>H=(\d+)</title>", dom)
-            height = int(m.group(1)) if m else 900
+                dom = chrome_dump_dom(page, profile)
+                m = re.search(r"<title>H=(\d+)</title>", dom)
+                height = int(m.group(1)) if m else 900
 
-            png = os.path.join(out_dir, f"{name}.png")
-            chrome_screenshot(page, png, height, profile)
-            print(f"{name}.png  {WIDTH}x{height}")
+                png = os.path.join(out_dir, f"{name}{THEMES[theme]}.png")
+                chrome_screenshot(page, png, height, profile)
+                # Thumbnail: the top 1280x800 of the page, scaled to 400 px wide.
+                thumb = os.path.join(out_dir, "thumbs", f"{name}{THEMES[theme]}.png")
+                os.makedirs(os.path.dirname(thumb), exist_ok=True)
+                chrome_screenshot(page, thumb, 800, profile)
+                subprocess.run(["sips", "--resampleWidth", "400", thumb], check=True, capture_output=True)
+                print(f"{name}{THEMES[theme]}.png  {WIDTH}x{height}")
     finally:
         shutil.rmtree(work, ignore_errors=True)
 

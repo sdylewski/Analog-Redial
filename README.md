@@ -9,7 +9,7 @@
 <p align="center">
   <b>Bring old telephones back to life.</b><br>
   Plug in one or two analog phones, rotary or touch-tone, and they get real
-  dial tone, ringing, an operator recording and an answering machine: a complete phone system!<br>
+  dial tone, ringing, an operator recording and an answering machine: a complete standalone phone system.<br>
   Hackable open source hardware and software with a working web UI for configuration.</p>
 
 <p align="center">
@@ -24,17 +24,32 @@
 <table>
   <tr>
     <td width="50%"><img src="docs/pics/V5_board.jpg" alt="The Analog Redial board"></td>
-    <td width="50%"><img src="docs/pics/v4_case.jpg" alt="The board in its 3D-printed case (photo coming soon)"></td>
+    <td width="50%"><img src="docs/pics/v4_case.jpg" alt="The board in its 3D-printed case"></td>
   </tr>
   <tr>
     <td align="center">The board: an ESP32-C6, an audio codec, with dual phone lines and the bluetooth module.</td>
-    <td align="center">In its 3D-printed case (<a href="https://github.com/sdylewski/Analog-Redial/blob/main/docs/case.md">case guide and print files</a>)</td>
+    <td align="center">In its 3D-printed case <br>(<a href="https://github.com/sdylewski/Analog-Redial/blob/main/docs/case.md">case guide and print files</a>)</td>
   </tr>
 </table>
 
----
 
-## Everything it connects to
+## What can I do with it?
+
+| | What you get | What you need |
+|---|---|---|
+| **Offline Calling** | Two phones, one board. Dial **321** (configurable) and the other phone rings.  No Wi-Fi required. Use in 2 rooms of a house or a fun toy for kids| 2 phones |
+| **A phone that does things** | Dial a code and something happens: play a clip, leave a message, hear a joke. For museum exhibits, art pieces, a wedding guestbook phone. Add your own codes and audio from the browser. | One phone |
+| **VoIP** | Register a line with Asterisk, FreePBX or any SIP server and call anything that server can reach. If the server goes down, the two phones can still call each other. | One phone <br> Wi-Fi <br> SIP server |
+| **Home Assistant** | Every pickup, hang-up and dial code becomes an event, so a dial code can turn on a light and the phone can ring when your doorbell does. Over MQTT or a plain webhook. *Experimental.* | Wi-Fi and Home Assistant (or any MQTT broker) |
+| **Switch things** | Dial a code and a pin goes high for a few seconds or continuously: a relay, a buzzer, a lamp. | One line <br> no microSD <br> a relay |
+| **Bluetooth calls** | Pair your mobile and the rotary phone becomes its handset: the bell rings for incoming calls, lift to answer, dial out on the rotary dial. | The BM64 Bluetooth board |
+
+### Why not just buy a VoIP adapter?
+
+You can do a lot with VoIP adapters and an Asterisk server, but this system can work fully offline if desired while also adding VoIP when needed.  There's also the possibility of uSD card access, bluetooth, or 4 GPIO pins to do even more.
+
+
+## System overview
 
 <p align="center">
   <img src="docs/assets/setup-overview-top-web.png" alt="Everything the Analog Redial board can connect to: one phone always, then a second phone line or a microSD card or your own gadgets on four spare pins chosen with the J5 jumpers; Wi-Fi to the web interface, a VoIP server and Home Assistant; and Bluetooth to a cell phone through an extra adapter board">
@@ -43,65 +58,43 @@
 Every network option runs on the board's own Wi-Fi, with nothing to add.
 Bluetooth is the only one that needs an extra board.
 
-## What can I do with it?
-
-| | What you get | What you need |
-|---|---|---|
-| **Intercom** | Two phones, one board. Dial **321** and the other phone rings, or turn on intercom mode: lift one handset, wait, and the other rings. No Wi-Fi, no internet. Use in 2 rooms of a house, etc. | A second phone line |
-| **A phone that does things** | Dial a code and something happens: play a clip, leave a message, hear a joke. For museum exhibits, art pieces, a wedding guestbook phone. Add your own codes and audio from the browser. | One phone |
-| **Answering machine** | Each line has its own greeting. Messages save on the board, or on a microSD card for hours of storage. Play or download them from the web page. | One phone (microSD for the most space) |
-| **VoIP** | Register a line with Asterisk, FreePBX or any SIP server and call anything that server can reach. If the server goes down, the two phones can still call each other. | Wi-Fi and a SIP server |
-| **Home Assistant** | Every pickup, hang-up and dial code becomes an event, so a dial code can turn on a light and the phone can ring when your doorbell does. Over MQTT or a plain webhook. *Experimental.* | Wi-Fi and Home Assistant (or any MQTT broker) |
-| **Switch things** | Dial a code and a pin goes high for a few seconds: a relay, a buzzer, a lamp. | One line, no microSD, and a relay |
-| **Your cell phone** | Pair your mobile and the rotary phone becomes its handset: the bell rings for incoming calls, lift to answer, dial out on the rotary dial. | The BM64 Bluetooth board, with the v5 board. A cheaper DFRobot BT401 module is next to be tried |
-
-### Why not just buy a VoIP adapter?
-
-Flexibility and packability. Off-the-shelf analog telephone adapters (ATAs)
-only understand touch-tone, so a rotary phone can't dial through them, and
-they need a SIP server before they do anything at all. Even calling the
-phone next to it can mean dialing something like `*47` and then the other
-phone's address. Analog Redial reads rotary pulses as well as touch-tone,
-and it is a complete hackable phone exchange on its own.
-
 ### The finer print
 
 - **Dialing.** Rotary pulse and touch-tone, on either line. Dial codes can be
   up to 10 digits (spaces, dashes and parentheses are ignored). Add your own
-  codes and audio clips from the browser, no rebuild, and give any built-in
-  code a different number. Digit readback speaks each digit you dial (**822**
-  on, **821** off), and **314** reads pi aloud.
-- **Calls.** Line-to-line calls with ringback and busy tones. Optional
-  intercom mode: lift one handset, wait, and the other phone rings with its
-  own double ring. VoIP in and out (G.711, on your network).
+  codes and audio clips from the browser and give any built-in
+  code a different number. 
+  	- Play an audio file after dialing a number: **421** plays dial-up modem sounds
+  	- Respond to any number: **314** reads pi aloud.
+  	- Optional digit readback speaks each digit you dial (**822**
+  on, **821** off)
+- **Calls.** Line-to-line calls with ringback and busy tones. 
+	- Optional intercom mode: lift one handset, wait, and the other phone rings with its
+  own double ring. 
+  	- Optional VoIP in and out (G.711, on your network).
 - **Sound.** Dial tone, ringback and busy that match your country (North
   America, several European countries, Japan, China, or a generic
   international set). Echo cancellation and earpiece volume per line. An
   off-hook alert if a handset is left off. Experimental voice effects
-  (Dalek, chipmunk, robot) mid-call, off by default.
+  (Dalek, chipmunk, robot) mid-call.
 - **Messages.** Record a message with **211** and download it from the
-  browser. A per-line answering machine, each line with its own greeting,
-  that also answers VoIP calls. Insert a microSD card for hours of storage
-  (1-line version only). A one-shot **call recording** (Settings →
-  Diagnostics) saves a whole call to the card, for demos and bug reports.
+  browser. 
+  	- Optional per-line answering machine, each line with its own greeting,
+  that also answers VoIP or local calls. 
+  	- Storage to internal flash or microSD card for hours of storage
+  (1-line version only). 
 - **Home automation.** Every pickup, hang-up, dial code and incoming ring
   can go to Home Assistant, or any system that takes a webhook or MQTT. Home
   Assistant can ring a phone or fire a pin output back. Experimental; see
   [Home Assistant](docs/home-assistant.md).
 - **Things on the pins.** A dial code can switch one of four spare pins
   (a relay, a buzzer, a lamp) for a set number of seconds, or toggle it.
-- **VoIP.** Claim a number from the Asterisk-side
-  [provisioner](https://github.com/sdylewski/Analog-Redial/blob/main/server/voip-provisioner/README.md) with one button, or fill
-  in the form. No PBX handy? A tiny SIP proxy for trying it from a laptop
-  softphone is in [VoIP setup](docs/voip-setup.md).
 - **Day to day.** Quiet hours that silence the bell overnight. Remembers
   several Wi-Fi networks. An optional web password. Firmware updates from
   the browser. A one-button rescue mode for when it can't find its network.
-  If the board restarts because its power supply dipped, it says so: an
-  amber blink, a banner in the web page and a falling tone when you next lift
-  a handset.
+  Board blink codes to indicate activity and errors.
 - **Open.** ESP-IDF C firmware under the MIT license, KiCad hardware files,
-  and a serial console for poking at every part of the hardware.
+  and a serial console for debugging.
 
 Full feature list and firmware architecture: [Features](docs/features.md).
 
@@ -132,6 +125,8 @@ Click any picture for the full page. A guided tour is in
 
 ---
 
+
+
 ## What does one cost?
 
 US prices from October 2026, including shipping and import tariff:
@@ -147,12 +142,12 @@ US prices from October 2026, including shipping and import tariff:
 
 **Five boards cost about $186 in all, about $37 each.** Want just one?
 JLCPCB's minimum is five, so it's about $110 up front, with four spare PCBs.
-The five-board Bluetooth figure is $15 a board plus about $5 shipping.
-
-You'll also want a 2A USB-C charger and one or two analog phones. Buying
+The five-board Bluetooth figure is $15 a board plus about $5 shipping. Buying
 the hand-solder parts from AliExpress saves $7 per board.
 
-Most of a small order is fixed setup fees, so boards get cheaper when people
+You'll also want a 2A USB-C or 5V DC charger and one or two analog phones. 
+
+Most of a small order is fixed PCB setup fees, so boards get cheaper when people
 order together. If you'd like a board from a group order,
 **[register your interest](https://forms.gle/kVKHiXejV6M2ZxC17)**: no
 commitment, it just tells us how many people want one.
@@ -160,6 +155,7 @@ commitment, it just tells us how many people want one.
 Price breakdown: [Get a board](docs/board.md#what-it-costs).
 
 ---
+<br><img src="docs/pics/v5_board_annotated.png" width="600" alt="Analog Redial v2 board">
 
 ## Build one
 
