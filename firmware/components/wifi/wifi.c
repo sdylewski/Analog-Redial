@@ -226,6 +226,11 @@ static void apply_sta_config(const char *ssid, const char *pass)
     strncpy((char *)wc.sta.ssid, ssid, sizeof(wc.sta.ssid) - 1);
     strncpy((char *)wc.sta.password, pass, sizeof(wc.sta.password) - 1);
     wc.sta.threshold.authmode = strlen(pass) ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
+    /* Several access points can share one name (a mesh, or a router plus an
+     * extender). The default is a fast scan that joins the first match, which
+     * can be a distant node at -85 dBm; scan every channel and take the strongest. */
+    wc.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+    wc.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
     /* WPA3: allow both SAE password-element methods. A zeroed config means
      * "unspecified", which doesn't cover routers that require hash-to-
      * element (H2E) -- those fail authentication with reason 202 even with
