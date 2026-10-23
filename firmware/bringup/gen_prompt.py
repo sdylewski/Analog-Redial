@@ -235,6 +235,8 @@ def _ensure_kokoro(auto_install: bool):
 def speak_kokoro(kokoro, text: str, voice: str, out_wav: Path) -> None:
     import soundfile as sf
     lang = "en-gb" if voice.startswith("b") else "en-us"
+    import re
+    text = re.sub(r"(?<=\d)-(?=\d)", " ", text)   # read 2-1-1 as digits, not "two dash one"
     samples, rate = kokoro.create(text, voice=voice, speed=1.0, lang=lang)
     sf.write(str(out_wav), samples, rate)
 

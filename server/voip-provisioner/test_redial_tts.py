@@ -36,9 +36,25 @@ class TtsAudioTest(unittest.TestCase):
         self.assertAlmostEqual(n / 8000, 1.08, delta=0.03)   # the tone plus 40 ms margins
         self.assertEqual(struct.unpack("<I", wav[4:8])[0], len(wav) - 8)
 
+    def test_tag_chunk(self):
+        rate = 24000
+        tone = 0.3 * np.sin(2 * np.pi * 440 * np.arange(rate) / rate)
+        tag = tts.text_tag("af_sarah", "  Leave a   message. ")
+        self.assertEqual(tag, tts.text_tag("af_sarah", "Leave a message."))
+        self.assertRegex(tag, r"^redial-tts voice=af_sarah text=[0-9a-f]{16}$")
+        wav = tts.to_phone_wav(tone, rate, tag)
+        self.assertIn(b"LIST", wav)
+        self.assertIn(tag.encode() + b"\0", wav)
+        self.assertLess(wav.index(tag.encode()), wav.index(b"data"))   # within the first bytes a board reads
+        self.assertEqual(struct.unpack("<I", wav[4:8])[0], len(wav) - 8)
+
     def test_silence_is_an_error(self):
         with self.assertRaises(ValueError):
             tts.to_phone_wav(np.zeros(24000), 24000)
+
+    def test_speakable(self):
+        self.assertEqual(tts.speakable("Dial 2-1-1, or 8-6-7-5-3-0-9. Well-known."),
+                         "Dial 2 1 1, or 8 6 7 5 3 0 9. Well-known.")
 
     def test_clean_text(self):
         self.assertEqual(tts.clean_text("  Hi\x00 there\n\n now "), "Hi there now")

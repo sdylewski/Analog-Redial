@@ -2100,6 +2100,188 @@ static int append_general_tab(char *buf, size_t cap, int off)
 #define SPK_MIN 12   /* slider range, in codec steps (see the speaker card) */
 #define SPK_MAX 33
 
+static int append_prov_result(char *buf, size_t cap, int off, const char *id, bool ok, const char *msg);
+
+/* ---- Update spoken audio ----
+ * Every text-to-speech file on the board -- the tracked prompts (operator,
+ * record prompt, greeting), and in English the Jenny message and the spoken
+ * digits -- remade on the provisioner's TTS server, but only where the file's
+ * own tag (redial-tts voice=... text=..., written by the server) doesn't match
+ * the server's current voice and the current text. Runs in its own task: a
+ * full first pass is a couple of dozen renders. */
+static void expand_prompt_vars(const char *in, char *out, size_t len);
+
+typedef struct {
+    char name[PROMPT_NAME_MAX];
+    char text[PROMPT_TEXT_MAX + 64];
+    bool tracked;   /* a prompts.c entry: mark it generated afterwards */
+} regen_item_t;
+
+static volatile bool s_regen_running;
+static bool s_regen_ran;
+static int  s_regen_total, s_regen_done, s_regen_made, s_regen_skipped, s_regen_failed;
+static char s_regen_now[PROMPT_NAME_MAX];
+static char s_regen_err[VOIP_PROV_MSG_LEN + PROMPT_NAME_MAX + 4];
+
+static const char *const REGEN_DIGITS[] = {
+    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+};
+#define REGEN_JENNY_TEXT "If you're trying to reach Jenny, she's not home right now. Please call back later."
+
+/* True if the stored file (storage or bundled) carries exactly this tag. */
+static bool regen_tag_matches(const char *name, const char *want)
+{
+    storage_reader_t r;
+    if (storage_read_open(name, &r) != ESP_OK) return false;
+    char head[384];
+    size_t n = storage_read_chunk(&r, head, sizeof(head));
+    storage_read_close(&r);
+    size_t wl = strlen(want);
+    for (size_t i = 0; i + wl < n; i++) {
+        if (memcmp(head + i, want, wl) == 0 && head[i + wl] == '\0') return true;
+    }
+    return false;
+}
+
+static void regen_add(regen_item_t *it, int *n, int max, const char *name, const char *text, bool tracked)
+{
+    for (int i = 0; i < *n; i++) if (strcmp(it[i].name, name) == 0) return;
+    if (*n >= max || !text[0]) return;
+    snprintf(it[*n].name, sizeof(it[*n].name), "%s", name);
+    snprintf(it[*n].text, sizeof(it[*n].text), "%s", text);
+    it[*n].tracked = tracked;
+    (*n)++;
+}
+
+static int regen_build(regen_item_t *it, int max)
+{
+    int n = 0;
+    prompt_entry_t *list = malloc(PROMPT_MAX_ENTRIES * sizeof(prompt_entry_t));
+    size_t np = list ? prompts_list(list, PROMPT_MAX_ENTRIES) : 0;
+    char expanded[PROMPT_TEXT_MAX + 64];
+    for (size_t i = 0; i < np; i++) {
+        if (!is_wav_name(list[i].name) || !list[i].text[0]) continue;
+        expand_prompt_vars(list[i].text, expanded, sizeof(expanded));
+        regen_add(it, &n, max, list[i].name, expanded, true);
+    }
+    free(list);
+    /* Prompts never edited still play the built-in default: make it in the server's voice. */
+    regen_add(it, &n, max, "operator.wav", i18n_str("operator.default_prompt",
+        "You've reached the operator line. To leave a message, dial 2-1-1. "
+        "For other features, please refer to your phone's guide."), false);
+    regen_add(it, &n, max, RECORD_PROMPT_NAME, "Record your message after the beep, then hang up.", false);
+    regen_add(it, &n, max, AM_DEFAULT_GREETING_NAME, "Leave a message after the beep.", false);
+
+    char lang[8];
+    board_language_get(lang, sizeof(lang));
+    if (strcmp(lang, "en") == 0) {   /* the server's voice is English */
+        regen_add(it, &n, max, "jenny.wav", REGEN_JENNY_TEXT, false);
+        char name[12];
+        for (int d = 0; d < 10; d++) {
+            snprintf(name, sizeof(name), "%d.wav", d);
+            regen_add(it, &n, max, name, REGEN_DIGITS[d], false);
+        }
+        regen_add(it, &n, max, "point.wav", "point", false);
+    }
+    return n;
+}
+
+static void regen_task(void *arg)
+{
+    regen_item_t *it = arg;
+    char msg[VOIP_PROV_MSG_LEN];
+    /* Learns the server's voice (and that it offers TTS at all). */
+    if (voip_prov_refresh(msg, sizeof(msg)) != ESP_OK || voip_prov_tts_state() != 1 ||
+        !voip_prov_tts_voice()[0]) {
+        snprintf(s_regen_err, sizeof(s_regen_err), "%s",
+                 voip_prov_tts_state() == 0 ? "This provisioner doesn't offer text-to-speech" : msg);
+        s_regen_failed = s_regen_total;
+        s_regen_done = s_regen_total;
+    }
+    int in_a_row = 0;
+    for (int i = 0; s_regen_done < s_regen_total && i < s_regen_total; i++) {
+        snprintf(s_regen_now, sizeof(s_regen_now), "%s", it[i].name);
+        char tag[96];
+        voip_prov_tts_tag(voip_prov_tts_voice(), it[i].text, tag, sizeof(tag));
+        if (regen_tag_matches(it[i].name, tag)) {
+            s_regen_skipped++;
+        } else if (voip_prov_tts(it[i].text, it[i].name, msg, sizeof(msg)) == ESP_OK) {
+            s_regen_made++;
+            in_a_row = 0;
+            if (it[i].tracked) prompts_mark_generated(it[i].name);
+        } else {
+            s_regen_failed++;
+            snprintf(s_regen_err, sizeof(s_regen_err), "%s: %s", it[i].name, msg);
+            if (++in_a_row >= 3) {   /* the server is down or over quota: stop */
+                s_regen_failed += s_regen_total - s_regen_done - 1;
+                s_regen_done = s_regen_total;
+                break;
+            }
+        }
+        s_regen_done++;
+        g_webui_progress++;
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    activity_log("Spoken audio: %d updated, %d already current, %d failed",
+                 s_regen_made, s_regen_skipped, s_regen_failed);
+    s_regen_now[0] = '\0';
+    free(it);
+    s_regen_running = false;
+    vTaskDelete(NULL);
+}
+
+/* POST /tts_regen -- starts the pass (or does nothing while one is running). */
+static esp_err_t tts_regen_handler(httpd_req_t *req)
+{
+    if (!s_regen_running) {
+        regen_item_t *it = calloc(32, sizeof(regen_item_t));
+        int n = it ? regen_build(it, 32) : 0;
+        s_regen_total = n;
+        s_regen_done = s_regen_made = s_regen_skipped = s_regen_failed = 0;
+        s_regen_err[0] = '\0';
+        s_regen_ran = true;
+        s_regen_running = true;
+        if (!n || xTaskCreate(regen_task, "tts_regen", 8192, it, tskIDLE_PRIORITY + 1, NULL) != pdPASS) {
+            free(it);
+            s_regen_running = false;
+            snprintf(s_regen_err, sizeof(s_regen_err), "%s", n ? "Out of memory" : "Nothing to update");
+        }
+    }
+    return redirect_to(req, "/settings?tab=phone#regen");
+}
+
+static int append_regen_card(char *buf, size_t cap, int off)
+{
+    if (!voip_prov_url()[0] || !(voip_prov_has_key() || voip_prov_enrolled()) || voip_prov_tts_state() == 0) {
+        return off;
+    }
+    off = appendf(buf, cap, off,
+        "<div class=\"card\" id=\"regen\"><h2>Spoken audio</h2>"
+        "<p class=\"hint\">Makes every spoken clip on this board in your VoIP server's voice: the "
+        "operator message, the record prompt, the greeting, and in English the Jenny message and "
+        "the spoken digits. Only clips whose voice or text changed are made again.</p>");
+    if (s_regen_running) {
+        off = appendf(buf, cap, off,
+            "<div class=\"statusrow\"><span class=\"label\">Working</span><span>%d of %d: %s</span></div>"
+            "<script>setTimeout(function(){location.reload();},3000);</script>",
+            s_regen_done + 1 > s_regen_total ? s_regen_total : s_regen_done + 1, s_regen_total, s_regen_now);
+    } else if (s_regen_ran) {
+        char line[96];
+        snprintf(line, sizeof(line), "%d updated, %d already current, %d failed",
+                 s_regen_made, s_regen_skipped, s_regen_failed);
+        off = append_prov_result(buf, cap, off, "regenres", s_regen_failed == 0, line);
+        if (s_regen_err[0]) {
+            char esc[sizeof(s_regen_err) * 6];
+            html_escape(s_regen_err, esc, sizeof(esc));
+            off = appendf(buf, cap, off, "<p class=\"hint\">%s</p>", esc);
+        }
+    }
+    return appendf(buf, cap, off,
+        "<form method=\"POST\" action=\"/tts_regen\" class=\"settings-form\">"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\"%s>Update spoken audio</button></div>"
+        "</form></div>", s_regen_running ? " disabled" : "");
+}
+
 static int append_phone_settings_tab(char *buf, size_t cap, int off)
 {
     int num_lines = board_hw_config_get().num_lines;
@@ -2211,6 +2393,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         "</div>"
         "<script>%s</script>",
         RECORDING_RELOAD_JS);
+    off = append_regen_card(buf, cap, off);
 
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("speaker.title", "Speaker (earpiece) volume"));
@@ -9582,7 +9765,9 @@ static esp_err_t prompt_tts_handler(httpd_req_t *req)
 
     snprintf(s_tts_name, sizeof(s_tts_name), "%s", name);
     s_tts_ok = false;
-    if (!is_wav_name(name)) {
+    if (s_regen_running) {
+        snprintf(s_tts_msg, sizeof(s_tts_msg), "Busy updating all the spoken audio; try again in a minute");
+    } else if (!is_wav_name(name)) {
         snprintf(s_tts_msg, sizeof(s_tts_msg), "Not a prompt");
     } else if (prompts_set_text(name, text) != ESP_OK) {
         snprintf(s_tts_msg, sizeof(s_tts_msg), "Couldn't save the text");
@@ -10311,6 +10496,7 @@ esp_err_t webui_start(void)
         { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },
         { .uri = "/prompt_text_set",        .method = HTTP_POST, .handler = prompt_text_set_handler },
         { .uri = "/prompt_tts",             .method = HTTP_POST, .handler = prompt_tts_handler },
+        { .uri = "/tts_regen",              .method = HTTP_POST, .handler = tts_regen_handler },
         { .uri = "/api/prompt_requests",    .method = HTTP_GET,  .handler = prompt_requests_json_handler },
         { .uri = "/bt_enable_set",           .method = HTTP_POST, .handler = bt_enable_set_handler },
         { .uri = "/bt_pair",                 .method = HTTP_POST, .handler = bt_pair_handler },

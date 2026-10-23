@@ -187,8 +187,32 @@ static int http_call(const char *method, const char *path, const char *body,
 /* Server time minus ours, from the unauthenticated info endpoint: lets a
  * board with no clock set still produce timestamps the server accepts. */
 static int s_tts = -1;   /* the server offers text-to-speech: -1 not known yet, 0 no, 1 yes */
+static char s_tts_voice[33];
 
 int voip_prov_tts_state(void) { return s_tts; }
+const char *voip_prov_tts_voice(void) { return s_tts_voice; }
+
+void voip_prov_tts_tag(const char *voice, const char *text, char *out, size_t out_len)
+{
+    /* Whitespace collapsed to single spaces, ends trimmed: Python's " ".join(text.split()). */
+    mbedtls_sha256_context ctx;
+    mbedtls_sha256_init(&ctx);
+    mbedtls_sha256_starts(&ctx, 0);
+    bool started = false, pending_space = false;
+    for (const char *p = text; *p; p++) {
+        if (isspace((unsigned char)*p)) { pending_space = started; continue; }
+        if (pending_space) mbedtls_sha256_update(&ctx, (const unsigned char *)" ", 1);
+        mbedtls_sha256_update(&ctx, (const unsigned char *)p, 1);
+        started = true;
+        pending_space = false;
+    }
+    uint8_t digest[32];
+    mbedtls_sha256_finish(&ctx, digest);
+    mbedtls_sha256_free(&ctx);
+    char hexd[17];
+    hex(digest, 8, hexd);
+    snprintf(out, out_len, "redial-tts voice=%s text=%s", voice, hexd);
+}
 
 static esp_err_t server_offset(long *offset, char *resp, size_t resp_len)
 {
@@ -196,6 +220,8 @@ static esp_err_t server_offset(long *offset, char *resp, size_t resp_len)
     cJSON *j = cJSON_Parse(resp);
     cJSON *tts = cJSON_GetObjectItem(j, "tts");
     s_tts = cJSON_IsBool(tts) ? cJSON_IsTrue(tts) : 0;
+    cJSON *voice = cJSON_GetObjectItem(j, "tts_voice");
+    snprintf(s_tts_voice, sizeof(s_tts_voice), "%s", cJSON_IsString(voice) ? voice->valuestring : "");
     cJSON *t = cJSON_GetObjectItem(j, "server_time");
     esp_err_t err = cJSON_IsNumber(t) ? ESP_OK : ESP_FAIL;
     if (err == ESP_OK) *offset = (long)(t->valuedouble - (double)time(NULL));

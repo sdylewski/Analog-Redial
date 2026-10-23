@@ -121,6 +121,14 @@ class ProvisionerTest(unittest.TestCase):
                     data, ctype, code = b"RIFF" + body["text"].encode(), "audio/wav", 200
                 self.send_response(code)
                 self.send_header("Content-Type", ctype)
+                self.send_header("X-Redial-Cache", "hit" if body["text"].startswith("cached") else "miss")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def do_GET(self):
+                data = b'{"ok": true, "voice": "af_sarah"}'
+                self.send_response(200)
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
@@ -167,6 +175,16 @@ class ProvisionerTest(unittest.TestCase):
         self.assertEqual(self.post_raw("/api/v1/tts", {"text": "one more"})[0], 200)
         status, _, body = self.post_raw("/api/v1/tts", {"text": "too many"})
         self.assertEqual((status, json.loads(body)["error"]), (429, "tts_quota"))
+
+    def test_tts_cache_hits_are_free_and_voice_is_reported(self):
+        self.fake_tts()
+        with urllib.request.urlopen(self.url + "/api/v1/info") as r:
+            self.assertEqual(json.load(r)["tts_voice"], "af_sarah")
+        self.set_cfg(tts_per_hour=1)
+        for _ in range(3):
+            self.assertEqual(self.post_raw("/api/v1/tts", {"text": "cached digit"})[0], 200)
+        self.assertEqual(self.post_raw("/api/v1/tts", {"text": "fresh"})[0], 200)
+        self.assertEqual(self.post_raw("/api/v1/tts", {"text": "fresh again"})[0], 429)
 
     def test_tts_board_token_and_revoked_key(self):
         self.fake_tts()

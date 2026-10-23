@@ -63,6 +63,12 @@ int         voip_prov_tts_state(void);
  * the WAV it returns into local storage as `name`, streamed in small chunks.
  * msg says what happened, for people. */
 esp_err_t   voip_prov_tts(const char *text, const char *name, char *msg, size_t msg_len);
+/* The voice the server last reported ("" if not known yet or no TTS). */
+const char *voip_prov_tts_voice(void);
+/* The tag the server writes into a WAV it renders (a LIST/INFO ICMT chunk):
+ * "redial-tts voice=<voice> text=<16 hex digits of SHA-256(text)>", text with its
+ * whitespace collapsed. A stored file whose tag matches needs no new render. */
+void        voip_prov_tts_tag(const char *voice, const char *text, char *out, size_t out_len);
 
 #ifdef __cplusplus
 }

@@ -95,8 +95,8 @@ DEFAULT_CONFIG = {
     # Text-to-speech (redial_tts.py, installed with install.sh --with-tts). "" = off.
     "tts_url": "",
     "tts_max_chars": 500,
-    "tts_per_hour": 20,     # per board (or per key, for key-signed requests)
-    "tts_per_day": 60,
+    "tts_per_hour": 40,     # renders per board (or per key, for key-signed requests);
+    "tts_per_day": 120,     # answers from the TTS cache don't count
     "keys": [],
 }
 
@@ -244,6 +244,7 @@ class Service:
         self.nonces = {}
         self.rate = {}
         self.tts_log = {}
+        self.tts_voice = ("", 0.0)   # (voice the TTS service reports, when we asked)
         self.lock = threading.Lock()
 
     def reload_config(self):
@@ -346,7 +347,22 @@ class Service:
         return {"service": "analog-redial-provisioner", "protocol": PROTOCOL_VERSION,
                 "name": self.cfg["name"], "sip_server": self.cfg["sip_server"],
                 "sip_port": self.cfg["sip_port"], "server_time": int(time.time()),
-                "tts": bool(self.cfg["tts_url"])}
+                "tts": bool(self.cfg["tts_url"]), "tts_voice": self.voice()}
+
+    def voice(self):
+        """The TTS service's voice, asked at most every 5 minutes ("" if off or down)."""
+        if not self.cfg["tts_url"]:
+            return ""
+        voice, asked = self.tts_voice
+        if time.time() - asked < 300:
+            return voice
+        try:
+            with urllib.request.urlopen(self.cfg["tts_url"].rstrip("/") + "/health", timeout=2) as r:
+                voice = str(json.load(r).get("voice", ""))[:32]
+        except (OSError, ValueError):
+            voice = ""
+        self.tts_voice = (voice, time.time())
+        return voice
 
     def check(self, auth, body):
         kind, name = auth
@@ -485,6 +501,12 @@ class Service:
         try:
             with urllib.request.urlopen(req, timeout=120) as r:
                 wav = r.read(4 * 1024 * 1024)
+                cached = r.headers.get("X-Redial-Cache") == "hit"
+            if cached:   # nothing was rendered: give the quota back
+                with self.lock:
+                    log = self.tts_log.get(who, [])
+                    if now in log:
+                        log.remove(now)
         except urllib.error.HTTPError as e:
             try:
                 msg = json.loads(e.read()).get("message") or "Rendering failed"
