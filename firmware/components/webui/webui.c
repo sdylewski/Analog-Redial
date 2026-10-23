@@ -3229,6 +3229,8 @@ static char s_prov_cfg_msg[VOIP_PROV_MSG_LEN];          /* address / key test: s
 static bool s_prov_cfg_ok;
 static char s_prov_line_msg[2][VOIP_PROV_MSG_LEN];      /* check / register / release: shown under that line */
 static bool s_prov_line_ok[2];
+static bool s_prov_line_override[2];                     /* after a Check: the box holds the checked number... */
+static char s_prov_line_num[2][16];                      /* ...if it was free, otherwise empty */
 
 /* A result line: a green tick or red cross, then the text. `id` is the anchor the
  * redirect after the button press jumps to, so the answer is on screen. */
@@ -3316,7 +3318,8 @@ static int append_voip_prov_section(char *buf, size_t cap, int off)
                 "<button type=\"submit\" name=\"action\" value=\"register\" class=\"primary\" "
                 "title=\"Claim this number for this line and restart to connect with it\">Register</button>%s"
                 "</div>",
-                line, line + 1, now, has_num ? cur : "", ph,
+                line, line + 1, now,
+                s_prov_line_override[line] ? s_prov_line_num[line] : (has_num ? cur : ""), ph,
                 (voip_prov_enrolled() && has_num)
                     ? "<button type=\"submit\" name=\"action\" value=\"release\" formnovalidate "
                       "title=\"Give this number back to the server and clear the line\">Release</button>" : "");
@@ -7263,9 +7266,13 @@ static esp_err_t voip_prov_line_handler(httpd_req_t *req)
         bool available = false;
         err = voip_prov_check(number, &available, msg, VOIP_PROV_MSG_LEN);
         *ok = err == ESP_OK && available;
+        /* Leave a free number in the box so Register is one click; empty a taken one. */
+        s_prov_line_override[line] = true;
+        snprintf(s_prov_line_num[line], sizeof(s_prov_line_num[line]), "%s", *ok ? number : "");
     } else if (strcmp(action, "register") == 0) {
         err = voip_prov_register(line, number, msg, VOIP_PROV_MSG_LEN);
         *ok = err == ESP_OK;
+        s_prov_line_override[line] = false;
         if (*ok) {
             strlcat(msg, ". Restarting to connect...", VOIP_PROV_MSG_LEN);
             xTaskCreate(reboot_task, "reboot", 2048, NULL, tskIDLE_PRIORITY + 1, NULL);
@@ -7273,6 +7280,7 @@ static esp_err_t voip_prov_line_handler(httpd_req_t *req)
     } else if (strcmp(action, "release") == 0) {
         err = voip_prov_release(line, msg, VOIP_PROV_MSG_LEN);
         *ok = err == ESP_OK;
+        s_prov_line_override[line] = false;
     } else {
         *ok = false;
         snprintf(msg, VOIP_PROV_MSG_LEN, "Unknown action");
