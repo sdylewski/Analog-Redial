@@ -270,7 +270,17 @@ static void adaptive_tx_step(int64_t now)
     if (now < s_tx_next_check_us) return;
     s_tx_next_check_us = now + (int64_t)ADAPTIVE_TX_EVERY_MS * 1000;
     if (!wifi_is_connected()) {
-        s_tx_dbm = 0;  /* force a re-apply once connected */
+        /* Reconnect attempts must not run at reduced power: a router that can't
+         * hear the board never completes the handshake, and nothing would raise
+         * the power again until after a connection. */
+        if (s_tx_dbm != IDLE_POWER_TX_FULL_DBM) {
+            if (wifi_set_tx_power_dbm(IDLE_POWER_TX_FULL_DBM) == ESP_OK) {
+                ESP_LOGI(TAG, "WiFi down -- TX power back to %d dBm for the reconnect", IDLE_POWER_TX_FULL_DBM);
+                s_tx_dbm = IDLE_POWER_TX_FULL_DBM;
+            } else {
+                s_tx_dbm = 0;
+            }
+        }
         return;
     }
     int want = IDLE_POWER_TX_FULL_DBM;
