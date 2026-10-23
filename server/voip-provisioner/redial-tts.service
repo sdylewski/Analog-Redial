@@ -1,0 +1,23 @@
+[Unit]
+Description=Analog Redial text-to-speech (local only; the provisioner forwards to it)
+After=network.target
+
+[Service]
+User=asterisk
+Group=asterisk
+Environment=HOME=/var/cache/redial-tts XDG_CACHE_HOME=/var/cache/redial-tts
+ExecStart=/opt/redial-tts/venv/bin/python /opt/redial-tts/redial_tts.py serve --models /opt/redial-tts/models --voice @VOICE@ --port 8078 --cache /var/cache/redial-tts
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/cache/redial-tts
+# Listens on 127.0.0.1 only; nothing off this machine talks to it.
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+[Install]
+WantedBy=multi-user.target

@@ -25,6 +25,8 @@ Protocol (version 1), all bodies JSON:
                                            key or board auth
     POST /api/v1/release   {line}          board auth
     POST /api/v1/status    {}              key or board auth
+    POST /api/v1/tts       {text}          key or board auth; answers audio/wav
+                                           (8 kHz mu-law) when TTS is set up
 
 Every POST carries
 
@@ -90,6 +92,11 @@ DEFAULT_CONFIG = {
                         ["asterisk", "-rx", "dialplan reload"]],
     "exists_command": ["asterisk", "-rx", "pjsip show endpoint {number}"],
     "trust_forwarded_for": False,
+    # Text-to-speech (redial_tts.py, installed with install.sh --with-tts). "" = off.
+    "tts_url": "",
+    "tts_max_chars": 500,
+    "tts_per_hour": 20,     # per board (or per key, for key-signed requests)
+    "tts_per_day": 60,
     "keys": [],
 }
 
@@ -236,6 +243,7 @@ class Service:
         self.cfg = load_config(config_path)
         self.nonces = {}
         self.rate = {}
+        self.tts_log = {}
         self.lock = threading.Lock()
 
     def reload_config(self):
@@ -337,7 +345,8 @@ class Service:
     def info(self):
         return {"service": "analog-redial-provisioner", "protocol": PROTOCOL_VERSION,
                 "name": self.cfg["name"], "sip_server": self.cfg["sip_server"],
-                "sip_port": self.cfg["sip_port"], "server_time": int(time.time())}
+                "sip_port": self.cfg["sip_port"], "server_time": int(time.time()),
+                "tts": bool(self.cfg["tts_url"])}
 
     def check(self, auth, body):
         kind, name = auth
@@ -440,7 +449,53 @@ class Service:
             nums = [{"line": v["line"], "number": n}
                     for n, v in st["numbers"].items() if kind == "board" and v["board_id"] == name]
         return {"numbers": sorted(nums, key=lambda x: x["line"]),
-                "max_lines": self.cfg["max_lines_per_board"], **self.key_range(key_id)}
+                "max_lines": self.cfg["max_lines_per_board"], "tts": bool(self.cfg["tts_url"]),
+                **self.key_range(key_id)}
+
+    def tts(self, auth, body):
+        """Renders text through the local TTS service; returns WAV bytes."""
+        url = self.cfg["tts_url"]
+        if not url:
+            raise ApiError(503, "tts_unavailable", "Text-to-speech isn't set up on this server")
+        text = " ".join(str(body.get("text", "")).split())
+        if not text:
+            raise ApiError(400, "bad_text", "No text to speak")
+        if len(text) > self.cfg["tts_max_chars"]:
+            raise ApiError(400, "bad_text", f"Keep it under {self.cfg['tts_max_chars']} characters")
+        kind, name = auth
+        with locked_state(self.cfg) as st:
+            if kind == "board" and name not in st["boards"]:
+                raise ApiError(401, "unknown_id", "Unknown key or board")
+            key_id = self.board_key_id(kind, name, st)
+        if not self.key_entry(key_id):
+            raise ApiError(403, "key_revoked", "This board's key no longer exists")
+        who = "%s:%s" % auth
+        now = time.time()
+        with self.lock:
+            log = [t for t in self.tts_log.get(who, []) if now - t < 86400]
+            if (len(log) >= self.cfg["tts_per_day"] or
+                    sum(1 for t in log if now - t < 3600) >= self.cfg["tts_per_hour"]):
+                raise ApiError(429, "tts_quota", "This board has made a lot of prompts recently; "
+                               "try again later")
+            log.append(now)
+            self.tts_log[who] = log
+        req = urllib.request.Request(url.rstrip("/") + "/synthesize",
+                                     data=json.dumps({"text": text}).encode(),
+                                     headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                wav = r.read(4 * 1024 * 1024)
+        except urllib.error.HTTPError as e:
+            try:
+                msg = json.loads(e.read()).get("message") or "Rendering failed"
+            except ValueError:
+                msg = "Rendering failed"
+            raise ApiError(400 if e.code == 400 else 502, "tts_failed", msg)
+        except OSError:
+            raise ApiError(503, "tts_unavailable", "The text-to-speech service isn't answering")
+        if not wav.startswith(b"RIFF"):
+            raise ApiError(502, "tts_failed", "The text-to-speech service sent something odd")
+        return wav
 
 
 def make_handler(svc):
@@ -473,7 +528,8 @@ def make_handler(svc):
                 if method == "GET" and path == "/api/v1/info":
                     return self.send_json(200, svc.info())
                 routes = {"/api/v1/check": svc.check, "/api/v1/register": svc.register,
-                          "/api/v1/release": svc.release, "/api/v1/status": svc.status}
+                          "/api/v1/release": svc.release, "/api/v1/status": svc.status,
+                          "/api/v1/tts": svc.tts}
                 if method != "POST" or path not in routes:
                     raise ApiError(404, "not_found", "No such endpoint")
                 length = int(self.headers.get("Content-Length") or 0)
@@ -487,7 +543,16 @@ def make_handler(svc):
                         raise ValueError
                 except ValueError:
                     raise ApiError(400, "bad_json", "Body must be a JSON object")
-                self.send_json(200, routes[path](auth, parsed))
+                result = routes[path](auth, parsed)
+                if isinstance(result, bytes):   # /api/v1/tts: the audio itself
+                    self.send_response(200)
+                    self.send_header("Content-Type", "audio/wav")
+                    self.send_header("Content-Length", str(len(result)))
+                    self.send_header("Cache-Control", "no-store")
+                    self.end_headers()
+                    self.wfile.write(result)
+                    return
+                self.send_json(200, result)
             except ApiError as e:
                 self.send_json(e.status, {"error": e.code, "message": e.message, **e.extra})
             except Exception as e:  # keep the service up; details stay in the log

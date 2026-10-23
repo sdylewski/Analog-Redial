@@ -3,7 +3,13 @@
 # Run from this directory:
 #
 #   sudo ./install.sh --sip-server <host boards register with> \
-#        [--context <dialplan context>] [--permit <cidr>]... [--port 8077]
+#        [--context <dialplan context>] [--permit <cidr>]... [--port 8077] \
+#        [--with-tts [--tts-voice af_sarah]]
+#
+# --with-tts also installs the text-to-speech service (redial_tts.py: a Python
+# virtual environment with Kokoro, ~350 MB of model files), local to this
+# machine, and points the provisioner at it so boards can make their spoken
+# prompts from their own web page.
 #
 # Safe to re-run: it keeps an existing config and key, and never adds an
 # include line twice. pjsip.conf and extensions.conf are backed up before
@@ -14,12 +20,16 @@ SIP_SERVER=""
 PORT=8077
 CONTEXT=rotary
 PERMIT=()
+WITH_TTS=0
+TTS_VOICE=af_sarah
 while [ $# -gt 0 ]; do
     case "$1" in
         --sip-server)   SIP_SERVER="$2"; shift 2 ;;
         --port)         PORT="$2"; shift 2 ;;
         --context)      CONTEXT="$2"; shift 2 ;;
         --permit)       PERMIT+=("$2"); shift 2 ;;
+        --with-tts)     WITH_TTS=1; shift ;;
+        --tts-voice)    TTS_VOICE="$2"; shift 2 ;;
         *) echo "unknown option: $1" >&2; exit 2 ;;
     esac
 done
@@ -107,6 +117,49 @@ systemctl enable redial-provisioner >/dev/null
 systemctl restart redial-provisioner
 sleep 2
 systemctl --no-pager --lines=5 status redial-provisioner || true
+
+if [ "$WITH_TTS" = 1 ]; then
+    echo "== text-to-speech"
+    TTS=/opt/redial-tts
+    TTS_URL=https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0
+    install -d -o root -g root -m 755 "$TTS" "$TTS/models"
+    install -o root -g root -m 755 "$HERE/redial_tts.py" "$TTS/"
+    install -d -o asterisk -g asterisk -m 750 /var/cache/redial-tts
+    if [ ! -x "$TTS/venv/bin/python" ]; then
+        python3 -m venv "$TTS/venv" || { echo "python3 -m venv failed: install python3-venv (apt install python3-venv)" >&2; exit 1; }
+    fi
+    "$TTS/venv/bin/pip" install -q --upgrade pip
+    "$TTS/venv/bin/pip" install -q kokoro-onnx soundfile numpy
+    for f in kokoro-v1.0.onnx voices-v1.0.bin; do
+        if [ ! -s "$TTS/models/$f" ]; then
+            echo "   downloading $f"
+            curl -fL --retry 3 -o "$TTS/models/$f.part" "$TTS_URL/$f"
+            mv "$TTS/models/$f.part" "$TTS/models/$f"
+        fi
+    done
+    chmod 644 "$TTS/models/"*
+    sed "s/@VOICE@/$TTS_VOICE/" "$HERE/redial-tts.service" > /etc/systemd/system/redial-tts.service
+    chmod 644 /etc/systemd/system/redial-tts.service
+    systemctl daemon-reload
+    systemctl enable redial-tts >/dev/null
+    systemctl restart redial-tts
+    for i in $(seq 1 30); do
+        curl -fs http://127.0.0.1:8078/health >/dev/null && break
+        sleep 1
+    done
+    curl -fs http://127.0.0.1:8078/health || { echo "redial-tts didn't start: journalctl -u redial-tts" >&2; exit 1; }
+    echo
+    python3 - "$CONFIG" <<'EOF'
+import json, sys
+p = sys.argv[1]
+cfg = json.load(open(p))
+if cfg.get("tts_url") != "http://127.0.0.1:8078":
+    cfg["tts_url"] = "http://127.0.0.1:8078"
+    with open(p, "r+") as f:      # rewrite in place: keeps owner and mode
+        f.seek(0); json.dump(cfg, f, indent=2); f.write("\n"); f.truncate()
+    print("   provisioner now forwards text-to-speech to 127.0.0.1:8078")
+EOF
+fi
 
 echo
 echo "Provisioner running on port $(python3 -c "import json;print(json.load(open('$CONFIG'))['port'])")."

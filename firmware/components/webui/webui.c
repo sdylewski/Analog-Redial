@@ -2564,6 +2564,13 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
  * persisted anywhere until the user actually saves it. Used for the
  * Operator prompt specifically (a sensible greeting to edit rather than a
  * blank box); other callers pass NULL. */
+static int append_prov_result(char *buf, size_t cap, int off, const char *id, bool ok, const char *msg);
+
+/* The last "Generate on server" result, shown under that one prompt. */
+static char s_tts_name[PROMPT_NAME_MAX];
+static char s_tts_msg[VOIP_PROV_MSG_LEN];
+static bool s_tts_ok;
+
 static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_name,
                                 const char *default_text)
 {
@@ -2592,9 +2599,19 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
         "<span class=\"fieldhint\">%s Type <code>{{boardname}}</code> to say this "
         "board's name.</span>"
         "</label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\">Save text</button></div>"
-        "</form>",
-        ename, PROMPT_TEXT_MAX - 1, etext, status);
+        "<div class=\"toolbar sub\"><button type=\"submit\">Save text</button>%s</div>",
+        ename, PROMPT_TEXT_MAX - 1, etext, status,
+        /* Offered once a provisioner is set up, unless it has said it has no TTS. */
+        (voip_prov_url()[0] && (voip_prov_has_key() || voip_prov_enrolled()) && voip_prov_tts_state() != 0)
+            ? "<button type=\"submit\" class=\"primary\" formaction=\"/prompt_tts\" "
+              "title=\"Save the text, have your VoIP server speak it, and store the audio here\">"
+              "Save &amp; generate on server</button>" : "");
+    if (s_tts_msg[0] && strcmp(s_tts_name, clip_name) == 0) {
+        char rid[PROMPT_NAME_MAX + 8];
+        snprintf(rid, sizeof(rid), "tts-%s", clip_name);
+        off = append_prov_result(buf, cap, off, rid, s_tts_ok, s_tts_msg);
+    }
+    off = appendf(buf, cap, off, "</form>");
 
     /* A ready-to-paste --sync command for just this one clip (--only), with
      * the real secret filled in -- at the user's request, plaintext rather
@@ -9549,6 +9566,44 @@ static esp_err_t prompt_text_set_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static void expand_prompt_vars(const char *in, char *out, size_t len);
+
+/* POST /prompt_tts -- same form as /prompt_text_set: saves the text, then has
+ * the VoIP provisioner speak it (voip_prov_tts) and stores the WAV as the
+ * prompt's audio. Blocks for the render, a few seconds on a desktop server. */
+static esp_err_t prompt_tts_handler(httpd_req_t *req)
+{
+    char body[PROMPT_FORM_MAX_BODY];
+    READ_FORM_OR_RETURN(req, body);
+    char name[PROMPT_NAME_MAX] = {0}, text[PROMPT_TEXT_MAX] = {0};
+    form_field(body, "name", name, sizeof(name));
+    form_field(body, "text", text, sizeof(text));
+
+    snprintf(s_tts_name, sizeof(s_tts_name), "%s", name);
+    s_tts_ok = false;
+    if (!is_wav_name(name)) {
+        snprintf(s_tts_msg, sizeof(s_tts_msg), "Not a prompt");
+    } else if (prompts_set_text(name, text) != ESP_OK) {
+        snprintf(s_tts_msg, sizeof(s_tts_msg), "Couldn't save the text");
+    } else {
+        char expanded[PROMPT_TEXT_MAX + 64];
+        expand_prompt_vars(text, expanded, sizeof(expanded));
+        g_webui_progress++;
+        s_tts_ok = voip_prov_tts(expanded, name, s_tts_msg, sizeof(s_tts_msg)) == ESP_OK;
+        g_webui_progress++;
+        if (s_tts_ok) prompts_mark_generated(name);
+    }
+    activity_log("Prompt %s: %s", name, s_tts_msg);
+
+    /* Back to the same page, scrolled to this prompt's result. */
+    char ref[160] = "/settings", loc[200];
+    httpd_req_get_hdr_value_str(req, "Referer", ref, sizeof(ref));
+    char *hash = strchr(ref, '#');
+    if (hash) *hash = '\0';
+    snprintf(loc, sizeof(loc), "%s#tts-%s", ref, name);
+    return redirect_to(req, loc);
+}
+
 /* True if `req`'s peer address is in the same IPv4 subnet as this board's
  * own WiFi-STA address (peer & netmask == our_ip & netmask). Lets
  * gen_prompt.py --sync skip the setup-password check entirely when it's
@@ -10254,6 +10309,7 @@ esp_err_t webui_start(void)
         { .uri = "/dialcode_upload",        .method = HTTP_POST, .handler = dialcode_upload_handler },
         { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },
         { .uri = "/prompt_text_set",        .method = HTTP_POST, .handler = prompt_text_set_handler },
+        { .uri = "/prompt_tts",             .method = HTTP_POST, .handler = prompt_tts_handler },
         { .uri = "/api/prompt_requests",    .method = HTTP_GET,  .handler = prompt_requests_json_handler },
         { .uri = "/bt_enable_set",           .method = HTTP_POST, .handler = bt_enable_set_handler },
         { .uri = "/bt_pair",                 .method = HTTP_POST, .handler = bt_pair_handler },

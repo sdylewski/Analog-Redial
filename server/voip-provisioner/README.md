@@ -63,6 +63,28 @@ Settings → VOIP → **Automatic setup**:
 **Release** gives the number back. Registering a different number on the
 same line releases the old one automatically.
 
+## Spoken prompts (optional text-to-speech)
+
+Install with `--with-tts` (on a re-run, repeat your other options too):
+
+```bash
+sudo ./install.sh --sip-server pbx.local --with-tts
+```
+
+It adds `redial-tts`, a second service that only listens on `127.0.0.1:8078`,
+in its own Python environment with the Kokoro voice model (about 350 MB,
+downloaded once). No new port is opened: boards ask the provisioner on its
+usual port, and the provisioner forwards to it. One voice serves every board
+(`af_sarah`; pick another with `--tts-voice`).
+
+On a board, each spoken-prompt box (operator message, record prompt,
+answering-machine greeting) then has a **Generate on server** button. The
+audio comes back as 8 kHz mu-law WAV, trimmed and levelled, and is saved on
+the board.
+
+Limits, in `config.json`: `tts_max_chars` (500), and per board `tts_per_hour`
+(20) and `tts_per_day` (60). The same text again is served from a cache.
+
 ## Managing it
 
 Run these on the server. The service picks up changes immediately.
@@ -137,7 +159,8 @@ with `sig = HMAC-SHA256(secret, METHOD\nPATH\nts\nnonce\nhex(SHA-256(body)))`.
 | `POST /api/v1/check` `{number}` | key or board | `{available, reason: free / taken / yours}`, plus the number range |
 | `POST /api/v1/register` `{board_id, board_name, line, number}` | key or board | SIP `username`, `password`, `sip_server`; plus `board_token` when signed with a key |
 | `POST /api/v1/release` `{line}` | board | numbers released |
-| `POST /api/v1/status` `{}` | key or board | the key's number range (`number_min`, `number_max`), and for a board the numbers it holds |
+| `POST /api/v1/status` `{}` | key or board | the key's number range (`number_min`, `number_max`), and for a board the numbers it holds; `tts` says whether text-to-speech is set up |
+| `POST /api/v1/tts` `{text}` | key or board | `audio/wav` (8 kHz mono mu-law), or a JSON error (`tts_unavailable`, `tts_quota`, `bad_text`) |
 
 Errors come back as `{"error": "<code>", "message": "<readable text>"}`.
 
@@ -151,4 +174,5 @@ Errors come back as `{"error": "<code>", "message": "<readable text>"}`.
 
 ```bash
 python3 -m unittest test_redial_provisioner.py
+python3 -m unittest test_redial_tts.py      # skipped without numpy
 ```

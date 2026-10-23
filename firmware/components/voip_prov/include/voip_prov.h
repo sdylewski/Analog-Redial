@@ -56,6 +56,14 @@ esp_err_t   voip_prov_register(int line, const char *number, char *msg, size_t m
 /* Gives line's number back and clears that line's SIP credentials. */
 esp_err_t   voip_prov_release(int line, char *msg, size_t msg_len);
 
+/* Whether the provisioner offers text-to-speech: -1 not known yet (nothing
+ * asked since boot), 0 no, 1 yes. Learned from every request's info call. */
+int         voip_prov_tts_state(void);
+/* Has the server speak `text` (already expanded, e.g. {{boardname}}) and saves
+ * the WAV it returns into local storage as `name`, streamed in small chunks.
+ * msg says what happened, for people. */
+esp_err_t   voip_prov_tts(const char *text, const char *name, char *msg, size_t msg_len);
+
 #ifdef __cplusplus
 }
 #endif

@@ -16,6 +16,7 @@
 #include "mbedtls/sha256.h"
 #include "mdns.h"
 #include "nvs.h"
+#include "storage.h"
 #include "voip.h"
 
 static const char *TAG = "voip_prov";
@@ -185,10 +186,16 @@ static int http_call(const char *method, const char *path, const char *body,
 
 /* Server time minus ours, from the unauthenticated info endpoint: lets a
  * board with no clock set still produce timestamps the server accepts. */
+static int s_tts = -1;   /* the server offers text-to-speech: -1 not known yet, 0 no, 1 yes */
+
+int voip_prov_tts_state(void) { return s_tts; }
+
 static esp_err_t server_offset(long *offset, char *resp, size_t resp_len)
 {
     if (http_call("GET", "/api/v1/info", NULL, NULL, resp, resp_len) != 200) return ESP_FAIL;
     cJSON *j = cJSON_Parse(resp);
+    cJSON *tts = cJSON_GetObjectItem(j, "tts");
+    s_tts = cJSON_IsBool(tts) ? cJSON_IsTrue(tts) : 0;
     cJSON *t = cJSON_GetObjectItem(j, "server_time");
     esp_err_t err = cJSON_IsNumber(t) ? ESP_OK : ESP_FAIL;
     if (err == ESP_OK) *offset = (long)(t->valuedouble - (double)time(NULL));
@@ -196,10 +203,10 @@ static esp_err_t server_offset(long *offset, char *resp, size_t resp_len)
     return err;
 }
 
-/* Signs and POSTs body to path, as the board (token) if it has one and
- * use_token, otherwise with the enrollment key. */
-static int signed_post(const char *path, const char *body, bool use_token, long offset,
-                       char *resp, size_t resp_len)
+/* Builds the Authorization header for POSTing body to path, as the board
+ * (token) if it has one and use_token, otherwise with the enrollment key. */
+static bool make_auth(const char *path, const char *body, bool use_token, long offset,
+                      char *auth, size_t auth_len)
 {
     char ident[48];
     const char *secret;
@@ -213,7 +220,7 @@ static int signed_post(const char *path, const char *body, bool use_token, long 
         secret_len = strlen(s_token);
     } else {
         const char *dot = strchr(s_key, '.');
-        if (!dot) return -2;
+        if (!dot) return false;
         snprintf(ident, sizeof(ident), "key:%.*s", (int)(dot - s_key), s_key);
         secret = dot + 1;
         secret_len = strlen(secret);
@@ -234,9 +241,16 @@ static int signed_post(const char *path, const char *body, bool use_token, long 
                     (const unsigned char *)msg, mlen, digest);
     hex(digest, 32, sig);
 
-    char auth[256];
-    snprintf(auth, sizeof(auth), "Redial-HMAC id=\"%s\", ts=\"%s\", nonce=\"%s\", sig=\"%s\"",
+    snprintf(auth, auth_len, "Redial-HMAC id=\"%s\", ts=\"%s\", nonce=\"%s\", sig=\"%s\"",
              ident, ts, nonce, sig);
+    return true;
+}
+
+static int signed_post(const char *path, const char *body, bool use_token, long offset,
+                       char *resp, size_t resp_len)
+{
+    char auth[256];
+    if (!make_auth(path, body, use_token, offset, auth, sizeof(auth))) return -2;
     return http_call("POST", path, body, auth, resp, resp_len);
 }
 
@@ -429,6 +443,107 @@ esp_err_t voip_prov_refresh(char *msg, size_t msg_len)
     } else {
         server_message(resp, st, msg, msg_len);
     }
+    free(resp);
+    return err;
+}
+
+/* ---- text-to-speech ---------------------------------------------------- */
+
+#define TTS_TIMEOUT_MS  90000             /* the server may queue behind other renders */
+#define TTS_MAX_BYTES   (1024 * 1024)
+
+/* One signed POST to /api/v1/tts. On 200 the WAV is streamed into storage as
+ * `name`; otherwise the error reply lands in resp. Returns the HTTP status. */
+static int tts_post(const char *body, bool use_token, long offset, const char *name,
+                    char *resp, size_t resp_len, size_t *saved)
+{
+    char auth[256];
+    if (!make_auth("/api/v1/tts", body, use_token, offset, auth, sizeof(auth))) return -2;
+    char url[URL_LEN + 32];
+    snprintf(url, sizeof(url), "%s/api/v1/tts", s_url);
+    esp_http_client_config_t cfg = {
+        .url = url,
+        .method = HTTP_METHOD_POST,
+        .timeout_ms = TTS_TIMEOUT_MS,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+        .disable_auto_redirect = true,
+        .buffer_size = 1024,
+    };
+    esp_http_client_handle_t c = esp_http_client_init(&cfg);
+    if (!c) return -1;
+    esp_http_client_set_header(c, "Content-Type", "application/json");
+    esp_http_client_set_header(c, "Authorization", auth);
+
+    int status = -1, blen = (int)strlen(body);
+    resp[0] = '\0';
+    *saved = 0;
+    if (esp_http_client_open(c, blen) == ESP_OK && esp_http_client_write(c, body, blen) == blen) {
+        int64_t len = esp_http_client_fetch_headers(c);
+        status = esp_http_client_get_status_code(c);
+        if (status == 200) {
+            storage_writer_t w;
+            char *chunk = malloc(1024);
+            bool ok = chunk && len > 44 && len <= TTS_MAX_BYTES &&
+                      storage_write_begin_local(name, (size_t)len, &w) == ESP_OK;
+            if (ok) {
+                int n;
+                while ((n = esp_http_client_read(c, chunk, 1024)) > 0) {
+                    if (storage_write_chunk(&w, chunk, (size_t)n) != ESP_OK) { ok = false; break; }
+                    *saved += (size_t)n;
+                }
+                if (ok && *saved == (size_t)len) storage_write_end(&w);
+                else { storage_write_abort(&w); ok = false; }
+            }
+            free(chunk);
+            if (!ok) {
+                snprintf(resp, resp_len, "{\"message\":\"Couldn't save the audio on this board "
+                                         "(%u of %lld bytes)\"}", (unsigned)*saved, (long long)len);
+                status = -3;
+            }
+        } else {
+            int got = 0, n;
+            while (got < (int)resp_len - 1 &&
+                   (n = esp_http_client_read(c, resp + got, resp_len - 1 - got)) > 0) {
+                got += n;
+            }
+            resp[got] = '\0';
+        }
+    }
+    esp_http_client_cleanup(c);
+    return status;
+}
+
+esp_err_t voip_prov_tts(const char *text, const char *name, char *msg, size_t msg_len)
+{
+    if (!text || !text[0]) { snprintf(msg, msg_len, "Type the text to speak first"); return ESP_ERR_INVALID_ARG; }
+    long offset;
+    char *resp = begin(&offset, msg, msg_len);
+    if (!resp) return ESP_FAIL;
+    if (s_tts == 0) {
+        snprintf(msg, msg_len, "This provisioner doesn't offer text-to-speech");
+        free(resp);
+        return ESP_ERR_NOT_SUPPORTED;
+    }
+    cJSON *j = cJSON_CreateObject();
+    cJSON_AddStringToObject(j, "text", text);
+    char *body = cJSON_PrintUnformatted(j);
+    cJSON_Delete(j);
+    if (!body) { free(resp); snprintf(msg, msg_len, "Out of memory"); return ESP_ERR_NO_MEM; }
+
+    size_t saved = 0;
+    int st = tts_post(body, true, offset, name, resp, RESP_MAX, &saved);
+    if (st == 401 && s_token[0] && s_key[0] && is_auth_rejection(resp)) {
+        st = tts_post(body, false, offset, name, resp, RESP_MAX, &saved);
+    }
+    free(body);
+    esp_err_t err = ESP_FAIL;
+    if (st == 200) {
+        snprintf(msg, msg_len, "Made on the server and saved (%u KB)", (unsigned)((saved + 512) / 1024));
+        err = ESP_OK;
+    } else {
+        server_message(resp, st < 0 && resp[0] ? 500 : st, msg, msg_len);
+    }
+    ESP_LOGI(TAG, "tts '%s': %s", name, msg);
     free(resp);
     return err;
 }
