@@ -2194,7 +2194,10 @@ static void regen_task(void *arg)
     if (voip_prov_refresh(msg, sizeof(msg)) != ESP_OK || voip_prov_tts_state() != 1 ||
         !voip_prov_tts_voice()[0]) {
         snprintf(s_regen_err, sizeof(s_regen_err), "%s",
-                 voip_prov_tts_state() == 0 ? "This provisioner doesn't offer text-to-speech" : msg);
+                 voip_prov_tts_state() == 0 ? "This provisioner doesn't offer text-to-speech"
+                 : voip_prov_tts_state() == 1 ? "The server's text-to-speech is too old to report its "
+                                                "voice: re-run its install.sh --with-tts"
+                 : msg);
         s_regen_failed = s_regen_total;
         s_regen_done = s_regen_total;
     }
