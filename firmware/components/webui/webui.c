@@ -3256,7 +3256,8 @@ static int append_prov_result(char *buf, size_t cap, int off, const char *id, bo
     char esc[VOIP_PROV_MSG_LEN * 6];
     html_escape(msg, esc, sizeof(esc));
     return appendf(buf, cap, off,
-        "<div class=\"statusrow\" id=\"%s\"><span class=\"pill %s\">%s</span><span>%s</span></div>",
+        "<div class=\"statusrow\" id=\"%s\" style=\"justify-content:flex-start;gap:.6em\">"
+        "<span class=\"pill %s\">%s</span><span>%s</span></div>",
         id, ok ? "on" : "off", ok ? "\xe2\x9c\x93" : "\xe2\x9c\x95", esc);
 }
 
