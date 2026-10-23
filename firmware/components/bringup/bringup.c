@@ -1774,7 +1774,7 @@ static int cmd_wifi_proto(int argc, char **argv)
         if (!he && strcmp(argv[1], "n")) { printf("usage: wifi_proto [ax|n]\n"); return 1; }
         esp_err_t err = wifi_set_he_enabled(he);
         if (err != ESP_OK) { printf("wifi_proto: %s\n", esp_err_to_name(err)); return 1; }
-        printf("Wi-Fi 6 (11ax) %s; rejoining the network. Reverts at reboot.\n", he ? "allowed" : "off (b/g/n only)");
+        printf("Wi-Fi 6 (11ax) %s; rejoining the network. The Wi-Fi driver keeps this across reboots; wifi_proto ax undoes it.\n", he ? "allowed" : "off (b/g/n only)");
         return 0;
     }
     printf("Wi-Fi 6 (11ax) is %s\n", wifi_get_he_enabled() ? "allowed" : "off (b/g/n only)");
@@ -3076,7 +3076,7 @@ void bringup_console_start(void)
     register_cmd("audiostat", "Underruns in clip/VoIP playback since boot (dropouts)", cmd_audiostat);
     register_cmd("dtmfbench", "Time the DTMF detector per 10 ms audio frame", cmd_dtmfbench);
     register_cmd("tonemon", "Watch DTMF (touch-tone) digits + timing: tonemon [secs] [line]", cmd_tonemon);
-    register_cmd("wifi_proto", "Wi-Fi 6 test: wifi_proto [ax|n] -- n = b/g/n only, rejoins; reverts at reboot", cmd_wifi_proto);
+    register_cmd("wifi_proto", "Wi-Fi 6 test: wifi_proto [ax|n] -- n = b/g/n only, rejoins; kept across reboots", cmd_wifi_proto);
     register_cmd("txpower", "WiFi transmit power: txpower [dBm 2-20] -- for testing; the adaptive-TX setting may change it back", cmd_txpower);
     register_cmd("btcall", "Bluetooth phone call: btcall [accept|reject|end] -- no arg shows call state and caller ID", cmd_btcall);
     register_cmd("power", "Low-power idle state (the console, unlike the web UI, doesn't wake the board)", cmd_power);

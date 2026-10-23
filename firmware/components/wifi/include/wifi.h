@@ -124,8 +124,8 @@ void wifi_set_power_save(bool eco);
  * otherwise. */
 esp_err_t wifi_set_tx_power_dbm(int dbm);
 /* Bring-up/diagnostic: allow (true, the default) or forbid (false) Wi-Fi 6 (802.11ax) for the
- * station, then drop the link so the connection manager rejoins with the new setting. A runtime
- * test, not saved: it reverts at reboot. For routers where 11ax stalls transfers. */
+ * station, then drop the link so the connection manager rejoins with the new setting. The Wi-Fi driver stores the
+ * choice in flash, so it survives a reboot. For routers where 11ax stalls transfers. */
 esp_err_t wifi_set_he_enabled(bool enabled);
 bool      wifi_get_he_enabled(void);
 /* Current maximum TX power in whole dBm, or 0 if WiFi isn't running. */
