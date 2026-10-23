@@ -1763,20 +1763,6 @@ static int cmd_power(int argc, char **argv)
     return 0;
 }
 
-static int cmd_wifi_proto(int argc, char **argv)
-{
-    if (argc > 1) {
-        bool he = !strcmp(argv[1], "ax");
-        if (!he && strcmp(argv[1], "n")) { printf("usage: wifi_proto [ax|n]\n"); return 1; }
-        esp_err_t err = wifi_set_he_enabled(he);
-        if (err != ESP_OK) { printf("wifi_proto: %s\n", esp_err_to_name(err)); return 1; }
-        printf("Wi-Fi 6 (11ax) %s; rejoining the network. The Wi-Fi driver keeps this across reboots; wifi_proto ax undoes it.\n", he ? "allowed" : "off (b/g/n only)");
-        return 0;
-    }
-    printf("Wi-Fi 6 (11ax) is %s\n", wifi_get_he_enabled() ? "allowed" : "off (b/g/n only)");
-    return 0;
-}
-
 /* ---------- selftest: guided hardware bring-up check ---------- */
 
 static const char *selftest_result_str(selftest_result_t r)
@@ -2063,7 +2049,7 @@ static int cmd_wifi_status(int argc, char **argv)
     wifi_ap_record_t ap;
     wifi_ps_type_t ps = WIFI_PS_NONE;
     esp_wifi_get_ps(&ps);
-    printf("      TX power %d dBm, 11ax %s, power save %s", wifi_get_tx_power_dbm(), wifi_get_he_enabled() ? "on" : "off",
+    printf("      TX power %d dBm, power save %s", wifi_get_tx_power_dbm(),
            ps == WIFI_PS_NONE ? "off" : ps == WIFI_PS_MIN_MODEM ? "MIN_MODEM (idle mode)" : "MAX_MODEM");
     if (esp_wifi_sta_get_ap_info(&ap) == ESP_OK) {
         printf(", channel %d, AP %02x:%02x:%02x:%02x:%02x:%02x, raw RSSI %d dBm", ap.primary,
@@ -3062,7 +3048,6 @@ void bringup_console_start(void)
     register_cmd("audiostat", "Underruns in clip/VoIP playback since boot (dropouts)", cmd_audiostat);
     register_cmd("dtmfbench", "Time the DTMF detector per 10 ms audio frame", cmd_dtmfbench);
     register_cmd("tonemon", "Watch DTMF (touch-tone) digits + timing: tonemon [secs] [line]", cmd_tonemon);
-    register_cmd("wifi_proto", "Wi-Fi 6 test: wifi_proto [ax|n] -- n = b/g/n only, rejoins; kept across reboots", cmd_wifi_proto);
     register_cmd("btcall", "Bluetooth phone call: btcall [accept|reject|end] -- no arg shows call state and caller ID", cmd_btcall);
     register_cmd("power", "Low-power idle state (the console, unlike the web UI, doesn't wake the board)", cmd_power);
     register_cmd("selftest", "Guided hardware bring-up check: selftest | action <id> | stimulus <id> | answer <id> <0|1> | save | history -- results stored on this board", cmd_selftest);
