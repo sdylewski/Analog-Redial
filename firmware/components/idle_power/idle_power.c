@@ -46,9 +46,11 @@ static const char *TAG = "idle_power";
 
 static bool all_lines_idle(int num_lines);
 
-/* On by default, every option (the user can switch any of them off in Settings -> Hardware). */
+/* On by default, every option except adaptive TX power: on a mesh network the received signal says
+ * nothing about whether the router hears us at reduced power (2026-10-22: dropped links and stalled
+ * pages at 11 dBm on a mesh). Switch any of them in Settings -> Hardware. */
 static idle_power_cfg_t s_cfg = { .enabled = true, .minutes = 5, .max_savings = false,
-                                  .adaptive_tx = true, .pause_audio = true, .cpu_scale = true };
+                                  .adaptive_tx = false, .pause_audio = true, .cpu_scale = true };
 static bool             s_sleeping;
 static bool             s_wifi_eco;
 static bool             s_slic_on[BOARD_NUM_LINES];
@@ -263,6 +265,7 @@ static void wake_fully(int num_lines)
  * happen at reduced power. */
 #define ADAPTIVE_TX_EVERY_MS 10000
 static int     s_tx_dbm;          /* what we last set; 0 = never set */
+static bool    s_tx_latched_off;  /* the link dropped while reduced: stay at full power until reboot */
 static int64_t s_tx_next_check_us;
 
 static void adaptive_tx_step(int64_t now)
@@ -273,6 +276,10 @@ static void adaptive_tx_step(int64_t now)
         /* Reconnect attempts must not run at reduced power: a router that can't
          * hear the board never completes the handshake, and nothing would raise
          * the power again until after a connection. */
+        if (s_tx_dbm == IDLE_POWER_TX_LOW_DBM && !s_tx_latched_off) {
+            s_tx_latched_off = true;
+            ESP_LOGW(TAG, "WiFi dropped at reduced TX power -- keeping full power until reboot");
+        }
         if (s_tx_dbm != IDLE_POWER_TX_FULL_DBM) {
             if (wifi_set_tx_power_dbm(IDLE_POWER_TX_FULL_DBM) == ESP_OK) {
                 ESP_LOGI(TAG, "WiFi down -- TX power back to %d dBm for the reconnect", IDLE_POWER_TX_FULL_DBM);
@@ -284,7 +291,7 @@ static void adaptive_tx_step(int64_t now)
         return;
     }
     int want = IDLE_POWER_TX_FULL_DBM;
-    if (s_cfg.adaptive_tx) {
+    if (s_cfg.adaptive_tx && !s_tx_latched_off) {
         int rssi = wifi_rssi();
         if (rssi >= IDLE_POWER_TX_REDUCE_RSSI) {
             want = IDLE_POWER_TX_LOW_DBM;

@@ -66,11 +66,14 @@ typedef struct {
  * is roughly symmetric, so a strong downlink means the AP will still hear us
  * at reduced power. Lowering our own TX power doesn't change the RSSI we
  * measure, so there's no feedback loop to oscillate -- the gap between the
- * two thresholds is only there to ride out ordinary RSSI jitter. */
+ * two thresholds is only there to ride out ordinary RSSI jitter.
+ * Off by default: on a mesh network the downlink RSSI says little about whether the
+ * router hears us at reduced power. If the link ever drops while reduced, the
+ * driver stays at full power until reboot. */
 #define IDLE_POWER_TX_LOW_DBM        11   /* ~8 dB below full */
 #define IDLE_POWER_TX_FULL_DBM       20
-#define IDLE_POWER_TX_REDUCE_RSSI   (-55) /* at or above: reduce */
-#define IDLE_POWER_TX_RESTORE_RSSI  (-62) /* below: restore full */
+#define IDLE_POWER_TX_REDUCE_RSSI   (-45) /* at or above: reduce */
+#define IDLE_POWER_TX_RESTORE_RSSI  (-55) /* below: restore full */
 
 /* Defaults to disabled / 5 minutes until idle_power_set() says otherwise. */
 idle_power_cfg_t idle_power_get(void);

@@ -4424,7 +4424,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         ip.max_savings ? " selected" : "", opt_max_savings,
         ip.adaptive_tx ? " checked" : "",
         i18n_str("idlepower.adaptive_tx", "Lower WiFi transmit power while the signal is strong "
-                                         "(applies all the time, not just when idle)"),
+                                         "(saves a little power; leave off on a mesh network, where it can drop the connection)"),
         ip.pause_audio ? " checked" : "",
         i18n_str("idlepower.pause_audio", "Pause audio processing while every phone is hung up "
                                          "(resumes on pickup)"),
