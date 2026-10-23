@@ -54,6 +54,7 @@ a PASS / WARN / FAIL / SKIP table:
 | `codec` | ES8388 found on I²C | `tests` |
 | `network` | board answers `/api/status` at `--host` | everything below |
 | `hardware` | sets lines / microSD / Bluetooth — only when you pass `--lines`, `--bluetooth` (BM64) or `--bt-module none\|bm64\|bt401` | — |
+| `voip` | saves the VoIP provisioner address and enrollment key and reads back the board's ✓/✕ result — only with `--prov-url` (key from `--prov-key` or `REDIAL_PROV_KEY`) | — |
 | `microsd` | skipped on 2-line boards (shared pins); WARN if no card is in use; otherwise `sd_test` write/read/verify over serial | — |
 | `audio` | generates and uploads `operator.wav`, `record_prompt.wav` (dial 211), `am_greeting.wav`, the answering machine's default greeting ("Leave a message after the beep"; a line's own recording via 899 still wins), and with `--digits`, `digit_0..9.wav` | `verify` |
 | `verify` | reads every uploaded file back and checks it's a WAV | — |

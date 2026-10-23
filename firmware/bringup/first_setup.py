@@ -10,6 +10,8 @@ a PASS / WARN / FAIL / SKIP summary:
   codec      the audio codec answers on I2C            <- gates the audio tests
   network    the board answers HTTP at --host          <- gates everything below
   hardware   set lines / microSD / Bluetooth (only if you pass --lines etc.)
+  voip       save the VoIP provisioner address and enrollment key, and check
+             that they work (only with --prov-url)
   microsd    card present? then write+read+verify it   (skipped on 2-line boards,
              which use the microSD pins for line 2)
   audio      generate and upload the default prompts:
@@ -47,6 +49,9 @@ Examples
   # just redo the prompts
   ./first_setup.py --host telephono.local --only audio verify
 
+  # a board for a friend: point it at my provisioner with their own key
+  REDIAL_PROV_KEY=alice.XXXX ./first_setup.py --host 192.168.0.123 --prov-url https://pbx.example.net/redial --only network voip
+
   # check a board, then leave it ready to hand to someone (setup mode, phone.local)
   ./first_setup.py --host 192.168.0.123 --tests --reset-wifi
 """
@@ -68,7 +73,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-STEP_NAMES = ("chip", "console", "codec", "network", "hardware",
+STEP_NAMES = ("chip", "console", "codec", "network", "hardware", "voip",
               "microsd", "audio", "clips", "verify", "tests")
 
 # Audio clips that ship with the project but aren't text-to-speech: uploaded
@@ -349,6 +354,32 @@ def step_hardware(run: Run, host: str, args, status: dict) -> dict:
     return status
 
 
+def step_voip(run: Run, host: str, args) -> None:
+    """Saves the provisioner address and key, then reads back the board's own
+    verdict (the ✓ / ✕ line under the form on the VoIP tab)."""
+    run.header("voip", "VoIP provisioner address and enrollment key")
+    if not args.prov_url:
+        run.record("voip", "SKIP", "no --prov-url given")
+        return
+    key = args.prov_key or os.environ.get("REDIAL_PROV_KEY", "")
+    form = {"url": args.prov_url}
+    if key:
+        form["key"] = key
+    code, _ = curl(host, "/voip_prov_config", form=form, timeout=40)
+    if not ok_status(code):
+        run.record("voip", "FAIL", f"board refused the settings (HTTP {code})")
+        return
+    code, page = curl(host, "/settings?tab=voip")
+    m = re.search(r'id="provcfg"><span class="pill (on|off)">[^<]*</span><span>([^<]*)', page.decode("utf-8", "replace"))
+    if not m:
+        run.record("voip", "WARN", "saved, but couldn't read the board's result" +
+                   ("" if key else " (no key given: set --prov-key or REDIAL_PROV_KEY)"))
+    elif m.group(1) == "on":
+        run.record("voip", "PASS", m.group(2))
+    else:
+        run.record("voip", "FAIL", m.group(2))
+
+
 def step_microsd(run: Run, con, status: dict) -> None:
     run.header("microsd", "microSD card")
     nlines = len(status.get("lines", [])) if status else 0
@@ -508,6 +539,10 @@ def main() -> int:
                     help="BM64 companion fitted (same as --bt-module bm64)")
     ap.add_argument("--bt-module", choices=("none", "bm64", "bt401"),
                     help="Which Bluetooth module is fitted (default: leave as is)")
+    ap.add_argument("--prov-url", help="VoIP provisioner address to save on the board, e.g. "
+                                       "http://pbx.local:8077 or https://pbx.example.net/redial")
+    ap.add_argument("--prov-key", help="Enrollment key (name.secret) to save with it; or set "
+                                       "REDIAL_PROV_KEY so it stays out of your shell history")
     ap.add_argument("--digits", action="store_true",
                     help="Also upload spoken digits 0-9 (for digit readback)")
     ap.add_argument("--tests", action="store_true",
@@ -574,7 +609,7 @@ def main() -> int:
                 run.record("codec", "SKIP", "needs the serial console")
 
         status: dict = {}
-        if only & {"network", "hardware", "microsd", "audio", "clips", "verify"}:
+        if only & {"network", "hardware", "voip", "microsd", "audio", "clips", "verify"}:
             status = step_network(run, args.host)
         online = bool(status)
 
@@ -584,6 +619,13 @@ def main() -> int:
             else:
                 run.header("hardware", "lines / microSD / Bluetooth")
                 run.record("hardware", "SKIP", "board not reachable over HTTP")
+
+        if run.wanted("voip"):
+            if online:
+                step_voip(run, args.host, args)
+            else:
+                run.header("voip", "VoIP provisioner")
+                run.record("voip", "SKIP", "board not reachable over HTTP")
 
         if run.wanted("microsd"):
             step_microsd(run, con, status)
