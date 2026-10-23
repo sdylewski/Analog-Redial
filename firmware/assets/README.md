@@ -23,8 +23,12 @@ from `storage` (recordings + anything uploaded over HTTP at runtime), so:
 
 ## What's shipped by default
 
-**`operator.wav`** — synthesized from `pi_rotary_phone/operator_help_en.txt`
-(original project text, not copyrighted). Dial `0` to hear it.
+**`operator.wav`** — "You've reached the operator line. To leave a message, dial 2 1 1. For other
+features, please refer to your phone's guide." Dial `0` to hear it.
+
+All the spoken clips below (and this one) are made by `bringup/gen_bundled_audio.py` in the Kokoro
+voice `af_sarah` (Apache-2.0 model, rendered offline). Re-run it to change the voice or wording, then
+`idf.py flash`: OTA updates don't rewrite the `bundled` partition.
 
 **`record_prompt.wav`** — "Record your message after the beep, then hang
 up.", generated with `bringup/gen_prompt.py` from the same English text
@@ -44,7 +48,7 @@ source audio at all. Boards provisioned earlier keep those codes.)
 
 **`0.wav` ... `9.wav`, `point.wav`** -- the digits spoken one at a time
 (about 0.4 s each, 8 kHz 8-bit µ-law, 38 KB in all), made with
-`bringup/gen_prompt.py` (Piper, the same voice as the other prompts) and
+`bringup/gen_bundled_audio.py` (the same voice as the other prompts) and
 trimmed with `ffmpeg`. Digit readback (dial 822) says each digit you dial with
 them, and dial 314 reads pi aloud: "three point one four one five...", the first
 100 decimals. Without them readback falls back to a touch-tone burst. Replace a
@@ -52,7 +56,7 @@ digit by uploading a same-named file under Settings -> Storage.
 
 **`jenny.wav`** (8675309, "Jenny") -- "If you're trying to reach Jenny, she's
 not home right now. Please call back later.", an original message synthesized
-with `bringup/gen_prompt.py` (Piper) and stored as 8 kHz 8-bit µ-law WAV
+with `bringup/gen_bundled_audio.py` and stored as 8 kHz 8-bit µ-law WAV
 (38 KB; same `ffmpeg` command as below). It's a plain spoken line: no music,
 nothing from any recording. Boards set up before it existed get the code added
 at their next boot.

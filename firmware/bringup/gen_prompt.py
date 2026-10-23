@@ -13,7 +13,14 @@ decoder needed: player.c resamples on playback, so the device's live
 telephony audio (still 48kHz) is untouched. Pass --rate 48000 if you'd
 rather skip resampling for some reason.
 
-Text-to-speech uses Piper (preferred, neural, cross-platform -- the same
+Text-to-speech uses Kokoro (preferred: a small open neural model, Apache-2.0, runs
+offline on a laptop; default voice af_sarah) when it can be set up, then Piper (also
+neural; en_GB-jenny_dioco-medium), then espeak-ng, then macOS `say`. Kokoro needs
+`pip install kokoro-onnx soundfile` and about 350 MB of model files, which this script
+downloads into firmware/bringup/kokoro_models/ the first time (skipped with
+--no-auto-install). Pass --kokoro-voice to pick another voice (af_*, am_*, bf_*, bm_*).
+
+The paragraphs below describe the Piper path (the fallback). Piper (neural, cross-platform -- the same
 engine pi_rotary_phone's install-piper.sh sets up there, since that's been
 the better-sounding option). --engine auto (the default) sets Piper up for
 you the first time it's needed: `pip install piper-tts` if the `piper`
@@ -101,6 +108,12 @@ DEFAULT_SAY_VOICE = "Samantha"       # --engine say (macOS only)
 DEFAULT_ESPEAK_VOICE = "en-us"       # --engine espeak
 PIPER_VOICES_DIR = Path(__file__).resolve().parent / "piper_voices"
 
+# Kokoro-82M through kokoro-onnx (Apache-2.0). af_sarah: picked by ear against the Piper voices.
+DEFAULT_KOKORO_VOICE = "af_sarah"
+KOKORO_DIR = Path(__file__).resolve().parent / "kokoro_models"
+KOKORO_FILES = ("kokoro-v1.0.onnx", "voices-v1.0.bin")
+KOKORO_BASE_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0"
+
 # en_GB-jenny_dioco-medium -- one of Piper's more natural-sounding voices
 # (compared side-by-side against en_US-lessac-medium, which
 # pi_rotary_phone's scripts/install-piper.sh still uses on the Pi; the two
@@ -176,6 +189,56 @@ def _ensure_piper_cli(auto_install: bool) -> str | None:
     return _which("piper")
 
 
+
+_KOKORO = None
+
+
+def _ensure_kokoro(auto_install: bool):
+    """Returns a kokoro_onnx.Kokoro (loaded once per run), installing the package and downloading the model files
+    first when auto_install allows it; None if it can't be set up (callers fall back a tier)."""
+    global _KOKORO
+    if _KOKORO:
+        return _KOKORO
+    try:
+        import kokoro_onnx  # noqa: F401
+        import soundfile  # noqa: F401
+    except ImportError:
+        if not auto_install:
+            return None
+        print("Kokoro not found -- installing via 'pip install kokoro-onnx soundfile'...")
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "install", "-q", "kokoro-onnx", "soundfile"], check=True)
+            import kokoro_onnx  # noqa: F401
+            import soundfile  # noqa: F401
+        except (subprocess.CalledProcessError, ImportError, OSError) as e:
+            print(f"warning: couldn't set up Kokoro ({e})", file=sys.stderr)
+            return None
+    missing = [f for f in KOKORO_FILES if not (KOKORO_DIR / f).exists()]
+    if missing:
+        if not auto_install:
+            return None
+        try:
+            KOKORO_DIR.mkdir(parents=True, exist_ok=True)
+            for f in missing:
+                print(f"downloading Kokoro model file {f}...")
+                urllib.request.urlretrieve(f"{KOKORO_BASE_URL}/{f}", KOKORO_DIR / f)
+        except OSError as e:
+            print(f"warning: couldn't download the Kokoro model ({e})", file=sys.stderr)
+            for f in missing:
+                (KOKORO_DIR / f).unlink(missing_ok=True)
+            return None
+    from kokoro_onnx import Kokoro
+    _KOKORO = Kokoro(str(KOKORO_DIR / KOKORO_FILES[0]), str(KOKORO_DIR / KOKORO_FILES[1]))
+    return _KOKORO
+
+
+def speak_kokoro(kokoro, text: str, voice: str, out_wav: Path) -> None:
+    import soundfile as sf
+    lang = "en-gb" if voice.startswith("b") else "en-us"
+    samples, rate = kokoro.create(text, voice=voice, speed=1.0, lang=lang)
+    sf.write(str(out_wav), samples, rate)
+
+
 def speak_piper(text: str, model_path: Path, out_wav: Path) -> None:
     cmd = ["piper", "--model", str(model_path), "--output_file", str(out_wav)]
     subprocess.run(cmd, input=text.encode("utf-8"), check=True)
@@ -210,7 +273,7 @@ def speak_say(text: str, voice: str, out_aiff: Path) -> None:
 
 def synthesize(text: str, engine: str, piper_model: str | None,
                 espeak_voice: str, say_voice: str, raw_path: Path,
-                auto_install: bool = True) -> Path:
+                auto_install: bool = True, kokoro_voice: str = DEFAULT_KOKORO_VOICE) -> Path:
     """Synthesizes `text` with whichever engine `engine` picks ("auto" tries
     Piper -- installing it and its default voice first if auto_install and
     neither is present yet -- then espeak-ng, then macOS `say` as a last
@@ -218,6 +281,17 @@ def synthesize(text: str, engine: str, piper_model: str | None,
     fallbacks). Returns the path actually written (raw_path itself, except
     for `say`'s AIFF output) -- still needs convert_to_wav() to reach the
     device's target format."""
+    if engine in ("auto", "kokoro"):
+        kokoro = _ensure_kokoro(auto_install)
+        if kokoro:
+            speak_kokoro(kokoro, text, kokoro_voice, raw_path)
+            return raw_path
+        if engine == "kokoro":
+            raise SystemExit(
+                "Kokoro requested (--engine kokoro) but not available (install or model download "
+                "failed, or --no-auto-install was passed). Needs 'pip install kokoro-onnx soundfile' "
+                f"and the model files in {KOKORO_DIR}.")
+        print("note: Kokoro isn't available -- using Piper.", file=sys.stderr)
     if engine in ("auto", "piper"):
         piper_bin = _ensure_piper_cli(auto_install)
         if piper_bin:
@@ -435,7 +509,8 @@ def fetch_prompt_requests(host: str, secret: str | None) -> list[dict]:
 
 def sync_prompts(host: str, secret: str | None, engine: str, piper_model: str | None,
                   espeak_voice: str, say_voice: str, rate: int, out_dir: Path,
-                  only: list[str] | None, auto_install: bool = True) -> None:
+                  only: list[str] | None, auto_install: bool = True,
+                  kokoro_voice: str = DEFAULT_KOKORO_VOICE) -> None:
     entries = fetch_prompt_requests(host, secret)
     pending = [e for e in entries if e.get("pending") and e.get("text")]
     if only:
@@ -452,7 +527,7 @@ def sync_prompts(host: str, secret: str | None, engine: str, piper_model: str | 
         out_path = out_dir / name
         with tempfile.TemporaryDirectory() as td:
             raw = synthesize(text, engine, piper_model, espeak_voice, say_voice,
-                              Path(td) / "speech.wav", auto_install)
+                              Path(td) / "speech.wav", auto_install, kokoro_voice)
             convert_to_wav(raw, out_path, rate)
         upload(out_path, host, name)
     print(f"synced {len(pending)} prompt(s)")
@@ -467,8 +542,10 @@ def main() -> None:
     p.add_argument("--name",
                     help="Output filename, e.g. operator.wav or clip_401.wav (see module "
                          "docstring). Required unless --sync.")
-    p.add_argument("--engine", default="auto", choices=("auto", "piper", "espeak", "say"),
-                    help="TTS engine (default: auto -- Piper, then espeak-ng, then macOS 'say')")
+    p.add_argument("--engine", default="auto", choices=("auto", "kokoro", "piper", "espeak", "say"),
+                    help="TTS engine (default: auto -- Kokoro, then Piper, then espeak-ng, then macOS 'say')")
+    p.add_argument("--kokoro-voice", default=DEFAULT_KOKORO_VOICE,
+                    help=f"Kokoro voice, only used with Kokoro (default: {DEFAULT_KOKORO_VOICE})")
     p.add_argument("--piper-model", help="Path to a Piper .onnx voice model")
     p.add_argument("--espeak-voice", default=DEFAULT_ESPEAK_VOICE,
                     help=f"espeak-ng voice (default: {DEFAULT_ESPEAK_VOICE})")
@@ -516,7 +593,7 @@ def main() -> None:
     if args.sync:
         sync_prompts(args.sync, args.secret, args.engine, args.piper_model,
                      args.espeak_voice, args.say_voice, args.rate, Path(args.out_dir), args.only,
-                     auto_install)
+                     auto_install, args.kokoro_voice)
         return
 
     if args.text and args.from_file:
@@ -537,7 +614,7 @@ def main() -> None:
         with tempfile.TemporaryDirectory() as td:
             raw = synthesize(args.text, args.engine, args.piper_model,
                               args.espeak_voice, args.say_voice, Path(td) / "speech.wav",
-                              auto_install)
+                              auto_install, args.kokoro_voice)
             convert_to_target(raw, out_path, args.rate, args.mp3_bitrate,
                                args.max_seconds if is_mp3 else None)
 
