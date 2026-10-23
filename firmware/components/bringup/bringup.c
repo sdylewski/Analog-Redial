@@ -22,6 +22,7 @@
 #include "player.h"
 #include "voip.h"
 #include "bt_companion.h"
+#include "esp_wifi.h"
 #include "bt401.h"
 #include "bt401_proto.h"
 #include "driver/gpio.h"
@@ -2058,6 +2059,17 @@ static int cmd_wifi_status(int argc, char **argv)
     printf("wifi: %s  ssid=%s  ip=%s  rssi=%d dBm\n",
            wifi_is_connected() ? "connected" : "disconnected",
            wifi_get_ssid(), ip, wifi_rssi());
+    /* What matters when a page won't load: the radio's own settings. */
+    wifi_ap_record_t ap;
+    wifi_ps_type_t ps = WIFI_PS_NONE;
+    esp_wifi_get_ps(&ps);
+    printf("      TX power %d dBm, power save %s", wifi_get_tx_power_dbm(),
+           ps == WIFI_PS_NONE ? "off" : ps == WIFI_PS_MIN_MODEM ? "MIN_MODEM (idle mode)" : "MAX_MODEM");
+    if (esp_wifi_sta_get_ap_info(&ap) == ESP_OK) {
+        printf(", channel %d, AP %02x:%02x:%02x:%02x:%02x:%02x, raw RSSI %d dBm", ap.primary,
+               ap.bssid[0], ap.bssid[1], ap.bssid[2], ap.bssid[3], ap.bssid[4], ap.bssid[5], ap.rssi);
+    }
+    printf("\n");
     return 0;
 }
 
