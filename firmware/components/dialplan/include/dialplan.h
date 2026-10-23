@@ -119,12 +119,22 @@ uint32_t dialplan_interdigit_ms(void);
  * Reflects the same table dialplan_feed()/dialplan_timeout() actually match
  * against -- there is no separate hand-maintained copy of this list, so it
  * can't drift out of sync with what the phone really does. */
+/* What a built-in code is for, so the web UI's dial guide can group by
+ * function instead of by number (the numbers can be changed). */
+typedef enum {
+    DIALPLAN_GROUP_CALLS = 0,   /* calls to the other line */
+    DIALPLAN_GROUP_MESSAGES,    /* operator, leave a message, the greeting */
+    DIALPLAN_GROUP_CLIPS,       /* plays audio: pi, and anything like it */
+    DIALPLAN_GROUP_SETTINGS,    /* changes a setting */
+} dialplan_group_t;
+
 typedef struct {
     const char *code;          /* what to dial now (may have been changed) */
     const char *default_code;  /* the code it ships with: a stable name for it */
     const char *desc;
     bool        implemented; /* false = telephony.c currently just logs a
                                * "(TODO)" and plays a confirm tone for this */
+    dialplan_group_t group;
 } dialplan_entry_info_t;
 
 /* Fills `out` (definition order), returns the number of entries written

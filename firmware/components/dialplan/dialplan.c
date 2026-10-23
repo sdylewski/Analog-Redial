@@ -655,6 +655,16 @@ dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line)
     return make(ACT_WRONG_NUMBER, 0, 0);
 }
 
+static dialplan_group_t group_for(dialplan_action_kind_t k)
+{
+    switch (k) {
+    case ACT_CALL_LINE:       return DIALPLAN_GROUP_CALLS;
+    case ACT_PI_DIGITS:       return DIALPLAN_GROUP_CLIPS;
+    case ACT_SET_MODE:        return DIALPLAN_GROUP_SETTINGS;
+    default:                  return DIALPLAN_GROUP_MESSAGES;   /* operator, record, greeting */
+    }
+}
+
 size_t dialplan_list(dialplan_entry_info_t *out, size_t max)
 {
     size_t n = 0;
@@ -664,6 +674,7 @@ size_t dialplan_list(dialplan_entry_info_t *out, size_t max)
         out[n].default_code = TABLE[i].code;
         out[n].desc = TABLE[i].desc;
         out[n].implemented = TABLE[i].implemented;
+        out[n].group = group_for(TABLE[i].kind);
         n++;
     }
     return n;
@@ -677,6 +688,7 @@ size_t dialplan_list_fixed(dialplan_fixed_info_t *out, size_t max)
         out[n].info.default_code = TABLE[i].code;
         out[n].info.desc = TABLE[i].desc;
         out[n].info.implemented = TABLE[i].implemented;
+        out[n].info.group = group_for(TABLE[i].kind);
         out[n].available = entry_available(&TABLE[i]);
     }
     return n;

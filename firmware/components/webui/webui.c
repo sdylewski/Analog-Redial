@@ -7891,7 +7891,8 @@ static esp_err_t aec_delay_apply_handler(httpd_req_t *req)
         board_aec_delay_set(line, (uint32_t)ms);
     }
 
-    return redirect_to(req, "/settings?tab=diag");
+    redirect_to_referer_or(req, "/settings?tab=diag");   /* stay on whichever tab the form was on */
+    return ESP_OK;
 }
 
 /* POST /aec_enable -- body line=N&on=0|1. Testing toggle -- see the
@@ -7911,7 +7912,8 @@ static esp_err_t aec_enable_handler(httpd_req_t *req)
     }
     aec_set_enabled(line, on_s[0] == '1');
 
-    return redirect_to(req, "/settings?tab=diag");
+    redirect_to_referer_or(req, "/settings?tab=diag");
+    return ESP_OK;
 }
 
 /* GET /voip_server_script -- downloadable bash script that provisions this
@@ -8467,18 +8469,6 @@ static esp_err_t media_delete_bulk_handler(httpd_req_t *req)
     return redirect_to(req, loc);
 }
 
-/* Cards grouped by code prefix -- matches the layout of the Pi's
- * web/templates/guide.html (4xx / 2xx / call-other-phone / 8xx / 9xx cards)
- * instead of one flat table. Grouping is by first digit, not a hand-kept
- * category field, so a new dialplan.c entry lands in the right card purely
- * by its code -- there's still only one table to keep in sync. */
-typedef struct { char prefix; const char *heading; } guide_cat_t;
-static const guide_cat_t GUIDE_CATS[] = {
-    { '2', "2xx -- messages" },
-    { '3', "3xx -- call the other phone, and pi" },
-    { '8', "8xx -- settings" },
-};
-#define GUIDE_CATS_N (sizeof(GUIDE_CATS) / sizeof(GUIDE_CATS[0]))
 
 /* "401" -> "4-0-1", matching how the Pi guide and DIAL_CODES.md write codes. */
 static void hyphenate_code(const char *code, char *out, size_t outsz)
@@ -8597,60 +8587,87 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
     s_guide_voip_done = false;
     s_guide_pins_done = false;
 
-    /* Cards run in dialling order -- 0, 1, 2xx, 3xx, 4xx, 555, 8xx -- so the
-     * guide reads the way someone would actually work through the keypad,
-     * rather than table order. */
+    /* Cards are grouped by what a code does, not by its number: the numbers
+     * can be changed, and clips, switches and added codes have no fixed
+     * prefix. Calls, then operator and messages, then clips, then switches
+     * and Home Assistant, then settings. */
 
-    /* 0 -- operator. Its own card: a single code with no prefix family. */
-    for (size_t i = 0; i < n && off > 0 && (size_t)off < cap; i++) {
-        if (strcmp(entries[i].default_code, "0") != 0) continue;
+    /* Calls: the other line (321-324), VoIP (555 + 4 digits) and, with a
+     * Bluetooth module, calling out through the paired phone. 1 and 555 are
+     * matched directly in dialplan_feed(), so they are synthetic rows. */
+    bool bt_row = board_hw_config_get().has_bt_module;
+    size_t in_calls = 0;
+    for (size_t i = 0; i < n; i++) if (entries[i].group == DIALPLAN_GROUP_CALLS) in_calls++;
+    if (off > 0 && (size_t)off < cap) {
+        off = appendf(buf, cap, off, "<div class=\"card\"><h2>Calls</h2>");
+        for (size_t i = 0; i < n && (size_t)off < cap; i++) {
+            if (entries[i].group != DIALPLAN_GROUP_CALLS) continue;
+            off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);
+        }
         off = appendf(buf, cap, off,
-            "<div class=\"card\"><h2>Operator</h2>");
-        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);
+            "<div class=\"code-row\"><span class=\"code\">5-5-5-x-x-x-x</span>"
+            "%s<span class=\"desc\">Call a VoIP extension (7 digits)</span></div>",
+            voip_is_enabled() ? "<span class=\"pill on\">enabled</span>" : "<span class=\"pill off\">disabled</span>");
+        if (bt_row) {
+            off = appendf(buf, cap, off,
+                "<div class=\"code-row\"><span class=\"code\">1-x-x-x-x-x-x-x-x-x-x</span>"
+                "%s<span class=\"desc\">Call out via the paired phone (Bluetooth)</span></div>",
+                bt_companion_active() ? "<span class=\"pill on\">enabled</span>" : "<span class=\"pill off\">disabled</span>");
+        }
         off = appendf(buf, cap, off, "</div>");
     }
+    (void)in_calls;
+    s_guide_voip_done = true;
 
-    /* 1 -- Bluetooth dial-out. Matched directly in dialplan_feed(), only
-     * while the companion is enabled (dialplan_set_bt_dialout()), so it's
-     * synthetic rather than a TABLE entry. */
-    if (board_hw_config_get().has_bt_module && off > 0 && (size_t)off < cap) {
-        off = appendf(buf, cap, off,
-            "<div class=\"card\"><h2>Bluetooth</h2>"
-            "<div class=\"code-row\"><span class=\"code\">1 - x x x - x x x - x x x x</span>"
-            "%s<span class=\"desc\">Call out via the paired phone</span></div></div>",
-            bt_companion_active() ? "<span class=\"pill on\">enabled</span>" : "<span class=\"pill off\">disabled</span>");
-    }
-
-    /* 2xx, 3xx, 8xx -- straight from the dial-plan table. */
-    for (size_t g = 0; g < GUIDE_CATS_N && off > 0 && (size_t)off < cap; g++) {
-        /* Skip a category with no live codes (e.g. "call the other phone" on
-         * a single-line build, where the 3xx entries are compiled out). */
-        size_t in_cat = 0;
-        for (size_t i = 0; i < n; i++) if (entries[i].default_code[0] == GUIDE_CATS[g].prefix) in_cat++;
-        if (in_cat == 0) continue;
-
-        /* 4xx clips and 555 VoIP are interleaved here so the whole run stays
-         * in dialling order even though they come from other sources. */
-        if (GUIDE_CATS[g].prefix > '4') {
-            off = append_guide_clips(buf, cap, off);
-            off = append_guide_pins(buf, cap, off);
+    /* Operator and messages: the operator prompt, leave a message, the
+     * answering-machine greeting. */
+    for (int pass = 0; pass < 2; pass++) {
+        dialplan_group_t g = pass == 0 ? DIALPLAN_GROUP_MESSAGES : DIALPLAN_GROUP_CLIPS;
+        size_t in_g = 0;
+        for (size_t i = 0; i < n; i++) if (entries[i].group == g) in_g++;
+        if (pass == 1) {
+            /* Clips: the built-in ones that aren't in the clip table (pi), then
+             * every clip code, one card. */
+            dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
+            size_t nclips = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
+            if (in_g + nclips == 0 || off <= 0 || (size_t)off >= cap) continue;
+            off = appendf(buf, cap, off, "<div class=\"card\"><h2>Clips</h2>");
+            for (size_t i = 0; i < n && (size_t)off < cap; i++) {
+                if (entries[i].group != g) continue;
+                off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);
+            }
+            for (size_t i = 0; i < nclips && (size_t)off < cap; i++)
+                off = append_guide_row(buf, cap, off, clips[i].code, clips[i].desc, 0);
+            off = appendf(buf, cap, off, "</div>");
+            s_guide_clips_done = true;
+            continue;
         }
-        if (GUIDE_CATS[g].prefix > '5') off = append_guide_voip(buf, cap, off);
-
-        off = appendf(buf, cap, off,
-            "<div class=\"card\"><h2>%s</h2>", GUIDE_CATS[g].heading);
+        if (in_g == 0 || off <= 0 || (size_t)off >= cap) continue;
+        off = appendf(buf, cap, off, "<div class=\"card\"><h2>Operator &amp; messages</h2>");
         for (size_t i = 0; i < n && (size_t)off < cap; i++) {
-            if (entries[i].default_code[0] != GUIDE_CATS[g].prefix) continue;
+            if (entries[i].group != g) continue;
             off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);
         }
         off = appendf(buf, cap, off, "</div>");
     }
 
-    /* If no 8xx category rendered (nothing above 5xx), these still need to
-     * come out -- append_guide_clips()/_voip() are one-shot and no-op after
-     * the first call. */
-    off = append_guide_clips(buf, cap, off);
+    /* Pin outputs and Home Assistant codes. */
     off = append_guide_pins(buf, cap, off);
+
+    /* Settings. */
+    {
+        size_t in_s = 0;
+        for (size_t i = 0; i < n; i++) if (entries[i].group == DIALPLAN_GROUP_SETTINGS) in_s++;
+        if (in_s && off > 0 && (size_t)off < cap) {
+            off = appendf(buf, cap, off, "<div class=\"card\"><h2>Settings</h2>");
+            for (size_t i = 0; i < n && (size_t)off < cap; i++) {
+                if (entries[i].group != DIALPLAN_GROUP_SETTINGS) continue;
+                off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);
+            }
+            off = appendf(buf, cap, off, "</div>");
+        }
+    }
+    off = append_guide_clips(buf, cap, off);   /* no-ops: already drawn */
     off = append_guide_voip(buf, cap, off);
 
     /* Not dial-plan codes: in_call_key() in telephony.c. */
