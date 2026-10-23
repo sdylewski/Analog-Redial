@@ -240,9 +240,9 @@ void selftest_begin(void)
     if (bt_mod == BOARD_BT_BM64) {
         check_bt_link(bl);
         check_bt_eeprom(be);
-    } else if (bt_mod == BOARD_BT_BK3266) {
+    } else if (bt_mod == BOARD_BT_BT401) {
         check_bt_link(bl);
-        set_result(be, SELFTEST_SKIP, "BM64 only: the BK3266 has no EEPROM step");
+        set_result(be, SELFTEST_SKIP, "BM64 only: the BT401 has no EEPROM step");
     } else {
         set_result(bl, SELFTEST_SKIP, "no Bluetooth module fitted");
         set_result(be, SELFTEST_SKIP, "no Bluetooth module fitted");

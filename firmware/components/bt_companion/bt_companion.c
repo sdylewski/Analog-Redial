@@ -1,5 +1,5 @@
 #include "bt_companion.h"
-#include "bk3266.h"
+#include "bt401.h"
 #include "board.h"
 #include "board_pins.h"
 #include "driver/gpio.h"
@@ -255,7 +255,7 @@ void bt_companion_diag_pins_get(int *rst, int *p20)
 #endif /* BOARD_BT_MFB_PIN: boards without the mode-pin wiring get stubs further down */
 
 /* Which module is on the header. Fixed at boot (Settings -> Hardware takes
- * effect on reboot), so the BM64 and BK3266 backends never have to share the
+ * effect on reboot), so the BM64 and BT401 backends never have to share the
  * UART or hand over mid-run. */
 static board_bt_module_t s_module = BOARD_BT_NONE;
 static bool              s_module_known;
@@ -271,9 +271,9 @@ static board_bt_module_t module(void)
 
 board_bt_module_t bt_companion_module(void) { return module(); }
 
-bool bt_companion_can_dial(void) { return module() == BOARD_BT_BM64; }
+bool bt_companion_can_dial(void) { return module() == BOARD_BT_BM64 || module() == BOARD_BT_BT401; }
 
-static void bk_notify(bt_call_state_t st)
+static void bt401_notify(bt_call_state_t st)
 {
     if (s_call_cb) s_call_cb(st, s_call_cb_ctx);
 }
@@ -308,14 +308,14 @@ esp_err_t bt_companion_set_enabled(bool enabled)
     nvs_close(h);
     if (err != ESP_OK) return err;
 
-    if (module() == BOARD_BT_BK3266) {
+    if (module() == BOARD_BT_BT401) {
         s_enabled = enabled;
         if (enabled) {
-            ESP_LOGI(TAG, "enabled -- starting BK3266 link");
-            return bk3266_start(bk_notify);
+            ESP_LOGI(TAG, "enabled -- starting BT401 link");
+            return bt401_start(bt401_notify);
         }
-        ESP_LOGI(TAG, "disabled -- disconnecting and stopping BK3266 link");
-        bk3266_stop(true);
+        ESP_LOGI(TAG, "disabled -- disconnecting and stopping BT401 link");
+        bt401_stop(true);
         return ESP_OK;
     }
 
@@ -357,8 +357,8 @@ esp_err_t bt_companion_set_enabled(bool enabled)
 bt_companion_status_t bt_companion_get_status(void)
 {
     bt_companion_status_t out;
-    if (module() == BOARD_BT_BK3266) {
-        bk3266_get_status(&out);
+    if (module() == BOARD_BT_BT401) {
+        bt401_get_status(&out);
         out.enabled = s_enabled;
         if (!s_enabled) { out.link_up = false; out.bt_connected = false; out.paired_name[0] = '\0'; }
         return out;
@@ -463,9 +463,9 @@ static bool read_one_frame(uint8_t *event_code, uint8_t *params, uint8_t *param_
 
 esp_err_t bt_companion_start_pairing(void)
 {
-    if (module() == BOARD_BT_BK3266) {
+    if (module() == BOARD_BT_BT401) {
         if (!s_enabled) return ESP_ERR_INVALID_STATE;
-        esp_err_t r = bk3266_start_pairing();
+        esp_err_t r = bt401_start_pairing();
         if (r == ESP_OK) board_led_set_state(BOARD_LED_BT_PAIRING);
         return r;
     }
@@ -538,8 +538,7 @@ static bool s_dev_stream[BT_MAX_DEVICES];
 
 esp_err_t bt_companion_make_call(const char *number)
 {
-    /* The BK3266 has no "dial this number" command (see bk3266.h). */
-    if (module() == BOARD_BT_BK3266) return ESP_ERR_NOT_SUPPORTED;
+    if (module() == BOARD_BT_BT401) return s_enabled ? bt401_dial(number) : ESP_ERR_INVALID_STATE;
     if (!s_enabled || !s_uart_installed) return ESP_ERR_INVALID_STATE;
     size_t len = number ? strlen(number) : 0;
     if (len == 0 || len > 19) return ESP_ERR_INVALID_ARG;
@@ -586,28 +585,28 @@ static bool call_is_incoming(bt_call_state_t cs) { return cs == BT_CALL_INCOMING
 
 esp_err_t bt_companion_accept_call(void)
 {
-    if (module() == BOARD_BT_BK3266) return s_enabled ? bk3266_accept_call() : ESP_ERR_INVALID_STATE;
+    if (module() == BOARD_BT_BT401) return s_enabled ? bt401_accept_call() : ESP_ERR_INVALID_STATE;
     int d = find_device(call_is_incoming);
     return d < 0 ? ESP_ERR_NOT_FOUND : send_mmi_to(d, BM64_MMI_ACCEPT_CALL);
 }
 
 esp_err_t bt_companion_reject_call(void)
 {
-    if (module() == BOARD_BT_BK3266) return s_enabled ? bk3266_reject_call() : ESP_ERR_INVALID_STATE;
+    if (module() == BOARD_BT_BT401) return s_enabled ? bt401_reject_call() : ESP_ERR_INVALID_STATE;
     int d = find_device(call_is_incoming);
     return d < 0 ? ESP_ERR_NOT_FOUND : send_mmi_to(d, BM64_MMI_REJECT_CALL);
 }
 
 esp_err_t bt_companion_end_call(void)
 {
-    if (module() == BOARD_BT_BK3266) return s_enabled ? bk3266_end_call() : ESP_ERR_INVALID_STATE;
+    if (module() == BOARD_BT_BT401) return s_enabled ? bt401_end_call() : ESP_ERR_INVALID_STATE;
     int d = find_device(call_is_live);
     return d < 0 ? ESP_ERR_NOT_FOUND : send_mmi_to(d, BM64_MMI_END_CALL);
 }
 
 bool bt_companion_music_playing(void)
 {
-    if (module() == BOARD_BT_BK3266) return false;
+    if (module() == BOARD_BT_BT401) return s_enabled && bt401_music_playing();
     portENTER_CRITICAL(&s_lock);
     bool r = s_status.bt_connected && (s_dev_stream[0] || s_dev_stream[1]);
     portEXIT_CRITICAL(&s_lock);
@@ -616,7 +615,7 @@ bool bt_companion_music_playing(void)
 
 bool bt_companion_call_live(void)
 {
-    if (module() == BOARD_BT_BK3266) return s_enabled && bk3266_call_live();
+    if (module() == BOARD_BT_BT401) return s_enabled && bt401_call_live();
     return find_device(call_is_live) >= 0;
 }
 
@@ -1734,7 +1733,7 @@ static void config_verified_addr_set(const char *addr)
 
 bool bt_companion_config_is_verified(void)
 {
-    if (module() == BOARD_BT_BK3266) return false;   /* nothing to verify */
+    if (module() == BOARD_BT_BT401) return false;   /* nothing to verify */
     bt_companion_status_t st = bt_companion_get_status();
     if (!st.bd_addr[0]) return false;  /* don't know which module this is yet */
     char saved[18] = {0};
@@ -1751,11 +1750,11 @@ bool bt_companion_config_last_report(bm64_config_report_t *out)
 
 esp_err_t bt_companion_config_check(bool apply, bm64_config_report_t *out)
 {
-    if (module() == BOARD_BT_BK3266) {
+    if (module() == BOARD_BT_BT401) {
         (void)apply;
         if (out) {
             memset(out, 0, sizeof(*out));
-            snprintf(out->error, sizeof(out->error), "the BK3266 has no EEPROM configuration step");
+            snprintf(out->error, sizeof(out->error), "the BT401 has no EEPROM configuration step");
         }
         return ESP_ERR_NOT_SUPPORTED;
     }
@@ -1925,8 +1924,8 @@ void bt_companion_init(void)
                       "(Settings -> Hardware) -- not starting the link");
         return;
     }
-    if (s_enabled && module() == BOARD_BT_BK3266) {
-        bk3266_start(bk_notify);
+    if (s_enabled && module() == BOARD_BT_BT401) {
+        bt401_start(bt401_notify);
         return;
     }
     if (s_enabled) {

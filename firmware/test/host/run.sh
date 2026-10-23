@@ -10,12 +10,12 @@ trap 'rm -rf "$OUT"' EXIT
 # exiting, no output) while a byte-identical-source build from a scratch copy
 # ran fine. Cause not found; this sidesteps it.
 DT="$HERE/../../components/dtmf"
-cp "$BT/include/bk3266_proto.h" "$BT/bk3266_proto.c" "$HERE"/test_*.c "$OUT/"
+cp "$BT/include/bt401_proto.h" "$BT/bt401_proto.c" "$HERE"/test_*.c "$OUT/"
 cp -r "$HERE/shim" "$OUT/"
 cp "$DT/dtmf.c" "$DT/include/dtmf.h" "$HERE/../../components/tones/include/tones.h" "$OUT/"
 cd "$OUT"
-for t in test_bk3266_proto; do
-    cc -std=c11 -Wall -Wextra -Werror -O1 -I. "$t.c" bk3266_proto.c -o "run_$t"
+for t in test_bt401_proto; do
+    cc -std=c11 -Wall -Wextra -Werror -O1 -I. "$t.c" bt401_proto.c -o "run_$t"
     "./run_$t"
 done
 cc -std=gnu11 -Wall -Wextra -O1 -Ishim -I. test_dtmf.c dtmf.c -lm -o run_test_dtmf

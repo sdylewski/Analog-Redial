@@ -22,8 +22,8 @@
 #include "player.h"
 #include "voip.h"
 #include "bt_companion.h"
-#include "bk3266.h"
-#include "bk3266_proto.h"
+#include "bt401.h"
+#include "bt401_proto.h"
 #include "driver/gpio.h"
 #include "logctl.h"
 #include "esp_console.h"
@@ -2689,218 +2689,80 @@ static int cmd_bm64_pin(int argc, char **argv)
 }
 #endif
 
-/* ---------- BK3266 bring-up ----------
- * For the BK3266SR module on J2 (archive/hardware/bk3266.md has the
- * sequence). All of these except bk_state/bk_cmd need bt_companion disabled
- * first (bt_enable 0), because they own the UART directly. */
-
-static int bk_busy(void)
+/* ---------- BT401 bring-up ----------
+ * For the DFRobot DFR0781 / BT401 module on J2 (archive/hardware/bt401.md has
+ * the sequence). bt401_probe needs bt_companion disabled (bt_enable 0); the
+ * others also work with the driver running, where the reply lands in its log
+ * and in bt401_state. */
+static int bt401_check_module(void)
 {
-    printf("the BK3266 driver is running (bt_enable 1). Use bt_enable 0 first, "
-           "or bk_state / bk_cmd / bk_frame / bk_send / bk_at, which work alongside it.\n");
-    return 1;
-}
-
-static int bk_check_module(void)
-{
-    if (bt_companion_module() == BOARD_BT_BK3266) return 0;
-    printf("this board isn't set to a BK3266 module (Settings -> Hardware, then reboot). "
-           "Raw bk_* commands still talk on GPIO16/17 at 9600 baud, so go ahead if that's "
-           "what's wired.\n");
-    return 0;   /* informational only: bring-up is done before the setting is changed */
-}
-
-static int cmd_bk_probe(int argc, char **argv)
-{
-    (void)argc; (void)argv;
-    bk_check_module();
-    esp_err_t err = bk3266_probe();
-    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
-    return err == ESP_OK ? 0 : 1;
-}
-
-static int cmd_bk_baudscan(int argc, char **argv)
-{
-    (void)argc; (void)argv;
-    esp_err_t err = bk3266_baudscan();
-    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
-    return err == ESP_OK ? 0 : 1;
-}
-
-/* Power the module off (WAKEUP held 6.5 s) and on again (a short press), then
- * listen at 9600 baud right away: whatever a BK3266 says while it boots is
- * the quickest proof that it, and the UART wiring, are alive. */
-static int cmd_bk_powercycle(int argc, char **argv)
-{
-    (void)argc; (void)argv;
-    printf("1/3 WAKEUP held 6.5 s (power off)...\n");
-    esp_err_t err = bk3266_wake_pulse(6500);
-    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
-    vTaskDelay(pdMS_TO_TICKS(1500));
-    printf("2/3 short press (power on), then listening 10 s at 9600 baud...\n");
-    bk3266_wake_pulse(300);
-    err = bk3266_listen(10000);
-    printf("3/3 done. Nothing printed above means the module said nothing while booting.\n");
-    return err == ESP_OK ? 0 : 1;
-}
-
-static int cmd_bk_wakeseq(int argc, char **argv)
-{
-    if (argc < 2) {
-        printf("usage: bk_wakeseq <H|L|Z><ms>,...   e.g. bk_wakeseq H1000,L300,H8000\n"
-               "  drives WAKEUP (GPIO15) high / low / floating for each step; listens during the\n"
-               "  last. R17 holds it low when floating. Try an active-low press:  H1000,L300,H8000\n");
-        return 1;
-    }
-    esp_err_t err = bk3266_wake_experiment(argv[1]);
-    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
-    return err == ESP_OK ? 0 : 1;
-}
-
-static int cmd_bk_swap(int argc, char **argv)
-{
-    bool on = argc < 2 || atoi(argv[1]) != 0;
-    bk3266_set_pins_swapped(on);
-    printf("BK3266 UART now: TX=GPIO%d RX=GPIO%d (until reboot). Try bk_baudscan / bk_listen.\n",
-           on ? (int)BOARD_UART_RX : (int)BOARD_UART_TX, on ? (int)BOARD_UART_TX : (int)BOARD_UART_RX);
+    if (bt_companion_module() == BOARD_BT_BT401) return 0;
+    printf("this board isn't set to a BT401 module (Settings -> Hardware, then reboot). "
+           "The bt401_* commands still talk on GPIO16/17 at 115200 baud, so go ahead if that's "
+           "what is wired.\n");
     return 0;
 }
 
-static int cmd_bk_listen(int argc, char **argv)
-{
-    int ms = (argc > 1) ? atoi(argv[1]) : 5000;
-    if (ms < 100) ms = 100;
-    if (ms > 120000) ms = 120000;
-    esp_err_t err = bk3266_listen(ms);
-    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
-    return err == ESP_OK ? 0 : 1;
-}
-
-static int cmd_bk_send(int argc, char **argv)
-{
-    if (argc < 2) {
-        printf("usage: bk_send <hex bytes> [listen_ms, default 1000]\n"
-               "  raw bytes, no framing added -- e.g. a complete frame:\n"
-               "  bk_send \"52 42 23 04 01 14 19 23 42 52\"\n");
-        return 1;
-    }
-    uint8_t buf[64];
-    int n = parse_hex_bytes(argv[1], buf, sizeof(buf));
-    if (n <= 0) { printf("bk_send: couldn't parse '%s' as hex bytes\n", argv[1]); return 1; }
-    esp_err_t err = bk3266_send_raw(buf, (size_t)n, argc > 2 ? atoi(argv[2]) : 1000);
-    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
-    return err == ESP_OK ? 0 : 1;
-}
-
-/* bk_cmd <code> [listen_ms]: one MCU->module command code in a proper frame
- * (cmd 0x01, DATA = code, checksum added). With the driver running it just
- * sends and the reply lands in the log / bk_state. */
-static int cmd_bk_cmd(int argc, char **argv)
-{
-    if (argc < 2) {
-        printf("usage: bk_cmd <hex code> [listen_ms, default 1000]\n"
-               "  01 pair   03 disconnect   04 answer   05 reject   06 hang up   07 redial\n"
-               "  11 address  12 name  13 phone name  14 version  15 ACL?  16 call status\n"
-               "  25 receive mode   (full table: components/bt_companion/include/bk3266_proto.h)\n");
-        return 1;
-    }
-    uint8_t code[1];
-    if (parse_hex_bytes(argv[1], code, 1) != 1) { printf("bk_cmd: one hex byte please\n"); return 1; }
-    if (bk3266_running()) {
-        esp_err_t e = bk3266_send_code(code[0]);
-        printf("bk_cmd: sent %02X (%s); watch the log or run bk_state\n", code[0], esp_err_to_name(e));
-        return e == ESP_OK ? 0 : 1;
-    }
-    esp_err_t err = bk3266_send_framed(BK_MID_SEND, code, 1, argc > 2 ? atoi(argv[2]) : 1000);
-    return err == ESP_OK ? 0 : 1;
-}
-
-/* bk_frame <cmd hex> [data hex...] [listen_ms]: any outer CMD, DATA, with
- * LEN/CRC/header/footer computed -- for trying the other reading of the
- * protocol (command code as the outer CMD). */
-static int cmd_bk_frame(int argc, char **argv)
-{
-    if (argc < 2) {
-        printf("usage: bk_frame <cmd hex> [data hex bytes] [listen_ms]\n"
-               "  bk_frame 14          (version query, code as CMD, no data)\n"
-               "  bk_frame 01 \"14\"     (version query, code as DATA)\n");
-        return 1;
-    }
-    uint8_t cmd[1], data[BK_FRAME_MAX_DATA];
-    if (parse_hex_bytes(argv[1], cmd, 1) != 1) { printf("bk_frame: cmd must be one hex byte\n"); return 1; }
-    int n = 0;
-    if (argc > 2) {
-        n = parse_hex_bytes(argv[2], data, sizeof(data));
-        if (n < 0) { printf("bk_frame: couldn't parse data\n"); return 1; }
-    }
-    esp_err_t err = bk3266_send_framed(cmd[0], data, (size_t)n, argc > 3 ? atoi(argv[3]) : 1000);
-    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
-    return err == ESP_OK ? 0 : 1;
-}
-
-/* bk_at <text> [listen_ms]: a text line + CRLF, for the text-AT firmware
- * variant (BT+..., COM+...). */
-static int cmd_bk_at(int argc, char **argv)
-{
-    if (argc < 2) {
-        printf("usage: bk_at <text> [listen_ms, default 1500]   e.g. bk_at BT+PR\n");
-        return 1;
-    }
-    char line[80];
-    int n = snprintf(line, sizeof(line), "%s\r\n", argv[1]);
-    if (n <= 0 || n >= (int)sizeof(line)) { printf("bk_at: too long\n"); return 1; }
-    esp_err_t err = bk3266_send_raw((const uint8_t *)line, (size_t)n, argc > 2 ? atoi(argv[2]) : 1500);
-    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
-    return err == ESP_OK ? 0 : 1;
-}
-
-static int cmd_bk_state(int argc, char **argv)
+static int cmd_bt401_probe(int argc, char **argv)
 {
     (void)argc; (void)argv;
-    bk3266_print_state();
+    bt401_check_module();
+    esp_err_t err = bt401_probe();
+    if (err == ESP_ERR_INVALID_STATE) {
+        printf("the BT401 driver is running (bt_enable 1). Use bt_enable 0 first, or bt401_at / "
+               "bt401_state, which work alongside it.\n");
+        return 1;
+    }
+    return err == ESP_OK ? 0 : 1;
+}
+
+/* bt401_at <cmd> [listen_ms]: one command after "AT+", e.g. bt401_at TS or bt401_at BA06. */
+static int cmd_bt401_at(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("usage: bt401_at <cmd> [listen_ms, default 1000]   e.g. bt401_at TS   bt401_at BA04\n"
+               "  TS status  TT number  TD name  TA address  BA06 discoverable  BA01 disconnect\n"
+               "  BA04 answer  BA03 hang up  BA02 reject  BT<number> dial\n");
+        return 1;
+    }
+    return bt401_send_at(argv[1], argc > 2 ? atoi(argv[2]) : 1000) == ESP_OK ? 0 : 1;
+}
+
+static int cmd_bt401_state(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    bt401_print_state();
     return 0;
 }
 
-static int cmd_bk_wake(int argc, char **argv)
+static int cmd_bt401_dial(int argc, char **argv)
 {
-    int ms = (argc > 1) ? atoi(argv[1]) : 300;
-    esp_err_t err = bk3266_wake_pulse(ms);
-    if (err == ESP_ERR_NOT_SUPPORTED) {
-        printf("bk_wake: WAKEUP is only on its own GPIO (GPIO15) on SMD5 boards\n");
-        return 1;
-    }
-    if (err == ESP_ERR_INVALID_STATE) return bk_busy();
-    printf("bk_wake: GPIO15 high for %d ms, then released. A short pulse is a button press; "
-           "6 s would power the module off.\n", ms);
+    if (argc < 2) { printf("usage: bt401_dial <number>   (driver running, a phone connected)\n"); return 1; }
+    esp_err_t err = bt401_dial(argv[1]);
+    printf("bt401_dial: %s\n", esp_err_to_name(err));
     return err == ESP_OK ? 0 : 1;
 }
 
-/* Runs the parser and state mapping on built-in frames, on the device itself.
- * Needs no module; a quick "is this build's protocol code sane". The full
- * set is firmware/test/host/test_bk3266_proto.c. */
-static int cmd_bk_selftest(int argc, char **argv)
+/* Runs the protocol code on built-in lines, no module needed. */
+static int cmd_bt401_selftest(int argc, char **argv)
 {
     (void)argc; (void)argv;
-    static const uint8_t frames[] = {
-        0x52,0x42,0x23,0x04,0x00,0x64,0x68,0x23,0x42,0x52,   /* booted */
-        0x52,0x42,0x23,0x04,0x00,0x65,0x69,0x23,0x42,0x52,   /* link established */
-        0x52,0x42,0x23,0x04,0x00,0x73,0x77,0x23,0x42,0x52,   /* incoming call */
-    };
-    bk_parser_t p; bk_state_t st;
-    bk_parser_init(&p); bk_state_init(&st);
+    static const char *const lines =
+        "QA+30\r\nQM+00\r\nTD+BT201-AUDIO\r\nTA+9EE884AB8BCC\r\nTS+01\r\nTS+03\r\nTT+5551234\r\nTS+04\r\n";
+    bt401_parser_t p; bt401_state_t st; bt401_msg_t m;
+    bt401_parser_init(&p); bt401_state_init(&st);
     int good = 0;
-    for (size_t i = 0; i < sizeof(frames); i++) {
-        bk_frame_t f;
-        if (bk_parser_feed(&p, frames[i], &f)) { bk_state_apply(&st, &f); good++; }
+    for (const char *c = lines; *c; c++) {
+        if (bt401_parser_feed(&p, (uint8_t)*c, &m)) { bt401_state_apply(&st, &m); good++; }
     }
-    uint8_t out[BK_FRAME_MAX_BYTES];
-    size_t n = bk_build_command(BK_CMD_MATCH, out, sizeof(out));
-    static const uint8_t want[] = { 0x52,0x42,0x23,0x04,0x01,0x01,0x06,0x23,0x42,0x52 };
-    bool build_ok = n == sizeof(want) && memcmp(out, want, n) == 0;
-    bool ok = good == 3 && st.booted && st.connected && st.call == BK_CALL_INCOMING && build_ok;
-    printf("bk_selftest: %d/3 frames parsed, state %s, pairing frame %s -> %s\n", good,
-           (st.booted && st.connected && st.call == BK_CALL_INCOMING) ? "ok" : "WRONG",
-           build_ok ? "ok" : "WRONG", ok ? "PASS" : "FAIL");
+    char out[48];
+    size_t n = bt401_build_dial("10086", out, sizeof(out));
+    bool build_ok = n && !strcmp(out, "AT+BT10086\r\n");
+    bool state_ok = st.connected && st.call == BT401_CALL_ACTIVE && !strcmp(st.caller_id, "5551234") &&
+                    !strcmp(st.addr, "9E:E8:84:AB:8B:CC");
+    bool ok = good == 8 && state_ok && build_ok;
+    printf("bt401_selftest: %d/8 lines parsed, state %s, dial command %s -> %s\n", good,
+           state_ok ? "ok" : "WRONG", build_ok ? "ok" : "WRONG", ok ? "PASS" : "FAIL");
     return ok ? 0 : 1;
 }
 
@@ -3046,7 +2908,7 @@ static int cmd_pinshort(int argc, char **argv)
 }
 
 /* hwcfg: the console's version of Settings -> Hardware, for a board that
- * isn't on Wi-Fi yet. hwcfg [bt none|bm64|bk3266] [lines 1|2] [sd 0|1] */
+ * isn't on Wi-Fi yet. hwcfg [bt none|bm64|bt401] [lines 1|2] [sd 0|1] */
 static int cmd_hwcfg(int argc, char **argv)
 {
     board_hw_config_t cfg = board_hw_config_get();
@@ -3054,10 +2916,10 @@ static int cmd_hwcfg(int argc, char **argv)
     for (int i = 1; i + 1 < argc; i += 2) {
         const char *k = argv[i], *v = argv[i + 1];
         if (!strcmp(k, "bt")) {
-            if (!strcmp(v, "bk3266")) cfg.bt_module = BOARD_BT_BK3266;
+            if (!strcmp(v, "bt401")) cfg.bt_module = BOARD_BT_BT401;
             else if (!strcmp(v, "bm64")) cfg.bt_module = BOARD_BT_BM64;
             else if (!strcmp(v, "none")) cfg.bt_module = BOARD_BT_NONE;
-            else { printf("hwcfg: bt wants none, bm64 or bk3266\n"); return 1; }
+            else { printf("hwcfg: bt wants none, bm64 or bt401\n"); return 1; }
             cfg.has_bt_module = cfg.bt_module != BOARD_BT_NONE;
         } else if (!strcmp(k, "lines")) {
             cfg.num_lines = atoi(v);
@@ -3077,7 +2939,7 @@ static int cmd_hwcfg(int argc, char **argv)
     cfg = board_hw_config_get();
     printf("lines %d, microSD %s, Bluetooth module %s, config confirmed %s\n", cfg.num_lines,
            cfg.has_microsd ? "yes" : "no",
-           cfg.bt_module == BOARD_BT_BM64 ? "BM64" : cfg.bt_module == BOARD_BT_BK3266 ? "BK3266" : "none",
+           cfg.bt_module == BOARD_BT_BM64 ? "BM64" : cfg.bt_module == BOARD_BT_BT401 ? "BT401" : "none",
            board_hw_config_is_set() ? "yes" : "no");
     return 0;
 }
@@ -3128,19 +2990,11 @@ void bringup_console_start(void)
     register_cmd("help", "This list", cmd_help);
 
     register_cmd("board_info", "Print detected board type and pin map", cmd_board_info);
-    register_cmd("bk_probe", "BK3266: is anything answering? listens, sends a version query", cmd_bk_probe);
-    register_cmd("bk_baudscan", "BK3266: version query (binary + text) at every common baud rate", cmd_bk_baudscan);
-    register_cmd("bk_powercycle", "BK3266: power off + on through WAKEUP, then listen for its boot chatter", cmd_bk_powercycle);
-    register_cmd("bk_wakeseq", "BK3266: drive WAKEUP in a pattern, listen during the last step: bk_wakeseq H1000,L300,H8000", cmd_bk_wakeseq);
-    register_cmd("bk_swap", "BK3266: use GPIO17 as TX and GPIO16 as RX (probe a crossed UART): bk_swap [0|1]", cmd_bk_swap);
-    register_cmd("bk_listen", "BK3266: print raw bytes + decoded frames: bk_listen [ms]", cmd_bk_listen);
-    register_cmd("bk_cmd", "BK3266: send one command code: bk_cmd <hex> [listen_ms]", cmd_bk_cmd);
-    register_cmd("bk_frame", "BK3266: build + send a frame: bk_frame <cmd> [data] [ms]", cmd_bk_frame);
-    register_cmd("bk_send", "BK3266: send raw hex bytes: bk_send <hex> [listen_ms]", cmd_bk_send);
-    register_cmd("bk_at", "BK3266: send a text line (AT firmware): bk_at <text>", cmd_bk_at);
-    register_cmd("bk_state", "BK3266: show decoded link/call/name state", cmd_bk_state);
-    register_cmd("bk_wake", "BK3266: pulse WAKEUP (GPIO15, SMD5): bk_wake [ms]", cmd_bk_wake);
-    register_cmd("bk_selftest", "BK3266: check the protocol code on built-in frames", cmd_bk_selftest);
+    register_cmd("bt401_probe", "BT401: is anything answering? listens, then queries status/name/address", cmd_bt401_probe);
+    register_cmd("bt401_at", "BT401: send one command: bt401_at <cmd> [listen_ms], e.g. bt401_at TS", cmd_bt401_at);
+    register_cmd("bt401_state", "BT401: show decoded link/call/name state", cmd_bt401_state);
+    register_cmd("bt401_dial", "BT401: place a call: bt401_dial <number>", cmd_bt401_dial);
+    register_cmd("bt401_selftest", "BT401: check the protocol code on built-in lines", cmd_bt401_selftest);
     register_cmd("auxpin", "Spare pins GPIO18-21 (one line, no microSD): auxpin [<gpio> <secs|0 toggle>]", cmd_auxpin);
     register_cmd("webhang", "Test: freeze the web server to check its watchdog restarts the board", cmd_webhang);
     register_cmd("webpass", "Web UI password: webpass [clear] -- clear removes a forgotten one", cmd_webpass);
@@ -3234,7 +3088,7 @@ void bringup_console_start(void)
 #ifdef BOARD_BT_MFB_PIN
     register_cmd("pinshort", "Are two pins joined? pinshort <gpio a> <gpio b> (drives a, watches b)", cmd_pinshort);
     register_cmd("gpiotest", "Is something driving this pin? gpiotest <gpio> (reads with pull-down, then pull-up)", cmd_gpiotest);
-    register_cmd("hwcfg", "Hardware config (like Settings -> Hardware): hwcfg [bt none|bm64|bk3266] [lines 1|2] [sd 0|1], then reboot", cmd_hwcfg);
+    register_cmd("hwcfg", "Hardware config (like Settings -> Hardware): hwcfg [bt none|bm64|bt401] [lines 1|2] [sd 0|1], then reboot", cmd_hwcfg);
     register_cmd("bm64_diagpins", "Which pins the carrier's RST_N / P2_0 leads are on: bm64_diagpins [rst_gpio p20_gpio] (18-21)", cmd_bm64_diagpins);
     register_cmd("bm64_findwire", "Which of GPIO18-21 is the carrier's RST_N lead? Pulls each low and pings the module (bt_enable 0 first)", cmd_bm64_findwire);
     register_cmd("bm64_pin", "Bit-bang BM64's MFB/RST_N/P2_0 over GPIO18-20 (bench-wired only): bm64_pin <mfb|rst|p20> <0|1> -- single-line, no-microSD boards only", cmd_bm64_pin);

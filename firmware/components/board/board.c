@@ -881,7 +881,7 @@ board_hw_config_t board_hw_config_get(void)
             cfg.bt_module = cfg.has_bt_module ? BOARD_BT_BM64 : BOARD_BT_NONE;
         }
         if (nvs_get_u8(h, HW_CONFIG_NVS_KEY_BTMOD, &btmod) == ESP_OK &&
-            btmod <= BOARD_BT_BK3266) {
+            btmod <= BOARD_BT_BT401) {
             cfg.bt_module = (board_bt_module_t)btmod;
             cfg.has_bt_module = (cfg.bt_module != BOARD_BT_NONE);
         }
@@ -921,7 +921,7 @@ esp_err_t board_hw_config_set(board_hw_config_t cfg)
 {
     if (cfg.num_lines < 1 || cfg.num_lines > 2) return ESP_ERR_INVALID_ARG;
     if (cfg.num_lines == 2 && cfg.has_microsd) return ESP_ERR_INVALID_ARG; /* GPIO18-21 conflict */
-    if (cfg.bt_module > BOARD_BT_BK3266) return ESP_ERR_INVALID_ARG;
+    if (cfg.bt_module > BOARD_BT_BT401) return ESP_ERR_INVALID_ARG;
     /* The two fields describe one fact; callers may fill in either. */
     if (cfg.bt_module == BOARD_BT_NONE && cfg.has_bt_module) cfg.bt_module = BOARD_BT_BM64;
     cfg.has_bt_module = (cfg.bt_module != BOARD_BT_NONE);
@@ -945,7 +945,7 @@ esp_err_t board_hw_config_set(board_hw_config_t cfg)
                  cfg.num_lines, cfg.num_lines == 1 ? "" : "s",
                  cfg.has_microsd ? "yes" : "no",
                  cfg.bt_module == BOARD_BT_BM64 ? "BM64"
-                 : cfg.bt_module == BOARD_BT_BK3266 ? "BK3266" : "none");
+                 : cfg.bt_module == BOARD_BT_BT401 ? "BT401" : "none");
     }
     return err;
 }

@@ -358,12 +358,12 @@ esp_err_t board_speaker_clean_max_set(int line, uint8_t level);
  * a human explicitly confirms otherwise -- see board_hw_config_set(). */
 /* Which Bluetooth companion is on the J2 header, if any. Same 8 pins, same
  * analog audio path; they differ in UART protocol and in what they can do
- * (the BK3266 can't dial out). Chosen in Settings -> Hardware, takes effect
+ * (the BT401 speaks plain-text AT commands, the BM64 a binary protocol). Chosen in Settings -> Hardware, takes effect
  * on reboot. */
 typedef enum {
     BOARD_BT_NONE = 0,
     BOARD_BT_BM64,
-    BOARD_BT_BK3266,
+    BOARD_BT_BT401,
 } board_bt_module_t;
 
 typedef struct {

@@ -506,7 +506,7 @@ def main() -> int:
                     help="With --lines 1: no microSD socket fitted")
     ap.add_argument("--bluetooth", action="store_true",
                     help="BM64 companion fitted (same as --bt-module bm64)")
-    ap.add_argument("--bt-module", choices=("none", "bm64", "bk3266"),
+    ap.add_argument("--bt-module", choices=("none", "bm64", "bt401"),
                     help="Which Bluetooth module is fitted (default: leave as is)")
     ap.add_argument("--digits", action="store_true",
                     help="Also upload spoken digits 0-9 (for digit readback)")

@@ -21,7 +21,7 @@ and it costs about $3.50, against about $12-14 for a BM64 / BM83.
   (line 0 Vout through 1 uF); pad 10 DACL -> J2.7 (through 1 uF and 1 k to line 0 Vin). MFB (J2.4,
   GPIO15) is not needed. A level check is needed: the mic input expects electret level, the DAC
   is headphone level.
-- Needs: a new driver (like bk3266.c but line-oriented text), a small carrier or wires for the 28-pad
+- Firmware: driver written 2026-10-22 (`firmware/components/bt_companion/bt401.c`, notes in `archive/hardware/bt401.md`); untested. Still needs a small carrier or wires for the 28-pad
   stamp module, bench check of call audio quality both ways.
 
 ## Other candidate: Microchip BM83 (about $12.20 on Digikey, against about $14 for the BM64)
@@ -36,7 +36,7 @@ needs its own carrier board. Not worth the $1.80 saving unless the BM64 becomes 
 
 See `../BK3266/` and `archive/hardware/bk3266.md`: powers on and pairs but its UART never answered.
 
-## Adapter board for the J2 header (BM64 / BK3266 style)
+## Adapter board for the J2 header (BM64 style)
 
 Reference: DFRobot's schematic `DFR0781_bt401-module_schematics_V1.0.pdf` (the "DAC output" version) and
 datasheet page 41 (footprint). Bookmarks in `LINKS.md`. Module pad numbers below are the BT401's own.

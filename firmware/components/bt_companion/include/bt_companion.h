@@ -95,9 +95,9 @@ bool bt_companion_active(void);
 /* Which module the board was booted with (Settings -> Hardware). */
 board_bt_module_t bt_companion_module(void);
 
-/* Whether this module can place a call (bt_companion_make_call()). The BM64
- * can; the BK3266 has no dial command, so telephony must not offer the
- * "1 + number" dial-out when this is false. */
+/* Whether this module can place a call (bt_companion_make_call()). Both the
+ * BM64 and the BT401 can; telephony only offers the "1 + number" dial-out
+ * when this is true. */
 bool bt_companion_can_dial(void);
 
 /* Current link/pairing status. link_up/bt_connected/paired_name are all

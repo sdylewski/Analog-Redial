@@ -35,8 +35,9 @@ a cheaper clone, selected by solder jumpers JP2/JP3), and an 8-pin J2 header
 for a Bluetooth companion, MFB/WAKEUP on GPIO15, chosen in Settings → Hardware
 (`board_bt_module_t`). Firmware reuses SMD4's pin map for it. The BM64 carrier is
 the supported module; a BK3266 module was tried and its UART never answered (notes in
-`Bluetooth/BK3266/` and `archive/hardware/bk3266.md`); the next candidate is the DFRobot
-DFR0781 / BT401 (`Bluetooth/DFR0781_BT401/`), untested.
+`Bluetooth/BK3266/` and `archive/hardware/bk3266.md`; its firmware driver was removed after v1.0.1). The BK3266 option
+is replaced by the DFRobot DFR0781 / BT401 (`Bluetooth/DFR0781_BT401/`, `archive/hardware/bt401.md`): driver
+(`firmware/components/bt_companion/bt401*.c`) written 2026-10-22, host-tested, **not yet tested on a real module**.
 
 **⚠️ v5 PCB error with 30-pin clone modules:** the footprint ties the clone's bottom-right
 5V pin to GND. That pin must be removed (not connected to the board); the bottom-left 5V pin

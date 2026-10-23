@@ -563,7 +563,7 @@ static cJSON *build_status_json(void)
     {
         board_bt_module_t m = bt_companion_module();
         cJSON_AddStringToObject(root, "bt_module",
-                                m == BOARD_BT_BM64 ? "bm64" : m == BOARD_BT_BK3266 ? "bk3266" : "none");
+                                m == BOARD_BT_BM64 ? "bm64" : m == BOARD_BT_BT401 ? "bt401" : "none");
     }
 
     {
@@ -3787,25 +3787,24 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
         mod_text = i18n_str("bt.module_bm64",
             "<b>BM64</b> module (Microchip). Can ring this phone, answer, hang up, show caller ID "
             "and dial out.");
-    } else if (bt_mod == BOARD_BT_BK3266) {
-        mod_text = i18n_str("bt.module_bk3266",
-            "<b>BK3266</b> module (Beken). Can ring this phone, answer, hang up and show caller "
-            "ID. It <b>can't dial out</b>: the module has no command for it. New and lightly "
-            "tested.");
+    } else if (bt_mod == BOARD_BT_BT401) {
+        mod_text = i18n_str("bt.module_bt401",
+            "<b>BT401</b> module (DFRobot DFR0781). Can ring this phone, answer, hang up, show "
+            "caller ID and dial out. New and not yet tested on real hardware.");
     } else {
         mod_text = i18n_str("bt.module_none",
             "None chosen.");
     }
-    const char *bk_features = (bt_mod == BOARD_BT_BK3266)
-        ? i18n_str("bt.features_bk3266_html",
+    const char *bt401_features = (bt_mod == BOARD_BT_BT401)
+        ? i18n_str("bt.features_bt401_html",
             "<p class=\"hint\">Pair a cell phone or laptop and the rotary phone on line 1 "
             "acts as its handset, like a Bluetooth headset.</p>"
             "<ul>"
             "<li><b>Incoming calls ring the phone.</b> Lift the handset to answer, hang up to "
             "end the call.</li>"
             "<li><b>Caller ID</b> shows in the activity log when the phone sends it.</li>"
-            "<li><b>No dial-out.</b> The BK3266 can't place a call, so there is no "
-            "\"1 + number\" dialing with this module. Dial codes work as usual.</li>"
+            "<li><b>Dial out</b> through the paired phone: dial 1 and then the number. Dial "
+            "codes work as usual.</li>"
             "<li><b>Calls placed on the paired phone</b> can be moved to this handset.</li>"
             "</ul>")
         : NULL;
@@ -3841,7 +3840,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
             "power, both audio directions and its UART to this board, plus a spare GPIO for its "
             "power button."));
 #endif
-    const char *features_html = bk_features ? bk_features : i18n_str("bt.features_html",
+    const char *features_html = bt401_features ? bt401_features : i18n_str("bt.features_html",
             "<p class=\"hint\">Pair a cell phone or laptop and the rotary phone on line 1 "
             "acts as its handset, like a Bluetooth headset.</p>"
             "<ul>"
@@ -3988,8 +3987,8 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
     off = appendf(buf, cap, off, "<div class=\"card wide\"><h2>%s</h2>%s</div>",
         i18n_str("bt.features_title", "What Bluetooth can do"), features_html);
 
-    /* The EEPROM step is a BM64 thing; the BK3266 has no equivalent. */
-    if (bt_mod != BOARD_BT_BK3266) off = append_bt_config_card(buf, cap, off, &st);
+    /* The EEPROM step is a BM64 thing; the BT401 has no equivalent. */
+    if (bt_mod != BOARD_BT_BT401) off = append_bt_config_card(buf, cap, off, &st);
 
     return off;
 }
@@ -4782,7 +4781,7 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
         "<select name=\"bt\">"
         "<option value=\"none\"%s>%s</option>"
         "<option value=\"bm64\"%s>%s</option>"
-        "<option value=\"bk3266\"%s>%s</option>"
+        "<option value=\"bt401\"%s>%s</option>"
         "</select></label>"
         "<button type=\"submit\">%s</button>"
         "</form>"
@@ -4799,8 +4798,8 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
         i18n_str("hwconfig.bt_no", "None"),
         cfg.bt_module == BOARD_BT_BM64 ? " selected" : "",
         i18n_str("hwconfig.bt_yes", "BM64 module fitted"),
-        cfg.bt_module == BOARD_BT_BK3266 ? " selected" : "",
-        i18n_str("hwconfig.bt_bk3266", "BK3266 module fitted (no dial-out)"),
+        cfg.bt_module == BOARD_BT_BT401 ? " selected" : "",
+        i18n_str("hwconfig.bt_bt401", "BT401 module fitted"),
         i18n_str("hwconfig.button", "Save (takes effect on reboot)"),
         i18n_str("hwconfig.hint",
                  "J5 carries one of three things: a <b>second phone line</b> (J5 shunts on, "
@@ -6963,9 +6962,9 @@ static esp_err_t board_hw_set_handler(httpd_req_t *req)
     }
     /* A form that doesn't carry the field at all (the first-boot banner)
      * mustn't silently clear a module someone already declared fitted. */
-    /* "bt" is none/bm64/bk3266; older forms sent 0/1 (1 meant BM64). */
+    /* "bt" is none/bm64/bt401; older forms sent 0/1 (1 meant BM64). */
     if (!bt[0]) cfg.bt_module = board_hw_config_get().bt_module;
-    else if (strcmp(bt, "bk3266") == 0) cfg.bt_module = BOARD_BT_BK3266;
+    else if (strcmp(bt, "bt401") == 0) cfg.bt_module = BOARD_BT_BT401;
     else if (strcmp(bt, "bm64") == 0 || strcmp(bt, "1") == 0) cfg.bt_module = BOARD_BT_BM64;
     else cfg.bt_module = BOARD_BT_NONE;
     if (cfg.bt_module == BOARD_BT_NONE && bt_companion_enabled()) bt_companion_set_enabled(false);
