@@ -78,8 +78,11 @@ $P regenerate $C                 # rewrite the Asterisk files and reload
 sudo python3 /opt/redial-provisioner/redial_provisioner.py add-key $C friends --min 2000 --max 2099
 ```
 
-**Keys.** Each enrollment key has its own number range and a limit on how
-many boards can use it (10 by default). Give each person or household their
+**Keys.** Each enrollment key has its own number range (1000 to 9999 unless you
+set `--min` and `--max`; numbers can't start with 0, because 0 is the operator)
+and a limit on how many boards can use it (10 by default). To widen an existing
+key's range, edit `number_min` and `number_max` for it in `config.json`; the
+service picks it up immediately. Give each person or household their
 own key: you can then delete one key from `config.json` without affecting
 anyone else. A board keeps the key it enrolled with and can't be moved to
 another key without `revoke-board`.

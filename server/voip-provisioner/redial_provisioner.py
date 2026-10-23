@@ -628,7 +628,7 @@ def main(argv=None):
     p.add_argument("id")
     p.add_argument("--label")
     p.add_argument("--min", type=int, default=1000)
-    p.add_argument("--max", type=int, default=1999)
+    p.add_argument("--max", type=int, default=9999)
     p.add_argument("--max-boards", type=int, default=10)
     p = sub.add_parser("release", help="free a number")
     p.add_argument("--config", required=True)

@@ -3225,8 +3225,21 @@ static void build_voip_instructions(char steps[VOIP_INSTR_STEPS][VOIP_INSTR_STEP
 
 /* Outcome of the last provisioner action, shown once at the top of the
  * Automatic setup section and then cleared. */
-static char s_prov_msg[VOIP_PROV_MSG_LEN];
-static bool s_prov_ok;
+static char s_prov_cfg_msg[VOIP_PROV_MSG_LEN];          /* address / key test: shown under that form */
+static bool s_prov_cfg_ok;
+static char s_prov_line_msg[2][VOIP_PROV_MSG_LEN];      /* check / register / release: shown under that line */
+static bool s_prov_line_ok[2];
+
+/* A result line: a green tick or red cross, then the text. `id` is the anchor the
+ * redirect after the button press jumps to, so the answer is on screen. */
+static int append_prov_result(char *buf, size_t cap, int off, const char *id, bool ok, const char *msg)
+{
+    char esc[VOIP_PROV_MSG_LEN * 6];
+    html_escape(msg, esc, sizeof(esc));
+    return appendf(buf, cap, off,
+        "<div class=\"statusrow\" id=\"%s\"><span class=\"pill %s\">%s</span><span>%s</span></div>",
+        id, ok ? "on" : "off", ok ? "\xe2\x9c\x93" : "\xe2\x9c\x95", esc);
+}
 
 static bool all_digits(const char *s)
 {
@@ -3251,14 +3264,6 @@ static int append_voip_prov_section(char *buf, size_t cap, int off)
         "<p class=\"hint\">If your SIP server runs the Analog Redial provisioner, enter its "
         "address and your enrollment key once, then pick a number for each line and press "
         "Register. It creates the account and fills in the manual settings below for you.</p>");
-    if (s_prov_msg[0]) {
-        char msg_esc[VOIP_PROV_MSG_LEN * 2];
-        html_escape(s_prov_msg, msg_esc, sizeof(msg_esc));
-        off = appendf(buf, cap, off,
-            "<div class=\"statusrow\"><span class=\"pill %s\">%s</span></div>",
-            s_prov_ok ? "on" : "off", msg_esc);
-        s_prov_msg[0] = '\0';
-    }
     off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/voip_prov_config\" class=\"settings-form\">"
         "<label title=\"Where the provisioner runs: http:// for your own network, https:// for "
@@ -3273,6 +3278,12 @@ static int append_voip_prov_section(char *buf, size_t cap, int off)
         "<button type=\"submit\" formaction=\"/voip_prov_find\">Find on network</button></div>"
         "</form>",
         url_esc, voip_prov_has_key() ? "saved -- leave blank to keep" : "name.secret");
+    if (s_prov_cfg_msg[0]) {
+        off = append_prov_result(buf, cap, off, "provcfg", s_prov_cfg_ok, s_prov_cfg_msg);
+    } else if (voip_prov_url()[0] && (voip_prov_has_key() || voip_prov_enrolled())) {
+        off = appendf(buf, cap, off,
+            "<p class=\"hint\" id=\"provcfg\">Not tested yet. Press Save to check the connection.</p>");
+    }
 
     if (voip_prov_url()[0] && (voip_prov_has_key() || voip_prov_enrolled())) {
         int lo = 0, hi = 0;
@@ -3304,11 +3315,17 @@ static int append_voip_prov_section(char *buf, size_t cap, int off)
                 "title=\"Ask the server whether this number is free\">Check</button>"
                 "<button type=\"submit\" name=\"action\" value=\"register\" class=\"primary\" "
                 "title=\"Claim this number for this line and restart to connect with it\">Register</button>%s"
-                "</div></form>",
+                "</div>",
                 line, line + 1, now, has_num ? cur : "", ph,
                 (voip_prov_enrolled() && has_num)
                     ? "<button type=\"submit\" name=\"action\" value=\"release\" formnovalidate "
                       "title=\"Give this number back to the server and clear the line\">Release</button>" : "");
+            if (s_prov_line_msg[line][0]) {
+                char rid[16];
+                snprintf(rid, sizeof(rid), "provline%d", line);
+                off = append_prov_result(buf, cap, off, rid, s_prov_line_ok[line], s_prov_line_msg[line]);
+            }
+            off = appendf(buf, cap, off, "</form>");
         }
         off = appendf(buf, cap, off,
             "<p class=\"hint\">Register restarts the board so it connects with the new number.</p>");
@@ -7185,19 +7202,19 @@ static esp_err_t voip_prov_config_handler(httpd_req_t *req)
     char url[100] = {0}, key[84] = {0};
     form_field(body, "url", url, sizeof(url));
     form_field(body, "key", key, sizeof(key));
-    s_prov_ok = false;
+    s_prov_cfg_ok = false;
     if (voip_prov_set_url(url) != ESP_OK) {
-        snprintf(s_prov_msg, sizeof(s_prov_msg), "The address must start with http:// or https://");
+        snprintf(s_prov_cfg_msg, sizeof(s_prov_cfg_msg), "The address must start with http:// or https://");
     } else if (key[0] && voip_prov_set_key(key) != ESP_OK) {
-        snprintf(s_prov_msg, sizeof(s_prov_msg), "That doesn't look like an enrollment key (name.secret)");
+        snprintf(s_prov_cfg_msg, sizeof(s_prov_cfg_msg), "That doesn't look like an enrollment key (name.secret)");
     } else if (voip_prov_url()[0] && (voip_prov_has_key() || voip_prov_enrolled())) {
         /* Confirms the address and key work, and fetches the number range. */
-        s_prov_ok = voip_prov_refresh(s_prov_msg, sizeof(s_prov_msg)) == ESP_OK;
+        s_prov_cfg_ok = voip_prov_refresh(s_prov_cfg_msg, sizeof(s_prov_cfg_msg)) == ESP_OK;
     } else {
-        s_prov_ok = true;
-        snprintf(s_prov_msg, sizeof(s_prov_msg), "Saved");
+        s_prov_cfg_ok = true;
+        snprintf(s_prov_cfg_msg, sizeof(s_prov_cfg_msg), "Saved");
     }
-    return redirect_to(req, "/settings?tab=voip");
+    return redirect_to(req, "/settings?tab=voip#provcfg");
 }
 
 /* POST /voip_prov_find -- looks for a provisioner over mDNS and saves its
@@ -7211,21 +7228,21 @@ static esp_err_t voip_prov_find_handler(httpd_req_t *req)
     if (key[0]) voip_prov_set_key(key);
 
     char url[100], name[64];
-    s_prov_ok = voip_prov_discover(url, sizeof(url), name, sizeof(name)) == ESP_OK;
-    if (s_prov_ok) {
+    s_prov_cfg_ok = voip_prov_discover(url, sizeof(url), name, sizeof(name)) == ESP_OK;
+    if (s_prov_cfg_ok) {
         voip_prov_set_url(url);
         if (voip_prov_has_key() || voip_prov_enrolled()) {
             char more[VOIP_PROV_MSG_LEN];
             voip_prov_refresh(more, sizeof(more));
-            snprintf(s_prov_msg, sizeof(s_prov_msg), "Found %.40s. %.100s", name, more);
+            snprintf(s_prov_cfg_msg, sizeof(s_prov_cfg_msg), "Found %.40s. %.100s", name, more);
         } else {
-            snprintf(s_prov_msg, sizeof(s_prov_msg), "Found %.60s at %.80s", name, url);
+            snprintf(s_prov_cfg_msg, sizeof(s_prov_cfg_msg), "Found %.60s at %.80s", name, url);
         }
     } else {
-        snprintf(s_prov_msg, sizeof(s_prov_msg),
+        snprintf(s_prov_cfg_msg, sizeof(s_prov_cfg_msg),
                  "No provisioner found on this network -- type its address instead");
     }
-    return redirect_to(req, "/settings?tab=voip");
+    return redirect_to(req, "/settings?tab=voip#provcfg");
 }
 
 /* POST /voip_prov_line -- line=0|1&number=..&action=check|register|release. */
@@ -7237,29 +7254,33 @@ static esp_err_t voip_prov_line_handler(httpd_req_t *req)
     form_field(body, "line", line_s, sizeof(line_s));
     form_field(body, "number", number, sizeof(number));
     form_field(body, "action", action, sizeof(action));
-    int line = atoi(line_s);
+    int line = atoi(line_s) ? 1 : 0;
+    char *msg = s_prov_line_msg[line];
+    bool *ok = &s_prov_line_ok[line];
 
     esp_err_t err = ESP_ERR_INVALID_ARG;
     if (strcmp(action, "check") == 0) {
         bool available = false;
-        err = voip_prov_check(number, &available, s_prov_msg, sizeof(s_prov_msg));
-        s_prov_ok = err == ESP_OK && available;
+        err = voip_prov_check(number, &available, msg, VOIP_PROV_MSG_LEN);
+        *ok = err == ESP_OK && available;
     } else if (strcmp(action, "register") == 0) {
-        err = voip_prov_register(line, number, s_prov_msg, sizeof(s_prov_msg));
-        s_prov_ok = err == ESP_OK;
-        if (s_prov_ok) {
-            strlcat(s_prov_msg, ". Restarting to connect...", sizeof(s_prov_msg));
+        err = voip_prov_register(line, number, msg, VOIP_PROV_MSG_LEN);
+        *ok = err == ESP_OK;
+        if (*ok) {
+            strlcat(msg, ". Restarting to connect...", VOIP_PROV_MSG_LEN);
             xTaskCreate(reboot_task, "reboot", 2048, NULL, tskIDLE_PRIORITY + 1, NULL);
         }
     } else if (strcmp(action, "release") == 0) {
-        err = voip_prov_release(line, s_prov_msg, sizeof(s_prov_msg));
-        s_prov_ok = err == ESP_OK;
+        err = voip_prov_release(line, msg, VOIP_PROV_MSG_LEN);
+        *ok = err == ESP_OK;
     } else {
-        s_prov_ok = false;
-        snprintf(s_prov_msg, sizeof(s_prov_msg), "Unknown action");
+        *ok = false;
+        snprintf(msg, VOIP_PROV_MSG_LEN, "Unknown action");
     }
-    activity_log("VoIP provisioner: %s", s_prov_msg);
-    return redirect_to(req, "/settings?tab=voip");
+    activity_log("VoIP provisioner: %s", msg);
+    char loc[40];
+    snprintf(loc, sizeof(loc), "/settings?tab=voip#provline%d", line);
+    return redirect_to(req, loc);
 }
 
 /* POST /voip_setup_password -- form body password=.. . Sets the shared
