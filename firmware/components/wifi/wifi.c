@@ -886,6 +886,21 @@ esp_err_t wifi_set_tx_power_dbm(int dbm)
     return esp_wifi_set_max_tx_power((int8_t)(dbm * 4)); /* units of 0.25 dBm */
 }
 
+esp_err_t wifi_set_he_enabled(bool enabled)
+{
+    uint8_t mask = WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N;
+    if (enabled) mask |= WIFI_PROTOCOL_11AX;
+    esp_err_t err = esp_wifi_set_protocol(WIFI_IF_STA, mask);
+    if (err == ESP_OK) esp_wifi_disconnect();   /* the manager rejoins */
+    return err;
+}
+
+bool wifi_get_he_enabled(void)
+{
+    uint8_t mask = 0;
+    return esp_wifi_get_protocol(WIFI_IF_STA, &mask) == ESP_OK && (mask & WIFI_PROTOCOL_11AX);
+}
+
 int wifi_get_tx_power_dbm(void)
 {
     int8_t q = 0;
