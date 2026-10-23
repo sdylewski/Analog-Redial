@@ -118,11 +118,6 @@ int wifi_scan(wifi_scan_result_t *out, int max);
  * enable when nothing needs the radio to stay instantly reachable. */
 void wifi_set_power_save(bool eco);
 
-/* Maximum WiFi transmit power, in whole dBm (clamped to 2..20 -- the PHY's
- * configured ceiling is CONFIG_ESP_PHY_MAX_WIFI_TX_POWER=20). Only meaningful
- * once WiFi has started; returns the error from esp_wifi_set_max_tx_power()
- * otherwise. */
-esp_err_t wifi_set_tx_power_dbm(int dbm);
 /* Bring-up/diagnostic: allow (true, the default) or forbid (false) Wi-Fi 6 (802.11ax) for the
  * station, then drop the link so the connection manager rejoins with the new setting. The Wi-Fi driver stores the
  * choice in flash, so it survives a reboot. For routers where 11ax stalls transfers. */

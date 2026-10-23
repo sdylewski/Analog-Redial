@@ -884,13 +884,6 @@ int wifi_scan(wifi_scan_result_t *out, int max)
     return n;
 }
 
-esp_err_t wifi_set_tx_power_dbm(int dbm)
-{
-    if (dbm < 2) dbm = 2;
-    if (dbm > 20) dbm = 20;
-    return esp_wifi_set_max_tx_power((int8_t)(dbm * 4)); /* units of 0.25 dBm */
-}
-
 esp_err_t wifi_set_he_enabled(bool enabled)
 {
     uint8_t mask = WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N;

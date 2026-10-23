@@ -44,10 +44,6 @@ typedef struct {
     bool     enabled;
     uint16_t minutes;     /* idle time (all lines on-hook) before low-power kicks in */
     bool     max_savings; /* false = balanced (default), true = max savings */
-    /* Drop WiFi transmit power while the signal is strong. Independent of
-     * `enabled` -- it applies all the time, not just while idle, since a
-     * strong link is wasting TX power whether or not the phone is in use. */
-    bool     adaptive_tx;
     /* Stop the audio pipeline (I2S + its 10ms processing task) whenever every
      * line is on-hook, resuming on pickup. Also independent of `enabled`:
      * it's cheap to undo (no multi-minute threshold), so it applies after a
@@ -61,19 +57,6 @@ typedef struct {
      * audio paused, ~75% with audio running. */
     bool     cpu_scale;
 } idle_power_cfg_t;
-
-/* Thresholds for adaptive_tx, on the RSSI we *receive* from the AP. The link
- * is roughly symmetric, so a strong downlink means the AP will still hear us
- * at reduced power. Lowering our own TX power doesn't change the RSSI we
- * measure, so there's no feedback loop to oscillate -- the gap between the
- * two thresholds is only there to ride out ordinary RSSI jitter.
- * Off by default: on a mesh network the downlink RSSI says little about whether the
- * router hears us at reduced power. If the link ever drops while reduced, the
- * driver stays at full power until reboot. */
-#define IDLE_POWER_TX_LOW_DBM        11   /* ~8 dB below full */
-#define IDLE_POWER_TX_FULL_DBM       20
-#define IDLE_POWER_TX_REDUCE_RSSI   (-45) /* at or above: reduce */
-#define IDLE_POWER_TX_RESTORE_RSSI  (-55) /* below: restore full */
 
 /* Defaults to disabled / 5 minutes until idle_power_set() says otherwise. */
 idle_power_cfg_t idle_power_get(void);
@@ -109,8 +92,6 @@ typedef struct {
     uint32_t total_asleep_s;    /* summed over every sleep since boot */
     uint32_t uptime_s;
     uint32_t sleep_count;       /* sleeps entered since boot */
-    int      tx_power_dbm;      /* current WiFi TX power ceiling, 0 if WiFi off */
-    int      rssi_dbm;          /* 0 if not connected */
     bool     audio_paused;
 } idle_power_status_t;
 

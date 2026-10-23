@@ -4389,17 +4389,6 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
             ips.audio_paused ? i18n_str("idlepower.audio_paused", "paused (all phones hung up)")
                              : i18n_str("idlepower.audio_running", "running"));
     }
-    if (ips.tx_power_dbm > 0) {
-        char tx[96];
-        snprintf(tx, sizeof(tx),
-                 ips.tx_power_dbm < IDLE_POWER_TX_FULL_DBM
-                     ? i18n_str("idlepower.tx_reduced", "%d dBm (reduced -- signal %d dBm)")
-                     : i18n_str("idlepower.tx_full", "%d dBm (full -- signal %d dBm)"),
-                 ips.tx_power_dbm, ips.rssi_dbm);
-        off = appendf(buf, cap, off,
-            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>",
-            i18n_str("idlepower.tx_label", "WiFi transmit power"), tx);
-    }
 
     off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/idle_power\" class=\"settings-form\">"
@@ -4411,7 +4400,6 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "<option value=\"0\"%s>%s</option>"
         "<option value=\"1\"%s>%s</option>"
         "</select></label>"
-        "<label><input type=\"checkbox\" name=\"adaptive_tx\" value=\"1\"%s> %s</label>"
         "<label><input type=\"checkbox\" name=\"pause_audio\" value=\"1\"%s> %s</label>"
         "<label><input type=\"checkbox\" name=\"cpu_scale\" value=\"1\"%s> %s</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
@@ -4422,9 +4410,6 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         i18n_str("idlepower.preset_label", "Duty-cycle preset"),
         !ip.max_savings ? " selected" : "", opt_balanced,
         ip.max_savings ? " selected" : "", opt_max_savings,
-        ip.adaptive_tx ? " checked" : "",
-        i18n_str("idlepower.adaptive_tx", "Lower WiFi transmit power while the signal is strong "
-                                         "(saves a little power; leave off on a mesh network, where it can drop the connection)"),
         ip.pause_audio ? " checked" : "",
         i18n_str("idlepower.pause_audio", "Pause audio processing while every phone is hung up "
                                          "(resumes on pickup)"),
@@ -6843,10 +6828,9 @@ static esp_err_t idle_power_settings_handler(httpd_req_t *req)
     char body[WIFI_FORM_MAX_BODY];
     READ_FORM_OR_RETURN(req, body);
 
-    char enabled[8] = {0}, minutes[12] = {0}, max_savings[8] = {0}, adaptive_tx[8] = {0},
+    char enabled[8] = {0}, minutes[12] = {0}, max_savings[8] = {0},
          pause_audio[8] = {0}, cpu_scale[8] = {0};
     form_field(body, "cpu_scale", cpu_scale, sizeof(cpu_scale));
-    form_field(body, "adaptive_tx", adaptive_tx, sizeof(adaptive_tx));
     form_field(body, "pause_audio", pause_audio, sizeof(pause_audio));
     form_field(body, "enabled", enabled, sizeof(enabled));
     form_field(body, "minutes", minutes, sizeof(minutes));
@@ -6856,7 +6840,6 @@ static esp_err_t idle_power_settings_handler(httpd_req_t *req)
         .enabled = (enabled[0] == '1'),
         .minutes = minutes[0] ? (uint16_t)strtoul(minutes, NULL, 10) : 0,
         .max_savings = (max_savings[0] == '1'),
-        .adaptive_tx = (adaptive_tx[0] == '1'),
         .pause_audio = (pause_audio[0] == '1'),
         .cpu_scale = (cpu_scale[0] == '1'),
     };

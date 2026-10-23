@@ -20,7 +20,6 @@ static const char *TAG = "idle_power";
 #define NVS_KEY_EN   "enabled"
 #define NVS_KEY_MIN  "minutes"
 #define NVS_KEY_MAXS "maxsave"
-#define NVS_KEY_ADTX "adtx"
 #define NVS_KEY_PAUD "paudio"
 #define NVS_KEY_CPUS "cpuscale"
 
@@ -46,11 +45,9 @@ static const char *TAG = "idle_power";
 
 static bool all_lines_idle(int num_lines);
 
-/* On by default, every option except adaptive TX power: on a mesh network the received signal says
- * nothing about whether the router hears us at reduced power (2026-10-22: dropped links and stalled
- * pages at 11 dBm on a mesh). Switch any of them in Settings -> Hardware. */
+/* On by default, every option (the user can switch any of them off in Settings -> Hardware). */
 static idle_power_cfg_t s_cfg = { .enabled = true, .minutes = 5, .max_savings = false,
-                                  .adaptive_tx = false, .pause_audio = true, .cpu_scale = true };
+                                  .pause_audio = true, .cpu_scale = true };
 static bool             s_sleeping;
 static bool             s_wifi_eco;
 static bool             s_slic_on[BOARD_NUM_LINES];
@@ -85,8 +82,6 @@ static void load_cfg(void)
     }
     uint8_t maxs;
     if (nvs_get_u8(h, NVS_KEY_MAXS, &maxs) == ESP_OK) s_cfg.max_savings = (maxs != 0);
-    uint8_t adtx;
-    if (nvs_get_u8(h, NVS_KEY_ADTX, &adtx) == ESP_OK) s_cfg.adaptive_tx = (adtx != 0);
     uint8_t paud;
     if (nvs_get_u8(h, NVS_KEY_PAUD, &paud) == ESP_OK) s_cfg.pause_audio = (paud != 0);
     uint8_t cpus;
@@ -130,16 +125,15 @@ esp_err_t idle_power_set(idle_power_cfg_t cfg)
     err = nvs_set_u8(h, NVS_KEY_EN, cfg.enabled ? 1 : 0);
     if (err == ESP_OK) err = nvs_set_u32(h, NVS_KEY_MIN, cfg.minutes);
     if (err == ESP_OK) err = nvs_set_u8(h, NVS_KEY_MAXS, cfg.max_savings ? 1 : 0);
-    if (err == ESP_OK) err = nvs_set_u8(h, NVS_KEY_ADTX, cfg.adaptive_tx ? 1 : 0);
     if (err == ESP_OK) err = nvs_set_u8(h, NVS_KEY_PAUD, cfg.pause_audio ? 1 : 0);
     if (err == ESP_OK) err = nvs_set_u8(h, NVS_KEY_CPUS, cfg.cpu_scale ? 1 : 0);
     if (err == ESP_OK) err = nvs_commit(h);
     nvs_close(h);
     if (err == ESP_OK) {
         s_cfg = cfg;
-        ESP_LOGI(TAG, "idle power %s, %u min, %s, adaptive TX %s",
+        ESP_LOGI(TAG, "idle power %s, %u min, %s",
                  cfg.enabled ? "enabled" : "disabled", (unsigned)cfg.minutes,
-                 cfg.max_savings ? "max savings" : "balanced", cfg.adaptive_tx ? "on" : "off");
+                 cfg.max_savings ? "max savings" : "balanced");
         ESP_LOGI(TAG, "pause audio when idle: %s", cfg.pause_audio ? "on" : "off");
         apply_cpu_scale();
     }
@@ -169,9 +163,7 @@ idle_power_status_t idle_power_status(void)
         st.total_asleep_s = (uint32_t)((s_total_asleep_us + now - s_sleep_started_us) / 1000000);
         st.uptime_s = (uint32_t)(now / 1000000);
         st.sleep_count = s_sleep_count;
-        st.tx_power_dbm = wifi_get_tx_power_dbm();
         st.audio_paused = audio_is_paused();
-        st.rssi_dbm = wifi_rssi();
         return st;
     } else if (s_sleeping) {
         st.state = IDLE_POWER_ASLEEP;
@@ -189,9 +181,7 @@ idle_power_status_t idle_power_status(void)
     st.total_asleep_s = (uint32_t)(total / 1000000);
     st.uptime_s       = (uint32_t)(now / 1000000);
     st.sleep_count    = s_sleep_count;
-    st.tx_power_dbm   = wifi_get_tx_power_dbm();
     st.audio_paused   = audio_is_paused();
-    st.rssi_dbm       = wifi_rssi();
     return st;
 }
 
@@ -258,56 +248,6 @@ static void wake_fully(int num_lines)
     s_wake_reason_web = false;
 }
 
-/* Adjusts WiFi TX power from received signal strength -- see the
- * IDLE_POWER_TX_* thresholds in idle_power.h. Runs every ADAPTIVE_TX_EVERY_MS,
- * not every tick; RSSI is a smoothed figure anyway. Always restores full power
- * when disconnected or when the option is off, so reconnecting never has to
- * happen at reduced power. */
-#define ADAPTIVE_TX_EVERY_MS 10000
-static int     s_tx_dbm;          /* what we last set; 0 = never set */
-static bool    s_tx_latched_off;  /* the link dropped while reduced: stay at full power until reboot */
-static int64_t s_tx_next_check_us;
-
-static void adaptive_tx_step(int64_t now)
-{
-    if (now < s_tx_next_check_us) return;
-    s_tx_next_check_us = now + (int64_t)ADAPTIVE_TX_EVERY_MS * 1000;
-    if (!wifi_is_connected()) {
-        /* Reconnect attempts must not run at reduced power: a router that can't
-         * hear the board never completes the handshake, and nothing would raise
-         * the power again until after a connection. */
-        if (s_tx_dbm == IDLE_POWER_TX_LOW_DBM && !s_tx_latched_off) {
-            s_tx_latched_off = true;
-            ESP_LOGW(TAG, "WiFi dropped at reduced TX power -- keeping full power until reboot");
-        }
-        if (s_tx_dbm != IDLE_POWER_TX_FULL_DBM) {
-            if (wifi_set_tx_power_dbm(IDLE_POWER_TX_FULL_DBM) == ESP_OK) {
-                ESP_LOGI(TAG, "WiFi down -- TX power back to %d dBm for the reconnect", IDLE_POWER_TX_FULL_DBM);
-                s_tx_dbm = IDLE_POWER_TX_FULL_DBM;
-            } else {
-                s_tx_dbm = 0;
-            }
-        }
-        return;
-    }
-    int want = IDLE_POWER_TX_FULL_DBM;
-    if (s_cfg.adaptive_tx && !s_tx_latched_off) {
-        int rssi = wifi_rssi();
-        if (rssi >= IDLE_POWER_TX_REDUCE_RSSI) {
-            want = IDLE_POWER_TX_LOW_DBM;
-        } else if (rssi >= IDLE_POWER_TX_RESTORE_RSSI) {
-            /* in the hysteresis band: hold whatever we have */
-            want = s_tx_dbm ? s_tx_dbm : IDLE_POWER_TX_FULL_DBM;
-        }
-    }
-    if (want != s_tx_dbm) {
-        if (wifi_set_tx_power_dbm(want) == ESP_OK) {
-            ESP_LOGI(TAG, "WiFi TX power -> %d dBm (RSSI %d dBm)", want, wifi_rssi());
-            s_tx_dbm = want;
-        }
-    }
-}
-
 static void idle_power_task(void *arg)
 {
     const TickType_t period = pdMS_TO_TICKS(TICK_MS);
@@ -316,7 +256,6 @@ static void idle_power_task(void *arg)
         int num_lines = board_hw_config_get().num_lines;
         int64_t now = esp_timer_get_time();
 
-        adaptive_tx_step(now);
         audio_allow_pause(s_cfg.pause_audio && all_lines_idle(num_lines));
 
         /* Web UI activity (or anything else that pings us) counts as "not

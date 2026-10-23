@@ -173,3 +173,13 @@ reality rather than the datasheet estimate.
   this version has been lived with a while.
 - Whether `esp_pm`/light-sleep is worth revisiting once there's a stronger
   case for the extra savings.
+
+## Adaptive Wi-Fi transmit power (removed 2026-10-22)
+
+The firmware used to lower the Wi-Fi TX power from 20 to 11 dBm when the received signal was strong,
+on the assumption that the link is symmetric. On a mesh network it isn't: the board dropped off the
+router (disconnect reason 4, inactivity) and pages stalled, only while reduced. Every failure on one SMD2
+board fell inside a reduced-power period; back at 20 dBm the send errors stopped. The saving was also
+small: about 1-3 mA average on an idle web server (the radio transmits a few percent of the time), against
+about 40 mA per line for SLIC power-down and about 50 mA for Wi-Fi modem sleep. So the feature, its setting
+and its web UI row were deleted. The radio now always runs at full power.
