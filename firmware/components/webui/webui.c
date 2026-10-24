@@ -3553,12 +3553,19 @@ static int append_home_calls_card(char *buf, size_t cap, int off)
 {
     int lines = board_hw_config_get().num_lines > 1 ? 2 : 1;
     off = appendf(buf, cap, off,
-        "<div class=\"card wide\"><h2>Home network calls</h2>"
-        "<p class=\"hint\">Phones on this same Wi-Fi network can call each other directly: no "
-        "server and no internet needed. Give a line a number, and any other Analog Redial phone "
-        "on your network dials it. The <b>VoIP server</b> settings below are a separate way to "
-        "call: through your own Asterisk server, which can also reach phones outside your "
-        "home.</p>");
+        "<div class=\"card wide\"><h2>Board-to-board calls (local VoIP)</h2>"
+        "<p class=\"hint\">Analog Redial boards on the same Wi-Fi network can call each other "
+        "directly, with no server and no internet. Give a line a number here; any other board "
+        "on your network dials it.</p>"
+        "<p class=\"hint\">When to use it: the simplest way to connect two phones is to plug "
+        "both into <b>one board</b> (a two-line board), and they call each other by dialling "
+        "3-2-1. When that's hard to wire, for example the phones are in different rooms, use "
+        "<b>one board for each phone</b> and number them here, so each phone dials the "
+        "other's number.</p>"
+        "<p class=\"hint\">How it differs from the <b>VoIP server</b> section below: board-to-board "
+        "calls only reach other Analog Redial boards on this same network and need nothing "
+        "else. A VoIP server (your own Asterisk) reaches any phone registered with it, at "
+        "home or away, but you have to run one.</p>");
     for (int l = 0; l < lines; l++) {
         const char *num = homecall_number(l);
         off = appendf(buf, cap, off,
@@ -3593,7 +3600,7 @@ static int append_home_calls_card(char *buf, size_t cap, int off)
                 if (!num[0]) continue;
                 const char *note = "";
                 if (!strcmp(num, homecall_number(0)) || !strcmp(num, homecall_number(1))) {
-                    note = "<span class=\"pill off\">same number as this phone</span>";
+                    note = "<span class=\"pill off\">same number as this board</span>";
                 } else if (dialplan_home_number_problem(num)) {
                     note = "<span class=\"pill off\">can't be dialled from here: clashes with a dial code</span>";
                 }
@@ -3621,7 +3628,7 @@ static esp_err_t home_number_handler(httpd_req_t *req)
     form_field(body, "number", number, sizeof(number));
     int line = atoi(line_s) ? 1 : 0;
     s_home_ok[line] = homecall_set_number(line, number, s_home_msg[line], sizeof(s_home_msg[line])) == ESP_OK;
-    activity_log("Home network: %s", s_home_msg[line]);
+    activity_log("Board-to-board calls: %s", s_home_msg[line]);
     char loc[48];
     snprintf(loc, sizeof(loc), "/settings?tab=voip#homeline%d", line);
     return redirect_to(req, loc);
@@ -3655,8 +3662,9 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
 
     off = append_feature_bar(buf, cap, off, "VoIP server", voip_is_enabled(), "/voip_enable",
         "Calls through your own SIP server (Asterisk): each line becomes an extension there, "
-        "reachable from other phones on that server, at home or not. Separate from home network "
-        "calls above. Takes effect after a reboot. Turning it off keeps everything below.");
+        "reachable from any phone on that server, at home or away. Separate from board-to-board "
+        "calls above, which need no server. Takes effect after a reboot. Turning it off keeps "
+        "everything below.");
 
     off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2>"
@@ -8927,7 +8935,7 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
             for (int l = 0; l < 2; l++) {
                 if (!hp[i].number[l][0] || dialplan_home_number_problem(hp[i].number[l])) continue;
                 char d[96];
-                snprintf(d, sizeof(d), "Call %s%s (home network)", hp[i].name, l ? ", line 2" : "");
+                snprintf(d, sizeof(d), "Call %s%s (board to board)", hp[i].name, l ? ", line 2" : "");
                 off = append_guide_row(buf, cap, off, hp[i].number[l], d, 0);
             }
         }
@@ -8936,7 +8944,7 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
             snprintf(mine, sizeof(mine), "%s%s%s", homecall_number(0),
                      homecall_number(0)[0] && homecall_number(1)[0] ? " / " : "", homecall_number(1));
             off = appendf(buf, cap, off,
-                "<p class=\"hint\">This phone's home number: <code>%s</code></p>", mine);
+                "<p class=\"hint\">This board's number for board-to-board calls: <code>%s</code></p>", mine);
         }
         if (bt_row) {
             off = appendf(buf, cap, off,

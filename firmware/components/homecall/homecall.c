@@ -219,8 +219,8 @@ esp_err_t homecall_set_number(int line, const char *number, char *msg, size_t ms
     s_advertised = false;
     advertise();
     push_numbers();
-    if (num[0]) snprintf(msg, msg_len, "Line %d is now %s on your home network", line + 1, num);
-    else snprintf(msg, msg_len, "Line %d has no home number now", line + 1);
+    if (num[0]) snprintf(msg, msg_len, "Line %d is now %s for board-to-board calls", line + 1, num);
+    else snprintf(msg, msg_len, "Line %d has no board-to-board number now", line + 1);
     ESP_LOGI(TAG, "%s", msg);
     return ESP_OK;
 }

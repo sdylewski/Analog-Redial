@@ -1092,7 +1092,7 @@ static void handle_action(int line, const dialplan_action_t *a)
                 audio_tx_tone(line, TONE_RINGBACK);
                 s_line[line].state = TEL_RINGBACK;
                 s_line[line].peer = PEER_VOIP;
-                activity_log("Line %d: calling %s (%s) on the home network", line, a->number, name);
+                activity_log("Line %d: calling %s (%s), board to board", line, a->number, name);
             } else {
                 ESP_LOGW(TAG, "line %d: home call %s -> %s (reorder)", line, a->number, esp_err_to_name(r));
                 play_persistent(line, TONE_REORDER, TEL_REORDER);
