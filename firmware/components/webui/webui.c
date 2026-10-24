@@ -4449,14 +4449,9 @@ static int append_autoupdate_form(char *buf, size_t cap, int off)
             "<div class=\"statusrow\"><span class=\"label\">Last automatic check</span><span>%s</span></div>", esc);
     }
     return append_hint(buf, cap, off,
-        "Off unless you turn it on. At the hour you pick (this board's time zone, set on the General "
-        "tab), the board reads GitHub's release list and, if a newer release is out for it, "
-        "downloads it, checks it and restarts into it. It waits while a phone is in use and tries "
-        "again a few minutes later within the hour.",
-        "The new release goes into the spare slot while this one keeps running, and its checksum "
-        "must match the release list. If it doesn't start properly, the board goes back to this "
-        "version on its own. A development build (a version with a suffix like -dirty) is never "
-        "replaced automatically.");
+        "Installs new releases overnight, at the hour you pick.",
+        "It waits while a phone is in use, checks the download, and goes back to the old version "
+        "if the new one doesn't start. Development builds are never replaced.");
 }
 
 /* POST /autoupdate_set -- on=1 (checkbox) hour=N [now=1]. */
@@ -4556,16 +4551,12 @@ static int append_firmware_card(char *buf, size_t cap, int off)
     }
     off = append_hint(buf, cap, off,
         i18n_str("firmware.hint_lead",
-                 "Uploads a build output and reboots into it -- no USB cable needed."),
+                 "Or upload a firmware file by hand: no USB cable needed."),
         i18n_str("firmware.hint_detail",
-                 "Pushes the exact file <code>idf.py build</code> produces "
-                 "(<code>build/rotary_phone_gateway.bin</code>) -- the same one you'd otherwise "
-                 "flash over USB. Writes to the inactive slot while this one keeps running, then "
-                 "reboots into it. If the new image crashes or hangs before finishing boot, it "
-                 "automatically reverts to this version on the next boot. USB flashing "
-                 "(<code>idf.py flash</code>) still works exactly as before; this is an "
-                 "additional option, not a replacement, and is still how you flash a board for "
-                 "the very first time."));
+                 "Use the <code>build/rotary_phone_gateway.bin</code> that <code>idf.py build</code> "
+                 "makes. It goes into the spare slot, and the board restarts into it; if it doesn't "
+                 "start, the board returns to this version. USB flashing still works, and is how a "
+                 "board is flashed the first time."));
     off = appendf(buf, cap, off, "</div>");
     return off;
 }
@@ -10522,7 +10513,7 @@ static void wd_alive_work(void *arg)
 static void webui_watchdog_task(void *arg)
 {
     (void)arg;
-    uint32_t seen = g_webui_progress;
+    uint32_t seen = g_webui_progress + g_autoupdate_progress;
     int misses = 0;
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(WD_PERIOD_MS));
@@ -10530,8 +10521,8 @@ static void webui_watchdog_task(void *arg)
         httpd_queue_work(s_server, wd_alive_work, NULL);
         vTaskDelay(pdMS_TO_TICKS(WD_WAIT_MS));
         bool answered = s_wd_alive_us >= asked;
-        bool moving = g_webui_progress != seen;
-        seen = g_webui_progress;
+        bool moving = (g_webui_progress + g_autoupdate_progress) != seen;
+        seen = g_webui_progress + g_autoupdate_progress;
         if (answered || moving) {
             if (misses) esp_rom_printf("webui watchdog: web server answering again\n");
             misses = 0;

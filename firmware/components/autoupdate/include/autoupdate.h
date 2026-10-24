@@ -12,6 +12,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <time.h>
 #include "esp_err.h"
 
@@ -41,6 +42,10 @@ void        autoupdate_check_now(void);
 
 /* The spare firmware slot has one writer at a time: the automatic update or
  * a web upload. Claim before esp_ota_begin(), release when done or failed. */
+/* Bumped while a download makes progress, so the web server's watchdog doesn't mistake a
+ * busy download for a hang. */
+extern volatile uint32_t g_autoupdate_progress;
+
 bool        autoupdate_claim_slot(void);
 void        autoupdate_release_slot(void);
 

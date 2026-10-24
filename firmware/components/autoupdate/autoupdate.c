@@ -40,6 +40,8 @@ static const char *TAG = "autoupdate";
 /* Images may only come from the project's own firmware branch. */
 #define TRUSTED_PREFIX "https://raw.githubusercontent.com/sdylewski/Analog-Redial/firmware/"
 
+volatile uint32_t g_autoupdate_progress;
+
 static autoupdate_cfg_t s_cfg = { .enabled = false, .hour = 2 };
 static char             s_status[112];
 static volatile bool    s_busy;
@@ -322,6 +324,7 @@ static const char *install(const release_t *rel)
                     id_scan(&scan, chunk, (size_t)n);
                     if (esp_ota_write(oh, chunk, (size_t)n) != ESP_OK) { err = "writing to flash failed"; break; }
                     total += (uint32_t)n;
+                    g_autoupdate_progress++;
                 } else if (esp_http_client_is_complete_data_received(c) || ++quiet > 6) {
                     break;   /* a timed-out read (n < 0) gets a few more tries before the piece is redone */
                 }
