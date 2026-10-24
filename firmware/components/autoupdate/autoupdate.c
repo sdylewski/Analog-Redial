@@ -282,8 +282,18 @@ static const char *install(const release_t *rel)
     id_scan_t scan = {0};
     uint32_t total = 0;
     int64_t t0 = esp_timer_get_time();
-    int n;
-    while (total < rel->size && (n = esp_http_client_read(c, (char *)chunk, CHUNK)) > 0) {
+    int n = 0, idle_reads = 0, last_n = 0;
+    while (total < rel->size) {
+        n = esp_http_client_read(c, (char *)chunk, CHUNK);
+        last_n = n;
+        if (n <= 0) {
+            /* A read that times out (-ESP_ERR_HTTP_EAGAIN) or returns nothing yet is not the end:
+             * the link may just be slow. Give up after about a minute of nothing. */
+            if (esp_http_client_is_complete_data_received(c)) break;
+            if (++idle_reads > 12) break;
+            continue;
+        }
+        idle_reads = 0;
         mbedtls_sha256_update(&sha, chunk, (size_t)n);
         id_scan(&scan, chunk, (size_t)n);
         if (esp_ota_write(oh, chunk, (size_t)n) != ESP_OK) { err = "writing to flash failed"; break; }
@@ -294,7 +304,11 @@ static const char *install(const release_t *rel)
     uint8_t digest[32];
     mbedtls_sha256_finish(&sha, digest);
     mbedtls_sha256_free(&sha);
-    if (!err && total != rel->size) err = "the download stopped early";
+    if (!err && total != rel->size) {
+        ESP_LOGW(TAG, "download stopped at %u of %u bytes (last read %d, free heap %u)", (unsigned)total,
+                 (unsigned)rel->size, last_n, (unsigned)esp_get_free_heap_size());
+        err = "the download stopped early";
+    }
     if (!err) {
         char hexd[65];
         for (int i = 0; i < 32; i++) sprintf(hexd + i * 2, "%02x", digest[i]);
