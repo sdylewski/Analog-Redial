@@ -271,6 +271,21 @@ misbehaves.
   enclosure wall.
 
 
+- **A wider-input DC jack (next board version, idea):** a 5 V step-down converter between
+  the DC jack and the diode-OR (D1), so a 9 V wall supply works (the SMD4/SMD5 jack
+  path is limited to about 5.5-6 V: the +5 V rail feeds the DevKit's onboard LDO, the
+  AG1171 SLICs and U5, an XC6206 rated about 6 V in). Candidate: **MPS MP2315**
+  (about $2): 4.5-24 V in, 3 A, synchronous, 500 kHz, TSOT23-8, output set by two
+  feedback resistors (set about 5.3 V so the rail is still about 5 V after D1). Needs an
+  inductor, input/output capacitors, and reverse-polarity and TVS protection at the jack.
+  Spec the jack as roughly 7-24 V, 9 V recommended; a 5 V adapter does not work through
+  it (the buck has no headroom), so 5 V stays on USB-C. Confirm the MP2315's dropout in
+  the MPS datasheet (the MP2315S has different MOSFETs), and listen for switching noise
+  on the handset. Rejected: TPS54202 and AP63205 (need about 8 V in for 5 V out),
+  RAA2114054GP3 and MAX77596 (300 mA only), TPS63070 buck-boost ($3.37, QFN, accepts
+  any input; the fallback if a 5 V adapter must work), XL1509-5.0 (fixed 5 V, 2 A, about
+  1.5 V dropout, non-synchronous; the simpler alternative).
+
 ## Bring-up log
 
 **2026-10-19, first two boards, no phone attached, one line, no microSD.** Both
