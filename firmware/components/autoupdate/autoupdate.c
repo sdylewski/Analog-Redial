@@ -35,8 +35,8 @@ static const char *TAG = "autoupdate";
 #define MAX_TRIES     6              /* per night */
 #define CHUNK         2048
 #define MANIFEST_MAX  3072
-#define MIN_FREE_HEAP (70 * 1024)
-#define MIN_BLOCK     (24 * 1024)
+#define MIN_FREE_HEAP (48 * 1024)
+#define MIN_BLOCK     (20 * 1024)
 /* Images may only come from the project's own firmware branch. */
 #define TRUSTED_PREFIX "https://raw.githubusercontent.com/sdylewski/Analog-Redial/firmware/"
 
