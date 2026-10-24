@@ -250,6 +250,32 @@ static void id_scan(id_scan_t *s, const uint8_t *data, size_t n)
     }
 }
 
+/* A ranged request for bytes [from, to]. The download is fetched in pieces so a
+ * dropped connection (a busy or marginal Wi-Fi link, a board short of memory)
+ * costs one piece, not the whole image: the piece is simply asked for again from
+ * where it stopped. */
+#define SEGMENT (256 * 1024)
+
+static esp_http_client_handle_t open_range(const char *url, uint32_t from, uint32_t to, int *status)
+{
+    esp_http_client_config_t cfg = {
+        .url = url,
+        .timeout_ms = 20000,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+        .buffer_size = 1024,
+        .buffer_size_tx = 1024,
+    };
+    esp_http_client_handle_t c = esp_http_client_init(&cfg);
+    if (!c) return NULL;
+    char range[40];
+    snprintf(range, sizeof(range), "bytes=%u-%u", (unsigned)from, (unsigned)to);
+    esp_http_client_set_header(c, "Range", range);
+    if (esp_http_client_open(c, 0) != ESP_OK) { esp_http_client_cleanup(c); return NULL; }
+    esp_http_client_fetch_headers(c);
+    *status = esp_http_client_get_status_code(c);
+    return c;
+}
+
 /* Returns an error text, or NULL once the image is written and set as the next boot. */
 static const char *install(const release_t *rel)
 {
@@ -258,22 +284,13 @@ static const char *install(const release_t *rel)
     const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
     if (!target || target->size < rel->size) return "no spare firmware slot big enough";
 
-    int64_t len = 0;
-    int status = 0;
-    esp_http_client_handle_t c = open_url(rel->url, 20000, &len, &status);
-    if (!c) return "couldn't connect to download it";
-    if (status != 200 || (len > 0 && (uint32_t)len != rel->size)) {
-        esp_http_client_close(c); esp_http_client_cleanup(c);
-        return "the download isn't what the manifest promised";
-    }
     uint8_t *chunk = malloc(CHUNK);
-    if (!chunk) { esp_http_client_close(c); esp_http_client_cleanup(c); return "out of memory"; }
-
+    if (!chunk) return "out of memory";
     esp_ota_handle_t oh = 0;
     const char *err = NULL;
     if (esp_ota_begin(target, OTA_WITH_SEQUENTIAL_WRITES, &oh) != ESP_OK) {
-        err = "couldn't start writing to flash";
-        goto done;
+        free(chunk);
+        return "couldn't start writing to flash";
     }
     board_led_set_state(BOARD_LED_OTA_UPDATING);
     mbedtls_sha256_context sha;
@@ -281,47 +298,66 @@ static const char *install(const release_t *rel)
     mbedtls_sha256_starts(&sha, 0);
     id_scan_t scan = {0};
     uint32_t total = 0;
+    int fails = 0, pieces = 0;
     int64_t t0 = esp_timer_get_time();
-    int n = 0, idle_reads = 0, last_n = 0;
-    while (total < rel->size) {
-        n = esp_http_client_read(c, (char *)chunk, CHUNK);
-        last_n = n;
-        if (n <= 0) {
-            /* A read that times out (-ESP_ERR_HTTP_EAGAIN) or returns nothing yet is not the end:
-             * the link may just be slow. Give up after about a minute of nothing. */
-            if (esp_http_client_is_complete_data_received(c)) break;
-            if (++idle_reads > 12) break;
-            continue;
+
+    while (!err && total < rel->size) {
+        if (esp_timer_get_time() - t0 > 20LL * 60 * 1000000) { err = "the download took too long"; break; }
+        uint32_t end = total + SEGMENT < rel->size ? total + SEGMENT : rel->size;   /* exclusive */
+        int status = 0;
+        esp_http_client_handle_t c = open_range(rel->url, total, end - 1, &status);
+        if (c && status != 206 && !(status == 200 && total == 0)) {
+            esp_http_client_close(c); esp_http_client_cleanup(c);
+            c = NULL;
         }
-        idle_reads = 0;
-        mbedtls_sha256_update(&sha, chunk, (size_t)n);
-        id_scan(&scan, chunk, (size_t)n);
-        if (esp_ota_write(oh, chunk, (size_t)n) != ESP_OK) { err = "writing to flash failed"; break; }
-        total += (uint32_t)n;
-        if (esp_timer_get_time() - t0 > 15LL * 60 * 1000000) { err = "the download took too long"; break; }
+        uint32_t before = total;
+        if (c) {
+            pieces++;
+            int n, quiet = 0;
+            while (total < end) {
+                n = esp_http_client_read(c, (char *)chunk, (int)(end - total < CHUNK ? end - total : CHUNK));
+                if (n > 0) {
+                    quiet = 0;
+                    mbedtls_sha256_update(&sha, chunk, (size_t)n);
+                    id_scan(&scan, chunk, (size_t)n);
+                    if (esp_ota_write(oh, chunk, (size_t)n) != ESP_OK) { err = "writing to flash failed"; break; }
+                    total += (uint32_t)n;
+                } else if (esp_http_client_is_complete_data_received(c) || ++quiet > 6) {
+                    break;   /* a timed-out read (n < 0) gets a few more tries before the piece is redone */
+                }
+            }
+            esp_http_client_close(c);
+            esp_http_client_cleanup(c);
+        }
+        if (err) break;
+        if (total > before) {
+            fails = 0;
+        } else if (++fails > 10) {
+            err = "the connection kept dropping";
+        } else {
+            ESP_LOGW(TAG, "no data at byte %u (piece %d, free heap %u) -- trying again", (unsigned)total, pieces,
+                     (unsigned)esp_get_free_heap_size());
+            vTaskDelay(pdMS_TO_TICKS(3000));
+        }
         vTaskDelay(1);   /* let Wi-Fi and the web server breathe */
     }
+
     uint8_t digest[32];
     mbedtls_sha256_finish(&sha, digest);
     mbedtls_sha256_free(&sha);
-    if (!err && total != rel->size) {
-        ESP_LOGW(TAG, "download stopped at %u of %u bytes (last read %d, free heap %u)", (unsigned)total,
-                 (unsigned)rel->size, last_n, (unsigned)esp_get_free_heap_size());
-        err = "the download stopped early";
-    }
+    free(chunk);
+    if (!err && total != rel->size) err = "the download stopped early";
     if (!err) {
         char hexd[65];
         for (int i = 0; i < 32; i++) sprintf(hexd + i * 2, "%02x", digest[i]);
         if (strcasecmp(hexd, rel->sha256) != 0) err = "the download's checksum doesn't match";
     }
-    if (err) { esp_ota_abort(oh); goto done; }
-    if (esp_ota_end(oh) != ESP_OK) { err = "that isn't a valid firmware image"; goto done; }
-    if (strcmp(scan.found, BOARD_IMAGE_ID) != 0) { err = "that image is for a different board"; goto done; }
-    if (esp_ota_set_boot_partition(target) != ESP_OK) err = "couldn't set it as the next boot";
-done:
-    free(chunk);
-    esp_http_client_close(c);
-    esp_http_client_cleanup(c);
+    if (err) { esp_ota_abort(oh); board_led_set_state(BOARD_LED_OK); return err; }
+    ESP_LOGI(TAG, "downloaded %u bytes in %d piece(s), %d s", (unsigned)total, pieces,
+             (int)((esp_timer_get_time() - t0) / 1000000));
+    if (esp_ota_end(oh) != ESP_OK) err = "that isn't a valid firmware image";
+    else if (strcmp(scan.found, BOARD_IMAGE_ID) != 0) err = "that image is for a different board";
+    else if (esp_ota_set_boot_partition(target) != ESP_OK) err = "couldn't set it as the next boot";
     if (err) board_led_set_state(BOARD_LED_OK);
     return err;
 }
