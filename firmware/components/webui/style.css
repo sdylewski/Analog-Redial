@@ -515,3 +515,10 @@ pre.cmd {
   padding: 10px 12px; margin: 4px 0 6px; overflow-x: auto;
   font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace; white-space: pre;
 }
+
+details.voip-hide { margin: 12px 0; }
+details.voip-hide > summary { cursor: pointer; font-weight: 600; padding: 10px 14px;
+  border: 1px solid var(--border, currentColor); border-radius: 8px; list-style: none; }
+details.voip-hide > summary::-webkit-details-marker { display: none; }
+details.voip-hide > summary::before { content: "\25b8  "; }
+details.voip-hide[open] > summary::before { content: "\25be  "; }

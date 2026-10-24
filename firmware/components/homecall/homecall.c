@@ -3,7 +3,10 @@
 
 #include "board.h"
 #include "dialplan.h"
+#include "esp_http_client.h"
 #include "esp_log.h"
+#include "esp_heap_caps.h"
+#include "esp_random.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -13,6 +16,7 @@
 #include "voip.h"
 #include "wifi.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const char *TAG = "homecall";
@@ -34,6 +38,14 @@ static size_t            s_npeers;
 static SemaphoreHandle_t s_lock;
 static TaskHandle_t      s_task;
 static bool              s_advertised;
+static bool              s_seeded;   /* numbers were chosen (by the board or by hand) at least once */
+static bool              s_auto;     /* ...and the board chose them */
+
+/* Boards found only by their web page (older firmware), and addresses already
+ * checked and found not to be one. */
+#define PROBED_MAX 16
+static struct { char ip[16]; int64_t at_us; bool board; } s_probed[PROBED_MAX];
+#define PROBE_RECHECK_US (15LL * 60 * 1000000)
 
 /* ---- numbers ---------------------------------------------------------- */
 
@@ -58,19 +70,15 @@ static void push_numbers(void)
 
 static void advertise(void)
 {
+    /* Advertised even with no number, so other boards list this one as "not
+     * set up" rather than not seeing it at all. */
     mdns_txt_item_t txt[2];
     size_t n = 0;
     if (s_num[0][0]) txt[n++] = (mdns_txt_item_t){ "n0", s_num[0] };
     if (s_num[1][0]) txt[n++] = (mdns_txt_item_t){ "n1", s_num[1] };
-    bool want = s_num[0][0] || s_num[1][0];
     bool have = mdns_service_exists(SERVICE, PROTO, NULL);
-    if (!want) {
-        if (have) mdns_service_remove(SERVICE, PROTO);
-        s_advertised = false;
-        return;
-    }
     esp_err_t err = have ? mdns_service_txt_set(SERVICE, PROTO, txt, n)
-                         : mdns_service_add(NULL, SERVICE, PROTO, 5060, txt, n);
+                         : mdns_service_add(NULL, SERVICE, PROTO, 5060, n ? txt : NULL, n);
     if (err == ESP_OK) s_advertised = true;
     else ESP_LOGW(TAG, "mDNS advertise: %s", esp_err_to_name(err));
 }
@@ -78,6 +86,11 @@ static void advertise(void)
 const char *homecall_number(int line)
 {
     return (line >= 0 && line < 2) ? s_num[line] : "";
+}
+
+bool homecall_number_is_automatic(void)
+{
+    return s_auto;
 }
 
 /* ---- discovery -------------------------------------------------------- */
@@ -128,6 +141,170 @@ static void browse(void)
     mdns_query_results_free(res);
 }
 
+/* Other Analog Redial boards on older firmware don't advertise the phone
+ * service, but every board advertises its web page (_http._tcp) and answers
+ * /api/status. Look at web pages we haven't already looked at, a few per
+ * pass, and list the ones that are phones. */
+static bool probe_is_board(const char *ip)
+{
+    char url[40];
+    snprintf(url, sizeof(url), "http://%s/api/status", ip);
+    esp_http_client_config_t cfg = { .url = url, .timeout_ms = 1500, .buffer_size = 512 };
+    esp_http_client_handle_t c = esp_http_client_init(&cfg);
+    if (!c) return false;
+    bool board = false;
+    if (esp_http_client_open(c, 0) == ESP_OK) {
+        esp_http_client_fetch_headers(c);
+        char buf[400];
+        int n = esp_http_client_read(c, buf, sizeof(buf) - 1);
+        if (n > 0) {
+            buf[n] = '\0';
+            board = strstr(buf, "\"board_name\"") && strstr(buf, "\"hardware\"");
+        }
+    }
+    esp_http_client_cleanup(c);
+    return board;
+}
+
+static void find_older_boards(const char *myip)
+{
+    if (heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) < 24 * 1024) return;
+    mdns_result_t *res = NULL;
+    if (mdns_query_ptr("_http", "_tcp", 2000, 20, &res) != ESP_OK) return;
+    int64_t now = esp_timer_get_time();
+    int budget = 3;   /* web pages looked at per pass */
+    for (mdns_result_t *r = res; r && budget > 0; r = r->next) {
+        char ip[16] = "";
+        for (mdns_ip_addr_t *a = r->addr; a; a = a->next) {
+            if (a->addr.type == ESP_IPADDR_TYPE_V4) {
+                snprintf(ip, sizeof(ip), IPSTR, IP2STR(&a->addr.u_addr.ip4));
+                break;
+            }
+        }
+        if (!ip[0] || strcmp(ip, myip) == 0) continue;
+        bool known = false;   /* already listed as a phone */
+        xSemaphoreTake(s_lock, portMAX_DELAY);
+        for (size_t i = 0; i < s_npeers; i++) {
+            if (strcmp(s_peers[i].p.ip, ip)) continue;
+            known = true;
+            if (s_peers[i].p.older_firmware) s_peers[i].seen_us = now;   /* its web page still answers */
+        }
+        xSemaphoreGive(s_lock);
+        if (known) continue;
+        int slot = -1, oldest = 0;
+        for (int i = 0; i < PROBED_MAX; i++) {
+            if (!strcmp(s_probed[i].ip, ip)) { slot = i; break; }
+            if (s_probed[i].at_us < s_probed[oldest].at_us) oldest = i;
+        }
+        if (slot >= 0 && now - s_probed[slot].at_us < PROBE_RECHECK_US && !s_probed[slot].board) continue;
+        if (slot < 0) slot = oldest;
+        budget--;
+        bool board = probe_is_board(ip);
+        strlcpy(s_probed[slot].ip, ip, sizeof(s_probed[slot].ip));
+        s_probed[slot].at_us = now;
+        s_probed[slot].board = board;
+        if (!board) continue;
+        xSemaphoreTake(s_lock, portMAX_DELAY);
+        if (s_npeers < HOMECALL_PEERS_MAX) {
+            peer_slot_t *p = &s_peers[s_npeers++];
+            memset(p, 0, sizeof(*p));
+            strlcpy(p->p.ip, ip, sizeof(p->p.ip));
+            strlcpy(p->p.name, r->instance_name ? r->instance_name : (r->hostname ? r->hostname : ip), sizeof(p->p.name));
+            p->p.older_firmware = true;
+            p->seen_us = now;
+        }
+        xSemaphoreGive(s_lock);
+    }
+    mdns_query_results_free(res);
+}
+
+/* ---- first-start numbers -------------------------------------------------- */
+
+static esp_err_t save_number(int line, const char *num, bool automatic)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_str(h, line ? "n1" : "n0", num);
+    if (err == ESP_OK) err = nvs_set_u8(h, "auto", automatic ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_u8(h, "seeded", 1);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
+
+/* A free number for `line`: 4 digits, leading 1 where allowed (1 belongs to
+ * Bluetooth dial-out when a module is fitted), valid for the dial plan, and
+ * not in use by this board's other line or any board seen so far. */
+static bool pick_number(int line, const char *prefer, char *out)
+{
+    bool bt = board_hw_config_get().has_bt_module;
+    char cand[HOMECALL_NUM_MAX];
+    for (int attempt = 0; attempt < 300; attempt++) {
+        if (attempt == 0 && prefer && prefer[0]) {
+            strlcpy(cand, prefer, sizeof(cand));
+        } else {
+            uint32_t r = esp_random();
+            int first = (!bt && attempt < 60) ? 1 : (bt ? 2 : 1) + (int)((r >> 24) % (bt ? 8 : 9));
+            snprintf(cand, sizeof(cand), "%d%03u", first, (unsigned)(r % 1000));
+        }
+        if (dialplan_home_number_problem(cand)) continue;
+        if (!strcmp(cand, s_num[line ^ 1])) continue;
+        if (homecall_lookup(cand, NULL, 0, NULL, 0)) continue;
+        strlcpy(out, cand, HOMECALL_NUM_MAX);
+        return true;
+    }
+    return false;
+}
+
+static void next_in_sequence(const char *num, char *out)
+{
+    long v = atol(num) + 1;
+    snprintf(out, HOMECALL_NUM_MAX, "%ld", v);
+}
+
+/* Picks this board's numbers the first time it is on a network. */
+static void seed_numbers(void)
+{
+    int lines = board_hw_config_get().num_lines > 1 ? 2 : 1;
+    char num[HOMECALL_NUM_MAX], seq[HOMECALL_NUM_MAX];
+    for (int l = 0; l < lines; l++) {
+        const char *prefer = NULL;
+        if (l == 1 && s_num[0][0]) { next_in_sequence(s_num[0], seq); prefer = seq; }
+        if (!pick_number(l, prefer, num)) continue;
+        if (save_number(l, num, true) == ESP_OK) {
+            strlcpy(s_num[l], num, sizeof(s_num[l]));
+            ESP_LOGI(TAG, "line %d: first-start number %s", l + 1, num);
+        }
+    }
+    s_seeded = true;
+    s_auto = true;
+    s_advertised = false;
+    advertise();
+    push_numbers();
+}
+
+/* Two new boards can pick the same number before they see each other. A
+ * board that chose its own number picks again; numbers set by hand stay. */
+static void settle_clashes(void)
+{
+    if (!s_auto) return;
+    for (int l = 0; l < 2; l++) {
+        if (!s_num[l][0]) continue;
+        char ip[16];
+        if (!homecall_lookup(s_num[l], ip, sizeof(ip), NULL, 0)) continue;
+        char num[HOMECALL_NUM_MAX];
+        s_num[l][0] = '\0';
+        if (pick_number(l, NULL, num) && save_number(l, num, true) == ESP_OK) {
+            strlcpy(s_num[l], num, sizeof(s_num[l]));
+            ESP_LOGI(TAG, "line %d: number was taken by %s, now %s", l + 1, ip, num);
+        }
+        s_advertised = false;
+        advertise();
+        push_numbers();
+    }
+}
+
 void homecall_refresh(void)
 {
     if (!wifi_is_connected()) return;
@@ -140,8 +317,13 @@ static void homecall_task(void *arg)
     (void)arg;
     for (;;) {
         if (wifi_is_connected()) {
-            if (!s_advertised && (s_num[0][0] || s_num[1][0])) advertise();
+            char myip[16];
+            wifi_get_ip_str(myip, sizeof(myip));
+            if (!s_advertised) advertise();
             browse();
+            if (!s_seeded) seed_numbers();
+            settle_clashes();
+            find_older_boards(myip);
             push_numbers();
         }
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(BROWSE_EVERY_MS));
@@ -211,11 +393,15 @@ esp_err_t homecall_set_number(int line, const char *number, char *msg, size_t ms
     esp_err_t err = nvs_open(NVS_NS, NVS_READWRITE, &h);
     if (err == ESP_OK) {
         err = nvs_set_str(h, line ? "n1" : "n0", num);
+        if (err == ESP_OK) err = nvs_set_u8(h, "auto", 0);
+        if (err == ESP_OK) err = nvs_set_u8(h, "seeded", 1);
         if (err == ESP_OK) err = nvs_commit(h);
         nvs_close(h);
     }
     if (err != ESP_OK) { snprintf(msg, msg_len, "Couldn't save (%s)", esp_err_to_name(err)); return err; }
     strlcpy(s_num[line], num, sizeof(s_num[line]));
+    s_seeded = true;
+    s_auto = false;
     s_advertised = false;
     advertise();
     push_numbers();
@@ -233,8 +419,13 @@ void homecall_init(void)
     if (nvs_open(NVS_NS, NVS_READONLY, &h) == ESP_OK) {
         size_t sz = sizeof(s_num[0]); nvs_get_str(h, "n0", s_num[0], &sz);
         sz = sizeof(s_num[1]);        nvs_get_str(h, "n1", s_num[1], &sz);
+        uint8_t v = 0;
+        if (nvs_get_u8(h, "seeded", &v) == ESP_OK) s_seeded = v != 0;
+        if (nvs_get_u8(h, "auto", &v) == ESP_OK) s_auto = v != 0;
         nvs_close(h);
     }
+    /* A board that already had a number before first-start numbers existed. */
+    if (s_num[0][0] || s_num[1][0]) s_seeded = true;
     push_numbers();
     xTaskCreate(homecall_task, "homecall", 4096, NULL, tskIDLE_PRIORITY + 1, &s_task);
     if (s_num[0][0] || s_num[1][0]) ESP_LOGI(TAG, "home numbers: '%s' / '%s'", s_num[0], s_num[1]);

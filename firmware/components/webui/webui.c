@@ -3529,7 +3529,8 @@ static int append_voip_prov_section(char *buf, size_t cap, int off)
                 "title=\"Claim this number for this line and restart to connect with it\">Register</button>%s"
                 "</div>",
                 line, line + 1, now,
-                s_prov_line_override[line] ? s_prov_line_num[line] : (has_num ? cur : ""), ph,
+                s_prov_line_override[line] ? s_prov_line_num[line]
+                    : (has_num ? cur : (strlen(homecall_number(line)) == 4 ? homecall_number(line) : "")), ph,
                 (voip_prov_enrolled() && has_num)
                     ? "<button type=\"submit\" name=\"action\" value=\"release\" formnovalidate "
                       "title=\"Give this number back to the server and clear the line\">Release</button>" : "");
@@ -3560,8 +3561,10 @@ static int append_home_calls_card(char *buf, size_t cap, int off)
     off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>Board-to-board calls (local VoIP)</h2>"
         "<p class=\"hint\">Analog Redial boards on the same Wi-Fi network can call each other "
-        "directly, with no server and no internet. Give a line a number here; any other board "
-        "on your network dials it.</p>"
+        "directly, with no server and no internet. Each line gets a free 4-digit number the "
+        "first time the board is on your network (change it below if you like); any other board "
+        "on your network dials it. The same 4 digits are the line's default extension if you "
+        "later use a VoIP server, where other phones dial <b>555</b> first (555 + the 4 digits).</p>"
         "<p class=\"hint\">When to use it: the simplest way to connect two phones is to plug "
         "both into <b>one board</b> (a two-line board), and they call each other by dialling "
         "3-2-1. When that's hard to wire, for example the phones are in different rooms, use "
@@ -3580,7 +3583,9 @@ static int append_home_calls_card(char *buf, size_t cap, int off)
             "<input name=\"number\" value=\"%s\" placeholder=\"e.g. 1234\" inputmode=\"numeric\" "
             "pattern=\"[0-9 -]{0,14}\"></label>"
             "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>",
-            l, l + 1, num[0] ? "other phones dial this" : "none: this line can't be called from other phones",
+            l, l + 1, num[0] ? (homecall_number_is_automatic() ? "picked by this board; other phones dial this"
+                                                                : "other phones dial this")
+                             : "none: this line can't be called from other phones",
             num);
         if (s_home_msg[l][0]) {
             char rid[16];
@@ -3595,11 +3600,25 @@ static int append_home_calls_card(char *buf, size_t cap, int off)
     off = appendf(buf, cap, off, "<h3 id=\"homepeers\">Phones found on this network</h3>");
     if (n == 0) {
         off = appendf(buf, cap, off,
-            "<p class=\"hint\">None yet. Another phone shows up here once it has a home number "
-            "and is on this network. Phones look for each other every minute.</p>");
+            "<p class=\"hint\">None yet. Other Analog Redial phones on this network show up here; "
+            "phones look for each other every minute.</p>");
     } else {
         off = appendf(buf, cap, off, "<table><tr><th>Phone</th><th>Number</th><th>Address</th><th></th></tr>");
         for (size_t i = 0; i < n; i++) {
+            if (!peers[i].number[0][0] && !peers[i].number[1][0]) {
+                char ename[32 * 6];
+                html_escape(peers[i].name, ename, sizeof(ename));
+                off = appendf(buf, cap, off,
+                    "<tr><td>%s</td><td><span class=\"pill off\">not set up</span></td>"
+                    "<td><a href=\"http://%s/\">%s</a></td><td>%s</td></tr>",
+                    ename, peers[i].ip, peers[i].ip,
+                    peers[i].older_firmware
+                        ? "<span class=\"hint\">Online, but not set up for board-to-board calls: it has no "
+                          "number, or runs older firmware. Updating it gives it one.</span>"
+                        : "<span class=\"hint\">Online, no number yet. Give one of its lines a number "
+                          "on its Voice over IP tab.</span>");
+                continue;
+            }
             for (int l = 0; l < 2; l++) {
                 const char *num = peers[i].number[l];
                 if (!num[0]) continue;
@@ -3671,6 +3690,12 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "calls above, which need no server. Takes effect after a reboot. Turning it off keeps "
         "everything below.");
 
+    /* The server settings only matter once VoIP is turned on, so they start
+     * folded away until then. */
+    off = appendf(buf, cap, off,
+        "<details class=\"voip-hide\"%s><summary>%s</summary>",
+        voip_is_enabled() ? " open" : "",
+        voip_is_enabled() ? "VoIP server settings" : "VoIP server settings (off: turn VoIP on to use them)");
     off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s</span></div>"
@@ -3724,11 +3749,12 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         const char *u = voip_user(line);
         off = appendf(buf, cap, off,
             "<label title=\"" VOIP_NUMBER_TIP "\">Line %d number (extension) "
-            "<input name=\"user%d\" value=\"%s\" placeholder=\"e.g. 1005\" inputmode=\"numeric\"></label>%s"
+            "<input name=\"user%d\" value=\"%s\" placeholder=\"%s\" inputmode=\"numeric\"></label>%s"
             "<label title=\"The SIP password for this extension, exactly as set on the server. "
             "Leave blank to keep the saved one.\">Line %d password "
             "<input type=\"password\" name=\"pass%d\" placeholder=\"leave blank to keep\"></label>",
             line + 1, line, u,
+            strlen(homecall_number(line)) == 4 ? homecall_number(line) : "e.g. 1005",
             (u[0] && !all_digits(u))
                 ? "<p class=\"hint\">Not a number other phones can dial -- use digits only.</p>" : "",
             line + 1, line);
@@ -4012,7 +4038,7 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
         "}"
         "voipSyncCheckServer();"
         "</script></div>"
-        "</div>", /* closes #voip-extra, opened above the master enable switch */
+        "</div></details>", /* closes #voip-extra, then the folded-away server settings */
         voip_server()[0] ? voip_server() : "(no SIP server saved yet)");
 
     return off;
@@ -7516,6 +7542,14 @@ static esp_err_t voip_set_handler(httpd_req_t *req)
     form_field(body, "pass0", pass0, sizeof(pass0));
     form_field(body, "user1", user1, sizeof(user1));
     form_field(body, "pass1", pass1, sizeof(pass1));
+
+    /* A blank extension defaults to the line's board-to-board number (4 digits),
+     * so one number works at home and on a server (555 + it, from the server). */
+    if (server[0] && !user0[0] && !voip_user(0)[0] && strlen(homecall_number(0)) == 4)
+        strlcpy(user0, homecall_number(0), sizeof(user0));
+    if (server[0] && !user1[0] && !voip_user(1)[0] && board_hw_config_get().num_lines > 1 &&
+        strlen(homecall_number(1)) == 4)
+        strlcpy(user1, homecall_number(1), sizeof(user1));
 
     voip_set_config(server[0] ? server : NULL, user0[0] ? user0 : NULL, pass0[0] ? pass0 : NULL,
                      user1, user1[0] ? (pass1[0] ? pass1 : NULL) : "");
