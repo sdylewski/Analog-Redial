@@ -4514,8 +4514,7 @@ static int append_firmware_card(char *buf, size_t cap, int off)
         "class=\"settings-form\" onsubmit=\"return confirm('%s')\">"
         "<label>%s <input type=\"file\" name=\"file\" accept=\".bin\" required></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-        "</form>"
-        "%s",
+        "</form>",
         i18n_str("firmware.title", "Firmware"),
         i18n_str("firmware.version_label", "Version"), app->version,
         i18n_str("firmware.built_label", "Built"), built,
@@ -4530,8 +4529,17 @@ static int append_firmware_card(char *buf, size_t cap, int off)
                  "Upload this firmware image and reboot into it? Make sure it's a build of "
                  "this same board type -- there's no way to check that before writing it."),
         i18n_str("firmware.file_label", "Firmware file (.bin, from idf.py build)"),
-        i18n_str("firmware.button", "Upload and reboot"),
-        revert_form);
+        i18n_str("firmware.button", "Upload and reboot"));
+    /* The note about uploading by hand sits right under that form, then the revert button. */
+    off = append_hint(buf, cap, off,
+        i18n_str("firmware.hint_lead",
+                 "Or upload a firmware file by hand: no USB cable needed."),
+        i18n_str("firmware.hint_detail",
+                 "Use the <code>build/rotary_phone_gateway.bin</code> that <code>idf.py build</code> "
+                 "makes. It goes into the spare slot, and the board restarts into it; if it doesn't "
+                 "start, the board returns to this version. USB flashing still works, and is how a "
+                 "board is flashed the first time."));
+    if (revert_form[0]) off = appendf(buf, cap, off, "%s", revert_form);
     if (layout_ok) off = append_autoupdate_form(buf, cap, off);
     if (!layout_ok) {
         char note[640];
@@ -4546,14 +4554,6 @@ static int append_firmware_card(char *buf, size_t cap, int off)
             (double)ota_slot_bytes() / (1024.0 * 1024.0));
         off = appendf(buf, cap, off, "<p class=\"hint warn-text\">%s</p>", note);
     }
-    off = append_hint(buf, cap, off,
-        i18n_str("firmware.hint_lead",
-                 "Or upload a firmware file by hand: no USB cable needed."),
-        i18n_str("firmware.hint_detail",
-                 "Use the <code>build/rotary_phone_gateway.bin</code> that <code>idf.py build</code> "
-                 "makes. It goes into the spare slot, and the board restarts into it; if it doesn't "
-                 "start, the board returns to this version. USB flashing still works, and is how a "
-                 "board is flashed the first time."));
     off = appendf(buf, cap, off, "</div>");
     return off;
 }
