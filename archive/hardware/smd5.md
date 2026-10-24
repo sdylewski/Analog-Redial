@@ -272,19 +272,44 @@ misbehaves.
 
 
 - **A wider-input DC jack (next board version, idea):** a 5 V step-down converter between
-  the DC jack and the diode-OR (D1), so a 9 V wall supply works (the SMD4/SMD5 jack
-  path is limited to about 5.5-6 V: the +5 V rail feeds the DevKit's onboard LDO, the
-  AG1171 SLICs and U5, an XC6206 rated about 6 V in). Candidate: **MPS MP2315**
-  (about $2): 4.5-24 V in, 3 A, synchronous, 500 kHz, TSOT23-8, output set by two
-  feedback resistors (set about 5.3 V so the rail is still about 5 V after D1). Needs an
-  inductor, input/output capacitors, and reverse-polarity and TVS protection at the jack.
-  Spec the jack as roughly 7-24 V, 9 V recommended; a 5 V adapter does not work through
-  it (the buck has no headroom), so 5 V stays on USB-C. Confirm the MP2315's dropout in
-  the MPS datasheet (the MP2315S has different MOSFETs), and listen for switching noise
-  on the handset. Rejected: TPS54202 and AP63205 (need about 8 V in for 5 V out),
-  RAA2114054GP3 and MAX77596 (300 mA only), TPS63070 buck-boost ($3.37, QFN, accepts
-  any input; the fallback if a 5 V adapter must work), XL1509-5.0 (fixed 5 V, 2 A, about
-  1.5 V dropout, non-synchronous; the simpler alternative).
+  the DC jack and the diode-OR (D1), so a 9 V wall supply works. The SMD4/SMD5 jack path is
+  limited to about 5.5-6 V: the +5 V rail feeds the DevKit's onboard LDO, the AG1171 SLICs
+  and U5, an XC6206 rated about 6 V in. Spec the jack as roughly 7-24 V, 9 V recommended; a
+  5 V adapter does not work through a buck (no headroom), so 5 V stays on USB-C. Set the
+  output about 5.3 V so the rail is still about 5 V after D1. Needs an inductor, input and
+  output capacitors, and reverse-polarity and TVS protection at the jack. Listen for
+  switching noise on the handset.
+
+  JLCPCB candidates (the MP2315 is custom-order only there):
+
+  | | **MP1584EN** (JLCPCB C49367328, listed "MP1584EN-LF-Z-JSM") | **MP2307DN** (JLCPCB C49375228, "MSMP2307DN-LF-Z") |
+  |--|--|--|
+  | Input | 4.5-28 V, abs max 30 V (MPS datasheet Rev 1.0) | 4.75-23 V |
+  | Output / current | 0.8-25 V, 3 A, current limit 4.0-4.7 A | 0.925 V reference, 3 A |
+  | Type | non-synchronous: **external Schottky diode** (3 A, 40 V) | synchronous (100 mΩ switches), no diode |
+  | Frequency | set by a resistor, 100 kHz-1.5 MHz (900 kHz typ. at 100 kΩ) | 340 kHz (MPS datasheet; some listings say 380 kHz) |
+  | Feedback | 0.8 V (0.776-0.824) | 0.925 V |
+  | Headroom | min off time 100 ns: about 95 % duty at 500 kHz, so 5 V out needs about 6 V in | not read (datasheet unavailable here) |
+  | Package | SOIC-8E (exposed pad), theta-JA 50 °C/W | SOIC-8N, exposed pad |
+  | Status | **Not recommended for new designs**, MPS points to the MP2338 | **NRND** per distributors (not confirmed from the MPS datasheet) |
+
+  Read from the MP1584 datasheet (an RS Components copy; MPS's own site blocks downloads
+  here): EN is enabled when floating or above 1.5 V, but its absolute maximum is 6 V, so
+  it cannot be tied to Vin at 9 V; the datasheet's circuit uses 100 kΩ (Vin to EN) and
+  24.9 kΩ (EN to ground), which only turns the converter on above about 7.5 V. Feedback
+  divider for 5.3 V with 40.2 kΩ to ground: **226 kΩ** on top (5.0 V: 210 kΩ). Typical
+  circuit: 10 µF input, 22 µF output (ceramic), 10 µH inductor, 100 nF bootstrap, COMP
+  network 68.1 kΩ + 220 pF. Soft start 1.5 ms, quiescent 100 µA, UVLO 3.0 V. The efficiency
+  curve at 12 V in, 3.3 V out shows about 85-88 % at 1-3 A.
+
+  **Not checked:** the MP2307 datasheet (every copy was blocked or unreadable), so its
+  headroom, EN pin and recommended parts are unverified. The two JLCPCB listings carry
+  third-party names ("MS..." and "-JSM"), so they may be second-source parts made by other
+  companies, not MPS; their own datasheets may differ from the MPS ones above. Get those
+  from the JLCPCB part pages before choosing. Rejected earlier: TPS54202 and AP63205 (about
+  8 V in for 5 V out), RAA2114054GP3 and MAX77596 (300 mA only), TPS63070 buck-boost ($3.37,
+  QFN, accepts any input; the fallback if a 5 V adapter must work), MP2315 (not in stock on
+  JLCPCB), XL1509-5.0 (fixed 5 V, 2 A, about 1.5 V dropout, non-synchronous).
 
 ## Bring-up log
 
