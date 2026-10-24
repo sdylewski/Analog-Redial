@@ -1004,7 +1004,7 @@ static const char FW_UPDATE_JS[] =
 "<a href=\\'/settings?tab=hardware\\'>Update</a> <a href=\\'#\\' id=\\'fwdismiss\\'>Not now</a>';"
 "b.style.display='block';document.getElementById('fwdismiss').onclick=function(ev){ev.preventDefault();"
 "seen.dismissed=v;try{localStorage.setItem(K,JSON.stringify(seen));}catch(e){}b.style.display='none';};}"
-"if(seen.t&&Date.now()-seen.t<43200000&&seen.id===A.id&&seen.cur===A.ver){if(seen.newer)show(seen.latest);return;}"
+"if(seen.t&&Date.now()-seen.t<3600000&&seen.id===A.id&&seen.cur===A.ver){if(seen.newer)show(seen.latest);return;}"
 "A.check(function(e,r){if(e)return;seen.t=Date.now();seen.id=A.id;seen.cur=A.ver;seen.newer=r.newer;seen.latest=r.latest;"
 "try{localStorage.setItem(K,JSON.stringify(seen));}catch(x){}if(r.newer)show(r.latest);});"
 "})();</script>";
