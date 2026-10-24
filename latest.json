@@ -1,0 +1,28 @@
+{
+  "version": "v1.0.5",
+  "released": "2026-10-23",
+  "notes": "Alpha: board-to-board calling (Settings > VoIP). Boards on the same Wi-Fi call each other by number with no server: give each line a number and other boards dial it. Not yet tested between two boards.",
+  "base": "https://raw.githubusercontent.com/sdylewski/Analog-Redial/firmware/",
+  "images": {
+    "smd4/16MB": {
+      "file": "v1.0.5/smd4-16MB.bin",
+      "size": 1959200,
+      "sha256": "0500153db6cd7f2a8516abb2c2c9760bef359506f86fde33a1e0e0a45d4e3ebe"
+    },
+    "smd5/16MB": {
+      "file": "v1.0.5/smd5-16MB.bin",
+      "size": 1958784,
+      "sha256": "5583326fd0ae30c50bfac6323ef6cae2b8da31243503bc7c2243151162eccec2"
+    },
+    "smd5_cheap/16MB": {
+      "file": "v1.0.5/smd5_cheap-16MB.bin",
+      "size": 1959024,
+      "sha256": "3e1dbfa528fc8267b2d2739fa2aeccc42e74745d008a285441dda34fa635b861"
+    },
+    "smd2/16MB": {
+      "file": "v1.0.5/smd2-16MB.bin",
+      "size": 1936032,
+      "sha256": "2afa7f7ecb33ef09b394ec9ff6677551700a05bd06baf0ad0a48debf93ea8bf0"
+    }
+  }
+}
