@@ -3,9 +3,7 @@
 
 #include "board.h"
 #include "dialplan.h"
-#include "esp_http_client.h"
 #include "esp_log.h"
-#include "esp_heap_caps.h"
 #include "esp_random.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -41,11 +39,6 @@ static bool              s_advertised;
 static bool              s_seeded;   /* numbers were chosen (by the board or by hand) at least once */
 static bool              s_auto;     /* ...and the board chose them */
 
-/* Boards found only by their web page (older firmware), and addresses already
- * checked and found not to be one. */
-#define PROBED_MAX 16
-static struct { char ip[16]; int64_t at_us; bool board; } s_probed[PROBED_MAX];
-#define PROBE_RECHECK_US (15LL * 60 * 1000000)
 
 /* ---- numbers ---------------------------------------------------------- */
 
@@ -138,83 +131,6 @@ static void browse(void)
         }
     }
     xSemaphoreGive(s_lock);
-    mdns_query_results_free(res);
-}
-
-/* Other Analog Redial boards on older firmware don't advertise the phone
- * service, but every board advertises its web page (_http._tcp) and answers
- * /api/status. Look at web pages we haven't already looked at, a few per
- * pass, and list the ones that are phones. */
-static bool probe_is_board(const char *ip)
-{
-    char url[40];
-    snprintf(url, sizeof(url), "http://%s/api/status", ip);
-    esp_http_client_config_t cfg = { .url = url, .timeout_ms = 1500, .buffer_size = 512 };
-    esp_http_client_handle_t c = esp_http_client_init(&cfg);
-    if (!c) return false;
-    bool board = false;
-    if (esp_http_client_open(c, 0) == ESP_OK) {
-        esp_http_client_fetch_headers(c);
-        char buf[400];
-        int n = esp_http_client_read(c, buf, sizeof(buf) - 1);
-        if (n > 0) {
-            buf[n] = '\0';
-            board = strstr(buf, "\"board_name\"") && strstr(buf, "\"hardware\"");
-        }
-    }
-    esp_http_client_cleanup(c);
-    return board;
-}
-
-static void find_older_boards(const char *myip)
-{
-    if (heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) < 24 * 1024) return;
-    mdns_result_t *res = NULL;
-    if (mdns_query_ptr("_http", "_tcp", 2000, 20, &res) != ESP_OK) return;
-    int64_t now = esp_timer_get_time();
-    int budget = 3;   /* web pages looked at per pass */
-    for (mdns_result_t *r = res; r && budget > 0; r = r->next) {
-        char ip[16] = "";
-        for (mdns_ip_addr_t *a = r->addr; a; a = a->next) {
-            if (a->addr.type == ESP_IPADDR_TYPE_V4) {
-                snprintf(ip, sizeof(ip), IPSTR, IP2STR(&a->addr.u_addr.ip4));
-                break;
-            }
-        }
-        if (!ip[0] || strcmp(ip, myip) == 0) continue;
-        bool known = false;   /* already listed as a phone */
-        xSemaphoreTake(s_lock, portMAX_DELAY);
-        for (size_t i = 0; i < s_npeers; i++) {
-            if (strcmp(s_peers[i].p.ip, ip)) continue;
-            known = true;
-            if (s_peers[i].p.older_firmware) s_peers[i].seen_us = now;   /* its web page still answers */
-        }
-        xSemaphoreGive(s_lock);
-        if (known) continue;
-        int slot = -1, oldest = 0;
-        for (int i = 0; i < PROBED_MAX; i++) {
-            if (!strcmp(s_probed[i].ip, ip)) { slot = i; break; }
-            if (s_probed[i].at_us < s_probed[oldest].at_us) oldest = i;
-        }
-        if (slot >= 0 && now - s_probed[slot].at_us < PROBE_RECHECK_US && !s_probed[slot].board) continue;
-        if (slot < 0) slot = oldest;
-        budget--;
-        bool board = probe_is_board(ip);
-        strlcpy(s_probed[slot].ip, ip, sizeof(s_probed[slot].ip));
-        s_probed[slot].at_us = now;
-        s_probed[slot].board = board;
-        if (!board) continue;
-        xSemaphoreTake(s_lock, portMAX_DELAY);
-        if (s_npeers < HOMECALL_PEERS_MAX) {
-            peer_slot_t *p = &s_peers[s_npeers++];
-            memset(p, 0, sizeof(*p));
-            strlcpy(p->p.ip, ip, sizeof(p->p.ip));
-            strlcpy(p->p.name, r->instance_name ? r->instance_name : (r->hostname ? r->hostname : ip), sizeof(p->p.name));
-            p->p.older_firmware = true;
-            p->seen_us = now;
-        }
-        xSemaphoreGive(s_lock);
-    }
     mdns_query_results_free(res);
 }
 
@@ -323,7 +239,6 @@ static void homecall_task(void *arg)
             browse();
             if (!s_seeded) seed_numbers();
             settle_clashes();
-            find_older_boards(myip);
             push_numbers();
         }
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(BROWSE_EVERY_MS));

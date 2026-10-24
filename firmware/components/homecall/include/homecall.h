@@ -32,7 +32,6 @@ typedef struct {
     char     ip[16];
     char     number[2][HOMECALL_NUM_MAX];  /* its lines' numbers ("" = none) */
     uint32_t age_s;                        /* since it last answered */
-    bool     older_firmware;               /* found by its web page, not as a phone: can't be called until updated */
 } homecall_peer_t;
 
 /* Loads this board's numbers and starts advertising/looking. Call after Wi-Fi

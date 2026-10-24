@@ -3612,11 +3612,8 @@ static int append_home_calls_card(char *buf, size_t cap, int off)
                     "<tr><td>%s</td><td><span class=\"pill off\">not set up</span></td>"
                     "<td><a href=\"http://%s/\">%s</a></td><td>%s</td></tr>",
                     ename, peers[i].ip, peers[i].ip,
-                    peers[i].older_firmware
-                        ? "<span class=\"hint\">Online, but not set up for board-to-board calls: it has no "
-                          "number, or runs older firmware. Updating it gives it one.</span>"
-                        : "<span class=\"hint\">Online, no number yet. Give one of its lines a number "
-                          "on its Voice over IP tab.</span>");
+                    "<span class=\"hint\">Online, but no number yet. Give one of its lines a number on its "
+                    "Voice over IP tab.</span>");
                 continue;
             }
             for (int l = 0; l < 2; l++) {
