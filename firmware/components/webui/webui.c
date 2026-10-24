@@ -17,6 +17,7 @@
 #include "voip.h"
 #include "voip_prov.h"
 #include "homecall.h"
+#include "autoupdate.h"
 #include "bt_companion.h"
 #include "selftest.h"
 #include "multipart.h"
@@ -970,7 +971,7 @@ static bool ota_layout_current(void)
     return ota_slot_bytes() >= need;
 }
 
-#define FW_MANIFEST_URL "https://raw.githubusercontent.com/sdylewski/Analog-Redial/firmware/latest.json"
+#define FW_MANIFEST_URL AUTOUPDATE_MANIFEST_URL
 
 static const char FW_UPDATE_JS[] =
 "<script>(function(){"
@@ -1000,8 +1001,12 @@ static const char FW_UPDATE_JS[] =
 "if(n>45){clearInterval(t);cb(false,null);}},3000);};"
 "var b=document.getElementById('fwnotice');if(!b||/\\/settings/.test(location.pathname)&&/tab=hardware/.test(location.search))return;"
 "var K='arFwSeen',seen={};try{seen=JSON.parse(localStorage.getItem(K)||'{}');}catch(e){}"
-"function show(v){if(seen.dismissed===v)return;b.innerHTML='Firmware '+v+' is available (this board has '+A.ver+'). "
-"<a href=\\'/settings?tab=hardware\\'>Update</a> <a href=\\'#\\' id=\\'fwdismiss\\'>Not now</a>';"
+"function show(v){if(seen.dismissed===v)return;"
+"b.style.position='relative';b.style.paddingRight='2.4rem';"
+"b.innerHTML='<span>Firmware <b>'+v+'</b> is available (this board has '+A.ver+').</span> "
+"<a href=\"/settings?tab=hardware\" style=\"font-weight:700;font-size:1.2em;margin-left:.7em;text-decoration:underline\">Update now</a>"
+"<a href=\"#\" id=\"fwdismiss\" title=\"Hide until the next release\" aria-label=\"Hide until the next release\" "
+"style=\"position:absolute;top:.2rem;right:.7rem;font-size:1.4em;line-height:1.2;text-decoration:none;opacity:.65\">&times;</a>';"
 "b.style.display='block';document.getElementById('fwdismiss').onclick=function(ev){ev.preventDefault();"
 "seen.dismissed=v;try{localStorage.setItem(K,JSON.stringify(seen));}catch(e){}b.style.display='none';};}"
 "if(seen.t&&Date.now()-seen.t<3600000&&seen.id===A.id&&seen.cur===A.ver){if(seen.newer)show(seen.latest);return;}"
@@ -4387,6 +4392,60 @@ static const char FW_CARD_JS[] =
  * USB flashing (`idf.py flash`) still works exactly as before, unchanged
  * -- this is an additional way to update, not a replacement, and is still
  * the only option for a board that's never been flashed at all. */
+static int append_autoupdate_form(char *buf, size_t cap, int off)
+{
+    autoupdate_cfg_t cfg = autoupdate_get();
+    off = appendf(buf, cap, off,
+        "<hr class=\"sep\"><h3 id=\"autoupdate\">Keep this board up to date</h3>"
+        "<form method=\"POST\" action=\"/autoupdate_set\" class=\"settings-form\">"
+        "<label><input type=\"checkbox\" name=\"on\" value=\"1\"%s> Install new releases automatically</label>"
+        "<label>Check and update at <select name=\"hour\">", cfg.enabled ? " checked" : "");
+    for (int h = 0; h < 24; h++) {
+        int h12 = h % 12 ? h % 12 : 12;
+        off = appendf(buf, cap, off, "<option value=\"%d\"%s>%d:00 %s</option>", h,
+                      h == cfg.hour ? " selected" : "", h12, h < 12 ? "am" : "pm");
+    }
+    off = appendf(buf, cap, off,
+        "</select></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button>"
+        "<button type=\"submit\" name=\"now\" value=\"1\" formnovalidate "
+        "title=\"Check GitHub now and, if a newer release is out for this board, install it and restart\">"
+        "Check and update now</button></div></form>");
+    if (autoupdate_busy()) {
+        off = appendf(buf, cap, off,
+            "<div class=\"statusrow\"><span class=\"label\">Now</span><span>checking or installing...</span></div>"
+            "<script>setTimeout(function(){location.reload();},4000);</script>");
+    }
+    if (autoupdate_status()[0]) {
+        char esc[112 * 6];
+        html_escape(autoupdate_status(), esc, sizeof(esc));
+        off = appendf(buf, cap, off,
+            "<div class=\"statusrow\"><span class=\"label\">Last automatic check</span><span>%s</span></div>", esc);
+    }
+    return append_hint(buf, cap, off,
+        "Off unless you turn it on. At the hour you pick (this board's time zone, set on the General "
+        "tab), the board reads GitHub's release list and, if a newer release is out for it, "
+        "downloads it, checks it and restarts into it. It waits while a phone is in use and tries "
+        "again a few minutes later within the hour.",
+        "The new release goes into the spare slot while this one keeps running, and its checksum "
+        "must match the release list. If it doesn't start properly, the board goes back to this "
+        "version on its own. A development build (a version with a suffix like -dirty) is never "
+        "replaced automatically.");
+}
+
+/* POST /autoupdate_set -- on=1 (checkbox) hour=N [now=1]. */
+static esp_err_t autoupdate_set_handler(httpd_req_t *req)
+{
+    char body[96], on[4] = {0}, hour[6] = {0}, now[4] = {0};
+    READ_FORM_OR_RETURN(req, body);
+    form_field(body, "on", on, sizeof(on));
+    form_field(body, "hour", hour, sizeof(hour));
+    form_field(body, "now", now, sizeof(now));
+    autoupdate_set(on[0] == '1', hour[0] ? atoi(hour) : 2);
+    if (now[0] == '1') autoupdate_check_now();
+    return redirect_to(req, "/settings?tab=hardware#autoupdate");
+}
+
 static int append_firmware_card(char *buf, size_t cap, int off)
 {
     const esp_app_desc_t *app = esp_app_get_description();
@@ -4455,6 +4514,7 @@ static int append_firmware_card(char *buf, size_t cap, int off)
         i18n_str("firmware.file_label", "Firmware file (.bin, from idf.py build)"),
         i18n_str("firmware.button", "Upload and reboot"),
         revert_form);
+    if (layout_ok) off = append_autoupdate_form(buf, cap, off);
     if (!layout_ok) {
         char note[640];
         snprintf(note, sizeof(note),
@@ -9549,6 +9609,13 @@ static esp_err_t ota_upload_handler(httpd_req_t *req)
     bool led_set = false; /* only restore the LED below if OTA_UPDATING was actually entered */
     const char *err_msg = "no file uploaded";
     const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
+    bool have_slot = autoupdate_claim_slot();
+    if (!have_slot) {
+        multipart_reader_close(&mp);
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_sendstr(req, "an automatic update is in progress; try again in a few minutes");
+        return ESP_FAIL;
+    }
 
     while (multipart_next_part(&mp, part_name, sizeof(part_name), filename, sizeof(filename)) == ESP_OK) {
         if (strcmp(part_name, "file") == 0 && filename[0]) {
@@ -9628,6 +9695,7 @@ static esp_err_t ota_upload_handler(httpd_req_t *req)
     multipart_reader_close(&mp);
 
     if (!wrote) {
+        autoupdate_release_slot();
         if (led_set) board_led_set_state(BOARD_LED_OK); /* only if OTA_UPDATING was actually entered */
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, err_msg);
         return ESP_FAIL;
@@ -10622,6 +10690,7 @@ esp_err_t webui_start(void)
         { .uri = "/prompt_text_set",        .method = HTTP_POST, .handler = prompt_text_set_handler },
         { .uri = "/prompt_tts",             .method = HTTP_POST, .handler = prompt_tts_handler },
         { .uri = "/tts_regen",              .method = HTTP_POST, .handler = tts_regen_handler },
+        { .uri = "/autoupdate_set",         .method = HTTP_POST, .handler = autoupdate_set_handler },
         { .uri = "/home_number",            .method = HTTP_POST, .handler = home_number_handler },
         { .uri = "/home_refresh",           .method = HTTP_POST, .handler = home_refresh_handler },
         { .uri = "/api/prompt_requests",    .method = HTTP_GET,  .handler = prompt_requests_json_handler },

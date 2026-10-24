@@ -22,6 +22,7 @@
 #include "sdcard.h"
 #include "idle_power.h"
 #include "homecall.h"
+#include "autoupdate.h"
 #include "bt_companion.h"
 #include "esp_ota_ops.h"
 #include "logbuf.h"
@@ -275,6 +276,9 @@ void app_main(void)
     /* Calls between boards on the same network (homecall.h): after Wi-Fi and
      * telephony/VoIP, which it hands its numbers to. */
     homecall_init();
+
+    /* Optional nightly check for a newer release (off by default): autoupdate.h. */
+    autoupdate_init();
 
     /* Optional Bluetooth Classic audio companion board (disabled by
      * default -- no hardware exists on any board yet). See
