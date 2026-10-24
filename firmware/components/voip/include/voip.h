@@ -57,6 +57,16 @@ bool      voip_is_registered(int line);
  * implementation maps it to a SIP URI. */
 esp_err_t voip_dial(int line, const char *number);
 
+/* Home-network calls (see voip.c's header comment): call another board's
+ * home number at its address, no server involved. */
+esp_err_t voip_dial_local(int line, const char *ip, const char *number);
+/* The number this line answers to on the home network ("" = none). Set by
+ * the homecall component; starts the SIP task if it wasn't running. */
+void      voip_set_home_number(int line, const char *number);
+/* Any line has a home number (so the SIP socket must stay up, and Wi-Fi
+ * power-save stay off like it does for a server). */
+bool      voip_home_active(void);
+
 /* Answer the currently-ringing inbound call on a line. */
 esp_err_t voip_answer(int line);
 

@@ -16,6 +16,7 @@
 #include "dialplan.h"
 #include "voip.h"
 #include "voip_prov.h"
+#include "homecall.h"
 #include "bt_companion.h"
 #include "selftest.h"
 #include "multipart.h"
@@ -3542,6 +3543,98 @@ static int append_voip_prov_section(char *buf, size_t cap, int off)
     return off;
 }
 
+
+/* ---- Home-network calls (homecall.h) ---- */
+static bool form_field(const char *body, const char *key, char *out, size_t out_len);
+static char s_home_msg[2][VOIP_PROV_MSG_LEN];
+static bool s_home_ok[2];
+
+static int append_home_calls_card(char *buf, size_t cap, int off)
+{
+    int lines = board_hw_config_get().num_lines > 1 ? 2 : 1;
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\"><h2>Home network calls</h2>"
+        "<p class=\"hint\">Phones on this same Wi-Fi network can call each other directly: no "
+        "server and no internet needed. Give a line a number, and any other Analog Redial phone "
+        "on your network dials it. The <b>VoIP server</b> settings below are a separate way to "
+        "call: through your own Asterisk server, which can also reach phones outside your "
+        "home.</p>");
+    for (int l = 0; l < lines; l++) {
+        const char *num = homecall_number(l);
+        off = appendf(buf, cap, off,
+            "<form method=\"POST\" action=\"/home_number\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<label>Line %d number <span class=\"hint\">%s</span>"
+            "<input name=\"number\" value=\"%s\" placeholder=\"e.g. 1234\" inputmode=\"numeric\" "
+            "pattern=\"[0-9 -]{0,14}\"></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>",
+            l, l + 1, num[0] ? "other phones dial this" : "none: this line can't be called from other phones",
+            num);
+        if (s_home_msg[l][0]) {
+            char rid[16];
+            snprintf(rid, sizeof(rid), "homeline%d", l);
+            off = append_prov_result(buf, cap, off, rid, s_home_ok[l], s_home_msg[l]);
+        }
+        off = appendf(buf, cap, off, "</form>");
+    }
+
+    homecall_peer_t peers[HOMECALL_PEERS_MAX];
+    size_t n = homecall_peers(peers, HOMECALL_PEERS_MAX);
+    off = appendf(buf, cap, off, "<h3 id=\"homepeers\">Phones found on this network</h3>");
+    if (n == 0) {
+        off = appendf(buf, cap, off,
+            "<p class=\"hint\">None yet. Another phone shows up here once it has a home number "
+            "and is on this network. Phones look for each other every minute.</p>");
+    } else {
+        off = appendf(buf, cap, off, "<table><tr><th>Phone</th><th>Number</th><th>Address</th><th></th></tr>");
+        for (size_t i = 0; i < n; i++) {
+            for (int l = 0; l < 2; l++) {
+                const char *num = peers[i].number[l];
+                if (!num[0]) continue;
+                const char *note = "";
+                if (!strcmp(num, homecall_number(0)) || !strcmp(num, homecall_number(1))) {
+                    note = "<span class=\"pill off\">same number as this phone</span>";
+                } else if (dialplan_home_number_problem(num)) {
+                    note = "<span class=\"pill off\">can't be dialled from here: clashes with a dial code</span>";
+                }
+                char ename[32 * 6];
+                html_escape(peers[i].name, ename, sizeof(ename));
+                off = appendf(buf, cap, off,
+                    "<tr><td>%s%s</td><td><code>%s</code></td><td>%s</td><td>%s</td></tr>",
+                    ename, l ? " (line 2)" : "", num, peers[i].ip, note);
+            }
+        }
+        off = appendf(buf, cap, off, "</table>");
+    }
+    return appendf(buf, cap, off,
+        "<form method=\"POST\" action=\"/home_refresh\" class=\"settings-form\">"
+        "<div class=\"toolbar sub\"><button type=\"submit\">Look again now</button></div>"
+        "</form></div>");
+}
+
+/* POST /home_number -- line=N&number=... ("" clears). */
+static esp_err_t home_number_handler(httpd_req_t *req)
+{
+    char body[128], line_s[4] = {0}, number[24] = {0};
+    READ_FORM_OR_RETURN(req, body);
+    form_field(body, "line", line_s, sizeof(line_s));
+    form_field(body, "number", number, sizeof(number));
+    int line = atoi(line_s) ? 1 : 0;
+    s_home_ok[line] = homecall_set_number(line, number, s_home_msg[line], sizeof(s_home_msg[line])) == ESP_OK;
+    activity_log("Home network: %s", s_home_msg[line]);
+    char loc[48];
+    snprintf(loc, sizeof(loc), "/settings?tab=voip#homeline%d", line);
+    return redirect_to(req, loc);
+}
+
+/* POST /home_refresh -- look for other phones now. */
+static esp_err_t home_refresh_handler(httpd_req_t *req)
+{
+    homecall_refresh();
+    g_webui_progress++;
+    return redirect_to(req, "/settings?tab=voip#homepeers");
+}
+
 static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, const char *result,
                             const char *created, const char *createresult)
 {
@@ -3558,9 +3651,12 @@ static int append_voip_tab(char *buf, size_t cap, int off, const char *checked, 
     } else {
         snprintf(srv_text, sizeof(srv_text), "%s", srv_esc);
     }
-    off = append_feature_bar(buf, cap, off, "VoIP", voip_is_enabled(), "/voip_enable",
-        "Calls through your own SIP server (Asterisk): each line becomes an extension. "
-        "Takes effect after a reboot. Turning it off keeps everything below.");
+    off = append_home_calls_card(buf, cap, off);
+
+    off = append_feature_bar(buf, cap, off, "VoIP server", voip_is_enabled(), "/voip_enable",
+        "Calls through your own SIP server (Asterisk): each line becomes an extension there, "
+        "reachable from other phones on that server, at home or not. Separate from home network "
+        "calls above. Takes effect after a reboot. Turning it off keeps everything below.");
 
     off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2>"
@@ -8824,6 +8920,24 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
             "<div class=\"code-row\"><span class=\"code\">5-5-5-x-x-x-x</span>"
             "%s<span class=\"desc\">Call a VoIP extension (7 digits)</span></div>",
             voip_is_enabled() ? "<span class=\"pill on\">enabled</span>" : "<span class=\"pill off\">disabled</span>");
+        /* Other phones on this network (homecall.h), dialled by their numbers. */
+        homecall_peer_t hp[HOMECALL_PEERS_MAX];
+        size_t nhp = homecall_peers(hp, HOMECALL_PEERS_MAX);
+        for (size_t i = 0; i < nhp && (size_t)off < cap; i++) {
+            for (int l = 0; l < 2; l++) {
+                if (!hp[i].number[l][0] || dialplan_home_number_problem(hp[i].number[l])) continue;
+                char d[96];
+                snprintf(d, sizeof(d), "Call %s%s (home network)", hp[i].name, l ? ", line 2" : "");
+                off = append_guide_row(buf, cap, off, hp[i].number[l], d, 0);
+            }
+        }
+        if (homecall_number(0)[0] || homecall_number(1)[0]) {
+            char mine[64];
+            snprintf(mine, sizeof(mine), "%s%s%s", homecall_number(0),
+                     homecall_number(0)[0] && homecall_number(1)[0] ? " / " : "", homecall_number(1));
+            off = appendf(buf, cap, off,
+                "<p class=\"hint\">This phone's home number: <code>%s</code></p>", mine);
+        }
         if (bt_row) {
             off = appendf(buf, cap, off,
                 "<div class=\"code-row\"><span class=\"code\">1-x-x-x-x-x-x-x-x-x-x</span>"
@@ -10500,6 +10614,8 @@ esp_err_t webui_start(void)
         { .uri = "/prompt_text_set",        .method = HTTP_POST, .handler = prompt_text_set_handler },
         { .uri = "/prompt_tts",             .method = HTTP_POST, .handler = prompt_tts_handler },
         { .uri = "/tts_regen",              .method = HTTP_POST, .handler = tts_regen_handler },
+        { .uri = "/home_number",            .method = HTTP_POST, .handler = home_number_handler },
+        { .uri = "/home_refresh",           .method = HTTP_POST, .handler = home_refresh_handler },
         { .uri = "/api/prompt_requests",    .method = HTTP_GET,  .handler = prompt_requests_json_handler },
         { .uri = "/bt_enable_set",           .method = HTTP_POST, .handler = bt_enable_set_handler },
         { .uri = "/bt_pair",                 .method = HTTP_POST, .handler = bt_pair_handler },

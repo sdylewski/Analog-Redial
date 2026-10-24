@@ -21,6 +21,7 @@
 #include "storage.h"
 #include "sdcard.h"
 #include "idle_power.h"
+#include "homecall.h"
 #include "bt_companion.h"
 #include "esp_ota_ops.h"
 #include "logbuf.h"
@@ -270,6 +271,10 @@ void app_main(void)
      * telephony/voip and wifi so it has everything it needs to watch.
      * See idle_power.h and archive/POWER_SAVING.md. */
     idle_power_init();
+
+    /* Calls between boards on the same network (homecall.h): after Wi-Fi and
+     * telephony/VoIP, which it hands its numbers to. */
+    homecall_init();
 
     /* Optional Bluetooth Classic audio companion board (disabled by
      * default -- no hardware exists on any board yet). See

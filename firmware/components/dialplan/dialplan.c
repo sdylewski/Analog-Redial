@@ -2,6 +2,7 @@
 #include "sdkconfig.h"
 #include "board.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include <string.h>
@@ -566,6 +567,50 @@ static bool s_bt_dialout;
 
 void dialplan_set_bt_dialout(bool on) { s_bt_dialout = on; }
 
+/* ---- home-network numbers ---- */
+static portMUX_TYPE s_home_lock = portMUX_INITIALIZER_UNLOCKED;
+static char   s_home[DIALPLAN_HOME_MAX][DIALPLAN_HOME_NUM_MAX];
+static size_t s_home_n;
+static char   s_home_own[2][DIALPLAN_HOME_NUM_MAX];
+
+void dialplan_set_home_numbers(const char (*numbers)[DIALPLAN_HOME_NUM_MAX], size_t n)
+{
+    if (n > DIALPLAN_HOME_MAX) n = DIALPLAN_HOME_MAX;
+    portENTER_CRITICAL(&s_home_lock);
+    for (size_t i = 0; i < n; i++) strlcpy(s_home[i], numbers[i], DIALPLAN_HOME_NUM_MAX);
+    s_home_n = n;
+    portEXIT_CRITICAL(&s_home_lock);
+}
+
+void dialplan_set_own_home_numbers(const char *line0, const char *line1)
+{
+    portENTER_CRITICAL(&s_home_lock);
+    strlcpy(s_home_own[0], line0 ? line0 : "", DIALPLAN_HOME_NUM_MAX);
+    strlcpy(s_home_own[1], line1 ? line1 : "", DIALPLAN_HOME_NUM_MAX);
+    portEXIT_CRITICAL(&s_home_lock);
+}
+
+/* 1 = exact match, 2 = a longer number starts with buf (keep collecting). */
+static int home_match(const char *buf)
+{
+    int r = 0;
+    size_t bl = strlen(buf);
+    portENTER_CRITICAL(&s_home_lock);
+    for (size_t i = 0; i < s_home_n; i++) {
+        if (strcmp(s_home[i], buf) == 0) r |= 1;
+        else if (strlen(s_home[i]) > bl && strncmp(s_home[i], buf, bl) == 0) r |= 2;
+    }
+    portEXIT_CRITICAL(&s_home_lock);
+    return r;
+}
+
+static dialplan_action_t fire_home(const char *buf)
+{
+    dialplan_action_t a = { .kind = ACT_HOME_CALL };
+    strlcpy(a.number, buf, sizeof(a.number));
+    return a;
+}
+
 dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit)
 {
     if (digit < '0' || digit > '9') return make(ACT_NONE, 0, 0);
@@ -593,8 +638,9 @@ dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit)
         return make(ACT_NONE, 0, 0);
     }
 
+    int home = home_match(c->buf);
     bool longer = has_longer_prefix(c->buf) || clip_has_longer_prefix(c->buf) ||
-                  pin_has_longer_prefix(c->buf);
+                  pin_has_longer_prefix(c->buf) || (home & 2);
 
     const entry_t *e = exact_match(c->buf);
     if (e) {
@@ -612,6 +658,11 @@ dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit)
     if (pa) {
         if (longer) return make(ACT_NONE, 0, 0);
         return fire_pin(pa);
+    }
+
+    if (home & 1) {
+        if (longer) return make(ACT_NONE, 0, 0);
+        return fire_home(c->buf);
     }
 
     /* no exact match: is the buffer still a viable prefix? */
@@ -645,10 +696,13 @@ dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line)
     const dialplan_pin_entry_t *pa = pin_exact_match(c->buf);
     if (pa) return fire_pin(pa);
 
+    int home = home_match(c->buf);
+    if (home & 1) return fire_home(c->buf);
+
     /* Still a viable prefix of a longer code (slow rotary inter-digit):
      * keep waiting rather than declaring a wrong number. */
     if (has_longer_prefix(c->buf) || clip_has_longer_prefix(c->buf) ||
-        pin_has_longer_prefix(c->buf)) {
+        pin_has_longer_prefix(c->buf) || (home & 2)) {
         return make(ACT_NONE, 0, 0);
     }
 
@@ -765,7 +819,37 @@ static bool code_conflicts_fx(const char *code, int except_idx, int except_pin, 
         size_t minlen = (clen < plen) ? clen : plen;
         if (strncmp(s_pin_actions[i].code, code, minlen) == 0) return true;
     }
-    return false;
+    bool own = false;
+    portENTER_CRITICAL(&s_home_lock);
+    for (int i = 0; i < 2; i++) {
+        size_t hl = strlen(s_home_own[i]);
+        if (hl && strncmp(s_home_own[i], code, (clen < hl) ? clen : hl) == 0) own = true;
+    }
+    portEXIT_CRITICAL(&s_home_lock);
+    return own;
+}
+
+const char *dialplan_home_number_problem(const char *number)
+{
+    size_t n = strlen(number);
+    if (n < 3 || n >= DIALPLAN_HOME_NUM_MAX) return "Use 3 to 11 digits";
+    for (size_t i = 0; i < n; i++) if (number[i] < '0' || number[i] > '9') return "Digits only";
+    if (number[0] == '0') return "Can't start with 0 (that's the operator)";
+    if (strncmp(number, "555", 3) == 0) return "Can't start with 555 (VoIP server calls use it)";
+    if (s_bt_dialout && number[0] == DIALPLAN_BT_PREFIX) return "Can't start with 1 while Bluetooth dial-out is on";
+    for (size_t i = 0; i < TABLE_N; i++) {
+        size_t tl = strlen(fcode(i));
+        if (strncmp(fcode(i), number, (n < tl) ? n : tl) == 0) return "Clashes with one of this phone's dial codes";
+    }
+    for (int i = 0; i < DIALPLAN_MAX_CLIP_ENTRIES; i++) {
+        size_t ul = strlen(s_clips[i].code);
+        if (ul && strncmp(s_clips[i].code, number, (n < ul) ? n : ul) == 0) return "Clashes with one of this phone's dial codes";
+    }
+    for (int i = 0; i < DIALPLAN_MAX_PIN_ACTIONS; i++) {
+        size_t pl = strlen(s_pin_actions[i].code);
+        if (pl && strncmp(s_pin_actions[i].code, number, (n < pl) ? n : pl) == 0) return "Clashes with one of this phone's dial codes";
+    }
+    return NULL;
 }
 
 void dialplan_code_normalize(char *code)

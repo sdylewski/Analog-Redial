@@ -32,6 +32,7 @@ typedef enum {
     ACT_SET_MODE,       /* arg = dialplan_mode_change_t */
     ACT_GPIO_OUT,       /* arg = GPIO number, arg2 = seconds high (0 = toggle) */
     ACT_PI_DIGITS,      /* dial 314: read the first 100 decimals of pi aloud */
+    ACT_HOME_CALL,      /* number[] is another phone's home-network number (homecall) */
 } dialplan_action_kind_t;
 
 typedef enum {
@@ -111,6 +112,20 @@ dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line);
 #define DIALPLAN_BT_PREFIX     '1'
 #define DIALPLAN_BT_DIGITS     11
 void dialplan_set_bt_dialout(bool on);
+
+/* ---- Home-network numbers (homecall component) ----
+ * Numbers other Analog Redial phones on the same network answer to, dialled
+ * straight (no prefix). This board's own codes win over a clashing number.
+ * Set as a whole list whenever discovery changes it. */
+#define DIALPLAN_HOME_MAX      16
+#define DIALPLAN_HOME_NUM_MAX  12   /* digits + NUL */
+void dialplan_set_home_numbers(const char (*numbers)[DIALPLAN_HOME_NUM_MAX], size_t n);
+/* This board's own home numbers, so new dial codes can't take them. */
+void dialplan_set_own_home_numbers(const char *line0, const char *line1);
+/* Why `number` can't be this board's home number, or NULL if it can: it
+ * clashes with one of this board's dial codes (or shares a prefix with one,
+ * which would make one of them undiallable), or with 555 / Bluetooth dialling. */
+const char *dialplan_home_number_problem(const char *number);
 
 /* Inter-digit timeout to use (ms). */
 uint32_t dialplan_interdigit_ms(void);

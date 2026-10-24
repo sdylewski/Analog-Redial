@@ -1,7 +1,7 @@
 idf_component_register(
     SRCS "app_main.c"
     INCLUDE_DIRS "."
-    REQUIRES board es8388 audio aec prompts ag1170 dialplan telephony bringup wifi storage sdcard logbuf logctl activity webui idle_power app_update bt_companion webauth webhook mqtt_ha
+    REQUIRES board es8388 audio aec prompts ag1170 dialplan telephony bringup wifi storage sdcard logbuf logctl activity webui idle_power app_update bt_companion webauth webhook mqtt_ha homecall
 )
 
 # Bakes the default audio into the "bundled" partition (partitions.csv) as a

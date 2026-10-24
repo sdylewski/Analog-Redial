@@ -11,6 +11,12 @@
  *   200/486/487/603 responses, single audio stream per line.
  *
  * Config lives in NVS ("voip" namespace): server + per-line user/password.
+ *
+ * Home-network calls: a line can also have a "home number" (set by the
+ * homecall component). Another board on the same network INVITEs it
+ * directly -- no server, no registration, no auth -- and this board dials
+ * peers the same way (voip_dial_local). Such a dialog sends to the peer's
+ * address instead of the server's, and is identified as <number>@<our IP>.
  */
 #include "voip.h"
 #include "rtp.h"
@@ -81,6 +87,9 @@ typedef struct {
     uint16_t peer_rtp_port;
     bool     call_authed_once;
     char     dial_uri[96];        /* for resending INVITE after a 401 */
+    bool     local_call;          /* a home-network call: peer is a board, not the server */
+    struct sockaddr_in dest;      /* where this dialog's requests go */
+    char     home[12];            /* this line's home-network number ("" = none) */
 
     /* where to send responses for the most recent inbound request in-dialog */
     struct sockaddr_in reply_addr;
@@ -126,6 +135,11 @@ static void emit(int line, voip_event_type_t type, const char *peer)
     if (peer) strncpy(ev.peer, peer, sizeof(ev.peer) - 1);
     s_cb(&ev, s_ctx);
 }
+
+/* Who we are in a dialog: the SIP account at the server, or the home number
+ * at our own address for a call between boards. */
+static const char *my_user(const line_t *L) { return L->local_call ? L->home : L->user; }
+static const char *my_host(const line_t *L) { return L->local_call ? s_myip : s_server; }
 
 static void rand_hex(char *out, size_t n)
 {
@@ -422,13 +436,13 @@ static void send_invite(int line, const char *auth_hdr)
         "Content-Length: %d\r\n\r\n%s",
         L->dial_uri,
         s_myip, SIP_PORT, L->branch,
-        cid, L->user, s_server, L->from_tag,
+        cid, my_user(L), my_host(L), L->from_tag,
         L->dial_uri,
         L->call_id, (unsigned)L->cseq,
-        L->user, s_myip, SIP_PORT,
+        my_user(L), s_myip, SIP_PORT,
         auth_hdr ? auth_hdr : "",
         slen, sdp);
-    if (n > 0 && n < (int)sizeof(buf)) udp_send(buf, &s_server_addr);
+    if (n > 0 && n < (int)sizeof(buf)) udp_send(buf, &L->dest);
 }
 
 /* Cancels our own outstanding INVITE (call still ringing, not yet
@@ -451,10 +465,10 @@ static void send_cancel(int line)
         "Content-Length: 0\r\n\r\n",
         L->dial_uri,
         s_myip, SIP_PORT, L->branch,
-        L->user, s_server, L->from_tag,
+        my_user(L), my_host(L), L->from_tag,
         L->dial_uri, L->to_tag[0] ? ";tag=" : "", L->to_tag,
         L->call_id, (unsigned)L->cseq);
-    if (n > 0 && n < (int)sizeof(buf)) udp_send(buf, &s_server_addr);
+    if (n > 0 && n < (int)sizeof(buf)) udp_send(buf, &L->dest);
 }
 
 /* ACK. For a 2xx it's a new transaction (fresh branch) to the peer's target;
@@ -477,10 +491,10 @@ static void send_ack(int line, bool twoxx)
         "Content-Length: 0\r\n\r\n",
         L->remote_target[0] ? L->remote_target : L->dial_uri,
         s_myip, SIP_PORT, branch,
-        L->user, s_server, L->from_tag,
+        my_user(L), my_host(L), L->from_tag,
         L->remote_uri, L->to_tag,
         L->call_id, (unsigned)L->cseq);
-    if (n > 0 && n < (int)sizeof(buf)) udp_send(buf, &s_server_addr);
+    if (n > 0 && n < (int)sizeof(buf)) udp_send(buf, &L->dest);
 }
 
 static void send_bye(int line)
@@ -500,10 +514,10 @@ static void send_bye(int line)
         "Content-Length: 0\r\n\r\n",
         L->remote_target[0] ? L->remote_target : L->remote_uri,
         s_myip, SIP_PORT, branch,
-        L->user, s_server, L->from_tag,
+        my_user(L), my_host(L), L->from_tag,
         L->remote_uri, L->to_tag,
         L->call_id, (unsigned)L->cseq);
-    if (n > 0 && n < (int)sizeof(buf)) udp_send(buf, &s_server_addr);
+    if (n > 0 && n < (int)sizeof(buf)) udp_send(buf, &L->dest);
 }
 
 /* Response to an inbound request, echoing its Via/From/To/Call-ID/CSeq. */
@@ -520,7 +534,7 @@ static void send_response(line_t *L, int code, const char *reason, const char *m
             "a=rtpmap:101 telephone-event/8000\r\na=fmtp:101 0-16\r\na=ptime:20\r\na=sendrecv\r\n",
             (unsigned)esp_random(), (unsigned)esp_random(), s_myip, s_myip, rtp_local_port(line));
         snprintf(extra, sizeof(extra),
-            "Contact: <sip:%s@%s:%d>\r\nContent-Type: application/sdp\r\n", L->user, s_myip, SIP_PORT);
+            "Contact: <sip:%s@%s:%d>\r\nContent-Type: application/sdp\r\n", my_user(L), s_myip, SIP_PORT);
     }
     char buf[MSG_MAX];
     int n = snprintf(buf, sizeof(buf),
@@ -546,6 +560,13 @@ static int line_for_user(const char *user)
     return -1;
 }
 
+static int line_for_home(const char *number)
+{
+    for (int i = 0; i < NLINES; i++)
+        if (s_l[i].home[0] && strcmp(s_l[i].home, number) == 0) return i;
+    return -1;
+}
+
 static int line_for_callid(const char *callid)
 {
     for (int i = 0; i < NLINES; i++)
@@ -559,6 +580,7 @@ static void reset_call(line_t *L)
     L->to_tag[0] = L->remote_target[0] = L->remote_uri[0] = L->remote_name[0] = 0;
     L->peer_rtp_ip[0] = 0; L->peer_rtp_port = 0;
     L->call_authed_once = false;
+    L->local_call = false;
 }
 
 static void handle_response(const char *msg, const struct sockaddr_in *src)
@@ -668,6 +690,43 @@ static bool from_server(const struct sockaddr_in *src)
     return src->sin_addr.s_addr == s_server_addr.sin_addr.s_addr;
 }
 
+/* Same IPv4 subnet as our own station address: another board at home. */
+static bool on_our_network(const struct sockaddr_in *src)
+{
+    esp_netif_ip_info_t ii;
+    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (!sta || esp_netif_get_ip_info(sta, &ii) != ESP_OK || !ii.ip.addr) return false;
+    return (src->sin_addr.s_addr & ii.netmask.addr) == (ii.ip.addr & ii.netmask.addr);
+}
+
+static void request_user(const char *msg, char *out, size_t outsz)
+{
+    out[0] = '\0';
+    const char *u = strchr(msg, ':');   /* "INVITE sip:USER@host ..." */
+    if (!u) return;
+    u++;
+    size_t i = 0;
+    while (u[i] && u[i] != '@' && u[i] != ' ' && i < outsz - 1) { out[i] = u[i]; i++; }
+    out[i] = '\0';
+}
+
+/* A home-network request: a new INVITE to one of our home numbers, or a
+ * request inside a home-network call, from that call's peer. Only from this
+ * subnet -- the same trust as the rest of the web UI. */
+static bool from_home_peer(const char *method, const char *msg, const char *callid,
+                           const struct sockaddr_in *src)
+{
+    if (!on_our_network(src)) return false;
+    int line = line_for_callid(callid);
+    if (line >= 0) {
+        return s_l[line].local_call && s_l[line].dest.sin_addr.s_addr == src->sin_addr.s_addr;
+    }
+    if (strcmp(method, "INVITE") != 0) return false;
+    char user[40];
+    request_user(msg, user, sizeof(user));
+    return line_for_home(user) >= 0;
+}
+
 static void handle_request(const char *msg, const struct sockaddr_in *src)
 {
     char method[16] = "";
@@ -675,7 +734,8 @@ static void handle_request(const char *msg, const struct sockaddr_in *src)
     char callid[80];
     if (!get_header(msg, "Call-ID", "i", callid, sizeof(callid))) return;
 
-    if (strcmp(method, "OPTIONS") != 0 && !from_server(src)) {
+    bool home = !from_server(src) && from_home_peer(method, msg, callid, src);
+    if (strcmp(method, "OPTIONS") != 0 && !from_server(src) && !home) {
         static int64_t s_last_warn_us;
         static bool s_warned;
         int64_t now = esp_timer_get_time();
@@ -728,9 +788,8 @@ static void handle_request(const char *msg, const struct sockaddr_in *src)
         }
 
         char ruri_user[40] = "", to[160], from[160];
-        const char *u = strchr(msg, ':'); /* "INVITE sip:USER@host ..." */
-        if (u) { u++; size_t i = 0; while (u[i] && u[i] != '@' && i < sizeof(ruri_user) - 1) { ruri_user[i] = u[i]; i++; } ruri_user[i] = 0; }
-        int line = line_for_user(ruri_user);
+        request_user(msg, ruri_user, sizeof(ruri_user));
+        int line = home ? line_for_home(ruri_user) : line_for_user(ruri_user);
         if (line < 0) line = 0; /* best effort on single-account boxes */
         line_t *L = &s_l[line];
 
@@ -747,6 +806,8 @@ static void handle_request(const char *msg, const struct sockaddr_in *src)
         }
 
         strncpy(L->call_id, callid, sizeof(L->call_id) - 1);
+        L->local_call = home;
+        L->dest = home ? *src : s_server_addr;
         get_header(msg, "Via", "v", L->in_via, sizeof(L->in_via));
         get_header(msg, "From", "f", L->in_from, sizeof(L->in_from));
         get_header(msg, "To", "t", to, sizeof(to));
@@ -883,14 +944,14 @@ static void sip_task(void *arg)
      * since nothing is ever registered, no incoming call can reach this
      * board either -- whatever the SIP server does with an AOR that never
      * registers (voicemail, nothing) is between it and the caller. */
-    if (!s_voip_enabled) {
-        ESP_LOGI(TAG, "VoIP disabled (Settings -> VOIP) -- not registering");
-        s_task = NULL;
-        vTaskDelete(NULL);
-        return;
+    /* The server side runs only when enabled and configured; home-network
+     * calls (a home number on any line) need the socket either way. */
+    bool server_on = s_voip_enabled && s_server[0];
+    if (!server_on) {
+        ESP_LOGI(TAG, "%s", !s_voip_enabled ? "VoIP disabled (Settings -> VOIP) -- not registering"
+                                             : "no SIP server configured -- server calls are off");
     }
-    if (!s_server[0]) {
-        ESP_LOGW(TAG, "no SIP server configured -- run 'sip_set' from the console");
+    if (!server_on && !voip_home_active()) {
         s_task = NULL;
         vTaskDelete(NULL);
         return;
@@ -908,7 +969,7 @@ static void sip_task(void *arg)
     struct timeval tv = { .tv_sec = 0, .tv_usec = 300000 };
     setsockopt(s_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
-    if (resolve_server(true)) register_all();
+    if (server_on && resolve_server(true)) register_all();
 
     char *msg = malloc(MSG_MAX);
     if (!msg) { vTaskDelete(NULL); return; }
@@ -952,6 +1013,7 @@ static void sip_task(void *arg)
             uint32_t cur = (sta && esp_netif_get_ip_info(sta, &ii) == ESP_OK) ? ii.ip.addr : 0;
             if (cur) {
                 if (last_ip && cur != last_ip) {
+                    wifi_get_ip_str(s_myip, sizeof(s_myip));   /* home calls name us by address */
                     ESP_LOGI(TAG, "network address changed -- looking up '%s' again", s_server);
                     s_server_ip[0] = '\0';
                     for (int i = 0; i < NLINES; i++) {
@@ -969,7 +1031,7 @@ static void sip_task(void *arg)
          * on this network (away from home) or not up yet. Back off from 5 s to
          * once a minute so a board that's away doesn't spend its life
          * querying, and say so once instead of every attempt. */
-        if (!s_server_ip[0] && s_server[0] && now >= next_resolve) {
+        if (server_on && !s_server_ip[0] && s_server[0] && now >= next_resolve) {
             bool first = (resolve_fails == 0);
             if (resolve_server(false)) {
                 if (resolve_fails > 0) {
@@ -1078,6 +1140,8 @@ esp_err_t voip_dial(int line, const char *number)
     snprintf(L->dial_uri, sizeof(L->dial_uri), "sip:%s@%s", ext, s_server);
     strncpy(L->remote_uri, L->dial_uri, sizeof(L->remote_uri) - 1);
 
+    L->local_call = false;
+    L->dest = s_server_addr;
     rand_hex(L->call_id, sizeof(L->call_id));
     rand_hex(L->from_tag, sizeof(L->from_tag));
     rand_hex(L->branch, sizeof(L->branch));
@@ -1088,6 +1152,48 @@ esp_err_t voip_dial(int line, const char *number)
     send_invite(line, NULL);
     ESP_LOGI(TAG, "line %d: dialing %s", line, L->dial_uri);
     return ESP_OK;
+}
+
+esp_err_t voip_dial_local(int line, const char *ip, const char *number)
+{
+    if (line < 0 || line >= NLINES || !ip || !number) return ESP_ERR_INVALID_ARG;
+    if (s_sock < 0) return ESP_ERR_INVALID_STATE;
+    line_t *L = &s_l[line];
+    if (L->state != CALL_IDLE || !L->home[0]) return ESP_ERR_INVALID_STATE;
+    memset(&L->dest, 0, sizeof(L->dest));
+    L->dest.sin_family = AF_INET;
+    L->dest.sin_port = htons(SIP_PORT);
+    L->dest.sin_addr.s_addr = inet_addr(ip);
+    L->local_call = true;
+    snprintf(L->dial_uri, sizeof(L->dial_uri), "sip:%s@%s", number, ip);
+    strncpy(L->remote_uri, L->dial_uri, sizeof(L->remote_uri) - 1);
+    rand_hex(L->call_id, sizeof(L->call_id));
+    rand_hex(L->from_tag, sizeof(L->from_tag));
+    rand_hex(L->branch, sizeof(L->branch));
+    L->to_tag[0] = 0;
+    L->cseq = 0;
+    L->call_authed_once = false;
+    L->state = CALL_OUTGOING;
+    send_invite(line, NULL);
+    ESP_LOGI(TAG, "line %d: calling home number %s at %s", line, number, ip);
+    return ESP_OK;
+}
+
+void voip_set_home_number(int line, const char *number)
+{
+    if (line < 0 || line >= NLINES) return;
+    strlcpy(s_l[line].home, number ? number : "", sizeof(s_l[line].home));
+    /* The SIP task exits at boot when there's nothing for it to do; a home
+     * number set later needs it running. */
+    if (s_l[line].home[0] && !s_task && s_cb) {
+        xTaskCreate(sip_task, "sip", 8192, NULL, 5, &s_task);
+    }
+}
+
+bool voip_home_active(void)
+{
+    for (int i = 0; i < NLINES; i++) if (s_l[i].home[0]) return true;
+    return false;
 }
 
 esp_err_t voip_answer(int line)

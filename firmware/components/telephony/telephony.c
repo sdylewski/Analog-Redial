@@ -6,6 +6,7 @@
 #include "dtmf.h"
 #include "tones.h"
 #include "voip.h"
+#include "homecall.h"
 #include "player.h"
 #include "recorder.h"
 #include "storage.h"
@@ -1075,6 +1076,25 @@ static void handle_action(int line, const dialplan_action_t *a)
             } else {
                 ESP_LOGW(TAG, "line %d: VoIP dial %s -> %s (reorder)",
                          line, a->number, esp_err_to_name(r));
+                play_persistent(line, TONE_REORDER, TEL_REORDER);
+            }
+            break;
+        }
+
+        case ACT_HOME_CALL: {
+            /* Another board on this network (homecall.h): a direct SIP call,
+             * then the same path as a VoIP call through a server. */
+            strncpy(s_line[line].last_number, a->number, sizeof(s_line[line].last_number) - 1);
+            char ip[16], name[32];
+            esp_err_t r = homecall_lookup(a->number, ip, sizeof(ip), name, sizeof(name))
+                              ? voip_dial_local(line, ip, a->number) : ESP_ERR_NOT_FOUND;
+            if (r == ESP_OK) {
+                audio_tx_tone(line, TONE_RINGBACK);
+                s_line[line].state = TEL_RINGBACK;
+                s_line[line].peer = PEER_VOIP;
+                activity_log("Line %d: calling %s (%s) on the home network", line, a->number, name);
+            } else {
+                ESP_LOGW(TAG, "line %d: home call %s -> %s (reorder)", line, a->number, esp_err_to_name(r));
                 play_persistent(line, TONE_REORDER, TEL_REORDER);
             }
             break;

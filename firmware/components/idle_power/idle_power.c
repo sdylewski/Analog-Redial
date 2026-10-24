@@ -309,7 +309,7 @@ static void idle_power_task(void *arg)
          * see archive/POWER_SAVING.md for why this is the gate (not live
          * registration status) and re-checked every tick so configuring
          * VoIP while already sleeping immediately restores WIFI_PS_NONE. */
-        bool want_wifi_eco = (voip_server()[0] == '\0');
+        bool want_wifi_eco = (voip_server()[0] == '\0') && !voip_home_active();
         if (want_wifi_eco != s_wifi_eco) {
             wifi_set_power_save(want_wifi_eco);
             s_wifi_eco = want_wifi_eco;
