@@ -31,19 +31,26 @@ the fab 2026-10-19; documented as working (BM64 carrier, microSD, audio, OTA ver
 `archive/hardware/smd5.md`'s Bring-up log) — `hardware/kicad/Analog Redial v5/`,
 dev notes at [`archive/hardware/smd5.md`](archive/hardware/smd5.md).
 Headline changes: a dual-compatible MCU footprint (real ESP32-C6-DevKitC-1 or
-a cheaper clone, selected by solder jumpers JP2/JP3), and an 8-pin J2 header
-for a Bluetooth companion, MFB/WAKEUP on GPIO15, chosen in Settings → Hardware
+a cheaper clone, selected by solder jumpers JP2/JP3), and an 8-pin J2 **expansion header**
+(3.3 V from U5, GPIO16/17 UART, GPIO15 with a pull-down, line 0 mic out / earpiece in, GND),
+currently used for the Bluetooth board; docs call it "Expansion header: currently used for the
+Bluetooth board" and give its general pinout in docs/hardware-smd5.md §9. MFB/WAKEUP on GPIO15, chosen in Settings → Hardware
 (`board_bt_module_t`). Firmware reuses SMD4's pin map for it. The BM64 carrier is
 the supported module; a BK3266 module was tried and its UART never answered (notes in
 `Bluetooth/BK3266/` and `archive/hardware/bk3266.md`; its firmware driver was removed after v1.0.1). The BK3266 option
 is replaced by the DFRobot DFR0781 / BT401 (`Bluetooth/DFR0781_BT401/`, `archive/hardware/bt401.md`): driver
 (`firmware/components/bt_companion/bt401*.c`) written 2026-10-22, host-tested, **not yet tested on a real module**.
 
-**⚠️ v5 boards made before 2026-10-24, 30-pin clone modules:** the footprint tied the clone's
-bottom-right 5V pin to GND. On such a board that pin must be removed (not connected); the
-bottom-left 5V pin carries the 5V. The v5 design files were fixed on 2026-10-24 (and v6 has the fix),
-so boards made from them are fine. The warning stays in README/docs (board.md, bom.md,
-hardware-smd5.md) for boards made earlier: keep it in any doc that describes fitting a clone.
+**v5 vs v5.1.** `hardware/kicad/Analog Redial v5/` is the board **as fabbed** (the Oct 5 save,
+restored from commit 19def2e on 2026-10-25). `hardware/kicad/Analog Redial v5.1/` is the same board
+with the clone 5V-pin footprint fixed plus the Oct 7/Oct 19 silkscreen and fab-file edits; released,
+not built yet (its silkscreen still reads "Analog Redial 5.0" until re-exported). Firmware builds
+SMD5 for both.
+
+**⚠️ v5 boards, 30-pin clone modules:** the footprint ties the clone's bottom-right 5V pin to GND.
+On a v5 board that pin must be removed (not connected); the bottom-left 5V pin carries the 5V.
+v5.1 and v6 have the fix. The warning stays in README/docs (board.md, bom.md, building.md,
+hardware-smd5.md): keep it in any doc that describes fitting a clone.
 
 **v6 (SMD6, `hardware/kicad/Analog Redial v6/`) is released (2026-10-24) but untested.** It is v5 with the
 clone 5V-pin footprint fixed and silkscreen updates; U5 stays the 3.3 V XC6206P332MR (3.6 V not done).

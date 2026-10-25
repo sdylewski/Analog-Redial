@@ -197,9 +197,9 @@ float idle_power_estimated_savings_w(void)
     float saved_ma = 60.0f - avg_ma;
     float w_per_line = saved_ma * 5.0f / 1000.0f;
     float w = w_per_line * (float)num_lines;
-    /* Same condition as the task's Wi-Fi power-save: calls (a SIP server or
-     * board-to-board) need the radio awake. */
-    if (voip_server()[0] == '\0' && !voip_home_active()) w += WIFI_SAVINGS_W;
+    /* Same condition as the task's Wi-Fi power-save (a SIP server keeps the
+     * radio awake). */
+    if (voip_server()[0] == '\0') w += WIFI_SAVINGS_W;
     return w;
 }
 
@@ -311,7 +311,10 @@ static void idle_power_task(void *arg)
          * see archive/POWER_SAVING.md for why this is the gate (not live
          * registration status) and re-checked every tick so configuring
          * VoIP while already sleeping immediately restores WIFI_PS_NONE. */
-        bool want_wifi_eco = (voip_server()[0] == '\0') && !voip_home_active();
+        /* Board-to-board calls don't block it: an incoming call waits at most
+         * one DTIM beacon interval for the radio (about 0.1-0.3 s on typical
+         * routers), an acceptable delay before the bell rings. */
+        bool want_wifi_eco = (voip_server()[0] == '\0');
         if (want_wifi_eco != s_wifi_eco) {
             wifi_set_power_save(want_wifi_eco);
             s_wifi_eco = want_wifi_eco;

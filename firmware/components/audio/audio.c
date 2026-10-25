@@ -356,6 +356,13 @@ bool audio_echo_probe(int line, uint32_t burst_hz, uint32_t burst_ms,
     StreamBufferHandle_t sb = xStreamBufferCreate(n_samples * sizeof(int16_t), 1);
     if (!sb) { free(cap); return false; }
 
+    /* Quiet the line first and let whatever it was playing (dial tone, with the
+     * handset up) finish echoing back through the DMA buffers: the noise floor
+     * below is taken from the start of the capture, and dial tone still in
+     * flight there made a real echo look like "no echo". */
+    audio_tx_silence(line);
+    vTaskDelay(pdMS_TO_TICKS(150));
+
     echo_probe_tap_ctx_t ctx = { .sb = sb };
     audio_add_diag_tap(line, echo_probe_tap, &ctx);
     /* Tap first, THEN emit: starting the burst before the tap is armed would

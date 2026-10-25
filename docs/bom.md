@@ -144,9 +144,9 @@ capacitors in the 5 mm disc footprints. That passes the whole phone band.
 To drive headphones directly, use 47 µF electrolytics instead, **+ toward
 the codec** (U2) and − toward J7. Left empty, J7 carries no signal.
 
-## Bluetooth companion (v5 board, optional)
+## Bluetooth board (v5 expansion header, optional)
 
-An 8-pin header (**J2**) on the v5 board takes a small companion board carrying a **BM64** Bluetooth
+The v5 board's 8-pin **expansion header** (**J2**; pinout in the [v5 board reference](hardware-smd5.md#9-expansion-header-j2-currently-used-for-the-bluetooth-board)) is currently used for a small board carrying a **BM64** Bluetooth
 module (about $14, **working**). The companion's KiCad project is `Bluetooth/BM64/BM64_Board_v1`
 in the repository; the main board adds one 3.3 V regulator (**U5**) and a handful of 1 µF capacitors
 and resistors that are already on the board.
@@ -168,12 +168,13 @@ and resistors that are already on the board.
 
 The v5 board also takes a cheap 30-pin clone. They aren't equivalent:
 
-> ⚠️ **Older v5 boards with the 30-pin clone module: read before soldering.** The v5 design files were fixed on 2026-10-24, so a board ordered from them has no problem. On a v5 board made before that, the clone's
+> ⚠️ **v5 boards with the 30-pin clone module: read before soldering.** On a v5 board the clone's
 > **bottom-right 5V pin** is wired to **GND** (the footprint is wrong for the clone's pinout). If you fit a
 > clone, **take that pin out**: cut it off the module, or leave it unsoldered, so it doesn't connect to the
 > board at all. The **bottom-left 5V pin** is then the module's only 5 V connection, and it is enough. Left
 > in, the pin shorts the 5 V rail to ground. With the power off, check with a meter that the 5 V pin has no
-> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The v5 design files in the repository, and v6, now have the footprint fixed.
+> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. **v5.1** (and v6) have the footprint
+> fixed, so nothing needs removing there.
 
 
 | | **32-pin (recommended)** | **30-pin clone (v5 only)** |
@@ -181,7 +182,7 @@ The v5 board also takes a cheap 30-pin clone. They aren't equivalent:
 | Part | Genuine ESP32-C6-DevKitC-1 | AliExpress clone, about $4 |
 | Fitting | Drops straight in | Move two solder jumpers on back of board, **JP2** and **JP3** |
 | USB flashing and console | Works | Works once the jumpers are set |
-| Status | Known good | Works; on a v5 board made before 2026-10-24, remove one pin first (see the warning above) |
+| Status | Known good | Works; on a v5 board remove one pin first (see the warning above); v5.1 needs nothing |
 
 <table>
   <tr>

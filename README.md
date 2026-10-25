@@ -85,6 +85,9 @@ Bluetooth is the only one that needs an extra board.
   that also answers VoIP or local calls. 
   	- Storage to internal flash or microSD card for hours of storage
   (1-line version only). 
+- **Payphones.** Dial tone, ringing, dialing and calls work on a payphone like
+  on any phone; the coin mechanism isn't supported yet. See
+  [Payphones](docs/setup.md#10-payphones).
 - **Home automation.** Every pickup, hang-up, dial code and incoming ring
   can go to Home Assistant, or any system that takes a webhook or MQTT. Home
   Assistant can ring a phone or fire a pin output back. Experimental; see
@@ -204,7 +207,8 @@ Going further: [VoIP setup](docs/voip-setup.md) ·
 | Jun 2026 | **v1** | The first ESP32 board: through-hole, with a WM8731 codec and two AG1170 SLICs. The Pi's job on a $5 microcontroller. Never built because boards got lost in the mail.|
 | Jul 2026 | **v2** <br><img src="docs/pics/smd2_board.jpg" width="220" alt="Analog Redial v2 board"> | First surface-mount board: ESP32-C6 module, ES8388 codec, AG1171 SLICs, microSD. Required rework on audio lines and usb connection but it worked. |
 | Sep 2026 | **v4** <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | 2-layer, built around a cheaper 32-pin ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. |
-| Oct 2026 | **v5** <br><img src="docs/pics/V5_board.jpg" width="220" alt="Analog Redial v5 board">| Working: takes a genuine or clone ESP32-C6 module, and adds the Bluetooth companion. <br>**Boards made before 2026-10-24: with a clone module, remove the clone's bottom-right 5V pin** (the design files are fixed now) (see [Get a board](docs/board.md)). |
+| Oct 2026 | **v5** <br><img src="docs/pics/V5_board.jpg" width="220" alt="Analog Redial v5 board">| Working: takes a genuine or clone ESP32-C6 module, and adds the expansion header (used for the Bluetooth board). <br>**With a clone module, remove the clone's bottom-right 5V pin** (see [Get a board](docs/board.md)). |
+| Oct 2026 | **v5.1** | v5 with the clone-module 5V pin fixed (nothing to remove) and small silkscreen and fab-file updates. Not built yet; v5 is the tested board. |
 | Oct 2026 | **v6** | **Released, not tested yet.** v5 with the clone-module 5V pin fixed (no pin to remove) and updated silkscreen. It should work, but v5 is the tested board. |
 
 ## License

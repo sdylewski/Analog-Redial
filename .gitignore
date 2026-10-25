@@ -16,13 +16,13 @@ hardware/kicad/**/_restore_backup_*/
 hardware/kicad/**/ERC.txt
 hardware/kicad/**/preview.svg
 hardware/kicad/**/*.kicad_prl
-hardware/kicad/**/jlcpcb/
-hardware/kicad/**/production_files/
-# Release export for v6: tracked on purpose (not its scratch database or v5 leftovers)
-!hardware/kicad/Analog Redial v6/jlcpcb/
-!hardware/kicad/Analog Redial v6/jlcpcb/production_files/
-hardware/kicad/Analog Redial v6/jlcpcb/project.db
-hardware/kicad/Analog Redial v6/jlcpcb/.DS_Store
+# Fab exports (the JLCPCB plugin's jlcpcb/ folder, pcbway_production/) are
+# tracked on purpose; not the plugin's scratch database, Finder files, the
+# stray "<board>.kicad_pcb.zip" a PCBWay export leaves next to the project,
+# or the old "Analog Redial 5" files left in v6's export folder.
+hardware/kicad/**/jlcpcb/project.db
+hardware/kicad/**/.DS_Store
+hardware/kicad/**/*.kicad_pcb.zip
 hardware/kicad/Analog Redial v6/jlcpcb/production_files/*Redial 5*
 hardware/kicad/**/fabrication-toolkit-files/
 hardware/kicad/**/*.lck

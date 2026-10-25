@@ -251,6 +251,19 @@ changes the flash layout (the update slots grew from 2 MB to 3 MB on 16 MB
 boards; the board keeps working on the old layout until it's reflashed once).
 Reflashing over USB keeps your recordings, clips and settings.
 
+## 10. Payphones
+
+The board works with a payphone just as with any other phone: it gives dial
+tone, rings the bell, reads the dial or keypad, and handles calls and every
+other feature the same way.
+
+**Not supported yet: the coin mechanism**, meaning counting coins and the
+solenoid that collects or returns them. I'm connecting a 1997 Quadrum payphone's
+coin system to the 4-pin header and will update this page when it works.
+
+Also still to find out: whether the board can sit inside a payphone's metal
+housing and still reach Wi-Fi and Bluetooth through it.
+
 ---
 
 **Back to: [Home](../README.md)**

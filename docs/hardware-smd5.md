@@ -8,19 +8,23 @@
 > track record. Everything here that isn't listed as new against v4 carries over from
 > v4 unchanged.
 
-> ⚠️ **Older v5 boards with the 30-pin clone module: read before soldering.** The v5 design files were fixed on 2026-10-24, so a board ordered from them has no problem. On a v5 board made before that, the clone's
+> ⚠️ **v5 boards with the 30-pin clone module: read before soldering.** On a v5 board the clone's
 > **bottom-right 5V pin** is wired to **GND** (the footprint is wrong for the clone's pinout). If you fit a
 > clone, **take that pin out**: cut it off the module, or leave it unsoldered, so it doesn't connect to the
 > board at all. The **bottom-left 5V pin** is then the module's only 5 V connection, and it is enough. Left
 > in, the pin shorts the 5 V rail to ground. With the power off, check with a meter that the 5 V pin has no
-> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The v5 design files in the repository, and v6, now have the footprint fixed.
+> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. **v5.1** (and v6) have the footprint
+> fixed, so nothing needs removing there.
 
 Design reference for the v5 board: a 2-layer, ESP32-C6-based
 analog-phone-line gateway carrying one or two POTS lines through Silvertel
 AG1171 SLICs and an Everest ES8388 stereo codec, plus an optional Bluetooth
 companion.
 
-KiCad project: [`hardware/kicad/Analog Redial v5`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5). Its custom symbols and
+KiCad projects: [`hardware/kicad/Analog Redial v5`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5)
+(the boards as fabbed) and [`Analog Redial v5.1`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5.1)
+(the same board with the clone 5V-pin footprint fixed, plus small silkscreen and fab-file updates; not built
+yet). Everything on this page applies to both. Its custom symbols and
 footprints (SLICs, RJ12 jacks, ESP32-C6 modules, BM64) are maintained
 separately and shared across boards:
 [sdylewski/MajorHack-Kicad-Libraries](https://github.com/sdylewski/MajorHack-Kicad-Libraries) —
@@ -31,7 +35,7 @@ or order it.
 
 | Change | Why |
 |--------|-----|
-| **Bluetooth companion header (J2)** | 8-pin board-to-board link to a BM64 carrier — see §9 |
+| **Expansion header (J2)** | 8 pins: 3.3 V, a serial port, a control pin and line 0's audio; currently used for the Bluetooth board — see §9 |
 | **Dedicated 3.3 V LDO (U5)** for the BM64 | Keeps the module's radio bursts off the DevKit's own regulator |
 | **MFB on GPIO15** with a 100 kΩ pull-down | The BM64's power button needs firmware control and must idle low |
 | **SHK divider 15 kΩ → 100 kΩ** | Fixes SMD4's as-built off-hook level, which sat below the ESP32's input-high threshold |
@@ -48,16 +52,16 @@ or order it.
 | SLIC | 1–2× **Silvertel AG1171**, SIL package, hand-soldered |
 | Storage | Internal SPI flash (SPIFFS) always; optional **microSD** (SPI) on single-line builds |
 | Power input | **USB-C** (via the DevKit's own port) **or** a **DC jack**, diode-ORed onto one +5 V rail |
-| Bluetooth | Optional **BM64** companion carrier, via **J2** — see §9 |
+| Expansion header | **J2**, currently used for the optional Bluetooth board — see §9 |
 | Copper | **2 layers** (`F.Cu`, `B.Cu`) |
 | Board size | **115 × 54 mm** |
-| Connectors | RJ12 ×1–2 (phone lines), USB-C, DC jack, microSD (optional), BM64 header (optional) |
+| Connectors | RJ12 ×1–2 (phone lines), USB-C, DC jack, microSD (optional), expansion header **J2** (optional) |
 
 Reference designators below follow the current schematic: **U1** = the
 ESP32-C6-DevKitC-1 carrier, **U3**/**U4** = the two AG1171 SLICs, **J8**/**J9**
 = their RJ12 jacks, **J1** = the DC jack, **D1** = the power diode-OR diode,
 **J5** = the line-1/microSD jumper header, **Card1** = the microSD socket,
-**J2** = the Bluetooth companion header, **U5** = the BM64's 3.3 V LDO.
+**J2** = the expansion header (currently used for the Bluetooth board), **U5** = its 3.3 V LDO.
 
 ## 2. Schematic and layout
 
@@ -253,50 +257,68 @@ modifying the layout:
   audio-band I²S are not high-speed enough to be fussy about it — just worth
   a visual check on the copper pour rather than assuming it's a wash.
 
-## 9. Bluetooth companion header (J2)
+## 9. Expansion header (J2): currently used for the Bluetooth board
 
-**SMD5 addition.** An 8-pin board-to-board header links a BM64 Bluetooth
-Classic audio carrier to the main board. The carrier is a separate PCB
-(`Bluetooth/BM64/BM64_Board_v1/` in the repository) that plugs onto it. Fitting this on SMD4 instead
-means serious hand-wiring, not a drop-in option.
+**SMD5 addition.** An 8-pin, 2.54 mm header that brings out power, a serial
+port, one control pin and line 0's audio, so a small board can plug straight
+on. Today that's the Bluetooth board (a BM64 carrier, `Bluetooth/BM64/BM64_Board_v1/`
+in the repository), but nothing about it is Bluetooth-specific: use it for
+anything that fits these signals.
 
-**Which module.** The **BM64** carrier is the supported choice (about $14, working). The cheaper
-**DFRobot DFR0781 (BT401)** module, about $3.50, hand-wired to the same header, has a text command set
-with call control and a firmware driver, but hasn't been tested on a real module yet.
+| J2 pin | Signal | What it is | Notes for your own use |
+|--------|--------|------------|------------------------|
+| 1 | `+3V3_BM` | 3.3 V from **U5**, a dedicated XC6206 LDO off the +5 V rail (not the DevKit's 3.3 V) | Up to about 200 mA (the XC6206's rating), minus what U5's own drop allows from the 5 V rail |
+| 2 | GPIO17 (U0RXD) | ESP32-C6 input: the board **receives** serial data here | 3.3 V logic. Also on **J4**. A UART at any baud the firmware sets, or a plain GPIO |
+| 3 | GPIO16 (U0TXD) | ESP32-C6 output: the board **transmits** serial data here | 3.3 V logic. Also on **J3** |
+| 4 | GPIO15 | Control pin, with a **100 kΩ pull-down** on the main board | GPIO15 is an ESP32-C6 strapping pin: it must be low at power-up, which the pull-down sees to. Fine as an output (power button, reset, enable) or an input |
+| 5 | Line 0 microphone out | Line 0's SLIC `VOUT` (the handset's microphone) through **C22**, 1 µF | Analog audio, AC-coupled: what the person on line 0 says |
+| 6 | Audio ground reference | GND through **C24**, 1 µF | AC ground for a differential microphone input (`-` side) |
+| 7 | Line 0 earpiece in | Into line 0's SLIC `VIN` through **C23** 1 µF and **R16** 1 kΩ | Analog audio, AC-coupled: what you feed here is heard in line 0's earpiece, mixed with the board's own audio. The 1 kΩ limits fault current into the SLIC |
+| 8 | GND | Ground | |
 
-The status LED shows pairing/connection state once this is fitted and
-working — see [the status light reference](setup.md#7-the-status-light).
-
-| J2 pin | Net | Carrier side | Notes |
-|--------|-----|--------------|-------|
-| 1 | `+3V3_BM` | BM64 `BAT_IN` | From **U5**, a dedicated XC6206 LDO off +5 V — not the DevKit's 3.3 V rail |
-| 2 | GPIO17 / U0RXD | BM64 `HCI_TXD` | ESP receives |
-| 3 | GPIO16 / U0TXD | BM64 `HCI_RXD` | ESP transmits |
-| 4 | `MFB` (GPIO15) | BM64 `MFB` | Power button / UART wake, 100 kΩ pull-down on the main board |
-| 5 | via **C22** 1 µF ← `Line0Vin`'s SLIC `VOUT` | BM64 `MIC_P1` | Handset mic → Bluetooth |
-| 6 | via **C24** 1 µF ← GND | BM64 `MIC_N1` | AC ground for the differential mic input |
-| 7 | via **C23** 1 µF → **R16** 1 kΩ → `Line0Vin` | BM64 `AOHPL` | Bluetooth audio → earpiece. The 1 kΩ limits fault current into the SLIC |
-| 8 | GND | GND | |
-
-Audio never passes through firmware — both directions are analog, between
-the BM64 and line 0's SLIC. The ESP32 only carries control over the UART.
-
-**Orientation matters.** Pin 1 is +3.3 V and pin 8 is GND, so mating the two
-boards rotated 180° shorts the LDO output straight to ground. Mark pin 1 on
+**Orientation matters.** Pin 1 is +3.3 V and pin 8 is GND, so a board mated
+rotated 180° shorts the regulator's output straight to ground. Mark pin 1 on
 both silkscreens and dry-fit before applying power.
 
-**Bluetooth is SMD5-only.** On SMD4 it takes hand-wiring and board
+**The serial pins are shared.** GPIO16/17 are also on headers **J3**/**J4**.
+With no Bluetooth module chosen in Settings → General → Board hardware, the
+firmware doesn't start its link on them.
+
+### How the Bluetooth board uses it
+
+The **BM64** carrier is the supported module (about $14, working). The cheaper
+**DFRobot DFR0781 (BT401)** module, about $3.50, hand-wired to the same header,
+has a text command set with call control and a firmware driver, but hasn't
+been tested on a real module yet. The status LED shows pairing and connection
+state once one is fitted: see [the status light reference](setup.md#7-the-status-light).
+
+| J2 pin | BM64 pin | Job |
+|--------|----------|-----|
+| 1 | `BAT_IN` | Module power |
+| 2 | `HCI_TXD` | Module → board: events |
+| 3 | `HCI_RXD` | Board → module: commands |
+| 4 | `MFB` | Power button / UART wake |
+| 5 | `MIC_P1` | Handset microphone → the paired phone |
+| 6 | `MIC_N1` | Microphone `-` side |
+| 7 | `AOHPL` | The paired phone's audio → earpiece |
+| 8 | GND | |
+
+Audio never passes through firmware: both directions are analog, between the
+module and line 0's SLIC. The ESP32 only carries control over the serial link.
+
+**SMD5 and later only.** On SMD4 the same signals take hand-wiring and board
 modifications, which is why [`hardware-smd4.md`](hardware-smd4.md) doesn't
 describe it.
 
 ## 10. MCU module variants
 
-> ⚠️ **Older v5 boards with the 30-pin clone module: read before soldering.** The v5 design files were fixed on 2026-10-24, so a board ordered from them has no problem. On a v5 board made before that, the clone's
+> ⚠️ **v5 boards with the 30-pin clone module: read before soldering.** On a v5 board the clone's
 > **bottom-right 5V pin** is wired to **GND** (the footprint is wrong for the clone's pinout). If you fit a
 > clone, **take that pin out**: cut it off the module, or leave it unsoldered, so it doesn't connect to the
 > board at all. The **bottom-left 5V pin** is then the module's only 5 V connection, and it is enough. Left
 > in, the pin shorts the 5 V rail to ground. With the power off, check with a meter that the 5 V pin has no
-> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The v5 design files in the repository, and v6, now have the footprint fixed.
+> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. **v5.1** (and v6) have the footprint
+> fixed, so nothing needs removing there.
 
 
 The footprint accepts two modules, and they are **not** pin-compatible:
@@ -345,7 +367,7 @@ symptoms of getting it wrong, is in
 | Phone lines | RJ12 ×1 (single-line build) or ×2 (dual-line build), **J9**/**J8** |
 | Power | USB-C (via the DevKit module's own port) and DC jack (**J1**), diode-ORed |
 | Storage | microSD, optional, single-line build only |
-| Bluetooth | BM64 companion via **J2**, optional — §9 |
+| Expansion header | **J2**, currently used for the optional Bluetooth board — §9 |
 | Debug | UART header (**J3** TX / **J4** RX), optional |
 
 ---

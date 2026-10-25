@@ -1,0 +1,56 @@
+Comment,Designator,Footprint,LCSC,Quantity
+100nF,C4,C_Disc_D3.0mm_W1.6mm_P2.50mm,,1
+1N4004,D5,D_DO-41_SOD81_P10.16mm_Horizontal,,1
+15K,R5,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+4.7k,R2,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+PINHD_1x2_Male,J5,PinHeader_1x02_P2.54mm_Vertical,,1
+RJ12,J2,RJ12_Amphenol_54601-x06_Horizontal,,1
+100nF,C11,C_Disc_D3.0mm_W1.6mm_P2.50mm,,1
+1k,R11,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+1k,R12,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+100nF,C3,C_Disc_D3.0mm_W1.6mm_P2.50mm,,1
+1N4004,D6,D_DO-41_SOD81_P10.16mm_Horizontal,,1
+220uF 10V Low ESR,C14,CP_Radial_D6.3mm_P2.50mm,,1
+AG1170,U4,AG1170_SIL,,1
+PINHD_1x3_Male,J7,PinHeader_1x03_P2.54mm_Vertical,,1
+MCP1700x-180xxMB,U3,SOT-89-3,,1
+4.7k,R1,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+BC846,Q1,SOT-23,,1
+Conn_01x02_Pin,J3,TestPoint_2Pads_Pitch5.08mm_Drill1.3mm,,1
+100uF 6.3V,C7,CP_Radial_D6.3mm_P2.50mm,,1
+10R,R7,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+1N4004,D4,D_DO-41_SOD81_P10.16mm_Horizontal,,1
+AG1170,U5,AG1170_SIL,,1
+10uF,C6,CP_Radial_D5.0mm_P2.00mm,,1
+100nF,C1,C_Disc_D3.0mm_W1.6mm_P2.50mm,,1
+10R,R8,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+1N4004,D7,D_DO-41_SOD81_P10.16mm_Horizontal,,1
+D_Zener P6KE82,D10,D_DO-41_SOD81_P10.16mm_Horizontal,,1
+10K,R10,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+1N4004,D1,D_DO-41_SOD81_P10.16mm_Horizontal,,1
+10K,R4,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+15K,R3,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+D_Zener P6KE82,D8,D_DO-41_SOD81_P10.16mm_Horizontal,,1
+1N4004,D9,D_DO-41_SOD81_P10.16mm_Horizontal,,1
+100nF,C16,C_Disc_D3.0mm_W1.6mm_P2.50mm,,1
+100nF,C5,C_Disc_D3.0mm_W1.6mm_P2.50mm,,1
+100uF 6.3V,C8,CP_Radial_D6.3mm_P2.50mm,,1
+100nF,C18,C_Disc_D3.0mm_W1.6mm_P2.50mm,,1
+WM8731,U2,WM8731_SSOP-28,,1
+10K,R9,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+1N4004,D2,D_DO-41_SOD81_P10.16mm_Horizontal,,1
+100nF,C17,C_Disc_D3.0mm_W1.6mm_P2.50mm,,1
+100nF,C12,C_Disc_D3.0mm_W1.6mm_P2.50mm,,1
+RJ12,J1,RJ12_Amphenol_54601-x06_Horizontal,,1
+220uF 10V Low ESR,C13,CP_Radial_D6.3mm_P2.50mm,,1
+100nF,C15,C_Disc_D3.0mm_W1.6mm_P2.50mm,,1
+220uF,C20,C_Disc_D3.0mm_W1.6mm_P2.50mm,,1
+100nF,C9,C_Disc_D3.0mm_W1.6mm_P2.50mm,,1
+ESP32-C6-DevKitM-1_1,U1,ESP32-C6-DevKitM-1,,1
+10K,R6,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+10uF,C2,CP_Radial_D5.0mm_P2.00mm,,1
+PINHD_1x2_Male,J4,PinHeader_1x02_P2.54mm_Vertical,,1
+220uF,C19,C_Disc_D3.0mm_W1.6mm_P2.50mm,,1
+1N4004,D3,D_DO-41_SOD81_P10.16mm_Horizontal,,1
+BC846,Q2,SOT-23,,1
+100nF,C10,C_Disc_D3.0mm_W1.6mm_P2.50mm,,1
