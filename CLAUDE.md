@@ -39,10 +39,11 @@ the supported module; a BK3266 module was tried and its UART never answered (not
 is replaced by the DFRobot DFR0781 / BT401 (`Bluetooth/DFR0781_BT401/`, `archive/hardware/bt401.md`): driver
 (`firmware/components/bt_companion/bt401*.c`) written 2026-10-22, host-tested, **not yet tested on a real module**.
 
-**⚠️ v5 PCB error with 30-pin clone modules:** the footprint ties the clone's bottom-right
-5V pin to GND. That pin must be removed (not connected to the board); the bottom-left 5V pin
-carries the 5V. Documented as a warning in README/docs (board.md, bom.md, hardware-smd5.md);
-fixed in v6. Keep that warning in any doc that describes fitting a clone.
+**⚠️ v5 boards made before 2026-10-24, 30-pin clone modules:** the footprint tied the clone's
+bottom-right 5V pin to GND. On such a board that pin must be removed (not connected); the
+bottom-left 5V pin carries the 5V. The v5 design files were fixed on 2026-10-24 (and v6 has the fix),
+so boards made from them are fine. The warning stays in README/docs (board.md, bom.md,
+hardware-smd5.md) for boards made earlier: keep it in any doc that describes fitting a clone.
 
 **v6 (SMD6, `hardware/kicad/Analog Redial v6/`) is released (2026-10-24) but untested.** It is v5 with the
 clone 5V-pin footprint fixed and silkscreen updates; U5 stays the 3.3 V XC6206P332MR (3.6 V not done).
