@@ -2117,6 +2117,28 @@ static int append_prov_result(char *buf, size_t cap, int off, const char *id, bo
  * full first pass is a couple of dozen renders. */
 static void expand_prompt_vars(const char *in, char *out, size_t len);
 
+/* When the pass last finished (seconds since 1970), kept in flash; 0 = never. */
+static int64_t regen_last_get(void)
+{
+    nvs_handle_t h;
+    int64_t t = 0;
+    if (nvs_open("ttsregen", NVS_READONLY, &h) == ESP_OK) {
+        nvs_get_i64(h, "last", &t);
+        nvs_close(h);
+    }
+    return t;
+}
+
+static void regen_last_set(int64_t t)
+{
+    nvs_handle_t h;
+    if (nvs_open("ttsregen", NVS_READWRITE, &h) == ESP_OK) {
+        nvs_set_i64(h, "last", t);
+        nvs_commit(h);
+        nvs_close(h);
+    }
+}
+
 typedef struct {
     char name[PROMPT_NAME_MAX];
     char text[PROMPT_TEXT_MAX + 64];
@@ -2233,6 +2255,7 @@ static void regen_task(void *arg)
     }
     activity_log("Spoken audio: %d updated, %d already current, %d failed",
                  s_regen_made, s_regen_skipped, s_regen_failed);
+    regen_last_set((int64_t)time(NULL));
     s_regen_now[0] = '\0';
     free(it);
     s_regen_running = false;
@@ -2269,6 +2292,15 @@ static int append_regen_card(char *buf, size_t cap, int off)
         "<p class=\"hint\">Makes every spoken clip on this board in your VoIP server's voice: the "
         "operator message, the record prompt, the greeting, and in English the Jenny message and "
         "the spoken digits. Only clips whose voice or text changed are made again.</p>");
+    int64_t last = regen_last_get();
+    if (last > 1700000000 && !s_regen_running) {   /* ignore a clock that was never set */
+        time_t tt = (time_t)last;
+        struct tm tmv;
+        localtime_r(&tt, &tmv);
+        char when[32];
+        strftime(when, sizeof(when), "%Y-%m-%d %H:%M", &tmv);
+        off = appendf(buf, cap, off, "<p class=\"hint\">Last run: %s</p>", when);
+    }
     if (s_regen_running) {
         off = appendf(buf, cap, off,
             "<div class=\"statusrow\"><span class=\"label\">Working</span><span>%d of %d: %s</span></div>"

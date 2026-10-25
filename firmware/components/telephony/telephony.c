@@ -988,7 +988,8 @@ void telephony_check_clip_files(void)
 #define TIMER_RING_ROUNDS          4                 /* rings before it gives up */
 #define TIMER_RING_EVERY_US        (20LL * 1000000)
 
-static void timer_commit(int line)
+/* Starts (or, for 0, cancels) the timer from the digits entered. */
+static void timer_set(int line)
 {
     int minutes = atoi(s_line[line].timer_digits);
     s_line[line].timer_n = 0;
@@ -1002,6 +1003,11 @@ static void timer_commit(int line)
         s_line[line].timer_rounds = 0;
         activity_log("Line %d: timer set for %d minute%s", line, minutes, minutes == 1 ? "" : "s");
     }
+}
+
+static void timer_commit(int line)
+{
+    timer_set(line);
     play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
 }
 
@@ -1390,6 +1396,9 @@ static void on_onhook(int line)
         recorder_stop(line);
         return;
     }
+    /* Hanging up right after the minutes counts as "done": a single digit
+     * would otherwise wait out its 3 seconds and be lost. */
+    if (s_line[line].state == TEL_TIMER_ENTRY && s_line[line].timer_n >= 1) timer_set(line);
     end_call(line);
 }
 
