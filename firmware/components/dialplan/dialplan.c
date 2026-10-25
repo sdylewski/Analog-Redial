@@ -76,6 +76,8 @@ static const entry_t TABLE[] = {
      * the web UI's inter-phone card/tab drop out with them, same observable
      * behavior as when this used to be #if CONFIG_BOARD_NUM_LINES > 1. */
     { "314", ACT_PI_DIGITS, 0, 0, "Read pi aloud (first 100 decimals)", true },
+    /* 846 spells TIM on the keypad. */
+    { "846", ACT_TIMER, 0, 0, "Timer: say how many minutes (1-99, 0 cancels); the phone rings when it's up", true },
     { "321", ACT_CALL_LINE, -1, FX_NORMAL, "Call other phone (normal voice)", true },
     { "322", ACT_CALL_LINE, -1, FX_HIGH,   "Call other phone (chipmunk)", true },
     { "323", ACT_CALL_LINE, -1, FX_LOW,    "Call other phone (Vader)", true },
@@ -713,7 +715,8 @@ static dialplan_group_t group_for(dialplan_action_kind_t k)
 {
     switch (k) {
     case ACT_CALL_LINE:       return DIALPLAN_GROUP_CALLS;
-    case ACT_PI_DIGITS:       return DIALPLAN_GROUP_CLIPS;
+    case ACT_PI_DIGITS:
+    case ACT_TIMER:           return DIALPLAN_GROUP_CLIPS;
     case ACT_SET_MODE:        return DIALPLAN_GROUP_SETTINGS;
     default:                  return DIALPLAN_GROUP_MESSAGES;   /* operator, record, greeting */
     }

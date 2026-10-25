@@ -132,6 +132,16 @@ typedef struct {
     uint16_t             seq_i;
     int64_t              seq_next_us;
     bool                 seq_playing;
+    /* Timer (dial 846). timer_digits/timer_n: the minutes being entered;
+     * timer_wait_until_us: give up waiting for a first digit at this time.
+     * timer_end_us: when the running timer goes off (0 = none); it rings
+     * timer_rounds more times, timer_next_us apart. Kept in RAM only. */
+    char                 timer_digits[3];
+    uint8_t              timer_n;
+    int64_t              timer_wait_until_us;
+    int64_t              timer_end_us;
+    int64_t              timer_next_us;
+    uint8_t              timer_rounds;
     /* A spoken readback digit was started (it ends by itself and then
      * silences the line, so anything that sets new audio stops it first). */
     bool                 rb_clip;
@@ -192,6 +202,7 @@ const char *telephony_state_name(tel_state_t s)
         case TEL_OFFHOOK_ALERT: return "OFFHOOK_ALERT";
         case TEL_PLAYING_RECORD_PROMPT: return "PLAYING_RECORD_PROMPT";
         case TEL_RECORD_BEEP: return "RECORD_BEEP";
+        case TEL_TIMER_ENTRY: return "TIMER_ENTRY";
         case TEL_BT_PASSTHROUGH: return "BT_PASSTHROUGH";
         default: return "?";
     }
@@ -317,6 +328,7 @@ static void enter_idle(int line)
     s_line[line].call_fx = FX_NORMAL;
     s_line[line].bt_music_pass = false;
     s_line[line].seq = NULL;
+    s_line[line].timer_n = 0;
     if (s_line[line].rb_clip) { player_stop(line); s_line[line].rb_clip = false; }
     audio_tx_silence(line);
     s_line[line].state = TEL_IDLE;
@@ -765,6 +777,7 @@ static void end_call(int line)
     audio_set_uplink_inject(line, false); /* no-op unless the answering machine had it on -- see auto_answer() */
     voip_hangup(line);
     if (s_line[line].state == TEL_PLAYING ||
+        s_line[line].state == TEL_TIMER_ENTRY ||
         s_line[line].state == TEL_PLAYING_RECORD_PROMPT) player_stop(line);
     if (s_line[line].state == TEL_RECORDING) recorder_stop(line);
     s_line[line].rec_purpose = REC_NONE;
@@ -968,6 +981,86 @@ void telephony_check_clip_files(void)
 }
 
 /* ---- dial action dispatch ---- */
+/* ---- timer (dial 846) ---------------------------------------------------- */
+#define TIMER_FIRST_DIGIT_WAIT_US  (10LL * 1000000)  /* after the prompt, for the first digit */
+#define TIMER_SECOND_DIGIT_WAIT_MS 3000              /* wait this long for a second digit (not the 15 s dial-plan timeout) */
+#define TIMER_RING_SECS            6
+#define TIMER_RING_ROUNDS          4                 /* rings before it gives up */
+#define TIMER_RING_EVERY_US        (20LL * 1000000)
+
+static void timer_commit(int line)
+{
+    int minutes = atoi(s_line[line].timer_digits);
+    s_line[line].timer_n = 0;
+    if (minutes <= 0) {
+        bool had = s_line[line].timer_end_us != 0;
+        s_line[line].timer_end_us = 0;
+        s_line[line].timer_rounds = 0;
+        activity_log(had ? "Line %d: timer cancelled" : "Line %d: no timer to cancel", line);
+    } else {
+        s_line[line].timer_end_us = esp_timer_get_time() + (int64_t)minutes * 60 * 1000000;
+        s_line[line].timer_rounds = 0;
+        activity_log("Line %d: timer set for %d minute%s", line, minutes, minutes == 1 ? "" : "s");
+    }
+    play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+}
+
+static void timer_digit(int line, char ch)
+{
+    if (s_line[line].timer_n == 0) {
+        player_stop(line);   /* dialled over the prompt: no need to hear the rest */
+        audio_tx_silence(line);
+    }
+    if (s_line[line].timer_n < 2) {
+        s_line[line].timer_digits[s_line[line].timer_n++] = ch;
+        s_line[line].timer_digits[s_line[line].timer_n] = '\0';
+    }
+    s_line[line].last_digit_us = esp_timer_get_time();
+    if (s_line[line].timer_n >= 2) timer_commit(line);
+}
+
+/* Called every tick for `line`: waits for digits while asking, and rings when
+ * a running timer is up. */
+static void timer_tick(int line, int64_t now)
+{
+    if (s_line[line].state == TEL_TIMER_ENTRY) {
+        if (s_line[line].timer_n == 1 &&
+            (now - s_line[line].last_digit_us) / 1000 >= TIMER_SECOND_DIGIT_WAIT_MS) {
+            timer_commit(line);   /* one digit is enough: 1-9 minutes */
+        } else if (s_line[line].timer_n == 0 && s_line[line].timer_wait_until_us &&
+                   now >= s_line[line].timer_wait_until_us) {
+            s_line[line].timer_wait_until_us = 0;
+            activity_log("Line %d: timer: no minutes entered", line);
+            play_transient(line, TONE_REORDER, 1500, TEL_REORDER, TEL_DIALTONE);
+        }
+        return;
+    }
+    if (!s_line[line].timer_end_us || now < s_line[line].timer_end_us) return;
+    tel_state_t st = s_line[line].state;
+    if (st == TEL_IDLE && !line_offhook(line)) {
+        /* On-hook: ring the bell a few times, until someone picks up. */
+        if (s_line[line].timer_rounds == 0) {
+            s_line[line].timer_rounds = TIMER_RING_ROUNDS;
+            s_line[line].timer_next_us = now;
+            activity_log("Line %d: timer is up", line);
+            webhook_eventf("timer", line, "done");
+        }
+        if (now >= s_line[line].timer_next_us) {
+            telephony_bell(line, TIMER_RING_SECS, false);   /* rings even in quiet hours: someone asked for it */
+            s_line[line].timer_next_us = now + TIMER_RING_EVERY_US;
+            if (--s_line[line].timer_rounds == 0) s_line[line].timer_end_us = 0;
+        }
+    } else if (st == TEL_DIALTONE) {
+        /* Handset is up and idle: a beep, once. */
+        s_line[line].timer_end_us = 0;
+        s_line[line].timer_rounds = 0;
+        activity_log("Line %d: timer is up", line);
+        webhook_eventf("timer", line, "done");
+        play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+    }
+    /* Any other state (dialling, on a call, ...): try again next tick. */
+}
+
 static void handle_action(int line, const dialplan_action_t *a)
 {
     /* Every code, before it runs: Home Assistant automations key on the
@@ -992,6 +1085,20 @@ static void handle_action(int line, const dialplan_action_t *a)
             s_line[line].seq_next_us = esp_timer_get_time() + 1000000;   /* a moment of quiet first */
             s_line[line].state = TEL_PLAYING;
             activity_log("Line %d: reading pi aloud", line);
+            break;
+
+        case ACT_TIMER:
+            audio_tx_silence(line);
+            s_line[line].timer_n = 0;
+            s_line[line].timer_digits[0] = '\0';
+            s_line[line].timer_wait_until_us = esp_timer_get_time() + 30LL * 1000000;
+            if (player_play(line, TIMER_PROMPT_NAME, clip_done_cb, NULL) == ESP_OK) {
+                s_line[line].state = TEL_TIMER_ENTRY;
+            } else {
+                /* No prompt clip on this board: a short beep, then wait for the minutes. */
+                s_line[line].timer_wait_until_us = esp_timer_get_time() + TIMER_FIRST_DIGIT_WAIT_US;
+                play_transient(line, TONE_ANSWERING_BEEP, 300, TEL_TIMER_ENTRY, TEL_TIMER_ENTRY);
+            }
             break;
 
         case ACT_SET_MODE:
@@ -1141,6 +1248,10 @@ static void process_digit(int line, char ch)
         in_call_key(line, ch);
         return;
     }
+    if (st == TEL_TIMER_ENTRY) {
+        timer_digit(line, ch);
+        return;
+    }
     if (st != TEL_DIALTONE && st != TEL_DIALING) {
         return; /* ignore digits unless we're expecting them */
     }
@@ -1181,6 +1292,11 @@ static bool am_active(int line)
 /* ---- main event handlers ---- */
 static void on_offhook(int line)
 {
+    if (s_line[line].timer_end_us && esp_timer_get_time() >= s_line[line].timer_end_us) {
+        /* Picked up the ringing timer: done. */
+        s_line[line].timer_end_us = 0;
+        s_line[line].timer_rounds = 0;
+    }
     if (bt_companion_should_intercept(line)) {
         bool music_only = !bt_companion_call_live();
         activity_log(music_only ? "Line %d: picked up while the paired phone plays audio"
@@ -1437,6 +1553,9 @@ static void fsm_task(void *arg)
                         s_line[e.line].seq = NULL;
                         if (line_offhook(e.line)) enter_dialtone(e.line);
                         else enter_idle(e.line);
+                    } else if (s_line[e.line].state == TEL_TIMER_ENTRY) {
+                        /* The question has been asked: wait for the minutes. */
+                        s_line[e.line].timer_wait_until_us = esp_timer_get_time() + TIMER_FIRST_DIGIT_WAIT_US;
                     } else if (s_line[e.line].state == TEL_PLAYING_RECORD_PROMPT) {
                         /* The "leave a message after the beep"-style clip
                          * (211's record_prompt.wav, or an answering
@@ -1490,6 +1609,7 @@ static void fsm_task(void *arg)
 
         int64_t now = esp_timer_get_time();
         for (int line = 0; line < NLINES_ACTIVE; line++) {
+            timer_tick(line, now);
             /* inter-digit timeout */
             if (s_line[line].dialing &&
                 (now - s_line[line].last_digit_us) / 1000 >= dialplan_interdigit_ms()) {

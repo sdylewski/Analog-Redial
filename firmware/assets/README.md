@@ -1,7 +1,7 @@
 # firmware/assets/ — bundled audio (baked in at build/flash time)
 
 The files listed in `BUNDLED_AUDIO` in `firmware/main/CMakeLists.txt` —
-**`operator.wav`, `record_prompt.wav`, `am_greeting.wav`, `dialup.wav` and
+**`operator.wav`, `record_prompt.wav`, `timer_prompt.wav`, `am_greeting.wav`, `dialup.wav` and
 `jenny.wav` and the spoken digits `0.wav`-`9.wav` and `point.wav`, nothing else** — get
 baked into a **read-only-in-spirit `bundled` SPIFFS partition** at build time
 and flashed alongside the firmware image (see the `bundled` entry in
@@ -33,6 +33,8 @@ voice `af_sarah` (Apache-2.0 model, rendered offline). Re-run it to change the v
 **`record_prompt.wav`** — "Record your message after the beep, then hang
 up.", generated with `bringup/gen_prompt.py` from the same English text
 `first_setup.py` uses. Plays before the beep when you dial `211`.
+
+**`timer_prompt.wav`** — "How many minutes for the timer?", made by `bringup/gen_bundled_audio.py`. Plays when you dial `846`, then the phone waits for one or two digits.
 
 **`am_greeting.wav`** — the answering machine's default greeting, "Leave a
 message after the beep.", generated with `bringup/gen_prompt.py`. Plays on

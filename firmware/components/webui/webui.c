@@ -2644,6 +2644,11 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
             l, i18n_str("aec.disable", "Disable"),
             delay_label, (unsigned)ms, l, l, measure_line, l);
     }
+    off = appendf(buf, cap, off,
+        "<p class=\"hint\"><b>%s</b></p>",
+        i18n_str("aec.measure_first",
+                 "Before you click Measure: pick up the handset (off-hook) and make sure the line "
+                 "is not in a call. With the phone hung up the test can't hear the earpiece."));
     off = append_hint(buf, cap, off,
         i18n_str("aec.hint_lead",
                  "Enable/Disable is for testing -- leave off for normal use unless echo "
@@ -2660,7 +2665,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         "</div>"
         "<script>"
         "var AEC_I18N={measuring:'%s',noEcho:'%s',tries:'%s',delayFmt:'%s',consistent:'%s',"
-        "apply:'%s',failed:'%s'};"
+        "apply:'%s',failed:'%s',onhook:'%s',incall:'%s'};"
         "function spkLive(line,vol){"
         "document.getElementById('spkpct'+line).textContent="
         "'Level '+vol+' ('+((vol-30)*1.5).toFixed(1)+' dB)';"
@@ -2676,6 +2681,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         "body:'line='+line})"
         ".then(function(r){return r.json();})"
         ".then(function(d){btn.disabled=false;"
+        "if(d.reason){out.textContent=d.reason=='onhook'?AEC_I18N.onhook:AEC_I18N.incall;return;}"
         "if(!d.ok){out.textContent=AEC_I18N.noEcho+' '+d.hits+'/'+d.attempts+"
         "' '+AEC_I18N.tries;return;}"
         "var ms=Math.round(d.delay_ms);"
@@ -2695,7 +2701,9 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         i18n_str("aec.js.delay_fmt", "Delay %1ms, tail %2ms, span ~%3ms (%4 taps),"),
         i18n_str("aec.js.consistent", "consistent."),
         i18n_str("aec.js.apply", "Apply %1ms as default"),
-        i18n_str("aec.js.failed", "Measurement failed."));
+        i18n_str("aec.js.failed", "Measurement failed."),
+        i18n_str("aec.js.onhook", "Pick up the handset first (the test needs it off-hook), then click Measure again."),
+        i18n_str("aec.js.incall", "This line is in a call or ringing. Finish or hang up, then pick up and measure again."));
 
     bool fx_on = board_voice_fx_enabled_get();
     off = appendf(buf, cap, off,
@@ -8235,6 +8243,20 @@ static esp_err_t aec_measure_handler(httpd_req_t *req)
     int line = atoi(line_s);
     if (line < 0 || line > 1) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "line 0-1"); return ESP_OK;
+    }
+
+    /* The probe needs the handset up and no call: on-hook there is no earpiece
+     * path to measure, and in a call the far end's audio is in the mix. */
+    tel_state_t tst = telephony_state(line);
+    const char *why = NULL;
+    if (tst == TEL_IDLE) why = "onhook";
+    else if (tst == TEL_INCALL || tst == TEL_RINGING || tst == TEL_RINGBACK ||
+             tst == TEL_BT_PASSTHROUGH) why = "incall";
+    if (why) {
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_sendstr(req, why[0] == 'o' ? "{\"ok\":false,\"hits\":0,\"attempts\":0,\"reason\":\"onhook\"}"
+                                              : "{\"ok\":false,\"hits\":0,\"attempts\":0,\"reason\":\"incall\"}");
+        return ESP_OK;
     }
 
     int hits = 0;

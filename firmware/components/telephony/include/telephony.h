@@ -43,6 +43,7 @@ typedef enum {
                                 * rather than just returning to dial tone */
     TEL_RECORD_BEEP,           /* beep tone playing, recording starts
                                 * when it finishes */
+    TEL_TIMER_ENTRY,           /* dial 846: asking how many minutes (up to 2 digits) */
     TEL_BT_PASSTHROUGH,        /* off-hook while the Bluetooth companion
                                 * (bt_companion.c) owns this line's audio --
                                 * silent, no dial tone, no digit collection,
@@ -61,6 +62,10 @@ typedef enum {
  * No prompt configured is a normal, silent-but-working state: falls
  * straight through to the beep. */
 #define RECORD_PROMPT_NAME "record_prompt.wav"
+
+/* Dial 846 plays this ("How many minutes for the timer?") before waiting for
+ * up to two digits. Missing: a short beep stands in for it. */
+#define TIMER_PROMPT_NAME "timer_prompt.wav"
 
 /* Answering machine's own greeting for `line`, recorded via dial code 999
  * (fixed filename -- re-recording overwrites it directly, reviewed via the

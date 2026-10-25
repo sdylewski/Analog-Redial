@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Regenerates the spoken clips baked into every build (firmware/assets/): operator.wav,
-record_prompt.wav, am_greeting.wav, jenny.wav and the digit clips 0-9 and point.
+record_prompt.wav, timer_prompt.wav, am_greeting.wav, jenny.wav and the digit clips 0-9 and point.
 
   ./gen_bundled_audio.py                 # all of them, in the default voice (Kokoro af_sarah)
   ./gen_bundled_audio.py --only operator.wav 3.wav
@@ -31,6 +31,7 @@ PROMPTS = {  # name -> (text, format)
                      "For other features, please refer to your phone's guide.", "pcm"),
     "record_prompt.wav": ("Record your message after the beep, then hang up.", "pcm"),
     "am_greeting.wav": ("Leave a message after the beep.", "pcm"),
+    "timer_prompt.wav": ("How many minutes for the timer?", "pcm"),
     "jenny.wav": ("If you're trying to reach Jenny, she's not home right now. Please call back later.", "ulaw"),
 }
 DIGITS = {f"{i}.wav": w for i, w in enumerate(
