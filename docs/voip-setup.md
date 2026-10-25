@@ -35,7 +35,7 @@ anywhere else.
 
 This firmware uses one value for both the SIP username and the dialable
 extension — whatever you type into **Settings → VOIP → "Line N
-extension/user"** *is* the phone number, and it's what gets created as the
+number (extension)"** *is* the phone number, and it's what gets created as the
 Asterisk extension too.
 
 ## Dialing between lines on a SIP server
@@ -85,8 +85,10 @@ setup script from its own config, and you copy it to the server yourself.
 
 1. **Check availability** on a number to confirm it's free before you commit
    to it (see below for what this check can and can't tell you).
-2. Settings → VOIP → fill in the SIP server and "Line N extension/user" (and
-   password) → **Save**. Takes effect on reboot.
+2. Settings → VOIP (turn VoIP on first; its settings are folded away until
+   then) → fill in the SIP server and "Line N number (extension)" (and
+   password) → **Save**. Leave the number blank to use the line's
+   board-to-board number. Takes effect on reboot.
 3. Click **Download setup script** — a plain bash script, generated from
    this exact config, that adds this phone's line(s) as SIP peers on the
    Asterisk server without touching any other peers already configured
@@ -94,8 +96,8 @@ setup script from its own config, and you copy it to the server yourself.
    text file if you'd rather read/print/save them separately.
 4. Copy the script to your Asterisk server and run it there, e.g.:
    ```bash
-   scp voip_setup.sh user@your-asterisk-host:
-   ssh user@your-asterisk-host bash voip_setup.sh
+   scp rotary-voip-server-setup.sh user@your-asterisk-host:
+   ssh user@your-asterisk-host bash rotary-voip-server-setup.sh
    ```
 5. Reboot the phone if you haven't already, then confirm the line shows
    "registered" on the VOIP tab.

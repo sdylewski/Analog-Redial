@@ -49,6 +49,8 @@ Every event is a POST with a small JSON body:
 | `ring` | A phone starts ringing | The caller: `name <number>`, `line N`, or `Bluetooth <number>` |
 | `answering_machine` | The answering machine picked up | `VoIP` or `other line` |
 | `recording` | A recording was saved | `message`, `voicemail` or `greeting`, then the file name |
+| `timer` | A timer (dial 846) went off | `done` |
+| `power` | The board restarted after its power supply dipped (a brownout), sent shortly after it starts | `restarted after a brownout` |
 | `test` | The **Send test event** button | |
 
 `line` counts from 0. `time` is Unix seconds, or 0 if the board hasn't set

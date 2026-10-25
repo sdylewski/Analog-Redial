@@ -15,7 +15,7 @@
 > in, the pin shorts the 5 V rail to ground. With the power off, check with a meter that the 5 V pin has no
 > continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The v5 design files in the repository, and v6, now have the footprint fixed.
 
-Design reference for the next-generation board: a 2-layer, ESP32-C6-based
+Design reference for the v5 board: a 2-layer, ESP32-C6-based
 analog-phone-line gateway carrying one or two POTS lines through Silvertel
 AG1171 SLICs and an Everest ES8388 stereo codec, plus an optional Bluetooth
 companion.
@@ -164,7 +164,7 @@ ground island.
 
 > **Never connect the RJ12 jacks to a wall jack or a telephone-company line.**
 > Each one is a telephone-company side (FXS) interface, not a line input: it
-> supplies about 48 V DC off-hook and about 72 V when ringing, which can injure
+> supplies about 48 V DC off-hook and about 60 V AC while ringing (peaks near 90 V), which can injure
 > someone and damage the telephone network. The board is only for connecting to
 > phones directly.
 
@@ -220,8 +220,8 @@ populated and whether **J5**'s jumpers are bridged:
 
 | Build | Populate | Leave unpopulated | J5 jumpers | Firmware |
 |-------|----------|--------------------|------------|----------|
-| **A — Dual line** | **U4**/**J9** (line 0, always), **U3**/**J8** (line 1) | **Card1** (microSD) | **Bridged** (1-2, 3-4, 5-6, 7-8) — routes GPIO18–21 to line 1's SLIC | `CONFIG_BOARD_NUM_LINES=2`, `CONFIG_BOARD_MICROSD=0` |
-| **B — Single line + microSD** | **U4**/**J9** (line 0 only), **Card1** | **U3**, **J8** (line 1) | **Open** (no jumper block) — routes GPIO18–21 to the microSD socket | `CONFIG_BOARD_NUM_LINES=1`, `CONFIG_BOARD_MICROSD=1` |
+| **A — Dual line** | **U4**/**J9** (line 0, always), **U3**/**J8** (line 1) | **Card1** (microSD) | **Bridged** (1-2, 3-4, 5-6, 7-8) — routes GPIO18–21 to line 1's SLIC | Settings → General → Board hardware: **A second phone line** |
+| **B — Single line + microSD** | **U4**/**J9** (line 0 only), **Card1** | **U3**, **J8** (line 1) | **Open** (no jumper block) — routes GPIO18–21 to the microSD socket | Settings → General → Board hardware: **A microSD card (one phone line)** |
 
 Line 0 (**U4**/**J9**) is wired to its own fixed GPIOs and is present on
 every build. Line 1 and microSD are mutually exclusive: whichever one you
@@ -260,9 +260,9 @@ Classic audio carrier to the main board. The carrier is a separate PCB
 (`Bluetooth/BM64/BM64_Board_v1/` in the repository) that plugs onto it. Fitting this on SMD4 instead
 means serious hand-wiring, not a drop-in option.
 
-**Which module.** The **BM64** carrier is the supported choice (about $14, working). The next option
-to try is the **DFRobot DFR0781 (BT401)** module, about $3.50, hand-wired to the same header; it has a
-text command set with call control, and has not been tried yet.
+**Which module.** The **BM64** carrier is the supported choice (about $14, working). The cheaper
+**DFRobot DFR0781 (BT401)** module, about $3.50, hand-wired to the same header, has a text command set
+with call control and a firmware driver, but hasn't been tested on a real module yet.
 
 The status LED shows pairing/connection state once this is fitted and
 working — see [the status light reference](setup.md#7-the-status-light).
@@ -354,7 +354,7 @@ symptoms of getting it wrong, is in
 
 | Doc | What's in it |
 |-----|--------------|
-| [`hardware-smd4.md`](hardware-smd4.md) | The current, fabricated-and-tested board |
+| [`hardware-smd4.md`](hardware-smd4.md) | The v4 board, the one with the longest track record |
 | [`building.md`](building.md) | Hand-solder order, pre-power checks, first power-on |
 | [`bom.md`](bom.md) | Parts list / shopping checklist |
 | [`archive/hardware/smd5.md`](https://github.com/sdylewski/Analog-Redial/blob/main/archive/hardware/smd5.md) | Dev notes: jumper plan, MCU footprint details, open questions |

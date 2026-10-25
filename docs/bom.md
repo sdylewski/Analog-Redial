@@ -33,7 +33,7 @@ The firmware checks: put a card in a board set up for two lines and it shuts
 line 1 off and shows a warning in the web interface until you remove the
 card or switch the board to single-line in Settings → General → Board hardware.
 
-Without microSD, recordings go to internal flash, about 4 MB.
+Without microSD, recordings go to internal flash: about 4 MB on a 16 MB module, 1.5 MB on an 8 MB one.
 
 **Your own gadgets.** With the jumpers off and no card in the slot, the four
 pins (GPIO18–21) are free on the odd-numbered pins of **J5**:
@@ -137,7 +137,7 @@ None of these are needed for any feature. Generic 2.54 mm pin headers.
 | Ref | What it is | What it's for |
 |-----|-----------|---------------|
 | **J7** | 1×3 audio monitor output | Mirrors the earpiece audio: scope it, feed a powered speaker, or listen in without picking up. Needs **C10** and **C11** fitted (below) |
-| **J3**, **J4** | 1×2 each, GPIO16 and GPIO17 | Spare ESP32 pins: a button, an LED, a relay, or a serial port. Not available with the Bluetooth companion, which uses them during setup|
+| **J3**, **J4** | 1×2 each, GPIO16 and GPIO17 | Spare ESP32 pins: a button, an LED, a relay, or a serial port. Not available with the Bluetooth companion, which uses them for its serial link |
 
 **C10/C11, for J7 only:** fit two **1 µF** non-polarized film or ceramic
 capacitors in the 5 mm disc footprints. That passes the whole phone band.
@@ -158,8 +158,9 @@ and resistors that are already on the board.
   time it runs. That needs two thin wires from the companion's 2-pin programming pads to the main
   board's J5 header (the firmware looks for them on GPIO19/20; `bm64_diagpins` in the console tells it
   if they're elsewhere), and the board configured as one line with no microSD. After that the wires come off.
-- **Cheaper option, not yet tried:** the DFRobot **DFR0781** (BT401 module), about $3.50, with call control over a
-  simple text command set. It would be hand-wired to the same header.
+- **Cheaper option, untested:** the DFRobot **DFR0781** (BT401 module), about $3.50, with call control over a
+  simple text command set, hand-wired to the same header. The firmware has a driver for it (choose it in
+  Settings → General → Board hardware), but it hasn't been tried on a real module yet.
 
 ---
 
@@ -180,7 +181,7 @@ The v5 board also takes a cheap 30-pin clone. They aren't equivalent:
 | Part | Genuine ESP32-C6-DevKitC-1 | AliExpress clone, about $4 |
 | Fitting | Drops straight in | Move two solder jumpers on back of board, **JP2** and **JP3** |
 | USB flashing and console | Works | Works once the jumpers are set |
-| Status | Known good | Works, with one rework (see the warning below) |
+| Status | Known good | Works; on a v5 board made before 2026-10-24, remove one pin first (see the warning above) |
 
 <table>
   <tr>

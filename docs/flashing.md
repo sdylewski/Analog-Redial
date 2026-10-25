@@ -44,9 +44,9 @@ cd analog-redial/firmware
 
 ## 4. Flash it
 
-Plug the board into your computer through the **DevKit's Right USB-C port**<br>
-(note there are 2 usb-c ports on the ESP-32-C6-DevelKit. Use the right one for USB, the left one is for UART)<br>
-then:
+Plug the board into your computer through the DevKit's USB-C port marked
+**USB** (the right-hand one). The DevKitC-1 has two; the other, marked
+**UART**, isn't connected to the console on this board. Then:
 
 ```bash
 cd bringup
@@ -60,28 +60,31 @@ builds the matching image and flashes it. Later flashes don't need
 <details>
 <summary>Prefer to drive <code>idf.py</code> yourself?</summary>
 
-From `firmware/`, run `idf.py menuconfig` and under **Board configuration**
-set:
-
-| Option | Choose |
-|--------|--------|
-| **Target board type** | **SMD4** for a v4 board, **SMD5** for v5. Set this first |
-| **Number of active phone lines** | `1` or `2` |
-| **Use microSD instead of line 2** | Only for the single-line + microSD build |
-
-Then:
+Each board type builds in its own directory with its own settings. From
+`firmware/`, for a v4 board (the default `build/` directory):
 
 ```bash
 idf.py build
 idf.py -p <PORT> flash monitor
 ```
 
+For a v5 board, create its directory once, then build and flash into it:
+
+```bash
+idf.py -B build.smd5 -D SDKCONFIG="build.smd5/sdkconfig" \
+  -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.smd5.defaults" set-target esp32c6
+idf.py -B build.smd5 -D SDKCONFIG="build.smd5/sdkconfig" -p <PORT> flash monitor
+```
+
+Always pass the same `-B` and `-D SDKCONFIG=` pair, or the build can fall back to
+the v4 settings.
+
 `<PORT>` is the board's serial device: `/dev/cu.usbmodem…` on macOS,
 `/dev/ttyACM…` on Linux, `COM…` on Windows. Leave `-p` off to let idf.py
 find it. Quit the monitor with **Ctrl-]**.
 
-On a module with **8 MB** of flash, build into a separate directory with the
-8 MB settings:
+On a module with **8 MB** of flash, use a separate directory with the 8 MB
+settings added (`smd4` here; use `smd5` for a v5 board):
 
 ```bash
 idf.py -B build.smd4_8mb -D SDKCONFIG="build.smd4_8mb/sdkconfig" \
@@ -89,6 +92,10 @@ idf.py -B build.smd4_8mb -D SDKCONFIG="build.smd4_8mb/sdkconfig" \
   set-target esp32c6
 idf.py -B build.smd4_8mb -D SDKCONFIG="build.smd4_8mb/sdkconfig" -p <PORT> flash
 ```
+
+The number of phone lines and microSD aren't build options: set them after
+flashing in Settings → General → Board hardware (or with
+`first_setup.py --lines`).
 
 </details>
 

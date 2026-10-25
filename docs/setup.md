@@ -36,7 +36,7 @@ named the board, it's `http://<name>.local` instead.
   change the settings. Settings → General → **Web password** turns on a
   password: settings pages can still be viewed, but changing anything asks
   you to sign in, and so does everything to do with recordings and stored
-  audio: the Recordings page, playing, downloading and deleting them (by default for 30 days, or until the board restarts). Scripts
+  audio: the Recordings page, playing, downloading and deleting them. Scripts
   pass it with `curl -u admin:PASSWORD`, or by setting `REDIAL_PASSWORD`
   for the tools in `firmware/bringup/`. The board talks plain HTTP, so the
   password crosses your network unencrypted: it keeps out casual changes
@@ -63,7 +63,7 @@ defaults:
 | **314** | Reads pi aloud: "three point one four one five...", the first 100 decimals. Hang up to stop |
 | **321** | Ring the other phone (two-line boards) |
 | **412** | A dial-up modem sound, for old times' sake |
-| **846** | Timer ("TIM" on the keypad): asks "How many minutes for the timer?", then dial 1 or 2 digits (1-99; 0 cancels). When it's up the phone rings, up to four times, until you pick up, then says "Your timer is done." (change the words in Settings → Dial Codes & Prompts → Timer). One timer per line, forgotten if the board restarts |
+| **846** | Timer ("TIM" on the keypad): asks "How many minutes for the timer?", then dial 1 or 2 digits (1-99; 0 cancels). When it's up the phone rings, up to four times, until you pick up, then says "Your timer is done." (change the words in Settings → Dial Codes, Timer card). One timer per line, forgotten if the board restarts |
 | **8675309** | A short spoken message: "If you're trying to reach Jenny, she's not home right now." |
 | A board's 4-digit number | A VoIP call straight to another Analog Redial board on your network, no server. Each board's number is on its Settings → VOIP page ([VoIP setup](voip-setup.md)) |
 | **555** + 4 digits | A VoIP call to that extension on your SIP server ([VoIP setup](voip-setup.md)) |
@@ -127,14 +127,16 @@ Click any picture for the full page.
     <td><a href="pics/settings-dialcodes.png"><img src="pics/thumbs/settings-dialcodes.png" alt="Dial codes and prompts"></a></td>
     <td valign="top"><b>Settings → Dial Codes.</b> Every clip code
     and its audio, editable: change a code, upload new audio, or add a new
-    one. Also the operator message, the record-message prompt and the pin
-    outputs.</td>
+    one. Also the operator message, the record-message prompt, the timer's
+    spoken question and message, and the pin outputs.</td>
   </tr>
   <tr>
     <td><a href="pics/settings-voip.png"><img src="pics/thumbs/settings-voip.png" alt="VoIP settings"></a></td>
-    <td valign="top"><b>Settings → VOIP.</b> SIP server and per-line
-    extension, registration status, and a generated setup script for your
-    Asterisk server. Walkthrough in §6 below.</td>
+    <td valign="top"><b>Settings → VOIP.</b> Each line's board-to-board
+    number and the other phones found on your network; then, folded away until
+    VoIP is turned on, the SIP server and per-line extension, registration
+    status, and a generated setup script for your Asterisk server. Walkthrough
+    in §6 below.</td>
   </tr>
   <tr>
     <td><a href="pics/settings-hardware.png"><img src="pics/thumbs/settings-hardware.png" alt="Hardware settings"></a></td>
@@ -178,8 +180,11 @@ To build your own clips into every firmware image instead, see
 Each dial code's file name is editable in Settings → Dial Codes, so a
 built-in code can point at a different clip without being removed.
 
-Use audio you have the rights to. The board ships with the operator message,
-the answering machine's default greeting and a public-domain modem sound.
+Use audio you have the rights to. The board ships with its spoken prompts
+(the operator message, the record-message prompt, the timer's question and
+message, the answering machine's default greeting, the Jenny message and the
+spoken digits), made with an open text-to-speech voice, and a public-domain
+modem sound.
 
 ## 6. VoIP
 
@@ -206,7 +211,8 @@ The DevKit's RGB LED shows what the board is doing. It's deliberately dim.
 | **Off** | Running normally |
 | **Yellow, fast blink** | Installing a firmware update. Don't unplug it |
 | **Amber, double blink every 2 s** | The board restarted because its power supply dipped (a brownout). Dismiss the banner on any page; use a 5 V, 2 A supply |
-| **Blue** | Bluetooth pairing (v5) |
+| **Blue, slow blink** | Bluetooth pairing (v5) |
+| **Blue, solid** (5 s) | A phone just connected over Bluetooth (v5) |
 
 ## 8. The BOOT button: rescue and reset
 

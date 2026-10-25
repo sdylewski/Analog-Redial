@@ -162,7 +162,7 @@ static void discovery(esp_mqtt_client_handle_t c, int nlines)
     snprintf(body, sizeof(body),
              "{\"name\":\"Phone event\",\"unique_id\":\"%s_event\",\"has_entity_name\":true,"
              "\"state_topic\":\"%s\",\"event_types\":[\"offhook\",\"onhook\",\"dial\",\"wrong_number\","
-             "\"ring\",\"answering_machine\",\"recording\",\"test\"],\"availability_topic\":\"%s\",%s}",
+             "\"ring\",\"answering_machine\",\"recording\",\"timer\",\"power\",\"test\"],\"availability_topic\":\"%s\",%s}",
              s_id, st, avail, dev);
     pub(c, t, body, 1, 1);
 

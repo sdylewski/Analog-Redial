@@ -41,7 +41,7 @@ Lowest parts first, tallest last.
 | 7 | **U4** | AG1171 SLIC, line 0 | 14-pin module, stands upright. Match pin 1 to the silkscreen **before** soldering: desoldering a 14-pin SIL module is miserable |
 | 8 | **U3** | AG1171 SLIC, line 1 | Second line only |
 | 9 | **J1** | DC barrel jack | Optional; chunky, needs a hot iron and a moment to wet |
-| 10 | **U1** | ESP32-C6 DevKit | Tallest part, so it goes last |
+| 10 | **U1** | ESP32-C6 DevKit | Tallest part, so it goes last. v5 with the 30-pin clone: set **JP2**/**JP3** first, and on a v5 board made before 2026-10-24 remove the clone's bottom-right 5V pin ([why](bom.md#microcontroller-module-32-pin-or-30-pin-clone)) |
 
 **Keeping the DevKit square:** tack one pin at each far corner, check the
 module sits flat and square against the board, then solder the rest.
@@ -86,7 +86,7 @@ Power it with **nothing plugged into the phone jacks yet**.
 
 - The DevKit's LED should come on. Nothing should get hot; if anything does,
   pull the power and go back to [§5](#5-check-before-power).
-- Measure the 5 V and 3.3 V rails. Both should be within a few percent.
+- Measure the 5 V and 3.3 V rails. Both should be within a few percent (from the DC jack the 5 V rail sits about 0.4 V below the supply, after the OR diode).
 - Only then plug in a phone.
 
 The board has no firmware yet, so it won't do anything useful. That's

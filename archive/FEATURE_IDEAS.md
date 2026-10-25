@@ -189,3 +189,26 @@ What it would need:
 Scope is about the same as the pin outputs work: a small `auxpins` change,
 one card option, a few lines of discovery, and a test with a real switch on
 J5. Not started.
+
+## Calling out through a phone service provider (SIP trunk)
+
+Idea, not built (2026-10-24). A "Phone service provider" card so a line can
+register with a commercial SIP provider and dial real phone numbers, without
+running Asterisk.
+
+- **Google Voice can't be done.** Google dropped open XMPP access in 2014, gave
+  only Obihai a proprietary SIP variant, and since Obihai's 200-series ended in
+  2021 no device from any vendor connects to consumer Google Voice. Workarounds:
+  forward Google Voice to a number on a SIP provider (incoming only), or place the
+  call on a Bluetooth-paired phone.
+- **Standard SIP providers look feasible**, e.g. VoIP.ms (its wiki: UDP 5060,
+  digest auth, G.711 u-law). The UA already does UDP registration with MD5 digest
+  auth and refresh, PCMU, hostname servers and `rport`.
+- **What's missing:** a call-out dial rule (10 digits, or 1 + 10, which is the
+  Bluetooth dial-out form, so one or the other per line); a separate auth username,
+  E.164 number formatting (`+1...`), caller ID, an optional outbound proxy;
+  a clear 911 block or warning (provider E911 needs a registered address); a
+  settings card; testing against a real account.
+- **Out of scope for a first version:** TLS/SRTP. The UA has neither, and TLS
+  costs about 35 KB of heap on a board that's already tight; providers that
+  require encryption (check Twilio/Telnyx) are out until then.

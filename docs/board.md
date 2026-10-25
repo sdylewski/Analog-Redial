@@ -69,7 +69,7 @@ Quoted October 2026: 1.6 mm, lead-free HASL, top-side assembly only.
 | Import tariff, about 47.5% of merchandise | $16.63 |
 | **Delivered total** | **$85.53** |
 | **Per board** | **$17.11** |
-| Per board with the hand-solder parts (about $19) | **about $36** |
+| Per board with the hand-solder parts (about $19, plus about $1 of DigiKey shipping) | **about $37** |
 
 JLCPCB's minimum order is 5, so you end up with four spare boards. Most of
 the price is fixed set-up and shipping.
@@ -112,7 +112,7 @@ Budget about $2 in SMT parts, plus about $3 setup per unique Extended part.
 
 **Never connect the phone ports to a wall jack or a telephone-company line.**
 Each phone port is a telephone-company side (FXS) interface, not a line
-input: it supplies about 48 V DC off-hook and about 72 V when ringing. That
+input: it supplies about 48 V DC off-hook and about 60 V AC while ringing, with peaks near 90 V. That
 can injure someone and damage the telephone network. The board is only for
 connecting to phones directly; it reaches the outside world over Wi-Fi
 (VoIP), and nothing on it connects to a telco line.

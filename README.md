@@ -65,8 +65,9 @@ Bluetooth is the only one that needs an extra board.
   up to 10 digits (spaces, dashes and parentheses are ignored). Add your own
   codes and audio clips from the browser and give any built-in
   code a different number. 
-  	- Play an audio file after dialing a number: **421** plays dial-up modem sounds
+  	- Play an audio file after dialing a number: **412** plays dial-up modem sounds
   	- Respond to any number: **314** reads pi aloud.
+  	- A kitchen timer: dial **846**, then the number of minutes, and the phone rings when time is up.
   	- Optional digit readback speaks each digit you dial (**822**
   on, **821** off)
 - **Calls.** Line-to-line calls with ringback and busy tones. 
@@ -146,7 +147,7 @@ JLCPCB's minimum is five, so it's about $110 up front, with four spare PCBs.
 The five-board Bluetooth figure is $15 a board plus about $5 shipping. Buying
 the hand-solder parts from AliExpress saves $7 per board.
 
-You'll also want a 2A USB-C or 5V DC charger and one or two analog phones. 
+You'll also want a 2 A USB-C charger (or a 5.5-6 V, 2 A DC supply for the DC jack) and one or two analog phones. 
 
 Most of a small order is fixed PCB setup fees, so boards get cheaper when people
 order together. If you'd like a board from a group order,
@@ -156,7 +157,7 @@ commitment, it just tells us how many people want one.
 Price breakdown: [Get a board](docs/board.md#what-it-costs).
 
 ---
-<br><img src="docs/pics/v5_board_annotated.png" width="600" alt="Analog Redial v2 board">
+<br><img src="docs/pics/v5_board_annotated.png" width="600" alt="Analog Redial v5 board, with its parts labelled">
 
 ## Build one
 

@@ -2,7 +2,7 @@
 
 # Board reference: v4 (SMD4)
 
-Design reference for the current board: a 2-layer, ESP32-C6-based
+Design reference for the v4 board: a 2-layer, ESP32-C6-based
 analog-phone-line gateway carrying one or two POTS lines through Silvertel
 AG1171 SLICs and an Everest ES8388 stereo codec. You don't need this page to
 build one; it's for understanding or modifying the design.
@@ -16,8 +16,8 @@ or order it.
 
 **No Bluetooth on this board.** The BM64 companion needs a dedicated 3.3 V
 rail, a GPIO for its MFB pin and an 8-pin board-to-board header, none of
-which SMD4 has — fitting one means hand-wiring and board modifications. It's
-designed in on the next spin: see [`hardware-smd5.md`](hardware-smd5.md).
+which SMD4 has — fitting one means hand-wiring and board modifications. v5
+has it designed in: see [`hardware-smd5.md`](hardware-smd5.md).
 
 ## 1. Board overview
 
@@ -142,7 +142,7 @@ ground island.
 
 > **Never connect the RJ12 jacks to a wall jack or a telephone-company line.**
 > Each one is a telephone-company side (FXS) interface, not a line input: it
-> supplies about 48 V DC off-hook and about 72 V when ringing, which can injure
+> supplies about 48 V DC off-hook and about 60 V AC while ringing (peaks near 90 V), which can injure
 > someone and damage the telephone network. The board is only for connecting to
 > phones directly.
 
@@ -196,8 +196,8 @@ populated and whether **J5**'s jumpers are bridged:
 
 | Build | Populate | Leave unpopulated | J5 jumpers | Firmware |
 |-------|----------|--------------------|------------|----------|
-| **A — Dual line** | **U4**/**J9** (line 0, always), **U3**/**J8** (line 1) | **Card1** (microSD) | **Bridged** (1-2, 3-4, 5-6, 7-8) — routes GPIO18–21 to line 1's SLIC | `CONFIG_BOARD_NUM_LINES=2`, `CONFIG_BOARD_MICROSD=0` |
-| **B — Single line + microSD** | **U4**/**J9** (line 0 only), **Card1** | **U3**, **J8** (line 1) | **Open** (no jumper block) — routes GPIO18–21 to the microSD socket | `CONFIG_BOARD_NUM_LINES=1`, `CONFIG_BOARD_MICROSD=1` |
+| **A — Dual line** | **U4**/**J9** (line 0, always), **U3**/**J8** (line 1) | **Card1** (microSD) | **Bridged** (1-2, 3-4, 5-6, 7-8) — routes GPIO18–21 to line 1's SLIC | Settings → General → Board hardware: **A second phone line** |
+| **B — Single line + microSD** | **U4**/**J9** (line 0 only), **Card1** | **U3**, **J8** (line 1) | **Open** (no jumper block) — routes GPIO18–21 to the microSD socket | Settings → General → Board hardware: **A microSD card (one phone line)** |
 
 Line 0 (**U4**/**J9**) is wired to its own fixed GPIOs and is present on
 every build. Line 1 and microSD are mutually exclusive: whichever one you
@@ -244,7 +244,7 @@ modifying the layout:
 |-----|--------------|
 | [`building.md`](building.md) | Hand-solder order, pre-power checks, first power-on |
 | [`bom.md`](bom.md) | Parts list / shopping checklist |
-| [`hardware-smd5.md`](hardware-smd5.md) | The next spin: Bluetooth, LDO, dual MCU footprint |
+| [`hardware-smd5.md`](hardware-smd5.md) | v5: Bluetooth, its LDO, the dual MCU footprint |
 | [`flashing.md`](flashing.md) | Toolchain, flashing, hardware self-test |
 | [`signal-levels.md`](https://github.com/sdylewski/Analog-Redial/blob/main/archive/signal-levels.md) | Audio and logic levels reference |
 | [KiCad project](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v4) | The real source of truth for anything not covered above |

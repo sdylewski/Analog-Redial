@@ -40,35 +40,35 @@ Legend: ✅ working · 🧪 experimental, off by default · 🔜 coming soon · 
 | **Pulse (rotary) dialing** | ✅ | SHK pulse counter, inter-digit timeout → digit |
 | **DTMF (touch-tone) dial detection** | ✅ | Goertzel detector on ADC stream |
 | **DTMF generation** | ✅ | For feedback / outbound to line |
-| **Dial/ringback/busy tones, per language** | ✅ | Region-specific frequency + cadence, chosen by Settings → General → Language (`tones/tone_regions.h`, builder-editable): US default plus Italy/Germany/France/Japan/China/Spain, generic ITU-T European fallback otherwise. Sourced from ITU Operational Bulletin No. 781's country tone annex. Mechanical ringing cadence itself is not regionalized (US 2s/4s default) |
+| **Dial/ringback/busy tones, per language** | ✅ | Region-specific frequency + cadence, chosen by the dial tone region on Settings → Phone, which can follow the UI language (`tones/tone_regions.h`, builder-editable): US default plus Italy/Germany/France/Japan/China/Spain, generic ITU-T European fallback otherwise. Sourced from ITU Operational Bulletin No. 781's country tone annex. Mechanical ringing cadence itself is not regionalized (US 2s/4s default) |
 | **Per-digit dial-plan dispatch** | ✅ | Data-driven dialplan table |
 | **Dial codes** (Settings → Dial Codes) | ✅ | One mutable code↔filename table covers both builtin "silly audio" clips and anything a user adds — both the dial code AND the audio file are independently editable/uploadable at runtime, no rebuild |
 | **Call the other phone (inter-line, fully offline)** | ✅ | Local bridge between lines — no server, no network required |
 | **Busy when other line off-hook** | ✅ | State machine |
-| **Audio clip playback** | ✅ | Browser upload (Settings → Dial Codes / Operator) converts any common WAV (any sample rate/bit-depth/channel count) to 8kHz mono automatically. Optional MP3 upload support (off by default — real RAM cost). One novelty clip (a public-domain dial-up modem sound, code 412) ships by default; everything else is left for the builder to add, since most source audio is personal or copyrighted |
+| **Audio clip playback** | ✅ | Browser upload (Settings → Dial Codes / Operator) converts any common WAV (any sample rate/bit-depth/channel count) to 8kHz mono automatically. Optional MP3 upload support (off by default — real RAM cost). Two clips ship by default (a public-domain dial-up modem sound, code 412, and the Jenny message, code 8675309); everything else is left for the builder to add, since most source audio is personal or copyrighted |
 | **Record to web archive (211)** | ✅ | 8 kHz mono WAV, timestamped filename (UTC), downloadable/playable from `/recordings` |
 | **Intercom** | 🧪 off by default (Settings → Phone, 2-line boards) | Pick up and don't dial: after a wait (default 4 s, 1–30) the other line rings with a short double ring (0.4 s, 0.2 s gap, 0.4 s, 2 s pause), distinct from an outside call. Dial a digit first and it's a normal call, so there is no mode to switch. If the other handset is already up and idle the lines connect at once; if it is busy you hear busy |
 | **Voice effects during a call** | 🧪 experimental, off by default (Settings → Phone) | Press or dial **1** Dalek, **2** chipmunk, **3** Darth Vader, **4** 8-bit, **5** robot, **6** tremolo, **7** distortion, **0** normal — mid-call, on either phone; both hear it. Works on local and VoIP calls (the board where the key is pressed changes both voices). Or dial 322–324 to start a call as chipmunk, Vader or Dalek. Chipmunk and Vader add ~15 ms; the rest add no delay. On/off in Settings → Phone |
 | **Pin dial codes** (Settings → Dial Codes → Pin outputs) | ✅ one-line boards without microSD | Up to four codes, each drives one of GPIO18–21 (header J5) high for 0–3600 s, or toggles it: relay, MOSFET, buzzer, light. Refused while a card is in the socket, the board is set to two lines or microSD, or a J5 shunt could connect the pin to line 1's chip (shown on the card). Same code rules as clip codes, in both directions |
 | **Internet radio** | 💡 | An idea, not built: dial a code and stream a station. No dial codes are assigned |
-| **Operator help / TTS (dial 0)** | ✅ | No on-device TTS; `operator.wav` ships pre-rendered by default. Text-to-speech generation (`gen_prompt.py`, host-side) can re-render it, the record-message prompt, and the answering machine's default greeting from edited text |
+| **Operator help / TTS (dial 0)** | ✅ | No on-device TTS; `operator.wav` ships pre-rendered by default. Text-to-speech generation (`gen_prompt.py`, host-side) can re-render it, the record-message prompt, the timer's question and message, and the answering machine's default greeting from edited text; with a VoIP provisioner that offers text-to-speech, the board does it itself ("Save & generate on server", "Update spoken audio") |
 | **Answering machine** (dial 899 to record a greeting) | ✅ | Per line: rings N times, plays that line's own greeting (or the shared default if none is recorded), then records the caller. Needs VOIP or a second line to actually be reachable |
-| **Bluetooth (BM64 companion)** | ✅ v5 board | Pair a mobile and the analog phone becomes its handset: the bell rings for an incoming call, lift to answer, hang up to end it, caller ID in the activity log, and dial out with 1 + area code + number. Music playing from the mobile comes through the handset when you lift it, with no dial tone over it. The BM64's audio configuration is written to the module automatically the first time (needs its two programming leads once; see [`hardware-smd5.md`](hardware-smd5.md) §9). A cheaper module, the DFRobot BT401, is next to be tried |
+| **Bluetooth (BM64 companion)** | ✅ v5 board | Pair a mobile and the analog phone becomes its handset: the bell rings for an incoming call, lift to answer, hang up to end it, caller ID in the activity log, and dial out with 1 + area code + number. Music playing from the mobile comes through the handset when you lift it, with no dial tone over it. The BM64's audio configuration is written to the module automatically the first time (needs its two programming leads once; see [`hardware-smd5.md`](hardware-smd5.md) §9). The cheaper DFRobot BT401 module has a driver too (Settings → General → Board hardware), but hasn't been tested on a real module yet |
 | **Home Assistant** (Settings → HA) | 🧪 | Webhook and MQTT auto-discovery: every pickup, hang-up, dial code and ring becomes an event; Home Assistant can ring a phone or fire a pin output back. Verified against Home Assistant Core (events, discovery, the ring button); the REST sensor and command examples are untested. See [Home Assistant](home-assistant.md) |
 | **Low-power idle** (Settings → Hardware) | ✅ on by default | After a few idle minutes (default 5) Wi-Fi power-save, an idle audio pipeline and CPU scaling cut the draw; a pickup restores everything. Each option can be switched off |
 | **Line audio level check** (Settings → Diagnostics) | ✅ | Plays a test tone on a line, steps the earpiece level down from the default until distortion is under 5%, and recommends a level; one button applies it |
-| **Timer (dial 846)** | ✅ | Asks "How many minutes for the timer?" (the clip is `timer_prompt.wav`; a short beep stands in if it's missing), then takes one or two digits: 1-99 minutes, 0 cancels. A single digit starts after 3 seconds. When time is up an on-hook phone rings 6 seconds, four times 20 seconds apart, even in quiet hours, until picked up; a phone that's already off-hook on dial tone hears the message at once. Lifting the handset plays the spoken message (default "Your timer is done."; the clip is `timer_done.wav`, and a beep stands in if it's missing). Both the question and the message have editable text on Settings → Dial Codes & Prompts → Timer. One timer per line, kept in memory only |
+| **Timer (dial 846)** | ✅ | Asks "How many minutes for the timer?" (the clip is `timer_prompt.wav`; a short beep stands in if it's missing), then takes one or two digits: 1-99 minutes, 0 cancels. A single digit starts after 3 seconds. When time is up an on-hook phone rings 6 seconds, four times 20 seconds apart, even in quiet hours, until picked up; a phone that's already off-hook on dial tone hears the message at once. Lifting the handset plays the spoken message (default "Your timer is done."; the clip is `timer_done.wav`, and a beep stands in if it's missing). Both the question and the message have editable text on the Timer card under Settings → Dial Codes. A single digit followed by hanging up also starts it. One timer per line, kept in memory only |
 | **Firmware updates from the web page** | ✅ | Settings → Hardware → Firmware: **Check for updates** reads the release list from GitHub (through your browser) and **Install** hands the right image to the board, which installs it into the spare slot and reverts by itself if it fails to start. A board with the old flash layout needs one USB reflash first. Uploading a .bin by hand still works |
 | **Call recording** (Settings → Diagnostics) | ✅ | Arm it, lift a handset: the whole call (dial tone, dialing, voice) is saved to the microSD card as a stereo WAV, then it switches itself off |
 | **Power-supply warning** | ✅ | Restarts are counted in flash (Settings → Hardware → Restarts). After a brownout restart: an amber blink on the status LED, a banner on every page, and a falling tone on the next pickup |
 | **Language** | ✅ | One language for the whole phone, set at setup time — no in-use switching. UI string translations are plumbed in (`i18n_str()`) but only English ships; the language picker greys out any language without a translation file on the board |
 | **Digit readback on/off** | ✅ | Explicit setting (dial 821/822). Each dialled digit is spoken from the bundled `0.wav`..`9.wav`, or a touch-tone burst if those are missing |
 | **Pi (dial 314)** | ✅ | Reads "three point one four one five..." aloud, 3 and the first 100 decimals, one digit clip at a time after a one-second pause, with a short breath after every 5 digits (about 50 seconds in all). A built-in code (recodable under Dial Codes); hang up to stop |
-| **Wrong-number handling** | ✅ | Unmatched 3+ digit → prompt + dial tone |
+| **Wrong-number handling** | ✅ | Unmatched 3+ digits → reorder tone for 3 s, then dial tone |
 | **VoIP outbound (555-xxxx)** | ✅ | Embedded SIP UA + RTP/G.711; digest auth |
 | **VoIP inbound** | ✅ | Inbound INVITE rings the line; answer on off-hook |
 | **VoIP setup (Settings → VOIP)** | ✅ | Automatic: claim a number from the [VoIP provisioner](https://github.com/sdylewski/Analog-Redial/blob/main/server/voip-provisioner/README.md) running next to Asterisk (HMAC-signed requests, per-board tokens). By hand: a web form plus a downloadable Asterisk setup script |
-| **Board-to-board calls, local VoIP (Settings → VOIP)** | 🧪 | Boards on the same Wi-Fi call each other with no server, for phones that can't share one two-line board: each line gets a free 4-digit number the first time the board is on your network (starting with 6, 7 or 9, never 1, which Bluetooth dial-out uses; change it any time), and other boards dial it. The same four digits are the default extension on a VoIP server (other phones there dial 555 + the digits). Phones on the network that have no number yet are listed as "not set up". Boards find each other over mDNS and call directly (SIP + RTP, same audio path as VoIP); a number already used by another board is refused. The VoIP server section starts folded away until VoIP is turned on |
+| **Board-to-board calls, local VoIP (Settings → VOIP)** | ✅ | Boards on the same Wi-Fi call each other with no server, for phones that can't share one two-line board: each line gets a free 4-digit number the first time the board is on your network (starting with 6, 7 or 9, never 1, which Bluetooth dial-out uses; change it any time), and other boards dial it. The same four digits are the default extension on a VoIP server (other phones there dial 555 + the digits). Phones on the network that have no number yet are listed as "not set up". Boards find each other over mDNS and call directly (SIP + RTP, same audio path as VoIP); a number already used by another board is refused. The VoIP server section starts folded away until VoIP is turned on |
 | **Web UI (status/log/recordings)** | ✅ | `esp_http_server`; settings page with WiFi/mode tabs |
 | **WiFi provisioning (first boot / factory reset)** | ✅ | No creds, or none in range after 3 tries each → open SoftAP (named after the board once it has one) + captive setup page; BOOT-button hold (3 s) forces it without touching saved creds, (10 s) wipes them. Remembers several networks and reconnects to whichever is strongest |
 | **Event log** | ✅ | Two tiers: a short activity feed (calls, recordings, dial errors) on the Status page, and the full ring-buffer debug log under Settings → Diagnostics |
@@ -140,26 +140,30 @@ debug log, and runtime log-level control), `webhook` / `mqtt_ha` (Home Assistant
 
 | Task | Job |
 |------|-----|
-| `audio_io` | High-priority I²S read/write loop, fixed frame size (e.g. 10 ms) |
-| `line0_fsm`, `line1_fsm` | Per-line telephony state machines |
-| `ring0/1` | Ring cadence (spawned on demand) |
-| `voip` | SIP signaling + RTP |
-| `console`/`httpd` | Bring-up console / web UI |
+| `audio_io` | High-priority I²S read/write loop, 10 ms frames at 48 kHz; tones, bridging and taps |
+| `tel_fsm` | The telephony state machine for both lines: hook, digits, tones, calls, timers |
+| `ag1170` | SLIC monitor: hook debounce, pulse counting, ring cadence |
+| `sip`, `rtp_rx`, `rtp_tx` | VoIP signalling and G.711 media |
+| `player`, `recorder` | Clip playback and message recording, one task per clip or recording |
+| `homecall` | Finds other boards on the network and advertises this one |
+| `wifi_mgr` | Wi-Fi connection manager (saved networks, setup network) |
+| `console` / `httpd` | Bring-up console / web UI |
 
-### VoIP-ready seams
+### VoIP seams
 
-1. **`audio` exposes channel taps**: `audio_get_rx_frame(line)` /
-   `audio_put_tx_frame(line)` in 8 kHz mono PCM (resampled from the 48 kHz
-   codec stream). RTP just reads/writes these.
-2. **`telephony` calls an abstract call backend**: local inter-line bridge
-   *or* `voip`. The FSM doesn't care which; it calls
-   `call_backend->dial()/answer()/hangup()`.
-3. **`voip` events** (`INCOMING`, `ANSWERED`, `CLOSED`) feed the same FSM
-   inputs the local bridge uses.
+1. **Audio taps.** RTP reads a line's microphone audio from `audio` (`audio_rx_read`,
+   or the echo-cancelled `audio_aec_read`) and writes the far end's audio into the
+   line's external stream (`audio_ext_write_downlink`), converting between
+   8 kHz G.711 and the codec's 48 kHz.
+2. **One call API.** `telephony` places and ends calls with `voip_dial()` (through
+   a SIP server), `voip_dial_local()` (straight to another board), `voip_answer()`
+   and `voip_hangup()`.
+3. **Events into the same state machine.** `voip` reports `INCOMING`, `ANSWERED`
+   and `CLOSED`, which `telephony` treats like the matching events of a local call.
 
-This means the entire telephony stack (dialing, tones, ring, dial-plan) is
-testable and useful **before** any SIP code exists — and it's why the board
-can act as a standalone two-phone exchange with zero network dependency.
+So the whole telephony stack (dialing, tones, ring, dial plan) works with no
+network at all, and the board is a standalone two-phone exchange until VoIP is
+used.
 
 ---
 
