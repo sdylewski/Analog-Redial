@@ -65,7 +65,8 @@ defaults:
 | **412** | A dial-up modem sound, for old times' sake |
 | **846** | Timer ("TIM" on the keypad): asks "How many minutes for the timer?", then dial 1 or 2 digits (1-99; 0 cancels). When it's up the phone rings, up to four times, until you pick up, then says "Your timer is done." (change the words in Settings → Dial Codes & Prompts → Timer). One timer per line, forgotten if the board restarts |
 | **8675309** | A short spoken message: "If you're trying to reach Jenny, she's not home right now." |
-| **555** + 4 digits | A VoIP call to that extension ([VoIP setup](voip-setup.md)) |
+| A board's 4-digit number | A VoIP call straight to another Analog Redial board on your network, no server. Each board's number is on its Settings → VOIP page ([VoIP setup](voip-setup.md)) |
+| **555** + 4 digits | A VoIP call to that extension on your SIP server ([VoIP setup](voip-setup.md)) |
 | **821** / **822** | Digit readback off / on: each digit you dial is spoken back to you |
 | **899** | Record this line's answering-machine greeting |
 
@@ -182,8 +183,11 @@ the answering machine's default greeting and a public-domain modem sound.
 
 ## 6. VoIP
 
-Optional. Register one or both lines with Asterisk, FreePBX or another SIP
-server to call beyond the board, then dial **555** + an extension. With the
+VoIP has two uses. **Between your own boards** it needs nothing: each line gets
+a 4-digit number on first start, and you dial another board's number to ring it.
+**Through a server**, register one or both lines with Asterisk, FreePBX or another
+SIP server to call beyond your network, then dial **555** + an extension (the same
+four digits by default). With the
 VoIP provisioner running next to Asterisk, it's one button: Settings →
 VOIP → Automatic setup, pick a number, **Register**. Otherwise fill in the
 form, download the generated setup script and run it on your server. Calls stay on your local network (no encryption).

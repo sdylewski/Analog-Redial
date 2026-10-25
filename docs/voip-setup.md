@@ -9,6 +9,28 @@ line with a SIP server (Asterisk, FreePBX, or any standards-compliant PBX)
 so the board can place and receive calls beyond the phones directly attached
 to it.
 
+## Two ways to use VoIP
+
+**Between Analog Redial boards on the same network, no server.** Every board
+announces itself on your Wi-Fi and finds the others. The first time a board is
+on a network each line picks a free 4-digit number for itself (starting with 6,
+7 or 9; never 1, which Bluetooth dial-out uses). Dial another board's number
+and its phone rings: a direct VoIP call, nothing to install, no internet. The
+boards found, and each line's number, are on **Settings → VOIP → Board-to-board
+calls**, where you can change a number. Boards you haven't numbered yet show up
+as "not set up".
+
+**Through a SIP server such as Asterisk or FreePBX.** Register each line with
+the server, and other phones registered there (at home or away) can call it, and
+it can call them, by dialing **`555` + the 4-digit extension**. The same four
+digits a line uses for board-to-board calls are the default extension, so one
+number works both ways: from another board on your network it is just `6065`;
+from a phone on the server it is `555` + `6065`. The rest of this page is about
+the server.
+
+Board-to-board calls keep working if the server is down, and need no account
+anywhere else.
+
 ## How a "phone number" works on the ESP32 side
 
 This firmware uses one value for both the SIP username and the dialable

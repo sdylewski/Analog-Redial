@@ -39,7 +39,8 @@
 |---|---|---|
 | **Offline Calling** | Two phones, one board. Dial **321** (configurable) and the other phone rings.  No Wi-Fi required. Use in 2 rooms of a house or a fun toy for kids| 2 phones |
 | **A phone that does things** | Dial a code and something happens: play a clip, leave a message, hear a joke. For museum exhibits, art pieces, a wedding guestbook phone. Add your own codes and audio from the browser. | One phone |
-| **VoIP** | Register a line with Asterisk, FreePBX or any SIP server and call anything that server can reach. If the server goes down, the two phones can still call each other. | One phone <br> Wi-Fi <br> SIP server |
+| **Call between boards** | Put a board in each room. Each gets its own 4-digit number the first time it's on your Wi-Fi; dial another board's number and its phone rings. It's VoIP over your home network: no server, no internet, nothing to set up. | Two or more boards <br> Wi-Fi |
+| **VoIP server** | Register a line with Asterisk, FreePBX or any SIP server and call anything that server can reach, at home or away. If the server goes down, the boards can still call each other directly. | One phone <br> Wi-Fi <br> SIP server |
 | **Home Assistant** | Every pickup, hang-up and dial code becomes an event, so a dial code can turn on a light and the phone can ring when your doorbell does. Over MQTT or a plain webhook. *Experimental.* | Wi-Fi and Home Assistant (or any MQTT broker) |
 | **Switch things** | Dial a code and a pin goes high for a few seconds or continuously: a relay, a buzzer, a lamp. | One line <br> no microSD <br> a relay |
 | **Bluetooth calls** | Pair your mobile and the rotary phone becomes its handset: the bell rings for incoming calls, lift to answer, dial out on the rotary dial. | The BM64 Bluetooth board |
@@ -71,7 +72,7 @@ Bluetooth is the only one that needs an extra board.
 - **Calls.** Line-to-line calls with ringback and busy tones. 
 	- Optional intercom mode: lift one handset, wait, and the other phone rings with its
   own double ring. 
-  	- Optional VoIP in and out (G.711, on your network).
+  	- Optional VoIP calls (G.711): directly between Analog Redial boards on the same network, with no server, or through a SIP server such as Asterisk.
 - **Sound.** Dial tone, ringback and busy that match your country (North
   America, several European countries, Japan, China, or a generic
   international set). Echo cancellation and earpiece volume per line. An
