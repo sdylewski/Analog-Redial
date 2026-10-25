@@ -32,6 +32,7 @@ PROMPTS = {  # name -> (text, format)
     "record_prompt.wav": ("Record your message after the beep, then hang up.", "pcm"),
     "am_greeting.wav": ("Leave a message after the beep.", "pcm"),
     "timer_prompt.wav": ("How many minutes for the timer?", "pcm"),
+    "timer_done.wav": ("Your timer is done.", "pcm"),
     "jenny.wav": ("If you're trying to reach Jenny, she's not home right now. Please call back later.", "ulaw"),
 }
 DIGITS = {f"{i}.wav": w for i, w in enumerate(

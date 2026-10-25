@@ -2198,6 +2198,8 @@ static int regen_build(regen_item_t *it, int max)
         "You've reached the operator line. To leave a message, dial 2-1-1. "
         "For other features, please refer to your phone's guide."), false);
     regen_add(it, &n, max, RECORD_PROMPT_NAME, "Record your message after the beep, then hang up.", false);
+    regen_add(it, &n, max, TIMER_PROMPT_NAME, "How many minutes for the timer?", false);
+    regen_add(it, &n, max, TIMER_DONE_NAME, "Your timer is done.", false);
     regen_add(it, &n, max, AM_DEFAULT_GREETING_NAME, "Leave a message after the beep.", false);
 
     char lang[8];
@@ -4389,6 +4391,30 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
     return off;
 }
 
+/* Timer (dial 846): what it asks, and what it says when it's up. */
+static int append_timer_tab(char *buf, size_t cap, int off,
+                             dialplan_entry_info_t *entries, size_t n)
+{
+    off = appendf(buf, cap, off, "<div class=\"card\"><h2>Timer</h2>");
+    for (size_t i = 0; i < n; i++) {
+        if (strcmp(entries[i].default_code, "846") != 0) continue;
+        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);
+    }
+    off = append_hint(buf, cap, off,
+        "Dial the timer code, then 1 or 2 digits for the minutes (0 cancels). When time is up "
+        "the phone rings; lift the handset to hear the message below.",
+        "The question plays after the code. The message plays when you pick up the ringing "
+        "phone, or at once if the handset is already up. Each line has its own timer, kept "
+        "until the board restarts. Edit either text and use \"Save &amp; generate on server\" "
+        "(with a VoIP provisioner) or <code>gen_prompt.py --sync</code>; until then the "
+        "built-in recording plays.");
+    off = appendf(buf, cap, off, "<h3>The question</h3>");
+    off = append_prompt_field(buf, cap, off, TIMER_PROMPT_NAME, "How many minutes for the timer?");
+    off = appendf(buf, cap, off, "<h3>When the timer is done</h3>");
+    off = append_prompt_field(buf, cap, off, TIMER_DONE_NAME, "Your timer is done.");
+    return appendf(buf, cap, off, "</div>");
+}
+
 static int append_record_tab(char *buf, size_t cap, int off,
                               dialplan_entry_info_t *entries, size_t n)
 {
@@ -6534,6 +6560,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         off = append_dialcodes_tab(buf, cap, off);
         off = append_operator_tab(buf, cap, off, entries, n);
         off = append_record_tab(buf, cap, off, entries, n);
+        off = append_timer_tab(buf, cap, off, entries, n);
         off = append_fixed_codes_card(buf, cap, off);
         off = append_pin_actions_card(buf, cap, off);
     }

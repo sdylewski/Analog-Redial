@@ -142,6 +142,7 @@ typedef struct {
     int64_t              timer_end_us;
     int64_t              timer_next_us;
     uint8_t              timer_rounds;
+    bool                 timer_announce;   /* play TIMER_DONE_NAME once the line is on dial tone */
     /* A spoken readback digit was started (it ends by itself and then
      * silences the line, so anything that sets new audio stops it first). */
     bool                 rb_clip;
@@ -329,6 +330,7 @@ static void enter_idle(int line)
     s_line[line].bt_music_pass = false;
     s_line[line].seq = NULL;
     s_line[line].timer_n = 0;
+    s_line[line].timer_announce = false;
     if (s_line[line].rb_clip) { player_stop(line); s_line[line].rb_clip = false; }
     audio_tx_silence(line);
     s_line[line].state = TEL_IDLE;
@@ -1029,6 +1031,16 @@ static void timer_digit(int line, char ch)
  * a running timer is up. */
 static void timer_tick(int line, int64_t now)
 {
+    if (s_line[line].timer_announce && s_line[line].state == TEL_DIALTONE) {
+        s_line[line].timer_announce = false;
+        audio_tx_silence(line);
+        if (player_play(line, TIMER_DONE_NAME, clip_done_cb, NULL) == ESP_OK) {
+            s_line[line].state = TEL_PLAYING;
+        } else {
+            play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+        }
+        return;
+    }
     if (s_line[line].state == TEL_TIMER_ENTRY) {
         if (s_line[line].timer_n == 1 &&
             (now - s_line[line].last_digit_us) / 1000 >= TIMER_SECOND_DIGIT_WAIT_MS) {
@@ -1062,7 +1074,7 @@ static void timer_tick(int line, int64_t now)
         s_line[line].timer_rounds = 0;
         activity_log("Line %d: timer is up", line);
         webhook_eventf("timer", line, "done");
-        play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+        s_line[line].timer_announce = true;   /* spoken message (or a beep if there isn't one) */
     }
     /* Any other state (dialling, on a call, ...): try again next tick. */
 }
@@ -1299,9 +1311,10 @@ static bool am_active(int line)
 static void on_offhook(int line)
 {
     if (s_line[line].timer_end_us && esp_timer_get_time() >= s_line[line].timer_end_us) {
-        /* Picked up the ringing timer: done. */
+        /* Picked up the ringing timer: say so once the line is on dial tone. */
         s_line[line].timer_end_us = 0;
         s_line[line].timer_rounds = 0;
+        s_line[line].timer_announce = true;
     }
     if (bt_companion_should_intercept(line)) {
         bool music_only = !bt_companion_call_live();

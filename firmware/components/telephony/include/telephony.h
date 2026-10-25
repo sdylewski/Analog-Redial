@@ -66,6 +66,9 @@ typedef enum {
 /* Dial 846 plays this ("How many minutes for the timer?") before waiting for
  * up to two digits. Missing: a short beep stands in for it. */
 #define TIMER_PROMPT_NAME "timer_prompt.wav"
+/* Played when someone answers the ringing timer ("Your timer is done."), or
+ * right away if the handset is already up. Missing: a short beep. */
+#define TIMER_DONE_NAME   "timer_done.wav"
 
 /* Answering machine's own greeting for `line`, recorded via dial code 999
  * (fixed filename -- re-recording overwrites it directly, reviewed via the
