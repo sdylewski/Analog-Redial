@@ -839,7 +839,11 @@ const char *dialplan_home_number_problem(const char *number)
     for (size_t i = 0; i < n; i++) if (number[i] < '0' || number[i] > '9') return "Digits only";
     if (number[0] == '0') return "Can't start with 0 (that's the operator)";
     if (strncmp(number, "555", 3) == 0) return "Can't start with 555 (VoIP server calls use it)";
-    if (s_bt_dialout && number[0] == DIALPLAN_BT_PREFIX) return "Can't start with 1 while Bluetooth dial-out is on";
+    /* Not just while a digit is being dialled on the Bluetooth line
+     * (s_bt_dialout): on a board with a module, 1 + digits always means
+     * dial-out on that line. */
+    if ((s_bt_dialout || board_hw_config_get().has_bt_module) && number[0] == DIALPLAN_BT_PREFIX)
+        return "Can't start with 1 on a board with Bluetooth (it dials out with 1)";
     for (size_t i = 0; i < TABLE_N; i++) {
         size_t tl = strlen(fcode(i));
         if (strncmp(fcode(i), number, (n < tl) ? n : tl) == 0) return "Clashes with one of this phone's dial codes";

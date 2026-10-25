@@ -432,6 +432,12 @@ static esp_err_t set_number_locked(int line, const char *number, char *msg, size
     if (num[0]) {
         const char *why = dialplan_home_number_problem(num);
         if (why) { snprintf(msg, msg_len, "%s", why); return ESP_ERR_INVALID_ARG; }
+        if (num[0] == '1') {
+            /* Fine here, but a board with Bluetooth reads 1 + digits as a call
+             * out through the paired phone, so it couldn't dial this one. */
+            snprintf(msg, msg_len, "Can't start with 1: boards with Bluetooth use 1 to dial out");
+            return ESP_ERR_INVALID_ARG;
+        }
         if (strcmp(num, s_num[line ^ 1]) == 0) {
             snprintf(msg, msg_len, "The other line already has %s", num);
             return ESP_ERR_INVALID_STATE;

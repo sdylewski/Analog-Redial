@@ -3082,10 +3082,10 @@ void bringup_console_start(void)
     register_cmd("bm64_pair", "Start BT pairing (discoverable mode): bm64_pair -- bt_companion must be enabled and link up", cmd_bm64_pair);
     register_cmd("bm64_mmi", "Send a raw MMI action code: bm64_mmi <hex, e.g. 51> -- bt_companion must be ENABLED (opposite of bm64_test/addr/snoop)", cmd_bm64_mmi);
     register_cmd("bm64_cmd", "Send a real command-set command with hex param bytes (e.g. 23 00 01 03 0F 0F 00 for Set_Overall_Gain): bm64_cmd <hex opcode> [params...] -- bt_companion must be ENABLED, log_level debug to see the reply", cmd_bm64_cmd);
-#ifdef BOARD_BT_MFB_PIN
-    register_cmd("pinshort", "Are two pins joined? pinshort <gpio a> <gpio b> (drives a, watches b)", cmd_pinshort);
     register_cmd("gpiotest", "Is something driving this pin? gpiotest <gpio> (reads with pull-down, then pull-up)", cmd_gpiotest);
-    register_cmd("hwcfg", "Hardware config (like Settings -> Hardware): hwcfg [bt none|bm64|bt401] [lines 1|2] [sd 0|1], then reboot", cmd_hwcfg);
+    register_cmd("pinshort", "Are two pins joined? pinshort <gpio a> <gpio b> (drives a, watches b)", cmd_pinshort);
+    register_cmd("hwcfg", "Hardware config (like Settings -> General -> Board hardware): hwcfg [bt none|bm64|bt401] [lines 1|2] [sd 0|1], then reboot", cmd_hwcfg);
+#ifdef BOARD_BT_MFB_PIN
     register_cmd("bm64_diagpins", "Which pins the carrier's RST_N / P2_0 leads are on: bm64_diagpins [rst_gpio p20_gpio] (18-21)", cmd_bm64_diagpins);
     register_cmd("bm64_findwire", "Which of GPIO18-21 is the carrier's RST_N lead? Pulls each low and pings the module (bt_enable 0 first)", cmd_bm64_findwire);
     register_cmd("bm64_pin", "Bit-bang BM64's MFB/RST_N/P2_0 over GPIO18-20 (bench-wired only): bm64_pin <mfb|rst|p20> <0|1> -- single-line, no-microSD boards only", cmd_bm64_pin);

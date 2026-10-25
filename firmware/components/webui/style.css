@@ -516,7 +516,9 @@ pre.cmd {
   font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace; white-space: pre;
 }
 
-details.voip-hide { margin: 12px 0; }
+/* Spans the whole .cards row; the (wide) cards inside stack in it. */
+details.voip-hide { grid-column: 1 / -1; margin: 0; }
+details.voip-hide > .card { margin-top: 16px; }
 details.voip-hide > summary { cursor: pointer; font-weight: 600; padding: 10px 14px;
   border: 1px solid var(--border, currentColor); border-radius: 8px; list-style: none; }
 details.voip-hide > summary::-webkit-details-marker { display: none; }

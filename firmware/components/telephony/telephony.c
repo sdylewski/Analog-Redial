@@ -1237,6 +1237,11 @@ static void handle_action(int line, const dialplan_action_t *a)
                 activity_log("Line %d: calling %s (%s), board to board", line, a->number, name);
             } else {
                 ESP_LOGW(TAG, "line %d: home call %s -> %s (reorder)", line, a->number, esp_err_to_name(r));
+                activity_log(r == ESP_ERR_NOT_FOUND
+                                 ? "Line %d: can't call %s: that board isn't on the network now"
+                                 : !homecall_number(line)[0]
+                                 ? "Line %d: can't call %s: give this line a board-to-board number first"
+                                 : "Line %d: can't call %s right now", line, a->number);
                 play_persistent(line, TONE_REORDER, TEL_REORDER);
             }
             break;

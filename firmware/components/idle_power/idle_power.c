@@ -197,7 +197,9 @@ float idle_power_estimated_savings_w(void)
     float saved_ma = 60.0f - avg_ma;
     float w_per_line = saved_ma * 5.0f / 1000.0f;
     float w = w_per_line * (float)num_lines;
-    if (voip_server()[0] == '\0') w += WIFI_SAVINGS_W;
+    /* Same condition as the task's Wi-Fi power-save: calls (a SIP server or
+     * board-to-board) need the radio awake. */
+    if (voip_server()[0] == '\0' && !voip_home_active()) w += WIFI_SAVINGS_W;
     return w;
 }
 
