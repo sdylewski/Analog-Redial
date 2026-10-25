@@ -341,16 +341,13 @@ name are cleared.
   Bench-tested registering both accounts and running an outbound call (echo
   test) end to end; no TLS/SRTP (LAN only). Check state with `sip_status`
   or the registration pill on that same Settings page.
-- **microSD (SMD build B)** — the `sdcard` component mounts a FAT card over SPI
-  (CS=18, SCLK=19, MOSI=20, MISO=21, the pins Line 2 would otherwise use) at
-  `/sd`. It's a **build-time opt-in**: `idf.py menuconfig` → *Board
-  configuration* → enable **"SMD board uses microSD instead of line 2"** and set
-  **"Number of active phone lines" = 1**, then rebuild. On boot it logs whether
-  the card mounted; `sd_test` from the console prints card info + a
-  write/read/verify. Bench-tested mounting a 16 GB SDHC card and round-tripping
-  a file. (The default committed config is the **dual-line, no-SD** build.)
-  The `storage` layer still uses internal SPIFFS; routing recordings/clips onto
-  the SD card is a follow-on.
+- **microSD (single-line build)** — the `sdcard` component mounts a FAT card over SPI
+  (CS=21, MOSI=20, SCLK=19, MISO=18 — the pins line 2 otherwise uses) at `/sd`.
+  It's a **runtime setting**, not a build option: Settings → General → Board
+  hardware → "A microSD card (one phone line)" (or `first_setup.py --lines 1`),
+  with the J5 shunts off. Recordings then go to the card; clips and prompts stay
+  on internal flash so they survive a card being removed. `sd_test` from the
+  console prints card info and a write/read/verify.
 - **Audio assets** live in two SPIFFS partitions (`components/storage`):
   `storage` (writable — recordings + anything uploaded over HTTP, subject to
   eviction once near full; protects everything except `rec_`/`cb_`-prefixed

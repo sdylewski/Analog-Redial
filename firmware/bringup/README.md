@@ -81,13 +81,13 @@ idf.py set-target esp32c6
 idf.py -D "CONFIG_BOARD_TYPE_SMD2=y" build flash monitor
 ```
 
-**SMD boards also need two more Kconfig settings**, both easy to miss since they're
-separate `choice`s from the board type above:
+**SMD boards also need one more Kconfig setting**, easy to miss since it's a
+separate `choice` from the board type above (line count and microSD are runtime
+settings in the web UI, not Kconfig):
 
 | Setting | Value for a dual-line SMD board | Why |
 |---|---|---|
 | `Component config -> ESP System Settings -> Channel for console output` | **USB Serial/JTAG Controller** | SMD boards have no UART bridge chip -- the default (UART0) reads keystrokes from GPIO16/17, which aren't wired to anything the host can talk to. Symptom if wrong: boot log prints fine, but the console never responds to typed input at all (UART0 output is mirrored to USB by the *secondary* console, so you still see logs -- input isn't). |
-| `Component config -> Board configuration -> SMD board uses microSD instead of line 2` | **unchecked**, if Line 2's AG1171 is populated | If left checked while `CONFIG_BOARD_NUM_LINES=2`, line 1's SLIC pins resolve to `GPIO_NUM_NC` and `ag1170_init()` tries to configure invalid GPIOs. Symptom: `GPIO_PIN mask error` / `gpio_set_level(...): GPIO output gpio_num error` flooding the log right after the `board:` lines, sometimes severe enough to starve other tasks into a watchdog reset. |
 
 **`-D "CONFIG_X=y"` on the command line is not reliable for these** — it only sets a
 `build/CMakeCache.txt` entry, and a later `reconfigure`/`set-target`/plain `build` can
