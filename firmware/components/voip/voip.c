@@ -342,6 +342,47 @@ static void udp_send(const char *msg, const struct sockaddr_in *to)
     sendto(s_sock, msg, strlen(msg), 0, (const struct sockaddr *)to, sizeof(*to));
 }
 
+/* A BYE is sent again (0.5, 1, 2 and 4 s later) until its 200 OK arrives: over
+ * UDP a single lost hang-up would leave the other phone in the call. */
+#define BYE_RETX_MAX 640
+typedef struct {
+    char               msg[BYE_RETX_MAX];
+    struct sockaddr_in to;
+    char               callid[80];
+    int64_t            next_us;
+    volatile int       left;
+} bye_retx_t;
+static bye_retx_t s_bye[2];
+
+static void bye_arm(int line, const char *msg, const struct sockaddr_in *to, const char *callid)
+{
+    if (line < 0 || line >= 2 || strlen(msg) >= BYE_RETX_MAX) return;
+    bye_retx_t *b = &s_bye[line];
+    b->left = 0;
+    strlcpy(b->msg, msg, sizeof(b->msg));
+    b->to = *to;
+    strlcpy(b->callid, callid, sizeof(b->callid));
+    b->next_us = esp_timer_get_time() + 500000;
+    b->left = 4;
+}
+
+static void bye_retx_tick(int64_t now)
+{
+    for (int i = 0; i < 2; i++) {
+        bye_retx_t *b = &s_bye[i];
+        if (b->left <= 0 || now < b->next_us) continue;
+        udp_send(b->msg, &b->to);
+        b->left--;
+        b->next_us = now + ((int64_t)500000 << (4 - b->left));   /* then 1, 2 and 4 s apart */
+    }
+}
+
+static void bye_answered(const char *callid)
+{
+    for (int i = 0; i < 2; i++)
+        if (s_bye[i].left > 0 && strcmp(s_bye[i].callid, callid) == 0) s_bye[i].left = 0;
+}
+
 static void send_register(int line, const char *auth_hdr, int safety_net_s)
 {
     line_t *L = &s_l[line];
@@ -517,7 +558,10 @@ static void send_bye(int line)
         my_user(L), my_host(L), L->from_tag,
         L->remote_uri, L->to_tag,
         L->call_id, (unsigned)L->cseq);
-    if (n > 0 && n < (int)sizeof(buf)) udp_send(buf, &L->dest);
+    if (n > 0 && n < (int)sizeof(buf)) {
+        udp_send(buf, &L->dest);
+        bye_arm(line, buf, &L->dest, L->call_id);
+    }
 }
 
 /* Response to an inbound request, echoing its Via/From/To/Call-ID/CSeq. */
@@ -592,6 +636,7 @@ static void handle_response(const char *msg, const struct sockaddr_in *src)
     get_header(msg, "CSeq", NULL, cseq, sizeof(cseq));
     bool is_reg = strstr(cseq, "REGISTER") != NULL;
     bool is_inv = strstr(cseq, "INVITE") != NULL;
+    if (strstr(cseq, "BYE")) { bye_answered(callid); return; }
 
     int line = -1;
     for (int i = 0; i < NLINES; i++) if (strcmp(s_l[i].call_id, callid) == 0) { line = i; break; }
@@ -719,6 +764,9 @@ static bool from_home_peer(const char *method, const char *msg, const char *call
     if (!on_our_network(src)) return false;
     int line = line_for_callid(callid);
     if (line >= 0) {
+        /* A late BYE/CANCEL/ACK for a call that has already ended here gets a
+         * plain answer below rather than being ignored (and resent at us). */
+        if (s_l[line].state == CALL_IDLE) return strcmp(method, "INVITE") != 0;
         return s_l[line].local_call && s_l[line].dest.sin_addr.s_addr == src->sin_addr.s_addr;
     }
     if (strcmp(method, "INVITE") != 0) return false;
@@ -775,6 +823,18 @@ static void handle_request(const char *msg, const struct sockaddr_in *src)
          * that can't renegotiate mid-call satisfies this without dropping
          * the call. */
         int re_line = line_for_callid(callid);
+        if (re_line >= 0 && s_l[re_line].state == CALL_IDLE) {
+            /* A resent INVITE for a call that has already ended here. */
+            line_t t = {0};
+            get_header(msg, "Via", "v", t.in_via, sizeof(t.in_via));
+            get_header(msg, "From", "f", t.in_from, sizeof(t.in_from));
+            get_header(msg, "To", "t", t.in_to, sizeof(t.in_to));
+            char cseq[64]; get_header(msg, "CSeq", NULL, cseq, sizeof(cseq)); t.in_cseq = atoi(cseq);
+            strncpy(t.call_id, callid, sizeof(t.call_id) - 1);
+            t.reply_addr = *src;
+            send_response(&t, 481, "Call Does Not Exist", "INVITE", false, re_line);
+            return;
+        }
         if (re_line >= 0) {
             line_t *L = &s_l[re_line];
             get_header(msg, "Via", "v", L->in_via, sizeof(L->in_via));
@@ -851,6 +911,12 @@ static void handle_request(const char *msg, const struct sockaddr_in *src)
 
     if (strcmp(method, "ACK") == 0) {
         return; /* media already up from our 200 OK */
+    }
+    if (L->state == CALL_IDLE) {
+        /* The call already ended here (we hung up first, or this is a resend):
+         * confirm, so the other side stops resending, and change nothing. */
+        if (!strcmp(method, "BYE") || !strcmp(method, "CANCEL")) send_response(L, 200, "OK", method, false, line);
+        return;
     }
     if (strcmp(method, "BYE") == 0) {
         send_response(L, 200, "OK", "BYE", false, line);
@@ -989,6 +1055,7 @@ static void sip_task(void *arg)
             else handle_request(msg, &src);
         }
         int64_t now = esp_timer_get_time();
+        bye_retx_tick(now);
         for (int i = 0; i < NLINES; i++) {
             /* Not gated on s_l[i].registered: this timer now also covers
              * initial registration (register_all() arms it the same way

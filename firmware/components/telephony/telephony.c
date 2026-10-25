@@ -142,6 +142,7 @@ typedef struct {
     int64_t              timer_end_us;
     int64_t              timer_next_us;
     uint8_t              timer_rounds;
+    bool                 timer_ringing;    /* timer_end_us has passed and the bell rounds are running */
     bool                 timer_announce;   /* play TIMER_DONE_NAME once the line is on dial tone */
     /* A spoken readback digit was started (it ends by itself and then
      * silences the line, so anything that sets new audio stops it first). */
@@ -999,10 +1000,12 @@ static void timer_set(int line)
         bool had = s_line[line].timer_end_us != 0;
         s_line[line].timer_end_us = 0;
         s_line[line].timer_rounds = 0;
+        s_line[line].timer_ringing = false;
         activity_log(had ? "Line %d: timer cancelled" : "Line %d: no timer to cancel", line);
     } else {
         s_line[line].timer_end_us = esp_timer_get_time() + (int64_t)minutes * 60 * 1000000;
         s_line[line].timer_rounds = 0;
+        s_line[line].timer_ringing = false;
         activity_log("Line %d: timer set for %d minute%s", line, minutes, minutes == 1 ? "" : "s");
     }
 }
@@ -1015,6 +1018,8 @@ static void timer_commit(int line)
 
 static void timer_digit(int line, char ch)
 {
+    if (ch == '#' && s_line[line].timer_n >= 1) { timer_commit(line); return; }   /* touch-tone "enter" */
+    if (ch < '0' || ch > '9') return;
     if (s_line[line].timer_n == 0) {
         player_stop(line);   /* dialled over the prompt: no need to hear the rest */
         audio_tx_silence(line);
@@ -1056,24 +1061,36 @@ static void timer_tick(int line, int64_t now)
     if (!s_line[line].timer_end_us || now < s_line[line].timer_end_us) return;
     tel_state_t st = s_line[line].state;
     if (st == TEL_IDLE && !line_offhook(line)) {
-        /* On-hook: ring the bell a few times, until someone picks up. */
-        if (s_line[line].timer_rounds == 0) {
+        /* On-hook: ring the bell a few times, until someone picks up. The
+         * timer stays set through the last round, so answering the last ring
+         * still hears the message. */
+        if (!s_line[line].timer_ringing) {
+            s_line[line].timer_ringing = true;
             s_line[line].timer_rounds = TIMER_RING_ROUNDS;
             s_line[line].timer_next_us = now;
             activity_log("Line %d: timer is up", line);
             webhook_eventf("timer", line, "done");
         }
         if (now >= s_line[line].timer_next_us) {
-            telephony_bell(line, TIMER_RING_SECS, false);   /* rings even in quiet hours: someone asked for it */
-            s_line[line].timer_next_us = now + TIMER_RING_EVERY_US;
-            if (--s_line[line].timer_rounds == 0) s_line[line].timer_end_us = 0;
+            if (s_line[line].timer_rounds == 0) {
+                s_line[line].timer_end_us = 0;   /* nobody answered: give up */
+                s_line[line].timer_ringing = false;
+            } else {
+                telephony_bell(line, TIMER_RING_SECS, false);   /* rings even in quiet hours: someone asked for it */
+                s_line[line].timer_next_us = now + TIMER_RING_EVERY_US;
+                s_line[line].timer_rounds--;
+            }
         }
     } else if (st == TEL_DIALTONE) {
-        /* Handset is up and idle: a beep, once. */
+        /* Handset is up and idle: the message (or a beep), once. */
+        bool was_ringing = s_line[line].timer_ringing;
         s_line[line].timer_end_us = 0;
         s_line[line].timer_rounds = 0;
-        activity_log("Line %d: timer is up", line);
-        webhook_eventf("timer", line, "done");
+        s_line[line].timer_ringing = false;
+        if (!was_ringing) {
+            activity_log("Line %d: timer is up", line);
+            webhook_eventf("timer", line, "done");
+        }
         s_line[line].timer_announce = true;   /* spoken message (or a beep if there isn't one) */
     }
     /* Any other state (dialling, on a call, ...): try again next tick. */
@@ -1314,6 +1331,7 @@ static void on_offhook(int line)
         /* Picked up the ringing timer: say so once the line is on dial tone. */
         s_line[line].timer_end_us = 0;
         s_line[line].timer_rounds = 0;
+        s_line[line].timer_ringing = false;
         s_line[line].timer_announce = true;
     }
     if (bt_companion_should_intercept(line)) {
@@ -1662,7 +1680,7 @@ static void fsm_task(void *arg)
                 char name[16];
                 digit_clip_name(s_line[line].seq[s_line[line].seq_i], name, sizeof(name));
                 bool last = s_line[line].seq_i + 1 >= strlen(s_line[line].seq);
-                esp_err_t pe = last ? player_play(line, name, clip_done_cb, NULL)
+                esp_err_t pe = last ? player_play_now(line, name, clip_done_cb, NULL)
                                     : player_play_chained(line, name, clip_done_cb, NULL);
                 if (pe == ESP_OK) {
                     s_line[line].seq_playing = true;
@@ -1684,6 +1702,11 @@ static void fsm_task(void *arg)
                          line, telephony_state_name(ret));
                 if (ret == TEL_DIALTONE) enter_dialtone(line);
                 else if (ret == TEL_IDLE) enter_idle(line);
+                else if (ret == TEL_TIMER_ENTRY) {
+                    /* The stand-in beep for a missing timer prompt: stop it
+                     * (it's a continuous tone) and keep waiting for digits. */
+                    if (s_line[line].state == TEL_TIMER_ENTRY) audio_tx_silence(line);
+                }
                 else if (ret == TEL_RECORDING) {
                     /* The beep just finished -- which start_recording_*()
                      * runs depends on what this beep was actually for (see

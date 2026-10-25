@@ -344,20 +344,25 @@ out:
 }
 
 static esp_err_t play_start(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx,
-                            bool chained);
+                            bool chained, bool lead_in);
 
 esp_err_t player_play(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx)
 {
-    return play_start(line, storage_name, done_cb, ctx, false);
+    return play_start(line, storage_name, done_cb, ctx, false, done_cb != NULL);
+}
+
+esp_err_t player_play_now(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx)
+{
+    return play_start(line, storage_name, done_cb, ctx, false, false);
 }
 
 esp_err_t player_play_chained(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx)
 {
-    return play_start(line, storage_name, done_cb, ctx, true);
+    return play_start(line, storage_name, done_cb, ctx, true, false);
 }
 
 static esp_err_t play_start(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx,
-                            bool chained)
+                            bool chained, bool lead_in)
 {
     if (line < 0 || line >= AUDIO_NUM_LINES) return ESP_ERR_INVALID_ARG;
     if (s_line[line].active) return ESP_ERR_INVALID_STATE;
@@ -402,7 +407,7 @@ static esp_err_t play_start(int line, const char *storage_name, player_done_cb_t
     a->ctx = ctx;
     a->is_mp3 = is_mp3;
     a->chained = chained && !is_mp3;
-    a->lead_in = !chained && done_cb != NULL;
+    a->lead_in = lead_in;
 
     s_line[line].active = true;
     s_line[line].stop_requested = false;

@@ -33,7 +33,8 @@ typedef struct {
 static char              s_num[2][HOMECALL_NUM_MAX];
 static peer_slot_t       s_peers[HOMECALL_PEERS_MAX];
 static size_t            s_npeers;
-static SemaphoreHandle_t s_lock;
+static SemaphoreHandle_t s_lock;       /* the peer list */
+static SemaphoreHandle_t s_num_lock;   /* this board's numbers: the web UI and the task both change them */
 static TaskHandle_t      s_task;
 static bool              s_advertised;
 static bool              s_seeded;   /* numbers were chosen (by the board or by hand) at least once */
@@ -118,13 +119,32 @@ static void browse(void)
             const char *k = r->txt[t].key, *v = r->txt[t].value;
             if (!k || !v) continue;
             int line = !strcmp(k, "n0") ? 0 : !strcmp(k, "n1") ? 1 : -1;
-            if (line >= 0) strlcpy(slot->p.number[line], v, HOMECALL_NUM_MAX);
+            /* Digits only: anything on the network can answer this query, and
+             * the number ends up in the dial plan and on the web pages. */
+            size_t vl = strlen(v);
+            bool digits = vl >= 3 && vl < HOMECALL_NUM_MAX;
+            for (size_t c = 0; digits && c < vl; c++) digits = v[c] >= '0' && v[c] <= '9';
+            if (line >= 0 && digits) strlcpy(slot->p.number[line], v, HOMECALL_NUM_MAX);
         }
         slot->seen_us = now;
     }
-    /* Forget boards that stopped answering. */
+    /* Forget boards that stopped answering, our own address (a board that
+     * used to have it, remembered from before a restart), and an older entry
+     * whose number a board has just answered with from another address (it
+     * moved; names can't tell, many boards keep the default "phone"). */
     for (size_t i = 0; i < s_npeers; ) {
-        if (now - s_peers[i].seen_us > (int64_t)PEER_EXPIRE_S * 1000000) {
+        bool drop = now - s_peers[i].seen_us > (int64_t)PEER_EXPIRE_S * 1000000 ||
+                    strcmp(s_peers[i].p.ip, myip) == 0;
+        if (!drop && s_peers[i].seen_us != now) {
+            for (size_t j = 0; j < s_npeers && !drop; j++) {
+                if (j == i || s_peers[j].seen_us != now) continue;
+                for (int a = 0; a < 2 && !drop; a++)
+                    for (int b = 0; b < 2 && !drop; b++)
+                        if (s_peers[i].p.number[a][0] &&
+                            strcmp(s_peers[i].p.number[a], s_peers[j].p.number[b]) == 0) drop = true;
+            }
+        }
+        if (drop) {
             s_peers[i] = s_peers[--s_npeers];
         } else {
             i++;
@@ -196,11 +216,28 @@ static void seed_numbers(void)
             ESP_LOGI(TAG, "line %d: first-start number %s", l + 1, num);
         }
     }
+    if (!s_num[0][0]) return;   /* nothing free yet: try again next pass */
     s_seeded = true;
     s_auto = true;
     s_advertised = false;
     advertise();
     push_numbers();
+}
+
+/* A board the board numbered itself, later switched to two lines: give line 2
+ * a number too (the next one after line 1's, if it's free). */
+static void fill_second_line(void)
+{
+    if (!s_auto || board_hw_config_get().num_lines < 2 || !s_num[0][0] || s_num[1][0]) return;
+    char num[HOMECALL_NUM_MAX], seq[HOMECALL_NUM_MAX];
+    next_in_sequence(s_num[0], seq);
+    if (pick_number(1, seq, num) && save_number(1, num, true) == ESP_OK) {
+        strlcpy(s_num[1], num, sizeof(s_num[1]));
+        ESP_LOGI(TAG, "line 2: number %s", num);
+        s_advertised = false;
+        advertise();
+        push_numbers();
+    }
 }
 
 /* Numbers this board picked itself in an earlier version could start with 1,
@@ -320,9 +357,12 @@ static void homecall_task(void *arg)
             if (pass == 0) vTaskDelay(pdMS_TO_TICKS(2000));   /* let this board's own mDNS name settle */
             if (!s_advertised) advertise();
             browse();
+            xSemaphoreTake(s_num_lock, portMAX_DELAY);
             if (!s_seeded) seed_numbers();
             retire_leading_one();
+            fill_second_line();
             settle_clashes();
+            xSemaphoreGive(s_num_lock);
             push_numbers();
             cache_save_if_changed();
             /* Look quickly for the first minute after Wi-Fi comes up: other boards
@@ -366,7 +406,18 @@ bool homecall_lookup(const char *number, char *ip, size_t ip_len, char *name, si
 
 /* ---- setting a number --------------------------------------------------- */
 
+static esp_err_t set_number_locked(int line, const char *number, char *msg, size_t msg_len);
+
 esp_err_t homecall_set_number(int line, const char *number, char *msg, size_t msg_len)
+{
+    if (!s_num_lock) { snprintf(msg, msg_len, "Not started yet"); return ESP_ERR_INVALID_STATE; }
+    xSemaphoreTake(s_num_lock, portMAX_DELAY);
+    esp_err_t err = set_number_locked(line, number, msg, msg_len);
+    xSemaphoreGive(s_num_lock);
+    return err;
+}
+
+static esp_err_t set_number_locked(int line, const char *number, char *msg, size_t msg_len)
 {
     if (line < 0 || line > 1) { snprintf(msg, msg_len, "No such line"); return ESP_ERR_INVALID_ARG; }
     char num[HOMECALL_NUM_MAX] = "";
@@ -418,6 +469,7 @@ void homecall_init(void)
 {
     if (s_lock) return;
     s_lock = xSemaphoreCreateMutex();
+    s_num_lock = xSemaphoreCreateMutex();
     nvs_handle_t h;
     if (nvs_open(NVS_NS, NVS_READONLY, &h) == ESP_OK) {
         size_t sz = sizeof(s_num[0]); nvs_get_str(h, "n0", s_num[0], &sz);

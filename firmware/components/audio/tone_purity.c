@@ -53,7 +53,7 @@ static esp_err_t measure(int line, bool digital, bool tone_on, float amp[N_FREQS
      * across the two tones). The first 0.9 s holds the SLIC's start-up pop and
      * settling, so only the following 0.5 s is captured. */
     if (tone_on) audio_tx_burst(line, FREQS[0], FREQS[1], 0.6f, 2200);
-    vTaskDelay(pdMS_TO_TICKS(tone_on ? 900 : 300));
+    vTaskDelay(pdMS_TO_TICKS(tone_on ? 900 : 600));   /* also lets a paused audio pipeline restart cleanly */
     if (digital) audio_add_downlink_tap(line, capture_tap, &cap);
     else         audio_add_diag_tap(line, capture_tap, &cap);
     for (int i = 0; i < 30 && !cap.done; i++) vTaskDelay(pdMS_TO_TICKS(100));
