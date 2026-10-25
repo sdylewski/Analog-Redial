@@ -2287,7 +2287,17 @@ static esp_err_t tts_regen_handler(httpd_req_t *req)
 static int append_regen_card(char *buf, size_t cap, int off)
 {
     if (!voip_prov_url()[0] || !(voip_prov_has_key() || voip_prov_enrolled()) || voip_prov_tts_state() == 0) {
-        return off;
+        /* Say what's missing rather than hiding the card. */
+        bool no_tts = voip_prov_url()[0] && (voip_prov_has_key() || voip_prov_enrolled());
+        return appendf(buf, cap, off,
+            "<div class=\"card\" id=\"regen\"><h2>Spoken audio</h2>"
+            "<p class=\"hint\">Updating all the spoken audio in one go needs the VoIP provisioner: %s "
+            "Until then, new prompt text becomes audio with <code>gen_prompt.py --sync</code>, or by "
+            "uploading a WAV.</p></div>",
+            no_tts ? "the one this board is set up with doesn't offer text-to-speech (install it with "
+                     "<code>install.sh --with-tts</code>)."
+                   : "set one up on the Voice over IP tab (its address and your enrollment key), and this "
+                     "button appears.");
     }
     off = appendf(buf, cap, off,
         "<div class=\"card\" id=\"regen\"><h2>Spoken audio</h2>"
