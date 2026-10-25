@@ -130,6 +130,10 @@ hr.sep { border: 0; border-top: 1px solid var(--border); margin: 18px 0 14px; }
 .amcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
 .amcol { min-width: 0; }
 .amcol h3 { margin-top: 0; }
+/* Timer card: description, question, message side by side; stacks when narrow. */
+.threecols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; align-items: start; }
+.threecols > div { min-width: 0; }
+.threecols h3 { margin-top: 0; }
 /* Same reasoning as .card.wide -- a log/activity panel needs the full row,
  * not one of several narrow auto-fit columns. No-op when it's rendered
  * outside a .cards grid (e.g. the Status page's activity panel, between two

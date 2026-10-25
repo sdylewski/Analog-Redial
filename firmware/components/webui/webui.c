@@ -317,6 +317,8 @@ static bool destructive_confirmed(httpd_req_t *req, const char *word);
  * machine card's default-greeting text. */
 static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_name,
                                 const char *default_text);
+static int append_prompt_field_rows(char *buf, size_t cap, int off, const char *clip_name,
+                                     const char *default_text, int rows);
 
 /* firmware/assets/ ships README.md and .gitignore alongside actual clips
  * (see that directory's own README) -- filter those out of "pick a clip to
@@ -2425,8 +2427,8 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
      * one built into the firmware plays. */
     off = appendf(buf, cap, off,
         "<div class=\"amcol\"><h3>%s</h3>", i18n_str("am.default_title", "Default greeting"));
-    off = append_prompt_field(buf, cap, off, AM_DEFAULT_GREETING_NAME,
-                              "Leave a message after the beep.");
+    off = append_prompt_field_rows(buf, cap, off, AM_DEFAULT_GREETING_NAME,
+                                   "Leave a message after the beep.", 3);
     off = appendf(buf, cap, off, "</div></div>"); /* column, amcols */
     off = append_hint(buf, cap, off,
         i18n_str("am.hint_lead",
@@ -2823,6 +2825,12 @@ static bool s_tts_ok;
 static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_name,
                                 const char *default_text)
 {
+    return append_prompt_field_rows(buf, cap, off, clip_name, default_text, 4);
+}
+
+static int append_prompt_field_rows(char *buf, size_t cap, int off, const char *clip_name,
+                                     const char *default_text, int rows)
+{
     prompt_entry_t pe;
     bool have = prompts_get(clip_name, &pe);
     const char *text = have ? pe.text : (default_text ? default_text : "");
@@ -2843,13 +2851,13 @@ static int append_prompt_field(char *buf, size_t cap, int off, const char *clip_
         "<form method=\"POST\" action=\"/prompt_text_set\" class=\"settings-form\">"
         "<input type=\"hidden\" name=\"name\" value=\"%s\">"
         "<label>Spoken prompt text"
-        "<textarea name=\"text\" maxlength=\"%d\" rows=\"8\" placeholder="
+        "<textarea name=\"text\" maxlength=\"%d\" rows=\"%d\" placeholder="
         "\"Leave blank for no spoken prompt\">%s</textarea>"
         "<span class=\"fieldhint\">%s Type <code>{{boardname}}</code> to say this "
         "board's name.</span>"
         "</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\">Save text</button>%s</div>",
-        ename, PROMPT_TEXT_MAX - 1, etext, status,
+        ename, PROMPT_TEXT_MAX - 1, rows, etext, status,
         /* Offered once a provisioner is set up, unless it has said it has no TTS. */
         (voip_prov_url()[0] && (voip_prov_has_key() || voip_prov_enrolled()) && voip_prov_tts_state() != 0)
             ? "<button type=\"submit\" class=\"primary\" formaction=\"/prompt_tts\" "
@@ -4415,24 +4423,25 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
 static int append_timer_tab(char *buf, size_t cap, int off,
                              dialplan_entry_info_t *entries, size_t n)
 {
-    off = appendf(buf, cap, off, "<div class=\"card\"><h2>Timer</h2>");
+    /* One wide card in three columns: what it does, the question, the message. */
+    off = appendf(buf, cap, off, "<div class=\"card wide\"><h2>Timer</h2><div class=\"threecols\"><div>");
     for (size_t i = 0; i < n; i++) {
         if (strcmp(entries[i].default_code, "846") != 0) continue;
         off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);
     }
     off = append_hint(buf, cap, off,
         "Dial the timer code, then 1 or 2 digits for the minutes (0 cancels). When time is up "
-        "the phone rings; lift the handset to hear the message below.",
+        "the phone rings; lift the handset to hear the message.",
         "The question plays after the code. The message plays when you pick up the ringing "
         "phone, or at once if the handset is already up. Each line has its own timer, kept "
         "until the board restarts. Edit either text and use \"Save &amp; generate on server\" "
         "(with a VoIP provisioner) or <code>gen_prompt.py --sync</code>; until then the "
         "built-in recording plays.");
-    off = appendf(buf, cap, off, "<h3>The question</h3>");
-    off = append_prompt_field(buf, cap, off, TIMER_PROMPT_NAME, "How many minutes for the timer?");
-    off = appendf(buf, cap, off, "<h3>When the timer is done</h3>");
-    off = append_prompt_field(buf, cap, off, TIMER_DONE_NAME, "Your timer is done.");
-    return appendf(buf, cap, off, "</div>");
+    off = appendf(buf, cap, off, "</div><div><h3>The question</h3>");
+    off = append_prompt_field_rows(buf, cap, off, TIMER_PROMPT_NAME, "How many minutes for the timer?", 3);
+    off = appendf(buf, cap, off, "</div><div><h3>When the timer is done</h3>");
+    off = append_prompt_field_rows(buf, cap, off, TIMER_DONE_NAME, "Your timer is done.", 3);
+    return appendf(buf, cap, off, "</div></div></div>");
 }
 
 static int append_record_tab(char *buf, size_t cap, int off,
