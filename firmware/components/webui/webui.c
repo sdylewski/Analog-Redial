@@ -3662,10 +3662,14 @@ static int append_home_calls_card(char *buf, size_t cap, int off)
                 const char *num = peers[i].number[l];
                 if (!num[0]) continue;
                 const char *note = "";
+                char prob_note[160];
                 if (!strcmp(num, homecall_number(0)) || !strcmp(num, homecall_number(1))) {
                     note = "<span class=\"pill off\">same number as this board</span>";
                 } else if (dialplan_home_number_problem(num)) {
-                    note = "<span class=\"pill off\">can't be dialled from here: clashes with a dial code</span>";
+                    snprintf(prob_note, sizeof(prob_note),
+                             "<span class=\"pill off\">can't be dialled from here: %s</span>",
+                             dialplan_home_number_problem(num));
+                    note = prob_note;
                 }
                 char ename[32 * 6];
                 html_escape(peers[i].name, ename, sizeof(ename));

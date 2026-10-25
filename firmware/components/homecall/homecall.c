@@ -149,20 +149,23 @@ static esp_err_t save_number(int line, const char *num, bool automatic)
     return err;
 }
 
-/* A free number for `line`: 4 digits, leading 1 where allowed (1 belongs to
- * Bluetooth dial-out when a module is fitted), valid for the dial plan, and
- * not in use by this board's other line or any board seen so far. */
+/* A free number for `line`: 4 digits, never starting with 1 (that belongs to
+ * Bluetooth dial-out: a board with a module can't dial a 1xxx number), first
+ * digit 6, 7 or 9 where possible (no built-in code starts with them), valid
+ * for the dial plan, and not in use by this board's other line or any board
+ * seen so far. */
 static bool pick_number(int line, const char *prefer, char *out)
 {
-    bool bt = board_hw_config_get().has_bt_module;
+    static const char FIRST_CHOICE[] = { '6', '7', '9' };
     char cand[HOMECALL_NUM_MAX];
     for (int attempt = 0; attempt < 300; attempt++) {
-        if (attempt == 0 && prefer && prefer[0]) {
+        if (attempt == 0 && prefer && prefer[0] && prefer[0] != '1') {
             strlcpy(cand, prefer, sizeof(cand));
         } else {
             uint32_t r = esp_random();
-            int first = (!bt && attempt < 60) ? 1 : (bt ? 2 : 1) + (int)((r >> 24) % (bt ? 8 : 9));
-            snprintf(cand, sizeof(cand), "%d%03u", first, (unsigned)(r % 1000));
+            int first = attempt < 100 ? FIRST_CHOICE[(r >> 24) % sizeof(FIRST_CHOICE)]
+                                      : '2' + (int)((r >> 24) % 8);   /* 2-9 */
+            snprintf(cand, sizeof(cand), "%c%03u", first, (unsigned)(r % 1000));
         }
         if (dialplan_home_number_problem(cand)) continue;
         if (!strcmp(cand, s_num[line ^ 1])) continue;
@@ -198,6 +201,35 @@ static void seed_numbers(void)
     s_advertised = false;
     advertise();
     push_numbers();
+}
+
+/* Numbers this board picked itself in an earlier version could start with 1,
+ * which a board with Bluetooth dial-out can't dial. Pick them again, once. */
+static void retire_leading_one(void)
+{
+    if (!s_auto) return;
+    bool changed = false;
+    for (int l = 0; l < 2; l++) {
+        if (s_num[l][0] != '1') continue;
+        const char *old_num = s_num[l];
+        char old[HOMECALL_NUM_MAX], num[HOMECALL_NUM_MAX], seq[HOMECALL_NUM_MAX];
+        strlcpy(old, old_num, sizeof(old));
+        s_num[l][0] = '\0';
+        const char *prefer = NULL;
+        if (l == 1 && s_num[0][0]) { next_in_sequence(s_num[0], seq); prefer = seq; }
+        if (pick_number(l, prefer, num) && save_number(l, num, true) == ESP_OK) {
+            strlcpy(s_num[l], num, sizeof(s_num[l]));
+            ESP_LOGI(TAG, "line %d: number %s starts with 1 (Bluetooth dial-out), now %s", l + 1, old, num);
+            changed = true;
+        } else {
+            strlcpy(s_num[l], old, sizeof(s_num[l]));
+        }
+    }
+    if (changed) {
+        s_advertised = false;
+        advertise();
+        push_numbers();
+    }
 }
 
 /* Two new boards can pick the same number before they see each other. A
@@ -289,6 +321,7 @@ static void homecall_task(void *arg)
             if (!s_advertised) advertise();
             browse();
             if (!s_seeded) seed_numbers();
+            retire_leading_one();
             settle_clashes();
             push_numbers();
             cache_save_if_changed();
