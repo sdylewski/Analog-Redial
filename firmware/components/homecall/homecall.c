@@ -228,20 +228,75 @@ void homecall_refresh(void)
     push_numbers();
 }
 
+/* Boards seen last time, kept across reboots, so a number dialled right after
+ * power-up already works. Written only when the list changes. */
+static homecall_peer_t s_cache_saved[HOMECALL_PEERS_MAX];
+static size_t          s_cache_saved_n;
+
+static void cache_load(void)
+{
+    nvs_handle_t h;
+    if (nvs_open(NVS_NS, NVS_READONLY, &h) != ESP_OK) return;
+    size_t sz = sizeof(s_cache_saved);
+    if (nvs_get_blob(h, "peers", s_cache_saved, &sz) == ESP_OK && sz % sizeof(homecall_peer_t) == 0) {
+        s_cache_saved_n = sz / sizeof(homecall_peer_t);
+        int64_t now = esp_timer_get_time();
+        for (size_t i = 0; i < s_cache_saved_n && s_npeers < HOMECALL_PEERS_MAX; i++) {
+            s_peers[s_npeers].p = s_cache_saved[i];
+            s_peers[s_npeers].p.age_s = 0;
+            s_peers[s_npeers].seen_us = now;   /* expires in PEER_EXPIRE_S unless found again */
+            s_npeers++;
+        }
+    } else {
+        s_cache_saved_n = 0;
+    }
+    nvs_close(h);
+}
+
+static void cache_save_if_changed(void)
+{
+    homecall_peer_t cur[HOMECALL_PEERS_MAX];
+    memset(cur, 0, sizeof(cur));
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    size_t n = s_npeers;
+    for (size_t i = 0; i < n; i++) { cur[i] = s_peers[i].p; cur[i].age_s = 0; }
+    xSemaphoreGive(s_lock);
+    if (n == s_cache_saved_n && memcmp(cur, s_cache_saved, n * sizeof(cur[0])) == 0) return;
+    nvs_handle_t h;
+    if (nvs_open(NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    esp_err_t err = n ? nvs_set_blob(h, "peers", cur, n * sizeof(cur[0])) : nvs_erase_key(h, "peers");
+    if (err == ESP_OK || err == ESP_ERR_NVS_NOT_FOUND) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) {
+        memcpy(s_cache_saved, cur, sizeof(cur));
+        s_cache_saved_n = n;
+    }
+}
+
 static void homecall_task(void *arg)
 {
     (void)arg;
+    int pass = 0;   /* passes since Wi-Fi came up */
     for (;;) {
-        if (wifi_is_connected()) {
+        uint32_t wait_ms = BROWSE_EVERY_MS;
+        if (!wifi_is_connected()) {
+            pass = 0;
+            wait_ms = 1000;
+        } else {
             char myip[16];
             wifi_get_ip_str(myip, sizeof(myip));
+            if (pass == 0) vTaskDelay(pdMS_TO_TICKS(2000));   /* let this board's own mDNS name settle */
             if (!s_advertised) advertise();
             browse();
             if (!s_seeded) seed_numbers();
             settle_clashes();
             push_numbers();
+            cache_save_if_changed();
+            /* Look quickly for the first minute after Wi-Fi comes up: other boards
+             * answer slowly, and a number dialled just after power-up has to work. */
+            if (++pass < 6) wait_ms = 8000;
         }
-        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(BROWSE_EVERY_MS));
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(wait_ms));
     }
 }
 
@@ -339,6 +394,7 @@ void homecall_init(void)
         if (nvs_get_u8(h, "auto", &v) == ESP_OK) s_auto = v != 0;
         nvs_close(h);
     }
+    cache_load();
     /* A board that already had a number before first-start numbers existed. */
     if (s_num[0][0] || s_num[1][0]) s_seeded = true;
     push_numbers();
