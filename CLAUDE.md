@@ -176,7 +176,7 @@ structure) — only links from live files (this one included) need the
 - Public docs are also served by GitHub Pages, which only publishes `README.md` + `docs/`: link anything outside `docs/` by full `https://github.com/sdylewski/Analog-Redial/blob/main/...` URL, and never put a `.md` link inside raw HTML (Jekyll won't rewrite it)
 - [`docs/features.md`](docs/features.md) — feature list, firmware architecture (components, threading model, VoIP seams)
 - [`docs/hardware-smd4.md`](docs/hardware-smd4.md) — SMD4 schematic reference, GPIO pin map, power tree
-- [`docs/hardware-smd5.md`](docs/hardware-smd5.md) — SMD5 board reference (Bluetooth companion, LDO, dual MCU footprint); sent to fab, not yet tested
+- [`docs/hardware-smd5.md`](docs/hardware-smd5.md) — SMD5 board reference (Bluetooth companion, LDO, dual MCU footprint); built and working
 - [`archive/signal-levels.md`](archive/signal-levels.md) — SLIC/codec levels, SHK dividers
 - [`docs/voip-setup.md`](docs/voip-setup.md) — SIP server setup, dial-plan reference
 - [`server/voip-provisioner/`](server/voip-provisioner/README.md) — the Asterisk-side number-provisioning service (stdlib Python, HMAC-signed protocol, per-board tokens); its board-side client is `firmware/components/voip_prov`. Tests: `python3 -m unittest test_redial_provisioner.py` in that folder
