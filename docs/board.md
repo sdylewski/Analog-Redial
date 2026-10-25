@@ -21,28 +21,28 @@ capacitors and diodes). You add the larger through-hole parts with a soldering i
 
 | | **v4** (SMD4) | **v5** (SMD5) | **v6** (SMD6) |
 |---|---|---|---|
-| Status | **Proven.** Built and in daily use | **Working, and the one to build.** First boards bench-tested; adds Bluetooth and the clone-module option | **Next generation, in progress.** Not built or tested yet, and the design may still change |
-| Microcontroller | ESP32-C6-DevKitC-1 | ESP32-C6-DevKitC-1, or a cheaper 30-pin clone | Same as v5; the clone footprint is corrected |
+| Status | **Proven.** Built and in daily use | **Working, and the one to build.** First boards bench-tested; adds Bluetooth and the clone-module option | **Released, not tested yet.** Same board as v5 with the clone-module 5V pin fixed and updated silkscreen; it should work, but nobody has built one |
+| Microcontroller | ESP32-C6-DevKitC-1 | ESP32-C6-DevKitC-1, or a cheaper 30-pin clone | Same as v5; the clone footprint is corrected (no pin to remove) |
 | Phone lines | 1 or 2 | 1 or 2 | 1 or 2 |
 | microSD | Single-line build | Single-line build | Single-line build |
 | Bluetooth | No | Header for the Bluetooth companion | Header for the Bluetooth companion |
-| Size | 110 × 54 mm | 115 × 54 mm | not final |
+| Size | 110 × 54 mm | 115 × 54 mm | same as v5 |
 | Reference | [Board reference (v4)](hardware-smd4.md) | [Board reference (v5)](hardware-smd5.md) | none yet |
-| KiCad project | [`Analog Redial v4`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v4) | [`Analog Redial v5`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5) | [`Analog Redial v6`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v6) (work in progress) |
+| KiCad project | [`Analog Redial v4`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v4) | [`Analog Redial v5`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5) | [`Analog Redial v6`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v6) (released, untested) |
 
 **v4** has the longest track record; **v5** adds the Bluetooth header and takes a cheaper clone ESP32 module. Both take the same parts, so the parts list and
 assembly guide cover either one.
 
-> **Build v5 for now.** The **v6** design files are in the repository, but no v6 board has been built
-> or tested yet. Treat them as a work in progress: don't order v6, and expect it to change. This page
-> will say so here when v6 has been tested.
+> **v5 is the proven choice.** **v6** is released: it fixes the clone-module 5V pin error and updates the
+> silkscreen, and is otherwise v5. It should work, but no v6 board has been built or tested yet. If you'd
+> rather have a tested board, build v5; this page will say so here once v6 has been tested.
 
 > ⚠️ **v5 board error with the 30-pin clone module: read before soldering.** On the v5 PCB the clone's
 > **bottom-right 5V pin** is wired to **GND** (the footprint is wrong for the clone's pinout). If you fit a
 > clone, **take that pin out**: cut it off the module, or leave it unsoldered, so it doesn't connect to the
 > board at all. The **bottom-left 5V pin** is then the module's only 5 V connection, and it is enough. Left
 > in, the pin shorts the 5 V rail to ground. With the power off, check with a meter that the 5 V pin has no
-> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The next-generation board (v6) fixes the footprint, but it is still in progress and untested: build v5 for now.
+> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The board that follows, v6, fixes the footprint. It is released but not tested yet, so v5 is the proven choice.
 
 
 ## Three ways to get one

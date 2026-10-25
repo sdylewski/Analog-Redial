@@ -18,6 +18,12 @@ hardware/kicad/**/preview.svg
 hardware/kicad/**/*.kicad_prl
 hardware/kicad/**/jlcpcb/
 hardware/kicad/**/production_files/
+# Release export for v6: tracked on purpose (not its scratch database or v5 leftovers)
+!hardware/kicad/Analog Redial v6/jlcpcb/
+!hardware/kicad/Analog Redial v6/jlcpcb/production_files/
+hardware/kicad/Analog Redial v6/jlcpcb/project.db
+hardware/kicad/Analog Redial v6/jlcpcb/.DS_Store
+hardware/kicad/Analog Redial v6/jlcpcb/production_files/*Redial 5*
 hardware/kicad/**/fabrication-toolkit-files/
 hardware/kicad/**/*.lck
 hardware/kicad/**/tmp*.rpt

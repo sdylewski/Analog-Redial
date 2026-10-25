@@ -44,10 +44,12 @@ is replaced by the DFRobot DFR0781 / BT401 (`Bluetooth/DFR0781_BT401/`, `archive
 carries the 5V. Documented as a warning in README/docs (board.md, bom.md, hardware-smd5.md);
 fixed in v6. Keep that warning in any doc that describes fitting a clone.
 
-**v6 (SMD6, `hardware/kicad/Analog Redial v6/`) is in progress and untested.** The public
-docs say **build v5 for now** (README history table, docs/board.md version table and
-callout, and a README in the v6 KiCad folder). Don't describe v6 as working or
-recommend ordering it until the user has tested it and says so.
+**v6 (SMD6, `hardware/kicad/Analog Redial v6/`) is released (2026-10-24) but untested.** It is v5 with the
+clone 5V-pin footprint fixed and silkscreen updates; U5 stays the 3.3 V XC6206P332MR (3.6 V not done).
+The public docs say it should work but v5 is the tested board (README history table,
+docs/board.md version table and callout, the README in the v6 KiCad folder). Don't describe v6 as
+tested or working until the user has built one and says so. JLCPCB export files for v6 are tracked
+(`hardware/kicad/Analog Redial v6/jlcpcb/`, see .gitignore).
 
 ## Building/flashing for a specific board type (SMD2 vs SMD4 vs SMD5)
 

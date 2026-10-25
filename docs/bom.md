@@ -172,7 +172,7 @@ The v5 board also takes a cheap 30-pin clone. They aren't equivalent:
 > clone, **take that pin out**: cut it off the module, or leave it unsoldered, so it doesn't connect to the
 > board at all. The **bottom-left 5V pin** is then the module's only 5 V connection, and it is enough. Left
 > in, the pin shorts the 5 V rail to ground. With the power off, check with a meter that the 5 V pin has no
-> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The next-generation board (v6) fixes the footprint, but it is still in progress and untested: build v5 for now.
+> continuity to ground. The genuine 32-pin DevKitC-1 is not affected. The board that follows, v6, fixes the footprint. It is released but not tested yet, so v5 is the proven choice.
 
 
 | | **32-pin (recommended)** | **30-pin clone (v5 only)** |

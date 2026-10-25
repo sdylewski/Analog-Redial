@@ -6614,7 +6614,7 @@
 		)
 		(uuid "e5cf3b43-7c25-4a24-8574-670a30483b67")
 	)
-	(text "Changes for SMD5 - SMD6:\nneed to move passives in ag1171 footprint area for ag1171 real module...  touches caps.\nbigger esp32 holes!  they're a little tight\n3.6V or 3.7V regulator for bluetooth module (need to check if we should use it for audio chip also?)\nDo we want to do SMT 470uF caps?\n\n\n\n"
+	(text "Changes for SMD5 - SMD6:\nMajor bug:  Cheap ESP32 wide footprint had one of the 5V pins shorted to ground. Fixed in this release.\n\nneed to move passives in ag1171 footprint area for ag1171 real module...  touches caps.\nbigger esp32 holes!  they're a little tight\nNot done: 3.6V or 3.7V regulator for bluetooth module instead of 3.3V\nDo we want to do SMT 470uF caps?  (add pads) - not now.\n\n\n\n\n"
 		(exclude_from_sim no)
 		(at 198.628 61.214 0)
 		(effects
@@ -11716,7 +11716,7 @@
 				)
 			)
 		)
-		(property "Value" "XC6206P362MR"
+		(property "Value" "XC6206P332MR"
 			(at 101.6 50.8 0)
 			(show_name no)
 			(do_not_autoplace no)

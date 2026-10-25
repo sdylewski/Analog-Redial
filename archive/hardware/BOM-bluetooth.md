@@ -10,7 +10,7 @@ header pinout, MFB, LDO) and
 [`../BLUETOOTH_AUDIO_UPGRADE.md`](../BLUETOOTH_AUDIO_UPGRADE.md) (why each
 coupling cap and the series resistor are the values they are).
 
-**U5 on the next board (v6):** the 3.3 V XC6206P332MR becomes the 3.6 V XC6206P362MR, to support a wider range of future Bluetooth modules (the schematic already has it). v5 stays as built.
+**U5 on v6:** stays the 3.3 V XC6206P332MR (JLC Basic). A 3.6 V XC6206P362MR was considered to support a wider range of Bluetooth modules, but it isn't Basic at JLCPCB and nothing needs it yet, so it was left for a later board.
 
 **Prices last checked 2026-09-30.** DigiKey prices can be re-read
 automatically from the product pages; **AliExpress and Amazon block
