@@ -1796,6 +1796,11 @@ static void fsm_task(void *arg)
     }
 }
 
+void telephony_resume_dialtone(int line)
+{
+    if (line >= 0 && line < NLINES_ACTIVE && s_line[line].state == TEL_DIALTONE) enter_dialtone(line);
+}
+
 /* ---- doorbell ring (telephony_bell) ---- */
 static esp_timer_handle_t s_bell_timer[NLINES];
 

@@ -1039,7 +1039,7 @@ static bool cmd_echoprobe_run(int line, uint32_t sr, size_t n_samples,
 {
     if (!audio_echo_probe(line, (uint32_t)ECHOPROBE_BURST_HZ, ECHOPROBE_BURST_MS,
                            ECHOPROBE_MS, cap, n_samples, out)) {
-        printf("no audio captured\n");
+        printf("couldn't run (no audio arrived, or not enough free memory: see the log line above)\n");
         return false;
     }
     size_t got = n_samples; /* audio_echo_probe() fills up to n_samples; short
@@ -1047,7 +1047,9 @@ static bool cmd_echoprobe_run(int line, uint32_t sr, size_t n_samples,
                               * only affects the plot's trailing rows */
 
     if (plot) {
-        printf("  noise floor rms=%u\n", (unsigned)out->noise_rms);
+        printf("  background noise (1.5 s, 15 blocks): average rms=%u, loudest block %u -- %s\n",
+               (unsigned)out->noise_rms, (unsigned)out->noise_max_rms,
+               out->noise_steady ? "steady" : "NOT steady: quiet the room and the handset, then repeat");
         printf("  peak %d at %.1f ms  <- bulk delay (DMA + codec + acoustic)\n",
                (int)out->peak, out->delay_ms);
         printf("  tail ~%.1f ms after peak\n", out->tail_ms);
@@ -1098,8 +1100,9 @@ static int cmd_echoprobe(int argc, char **argv)
     uint32_t sr = audio_sample_rate();
     size_t n_samples = (size_t)((uint64_t)sr * ECHOPROBE_MS / 1000);
 
+    /* The probe itself needs only a few KB; this is just for the plot. */
     int16_t *cap = malloc(n_samples * sizeof(int16_t));
-    if (!cap) { printf("malloc failed\n"); return 1; }
+    if (!cap) printf("(not enough memory for the envelope plot: measuring without it)\n");
 
     printf("echoprobe line %d: %.0f Hz burst %d ms, listening %d ms, %d run%s...\n",
            line, ECHOPROBE_BURST_HZ, ECHOPROBE_BURST_MS, ECHOPROBE_MS,
@@ -1113,11 +1116,12 @@ static int cmd_echoprobe(int argc, char **argv)
     for (int r = 0; r < reps; r++) {
         if (reps > 1) printf("run %d/%d:\n", r + 1, reps);
         audio_echo_probe_t res;
-        if (!cmd_echoprobe_run(line, sr, n_samples, cap, reps == 1, &res)) continue;
+        if (!cmd_echoprobe_run(line, sr, cap ? n_samples : 0, cap, cap && reps == 1, &res)) continue;
         ok_runs++;
         if (reps > 1) {
-            printf("  noise=%u  peak=%d  delay=%.1fms  tail=%.1fms%s\n",
-                   (unsigned)res.noise_rms, (int)res.peak, res.delay_ms, res.tail_ms,
+            printf("  noise=%u (max block %u, %s)  peak=%d  delay=%.1fms  tail=%.1fms%s\n",
+                   (unsigned)res.noise_rms, (unsigned)res.noise_max_rms,
+                   res.noise_steady ? "steady" : "NOT steady", (int)res.peak, res.delay_ms, res.tail_ms,
                    res.leak_detected ? "" : "  (no leak above noise)");
         }
         if (res.leak_detected) {

@@ -220,7 +220,9 @@ bool audio_test_loopback(void);
  * earpiece. */
 typedef struct {
     bool     leak_detected; /* peak cleared 4x the ambient noise floor */
-    uint32_t noise_rms;
+    bool     noise_steady;  /* the background noise held steady over its 1.5 s measurement */
+    uint32_t noise_max_rms; /* loudest 100 ms block of that measurement */
+    uint32_t noise_rms;     /* average of the 15 blocks: the floor the echo is judged against */
     int32_t  peak;
     double   delay_ms;      /* time from burst start to the return peak */
     double   tail_ms;       /* time from the peak until it decays back down */

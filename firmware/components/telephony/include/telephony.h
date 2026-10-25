@@ -127,6 +127,10 @@ void telephony_set_monitor_suppress(bool on);
  * Lifting the handset stops the bell at once (the SLIC's ring trip). */
 esp_err_t telephony_bell(int line, int secs, bool respect_quiet);
 
+/* Puts dial tone back on a line that is still sitting on it, after something
+ * (the echo measurement) silenced it. Does nothing in any other state. */
+void telephony_resume_dialtone(int line);
+
 /* Messages (dial 211 and answering-machine recordings) saved since someone
  * last looked at the Recordings page or called telephony_messages_seen().
  * Kept across restarts. */

@@ -2702,14 +2702,16 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "better. To calibrate: pick up the handset (off-hook), make sure it's not "
                  "in a call, then click Measure -- it plays a short burst out the earpiece "
                  "and listens on the same line's own mic to find its local echo delay, the "
-                 "number the canceller needs to align against. Takes about 2 seconds (3 "
-                 "quick measurements averaged for reliability). Applying saves it and "
+                 "number the canceller needs to align against. Each of the 3 measurements "
+                 "first listens to the background for 1.5 s and only counts if it stayed "
+                 "steady, so keep the room quiet and the handset still: about 7 seconds in "
+                 "all. Applying saves it and "
                  "takes effect immediately, no reboot."));
     off = appendf(buf, cap, off,
         "</div>"
         "<script>"
         "var AEC_I18N={measuring:'%s',noEcho:'%s',tries:'%s',delayFmt:'%s',consistent:'%s',"
-        "apply:'%s',failed:'%s',onhook:'%s',incall:'%s'};"
+        "apply:'%s',failed:'%s',onhook:'%s',incall:'%s',noisy:'%s',failedrun:'%s'};"
         "function spkLive(line,vol){"
         "document.getElementById('spkpct'+line).textContent="
         "'Level '+vol+' ('+((vol-30)*1.5).toFixed(1)+' dB)';"
@@ -2725,7 +2727,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         "body:'line='+line})"
         ".then(function(r){return r.json();})"
         ".then(function(d){btn.disabled=false;"
-        "if(d.reason){out.textContent=d.reason=='onhook'?AEC_I18N.onhook:AEC_I18N.incall;return;}"
+        "if(d.reason){out.textContent=d.reason=='onhook'?AEC_I18N.onhook:d.reason=='noisy'?AEC_I18N.noisy:d.reason=='failed'?AEC_I18N.failedrun:AEC_I18N.incall;return;}"
         "if(!d.ok){out.textContent=AEC_I18N.noEcho+' '+d.hits+'/'+d.attempts+"
         "' '+AEC_I18N.tries;return;}"
         "var ms=Math.round(d.delay_ms);"
@@ -2747,7 +2749,9 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         i18n_str("aec.js.apply", "Apply %1ms as default"),
         i18n_str("aec.js.failed", "Measurement failed."),
         i18n_str("aec.js.onhook", "Pick up the handset first (the test needs it off-hook), then click Measure again."),
-        i18n_str("aec.js.incall", "This line is in a call or ringing. Finish or hang up, then pick up and measure again."));
+        i18n_str("aec.js.incall", "This line is in a call or ringing. Finish or hang up, then pick up and measure again."),
+        i18n_str("aec.js.noisy", "The background noise kept changing during the 1.5 s it listens first. Quiet the room, hold the handset still, and measure again."),
+        i18n_str("aec.js.failedrun", "The test couldn't run: no audio came back from this line, or the board is short of memory. Check the Diagnostics log, or run echoprobe from the console."));
 
     bool fx_on = board_voice_fx_enabled_get();
     off = appendf(buf, cap, off,
@@ -3683,9 +3687,10 @@ static int append_home_calls_card(char *buf, size_t cap, int off)
                 }
                 char ename[32 * 6];
                 html_escape(peers[i].name, ename, sizeof(ename));
+                bool two = peers[i].number[0][0] && peers[i].number[1][0];   /* a two-line board: label both */
                 off = appendf(buf, cap, off,
                     "<tr><td>%s%s</td><td><code>%s</code></td><td>%s</td><td>%s</td></tr>",
-                    ename, l ? " (line 2)" : "", num, peers[i].ip, note);
+                    ename, l ? " (line 2)" : (two ? " (line 1)" : ""), num, peers[i].ip, note);
             }
         }
         off = appendf(buf, cap, off, "</table>");
@@ -8332,11 +8337,13 @@ static esp_err_t aec_measure_handler(httpd_req_t *req)
         return ESP_OK;
     }
 
-    int hits = 0;
+    int hits = 0, unsteady = 0, failed = 0;
     double delay_sum = 0, tail_sum = 0;
     for (int i = 0; i < AEC_CAL_REPEATS; i++) {
         audio_echo_probe_t res;
-        if (audio_echo_probe(line, 1000, 10, 400, NULL, 0, &res) && res.leak_detected) {
+        if (!audio_echo_probe(line, 1000, 10, 400, NULL, 0, &res)) { failed++; continue; }
+        if (!res.noise_steady) unsteady++;
+        if (res.noise_steady && res.leak_detected) {
             hits++;
             delay_sum += res.delay_ms;
             tail_sum += res.tail_ms;
@@ -8344,8 +8351,11 @@ static esp_err_t aec_measure_handler(httpd_req_t *req)
         if (i + 1 < AEC_CAL_REPEATS) vTaskDelay(pdMS_TO_TICKS(AEC_CAL_SETTLE_MS));
     }
 
+    telephony_resume_dialtone(line);   /* the measurement silenced the dial tone */
     cJSON *root = cJSON_CreateObject();
     cJSON_AddNumberToObject(root, "attempts", AEC_CAL_REPEATS);
+    if (failed == AEC_CAL_REPEATS) cJSON_AddStringToObject(root, "reason", "failed");
+    else if (hits == 0 && unsteady > 0) cJSON_AddStringToObject(root, "reason", "noisy");
     cJSON_AddNumberToObject(root, "hits", hits);
     if (hits > 0) {
         double delay_ms = delay_sum / hits, tail_ms = tail_sum / hits;
@@ -9112,7 +9122,9 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
             for (int l = 0; l < 2; l++) {
                 if (!hp[i].number[l][0] || dialplan_home_number_problem(hp[i].number[l])) continue;
                 char d[96];
-                snprintf(d, sizeof(d), "Call %s%s (board to board)", hp[i].name, l ? ", line 2" : "");
+                bool two = hp[i].number[0][0] && hp[i].number[1][0];
+                snprintf(d, sizeof(d), "Call %s%s (board to board)", hp[i].name,
+                         l ? ", line 2" : (two ? ", line 1" : ""));
                 off = append_guide_row(buf, cap, off, hp[i].number[l], d, 0);
             }
         }

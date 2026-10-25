@@ -3,6 +3,7 @@
 #include "dtmf.h"
 #include "aec.h"
 #include "esp_log.h"
+#include "esp_heap_caps.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -336,97 +337,133 @@ static void echo_probe_tap(int line, const int16_t *mono, size_t n, void *ctx)
     xStreamBufferSend(c->sb, mono, n * sizeof(int16_t), 0);
 }
 
+/* Background noise is measured for 1.5 s in 100 ms blocks before the burst,
+ * and the result is trusted only if the blocks agree: a floor measured over a
+ * moment that happened to be quiet (or loud) would make a real echo vanish
+ * or a cough look like one.
+ *
+ * Memory: the samples are processed as they arrive (a 10 KB stream buffer and
+ * a 1 KB chunk) rather than stored, because a board with a microSD card
+ * fitted can have no free block bigger than about 24 KB. The echo itself is
+ * reduced to the loudest sample of each millisecond; the console's envelope
+ * plot gets the raw samples only if it passed a buffer for them. */
+#define ECHO_NOISE_BLOCKS    15
+#define ECHO_NOISE_BLOCK_MS  100
+#define ECHO_CHUNK           480        /* samples handled at a time (10 ms at 48 kHz) */
+#define ECHO_MAX_LISTEN_MS   1000       /* the envelope holds 1 ms per entry */
+
 bool audio_echo_probe(int line, uint32_t burst_hz, uint32_t burst_ms,
                        uint32_t listen_ms, int16_t *cap_out, size_t cap_out_n,
                        audio_echo_probe_t *out)
 {
     if (line < 0 || line >= AUDIO_NUM_LINES || !out) return false;
     memset(out, 0, sizeof(*out));
+    if (listen_ms > ECHO_MAX_LISTEN_MS) listen_ms = ECHO_MAX_LISTEN_MS;
 
     uint32_t sr = s_sr;
     size_t n_samples = (size_t)((uint64_t)sr * listen_ms / 1000);
-    int16_t *cap = malloc(n_samples * sizeof(int16_t));
-    if (!cap) return false;
-
-    /* Sized to the whole capture, not just enough for typical producer/
-     * consumer pacing: echo_probe_tap()'s xStreamBufferSend() is
-     * non-blocking (the audio task can never block), so an undersized
-     * buffer here would silently drop samples and corrupt the capture
-     * rather than raise an error. */
-    StreamBufferHandle_t sb = xStreamBufferCreate(n_samples * sizeof(int16_t), 1);
-    if (!sb) { free(cap); return false; }
-
-    /* Quiet the line first and let whatever it was playing (dial tone, with the
-     * handset up) finish echoing back through the DMA buffers: the noise floor
-     * below is taken from the start of the capture, and dial tone still in
-     * flight there made a real echo look like "no echo". */
-    audio_tx_silence(line);
-    vTaskDelay(pdMS_TO_TICKS(150));
-
+    size_t blk = (size_t)((uint64_t)sr * ECHO_NOISE_BLOCK_MS / 1000);
+    size_t ms1 = sr / 1000;                       /* samples per millisecond */
+    int16_t *chunk = malloc(ECHO_CHUNK * sizeof(int16_t));
+    uint16_t *env = calloc(ECHO_MAX_LISTEN_MS, sizeof(uint16_t));
+    /* Slack for the time the caller spends processing between receives; the tap
+     * never blocks, so an undersized buffer silently drops samples. */
+    StreamBufferHandle_t sb = xStreamBufferCreate(4 * ECHO_CHUNK * sizeof(int16_t) * 2, 1);
+    if (!chunk || !env || !sb) {
+        ESP_LOGW(TAG, "echo probe: not enough free memory to run (largest free block %u bytes)",
+                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+        free(chunk); free(env);
+        if (sb) vStreamBufferDelete(sb);
+        return false;
+    }
     echo_probe_tap_ctx_t ctx = { .sb = sb };
+
+    /* 1. Quiet the line (a dial tone would otherwise be in the measurement),
+     *    let what was playing drain out of the DMA buffers, then listen. */
+    audio_tx_silence(line);
+    vTaskDelay(pdMS_TO_TICKS(200));
     audio_add_diag_tap(line, echo_probe_tap, &ctx);
-    /* Tap first, THEN emit: starting the burst before the tap is armed would
-     * lose the very leading edge this measurement is all about. */
+    uint64_t sum = 0;
+    uint32_t bmax = 0;
+    bool ok = true;
+    for (int bi = 0; bi < ECHO_NOISE_BLOCKS && ok; bi++) {
+        uint64_t acc = 0;
+        size_t done = 0;
+        while (done < blk) {
+            size_t want = blk - done < ECHO_CHUNK ? blk - done : ECHO_CHUNK;
+            size_t n = xStreamBufferReceive(sb, chunk, want * sizeof(int16_t), pdMS_TO_TICKS(500)) / sizeof(int16_t);
+            if (n == 0) { ok = false; break; }
+            for (size_t i = 0; i < n; i++) acc += (uint64_t)((int32_t)chunk[i] * chunk[i]);
+            done += n;
+        }
+        if (!ok) break;
+        uint32_t r = (uint32_t)sqrt((double)acc / (double)blk);
+        sum += r;
+        if (r > bmax) bmax = r;
+    }
+    audio_remove_diag_tap(line);
+    if (!ok) {
+        ESP_LOGW(TAG, "echo probe: no audio arrived while measuring the background");
+        vStreamBufferDelete(sb); free(chunk); free(env);
+        return false;
+    }
+    uint32_t noise_rms = (uint32_t)(sum / ECHO_NOISE_BLOCKS);
+    out->noise_rms = noise_rms;
+    out->noise_max_rms = bmax;
+    /* Steady: no block louder than half as much again as the average (plus a
+     * little slack for a very quiet floor). */
+    out->noise_steady = bmax <= noise_rms + noise_rms / 2 + 4;
+    xStreamBufferReset(sb);
+
+    /* 2. The burst. Tap first, THEN emit: starting the burst before the tap is
+     *    armed would lose the very leading edge this measurement is all about. */
+    audio_add_diag_tap(line, echo_probe_tap, &ctx);
     audio_tx_burst(line, (float)burst_hz, 0.0f, 0.8f, burst_ms);
 
     size_t got = 0;
+    int32_t peak = 0;
+    size_t peak_i = 0;
     while (got < n_samples) {
-        size_t want = n_samples - got;
-        size_t n = xStreamBufferReceive(sb, cap + got, want * sizeof(int16_t),
-                                        pdMS_TO_TICKS(500));
+        size_t want = n_samples - got < ECHO_CHUNK ? n_samples - got : ECHO_CHUNK;
+        size_t n = xStreamBufferReceive(sb, chunk, want * sizeof(int16_t), pdMS_TO_TICKS(500)) / sizeof(int16_t);
         if (n == 0) break;
-        got += n / sizeof(int16_t);
+        for (size_t i = 0; i < n; i++) {
+            size_t gi = got + i;
+            int32_t a = chunk[i] < 0 ? -chunk[i] : chunk[i];
+            if (a > peak) { peak = a; peak_i = gi; }
+            size_t m = gi / ms1;
+            if (m < ECHO_MAX_LISTEN_MS && a > env[m]) env[m] = (uint16_t)(a > 65535 ? 65535 : a);
+            if (cap_out && gi < cap_out_n) cap_out[gi] = chunk[i];
+        }
+        got += n;
     }
     audio_remove_diag_tap(line);
     vStreamBufferDelete(sb);
     audio_tx_silence(line);
+    free(chunk);
 
-    if (got == 0) { free(cap); return false; }
+    if (got == 0) { free(env); return false; }
+    if (cap_out && cap_out_n > got) memset(cap_out + got, 0, (cap_out_n - got) * sizeof(int16_t));
 
-    /* Peak + noise floor. The floor is taken from the first 2 ms, which is
-     * always before any plausible echo return (bulk delay is dominated by
-     * DMA buffering, tens of ms) -- so it measures ambient/self-noise, not
-     * the thing we're looking for. */
-    size_t floor_n = (size_t)(sr * 2 / 1000);
-    if (floor_n > got) floor_n = got;
-    uint64_t acc = 0;
-    for (size_t i = 0; i < floor_n; i++) acc += (uint64_t)((int32_t)cap[i] * cap[i]);
-    uint32_t noise_rms = floor_n ? (uint32_t)sqrt((double)acc / (double)floor_n) : 0;
+    /* A floor of 0 or 1 would call anything an echo. */
+    uint32_t floor_rms = noise_rms < 2 ? 2 : noise_rms;
 
-    int32_t peak = 0; size_t peak_i = 0;
-    for (size_t i = 0; i < got; i++) {
-        int32_t a = cap[i] < 0 ? -cap[i] : cap[i];
-        if (a > peak) { peak = a; peak_i = i; }
-    }
-
-    /* Tail: last sample still above max(4x noise floor, 5% of peak), scanned
-     * from the end so a mid-burst dip doesn't cut it short. */
-    int32_t thresh = (int32_t)noise_rms * 4;
+    /* Tail: the last millisecond still above max(4x noise floor, 5% of peak),
+     * scanned from the end so a mid-burst dip doesn't cut it short. */
+    int32_t thresh = (int32_t)floor_rms * 4;
     if (thresh < peak / 20) thresh = peak / 20;
+    size_t peak_m = peak_i / ms1, last_m = got / ms1;
+    if (last_m > ECHO_MAX_LISTEN_MS) last_m = ECHO_MAX_LISTEN_MS;
     size_t tail_i = peak_i;
-    for (size_t i = got; i > peak_i; i--) {
-        int32_t a = cap[i - 1] < 0 ? -cap[i - 1] : cap[i - 1];
-        if (a > thresh) { tail_i = i - 1; break; }
+    for (size_t m = last_m; m > peak_m; m--) {
+        if (env[m - 1] > thresh) { tail_i = m * ms1 - 1; break; }
     }
+    free(env);
 
-    out->leak_detected = peak >= (int32_t)noise_rms * 4;
-    out->noise_rms = noise_rms;
+    out->leak_detected = peak >= (int32_t)floor_rms * 4;
     out->peak = peak;
     out->delay_ms = (double)peak_i * 1000.0 / (double)sr;
-    out->tail_ms = (double)(tail_i - peak_i) * 1000.0 / (double)sr;
-
-    if (cap_out && cap_out_n) {
-        size_t n_copy = (got < cap_out_n) ? got : cap_out_n;
-        memcpy(cap_out, cap, n_copy * sizeof(int16_t));
-        /* A short capture (stream stalled before n_samples) only fills
-         * n_copy of the caller's buffer -- zero the rest so a consumer
-         * plotting/scanning it (e.g. bringup's envelope chart) sees clean
-         * silence instead of whatever was previously in that memory. */
-        if (n_copy < cap_out_n) {
-            memset(cap_out + n_copy, 0, (cap_out_n - n_copy) * sizeof(int16_t));
-        }
-    }
-    free(cap);
+    out->tail_ms = tail_i > peak_i ? (double)(tail_i - peak_i) * 1000.0 / (double)sr : 0.0;
     return true;
 }
 
