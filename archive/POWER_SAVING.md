@@ -61,15 +61,18 @@ the user, per their explicit request; this doc is the record of *why*:
    budget had room to spend). Average current: `0.2*60 + 0.8*7 = 17.6mA`,
    vs. 60mA continuous — about **71% savings per line** (~0.21W/line at
    5V). See "Timing derivation" below for where 100ms/500ms come from.
-2. **Additionally, only when `voip_server()` is unset:** WiFi power-save
-   (`wifi_set_power_save(true)` -> `WIFI_PS_MIN_MODEM`). Gated on
-   *configured*, not *currently registered* — a board with VoIP set up but
-   momentarily unreachable (server rebooting, network hiccup) must stay
-   fully awake since the SIP server could come back any second and a call
-   could arrive; "configured or not" is a stable signal, "registered right
-   now" is a flickering symptom that would create a race. Re-checked every
-   tick, so configuring VoIP while already sleeping immediately restores
-   `WIFI_PS_NONE` with no reboot needed.
+2. **Additionally, WiFi power-save** (`wifi_set_power_save(true)` ->
+   `WIFI_PS_MIN_MODEM`), with or without a VoIP server or board-to-board
+   numbers (changed 2026-10-25; it used to be skipped whenever a VoIP server
+   was configured). The radio sleeps between router beacons and wakes for each
+   DTIM beacon, where the access point hands over anything it buffered for it.
+   So an incoming call's first packet (a SIP INVITE) waits at most one DTIM
+   interval, typically 0.1-0.3 s (a router set to DTIM 10 would make it about
+   1 s). The bell starts the instant the packet arrives, and the radio goes
+   fully awake the moment any line leaves idle (ringing counts), well before
+   the call's audio. Outgoing packets (the registration refresh, a call being
+   placed) wake the radio themselves. A call can't be missed outright: the
+   access point holds frames for a sleeping station.
 
 Both tiers disarm instantly (`wake_fully()`) the moment any line leaves
 `TEL_IDLE` — off-hook, a call, dialing, recording, ringing, all of it.

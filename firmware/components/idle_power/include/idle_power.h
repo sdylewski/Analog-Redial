@@ -3,11 +3,11 @@
  *
  * After the configured idle time with every line on-hook, duty-cycles each
  * SLIC's PD pin (ag1170_set_power()) instead of leaving it powered
- * continuously, and -- only when no VoIP server is configured -- also drops
- * WiFi into power-save. Any line going off-hook (or starting to dial, ring,
+ * continuously, and also drops WiFi into power-save (an incoming call can
+ * take a router beacon interval, typically 0.1-0.3 s, longer to start ringing). Any line going off-hook (or starting to dial, ring,
  * record, etc.) immediately restores full power. See
  * archive/POWER_SAVING.md for the datasheet numbers and reasoning behind
- * the duty-cycle timing and the VoIP gating.
+ * the duty-cycle timing.
  *
  * Enabled by default, with every option on (a small added delay on the first pickup after a long idle
  * stretch is the cost; each can be turned off in Settings -> Hardware). Previously this was an opt-in tradeoff -- (a small added delay on

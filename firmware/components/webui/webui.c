@@ -2544,10 +2544,11 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<form method=\"POST\" action=\"/tone_lang_set\" class=\"settings-form\">"
-        "<label>%s</label>"
-        "<select name=\"region\"%s>%s</select>"
         "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s "
-        "onchange=\"var s=this.form.region; s.disabled=this.checked;\"> %s</label>"
+        "onchange=\"this.form.region.style.opacity=this.checked?'.45':'1';\"> %s</label>"
+        "<label>%s</label>"
+        "<select name=\"region\" style=\"opacity:%s\" "
+        "onchange=\"this.form.enabled.checked=false;this.style.opacity='1';\">%s</select>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "<p class=\"hint\">%s</p>"
         "<details><summary>%s</summary>"
@@ -2555,10 +2556,10 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         "<p class=\"hint\">%s</p></details>"
         "</form></div>",
         i18n_str("tones.region.title", "Dial tone region"),
-        i18n_str("tones.region.select_label", "Region"),
-        tone_follow_lang ? " disabled" : "", region_opts,
         tone_follow_lang ? " checked" : "",
         i18n_str("tones.region.follow_label", "Follow my UI language"),
+        i18n_str("tones.region.select_label", "Or pick a region (greyed while following; choosing one stops following)"),
+        tone_follow_lang ? ".45" : "1", region_opts,
         i18n_str("general.button.save", "Save"),
         i18n_str("tones.region.hint",
                  "Dial tone, ringback and busy differ by country &mdash; frequencies and cadence "
@@ -2651,9 +2652,9 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         i18n_str("general.readback.hint",
                  "Echoes each digit back as you dial it. Useful well beyond debugging: a "
                  "preschool phone where children hear the number they just dialled, or a "
-                 "visually impaired user confirming a digit without a display. Today each "
-                 "digit answers with its own touch-tone pair; <b>spoken digits are planned</b> "
-                 "and need a set of number recordings per language. Persists to flash."));
+                 "visually impaired user confirming a digit without a display. Each "
+                 "digit is spoken from the board's number recordings (a short touch-tone "
+                 "burst stands in if they're missing). Persists to flash."));
 
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>", i18n_str("aec.title", "Echo cancellation"));

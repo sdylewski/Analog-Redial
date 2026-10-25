@@ -5,7 +5,6 @@
 #include "board.h"
 #include "ag1170.h"
 #include "telephony.h"
-#include "voip.h"
 #include "wifi.h"
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -197,9 +196,7 @@ float idle_power_estimated_savings_w(void)
     float saved_ma = 60.0f - avg_ma;
     float w_per_line = saved_ma * 5.0f / 1000.0f;
     float w = w_per_line * (float)num_lines;
-    /* Same condition as the task's Wi-Fi power-save (a SIP server keeps the
-     * radio awake). */
-    if (voip_server()[0] == '\0') w += WIFI_SAVINGS_W;
+    w += WIFI_SAVINGS_W;
     return w;
 }
 
@@ -307,14 +304,15 @@ static void idle_power_task(void *arg)
         bool want_on = phase < SLIC_POLL_ON_MS;
         for (int line = 0; line < num_lines; line++) set_line_power(line, want_on);
 
-        /* WiFi power-save only once no VoIP server is configured at all --
-         * see archive/POWER_SAVING.md for why this is the gate (not live
-         * registration status) and re-checked every tick so configuring
-         * VoIP while already sleeping immediately restores WIFI_PS_NONE. */
-        /* Board-to-board calls don't block it: an incoming call waits at most
-         * one DTIM beacon interval for the radio (about 0.1-0.3 s on typical
-         * routers), an acceptable delay before the bell rings. */
-        bool want_wifi_eco = (voip_server()[0] == '\0');
+        /* WiFi power-save whenever the phones are idle, with or without a VoIP
+         * server or board-to-board numbers. The only cost is that an incoming
+         * call's first packet waits for the next router beacon (DTIM), about
+         * 0.1-0.3 s on typical routers (a router set to a long DTIM interval
+         * stretches that); the bell starts the moment it arrives, and the
+         * radio goes fully awake as soon as any line isn't idle. Outgoing
+         * packets (registration refreshes, a call being placed) wake the radio
+         * themselves. Was gated on "no VoIP server" before 2026-10-25. */
+        bool want_wifi_eco = true;
         if (want_wifi_eco != s_wifi_eco) {
             wifi_set_power_save(want_wifi_eco);
             s_wifi_eco = want_wifi_eco;
