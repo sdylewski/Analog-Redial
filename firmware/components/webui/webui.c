@@ -2156,6 +2156,9 @@ static char s_regen_err[VOIP_PROV_MSG_LEN + PROMPT_NAME_MAX + 4];
 static const char *const REGEN_DIGITS[] = {
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
 };
+/* The alarm's question: also what "Update spoken audio" makes it say. */
+#define ALARM_PROMPT_TEXT "What time should the alarm ring? Dial four digits: the hour, then the minutes, on a 24 hour clock."
+
 #define REGEN_JENNY_TEXT "If you're trying to reach Jenny, she's not home right now. Please call back later."
 
 /* True if the stored file (storage or bundled) carries exactly this tag. */
@@ -2202,6 +2205,8 @@ static int regen_build(regen_item_t *it, int max)
     regen_add(it, &n, max, RECORD_PROMPT_NAME, "Record your message after the beep, then hang up.", false);
     regen_add(it, &n, max, TIMER_PROMPT_NAME, "How many minutes for the timer?", false);
     regen_add(it, &n, max, TIMER_DONE_NAME, "Your timer is done.", false);
+    regen_add(it, &n, max, ALARM_PROMPT_NAME, ALARM_PROMPT_TEXT, false);
+    regen_add(it, &n, max, ALARM_DONE_NAME, "This is your alarm.", false);
     regen_add(it, &n, max, AM_DEFAULT_GREETING_NAME, "Leave a message after the beep.", false);
 
     char lang[8];
@@ -4419,6 +4424,42 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
     return off;
 }
 
+/* Alarm (dial 256): what it asks, and what it says when it rings. */
+static int append_alarm_tab(char *buf, size_t cap, int off,
+                             dialplan_entry_info_t *entries, size_t n)
+{
+    off = appendf(buf, cap, off, "<div class=\"card wide\"><h2>Alarm</h2><div class=\"threecols\"><div>");
+    for (size_t i = 0; i < n; i++) {
+        if (strcmp(entries[i].default_code, "256") != 0) continue;
+        off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);
+    }
+    off = append_hint(buf, cap, off,
+        "Dial the alarm code, then the time as four digits on a 24 hour clock: 0730 is 7:30 am, "
+        "1815 is 6:15 pm. Dial 9 9 instead to cancel. It rings once, at the next time that "
+        "matches; lift the handset to hear the message.",
+        "The phone rings longer and for longer than the timer does (12 seconds, up to 8 times "
+        "25 seconds apart), even in quiet hours. The time is the board's own clock, which comes "
+        "from the internet through Wi-Fi and uses the time zone set on the General tab. An "
+        "alarm is kept through a restart (one that came and went while the board was off for "
+        "more than 10 minutes is dropped). Each line has its own. Edit either text and use "
+        "\"Save &amp; generate on server\" (with a VoIP provisioner) or <code>gen_prompt.py "
+        "--sync</code>; until then the built-in recording plays.");
+    for (int l = 0; l < board_hw_config_get().num_lines && l < 2; l++) {
+        time_t at = telephony_alarm_get(l);
+        if (at <= 0) continue;
+        struct tm lt;
+        localtime_r(&at, &lt);
+        char when[32];
+        strftime(when, sizeof(when), "%a %H:%M", &lt);
+        off = appendf(buf, cap, off, "<p class=\"hint\"><b>Line %d: alarm set for %s</b></p>", l + 1, when);
+    }
+    off = appendf(buf, cap, off, "</div><div><h3>The question</h3>");
+    off = append_prompt_field_rows(buf, cap, off, ALARM_PROMPT_NAME, ALARM_PROMPT_TEXT, 3);
+    off = appendf(buf, cap, off, "</div><div><h3>When the alarm rings</h3>");
+    off = append_prompt_field_rows(buf, cap, off, ALARM_DONE_NAME, "This is your alarm.", 3);
+    return appendf(buf, cap, off, "</div></div></div>");
+}
+
 /* Timer (dial 846): what it asks, and what it says when it's up. */
 static int append_timer_tab(char *buf, size_t cap, int off,
                              dialplan_entry_info_t *entries, size_t n)
@@ -6590,6 +6631,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         off = append_operator_tab(buf, cap, off, entries, n);
         off = append_record_tab(buf, cap, off, entries, n);
         off = append_timer_tab(buf, cap, off, entries, n);
+        off = append_alarm_tab(buf, cap, off, entries, n);
         off = append_fixed_codes_card(buf, cap, off);
         off = append_pin_actions_card(buf, cap, off);
     }

@@ -50,6 +50,7 @@ Every event is a POST with a small JSON body:
 | `answering_machine` | The answering machine picked up | `VoIP` or `other line` |
 | `recording` | A recording was saved | `message`, `voicemail` or `greeting`, then the file name |
 | `timer` | A timer (dial 846) went off | `done` |
+| `alarm` | An alarm (dial 256) rang | `ring` |
 | `power` | The board restarted after its power supply dipped (a brownout), sent shortly after it starts | `restarted after a brownout` |
 | `test` | The **Send test event** button | |
 

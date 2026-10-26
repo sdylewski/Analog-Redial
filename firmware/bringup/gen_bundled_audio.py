@@ -33,6 +33,8 @@ PROMPTS = {  # name -> (text, format)
     "am_greeting.wav": ("Leave a message after the beep.", "pcm"),
     "timer_prompt.wav": ("How many minutes for the timer?", "pcm"),
     "timer_done.wav": ("Your timer is done.", "pcm"),
+    "alarm_prompt.wav": ("What time should the alarm ring? Dial four digits: the hour, then the minutes, on a 24 hour clock.", "pcm"),
+    "alarm_done.wav": ("This is your alarm.", "pcm"),
     "jenny.wav": ("If you're trying to reach Jenny, she's not home right now. Please call back later.", "ulaw"),
 }
 DIGITS = {f"{i}.wav": w for i, w in enumerate(

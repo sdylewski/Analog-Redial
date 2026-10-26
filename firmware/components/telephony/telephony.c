@@ -136,7 +136,7 @@ typedef struct {
      * timer_wait_until_us: give up waiting for a first digit at this time.
      * timer_end_us: when the running timer goes off (0 = none); it rings
      * timer_rounds more times, timer_next_us apart. Kept in RAM only. */
-    char                 timer_digits[3];
+    char                 timer_digits[5];
     uint8_t              timer_n;
     int64_t              timer_wait_until_us;
     int64_t              timer_end_us;
@@ -147,6 +147,15 @@ typedef struct {
     int                  timer_minutes;    /* minutes accepted, counting down from the hang-up */
     bool                 timer_accepted;   /* the minutes are in; waiting to hang up on the caller */
     int64_t              timer_hangup_us;  /* when the line hangs up on the caller */
+    /* Alarm (dial 256): entry reuses the timer's digit collection (entry_alarm
+     * says which one is being asked). alarm_at is when it rings (wall clock,
+     * kept in flash); it then rings alarm_rounds more times. */
+    bool                 entry_alarm;
+    time_t               alarm_at;
+    bool                 alarm_ringing;
+    uint8_t              alarm_rounds;
+    int64_t              alarm_next_us;
+    bool                 alarm_announce;   /* play ALARM_DONE_NAME once the line is on dial tone */
     /* A spoken readback digit was started (it ends by itself and then
      * silences the line, so anything that sets new audio stops it first). */
     bool                 rb_clip;
@@ -336,6 +345,8 @@ static void enter_idle(int line)
     s_line[line].timer_n = 0;
     s_line[line].timer_announce = false;
     s_line[line].timer_accepted = false;
+    s_line[line].entry_alarm = false;
+    s_line[line].alarm_announce = false;
     if (s_line[line].rb_clip) { player_stop(line); s_line[line].rb_clip = false; }
     audio_tx_silence(line);
     s_line[line].state = TEL_IDLE;
@@ -1032,6 +1043,11 @@ static void timer_start(int line)
 /* The caller hung up while entering or just after: use what was dialled. */
 static void timer_hung_up(int line)
 {
+    if (s_line[line].entry_alarm) {   /* an alarm is set the moment it is accepted: nothing to finish */
+        s_line[line].timer_accepted = false;
+        s_line[line].timer_n = 0;
+        return;
+    }
     if (!s_line[line].timer_accepted) {
         if (s_line[line].timer_n < 1) return;
         s_line[line].timer_minutes = atoi(s_line[line].timer_digits);
@@ -1047,8 +1063,148 @@ static void timer_hung_up(int line)
     timer_start(line);
 }
 
+/* ---- alarm (dial 256) ------------------------------------------------------
+ * Four digits, hhmm on a 24 hour clock, local time; "99" cancels. The time is
+ * set as soon as it's accepted (it is an absolute time, so there's nothing to
+ * wait for) and kept in flash, so it survives a restart. It rings once, at the
+ * next hh:mm. The ring is longer and lasts longer than the timer's, and the
+ * message that follows is the alarm's own. */
+#define ALARM_RING_SECS    12
+#define ALARM_RING_ROUNDS  8
+#define ALARM_RING_EVERY_US (25LL * 1000000)
+#define ALARM_LATE_S       600     /* rings if the board was off at the time, up to this late */
+#define ALARM_NVS_NS       "telalarm"
+
+static bool clock_is_set(void) { return time(NULL) > 1700000000; }
+
+static void alarm_save(int line)
+{
+    nvs_handle_t h;
+    if (nvs_open(ALARM_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    nvs_set_i64(h, line ? "a1" : "a0", (int64_t)s_line[line].alarm_at);
+    nvs_commit(h);
+    nvs_close(h);
+}
+
+time_t telephony_alarm_get(int line)
+{
+    return (line >= 0 && line < NLINES) ? s_line[line].alarm_at : 0;
+}
+
+/* The caller finished dialling (or "99"): set or cancel, then confirm and hang up on them like the timer. */
+static void alarm_accept(int line)
+{
+    char *d = s_line[line].timer_digits;
+    s_line[line].timer_n = 0;
+    if (d[0] == '9' && d[1] == '9') {
+        bool had = s_line[line].alarm_at != 0;
+        s_line[line].alarm_at = 0;
+        s_line[line].alarm_ringing = false;
+        s_line[line].alarm_rounds = 0;
+        alarm_save(line);
+        activity_log(had ? "Line %d: alarm cancelled" : "Line %d: no alarm to cancel", line);
+    } else {
+        int hh = (d[0] - '0') * 10 + (d[1] - '0'), mm = (d[2] - '0') * 10 + (d[3] - '0');
+        if (hh > 23 || mm > 59 || !clock_is_set()) {
+            activity_log(hh > 23 || mm > 59 ? "Line %d: alarm: %02d%02d isn't a time on a 24 hour clock"
+                                            : "Line %d: alarm: the clock isn't set yet (needs Wi-Fi once)", line,
+                         hh, mm);
+            play_transient(line, TONE_REORDER, 1500, TEL_REORDER, TEL_DIALTONE);
+            return;
+        }
+        time_t now = time(NULL);
+        struct tm lt;
+        localtime_r(&now, &lt);
+        lt.tm_hour = hh; lt.tm_min = mm; lt.tm_sec = 0; lt.tm_isdst = -1;
+        time_t at = mktime(&lt);
+        bool tomorrow = at <= now;
+        if (tomorrow) { lt.tm_mday++; lt.tm_isdst = -1; at = mktime(&lt); }
+        s_line[line].alarm_at = at;
+        s_line[line].alarm_ringing = false;
+        s_line[line].alarm_rounds = 0;
+        alarm_save(line);
+        activity_log("Line %d: alarm set for %02d:%02d %s", line, hh, mm, tomorrow ? "tomorrow" : "today");
+    }
+    s_line[line].timer_accepted = true;
+    s_line[line].timer_hangup_us = esp_timer_get_time() + (int64_t)TIMER_HANGUP_GRACE_MS * 1000;
+    play_transient(line, TONE_CONFIRM, 700, TEL_TIMER_ENTRY, TEL_TIMER_ENTRY);
+}
+
+static void alarm_digit(int line, char ch)
+{
+    if (s_line[line].timer_accepted || ch < '0' || ch > '9') return;
+    if (s_line[line].timer_n == 0) {
+        player_stop(line);
+        audio_tx_silence(line);
+    }
+    if (s_line[line].timer_n < 4) {
+        s_line[line].timer_digits[s_line[line].timer_n++] = ch;
+        s_line[line].timer_digits[s_line[line].timer_n] = '\0';
+    }
+    s_line[line].last_digit_us = esp_timer_get_time();
+    s_line[line].timer_wait_until_us = esp_timer_get_time() + 10LL * 1000000;   /* the next digit */
+    if (s_line[line].timer_n == 2 && !strncmp(s_line[line].timer_digits, "99", 2)) alarm_accept(line);
+    else if (s_line[line].timer_n >= 4) alarm_accept(line);
+}
+
+static void alarm_tick(int line, int64_t now)
+{
+    if (s_line[line].alarm_announce && s_line[line].state == TEL_DIALTONE) {
+        s_line[line].alarm_announce = false;
+        audio_tx_silence(line);
+        if (player_play(line, ALARM_DONE_NAME, clip_done_cb, NULL) == ESP_OK) {
+            s_line[line].state = TEL_PLAYING;
+        } else {
+            play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+        }
+        return;
+    }
+    if (!s_line[line].alarm_at || !clock_is_set()) return;
+    time_t wall = time(NULL);
+    if (wall < s_line[line].alarm_at) return;
+    if (!s_line[line].alarm_ringing && wall - s_line[line].alarm_at > ALARM_LATE_S) {
+        activity_log("Line %d: the alarm time passed while the board was off", line);
+        s_line[line].alarm_at = 0;
+        alarm_save(line);
+        return;
+    }
+    tel_state_t st = s_line[line].state;
+    if (st == TEL_IDLE && !line_offhook(line)) {
+        if (!s_line[line].alarm_ringing) {
+            s_line[line].alarm_ringing = true;
+            s_line[line].alarm_rounds = ALARM_RING_ROUNDS;
+            s_line[line].alarm_next_us = now;
+            activity_log("Line %d: alarm", line);
+            webhook_eventf("alarm", line, "ring");
+        }
+        if (now >= s_line[line].alarm_next_us) {
+            if (s_line[line].alarm_rounds == 0) {
+                s_line[line].alarm_at = 0;   /* nobody answered: give up */
+                s_line[line].alarm_ringing = false;
+                alarm_save(line);
+            } else {
+                telephony_bell(line, ALARM_RING_SECS, false);   /* rings even in quiet hours: it was asked for */
+                s_line[line].alarm_next_us = now + ALARM_RING_EVERY_US;
+                s_line[line].alarm_rounds--;
+            }
+        }
+    } else if (st == TEL_DIALTONE) {
+        bool was_ringing = s_line[line].alarm_ringing;
+        s_line[line].alarm_at = 0;
+        s_line[line].alarm_ringing = false;
+        s_line[line].alarm_rounds = 0;
+        alarm_save(line);
+        if (!was_ringing) {
+            activity_log("Line %d: alarm", line);
+            webhook_eventf("alarm", line, "ring");
+        }
+        s_line[line].alarm_announce = true;
+    }
+}
+
 static void timer_digit(int line, char ch)
 {
+    if (s_line[line].entry_alarm) { alarm_digit(line, ch); return; }
     if (s_line[line].timer_accepted) return;   /* already have the minutes */
     if (ch == '#' && s_line[line].timer_n >= 1) { timer_accept(line, TIMER_HANGUP_GRACE_MS); return; }   /* touch-tone "enter" */
     if (ch < '0' || ch > '9') return;
@@ -1083,8 +1239,16 @@ static void timer_tick(int line, int64_t now)
             if (now >= s_line[line].timer_hangup_us) {
                 /* The minutes are in and nobody hung up: the line hangs up on the caller
                  * (fast busy until the handset goes down) and the countdown starts. */
-                timer_start(line);
+                if (!s_line[line].entry_alarm) timer_start(line);
+                else s_line[line].timer_accepted = false;
                 play_persistent(line, TONE_REORDER, TEL_REORDER);
+            }
+        } else if (s_line[line].entry_alarm) {
+            if (s_line[line].timer_wait_until_us && now >= s_line[line].timer_wait_until_us) {
+                s_line[line].timer_wait_until_us = 0;
+                s_line[line].timer_n = 0;
+                activity_log("Line %d: alarm: no time entered", line);
+                play_transient(line, TONE_REORDER, 1500, TEL_REORDER, TEL_DIALTONE);
             }
         } else if (s_line[line].timer_n == 1 &&
             (now - s_line[line].last_digit_us) / 1000 >= TIMER_SECOND_DIGIT_WAIT_MS) {
@@ -1161,8 +1325,24 @@ static void handle_action(int line, const dialplan_action_t *a)
             activity_log("Line %d: reading pi aloud", line);
             break;
 
+        case ACT_ALARM:
+            audio_tx_silence(line);
+            s_line[line].entry_alarm = true;
+            s_line[line].timer_n = 0;
+            s_line[line].timer_accepted = false;
+            s_line[line].timer_digits[0] = '\0';
+            s_line[line].timer_wait_until_us = esp_timer_get_time() + 30LL * 1000000;
+            if (player_play(line, ALARM_PROMPT_NAME, clip_done_cb, NULL) == ESP_OK) {
+                s_line[line].state = TEL_TIMER_ENTRY;
+            } else {
+                s_line[line].timer_wait_until_us = esp_timer_get_time() + TIMER_FIRST_DIGIT_WAIT_US;
+                play_transient(line, TONE_ANSWERING_BEEP, 300, TEL_TIMER_ENTRY, TEL_TIMER_ENTRY);
+            }
+            break;
+
         case ACT_TIMER:
             audio_tx_silence(line);
+            s_line[line].entry_alarm = false;
             s_line[line].timer_n = 0;
             s_line[line].timer_accepted = false;
             s_line[line].timer_digits[0] = '\0';
@@ -1378,6 +1558,14 @@ static void on_offhook(int line)
         s_line[line].timer_rounds = 0;
         s_line[line].timer_ringing = false;
         s_line[line].timer_announce = true;
+    }
+    if (s_line[line].alarm_at && clock_is_set() && time(NULL) >= s_line[line].alarm_at) {
+        /* Picked up the ringing alarm. */
+        s_line[line].alarm_at = 0;
+        s_line[line].alarm_rounds = 0;
+        s_line[line].alarm_ringing = false;
+        s_line[line].alarm_announce = true;
+        alarm_save(line);
     }
     if (bt_companion_should_intercept(line)) {
         bool music_only = !bt_companion_call_live();
@@ -1695,6 +1883,7 @@ static void fsm_task(void *arg)
         int64_t now = esp_timer_get_time();
         for (int line = 0; line < NLINES_ACTIVE; line++) {
             timer_tick(line, now);
+            alarm_tick(line, now);
             /* inter-digit timeout */
             if (s_line[line].dialing &&
                 (now - s_line[line].last_digit_us) / 1000 >= dialplan_interdigit_ms()) {
@@ -1923,6 +2112,18 @@ esp_err_t telephony_start(void)
         memset(&s_line[line], 0, sizeof(s_line[line]));
         s_line[line].state = TEL_IDLE;
         s_line[line].peer = PEER_NONE;
+    }
+    /* Alarms set before the last restart. */
+    {
+        nvs_handle_t h;
+        if (nvs_open(ALARM_NVS_NS, NVS_READONLY, &h) == ESP_OK) {
+            for (int line = 0; line < NLINES; line++) {
+                int64_t at = 0;
+                nvs_get_i64(h, line ? "a1" : "a0", &at);
+                s_line[line].alarm_at = (time_t)at;
+            }
+            nvs_close(h);
+        }
     }
     /* DTMF detector + RX tap only for lines that actually exist. */
     for (int line = 0; line < NLINES_ACTIVE; line++) {

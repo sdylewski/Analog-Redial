@@ -34,6 +34,7 @@ typedef enum {
     ACT_PI_DIGITS,      /* dial 314: read the first 100 decimals of pi aloud */
     ACT_HOME_CALL,      /* number[] is another phone's home-network number (homecall) */
     ACT_TIMER,          /* dial 846: ask how many minutes (1-99), then ring when it's up */
+    ACT_ALARM,          /* dial 256 (ALM): ask for a 24-hour time, then ring at that time */
 } dialplan_action_kind_t;
 
 typedef enum {

@@ -68,6 +68,7 @@ Bluetooth is the only one that needs an extra board.
   	- Play an audio file after dialing a number: **412** plays dial-up modem sounds
   	- Respond to any number: **314** reads pi aloud.
   	- A kitchen timer: dial **846**, then the number of minutes, and the phone rings when time is up.
+  	- An alarm clock: dial **256**, then the time (0730), and the phone rings at that time.
   	- Optional digit readback speaks each digit you dial (**822**
   on, **821** off)
 - **Calls.** Line-to-line calls with ringback and busy tones. 

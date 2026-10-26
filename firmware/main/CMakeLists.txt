@@ -17,6 +17,8 @@ set(BUNDLED_AUDIO
     record_prompt.wav   # dial 211, before the beep
     timer_prompt.wav    # dial 846, "How many minutes for the timer?"
     timer_done.wav      # dial 846: "Your timer is done." when it goes off
+    alarm_prompt.wav    # dial 256, "What time should the alarm ring?..."
+    alarm_done.wav      # dial 256: "This is your alarm." when it rings
     am_greeting.wav     # answering machine's default greeting
     dialup.wav          # 412, public domain (8-bit u-law: full length in 314 KB)
     jenny.wav           # 8675309, spoken message (8-bit u-law, 38 KB)

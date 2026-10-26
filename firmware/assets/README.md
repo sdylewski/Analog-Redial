@@ -1,7 +1,7 @@
 # firmware/assets/ — bundled audio (baked in at build/flash time)
 
 The files listed in `BUNDLED_AUDIO` in `firmware/main/CMakeLists.txt` —
-**`operator.wav`, `record_prompt.wav`, `timer_prompt.wav`, `timer_done.wav`, `am_greeting.wav`, `dialup.wav` and
+**`operator.wav`, `record_prompt.wav`, `timer_prompt.wav`, `timer_done.wav`, `alarm_prompt.wav`, `alarm_done.wav`, `am_greeting.wav`, `dialup.wav` and
 `jenny.wav` and the spoken digits `0.wav`-`9.wav` and `point.wav`, nothing else** — get
 baked into a **read-only-in-spirit `bundled` SPIFFS partition** at build time
 and flashed alongside the firmware image (see the `bundled` entry in
@@ -35,6 +35,8 @@ up.", generated with `bringup/gen_prompt.py` from the same English text
 `first_setup.py` uses. Plays before the beep when you dial `211`.
 
 **`timer_prompt.wav`** — "How many minutes for the timer?", made by `bringup/gen_bundled_audio.py`. Plays when you dial `846`, then the phone waits for one or two digits.
+
+**`alarm_prompt.wav`** and **`alarm_done.wav`** — "What time should the alarm ring? Dial four digits: the hour, then the minutes, on a 24 hour clock." and "This is your alarm." for dial `256`.
 
 **`timer_done.wav`** — "Your timer is done." Plays when you answer the ringing timer.
 

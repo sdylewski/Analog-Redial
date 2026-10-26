@@ -12,6 +12,7 @@
 
 #include "esp_err.h"
 #include <stdint.h>
+#include <time.h>
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -69,6 +70,11 @@ typedef enum {
 /* Played when someone answers the ringing timer ("Your timer is done."), or
  * right away if the handset is already up. Missing: a short beep. */
 #define TIMER_DONE_NAME   "timer_done.wav"
+
+/* Dial 256 (ALM): "What time should the alarm ring?..." before the four digits
+ * (hours, minutes, 24 hour clock), and "This is your alarm." when it's answered. */
+#define ALARM_PROMPT_NAME "alarm_prompt.wav"
+#define ALARM_DONE_NAME   "alarm_done.wav"
 
 /* Answering machine's own greeting for `line`, recorded via dial code 999
  * (fixed filename -- re-recording overwrites it directly, reviewed via the
@@ -130,6 +136,9 @@ esp_err_t telephony_bell(int line, int secs, bool respect_quiet);
 /* Puts dial tone back on a line that is still sitting on it, after something
  * (the echo measurement) silenced it. Does nothing in any other state. */
 void telephony_resume_dialtone(int line);
+
+/* When `line`'s alarm will ring (seconds since 1970, local clock), 0 = none set. */
+time_t telephony_alarm_get(int line);
 
 /* Messages (dial 211 and answering-machine recordings) saved since someone
  * last looked at the Recordings page or called telephony_messages_seen().
