@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- UPPER instruction card, example 1: rates and services (style of the NYNEX / Bell cards).
+     Edit the text, colours (the <style> block) and icons in Inkscape, Illustrator, Affinity or a text editor.
+     Size: 178 x 64 mm (7.0 x 2.5 in), the common upper insert. Measure your phone's card slot and change
+     width/height below to match; the drawing scales with the viewBox. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="178mm" height="64mm" viewBox="0 0 800 288">
+  <style>
+    .paper  { fill: #ffffff; }
+    .rule   { stroke: #9aa3ad; stroke-width: 2; }
+    .brand  { fill: #2aa3c9; font: 900 44px "Arial Black", "Helvetica Neue", Arial, sans-serif; letter-spacing: -2px; }
+    .head   { fill: #1a1a1a; font: 700 23px "Helvetica Neue", Arial, sans-serif; }
+    .body   { fill: #1a1a1a; font: 400 17px "Helvetica Neue", Arial, sans-serif; }
+    .big    { fill: #1a1a1a; font: 700 22px "Helvetica Neue", Arial, sans-serif; }
+    .small  { fill: #6b7280; font: 400 11px "Helvetica Neue", Arial, sans-serif; }
+    .coin   { fill: #3a3a3a; }
+    .coinT  { fill: #ffffff; font: 700 17px "Helvetica Neue", Arial, sans-serif; text-anchor: middle; }
+    .blue   { fill: #2aa3c9; }
+    .red    { fill: #d6322b; }
+    .iconT  { fill: #ffffff; font: 700 11px "Helvetica Neue", Arial, sans-serif; text-anchor: middle; }
+    .iconB  { fill: #ffffff; font: 700 21px "Helvetica Neue", Arial, sans-serif; text-anchor: middle; }
+  </style>
+
+  <g id="background"><rect class="paper" width="800" height="288" rx="6"/></g>
+
+  <!-- left panel: picture + caption -->
+  <g id="left-panel">
+    <!-- rotary dial: replace with your own artwork or a logo -->
+    <g id="dial-art" transform="translate(190,105)">
+      <circle r="82" fill="#2c3e50"/>
+      <circle r="66" fill="#f4efe1"/>
+      <g fill="#2c3e50">
+        <circle cx="0" cy="-48" r="9"/><circle cx="24" cy="-42" r="9"/><circle cx="42" cy="-24" r="9"/>
+        <circle cx="48" cy="0" r="9"/><circle cx="42" cy="24" r="9"/><circle cx="24" cy="42" r="9"/>
+        <circle cx="0" cy="48" r="9"/><circle cx="-24" cy="42" r="9"/><circle cx="-42" cy="24" r="9"/>
+        <circle cx="-48" cy="0" r="9"/>
+      </g>
+      <circle r="22" fill="#2c3e50"/>
+      <text class="iconT" y="5" style="font-size:13px">DIAL</text>
+    </g>
+    <text class="head" x="36" y="222">Calling made easy.</text>
+    <text class="body" x="36" y="246">Lift the handset, wait for dial tone, then</text>
+    <text class="body" x="36" y="268">dial the number. It's that simple.</text>
+  </g>
+
+  <line class="rule" x1="392" y1="22" x2="392" y2="266"/>
+
+  <!-- right panel: brand + three service lines -->
+  <g id="right-panel">
+    <text class="brand" x="425" y="76">YOUR NAME</text>
+
+    <g id="line-local" transform="translate(0,0)">
+      <circle class="coin" cx="446" cy="132" r="21"/>
+      <text class="coinT" x="446" y="139">25¢</text>
+      <text class="big" x="482" y="130">Local cash calls</text>
+      <text class="body" x="482" y="152">Other calls, see instructions below</text>
+      <text class="body" x="482" y="172">No incoming calls accepted</text>
+    </g>
+
+    <g id="line-operator">
+      <rect class="blue" x="425" y="188" width="42" height="42" rx="3"/>
+      <text class="iconT" x="446" y="203">OPER</text>
+      <text class="iconB" x="446" y="224">0</text>
+      <text class="big" x="482" y="205">Operator</text>
+      <text class="body" x="482" y="226">Dial 0 for help with any call</text>
+    </g>
+
+    <g id="line-emergency">
+      <rect class="red" x="425" y="238" width="42" height="34" rx="3"/>
+      <text class="iconB" x="446" y="262" style="font-size:19px">911</text>
+      <text class="big" x="482" y="253">Emergencies</text>
+      <text class="body" x="482" y="272">No coins needed</text>
+    </g>
+  </g>
+
+  <text class="small" x="778" y="18" text-anchor="end">CARD 8/26</text>
+</svg>

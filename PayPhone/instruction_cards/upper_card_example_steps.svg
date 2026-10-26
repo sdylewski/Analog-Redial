@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- UPPER instruction card, example 2: four steps with pictures (style of the "post-pay" cards).
+     Edit text and colours in the <style> block. Size: 178 x 64 mm (7.0 x 2.5 in). -->
+<svg xmlns="http://www.w3.org/2000/svg" width="178mm" height="64mm" viewBox="0 0 800 288">
+  <style>
+    .paper { fill: #ffffff; }
+    .band  { fill: #1e88c7; }
+    .white { fill: #ffffff; }
+    .title { fill: #ffffff; font: 700 33px "Helvetica Neue", Arial, sans-serif; }
+    .step  { fill: #ffffff; font: 400 46px "Helvetica Neue", Arial, sans-serif; }
+    .tag   { fill: #ffffff; font: 700 15px "Helvetica Neue", Arial, sans-serif; }
+    .list  { fill: #1a1a1a; font: 400 22px "Helvetica Neue", Arial, sans-serif; letter-spacing: 1px; }
+    .sos   { fill: #1a1a1a; font: 400 19px "Helvetica Neue", Arial, sans-serif; }
+    .note  { fill: #1a1a1a; font: 400 17px "Helvetica Neue", Arial, sans-serif; letter-spacing: 1px; }
+    .tiny  { fill: #444; font: 400 12px "Helvetica Neue", Arial, sans-serif; letter-spacing: 1px; }
+    .line  { stroke: #1e88c7; stroke-width: 2; }
+    .coinT { fill: #1e88c7; font: 700 21px "Helvetica Neue", Arial, sans-serif; text-anchor: middle; }
+    .handset { stroke: #ffffff; stroke-width: 20; stroke-linecap: round; fill: none; }
+    .ends    { fill: #ffffff; }
+  </style>
+
+  <rect class="paper" width="800" height="288" rx="6"/>
+  <rect class="band" x="0" y="0" width="800" height="118" rx="6"/>
+  <rect class="band" x="0" y="100" width="800" height="18"/>
+
+  <!-- title -->
+  <text class="title" x="22" y="52">Free calls:</text>
+  <text class="title" x="22" y="94">no coin needed</text>
+
+  <!-- the four step pictures: each group is a number plus a picture, 100 units wide -->
+  <!-- 1. handset + TONE -->
+  <g id="step1" transform="translate(392,0)">
+    <text class="step" x="0" y="64" style="font-size:38px">1.</text>
+    <g transform="translate(34,22) scale(.8)">
+      <path class="handset" d="M18 10 L18 76"/>
+      <circle class="ends" cx="18" cy="12" r="15"/><circle class="ends" cx="18" cy="76" r="15"/>
+      <g transform="rotate(-12 60 28)"><rect class="white" x="34" y="14" width="46" height="26" rx="3"/>
+        <text class="tag" x="57" y="33" text-anchor="middle" style="fill:#1e88c7">TONE</text></g>
+    </g>
+  </g>
+
+  <!-- 2. keypad -->
+  <g id="step2" transform="translate(500,0)">
+    <text class="step" x="0" y="64" style="font-size:38px">2.</text>
+    <g transform="translate(36,22) scale(.8)" fill="#ffffff">
+      <rect x="0" y="0" width="16" height="16" rx="2"/><rect x="21" y="0" width="16" height="16" rx="2"/><rect x="42" y="0" width="16" height="16" rx="2"/>
+      <rect x="0" y="21" width="16" height="16" rx="2"/><rect x="21" y="21" width="16" height="16" rx="2"/><rect x="42" y="21" width="16" height="16" rx="2"/>
+      <rect x="0" y="42" width="16" height="16" rx="2"/><rect x="21" y="42" width="16" height="16" rx="2"/><rect x="42" y="42" width="16" height="16" rx="2"/>
+      <ellipse cx="62" cy="62" rx="9" ry="18" transform="rotate(-45 62 62)"/>
+    </g>
+  </g>
+
+  <!-- 3. handset + HELLO -->
+  <g id="step3" transform="translate(600,0)">
+    <text class="step" x="0" y="64" style="font-size:38px">3.</text>
+    <g transform="translate(34,22) scale(.8)">
+      <path class="handset" d="M18 10 L18 76"/>
+      <circle class="ends" cx="18" cy="12" r="15"/><circle class="ends" cx="18" cy="76" r="15"/>
+      <g transform="rotate(-12 60 28)"><rect class="white" x="34" y="14" width="52" height="26" rx="3"/>
+        <text class="tag" x="60" y="33" text-anchor="middle" style="fill:#1e88c7">HELLO</text></g>
+    </g>
+  </g>
+
+  <!-- 4. coin -->
+  <g id="step4" transform="translate(704,0)">
+    <text class="step" x="0" y="64" style="font-size:38px">4.</text>
+    <circle class="white" cx="68" cy="56" r="28"/>
+    <text class="coinT" x="68" y="62" style="font-size:17px">COIN</text>
+  </g>
+
+  <!-- list + notes -->
+  <g id="steps-text">
+    <text class="list" x="22" y="160">1. LISTEN FOR DIAL TONE</text>
+    <text class="list" x="22" y="190">2. DIAL NUMBER</text>
+    <text class="list" x="22" y="220">3. HEAR ANSWER</text>
+    <text class="list" x="22" y="250">4. DEPOSIT COINS</text>
+    <text class="note" x="560" y="160">Deposit coins only.</text>
+    <text class="note" x="560" y="186">Change not provided.</text>
+  </g>
+  <line class="line" x1="0" y1="266" x2="800" y2="266"/>
+  <text class="sos" x="22" y="283"><tspan font-weight="700">SOS</tspan> dial 911 for emergency help</text>
+  <text class="tiny" x="778" y="283" text-anchor="end">POST-PAY</text>
+</svg>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- LOWER instruction card: dialing instructions (style of the NYNEX / Bell lower cards).
+     Edit the text and colours (the <style> block) in Inkscape or a text editor.
+     Size: 178 x 84 mm (7.0 x 3.3 in), the common lower insert. Measure your phone's card slot and change
+     width/height below to match; the drawing scales with the viewBox. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="178mm" height="84mm" viewBox="0 0 800 375">
+  <style>
+    .paper  { fill: #ffffff; }
+    .band   { fill: #1e88c7; }
+    .title  { fill: #ffffff; font: 700 27px "Helvetica Neue", Arial, sans-serif; }
+    .brand  { fill: #ffffff; font: 900 21px "Arial Black", "Helvetica Neue", Arial, sans-serif; letter-spacing: -1px; }
+    .head   { fill: #1a1a1a; font: 700 17px "Helvetica Neue", Arial, sans-serif; }
+    .body   { fill: #1a1a1a; font: 400 16px "Helvetica Neue", Arial, sans-serif; }
+    .side   { fill: #1a1a1a; font: 400 14px "Helvetica Neue", Arial, sans-serif; }
+    .sideH  { fill: #1a1a1a; font: 700 15px "Helvetica Neue", Arial, sans-serif; }
+    .tiny   { fill: #ffffff; font: 400 10px "Helvetica Neue", Arial, sans-serif; }
+    .rule   { stroke: #1e88c7; stroke-width: 1.5; }
+    .key    { fill: #1a1a1a; }
+    .keyT   { fill: #ffffff; font: 700 13px "Helvetica Neue", Arial, sans-serif; text-anchor: middle; }
+    .box    { fill: #f1f2f4; stroke: #c4c8ce; stroke-width: 1; }
+  </style>
+
+  <rect class="paper" width="800" height="375" rx="8"/>
+  <path class="band" d="M0 8 Q0 0 8 0 H792 Q800 0 800 8 V62 H0 Z"/>
+  <text class="tiny" x="28" y="18">CARD ID 0001</text>
+  <text class="title" x="28" y="50">Dialing Instructions</text>
+  <text class="brand" x="580" y="46">YOUR NAME</text>
+
+  <!-- left: instruction sections -->
+  <g id="instructions">
+    <text class="head" x="28" y="92" style="font-size:15px">Your business name, 1 Main Street, Your Town, ST 00000</text>
+    <line class="rule" x1="28" y1="102" x2="540" y2="102"/>
+
+    <text class="head" x="28" y="124">Local calls:</text>
+    <text class="body" x="28" y="146">Lift the handset, wait for dial tone, then dial the number</text>
+    <line class="rule" x1="28" y1="156" x2="540" y2="156"/>
+
+    <text class="head" x="28" y="178">Long distance and collect calls:</text>
+    <text class="body" x="28" y="200">Dial</text>
+    <rect class="key" x="62" y="185" width="34" height="19" rx="9.5"/><text class="keyT" x="79" y="199">0+</text>
+    <text class="body" x="104" y="200">area code + number and follow the instructions</text>
+    <line class="rule" x1="28" y1="210" x2="540" y2="210"/>
+
+    <text class="head" x="28" y="232">No cash needed:</text>
+    <text class="body" x="28" y="254">Operator assistance - Dial 0</text>
+    <text class="body" x="28" y="276">Directory assistance - Dial</text>
+    <rect class="key" x="218" y="261" width="34" height="19" rx="9.5"/><text class="keyT" x="235" y="275">1+</text>
+    <text class="body" x="260" y="276">area code + 555 - 1212</text>
+    <text class="body" x="28" y="298">Emergencies - Dial 911 (no coins needed)</text>
+    <line class="rule" x1="28" y1="308" x2="540" y2="308"/>
+
+    <text class="head" x="28" y="330">Questions or complaints:</text>
+    <text class="body" x="28" y="352">Write to the address above, or call 000-000-0000</text>
+  </g>
+
+  <!-- right: carrier box and notes -->
+  <g id="carrier">
+    <text class="sideH" x="568" y="92">Long distance calls outside</text>
+    <text class="sideH" x="568" y="112">our calling area are carried by:</text>
+    <rect class="box" x="568" y="124" width="204" height="86" rx="6"/>
+    <text class="side" x="670" y="172" text-anchor="middle" fill="#9aa3ad" style="fill:#9aa3ad">(carrier logo or name)</text>
+    <text class="side" x="568" y="240">For rates, billing and service</text>
+    <text class="side" x="568" y="258">disputes, write or call the</text>
+    <text class="side" x="568" y="276">carrier shown above.</text>
+    <text class="side" x="568" y="306">For operator assistance on long</text>
+    <text class="side" x="568" y="324">distance calls - Dial 00</text>
+  </g>
+</svg>
