@@ -63,7 +63,7 @@ defaults:
 | **314** | Reads pi aloud: "three point one four one five...", the first 100 decimals. Hang up to stop |
 | **321** | Ring the other phone (two-line boards) |
 | **412** | A dial-up modem sound, for old times' sake |
-| **846** | Timer ("TIM" on the keypad): asks "How many minutes for the timer?", then dial 1 or 2 digits (1-99; 0 cancels). When it's up the phone rings, up to four times, until you pick up, then says "Your timer is done." (change the words in Settings → Dial Codes, Timer card). One timer per line, forgotten if the board restarts |
+| **846** | Timer ("TIM" on the keypad): asks "How many minutes for the timer?", then dial 1 or 2 digits (1-99; 0 cancels). A beep confirms it; hang up (or wait 3 seconds and the line hangs up for you) and the countdown starts. When it's up the phone rings, up to four times, until you pick up, then says "Your timer is done." (change the words in Settings → Dial Codes, Timer card). One timer per line, forgotten if the board restarts |
 | **8675309** | A short spoken message: "If you're trying to reach Jenny, she's not home right now." |
 | A board's 4-digit number | A VoIP call straight to another Analog Redial board on your network, no server. Each board's number is on its Settings → VOIP page ([VoIP setup](voip-setup.md)) |
 | **555** + 4 digits | A VoIP call to that extension on your SIP server ([VoIP setup](voip-setup.md)) |

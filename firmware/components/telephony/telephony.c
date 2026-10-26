@@ -144,6 +144,9 @@ typedef struct {
     uint8_t              timer_rounds;
     bool                 timer_ringing;    /* timer_end_us has passed and the bell rounds are running */
     bool                 timer_announce;   /* play TIMER_DONE_NAME once the line is on dial tone */
+    int                  timer_minutes;    /* minutes accepted, counting down from the hang-up */
+    bool                 timer_accepted;   /* the minutes are in; waiting to hang up on the caller */
+    int64_t              timer_hangup_us;  /* when the line hangs up on the caller */
     /* A spoken readback digit was started (it ends by itself and then
      * silences the line, so anything that sets new audio stops it first). */
     bool                 rb_clip;
@@ -332,6 +335,7 @@ static void enter_idle(int line)
     s_line[line].seq = NULL;
     s_line[line].timer_n = 0;
     s_line[line].timer_announce = false;
+    s_line[line].timer_accepted = false;
     if (s_line[line].rb_clip) { player_stop(line); s_line[line].rb_clip = false; }
     audio_tx_silence(line);
     s_line[line].state = TEL_IDLE;
@@ -987,38 +991,66 @@ void telephony_check_clip_files(void)
 /* ---- timer (dial 846) ---------------------------------------------------- */
 #define TIMER_FIRST_DIGIT_WAIT_US  (10LL * 1000000)  /* after the prompt, for the first digit */
 #define TIMER_SECOND_DIGIT_WAIT_MS 3000              /* wait this long for a second digit (not the 15 s dial-plan timeout) */
+#define TIMER_HANGUP_GRACE_MS      3000              /* after the minutes are accepted, before the line hangs up on the caller */
 #define TIMER_RING_SECS            6
 #define TIMER_RING_ROUNDS          4                 /* rings before it gives up */
 #define TIMER_RING_EVERY_US        (20LL * 1000000)
 
-/* Starts (or, for 0, cancels) the timer from the digits entered. */
-static void timer_set(int line)
+/* The minutes are in. 0 cancels a running timer at once. Anything else is held
+ * until the call ends: the countdown starts when the caller hangs up, or when
+ * the line hangs up on them, `grace_ms` after the last digit (3 s, so a
+ * mistake can still be heard before the line goes away). */
+static void timer_accept(int line, int grace_ms)
 {
     int minutes = atoi(s_line[line].timer_digits);
     s_line[line].timer_n = 0;
+    s_line[line].timer_accepted = true;
+    s_line[line].timer_minutes = minutes;
+    s_line[line].timer_hangup_us = esp_timer_get_time() + (int64_t)grace_ms * 1000;
     if (minutes <= 0) {
         bool had = s_line[line].timer_end_us != 0;
         s_line[line].timer_end_us = 0;
         s_line[line].timer_rounds = 0;
         s_line[line].timer_ringing = false;
         activity_log(had ? "Line %d: timer cancelled" : "Line %d: no timer to cancel", line);
-    } else {
-        s_line[line].timer_end_us = esp_timer_get_time() + (int64_t)minutes * 60 * 1000000;
-        s_line[line].timer_rounds = 0;
-        s_line[line].timer_ringing = false;
-        activity_log("Line %d: timer set for %d minute%s", line, minutes, minutes == 1 ? "" : "s");
     }
+    play_transient(line, TONE_CONFIRM, 700, TEL_TIMER_ENTRY, TEL_TIMER_ENTRY);
 }
 
-static void timer_commit(int line)
+/* The call is over: start counting. */
+static void timer_start(int line)
 {
-    timer_set(line);
-    play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+    s_line[line].timer_accepted = false;
+    int minutes = s_line[line].timer_minutes;
+    if (minutes <= 0) return;
+    s_line[line].timer_end_us = esp_timer_get_time() + (int64_t)minutes * 60 * 1000000;
+    s_line[line].timer_rounds = 0;
+    s_line[line].timer_ringing = false;
+    activity_log("Line %d: timer set for %d minute%s", line, minutes, minutes == 1 ? "" : "s");
+}
+
+/* The caller hung up while entering or just after: use what was dialled. */
+static void timer_hung_up(int line)
+{
+    if (!s_line[line].timer_accepted) {
+        if (s_line[line].timer_n < 1) return;
+        s_line[line].timer_minutes = atoi(s_line[line].timer_digits);
+        s_line[line].timer_n = 0;
+        if (s_line[line].timer_minutes <= 0) {   /* 0 = cancel */
+            s_line[line].timer_end_us = 0;
+            s_line[line].timer_rounds = 0;
+            s_line[line].timer_ringing = false;
+            activity_log("Line %d: timer cancelled", line);
+            return;
+        }
+    }
+    timer_start(line);
 }
 
 static void timer_digit(int line, char ch)
 {
-    if (ch == '#' && s_line[line].timer_n >= 1) { timer_commit(line); return; }   /* touch-tone "enter" */
+    if (s_line[line].timer_accepted) return;   /* already have the minutes */
+    if (ch == '#' && s_line[line].timer_n >= 1) { timer_accept(line, TIMER_HANGUP_GRACE_MS); return; }   /* touch-tone "enter" */
     if (ch < '0' || ch > '9') return;
     if (s_line[line].timer_n == 0) {
         player_stop(line);   /* dialled over the prompt: no need to hear the rest */
@@ -1029,7 +1061,7 @@ static void timer_digit(int line, char ch)
         s_line[line].timer_digits[s_line[line].timer_n] = '\0';
     }
     s_line[line].last_digit_us = esp_timer_get_time();
-    if (s_line[line].timer_n >= 2) timer_commit(line);
+    if (s_line[line].timer_n >= 2) timer_accept(line, TIMER_HANGUP_GRACE_MS);
 }
 
 /* Called every tick for `line`: waits for digits while asking, and rings when
@@ -1047,9 +1079,16 @@ static void timer_tick(int line, int64_t now)
         return;
     }
     if (s_line[line].state == TEL_TIMER_ENTRY) {
-        if (s_line[line].timer_n == 1 &&
+        if (s_line[line].timer_accepted) {
+            if (now >= s_line[line].timer_hangup_us) {
+                /* The minutes are in and nobody hung up: the line hangs up on the caller
+                 * (fast busy until the handset goes down) and the countdown starts. */
+                timer_start(line);
+                play_persistent(line, TONE_REORDER, TEL_REORDER);
+            }
+        } else if (s_line[line].timer_n == 1 &&
             (now - s_line[line].last_digit_us) / 1000 >= TIMER_SECOND_DIGIT_WAIT_MS) {
-            timer_commit(line);   /* one digit is enough: 1-9 minutes */
+            timer_accept(line, 0);   /* one digit is enough (1-9 minutes), and the 3 s of waiting has passed */
         } else if (s_line[line].timer_n == 0 && s_line[line].timer_wait_until_us &&
                    now >= s_line[line].timer_wait_until_us) {
             s_line[line].timer_wait_until_us = 0;
@@ -1125,6 +1164,7 @@ static void handle_action(int line, const dialplan_action_t *a)
         case ACT_TIMER:
             audio_tx_silence(line);
             s_line[line].timer_n = 0;
+            s_line[line].timer_accepted = false;
             s_line[line].timer_digits[0] = '\0';
             s_line[line].timer_wait_until_us = esp_timer_get_time() + 30LL * 1000000;
             if (player_play(line, TIMER_PROMPT_NAME, clip_done_cb, NULL) == ESP_OK) {
@@ -1434,7 +1474,7 @@ static void on_onhook(int line)
     }
     /* Hanging up right after the minutes counts as "done": a single digit
      * would otherwise wait out its 3 seconds and be lost. */
-    if (s_line[line].state == TEL_TIMER_ENTRY && s_line[line].timer_n >= 1) timer_set(line);
+    if (s_line[line].state == TEL_TIMER_ENTRY) timer_hung_up(line);
     end_call(line);
 }
 
