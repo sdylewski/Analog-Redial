@@ -22,7 +22,7 @@ except dial-out to arbitrary numbers.
 ## Why switch from BM64?
 
 | | BM64 | BK3266 |
-|--|------|--------|
+|---|------|--------|
 | Price | $8–12 | **$2–3** |
 | BT version | 4.2 | **5.0** |
 | DAC SNR | ~90 dB | **98 dB** |

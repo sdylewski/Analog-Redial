@@ -29,7 +29,7 @@ Reference: DFRobot's schematic `DFR0781_bt401-module_schematics_V1.0.pdf` (the "
 datasheet page 41 (footprint). Bookmarks in `LINKS.md`. Module pad numbers below are the BT401's own.
 
 | J2 pin | Main board signal | BT401 pad | BT401 name |
-|--|--|--|--|
+|---|---|---|---|
 | 1 | `+3.3V_BM` (U5) | 13 | VCC |
 | 2 | GPIO17 (ESP receives) | 26 | PB0, UART TX |
 | 3 | GPIO16 (ESP transmits) | 25 | PB1, UART RX |
@@ -73,7 +73,7 @@ Enable calls with `AT+B201`.
 Four wires are enough to see whether the module talks. Do this before building the audio path.
 
 | BT401 pad | Connect to | Note |
-|--|--|--|
+|---|---|---|
 | 13 VCC | 3.3 V (J2.1, or the DevKit 3V3 pin) | pad 6 stays unconnected |
 | 12 GND and 11 SGND | GND (J2.8) | tie 11 and 12 together |
 | 26 TX | GPIO17 (J2.2) | module TX to ESP RX |
