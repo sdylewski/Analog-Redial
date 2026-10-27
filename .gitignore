@@ -11,6 +11,11 @@ venv/
 
 # KiCad local / generated
 hardware/kicad/**/.history/
+PayPhone/**/.history/
+PayPhone/**/*.kicad_prl
+PayPhone/**/*.lck
+# Inkscape/Illustrator dated backups next to a drawing
+*.svg.[0-9][0-9][0-9][0-9]_[0-9][0-9]_*.svg
 hardware/kicad/**/*-backups/
 hardware/kicad/**/_restore_backup_*/
 hardware/kicad/**/ERC.txt

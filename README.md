@@ -39,7 +39,7 @@
 |---|---|---|
 | **Offline Calling** | Two phones, one board. Dial **321** (configurable) and the other phone rings.  No Wi-Fi required. Use in 2 rooms of a house or a fun toy for kids| 2 phones |
 | **A phone that does things** | Dial a code and something happens: play a clip, leave a message, hear a joke. For museum exhibits, art pieces, a wedding guestbook phone. Add your own codes and audio from the browser. | One phone |
-| **Call between boards** | Put a board in each room. Each gets its own 4-digit number the first time it's on your Wi-Fi; dial another board's number and its phone rings. It's VoIP over your home network: no server, no internet, nothing to set up. | Two or more boards <br> Wi-Fi |
+| **Call between boards** | Put a board in each room. Each gets its own 4-digit number the first time it's on your Wi-Fi; dial another board's number and its phone rings. It's VoIP over your home network: no server needed. | Two or more boards <br> Wi-Fi |
 | **VoIP server** | Register a line with Asterisk, FreePBX or any SIP server and call anything that server can reach, at home or away. If the server goes down, the boards can still call each other directly. | One phone <br> Wi-Fi <br> SIP server |
 | **Home Assistant** | Every pickup, hang-up and dial code becomes an event, so a dial code can turn on a light and the phone can ring when your doorbell does. Over MQTT or a plain webhook. *Experimental.* | Wi-Fi and Home Assistant (or any MQTT broker) |
 | **Switch things** | Dial a code and a pin goes high for a few seconds or continuously: a relay, a buzzer, a lamp. | One line <br> no microSD <br> a relay |
@@ -161,7 +161,7 @@ commitment, it just tells us how many people want one.
 Price breakdown: [Get a board](docs/board.md#what-it-costs).
 
 ---
-<br><img src="docs/pics/v5_board_annotated.png" width="600" alt="Analog Redial v5 board, with its parts labelled">
+<br><img src="docs/pics/V5_board_annotated.png" width="600" alt="Analog Redial v5 board, with its parts labelled">
 
 ## Build one
 
@@ -209,8 +209,8 @@ Going further: [VoIP setup](docs/voip-setup.md) ·
 | Jul 2026 | **v2** <br><img src="docs/pics/smd2_board.jpg" width="220" alt="Analog Redial v2 board"> | First surface-mount board: ESP32-C6 module, ES8388 codec, AG1171 SLICs, microSD. Required rework on audio lines and usb connection but it worked. |
 | Sep 2026 | **v4** <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | 2-layer, built around a cheaper 32-pin ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. |
 | Oct 2026 | **v5** <br><img src="docs/pics/V5_board.jpg" width="220" alt="Analog Redial v5 board">| Working: takes a genuine or clone ESP32-C6 module, and adds the expansion header (used for the Bluetooth board). <br>**With a clone module, remove the clone's bottom-right 5V pin** (see [Get a board](docs/board.md)). |
-| Oct 2026 | **v5.1** | v5 with the clone-module 5V pin fixed (nothing to remove) and small silkscreen and fab-file updates. Not built yet; v5 is the tested board. |
-| Oct 2026 | **v6** | **Released, not tested yet.** v5 with the clone-module 5V pin fixed (no pin to remove), a 3 A diode (SS34) for the DC jack instead of the 1 A one, larger power vias, and updated silkscreen. It should work, but v5 is the tested board. |
+| Oct 2026 | **v5.1** | **RECOMMENDED VERSION** v5 with the clone-module 5V pin fixed (nothing to remove) and small silkscreen and fab-file updates. |
+| Oct 2026 | **v6** | **In Progress** v5 with the clone-module 5V pin fixed (no pin to remove), a new expansion header with i2c for payphone support, a 3A diode (SS34) for the DC jack instead of the 1A one, and updated silkscreen. It should work, but v5 is the tested board. |
 
 ## License
 
