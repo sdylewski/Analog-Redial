@@ -161,11 +161,35 @@ bench (earlier: + on red / white at ground moved the lever right = return).
   The three outputs are separate and open-collector (active low, **[verify]**).
 - Firmware polls the MCP23008 about every 2-5 ms and counts edges, with debounce.
 
-## 8. No voltage monitor
+## 8. Voltage monitor options (2026-10-27)
 
-The ADS1115 was dropped (it only gave firmware an "HV is up" check and a fire-current trace).
-Firmware charges for a **fixed time** (about 3 s, tuned on the bench) and caps FIRE.
-If a ready check is wanted later, GP3 is free for an HV-OK comparator.
+**The MCP23008's A0, A1, A2 are I2C address pins, not analog inputs.** It has
+no ADC; every pin is digital. Two ways to watch the high-voltage output:
+
+**Option A: a two-bit window comparator (all through-hole, about $0.10).**
+An **LM393N** (DIP-8, dual comparator; STMicro listing $0.089 at DigiKey, the
+TI/onsemi/Fairchild listings were unavailable) reads a divider of the HV rail
+(about 1.17 M top, 30 k bottom, so 130 V reads about 3.25 V and 60 V about
+1.5 V) against two fixed thresholds from a divider off 3.3 V:
+- **HV_OK** (GP3): high once the output is above about 90 % of the chosen profile;
+- **HV_HIGH** (GP7): high if it is above about 110 %, an overvoltage alarm.
+The outputs are open-collector, pulled up to 3.3 V. This uses the two spare
+pins (GP3, GP7, which also go to J5). Firmware then knows "charged" and
+"too high"; it doesn't get a number. The thresholds depend on the J4
+profile, so set them with a trimmer, or compute for the highest profile only.
+
+**Option B: a real number over I2C.** A through-hole I2C ADC isn't a good
+choice: **PCF8591P (DIP-16) is obsolete** at DigiKey. The practical part is an
+**ADS1115** (16-bit, 4 channels, 0x48), but its package is MSOP-10, so use
+a **breakout module** on a 4-pin header (VCC, GND, SDA, SCL). AIN0 reads the HV divider
+(1.17 M / 33 k: 130 V reads 3.6 V, the ADS1115's 4.096 V range), AIN1 the
+voltage across R_sense (fire current), AIN2 the 20 V stage. Firmware can then
+check "reached target within N s", and see **the cap sag after a fire**
+(the relay really fired). Cost about a few dollars for the module.
+
+**Either way**, the monitor only means something while HV_EN is on. If the
+relay doesn't fire the voltage stays up; if it does, the cap sags by
+dV = I x t / C (about 20 V for 100 mA x 50 ms into 220 uF).
 
 ## 9. Parts list (candidates; stock and part numbers to check on LCSC/JLCPCB)
 
