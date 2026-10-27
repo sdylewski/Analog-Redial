@@ -212,3 +212,21 @@ running Asterisk.
 - **Out of scope for a first version:** TLS/SRTP. The UA has neither, and TLS
   costs about 35 KB of heap on a board that's already tight; providers that
   require encryption (check Twilio/Telnyx) are out until then.
+
+## A power input that a 9 V / 12 V adapter can't be plugged into
+
+Decided 2026-10-26: v5/v6 keep the 5.5 x 2.1 mm DC jack and rely on labelling
+("DC 5-6V ONLY" on the silkscreen, a warning in the docs). The jack is the common
+9/12 V barrel size and nothing downstream regulates, so a wrong adapter destroys the
+SLICs and the XC6206 (about 6.5 V absolute maximum). Ideas for a later board, safest first:
+- A power-only USB-C receptacle at the board edge (two 5.1 k CC resistors, Schottky
+  into the rail like D1): a charger only ever offers 5 V unless the board asks for more.
+  Also fixes the 30-pin clone's recessed USB-C port.
+- Drop the jack and use only the DevKit's USB-C.
+- An over-voltage switch (OVP IC, or P-FET + zener + NPN) that leaves the rail off above ~6.5 V.
+- A 5 V buck converter (MP1584EN / MP2307DN at JLCPCB; MP2315 is not stocked there) behind
+  the jack: 7-12 V in, about 5.4 V out so the rail is about 5.1 V after D1; EN left floating,
+  100 nF bootstrap, ~200 k frequency resistor, 232 k / 40.2 k feedback, 10 uH >= 5 A
+  inductor, 3 A Schottky, P-FET reverse protection (a diode's drop starves it at 6 V in).
+  Needs about 15 x 15 mm; the free area around v6's jack is thin. A TVS-plus-fuse clamp is
+  not a fix: a 9 V adapter would hold the TVS at 7-9 V until it fails short.

@@ -151,7 +151,7 @@ JLCPCB's minimum is five, so it's about $110 up front, with four spare PCBs.
 The five-board Bluetooth figure is $15 a board plus about $5 shipping. Buying
 the hand-solder parts from AliExpress saves $7 per board.
 
-You'll also want a 2 A USB-C charger (or a 5.5-6 V, 2 A DC supply for the DC jack) and one or two analog phones. 
+You'll also want a 2 A USB-C charger (or a regulated 5-6 V, 2 A DC supply for the DC jack; never 9 V or 12 V) and one or two analog phones. 
 
 Most of a small order is fixed PCB setup fees, so boards get cheaper when people
 order together. If you'd like a board from a group order,

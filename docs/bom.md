@@ -102,9 +102,17 @@ USB-C and the DC jack are diode-ORed onto one 5 V rail, so use whichever is
 convenient:
 
 - **USB-C** into the DevKit's own port, from a **2A** charger.
-- **DC jack**: a **2A**, 5.5 × 2.1 mm, centre-positive supply. It loses
-  about 0.4 V through the OR diode, so a **5.5–6 V** supply is better than a
-  bare 5 V one.
+- **DC jack**: a **2A**, 5.5 × 2.1 mm, centre-positive, **regulated 5–6 V**
+  supply. It loses about 0.4 V through the OR diode, so **5.5–6 V** is better
+  than a bare 5 V one.
+
+> ⚠️ **Never use a 9 V or 12 V adapter on the DC jack.** The 5.5 × 2.1 mm jack
+> is the same size as those very common adapters, but there is no regulator
+> between it and the board: the voltage goes straight to the phone-line chips
+> and the 3.3 V regulators (rated about 6 V), and it will destroy them. Check
+> the label: **5–6 V DC, centre-positive, regulated**. An unregulated "6 V"
+> adapter can read 8 V or more with no load, so avoid those too. If you're not
+> sure, power the board from USB-C instead.
 
 2A covers the worst case: two phones ringing at once while the Wi-Fi
 transmits. One idle line needs far less, but an undersized supply browns out

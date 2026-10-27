@@ -30,9 +30,9 @@ All the spoken clips below (and this one) are made by `bringup/gen_bundled_audio
 voice `af_sarah` (Apache-2.0 model, rendered offline). Re-run it to change the voice or wording, then
 `idf.py flash`: OTA updates don't rewrite the `bundled` partition.
 
-**`record_prompt.wav`** — "Record your message after the beep, then hang
-up.", generated with `bringup/gen_prompt.py` from the same English text
-`first_setup.py` uses. Plays before the beep when you dial `211`.
+**`record_prompt.wav`** — "Leave a message after the beep.", made by
+`bringup/gen_bundled_audio.py` and the same English text `first_setup.py` uses.
+Plays before the beep when you dial `211`.
 
 **`timer_prompt.wav`** — "How many minutes for the timer?", made by `bringup/gen_bundled_audio.py`. Plays when you dial `846`, then the phone waits for one or two digits.
 

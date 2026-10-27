@@ -100,6 +100,10 @@ J1 (DC jack) ──[D1, Schottky, cathode → +5V]──┐                    �
   series Schottky diode (**D1**, same SS14 class used elsewhere on this
   design), cathode toward +5 V. Whichever source is present (or higher)
   supplies the rail; the diode blocks reverse current into the other source.
+- **The jack takes a regulated 5–6 V supply only.** Nothing on the board
+  reduces a higher voltage, so a 9 V or 12 V adapter overvolts the SLICs and
+  the LDOs (the XC6206's absolute maximum is about 6.5 V). Label the jack
+  "DC 5-6V ONLY" on the silkscreen.
 - The diode drops roughly 0.3–0.5 V. If the DC supply needs to clear the
   DevKit onboard regulator's minimum input headroom after that drop, spec
   the DC brick a bit above 5 V (5.5–6 V) rather than exactly 5 V — check the

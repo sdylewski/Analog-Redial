@@ -2156,6 +2156,10 @@ static char s_regen_err[VOIP_PROV_MSG_LEN + PROMPT_NAME_MAX + 4];
 static const char *const REGEN_DIGITS[] = {
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
 };
+/* What 211's prompt says by default: the text shown in its box, the one the
+ * shipped clip speaks and the one "Update spoken audio" makes. */
+#define RECORD_PROMPT_TEXT "Leave a message after the beep."
+
 /* The alarm's question: also what "Update spoken audio" makes it say. */
 #define ALARM_PROMPT_TEXT "What time should the alarm ring? Dial four digits: the hour, then the minutes, on a 24 hour clock."
 
@@ -2202,7 +2206,7 @@ static int regen_build(regen_item_t *it, int max)
     regen_add(it, &n, max, "operator.wav", i18n_str("operator.default_prompt",
         "You've reached the operator line. To leave a message, dial 2-1-1. "
         "For other features, please refer to your phone's guide."), false);
-    regen_add(it, &n, max, RECORD_PROMPT_NAME, "Record your message after the beep, then hang up.", false);
+    regen_add(it, &n, max, RECORD_PROMPT_NAME, RECORD_PROMPT_TEXT, false);
     regen_add(it, &n, max, TIMER_PROMPT_NAME, "How many minutes for the timer?", false);
     regen_add(it, &n, max, TIMER_DONE_NAME, "Your timer is done.", false);
     regen_add(it, &n, max, ALARM_PROMPT_NAME, ALARM_PROMPT_TEXT, false);
@@ -4516,7 +4520,7 @@ static int append_record_tab(char *buf, size_t cap, int off,
         (unsigned)(max_ms / 1000),
         (unsigned)(BOARD_RECORD_MAX_MS_MIN / 1000), (unsigned)(BOARD_RECORD_MAX_MS_MAX / 1000),
         i18n_str("general.button.save", "Save"));
-    off = append_prompt_field(buf, cap, off, RECORD_PROMPT_NAME, NULL);
+    off = append_prompt_field(buf, cap, off, RECORD_PROMPT_NAME, RECORD_PROMPT_TEXT);
     off = appendf(buf, cap, off, "</div>");
     return off;
 }

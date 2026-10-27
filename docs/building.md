@@ -12,7 +12,7 @@ up.
 - Soldering iron with a fine conical or chisel tip, and solder
 - Flush cutters for trimming leads
 - Multimeter (continuity and DC volts). **Not optional**, see [§5](#5-check-before-power)
-- A 2 A USB-C charger, or a 5.5–6 V DC supply
+- A 2 A USB-C charger, or a regulated 5–6 V DC supply (never 9 V or 12 V: see [the parts page](bom.md#power-either-input-and-2a))
 - One or two analog telephones with RJ11/RJ12 cords
 
 ## 2. v4 only: remove two resistors first
