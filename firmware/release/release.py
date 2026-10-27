@@ -52,7 +52,8 @@ OVERLAYS = {
     "smd5": "sdkconfig.smd5.defaults",
     "smd5_cheap": "sdkconfig.smd5_cheap.defaults",
 }
-DEFAULT_IMAGES = ["smd4/16MB", "smd5/16MB", "smd5_cheap/16MB", "smd2/16MB"]
+DEFAULT_IMAGES = ["smd4/16MB", "smd5/16MB", "smd5_cheap/16MB", "smd2/16MB",
+                  "smd4/8MB", "smd5/8MB", "smd5_cheap/8MB", "smd2/8MB"]
 
 
 def run(cmd: list[str], cwd: Path = FIRMWARE, check: bool = True) -> subprocess.CompletedProcess:
