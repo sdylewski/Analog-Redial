@@ -92,7 +92,7 @@ CLIPS = (
 # on a single-line phone.
 PROMPTS = {
     "en": {
-        "record": "Leave a message after the beep.",
+        "record": "Record your message after the beep, then hang up.",
         "greeting": "Leave a message after the beep.",
         "op_second_line": "Dial 3 2 1 to call the other phone.",
         "op_record": "Dial 2 1 1 to record a message.",

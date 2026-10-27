@@ -2158,7 +2158,7 @@ static const char *const REGEN_DIGITS[] = {
 };
 /* What 211's prompt says by default: the text shown in its box, the one the
  * shipped clip speaks and the one "Update spoken audio" makes. */
-#define RECORD_PROMPT_TEXT "Leave a message after the beep."
+#define RECORD_PROMPT_TEXT "Record your message after the beep, then hang up."
 
 /* The alarm's question: also what "Update spoken audio" makes it say. */
 #define ALARM_PROMPT_TEXT "What time should the alarm ring? Dial four digits: the hour, then the minutes, on a 24 hour clock."
@@ -2853,7 +2853,7 @@ static int append_prompt_field_rows(char *buf, size_t cap, int off, const char *
     const char *status = have
         ? (pending ? "Pending: text changed since last generate."
                    : "Up to date with the generated audio.")
-        : (text[0] ? "Suggested default -- edit and Save to actually set it."
+        : (text[0] ? ""   /* the built-in text, shown as it is: nothing to flag */
                    : "No text set -- this clip stays silent/skipped until generated.");
 
     off = appendf(buf, cap, off,

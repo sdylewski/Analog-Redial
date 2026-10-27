@@ -29,7 +29,7 @@ PEAK_DB = -0.5
 PROMPTS = {  # name -> (text, format)
     "operator.wav": ("You've reached the operator line. To leave a message, dial 2 1 1. "
                      "For other features, please refer to your phone's guide.", "pcm"),
-    "record_prompt.wav": ("Leave a message after the beep.", "pcm"),
+    "record_prompt.wav": ("Record your message after the beep, then hang up.", "pcm"),
     "am_greeting.wav": ("Leave a message after the beep.", "pcm"),
     "timer_prompt.wav": ("How many minutes for the timer?", "pcm"),
     "timer_done.wav": ("Your timer is done.", "pcm"),
