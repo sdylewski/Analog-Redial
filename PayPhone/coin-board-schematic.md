@@ -32,7 +32,7 @@ only **5 V, 3.3 V, GND, SDA, SCL** from the main board.
 
 | Ref | Pins | Function |
 |---|---|---|
-| **J1** | 5 x 2.54 mm; mates with the main board's **v6 J6** | **1 +5 V, 2 +3.3 V, 3 SDA, 4 SCL, 5 GND**, the same order as J6, so a straight 1:1 cable. **No INT line** (Analog Redial has no spare GPIO) |
+| **J1** | 5 x 2.54 mm; mates with the main board's **v6 J6** | **1 +5 V, 2 +3.3 V, 3 SDA, 4 SCL, 5 GND**, the same order as J6, so a straight 1:1 cable |
 | **J2** | **Molex KK 396, 3-pin header, 0026604030** | the relay's plug: A = white, B = green, red unconnected (so the original plug fits). **Check its voltage rating against 130 V** |
 | **J3** | **Molex KK 396, 4-pin header, 0026604040** | coin sensor. **The sensor has 5 wires but this is a 4-pin plug: identify which wires are used**; if five are needed, a 5-pin KK (26-60-4050) is the next size. Intended use: +V, GND, NICKEL, DIME, QUARTER. **The sensor's 5 wires (white, blue, red, green, white) are not yet identified**; measure it first (patent says supply 3-9 V and three open-collector outputs) |
 | **J4** | 1 x 4 header, **HV profile select** | one jumper chooses the output voltage (section 5) |
@@ -365,6 +365,50 @@ hour for a few boards) but cheap in parts.
    were for the SMD chips.
 2. Check the IRF630's gate drive, Isat on L2, and the relay's contact rating at
    the datasheet, not the listing.
+
+## 14. KiCad symbols and footprints (2026-10-27)
+
+All from KiCad's stock libraries except three symbols I flattened and added to
+the `Custom` library (`~/Documents/KiCad/Custom`: `UC3843AN`, `IRF630`,
+`UF4003`; listed in its README). Footprint names are the stock ones, so they
+resolve in KiCad as long as the standard libraries are loaded.
+
+| Part | Symbol | Footprint |
+|---|---|---|
+| U1 MCP23008-E/P | `Interface_Expansion:MCP23008-xP` | `Package_DIP:DIP-18_W7.62mm` |
+| U2 MC34063AP1G | `Regulator_Switching:MC34063AP` | `Package_DIP:DIP-8_W7.62mm` |
+| U3 UC3843AN | **`Custom:UC3843AN`** (stock name: `Regulator_Controller:UC3843_DIP8`) | `Package_DIP:DIP-8_W7.62mm` |
+| Q1, Q3 IRF630 | **`Custom:IRF630`** | `Package_TO_SOT_THT:TO-220-3_Vertical` |
+| Q2, Q4, Q5 2N7000 | `Transistor_FET:2N7000` | `Package_TO_SOT_THT:TO-92_Inline` (check pin order against the part) |
+| K1 G6S-2-DC5 | `Relay:G6S-2` | `Relay_THT:Relay_DPDT_Omron_G6S-2` |
+| D1 1N5819 | `Diode:1N5819` | `Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal` |
+| D2 UF4003 | **`Custom:UF4003`** | `Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal` |
+| D3 1.5KE150A | `Diode:1.5KExxA` | `Diode_THT:D_DO-201AD_P15.24mm_Horizontal` |
+| D4 relay flyback 1N4148 | `Diode:1N4148` | `Diode_THT:D_DO-35_SOD27_P7.62mm_Horizontal` |
+| zeners (gate clamps) | `Device:D_Zener` | `Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal` |
+| **C_out 220 uF / 200 V** (Nichicon UCS2D221MHD, 18 x 26.5 mm, 7.5 mm leads) | `Device:C_Polarized` | **`Capacitor_THT:CP_Radial_D18.0mm_P7.50mm`** |
+| other electrolytics (100 uF, 470 uF) | `Device:C_Polarized` | pick by the part's diameter and lead spacing: `CP_Radial_D6.3mm_P2.50mm`, `D8.0mm_P3.50mm`, `D10.0mm_P5.00mm` |
+| 100 nF and small ceramics | `Device:C` | `Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm` |
+| resistors, 1/4 W | `Device:R` | `Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal` |
+| R_sense, bleed (0.5 to 1 W) | `Device:R` | `Resistor_THT:R_Axial_DIN0309_L9.0mm_D3.2mm_P12.70mm_Horizontal` |
+| trimmer (fine voltage) | `Device:R_Potentiometer_Trim` | `Potentiometer_THT:Potentiometer_Bourns_3296W_Vertical` |
+| L1, L2 | `Device:L` | `Inductor_THT:L_Radial_D10.0mm_P5.00mm_Fastron_07M` is the nearest stock footprint for the Bourns RLB9012 (9 mm): **check the lead spacing against the datasheet** |
+| J1 5-pin I2C | `Connector:Conn_01x05_Pin` | `Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical` |
+| J2 3-pin KK 396 (0026604030) | `Connector:Conn_01x03_Pin` | **`Connector_Molex:Molex_KK-396_A-41791-0003_1x03_P3.96mm_Vertical`** (its description says "new part number 26-60-4030") |
+| J3 4-pin KK 396 (0026604040) | `Connector:Conn_01x04_Pin` | **`Connector_Molex:Molex_KK-396_A-41791-0004_1x04_P3.96mm_Vertical`** (description: "26-60-4040") |
+
+Molex's own CAD (symbol, footprint, 3D model for any part number) is on the
+part's Molex page and on DigiKey's part page, if you want the vendor version.
+
+**Hand-soldering surface-mount** (SOT-23 and larger is OK for you): a smaller
+board than the all-DIP one is possible. Candidates: **MT3608/SX1308
+(SOT-23-6)** for stage 1 instead of the MC34063 and its timing parts, **2N7002
+(SOT-23)** for the small switches, **ES2D (SMA)** for D2, **STN4NF20L (SOT-223)**
+for Q3 (watch its 3 V gate threshold), and **UC3843 in SOIC-8** (1.27 mm pitch)
+instead of the DIP. **Not** the TPS40210 (MSOP-10, 0.5 mm pitch); the
+UC3843 route avoids it. 0603 passives are hand-solderable with a fine tip,
+0805 is easier. The high-voltage parts (C_out, IRF630, relay, Molex headers)
+stay through-hole either way.
 
 ## Sources
 

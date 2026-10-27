@@ -29,7 +29,7 @@ What it changes from v5:
   It is the same I²C bus as the ES8388 codec (address 0x10), with the main
   board's 4.7 kΩ pull-ups, so give an add-on a different address. For a cable
   of up to about 1 m, run the bus at 100 kHz, not 400 kHz, and twist SDA and
-  SCL with ground wires. No GPIO is broken out for an interrupt line.
+  SCL with ground wires.
 - Teardrops on pads and vias.
 - Silkscreen updates.
 
