@@ -9,6 +9,14 @@ What it changes from v5:
 - The clone-module footprint is corrected. On v5 the 30-pin clone's
   bottom-right 5V pin is wired to GND; v6 fixes that, so there is no pin to
   remove.
+- **D1, the diode that joins the DC jack to the +5 V rail, is an SS34 (3 A,
+  JLCPCB C8678) instead of v5's SS14 (1 A).** Two phone lines in use, with Wi-Fi
+  and Bluetooth, can draw 1 A or more, which is beyond the SS14's rating. Same
+  SMA package, so nothing else changes.
+- Larger vias on the power nets: 13 of the 17 vias on +5 V and +3.3 V are 0.8 mm
+  pad / 0.4 mm drill (v5's are all 0.6 / 0.3), and the Power net class uses
+  0.8 / 0.4 for new ones. Four that didn't fit beside other parts stayed 0.6 / 0.3.
+- Teardrops on pads and vias.
 - Silkscreen updates.
 
 What it does not change: the expansion header's (J2's) regulator is still the 3.3 V
