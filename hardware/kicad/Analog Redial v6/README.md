@@ -16,6 +16,20 @@ What it changes from v5:
 - Larger vias on the power nets: 13 of the 17 vias on +5 V and +3.3 V are 0.8 mm
   pad / 0.4 mm drill (v5's are all 0.6 / 0.3), and the Power net class uses
   0.8 / 0.4 for new ones. Four that didn't fit beside other parts stayed 0.6 / 0.3.
+- **J6, a new 5-pin I²C header** (2.54 mm, 1 x 5) for add-on boards:
+
+  | J6 pin | Net |
+  |---|---|
+  | 1 | +5 V |
+  | 2 | +3.3 V |
+  | 3 | I²C SDA |
+  | 4 | I²C SCL |
+  | 5 | GND |
+
+  It is the same I²C bus as the ES8388 codec (address 0x10), with the main
+  board's 4.7 kΩ pull-ups, so give an add-on a different address. For a cable
+  of up to about 1 m, run the bus at 100 kHz, not 400 kHz, and twist SDA and
+  SCL with ground wires. No GPIO is broken out for an interrupt line.
 - Teardrops on pads and vias.
 - Silkscreen updates.
 

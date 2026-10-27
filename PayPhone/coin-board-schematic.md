@@ -18,10 +18,10 @@ only **5 V, 3.3 V, GND, SDA, SCL** from the main board.
  (v6 accessory hdr)                                            HV zone (up to 130 V)
  +5V  --- J1.1 --+-- F1 --+--> [U2 MT3608/SX1308 5V->20V] --> +20V --> [U3 TPS40210 + Q1 + L2 + D2] --> HV+ (C_out)
  +3V3 --- J1.2   |        |         ^EN                              ^DIS/EN                        |
- GND  --- J1.3   |        +-> sensor +5V (J3, JP1)                    |                              |
- SDA  --- J1.4 --+--> [U1 MCP23008 @0x20] GP4 HV_EN ----------------+                              |
- SCL  --- J1.5      |        GP5 POL --> Q2 --> K1 (DPDT relay) <------ HV+ ------------------------+
- INT  --- J1.6(opt) |        GP6 FIRE --> Q3 (200 V FET, low side) --> R_sense --> GND
+ SDA  --- J1.3 --+        +-> sensor +5V (J3, JP1)                    |                              |
+ SCL  --- J1.4 --+--> [U1 MCP23008 @0x20] GP4 HV_EN ----------------+                              |
+ GND  --- J1.5      |        GP5 POL --> Q2 --> K1 (DPDT relay) <------ HV+ ------------------------+
+ (J1 = main board v6 J6)|  GP6 FIRE --> Q3 (200 V FET, low side) --> R_sense --> GND
                     |        GP0..2 <-- coin inputs <-- J3 (coin sensor)
                     |        GP3, GP7: spare, to J5
 
@@ -32,7 +32,7 @@ only **5 V, 3.3 V, GND, SDA, SCL** from the main board.
 
 | Ref | Pins | Function |
 |---|---|---|
-| **J1** | 6 x 2.54 mm | 1 +5 V, 2 +3.3 V, GND, SDA, SCL, INT (INT via 0 ohm jumper, **DNP by default**: Analog Redial has no spare GPIO) |
+| **J1** | 5 x 2.54 mm; mates with the main board's **v6 J6** | **1 +5 V, 2 +3.3 V, 3 SDA, 4 SCL, 5 GND**, the same order as J6, so a straight 1:1 cable. **No INT line** (Analog Redial has no spare GPIO) |
 | **J2** | **Molex KK 396, 3-pin header, 0026604030** | the relay's plug: A = white, B = green, red unconnected (so the original plug fits). **Check its voltage rating against 130 V** |
 | **J3** | **Molex KK 396, 4-pin header, 0026604040** | coin sensor. **The sensor has 5 wires but this is a 4-pin plug: identify which wires are used**; if five are needed, a 5-pin KK (26-60-4050) is the next size. Intended use: +V, GND, NICKEL, DIME, QUARTER. **The sensor's 5 wires (white, blue, red, green, white) are not yet identified**; measure it first (patent says supply 3-9 V and three open-collector outputs) |
 | **J4** | 1 x 4 header, **HV profile select** | one jumper chooses the output voltage (section 5) |
@@ -216,6 +216,83 @@ If a ready check is wanted later, GP3 is free for an HV-OK comparator.
 5. Firmware: a new MCP23008 driver, coin events, and a coin-relay
    output (return/collect) with a safety timeout. **None of it exists yet.**
 6. A KiCad schematic and PCB from this once the above are settled.
+
+## 12. Cable from the main board, and board layout (2026-10-27)
+
+**Plan:** the main board's new I2C header runs by cable to this **daughter
+board mounted in the phone**, next to the relay. The 130 V never leaves the
+daughter board: the cable carries only 5 V, GND, SDA, SCL. The only wires with
+high voltage are the short ones from J2 to the relay.
+
+### I2C over a cable of up to about 1 m
+
+- The limit is bus capacitance (400 pF max for I2C). Twisted pair is roughly
+  50-100 pF per metre, plus the board traces and devices, so **1 m is workable
+  at 100 kHz** with the main board's pull-ups (4.7 k; rise time about
+  0.85 x R x C, around 0.5 us, under the 1 us standard-mode limit). **Don't
+  run this bus at 400 kHz** with the long cable (it needs 300 ns). The ES8388
+  shares the bus, so set the firmware's I2C clock for the whole bus to
+  100 kHz, or buffer the cable run (below).
+- **Twist each signal with a ground wire** (SDA+GND, SCL+GND), or use a
+  shielded pair, so the cable doesn't pick up the boost converter's switching
+  noise. A 4-wire cable: 5 V, GND, SDA, SCL.
+- At the daughter-board end: **100 ohm series resistors** in SDA and SCL, a
+  small ESD/TVS part on each line (the cable is an antenna for static in a
+  phone), and a 100 nF to ground near the MCP23008.
+- **Make 3.3 V locally** (an XC6206-class LDO from the 5 V, the part the main
+  board already uses) instead of running a 3.3 V wire: no cable drop or noise.
+- **Power on the cable:** charging a 130 V capacitor pulls current for a few
+  seconds. Use **24 AWG or thicker** for 5 V and GND (or two wires each), and
+  put **100 uF near the cable entry** on the daughter board.
+- **If the bus misbehaves** (the ES8388 loses its config when the cable is
+  touched): add an I2C buffer (TCA4307 or PCA9517 class; I haven't checked
+  stock) at the main-board end so the cable can't load the codec's bus, or a
+  differential extender such as the PCA9615 for longer runs. **Probably not
+  needed under 1 m.**
+
+### Floor plan (2 layers, about 60 x 50 mm to start; the 220 uF / 200 V
+capacitor is about 16 x 25 mm and sets the size)
+
+```
+ +----------------------------------------------------------------+
+ | LOGIC ZONE (left)          | POWER (middle)  | HV ZONE (right) |
+ |                            |                 |                 |
+ |  J1 cable (5V,GND,SDA,SCL) |  U2 + L1 + D1   |  U3 + Q1 + L2   |
+ |  LDO 3.3 V                 |  (5 V -> 20 V)  |  D2, C_out,     |
+ |  U1 MCP23008, A0-A2 jumpers|                 |  bleed, TVS     |
+ |  coin inputs -> J3 (edge)  |                 |  K1 relay, Q3   |
+ |  J5 spare, J4 voltage jmp  |                 |  J2 (to relay)  |
+ +----------------------------------------------------------------+
+   J1 and J3 on the left edge; J2 on the right edge, near the relay
+```
+
+### Layout rules
+
+- **Net classes in KiCad:** an **`HV`** class (everything from C_out and D2 to
+  K1, Q3, the divider and J2): **1.0 mm clearance** to everything else
+  (IPC-2221 external bare copper needs only about 0.6 mm up to 150 V; use the
+  extra), 0.4 mm tracks. Keep 0.8 mm for the 20 V and logic side.
+  **Solder mask is not insulation.**
+- **Keep the HV zone together** on the right and away from the cable header and
+  the logic. **No logic traces under HV parts.**
+- **Ground:** pour GND on the bottom layer, but **pull the pour back at least
+  1.0 mm from HV nets** (or leave it out under the HV zone). Keep each stage's
+  switch loop (SW, inductor, diode, output cap) **short and tight**; keep the
+  FB divider and its trace **short and away from the inductors and switch
+  node**; one star point where the stages meet GND.
+- **Divider resistors** (3 x 200 k chain) in a straight line, evenly spaced;
+  put the **bleed chain** next to C_out.
+- **Relay K1:** contacts on the HV side, coil on the logic side, with **at
+  least 2 mm or a slot** between them if the pins allow. **Q3 and R_sense**
+  next to it; J2 on the same edge keeps the coil wires short.
+- **Mounting holes** (M3) at the corners, not near HV. **Silkscreen** an HV
+  warning, the J4 voltage table, and "capacitor stays charged".
+- **Test points:** 20 V, 3.3 V, HV (a probe pad with a series resistor), GND.
+- **Assembly:** C_out, K1, the Molex KK headers and likely L2 are through-hole
+  or large, so expect to hand-solder them (mark them "do not place" for
+  JLCPCB, as on the main board).
+- **DRC:** set the net classes first, run DRC with the 1.0 mm rule, then check
+  clearances by hand around C_out, D2 and J2.
 
 ## Sources
 

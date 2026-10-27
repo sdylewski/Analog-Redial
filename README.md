@@ -212,6 +212,11 @@ Going further: [VoIP setup](docs/voip-setup.md) ·
 | Oct 2026 | **v5.1** | **RECOMMENDED VERSION** v5 with the clone-module 5V pin fixed (nothing to remove) and small silkscreen and fab-file updates. |
 | Oct 2026 | **v6** | **In Progress** v5 with the clone-module 5V pin fixed (no pin to remove), a new expansion header with i2c for payphone support, a 3A diode (SS34) for the DC jack instead of the 1A one, and updated silkscreen. It should work, but v5 is the tested board. |
 
+### Related Projects
+- [RotaryCell](https://evilroot.net/RotaryCell/)
+- [Blue Pot](https://github.com/danjulio/blue_pot)
+- [wee Bell](https://github.com/danjulio/weeBell_hardware)
+
 ## License
 
 [MIT](LICENSE) for the firmware and documentation. Hardware design files are

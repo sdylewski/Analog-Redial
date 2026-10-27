@@ -21,7 +21,7 @@ capacitors and diodes). You add the larger through-hole parts with a soldering i
 
 | | **v4** (SMD4) | **v5** (SMD5) | **v5.1** | **v6** (SMD6) |
 |---|---|---|---|---|
-| Status | **Proven.** Built and in daily use | **Working.** The boards as fabbed and bench-tested; adds the expansion header (Bluetooth) and the clone-module option | **Released, not built yet.** v5 with the clone-module 5V pin fixed, plus small silkscreen and fab-file updates | **Released, not tested yet.** v5 with the clone 5V pin fixed, a 3 A DC-jack diode (SS34, not the 1 A SS14), larger power vias and updated silkscreen; nobody has built one |
+| Status | **Proven.** Built and in daily use | **Working.** The boards as fabbed and bench-tested; adds the expansion header (Bluetooth) and the clone-module option | **Released, not built yet.** v5 with the clone-module 5V pin fixed, plus small silkscreen and fab-file updates | **Released, not tested yet.** v5 with the clone 5V pin fixed, a 3 A DC-jack diode (SS34, not the 1 A SS14), larger power vias, a 5-pin I²C header (J6) and updated silkscreen; nobody has built one |
 | Microcontroller | ESP32-C6-DevKitC-1 | ESP32-C6-DevKitC-1, or a cheaper 30-pin clone (remove one pin) | Same as v5, no pin to remove | Same as v5.1 |
 | Phone lines | 1 or 2 | 1 or 2 | 1 or 2 | 1 or 2 |
 | microSD | Single-line build | Single-line build | Single-line build | Single-line build |
