@@ -176,6 +176,10 @@ working unchanged (the whole subtree moved together, same relative
 structure) — only links from live files (this one included) need the
 `archive/` prefix.
 
+## Markdown tables
+
+Always use at least three dashes in each table header separator cell (`|---|---|`, not `|--|--|`): the user previews .md files in MacDown, which won't render tables with shorter separators. (Existing `|--|` tables elsewhere in the repo are valid on GitHub; fix them when touching those files.)
+
 ## Key docs (read before making changes)
 
 - [`README.md`](README.md) — public front page (also the GitHub Pages home via `_config.yml`): use cases, finer-print features, web UI thumbnails, cost table, the 4-step build guide
