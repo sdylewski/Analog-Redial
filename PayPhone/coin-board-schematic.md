@@ -112,8 +112,7 @@ Both are listed with the same pinout (pin 1 SW, 2 GND, 3 FB, 4 EN, 5 IN, 6 NC, p
 
   **R1 open or missing** would let the output run away: that is the failure
   to protect against.
-- **OVP: a 150 V TVS or zener clamp across C_out** (SMBJ150A class, standoff
-  150 V, breakdown about 167 V **[verify]**) so a feedback fault clamps below
+- **OVP: a 150 V TVS or zener clamp across C_out** (1.5KE150A / SMBJ150A class has a **128 V standoff**, breakdown about 143-158 V: fine with 128 V as the highest profile **[verify]**) so a feedback fault clamps below
   the 200 V parts' limit, at the cost of a clamp that may overheat if the fault persists.
 - **Bleed: 3 x 33 k in series (99 k) across C_out**: time constant 22 s with
   220 uF, about 0.17 W at 130 V. HV also falls when HV_EN goes low.
@@ -293,6 +292,79 @@ capacitor is about 16 x 25 mm and sets the size)
   JLCPCB, as on the main board).
 - **DRC:** set the net classes first, run DRC with the 1.0 mm rule, then check
   clearances by hand around C_out, D2 and J2.
+
+## 13. All-through-hole version, with DigiKey parts (2026-10-27)
+
+**Questions answered first**
+
+- **Does a 100 kHz I2C bus affect the ES8388's audio?** No. Audio goes over I2S
+  (a separate set of pins). I2C only writes the codec's registers (volume,
+  mute, routing). The firmware already runs the codec at 100 kHz
+  (`es8388.c`: `.scl_speed_hz = 100000`), so nothing changes.
+- **Lots of little passives?** Yes: roughly **55-60 small parts**, all easy to
+  get in through-hole form (see the count below). The catch is the two
+  chips I picked, **MT3608/SX1308 (SOT-23-6) and TPS40210 (MSOP-10)**, and the
+  200 V FET, which only come as surface-mount. A hand-soldered, all
+  through-hole board needs **different chips**, below.
+
+**Through-hole chip swap** (needs its own datasheet check: the earlier
+equations and dividers were for the SMD chips)
+
+| Job | Was | Through-hole replacement |
+|---|---|---|
+| Stage 1, 5 V to 20 V | MT3608 / SX1308 | **MC34063A** (DIP-8, 1.5 A switch, boost with a 1.25 V reference) |
+| Stage 2, 20 V to 130 V | TPS40210 + SMD FET | **UC3843A** (DIP-8 current-mode controller) + **IRF630** (TO-220) |
+| Gate level shifter and relay driver | 2N7002 | **2N7000** (TO-92) |
+| I/O expander | MCP23008-E/SO | **MCP23008-E/P** (DIP-18) |
+
+Design notes for the swap: the UC3843's UVLO needs about 8.4 V to start, so
+it runs from the 20 V stage-1 rail (stage 1 has to start first; HV_EN gates
+stage 1, and stage 2 shuts down by pulling its COMP pin low). Its gate drive
+is close to its 20 V supply, so clamp the IRF630 gate with a 15 V zener.
+Q3 (the firing FET) is also an IRF630: drive its gate from the +20 V rail
+through a resistor and a 12 V zener, pulled down by two 2N7000s from GP6
+(non-inverting), so it's off whenever HV_EN is off.
+
+**DigiKey parts (looked up 2026-10-27; prices qty 1, stock as listed then)**
+
+| Ref | Part | Maker / part number | DigiKey | Price | Notes |
+|---|---|---|---|---|---|
+| U1 | MCP23008 I/O expander, DIP-18 | Microchip **MCP23008-E/P** | MCP23008-E/P-ND | $1.54 (qty 100 $1.24) | 4,996 in stock, active |
+| U2 | stage 1 controller, DIP-8 | onsemi **MC34063AP1G** | MC34063AP1GOS-ND | $1.98 | 6,945 in stock. Cheaper: KA34063A, $0.40 |
+| U3 | stage 2 controller, DIP-8 | onsemi **UC3843AN** ([link](https://www.digikey.com/en/products/detail/onsemi/UC3843AN/610126)) | (see link) | $0.34 | the listing's description reads "buck", so **verify** it is the UC3843A you expect; TI's UC3843AN is $1.79 |
+| Q1, Q3 | 200 V N-FET, TO-220 | Vishay **IRF630PBF** ([link](https://www.digikey.com/en/products/detail/vishay-siliconix/IRF630PBF/812782)) | (see link) | $2.43 each | 200 V, 9 A from memory: **verify**. Needs a heatsink only if it ever runs continuous |
+| Q2, Q4, Q5 | small N-FET, TO-92 | **2N7000** (e.g. [STMicro](https://www.digikey.com/en/products/detail/stmicroelectronics/2N7000/654416)) | (see link) | $0.06-$0.66 | relay driver and the level shifter |
+| K1 | DPDT relay, 5 V coil, through-hole | Omron (Aratas) **G6S-2-DC5** ([link](https://www.digikey.com/en/products/detail/aratas-formerly-omron-components/G6S-2-DC5/333982)) | (see link) | $4.52 | **250 VAC / 220 VDC switching** per the listing; 11,369 in stock |
+| D1 | stage-1 Schottky | **1N5819** (DO-41, 40 V, 1 A), e.g. [TSC](https://www.digikey.com/en/products/detail/taiwan-semiconductor-corporation/1N5819/7357079) | (see link) | $0.32 | 1 A average is plenty here |
+| D2 | 200 V ultrafast | **UF4003** (DO-41, 200 V, 1 A), e.g. [onsemi](https://www.digikey.com/en/products/detail/onsemi/UF4003/1048948) | (see link) | $0.64 | cheaper makers $0.02-$0.20: check reverse recovery on the datasheet |
+| D3 | 150 V clamp | **1.5KE150A** (DO-201), e.g. [TSC](https://www.digikey.com/en/products/detail/taiwan-semiconductor-corporation/1-5KE150A/15783456) | (see link) | $0.19 | **standoff is 128 V**, not 150 V: fine only with the 128 V profile as the highest setting. 1.5KE170A (145 V) if you want more headroom, with a higher clamp |
+| C_out | 220 uF / 200 V radial | Nichicon **UCS2D221MHD** ([link](https://www.digikey.com/en/products/detail/nichicon/UCS2D221MHD/4991877)) | (see link) | $3.08 | 18 mm dia x 26.5 mm, 7.5 mm lead spacing, 15,508 in stock. **Bigger than the 16 x 25 mm I assumed** |
+| L2 | 220 uH, 1 A | Bourns **RLB9012-221KL** ([link](https://www.digikey.com/en/products/detail/bourns-inc/RLB9012-221KL/1969608)) | (see link) | $0.66 | 650 mohm DCR, Isat not listed: **check Isat against the controller's peak current**; Wurth 7447471221 ($2.49, 1.3 A) is the sturdier choice |
+| L1 | 47-100 uH, 2 A+ | not found | | | **search DigiKey** for a through-hole 47-100 uH inductor with Isat >= 2 A (my search returned nothing) |
+| J2 | 3-pin KK 396 header | Molex **0026604030** | WM4621-ND | $0.35 (10: $0.30) | 26,865 in stock |
+| J3 | 4-pin KK 396 header | Molex **0026604040** | WM4622-ND | $0.44 (10: $0.38) | 57,598 in stock |
+| J1 | 5-pin header, 2.54 mm | generic 1 x 5 | | | mates with the v6 J6 |
+
+The listed parts come to about **$19.50** at qty 1, with a pair of
+IRF630s ($4.86) the biggest single item after the relay ($4.52), the
+capacitor ($3.08) and the DIP chips. Add roughly **$5-$8** for the passives
+and the unlisted parts (L1, header, diodes, zeners, trimmer): call it **$25-$28
+a board** at DigiKey qty-1 prices, before the bare PCB. Prices from page listings;
+quantity breaks will drop it.
+
+**Small parts count (all through-hole, 1/4 W metal film and radial or
+ceramic disc)**, rough, to finalize with the schematic: about **25
+resistors** (divider chain, pulldowns, pull-ups, gate and base resistors,
+current sense), **12 capacitors** (decoupling, timing, bulk), **6-8 diodes and
+zeners**, plus A0-A2 and J4 jumpers. Not cheap in hand-soldering time (about an
+hour for a few boards) but cheap in parts.
+
+**Do these before ordering**
+1. Check each datasheet for the stage-1 and stage-2 equations: MC34063A boost
+   at 5 V in and the UC3843A boost at 20 V to 130 V. The values in sections 5-6
+   were for the SMD chips.
+2. Check the IRF630's gate drive, Isat on L2, and the relay's contact rating at
+   the datasheet, not the listing.
 
 ## Sources
 
