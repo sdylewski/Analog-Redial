@@ -187,6 +187,22 @@ voltage across R_sense (fire current), AIN2 the 20 V stage. Firmware can then
 check "reached target within N s", and see **the cap sag after a fire**
 (the relay really fired). Cost about a few dollars for the module.
 
+**Other I2C ADCs, DigiKey qty-1 prices on 2026-10-27** (addresses are from
+memory: check each datasheet):
+
+| Part | Bits / channels | Package | Price | Notes |
+|---|---|---|---|---|
+| ADS1115IDGSR | 16 / 4 | VSSOP-10, 0.5 mm | $5.28 | the original pick, 0x48 |
+| ADS1015IDGSR | 12 / 4 | VSSOP-10, 0.5 mm | $3.94 | same pins and footprint as the ADS1115, 12-bit is plenty |
+| **MCP3221A5T-E/OT** | 12 / 1 | SOT-23-5, 0.95 mm | **$1.91** | 18,713 in stock; easiest to hand-solder; one channel (HV only); address code A5 is 0x4D |
+| MCP3021A5T-E/OT | 10 / 1 | SOT-23-5 | $1.41 | 10-bit gives about 130 mV per step on a 130 V reading |
+| MCP3425A0T-E/CH | 16 / 1 | SOT-23-6 | $2.48 | one channel |
+| MCP3428-E/SL | 16 / 4 | SOIC-14, 1.27 mm | $4.63 | 6,898 in stock; 4 channels in a hand-solderable package |
+| ADS1110A0IDBVT | 16 / 1 | SOT-23-6 | $6.82 | dearer than the ADS1115 |
+
+For one HV reading, a 12-bit MCP3221 gives about 32 mV per step on the 130 V
+scale. Two channels (HV and fire current) need the MCP3428 or the ADS1x15.
+
 **Either way**, the monitor only means something while HV_EN is on. If the
 relay doesn't fire the voltage stays up; if it does, the cap sags by
 dV = I x t / C (about 20 V for 100 mA x 50 ms into 220 uF).
