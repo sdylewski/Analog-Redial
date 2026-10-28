@@ -77,6 +77,11 @@ typedef enum {
      * a brownout restart (see board_power_warning_announce()). One-shot,
      * TONE_LOW_POWER_MS long. */
     TONE_LOW_POWER,
+    /* Second dial tone after the dial-out access digit (9), like a PBX gives
+     * after you dial 9 for an outside line: the dial tone breaks into three
+     * short pulses, then settles to the normal continuous dial tone. Not
+     * regionalized beyond using the region's dial frequencies. */
+    TONE_DIAL_OUT,
 } call_progress_t;
 
 #define TONE_LOW_POWER_MS 2900

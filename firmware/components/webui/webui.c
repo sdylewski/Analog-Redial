@@ -4284,11 +4284,12 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
             "WhatsApp, Zoom and similar apps too. Lift the handset to answer, hang up to end "
             "the call.</li>"
             "<li><b>Caller ID</b> shows in the activity log when the phone sends it.</li>"
-            "<li><b>Dial out: 1 + area code + number.</b> Dial it like old long distance "
-            "(e.g. 1-415-555-0123) and the call goes out through the paired phone as soon as "
-            "the 11th digit is dialed. The leading 1 keeps real numbers apart from this "
-            "phone's own short codes, so 211 still records a message. Dial codes can't start "
-            "with 1 for this reason.</li>"
+            "<li><b>Dial out: 9, then area code + number.</b> Dial 9 like you would for an outside "
+            "line on a work phone: the dial tone pulses a few times, then goes back to steady. Dial "
+            "the ten digits (e.g. 9, then 415-555-0123) and the call goes out through the paired "
+            "phone as soon as the last digit is dialed. The leading 9 keeps real numbers apart from "
+            "this phone's own short codes, so 211 still records a message. Dial codes can't start "
+            "with 9 for this reason.</li>"
             "<li><b>Everything else keeps working.</b> With a phone connected but no call up, "
             "picking up still gives dial tone and all the usual dial codes.</li>"
             "<li><b>Calls placed on the paired phone</b> can be moved to this handset: pick up "
@@ -5468,7 +5469,8 @@ static int append_selftest_card(char *buf, size_t cap, int off)
 
             /* The audio-level check stays re-runnable after it has a result:
              * it's a measurement, not a one-time human gesture. */
-            if (strncmp(c->id, "level", 5) == 0 && c->result != SELFTEST_SKIP && !selftest_busy()) {
+            bool is_level = strncmp(c->id, "level", 5) == 0, is_echo = strncmp(c->id, "echo", 4) == 0;
+            if ((is_level || is_echo) && c->result != SELFTEST_SKIP && !selftest_busy()) {
                 off = appendf(buf, cap, off,
                     "<form method=\"POST\" action=\"/selftest_action\" class=\"settings-form\">"
                     "<input type=\"hidden\" name=\"id\" value=\"%s\">"
@@ -5476,9 +5478,9 @@ static int append_selftest_card(char *buf, size_t cap, int off)
                     c->id, c->result == SELFTEST_PENDING && !c->detail[0]
                         ? i18n_str("diag.selftest.measure", "Measure (about 10 s)")
                         : i18n_str("diag.selftest.measure_again", "Measure again"));
-                off = append_level_report(buf, cap, off, c->id[strlen(c->id) - 1] == '1' ? 1 : 0);
+                if (is_level) off = append_level_report(buf, cap, off, c->id[strlen(c->id) - 1] == '1' ? 1 : 0);
             } else if (c->result == SELFTEST_PENDING && c->kind == SELFTEST_ACTION &&
-                       strncmp(c->id, "level", 5) != 0) {
+                       !is_level && !is_echo) {
                 off = appendf(buf, cap, off,
                     "<form method=\"POST\" action=\"/selftest_action\" class=\"settings-form\">"
                     "<input type=\"hidden\" name=\"id\" value=\"%s\">"
@@ -8804,7 +8806,7 @@ static esp_err_t pin_action_set_handler(httpd_req_t *req)
     if (err == ESP_ERR_INVALID_STATE) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
             "That code overlaps another dial code (a code can't be the start of another, "
-            "or start with 1 or 555).");
+            "or start with 9 or 555).");
         return ESP_OK;
     }
     if (err != ESP_OK) {
@@ -8860,7 +8862,7 @@ static esp_err_t ha_code_set_handler(httpd_req_t *req)
     if (err != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
             err == ESP_ERR_INVALID_STATE ? "That code overlaps another dial code (a code can't be "
-                                           "the start of another, or start with 1 or 555)."
+                                           "the start of another, or start with 9 or 555)."
           : err == ESP_ERR_NO_MEM        ? "All slots are used (pin outputs and Home Assistant codes share them)."
                                          : "The code must be 2 to 6 digits.");
         return ESP_OK;
@@ -9088,7 +9090,7 @@ static int append_guide_clips(char *buf, size_t cap, int off)
     size_t nclips = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
     if (nclips == 0) return off;
     off = appendf(buf, cap, off,
-        "<div class=\"card\"><h2>Clips</h2>");
+        "<div class=\"card\"><h2>Clips &amp; functions</h2>");
     for (size_t i = 0; i < nclips && (size_t)off < cap; i++)
         off = append_guide_row(buf, cap, off, clips[i].code, clips[i].desc, 0);
     return appendf(buf, cap, off, "</div>");
@@ -9193,7 +9195,7 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
         }
         if (bt_row) {
             off = appendf(buf, cap, off,
-                "<div class=\"code-row\"><span class=\"code\">1-x-x-x-x-x-x-x-x-x-x</span>"
+                "<div class=\"code-row\"><span class=\"code\">9 to dial out, then (x x x) x x x - x x x x</span>"
                 "%s<span class=\"desc\">Call out via the paired phone (Bluetooth)</span></div>",
                 bt_companion_active() ? "<span class=\"pill on\">enabled</span>" : "<span class=\"pill off\">disabled</span>");
         }
@@ -9214,7 +9216,7 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
             dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
             size_t nclips = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
             if (in_g + nclips == 0 || off <= 0 || (size_t)off >= cap) continue;
-            off = appendf(buf, cap, off, "<div class=\"card\"><h2>Clips</h2>");
+            off = appendf(buf, cap, off, "<div class=\"card\"><h2>Clips &amp; functions</h2>");
             for (size_t i = 0; i < n && (size_t)off < cap; i++) {
                 if (entries[i].group != g) continue;
                 off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);

@@ -13,8 +13,8 @@ to it.
 
 **Between Analog Redial boards on the same network, no server.** Every board
 announces itself on your Wi-Fi and finds the others. The first time a board is
-on a network each line picks a free 4-digit number for itself (starting with 6,
-7 or 9; never 1, which Bluetooth dial-out uses). Dial another board's number
+on a network each line picks a free 4-digit number for itself (starting with 6
+or 7; never 9, which Bluetooth dial-out uses). Dial another board's number
 and its phone rings: a direct VoIP call, nothing to install, no internet. The
 boards found, and each line's number, are on **Settings → VOIP → Board-to-board
 calls**, where you can change a number. Boards you haven't numbered yet show up

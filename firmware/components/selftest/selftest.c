@@ -5,6 +5,8 @@
 #include "es8388.h"
 #include "audio.h"
 #include "bt_companion.h"
+#include "aec.h"
+#include "telephony.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -234,6 +236,16 @@ void selftest_begin(void)
               "Plays a test tone and measures distortion at the earpiece level.", SELFTEST_ACTION);
     if (lines < 2) set_result(lv1, SELFTEST_SKIP, "board has one line");
 
+    /* Echo cancellation: measures how the earpiece signal leaks back into the
+     * mic (needs the handset up) and sets the canceller's delay from it. */
+    add_check("echo0", "Line 0 echo cancellation",
+              "Lift the line 0 handset, put it on the table, then measure. Sets the echo delay.",
+              SELFTEST_ACTION);
+    selftest_check_t *ec1 = add_check("echo1", "Line 1 echo cancellation",
+              "Lift the line 1 handset, put it on the table, then measure. Sets the echo delay.",
+              SELFTEST_ACTION);
+    if (lines < 2) set_result(ec1, SELFTEST_SKIP, "board has one line");
+
     selftest_check_t *bl = add_check("btlink", "Bluetooth module link", NULL, SELFTEST_AUTO);
     selftest_check_t *be = add_check("bteeprom", "Bluetooth audio EEPROM", NULL, SELFTEST_AUTO);
     board_bt_module_t bt_mod = board_hw_config_get().bt_module;
@@ -380,12 +392,68 @@ static selftest_result_t run_level_check(selftest_check_t *c, int line)
     return SELFTEST_PASS;
 }
 
+/* ---- echo cancellation check -------------------------------------------- */
+
+#define ECHO_REPEATS   3    /* one run can be thrown off by room noise */
+#define ECHO_SETTLE_MS 300
+
+static selftest_result_t run_echo_check(selftest_check_t *c, int line)
+{
+    if (line < 0 || line >= board_hw_config_get().num_lines) {
+        set_result(c, SELFTEST_SKIP, "line not present on this board");
+        return SELFTEST_SKIP;
+    }
+    /* The probe needs the handset up and no call: on-hook there is no
+     * earpiece path to measure, and in a call the far end is in the mix. */
+    tel_state_t st = telephony_state(line);
+    if (!ag1170_is_offhook(line) || st == TEL_IDLE) {
+        set_result(c, SELFTEST_PENDING, "lift the line %d handset, then measure again", line);
+        return SELFTEST_PENDING;
+    }
+    if (st == TEL_INCALL || st == TEL_RINGING || st == TEL_RINGBACK || st == TEL_BT_PASSTHROUGH) {
+        set_result(c, SELFTEST_PENDING, "line %d is in a call: end it, then measure again", line);
+        return SELFTEST_PENDING;
+    }
+
+    int hits = 0, unsteady = 0, failed = 0;
+    double delay_sum = 0, tail_sum = 0;
+    for (int i = 0; i < ECHO_REPEATS; i++) {
+        audio_echo_probe_t r;
+        if (!audio_echo_probe(line, 1000, 10, 400, NULL, 0, &r)) { failed++; continue; }
+        if (!r.noise_steady) unsteady++;
+        if (r.noise_steady && r.leak_detected) {
+            hits++;
+            delay_sum += r.delay_ms;
+            tail_sum += r.tail_ms;
+        }
+        if (i + 1 < ECHO_REPEATS) vTaskDelay(pdMS_TO_TICKS(ECHO_SETTLE_MS));
+    }
+    telephony_resume_dialtone(line);   /* the measurement silenced the dial tone */
+
+    if (failed == ECHO_REPEATS) {
+        set_result(c, SELFTEST_FAIL, "no audio came back from line %d, or short of memory", line);
+        return SELFTEST_FAIL;
+    }
+    if (hits == 0) {
+        if (unsteady > 0) set_result(c, SELFTEST_FAIL, "too much background noise: try somewhere quieter");
+        else set_result(c, SELFTEST_FAIL, "no echo detected in %d tries: no earpiece-to-mic path?", ECHO_REPEATS);
+        return SELFTEST_FAIL;
+    }
+    double delay_ms = delay_sum / hits, tail_ms = tail_sum / hits;
+    if (aec_set_delay_ms(line, (uint32_t)(delay_ms + 0.5)) == ESP_OK)
+        board_aec_delay_set(line, (uint32_t)(delay_ms + 0.5));
+    set_result(c, SELFTEST_PASS, "echo delay %.0f ms, tail %.0f ms (%d of %d tries); delay set",
+               delay_ms, tail_ms, hits, ECHO_REPEATS);
+    return SELFTEST_PASS;
+}
+
 selftest_result_t selftest_run_action(const char *id, int timeout_ms)
 {
     selftest_check_t *c = find_check(id);
     if (!c) return SELFTEST_FAIL;
     if (c->result == SELFTEST_SKIP) return SELFTEST_SKIP;
     if (strncmp(id, "level", 5) == 0) return run_level_check(c, line_from_id(id));
+    if (strncmp(id, "echo", 4) == 0) return run_echo_check(c, line_from_id(id));
 
     int line = line_from_id(id);
     if (line < 0 || line >= board_hw_config_get().num_lines) {
@@ -463,6 +531,7 @@ static esp_err_t start_bg(const char *id, int timeout_ms, bool stimulus)
     s_job_stimulus = stimulus;
     if (!stimulus) {
         if (strncmp(id, "level", 5) == 0) set_result(c, SELFTEST_PENDING, "measuring (about 10 s)...");
+        else if (strncmp(id, "echo", 4) == 0) set_result(c, SELFTEST_PENDING, "measuring (about 5 s)...");
         else set_result(c, SELFTEST_PENDING, "watching for %ds...", timeout_ms / 1000);
     }
     s_busy = true;

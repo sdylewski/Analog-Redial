@@ -179,6 +179,11 @@ void progress_tone_start(progress_tone_t *p, uint32_t sample_rate, call_progress
             resolve_cadence(p, &s->cadence);
             break;
         }
+        case TONE_DIAL_OUT: {
+            const tone_spec_t *s = &lookup_region()->dial;
+            f1 = s->f1; f2 = s->f2;   /* no cadence: progress_tone_fill() gates the pulses */
+            break;
+        }
         case TONE_RINGBACK: {
             const tone_spec_t *s = &lookup_region()->ringback;
             f1 = s->f1; f2 = s->f2;
@@ -244,6 +249,11 @@ void progress_tone_fill(progress_tone_t *p, int16_t *out, size_t n)
                 uint64_t hi = ((uint64_t)880 << 32) / p->sample_rate, lo = ((uint64_t)220 << 32) / p->sample_rate;
                 p->osc.inc[0] = (uint32_t)(hi - (hi - lo) * k / glide);
             }
+        } else if (p->kind == TONE_DIAL_OUT) {
+            /* three 100 ms pulses, 100 ms gaps, then steady dial tone */
+            uint32_t beat = p->sample_rate / 10;
+            uint32_t idx = p->pos / beat;
+            on = idx >= 6 || (idx % 2) == 0;
         } else if (p->kind == TONE_CONFIRM) {
             /* three 100 ms beeps, 100 ms gaps, then silence -- a one-shot
              * sequence, not a repeating cadence, so it can't use the

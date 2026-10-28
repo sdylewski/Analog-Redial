@@ -96,7 +96,7 @@ bool bt_companion_active(void);
 board_bt_module_t bt_companion_module(void);
 
 /* Whether this module can place a call (bt_companion_make_call()). Both the
- * BM64 and the BT401 can; telephony only offers the "1 + number" dial-out
+ * BM64 and the BT401 can; telephony only offers the "9 + number" dial-out
  * when this is true. */
 bool bt_companion_can_dial(void);
 

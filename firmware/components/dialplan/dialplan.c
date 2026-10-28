@@ -86,12 +86,10 @@ static const entry_t TABLE[] = {
     { "324", ACT_CALL_LINE, -1, FX_DALEK,  "Call other phone (Dalek)", true },
 
     /* 8xx holds the mode/greeting codes that used to be 9xx (921/922/999,
-     * moved 2026-10-01). The whole 9xx block is now reserved: "9" is the
-     * candidate prefix for Bluetooth dial-out, PBX-style, and a code
+     * moved 2026-10-01). The whole 9xx block is reserved: "9" is the prefix
+     * for Bluetooth dial-out, PBX-style ("9 for an outside line"), and a code
      * starting with 9 would be indistinguishable from the start of a phone
-     * number. See archive/BLUETOOTH_AUDIO_UPGRADE.md for why that change
-     * isn't made yet -- variable-length numbers need an inter-digit timeout
-     * a rotary phone can't shortcut. */
+     * number. */
     /* 9xx -- settings. No 901/902: language is set once at configuration
      * time (board_language_set), not switched in use -- see dialplan.h. No
      * 931/932 either: Play/Call-only mode was removed as redundant (Play
@@ -632,11 +630,11 @@ dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit)
         return make(ACT_NONE, 0, 0); /* keep collecting */
     }
 
-    /* Bluetooth dial-out: 1 + 10 digits (see dialplan_set_bt_dialout()). */
+    /* Bluetooth dial-out: 9 + 10 digits (see dialplan_set_bt_dialout()). */
     if (s_bt_dialout && c->buf[0] == DIALPLAN_BT_PREFIX) {
         if (c->len >= DIALPLAN_BT_DIGITS) {
             dialplan_action_t a = make(ACT_BT_DIAL, 0, 0);
-            strncpy(a.number, c->buf, sizeof(a.number) - 1);
+            strncpy(a.number, c->buf + 1, sizeof(a.number) - 1);   /* drop the 9 */
             return a;
         }
         return make(ACT_NONE, 0, 0);
@@ -846,7 +844,7 @@ const char *dialplan_home_number_problem(const char *number)
      * (s_bt_dialout): on a board with a module, 1 + digits always means
      * dial-out on that line. */
     if ((s_bt_dialout || board_hw_config_get().has_bt_module) && number[0] == DIALPLAN_BT_PREFIX)
-        return "Can't start with 1 on a board with Bluetooth (it dials out with 1)";
+        return "Can't start with 9 on a board with Bluetooth (it dials out with 9)";
     for (size_t i = 0; i < TABLE_N; i++) {
         size_t tl = strlen(fcode(i));
         if (strncmp(fcode(i), number, (n < tl) ? n : tl) == 0) return "Clashes with one of this phone's dial codes";

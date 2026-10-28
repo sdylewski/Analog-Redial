@@ -169,22 +169,22 @@ static esp_err_t save_number(int line, const char *num, bool automatic)
     return err;
 }
 
-/* A free number for `line`: 4 digits, never starting with 1 (that belongs to
- * Bluetooth dial-out: a board with a module can't dial a 1xxx number), first
- * digit 6, 7 or 9 where possible (no built-in code starts with them), valid
+/* A free number for `line`: 4 digits, never starting with 9 (that belongs to
+ * Bluetooth dial-out: a board with a module can't dial a 9xxx number), first
+ * digit 6 or 7 where possible (no built-in code starts with them), valid
  * for the dial plan, and not in use by this board's other line or any board
  * seen so far. */
 static bool pick_number(int line, const char *prefer, char *out)
 {
-    static const char FIRST_CHOICE[] = { '6', '7', '9' };
+    static const char FIRST_CHOICE[] = { '6', '7' };
     char cand[HOMECALL_NUM_MAX];
     for (int attempt = 0; attempt < 300; attempt++) {
-        if (attempt == 0 && prefer && prefer[0] && prefer[0] != '1') {
+        if (attempt == 0 && prefer && prefer[0] && prefer[0] != '9') {
             strlcpy(cand, prefer, sizeof(cand));
         } else {
             uint32_t r = esp_random();
             int first = attempt < 100 ? FIRST_CHOICE[(r >> 24) % sizeof(FIRST_CHOICE)]
-                                      : '2' + (int)((r >> 24) % 8);   /* 2-9 */
+                                      : '1' + (int)((r >> 24) % 8);   /* 1-8 */
             snprintf(cand, sizeof(cand), "%c%03u", first, (unsigned)(r % 1000));
         }
         if (dialplan_home_number_problem(cand)) continue;
@@ -240,14 +240,14 @@ static void fill_second_line(void)
     }
 }
 
-/* Numbers this board picked itself in an earlier version could start with 1,
+/* Numbers this board picked itself in an earlier version could start with 9,
  * which a board with Bluetooth dial-out can't dial. Pick them again, once. */
-static void retire_leading_one(void)
+static void retire_leading_nine(void)
 {
     if (!s_auto) return;
     bool changed = false;
     for (int l = 0; l < 2; l++) {
-        if (s_num[l][0] != '1') continue;
+        if (s_num[l][0] != '9') continue;
         const char *old_num = s_num[l];
         char old[HOMECALL_NUM_MAX], num[HOMECALL_NUM_MAX], seq[HOMECALL_NUM_MAX];
         strlcpy(old, old_num, sizeof(old));
@@ -256,7 +256,7 @@ static void retire_leading_one(void)
         if (l == 1 && s_num[0][0]) { next_in_sequence(s_num[0], seq); prefer = seq; }
         if (pick_number(l, prefer, num) && save_number(l, num, true) == ESP_OK) {
             strlcpy(s_num[l], num, sizeof(s_num[l]));
-            ESP_LOGI(TAG, "line %d: number %s starts with 1 (Bluetooth dial-out), now %s", l + 1, old, num);
+            ESP_LOGI(TAG, "line %d: number %s starts with 9 (Bluetooth dial-out), now %s", l + 1, old, num);
             changed = true;
         } else {
             strlcpy(s_num[l], old, sizeof(s_num[l]));
@@ -359,7 +359,7 @@ static void homecall_task(void *arg)
             browse();
             xSemaphoreTake(s_num_lock, portMAX_DELAY);
             if (!s_seeded) seed_numbers();
-            retire_leading_one();
+            retire_leading_nine();
             fill_second_line();
             settle_clashes();
             xSemaphoreGive(s_num_lock);
@@ -432,10 +432,10 @@ static esp_err_t set_number_locked(int line, const char *number, char *msg, size
     if (num[0]) {
         const char *why = dialplan_home_number_problem(num);
         if (why) { snprintf(msg, msg_len, "%s", why); return ESP_ERR_INVALID_ARG; }
-        if (num[0] == '1') {
-            /* Fine here, but a board with Bluetooth reads 1 + digits as a call
+        if (num[0] == '9') {
+            /* Fine here, but a board with Bluetooth reads 9 + digits as a call
              * out through the paired phone, so it couldn't dial this one. */
-            snprintf(msg, msg_len, "Can't start with 1: boards with Bluetooth use 1 to dial out");
+            snprintf(msg, msg_len, "Can't start with 9: boards with Bluetooth use 9 to dial out");
             return ESP_ERR_INVALID_ARG;
         }
         if (strcmp(num, s_num[line ^ 1]) == 0) {

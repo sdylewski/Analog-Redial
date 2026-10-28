@@ -119,6 +119,7 @@ typedef struct {
     int64_t              last_dtmf_us;
     /* transient tone auto-return */
     int64_t              tone_return_us; /* 0 = no auto-return */
+    bool                 dialout_tone;   /* the second dial tone (after the dial-out 9) is playing */
     tel_state_t          tone_return_state;
     /* off-hook alert: when the current dial-tone dwell expires (0 = not
      * armed, i.e. not sitting on dial tone or the feature is disabled) */
@@ -352,6 +353,7 @@ static void enter_idle(int line)
     s_line[line].state = TEL_IDLE;
     s_line[line].peer = PEER_NONE;
     s_line[line].dialing = false;
+    s_line[line].dialout_tone = false;
     s_line[line].tone_return_us = 0;
     dialplan_collector_reset(&s_line[line].coll);
     /* Deliberately does NOT touch AEC's enabled state. It's only ever
@@ -376,6 +378,7 @@ static void enter_dialtone(int line)
     s_line[line].state = TEL_DIALTONE;
     s_line[line].peer = PEER_NONE;
     s_line[line].dialing = false;
+    s_line[line].dialout_tone = false;
     s_line[line].tone_return_us = 0;
     dialplan_collector_reset(&s_line[line].coll);
 
@@ -469,6 +472,7 @@ static void enter_bt_passthrough(int line)
     s_line[line].state = TEL_BT_PASSTHROUGH;
     s_line[line].peer = PEER_NONE;
     s_line[line].dialing = false;
+    s_line[line].dialout_tone = false;
     s_line[line].tone_return_us = 0;
     dialplan_collector_reset(&s_line[line].coll);
 }
@@ -1515,8 +1519,9 @@ static void process_digit(int line, char ch)
     if (st != TEL_DIALTONE && st != TEL_DIALING) {
         return; /* ignore digits unless we're expecting them */
     }
-    if (st == TEL_DIALTONE) {
-        audio_tx_silence(line); /* stop dial tone on first digit */
+    if (st == TEL_DIALTONE || s_line[line].dialout_tone) {
+        audio_tx_silence(line); /* stop dial tone on first digit (or the dial-out tone on the next) */
+        s_line[line].dialout_tone = false;
     }
     s_line[line].state = TEL_DIALING;
     s_line[line].dialing = true;
@@ -1528,9 +1533,15 @@ static void process_digit(int line, char ch)
         readback_digit(line, ch);
     }
 
-    dialplan_set_bt_dialout(line == bt_companion_line() && bt_companion_active() &&
-                            bt_companion_can_dial());
+    bool bt_out = line == bt_companion_line() && bt_companion_active() && bt_companion_can_dial();
+    dialplan_set_bt_dialout(bt_out);
     dialplan_action_t a = dialplan_feed(&s_line[line].coll, line, ch);
+    if (bt_out && a.kind == ACT_NONE && s_line[line].coll.len == 1 &&
+        s_line[line].coll.buf[0] == DIALPLAN_BT_PREFIX) {
+        /* Dialed 9 for an outside line: dial tone pulses, then steady again. */
+        audio_tx_tone(line, TONE_DIAL_OUT);
+        s_line[line].dialout_tone = true;
+    }
     ESP_LOGD(TAG, "line %d: digit '%c' -> collected '%s', action kind=%d", line,
              ch, s_line[line].coll.buf, a.kind);
     if (a.kind != ACT_NONE) {

@@ -57,7 +57,7 @@ typedef enum {
 
 #define SELFTEST_ID_MAX     16
 #define SELFTEST_DETAIL_MAX 72
-#define SELFTEST_MAX_CHECKS 14
+#define SELFTEST_MAX_CHECKS 16
 
 typedef struct {
     char              id[SELFTEST_ID_MAX];   /* stable key, e.g. "hook0" */

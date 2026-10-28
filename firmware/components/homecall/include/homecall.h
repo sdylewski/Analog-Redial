@@ -8,7 +8,7 @@
  * server. Trust is the local network itself: no keys, no server.
  *
  * On first start-up, once on Wi-Fi, the board picks a free 4-digit number for
- * each line (leading 1 unless Bluetooth dial-out owns it), so every board is
+ * each line (never a leading 9, which Bluetooth dial-out owns), so every board is
  * callable from the start. The same four digits are the default VoIP-server
  * extension (dialled as 555 + the digits from other phones on that server).
  * Boards are advertised even with no number, and shown as "not set up".

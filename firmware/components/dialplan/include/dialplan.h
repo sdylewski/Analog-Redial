@@ -28,7 +28,7 @@ typedef enum {
     ACT_RECORD_GREETING, /* dial 999: record this line's answering-machine greeting */
     ACT_CALL_LINE,      /* arg = target line index; effect in arg2 */
     ACT_VOIP_DIAL,      /* number[] holds digits (e.g. 555xxxx) */
-    ACT_BT_DIAL,        /* number[] holds 1 + 10 digits, placed via the paired phone */
+    ACT_BT_DIAL,        /* number[] holds the 10 digits after the 9, placed via the paired phone */
     ACT_SET_MODE,       /* arg = dialplan_mode_change_t */
     ACT_GPIO_OUT,       /* arg = GPIO number, arg2 = seconds high (0 = toggle) */
     ACT_PI_DIGITS,      /* dial 314: read the first 100 decimals of pi aloud */
@@ -103,15 +103,16 @@ dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit);
  */
 dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line);
 
-/* Bluetooth dial-out: while on, "1" + 10 digits (US long-distance style,
- * e.g. 1-211-555-0123) resolves to ACT_BT_DIAL as soon as the 11th digit
- * arrives. The leading 1 is what keeps real numbers from colliding with the
- * short local codes (211 still records a message). While off, a leading 1 is
- * just an unassigned prefix (wrong number). The caller sets this before each
+/* Bluetooth dial-out: while on, "9" + 10 digits (like dialing 9 for an
+ * outside line on a work phone, e.g. 9-212-555-0123) resolves to ACT_BT_DIAL
+ * as soon as the 11th digit arrives; number[] holds the 10 digits without the
+ * 9. The leading 9 is what keeps real numbers from colliding with the short
+ * local codes (211 still records a message). While off, a leading 9 is just
+ * an unassigned prefix (wrong number). The caller sets this before each
  * dialplan_feed() -- telephony turns it on only for the line the Bluetooth
  * module is wired to, and only while the module is enabled. "1" is reserved:
  * clip codes can never start with it. */
-#define DIALPLAN_BT_PREFIX     '1'
+#define DIALPLAN_BT_PREFIX     '9'
 #define DIALPLAN_BT_DIGITS     11
 void dialplan_set_bt_dialout(bool on);
 
