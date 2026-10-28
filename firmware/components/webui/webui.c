@@ -2084,15 +2084,17 @@ static int append_general_tab(char *buf, size_t cap, int off)
         i18n_str("general.button.save", "Save"));
     off = append_hint(buf, cap, off,
         i18n_str("general.quiethours.hint_lead",
-                 "While enabled, incoming calls on either line during this window go to the "
-                 "answering machine instead of ringing -- even if that line's own Answering "
-                 "Machine is off, since there's nowhere else to send the call."),
+                 "While enabled, nothing rings during this window: incoming calls go to the "
+                 "answering machine if it's on (otherwise the caller hears ringing and nobody "
+                 "answers), and timers and alarms stay silent (lift the handset to hear them). "
+                 "Bluetooth calls ring only on your mobile."),
         i18n_str("general.quiethours.hint_detail",
                  "Old mechanical ringers are loud, and not everyone wants one going off at "
                  "2 a.m. This window uses the Time zone set in the card above. "
                  "Start later than end (e.g. 21:00-07:00) means "
-                 "the window wraps past midnight. Takes effect on the next incoming call -- "
-                 "no reboot."));
+                 "the window wraps past midnight. Takes effect right away, no reboot. The "
+                 "ring test and Home Assistant ring buttons can still ring (see the Home "
+                 "Assistant card)."));
     off = appendf(buf, cap, off, "</div>");
     off = append_setup_password_card(buf, cap, off);
     return append_web_password_card(buf, cap, off);
@@ -4452,7 +4454,8 @@ static int append_alarm_tab(char *buf, size_t cap, int off,
         "1815 is 6:15 pm. Dial 9 9 instead to cancel. It rings once, at the next time that "
         "matches; lift the handset to hear the message.",
         "The phone rings longer and for longer than the timer does (12 seconds, up to 8 times "
-        "25 seconds apart), even in quiet hours. The time is the board's own clock, which comes "
+        "25 seconds apart), but not during quiet hours: then it stays silent, and lifting the handset "
+        "still plays the message. The time is the board's own clock, which comes "
         "from the internet through Wi-Fi and uses the time zone set on the General tab. An "
         "alarm is kept through a restart (one that came and went while the board was off for "
         "more than 10 minutes is dropped). Each line has its own. Edit either text and use "

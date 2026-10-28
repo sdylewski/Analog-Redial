@@ -526,6 +526,10 @@ static void play_persistent(int line, call_progress_t tone, tel_state_t state)
  * text tells the caller the limit up front instead. */
 #define RECORD_MAX_MS_DEFAULT 120000
 
+/* Silence after a clip (operator, timer message, pi, ...) before dial tone
+ * returns. The pause before a clip starts is the player's PROMPT_LEAD_IN_MS. */
+#define CLIP_TAIL_MS 2000
+
 /* Answering machine's own greeting (212) -- short by nature (it's a greeting,
  * not a message), no per-board setting for it, unlike the caller's own
  * message length (board_am_get().max_ms, user-configurable). */
@@ -1178,7 +1182,7 @@ static void alarm_tick(int line, int64_t now)
             s_line[line].alarm_ringing = true;
             s_line[line].alarm_rounds = ALARM_RING_ROUNDS;
             s_line[line].alarm_next_us = now;
-            activity_log("Line %d: alarm", line);
+            activity_log("Line %d: alarm%s", line, board_quiet_hours_active() ? " (quiet hours: not ringing)" : "");
             webhook_eventf("alarm", line, "ring");
         }
         if (now >= s_line[line].alarm_next_us) {
@@ -1187,7 +1191,7 @@ static void alarm_tick(int line, int64_t now)
                 s_line[line].alarm_ringing = false;
                 alarm_save(line);
             } else {
-                telephony_bell(line, ALARM_RING_SECS, false);   /* rings even in quiet hours: it was asked for */
+                telephony_bell(line, ALARM_RING_SECS, true);   /* silent in quiet hours: the message still plays on pickup */
                 s_line[line].alarm_next_us = now + ALARM_RING_EVERY_US;
                 s_line[line].alarm_rounds--;
             }
@@ -1275,7 +1279,7 @@ static void timer_tick(int line, int64_t now)
             s_line[line].timer_ringing = true;
             s_line[line].timer_rounds = TIMER_RING_ROUNDS;
             s_line[line].timer_next_us = now;
-            activity_log("Line %d: timer is up", line);
+            activity_log("Line %d: timer is up%s", line, board_quiet_hours_active() ? " (quiet hours: not ringing)" : "");
             webhook_eventf("timer", line, "done");
         }
         if (now >= s_line[line].timer_next_us) {
@@ -1283,7 +1287,7 @@ static void timer_tick(int line, int64_t now)
                 s_line[line].timer_end_us = 0;   /* nobody answered: give up */
                 s_line[line].timer_ringing = false;
             } else {
-                telephony_bell(line, TIMER_RING_SECS, false);   /* rings even in quiet hours: someone asked for it */
+                telephony_bell(line, TIMER_RING_SECS, true);   /* silent in quiet hours: the message still plays on pickup */
                 s_line[line].timer_next_us = now + TIMER_RING_EVERY_US;
                 s_line[line].timer_rounds--;
             }
@@ -1842,8 +1846,15 @@ static void fsm_task(void *arg)
                             seq_gap_us(s_line[e.line].seq, s_line[e.line].seq_i);
                     } else if (s_line[e.line].state == TEL_PLAYING) {
                         s_line[e.line].seq = NULL;
-                        if (line_offhook(e.line)) enter_dialtone(e.line);
-                        else enter_idle(e.line);
+                        /* A moment of quiet before dial tone comes back, so the
+                         * end of a message isn't cut off by it. */
+                        if (line_offhook(e.line)) {
+                            audio_tx_silence(e.line);
+                            s_line[e.line].tone_return_us = esp_timer_get_time() + (int64_t)CLIP_TAIL_MS * 1000;
+                            s_line[e.line].tone_return_state = TEL_DIALTONE;
+                        } else {
+                            enter_idle(e.line);
+                        }
                     } else if (s_line[e.line].state == TEL_TIMER_ENTRY) {
                         /* The question has been asked: wait for the minutes. */
                         s_line[e.line].timer_wait_until_us = esp_timer_get_time() + TIMER_FIRST_DIGIT_WAIT_US;

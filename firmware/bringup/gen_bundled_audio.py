@@ -6,9 +6,8 @@ record_prompt.wav, timer_prompt.wav, am_greeting.wav, jenny.wav and the digit cl
   ./gen_bundled_audio.py --only operator.wav 3.wav
   ./gen_bundled_audio.py --kokoro-voice bf_emma
 
-Formats: the short prompts are 8 kHz mono 16-bit PCM; the two operator prompts, jenny and the
-digits are 8 kHz mono 8-bit mu-law (half the size: both operator clips have to fit the 8 MB
-layout's 1 MB bundled partition). Every clip is scaled so its peak sits just
+Format: every clip is 8 kHz mono 8-bit mu-law (G.711, what a phone line carries anyway): half the
+size of 16-bit PCM, which the 8 MB layout's 1 MB bundled partition needs. Every clip is scaled so its peak sits just
 under full scale, like the earlier ones, and the digits are trimmed of leading and trailing
 silence. Run `idf.py flash` afterwards: the clips are baked into the `bundled` partition,
 which OTA updates don't rewrite. dialup.wav is a recording, not speech, so it isn't touched.
@@ -33,12 +32,12 @@ PROMPTS = {  # name -> (text, format)
                      "For other features and settings, refer to phone dot local.", "ulaw"),
     "operator_2line.wav": ("Operator. To call the other phone, dial 3 2 1. To leave a message, dial 2 1 1. "
                            "Or dial 8 4 6 for a timer. For other features and settings, refer to phone dot local.", "ulaw"),
-    "record_prompt.wav": ("Record your message after the beep, then hang up.", "pcm"),
-    "am_greeting.wav": ("Leave a message after the beep.", "pcm"),
-    "timer_prompt.wav": ("How many minutes for the timer?", "pcm"),
-    "timer_done.wav": ("Your timer is done.", "pcm"),
-    "alarm_prompt.wav": ("What time should the alarm ring? Dial four digits: the hour, then the minutes, on a 24 hour clock.", "pcm"),
-    "alarm_done.wav": ("This is your alarm.", "pcm"),
+    "record_prompt.wav": ("Record your message after the beep, then hang up.", "ulaw"),
+    "am_greeting.wav": ("Leave a message after the beep.", "ulaw"),
+    "timer_prompt.wav": ("How many minutes for the timer?", "ulaw"),
+    "timer_done.wav": ("Your timer is done.", "ulaw"),
+    "alarm_prompt.wav": ("What time should the alarm ring? Dial four digits: the hour, then the minutes, on a 24 hour clock.", "ulaw"),
+    "alarm_done.wav": ("This is your alarm.", "ulaw"),
     "jenny.wav": ("If you're trying to reach Jenny, she's not home right now. Please call back later.", "ulaw"),
 }
 DIGITS = {f"{i}.wav": w for i, w in enumerate(

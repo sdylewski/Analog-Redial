@@ -281,16 +281,12 @@ void      board_timezone_init(void);
 
 /* ---- Quiet hours ----
  * While enabled and the current local time (board_timezone_get(), UTC if
- * unset) falls in [start, end), incoming calls on either line go straight
- * to the answering machine instead of ringing -- old mechanical ringers are
- * loud, and not everyone wants one going off at 2 a.m. One setting for both
- * lines (not per-line -- if you're asleep, you're asleep regardless of
- * which line rings), and it works independently of the per-line Answering
- * Machine config above: a call still gets routed to voicemail during quiet
- * hours even on a line whose own AM is disabled/unconfigured, since
- * "silently drop the call" isn't a real option and there's nowhere else to
- * send it -- auto_answer() (telephony.c) already degrades gracefully with
- * no greeting recorded (straight to a beep, then record). */
+ * unset) falls in [start, end), nothing rings: incoming calls go straight
+ * to the answering machine (or, with none, are never answered), and timers
+ * and alarms stay silent -- old mechanical ringers are loud, and not
+ * everyone wants one going off at 2 a.m. One setting for both lines (not
+ * per-line -- if you're asleep, you're asleep regardless of which line
+ * rings). See start_ring() in telephony.c for the call routing. */
 typedef struct {
     bool    enabled;
     uint8_t start_hour, start_min; /* 0-23, 0-59 */

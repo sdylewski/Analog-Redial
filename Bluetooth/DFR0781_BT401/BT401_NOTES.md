@@ -3,10 +3,10 @@
 **Part number to order: DFR0781** (DFRobot's SKU; Digikey lists it under that number, about $3.50). The module itself is the BT401. Product page: https://www.dfrobot.com/product-2177.html . Wiki: https://wiki.dfrobot.com/dfr0781/ . Datasheet (translated, saved here): `DFR0781_BT401_datasheet_english-translated.pdf`.
 
 2026-10-20, from DFRobot's translated datasheet (BT401 V1.5).
-Modules received 2026-10-27; first power-up not done yet. Why it is interesting: a **text** UART protocol with the call
+Modules received and working 2026-10-27 (hand-wired to a v5 board; bench log in `archive/hardware/bt401.md`). Why it is interesting: a **text** UART protocol with the call
 control we need, at about $3.50. (How it compares with the other modules: `../README.md`.)
 
-- Bluetooth 5.0 dual mode; HFP/HSP/A2DP/AVRCP/SPP/BLE. Jieli-style chip (default name "BT201-AUDIO").
+- Bluetooth 5.0 dual mode; HFP/HSP/A2DP/AVRCP/SPP/BLE. Jieli-style chip. Default name "BT401-AUDIO-V31" on the real module (the datasheet says "BT201-AUDIO"); `AT+BD<name>` then `AT+CZ` renames it.
 - UART 3.3 V TTL, **115200 8N1** by default (changeable, `AT+CT05`), commands `AT+<cmd>[param]\r\n`,
   replies `<IND>[param]\r\n`. VCC 3.3-5.2 V, about 20 mA. Stamp-hole module, 23 x 15.5 mm, 26 edge pads plus 4 round pads (27-30).
 - Call control: `AT+BA04` answer, `AT+BA03` hang up, `AT+BA02` reject, `AT+BA00` call back the last
@@ -19,8 +19,7 @@ control we need, at about $3.50. (How it compares with the other modules: `../RE
 - Pins for our J2 header (8-pin): module pad 13 VCC <- J2.1 (+3.3 V_BM); pads 12 and 11 GND <- J2.8;
   pad 26 (module TX) -> J2.2 (GPIO17); pad 25 (module RX) <- J2.3 (GPIO16); pad 8 MIC <- J2.5
   (line 0 Vout through 1 uF); pad 10 DACL -> J2.7 (through 1 uF and 1 k to line 0 Vin). MFB (J2.4,
-  GPIO15) is not needed. A level check is needed: the mic input expects electret level, the DAC
-  is headphone level.
+  GPIO15) is not needed. Levels are fine both ways wired straight like this, with no extra parts.
 - Firmware: driver `firmware/components/bt_companion/bt401.c` (notes and bench log in `archive/hardware/bt401.md`).
   Working on a v5 board since 2026-10-27: music, incoming calls ringing, dial-out, call audio. The driver
   switches the module's DAC off (`AT+CS00`, high-impedance) when there's no Bluetooth audio, because an
@@ -49,9 +48,9 @@ Notes per pin:
 - **J2.2, module TX (pad 26):** 3.3 V level, 115200 8N1 by default.
 - **J2.3, module RX (pad 25):** a 1 kohm series resistor is only needed for 5 V hosts.
 - **J2.4, GPIO15 / MFB:** not needed (R17 pulls it low). Optional later: pad 18 (PR2, "ENABLE / RESET") if a reset line is wanted.
-- **J2.5, MIC (pad 8):** the call microphone pin, fixed. The vendor biases it from pad 7 (DACVDD) through 6.2 kohm and couples with 1 uF; copy that: 6.2 kohm from pad 7 to pad 8, 1 uF in series (C22 on the main board already is one). It expects an electret microphone level, so check the level.
+- **J2.5, MIC (pad 8):** the call microphone pin, fixed. Wired straight to J2.5 (C22 on the main board is the coupling cap), the far end hears the handset fine. The vendor biases an electret mic from pad 7 (DACVDD) through 6.2 kohm; that bias isn't needed here, since the SLIC drives the line.
 - **J2.6, `MIC_N`:** unused, the module's mic input is single-ended; leave it unconnected.
-- **J2.7, DACL (pad 10):** left-channel speaker/headphone output (a headphone amplifier). The vendor adds 22 ohm + 10 uF for headphones; we already have C23 + R16. DACR (pad 9) stays open.
+- **J2.7, DACL (pad 10):** left-channel speaker/headphone output (a headphone amplifier). Wire it straight to J2.7: C23 + R16 on the main board are enough, **no series resistor**. An idle DAC loads line 0's earpiece input (dial tone gets very quiet), so the firmware turns it off (`AT+CS00`, high-impedance) whenever there's no Bluetooth audio. DACR (pad 9) stays open.
 - **J2.8, GND (pads 12 and 11):** join analog (SGND, pad 11) and digital (GND, pad 12) ground **at the supply entry point only**, one star point (the vendor stresses this).
 
 Leave everything else unconnected; the vendor says to leave unused pins floating, no pull-ups or pull-downs:
@@ -88,7 +87,7 @@ Leave every other pad open, and keep the antenna end clear of metal and your han
 1. Flash firmware with the BT401 driver; on the USB console run `hwcfg bt bt401`, then `reboot`.
 2. `bt_enable 0` (the probe needs the driver stopped), then `bt401_selftest` (no module needed: `PASS`).
 3. Power-cycle the module, then `bt401_probe`. Expect `QA+30` / `QM+00` within 2 s, then replies to `TS`, `TD`, `TA`. Silence means power, swapped TX/RX, or another baud rate.
-4. `bt401_at B201` (enable calls), `bt401_at BA06` (discoverable), pair a phone with "BT201-AUDIO".
+4. `bt401_at B201` (enable calls; the driver also sends it at start-up), `bt401_at BA06` (discoverable), pair a phone with "BT401-AUDIO-V31".
 5. `bt_enable 1`, `bt401_state` (connected should read 1), then call the phone and watch the `rx: status 3` lines.
 
 Write what happened into the Log in `archive/hardware/bt401.md`.
