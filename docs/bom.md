@@ -166,9 +166,10 @@ and resistors that are already on the board.
   time it runs. That needs two thin wires from the companion's 2-pin programming pads to the main
   board's J5 header (the firmware looks for them on GPIO19/20; `bm64_diagpins` in the console tells it
   if they're elsewhere), and the board configured as one line with no microSD. After that the wires come off.
-- **Cheaper option, untested:** the DFRobot **DFR0781** (BT401 module), about $3.50, with call control over a
-  simple text command set, hand-wired to the same header. The firmware has a driver for it (choose it in
-  Settings → General → Board hardware), but it hasn't been tried on a real module yet.
+- **Cheaper option:** the DFRobot **DFR0781** (BT401 module), about $3.50, with call control over a
+  simple text command set, wired to the same header. Choose it in Settings → General → Board hardware;
+  it needs no setup step. Music, incoming calls and dialing out work on a v5 board; it has no adapter
+  board yet, so it's hand-wired for now.
 
 ---
 

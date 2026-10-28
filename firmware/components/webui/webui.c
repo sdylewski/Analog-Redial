@@ -4234,7 +4234,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
     } else if (bt_mod == BOARD_BT_BT401) {
         mod_text = i18n_str("bt.module_bt401",
             "<b>BT401</b> module (DFRobot DFR0781). Can ring this phone, answer, hang up, show "
-            "caller ID and dial out. New and not yet tested on real hardware.");
+            "caller ID and dial out. No setup step needed.");
     } else {
         mod_text = i18n_str("bt.module_none",
             "None chosen.");

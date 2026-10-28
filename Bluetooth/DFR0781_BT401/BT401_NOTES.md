@@ -21,7 +21,11 @@ control we need, at about $3.50. (How it compares with the other modules: `../RE
   (line 0 Vout through 1 uF); pad 10 DACL -> J2.7 (through 1 uF and 1 k to line 0 Vin). MFB (J2.4,
   GPIO15) is not needed. A level check is needed: the mic input expects electret level, the DAC
   is headphone level.
-- Firmware: driver written 2026-10-22 (`firmware/components/bt_companion/bt401.c`, notes in `archive/hardware/bt401.md`); untested. Still needs a bench check of call audio quality both ways.
+- Firmware: driver `firmware/components/bt_companion/bt401.c` (notes and bench log in `archive/hardware/bt401.md`).
+  Working on a v5 board since 2026-10-27: music, incoming calls ringing, dial-out, call audio. The driver
+  switches the module's DAC off (`AT+CS00`, high-impedance) when there's no Bluetooth audio, because an
+  idle DAC loads line 0's earpiece input through R16; with that, no series resistor is needed (J2.7 wired
+  straight to pad 10).
 
 ## Adapter board for the J2 header (BM64 style)
 

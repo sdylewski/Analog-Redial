@@ -39,7 +39,9 @@ Bluetooth board" and give its general pinout in docs/hardware-smd5.md §9. MFB/W
 the supported module; a BK3266 module was tried and its UART never answered (notes in
 `Bluetooth/BK3266/` and `archive/hardware/bk3266.md`; its firmware driver was removed after v1.0.1). The BK3266 option
 is replaced by the DFRobot DFR0781 / BT401 (`Bluetooth/DFR0781_BT401/`, `archive/hardware/bt401.md`): driver
-(`firmware/components/bt_companion/bt401*.c`) written 2026-10-22, host-tested, **not yet tested on a real module**.
+(`firmware/components/bt_companion/bt401*.c`), **working on a v5 board since 2026-10-27** (hand-wired, no adapter
+board yet): music, ringing, dial-out, call audio. The driver turns the module's DAC off when idle, since an idle DAC
+loads line 0's VIN through R16. The user now prefers it over the BM64.
 
 **v5 vs v5.1.** `hardware/kicad/Analog Redial v5/` is the board **as fabbed** (the Oct 5 save,
 restored from commit 19def2e on 2026-10-25). `hardware/kicad/Analog Redial v5.1/` is the same board
