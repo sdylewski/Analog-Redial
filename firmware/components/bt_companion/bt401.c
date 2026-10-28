@@ -142,6 +142,7 @@ static void bt401_task(void *arg)
     char last_caller[BT401_NUMBER_MAX] = "";
     int64_t next_poll = now_us() + (int64_t)BOOT_SETTLE_MS * 1000;
     int stage = 0;             /* startup commands, one per tick so replies don't pile up */
+    bool dac_on = true;        /* the module powers up with its DAC on */
 
     ESP_LOGI(TAG, "listening at %d baud on GPIO%d/GPIO%d", BT401_BAUD, (int)BOARD_UART_TX, (int)BOARD_UART_RX);
 
@@ -150,6 +151,19 @@ static void bt401_task(void *arg)
         for (int i = 0; i < n; i++) {
             bt401_msg_t m;
             if (bt401_parser_feed(&s_parser, buf[i], &m)) handle_msg(&m, &last_call, last_caller);
+        }
+
+        /* The module's DAC output sits on the line's earpiece input through the
+         * adapter's series resistor and, while on, loads the codec's own audio
+         * (dial tone, prompts) even when silent. So it is only on while there is
+         * Bluetooth audio: music or a call. */
+        portENTER_CRITICAL(&s_lock);
+        bool want_dac = s_st.music || s_st.call != BT401_CALL_IDLE;
+        portEXIT_CRITICAL(&s_lock);
+        if (want_dac != dac_on && (want_dac || stage >= 3)) {
+            send_line(BT401_CMD_DAC, want_dac ? "01" : "00");
+            dac_on = want_dac;
+            ESP_LOGI(TAG, "DAC %s", want_dac ? "on (audio)" : "off (idle)");
         }
 
         int64_t now = now_us();
@@ -206,6 +220,7 @@ void bt401_stop(bool disconnect)
         send_line(BT401_CMD_DISCONNECT, NULL);
         vTaskDelay(pdMS_TO_TICKS(150));
     }
+    send_line(BT401_CMD_DAC, "01");   /* leave the module's DAC as it powers up */
     s_stop = true;
     for (int waited = 0; s_task && waited < 1000; waited += 50) vTaskDelay(pdMS_TO_TICKS(50));
     bool had_call;

@@ -49,6 +49,7 @@ extern "C" {
 #define BT401_CMD_DISCONNECT    "BA01"   /* drop the Bluetooth link */
 #define BT401_CMD_DISCOVERABLE  "BA06"   /* make the audio side discoverable (pairing) */
 #define BT401_CMD_CALLS_ON      "B201"   /* enable HFP calls (stored by the module) */
+#define BT401_CMD_DAC           "CS"     /* CS00 = DAC output high-impedance, CS01 = DAC on */
 #define BT401_CMD_QUERY_STATUS  "TS"
 #define BT401_CMD_QUERY_NUMBER  "TT"
 #define BT401_CMD_QUERY_NAME    "TD"
