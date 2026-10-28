@@ -13,6 +13,11 @@
 !README.md
 !operator.wav
 !record_prompt.wav
+!operator_2line.wav
+!timer_prompt.wav
+!timer_done.wav
+!alarm_prompt.wav
+!alarm_done.wav
 !am_greeting.wav
 !dialup.wav
 !jenny.wav
