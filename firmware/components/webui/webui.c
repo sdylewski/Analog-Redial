@@ -2763,7 +2763,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         i18n_str("aec.js.onhook", "Pick up the handset first (the test needs it off-hook), then click Measure again."),
         i18n_str("aec.js.incall", "This line is in a call or ringing. Finish or hang up, then pick up and measure again."),
         i18n_str("aec.js.noisy", "The background noise kept changing during the 1.5 s it listens first. Quiet the room, hold the handset still, and measure again."),
-        i18n_str("aec.js.failedrun", "The test couldn't run: no audio came back from this line, or the board is short of memory. Check the Diagnostics log, or run echoprobe from the console."));
+        i18n_str("aec.js.failedrun", "The test could not run: no audio came back from this line, or the board is short of memory. Check the Diagnostics log, or run echoprobe from the console."));
 
     bool fx_on = board_voice_fx_enabled_get();
     off = appendf(buf, cap, off,

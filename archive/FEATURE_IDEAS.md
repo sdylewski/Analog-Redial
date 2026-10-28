@@ -230,3 +230,10 @@ SLICs and the XC6206 (about 6.5 V absolute maximum). Ideas for a later board, sa
   inductor, 3 A Schottky, P-FET reverse protection (a diode's drop starves it at 6 V in).
   Needs about 15 x 15 mm; the free area around v6's jack is thin. A TVS-plus-fuse clamp is
   not a fix: a 9 V adapter would hold the TVS at 7-9 V until it fails short.
+
+## Bluetooth device name (noted 2026-10-27)
+
+The BT401 shows up on phones as "BT401-AUDIO-V31". Find the BT401 AT command that sets the name (check the vendor
+manual in `Bluetooth/DFR0781_BT401/`) and have the firmware set it to something recognisable like
+"Phone.AnalogRedial" (per-board suffix if two are around). Do the same for the BM64 so either module is obviously the
+right device in a phone's Bluetooth list.

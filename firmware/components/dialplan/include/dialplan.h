@@ -105,7 +105,8 @@ dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line);
 
 /* Bluetooth dial-out: while on, "9" + 10 digits (like dialing 9 for an
  * outside line on a work phone, e.g. 9-212-555-0123) resolves to ACT_BT_DIAL
- * as soon as the 11th digit arrives; number[] holds the 10 digits without the
+ * as soon as the 11th digit arrives (a number after the 9 may start with any digit; one
+ * starting 1 takes 11 digits, one starting 0 any length, ended by the inter-digit pause); number[] holds the 10 digits without the
  * 9. The leading 9 is what keeps real numbers from colliding with the short
  * local codes (211 still records a message). While off, a leading 9 is just
  * an unassigned prefix (wrong number). The caller sets this before each

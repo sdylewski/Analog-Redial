@@ -632,7 +632,14 @@ dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit)
 
     /* Bluetooth dial-out: 9 + 10 digits (see dialplan_set_bt_dialout()). */
     if (s_bt_dialout && c->buf[0] == DIALPLAN_BT_PREFIX) {
-        if (c->len >= DIALPLAN_BT_DIGITS) {
+        /* After the 9 everything is the number, whatever it starts with. 10
+         * digits go out at once; a number starting 1 (US long distance) takes
+         * 11; one starting 0 (operator, international) has no fixed length,
+         * so it waits for the inter-digit timeout (see dialplan_timeout()). */
+        size_t want = DIALPLAN_BT_DIGITS;
+        if (c->len >= 2 && c->buf[1] == '1') want++;
+        if (c->len >= 2 && c->buf[1] == '0') want = 0;
+        if (want && c->len >= want) {
             dialplan_action_t a = make(ACT_BT_DIAL, 0, 0);
             strncpy(a.number, c->buf + 1, sizeof(a.number) - 1);   /* drop the 9 */
             return a;
@@ -685,6 +692,14 @@ dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line)
     /* 555 partial that never reached 7 digits -> wrong number */
     if (strncmp(c->buf, "555", 3) == 0 && c->len < 7) {
         return make(ACT_WRONG_NUMBER, 0, 0);
+    }
+
+    /* Dial-out number shorter than a full one (911, 411, an international
+     * number): the pause after the last digit ends it. */
+    if (s_bt_dialout && c->buf[0] == DIALPLAN_BT_PREFIX && c->len >= 2) {
+        dialplan_action_t a = make(ACT_BT_DIAL, 0, 0);
+        strncpy(a.number, c->buf + 1, sizeof(a.number) - 1);
+        return a;
     }
 
     /* Ambiguous shorter code (e.g. "0" while a longer code shared its prefix):

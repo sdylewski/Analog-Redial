@@ -1898,6 +1898,8 @@ static void fsm_task(void *arg)
             /* inter-digit timeout */
             if (s_line[line].dialing &&
                 (now - s_line[line].last_digit_us) / 1000 >= dialplan_interdigit_ms()) {
+                dialplan_set_bt_dialout(line == bt_companion_line() && bt_companion_active() &&
+                                        bt_companion_can_dial());
                 dialplan_action_t a = dialplan_timeout(&s_line[line].coll, line);
                 s_line[line].dialing = false;
                 if (a.kind != ACT_NONE) handle_action(line, &a);
