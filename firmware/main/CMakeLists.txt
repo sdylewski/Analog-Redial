@@ -14,6 +14,7 @@ idf_component_register(
 # disk; baking the whole directory put those on every board built from it.
 set(BUNDLED_AUDIO
     operator.wav        # dial 0
+    operator_2line.wav  # dial 0 on a two-line board
     record_prompt.wav   # dial 211, before the beep
     timer_prompt.wav    # dial 846, "How many minutes for the timer?"
     timer_done.wav      # dial 846: "Your timer is done." when it goes off

@@ -156,6 +156,10 @@ size_t storage_list(storage_entry_t *out, size_t max_entries);
  * takes priority over a bundled one at playback (storage_read_open()). */
 size_t storage_list_bundled(storage_entry_t *out, size_t max_entries);
 
+/* True if `name` is in writable storage (uploaded, recorded or generated
+ * here), i.e. it isn't just the bundled default. */
+bool storage_has_own(const char *name);
+
 /* PRIMARY backend: SD if mounted, else internal. See the file header. */
 size_t storage_used_bytes(void);
 size_t storage_cap_bytes(void);

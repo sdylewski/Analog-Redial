@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Regenerates the spoken clips baked into every build (firmware/assets/): operator.wav,
+"""Regenerates the spoken clips baked into every build (firmware/assets/): operator.wav, operator_2line.wav,
 record_prompt.wav, timer_prompt.wav, am_greeting.wav, jenny.wav and the digit clips 0-9 and point.
 
   ./gen_bundled_audio.py                 # all of them, in the default voice (Kokoro af_sarah)
   ./gen_bundled_audio.py --only operator.wav 3.wav
   ./gen_bundled_audio.py --kokoro-voice bf_emma
 
-Formats match what shipped before: the three prompts are 8 kHz mono 16-bit PCM, jenny and
-the digits are 8 kHz mono 8-bit mu-law (small). Every clip is scaled so its peak sits just
+Formats: the short prompts are 8 kHz mono 16-bit PCM; the two operator prompts, jenny and the
+digits are 8 kHz mono 8-bit mu-law (half the size: both operator clips have to fit the 8 MB
+layout's 1 MB bundled partition). Every clip is scaled so its peak sits just
 under full scale, like the earlier ones, and the digits are trimmed of leading and trailing
 silence. Run `idf.py flash` afterwards: the clips are baked into the `bundled` partition,
 which OTA updates don't rewrite. dialup.wav is a recording, not speech, so it isn't touched.
@@ -27,8 +28,11 @@ ASSETS = Path(__file__).resolve().parent.parent / "assets"
 PEAK_DB = -0.5
 
 PROMPTS = {  # name -> (text, format)
-    "operator.wav": ("You've reached the operator line. To leave a message, dial 2 1 1. "
-                     "For other features, please refer to your phone's guide.", "pcm"),
+    # The board name can't be baked in: these say the default name, "phone".
+    "operator.wav": ("Operator. To leave a message, dial 2 1 1. Or dial 8 4 6 for a timer. "
+                     "For other features and settings, refer to phone dot local.", "ulaw"),
+    "operator_2line.wav": ("Operator. To call the other phone, dial 3 2 1. To leave a message, dial 2 1 1. "
+                           "Or dial 8 4 6 for a timer. For other features and settings, refer to phone dot local.", "ulaw"),
     "record_prompt.wav": ("Record your message after the beep, then hang up.", "pcm"),
     "am_greeting.wav": ("Leave a message after the beep.", "pcm"),
     "timer_prompt.wav": ("How many minutes for the timer?", "pcm"),

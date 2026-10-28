@@ -1365,15 +1365,22 @@ static void handle_action(int line, const dialplan_action_t *a)
             play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
             break;
 
-        case ACT_OPERATOR_HELP:
-            if (player_play(line, "operator.wav", clip_done_cb, NULL) == ESP_OK) {
+        case ACT_OPERATOR_HELP: {
+            /* A two-line board's built-in prompt also mentions 321 (call the
+             * other phone); an uploaded or generated operator.wav wins. */
+            const char *op = "operator.wav";
+            if (board_hw_config_get().num_lines >= 2 && !storage_has_own(op)) op = "operator_2line.wav";
+            esp_err_t pe = player_play(line, op, clip_done_cb, NULL);
+            if (pe != ESP_OK && op[8] == '_') { op = "operator.wav"; pe = player_play(line, op, clip_done_cb, NULL); }
+            if (pe == ESP_OK) {
                 s_line[line].state = TEL_PLAYING;
-                activity_log("Line %d: played operator.wav", line);
+                activity_log("Line %d: played %s", line, op);
             } else {
                 ESP_LOGI(TAG, "line %d: operator help (no operator.wav in storage yet)", line);
                 play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
             }
             break;
+        }
 
         case ACT_PLAY_CLIP: /* dial-code entry (Settings -> Dial Codes), a->filename set directly */
             if (play_clip_any_ext(line, a->filename) == ESP_OK) {

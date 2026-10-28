@@ -447,6 +447,15 @@ static void neg_remember(const char *name, uint32_t gen, bool sd)
     portEXIT_CRITICAL(&s_neg_mux);
 }
 
+bool storage_has_own(const char *name)
+{
+    char path[288];
+    bool sd = sdcard_acquire();
+    bool found = resolve_existing_path(name, path, sizeof(path), sd);
+    if (sd) sdcard_release();
+    return found;
+}
+
 esp_err_t storage_read_open(const char *name, storage_reader_t *r)
 {
     /* Writable storage first (primary backend, then the other one -- see

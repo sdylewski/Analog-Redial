@@ -2163,6 +2163,19 @@ static const char *const REGEN_DIGITS[] = {
 /* The alarm's question: also what "Update spoken audio" makes it say. */
 #define ALARM_PROMPT_TEXT "What time should the alarm ring? Dial four digits: the hour, then the minutes, on a 24 hour clock."
 
+/* The operator prompt's default (dial 0), shown in its box and spoken by the
+ * shipped clips: a two-line board also mentions 321. */
+static const char *operator_default_text(void)
+{
+    return board_hw_config_get().num_lines >= 2
+        ? i18n_str("operator.default_prompt_2line",
+                   "Operator. To call the other phone, dial 3-2-1. To leave a message, dial 2-1-1. "
+                   "Or dial 8-4-6 for a timer. For other features and settings, refer to {{boardname}} dot local.")
+        : i18n_str("operator.default_prompt",
+                   "Operator. To leave a message, dial 2-1-1. Or dial 8-4-6 for a timer. "
+                   "For other features and settings, refer to {{boardname}} dot local.");
+}
+
 #define REGEN_JENNY_TEXT "If you're trying to reach Jenny, she's not home right now. Please call back later."
 
 /* True if the stored file (storage or bundled) carries exactly this tag. */
@@ -2203,9 +2216,8 @@ static int regen_build(regen_item_t *it, int max)
     }
     free(list);
     /* Prompts never edited still play the built-in default: make it in the server's voice. */
-    regen_add(it, &n, max, "operator.wav", i18n_str("operator.default_prompt",
-        "You've reached the operator line. To leave a message, dial 2-1-1. "
-        "For other features, please refer to your phone's guide."), false);
+    expand_prompt_vars(operator_default_text(), expanded, sizeof(expanded));
+    regen_add(it, &n, max, "operator.wav", expanded, false);
     regen_add(it, &n, max, RECORD_PROMPT_NAME, RECORD_PROMPT_TEXT, false);
     regen_add(it, &n, max, TIMER_PROMPT_NAME, "How many minutes for the timer?", false);
     regen_add(it, &n, max, TIMER_DONE_NAME, "Your timer is done.", false);
@@ -3481,10 +3493,7 @@ static int append_operator_tab(char *buf, size_t cap, int off,
         if (strcmp(entries[i].default_code, "0") != 0) continue;
         off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);
     }
-    off = append_prompt_field(buf, cap, off, "operator.wav",
-        i18n_str("operator.default_prompt",
-                 "You've reached the operator line. To leave a message, dial 2-1-1. "
-                 "For other features, please refer to your phone's guide."));
+    off = append_prompt_field(buf, cap, off, "operator.wav", operator_default_text());
     off = appendf(buf, cap, off,
         "<p class=\"hint\">%s</p>"
         "<form method=\"POST\" action=\"/operator_upload\" enctype=\"multipart/form-data\" "
@@ -10215,7 +10224,7 @@ static bool peer_on_netif(httpd_req_t *req, const char *ifkey)
 static bool peer_on_lan(httpd_req_t *req) { return peer_on_netif(req, "WIFI_STA_DEF"); }
 
 /* Expands {{boardname}} (case-insensitive, spaces inside the braces
- * allowed) in spoken-prompt text. Unknown {{...}} tokens are left as-is. */
+ * allowed, and {{board name}} / {{board_name}} too) in spoken-prompt text. Unknown {{...}} tokens are left as-is. */
 static void expand_prompt_vars(const char *in, char *out, size_t len)
 {
     char name[32];
@@ -10225,8 +10234,14 @@ static void expand_prompt_vars(const char *in, char *out, size_t len)
         if (in[0] == '{' && in[1] == '{') {
             const char *p = in + 2;
             while (*p == ' ') p++;
-            if (strncasecmp(p, "boardname", 9) == 0) {
-                const char *q = p + 9;
+            /* {{boardname}}, also written {{board name}} or {{board_name}} */
+            const char *q = NULL;
+            if (strncasecmp(p, "board", 5) == 0) {
+                q = p + 5;
+                while (*q == ' ' || *q == '_' || *q == '-') q++;
+                q = strncasecmp(q, "name", 4) == 0 ? q + 4 : NULL;
+            }
+            if (q) {
                 while (*q == ' ') q++;
                 if (q[0] == '}' && q[1] == '}') {
                     for (const char *n = name; *n && o + 1 < len; n++) out[o++] = *n;

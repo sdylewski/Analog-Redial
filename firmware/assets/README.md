@@ -23,8 +23,13 @@ from `storage` (recordings + anything uploaded over HTTP at runtime), so:
 
 ## What's shipped by default
 
-**`operator.wav`** — "You've reached the operator line. To leave a message, dial 2 1 1. For other
-features, please refer to your phone's guide." Dial `0` to hear it.
+**`operator.wav`** — "Operator. To leave a message, dial 2 1 1. Or dial 8 4 6 for a timer. For other
+features and settings, refer to phone dot local." Dial `0` to hear it.
+
+**`operator_2line.wav`** — the same with "To call the other phone, dial 3 2 1." first; a two-line board
+plays it instead, unless an `operator.wav` has been uploaded or generated on the board. Both say the
+default board name, "phone"; the web UI's text box uses `{{boardname}}`, so "Update spoken audio" makes
+one with the board's own name.
 
 All the spoken clips below (and this one) are made by `bringup/gen_bundled_audio.py` in the Kokoro
 voice `af_sarah` (Apache-2.0 model, rendered offline). Re-run it to change the voice or wording, then
