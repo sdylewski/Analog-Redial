@@ -237,3 +237,19 @@ The BT401 shows up on phones as "BT401-AUDIO-V31". Find the BT401 AT command tha
 manual in `Bluetooth/DFR0781_BT401/`) and have the firmware set it to something recognisable like
 "Phone.AnalogRedial" (per-board suffix if two are around). Do the same for the BM64 so either module is obviously the
 right device in a phone's Bluetooth list.
+
+## Choose the voice per text-to-speech box (noted 2026-10-27)
+
+Today the server renders every prompt in one server-wide voice (Kokoro `af_sarah`). Maybe later: a short, limited list
+of voices (say 4-6), each with a playable sample in the web UI, and a pull-down next to every text-to-speech box
+(answering-machine greeting, number announcements, and so on) to pick one.
+
+What it would take:
+- `redial_tts.py`: accept an optional `voice` in `POST /synthesize` and `/api/v1/tts`, checked against an allow-list;
+  keep one model loaded and pass the voice per call. The cache key and the WAV tag (`redial-tts voice=<v> text=<hash>`)
+  already include the voice, so "Update spoken audio" would skip files that match.
+- Provisioner: pass `voice` through; report the available voices (an `info` field) so the web UI can list them.
+- Web UI: sample clips of each voice (small 8 kHz µ-law WAVs, bundled or fetched from the server), a select per box, the
+  choice saved with the text in NVS.
+- Voices that are not Kokoro's own (for example a BART-style station voice) need a different engine (voice cloning or a
+  fine-tuned Piper model); only add one if the recordings it comes from are ones we may use and share.
