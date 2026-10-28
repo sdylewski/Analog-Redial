@@ -61,7 +61,7 @@ LED. Pad 23 (PB3, MUTE) auto-detects a pull-up/pull-down at power-up: leave it o
 Layout: antenna keep-out. The PCB antenna is the right-hand end of the module in the vendor drawing (pads 27/28
 side): let that end overhang the board edge or leave it free of copper and metal on every layer.
 
-Footprint (from the datasheet drawing, **verify on a real module before drawing the board**; KiCad symbol `Custom:DFR0781_BT401` and footprint `Custom:DFR0781_BT401` with a 3D model are in the Custom library, imported from JLCPCB part C7265136 because DFRobot publishes no CAD files): body 23.0 x 15.5 mm;
+Footprint (from the datasheet drawing, **verify on a real module before drawing the board**; KiCad symbol `Custom:DFR0781_BT401_Bluetooth_Module` and footprint `Custom:DFR0781_BT401_new` are in the Custom library (the user's own, 2026-10-28: the four round pads are joined to their edge pads, matching the measurements below and the datasheet; the earlier `Custom:DFR0781_BT401` came from JLCPCB part C7265136 because DFRobot publishes no CAD files)): body 23.0 x 15.5 mm;
 stamp-hole (castellated) pads 0.8 mm wide on a 1.27 mm pitch; pads 1-13 along one long edge with pad 1 at the antenna
 end, pads 14-26 along the opposite edge starting at the end away from the antenna, the drawing shows four larger round holes on the left short edge
 (unlabeled; the JLCPCB footprint names them 27-30 GND, TX, RX, 5V). Dimension labels in the drawing: 7.2 mm from the antenna-end edge to pad 1,

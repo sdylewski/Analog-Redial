@@ -31,7 +31,7 @@
 					)
 				)
 			)
-			(property "Footprint" "Custom:DFR0781_BT401"
+			(property "Footprint" "Custom:DFR0781_BT401_new"
 				(at 17.272 -1.778 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -2990,7 +2990,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Custom:DFR0781_BT401"
+		(property "Footprint" "Custom:DFR0781_BT401_new"
 			(at 94.742 74.168 0)
 			(hide yes)
 			(show_name no)
@@ -3001,7 +3001,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://github.com/DFRobot/DFRobot_BT401"
 			(at 77.47 72.39 0)
 			(hide yes)
 			(show_name no)
