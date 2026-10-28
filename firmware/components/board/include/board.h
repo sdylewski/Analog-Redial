@@ -197,6 +197,10 @@ int       board_feature_get(const char *key);
 esp_err_t board_feature_set(const char *key, bool on);
 bool      board_voice_fx_enabled_get(void);
 esp_err_t board_voice_fx_enabled_set(bool enabled);
+/* Alarms (dial 256) ring even during quiet hours. Off by default: quiet
+ * hours silence alarms too, like every other ring. */
+bool      board_alarm_quiet_override_get(void);
+esp_err_t board_alarm_quiet_override_set(bool on);
 
 /* ---- Off-hook ("receiver off-hook" / ROH) alert ----
  * A handset left off the hook sits on dial tone forever otherwise: the line

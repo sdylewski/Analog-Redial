@@ -1182,7 +1182,8 @@ static void alarm_tick(int line, int64_t now)
             s_line[line].alarm_ringing = true;
             s_line[line].alarm_rounds = ALARM_RING_ROUNDS;
             s_line[line].alarm_next_us = now;
-            activity_log("Line %d: alarm%s", line, board_quiet_hours_active() ? " (quiet hours: not ringing)" : "");
+            activity_log("Line %d: alarm%s", line,
+                         board_quiet_hours_active() && !board_alarm_quiet_override_get() ? " (quiet hours: not ringing)" : "");
             webhook_eventf("alarm", line, "ring");
         }
         if (now >= s_line[line].alarm_next_us) {
@@ -1191,7 +1192,9 @@ static void alarm_tick(int line, int64_t now)
                 s_line[line].alarm_ringing = false;
                 alarm_save(line);
             } else {
-                telephony_bell(line, ALARM_RING_SECS, true);   /* silent in quiet hours: the message still plays on pickup */
+                /* Silent in quiet hours unless the alarm is set to override them; the
+                 * message still plays on pickup either way. */
+                telephony_bell(line, ALARM_RING_SECS, !board_alarm_quiet_override_get());
                 s_line[line].alarm_next_us = now + ALARM_RING_EVERY_US;
                 s_line[line].alarm_rounds--;
             }

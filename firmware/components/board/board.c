@@ -471,6 +471,27 @@ esp_err_t board_voice_fx_enabled_set(bool enabled)
     return err;
 }
 
+bool board_alarm_quiet_override_get(void)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return false;
+    uint8_t v;
+    esp_err_t err = nvs_get_u8(h, "alarm_qh", &v);
+    nvs_close(h);
+    return err == ESP_OK && v != 0;
+}
+
+esp_err_t board_alarm_quiet_override_set(bool on)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, "alarm_qh", on ? 1 : 0);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
+
 esp_err_t board_tone_follow_language_set(bool follow)
 {
     nvs_handle_t h;

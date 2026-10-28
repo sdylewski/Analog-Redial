@@ -2086,7 +2086,8 @@ static int append_general_tab(char *buf, size_t cap, int off)
         i18n_str("general.quiethours.hint_lead",
                  "While enabled, nothing rings during this window: incoming calls go to the "
                  "answering machine if it's on (otherwise the caller hears ringing and nobody "
-                 "answers), and timers and alarms stay silent (lift the handset to hear them). "
+                 "answers), and timers and alarms stay silent (lift the handset to hear them; the "
+                 "Alarm card can let alarms ring anyway). "
                  "Bluetooth calls ring only on your mobile."),
         i18n_str("general.quiethours.hint_detail",
                  "Old mechanical ringers are loud, and not everyone wants one going off at "
@@ -4454,8 +4455,8 @@ static int append_alarm_tab(char *buf, size_t cap, int off,
         "1815 is 6:15 pm. Dial 9 9 instead to cancel. It rings once, at the next time that "
         "matches; lift the handset to hear the message.",
         "The phone rings longer and for longer than the timer does (12 seconds, up to 8 times "
-        "25 seconds apart), but not during quiet hours: then it stays silent, and lifting the handset "
-        "still plays the message. The time is the board's own clock, which comes "
+        "25 seconds apart). During quiet hours it stays silent unless the box below is ticked; "
+        "lifting the handset still plays the message. The time is the board's own clock, which comes "
         "from the internet through Wi-Fi and uses the time zone set on the General tab. An "
         "alarm is kept through a restart (one that came and went while the board was off for "
         "more than 10 minutes is dropped). Each line has its own. Edit either text and use "
@@ -4470,6 +4471,11 @@ static int append_alarm_tab(char *buf, size_t cap, int off,
         strftime(when, sizeof(when), "%a %H:%M", &lt);
         off = appendf(buf, cap, off, "<p class=\"hint\"><b>Line %d: alarm set for %s</b></p>", l + 1, when);
     }
+    off = appendf(buf, cap, off,
+        "<form method=\"POST\" action=\"/alarm_quiet\" class=\"settings-form\">"
+        "<label><input type=\"checkbox\" name=\"on\" value=\"1\"%s> Override quiet hours (alarms ring anyway)</label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\">Save</button></div></form>",
+        board_alarm_quiet_override_get() ? " checked" : "");
     off = appendf(buf, cap, off, "</div><div><h3>The question</h3>");
     off = append_prompt_field_rows(buf, cap, off, ALARM_PROMPT_NAME, ALARM_PROMPT_TEXT, 3);
     off = appendf(buf, cap, off, "</div><div><h3>When the alarm rings</h3>");
@@ -7097,6 +7103,19 @@ static esp_err_t language_set_handler(httpd_req_t *req)
  * checkbox submits nothing at all, so a missing `enabled` field means "off"
  * -- it can't be treated as "leave unchanged" the way blank password fields
  * elsewhere in this file are. */
+/* POST /alarm_quiet -- form body [on=1]: alarms ring during quiet hours. */
+static esp_err_t alarm_quiet_handler(httpd_req_t *req)
+{
+    char body[64] = "", on[4] = "";
+    if (req->content_len > 0 && req->content_len < sizeof(body)) {
+        int r = httpd_req_recv(req, body, req->content_len);
+        if (r > 0) body[r] = '\0';
+    }
+    form_field(body, "on", on, sizeof(on));
+    board_alarm_quiet_override_set(on[0] == '1');
+    return redirect_to(req, "/settings?tab=dialcodes");
+}
+
 /* POST /voice_fx_enabled -- form body form=1[&enabled=1]. */
 static esp_err_t voice_fx_enabled_handler(httpd_req_t *req)
 {
@@ -10860,7 +10879,8 @@ esp_err_t webui_start(void)
         { .uri = "/ota_revert",      .method = HTTP_POST, .handler = ota_revert_handler },
         { .uri = "/wifi_reprovision", .method = HTTP_POST, .handler = wifi_reprovision_handler },
         { .uri = "/factory_reset",   .method = HTTP_POST, .handler = factory_reset_handler },
-        { .uri = "/voice_fx_enabled", .method = HTTP_POST, .handler = voice_fx_enabled_handler },        { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
+        { .uri = "/voice_fx_enabled", .method = HTTP_POST, .handler = voice_fx_enabled_handler },
+        { .uri = "/alarm_quiet",      .method = HTTP_POST, .handler = alarm_quiet_handler },        { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
         { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },
         { .uri = "/board_hw_set",    .method = HTTP_POST, .handler = board_hw_set_handler },
         { .uri = "/board_type_confirm", .method = HTTP_POST, .handler = board_type_confirm_handler },
