@@ -54,7 +54,8 @@ Notes per pin:
 - **J2.8, GND (pads 12 and 11):** join analog (SGND, pad 11) and digital (GND, pad 12) ground **at the supply entry point only**, one star point (the vendor stresses this).
 
 Leave everything else unconnected; the vendor says to leave unused pins floating, no pull-ups or pull-downs:
-pads 1-5 (AUX, ADKEY, USB), 14-24 (GPIO, TF card, MUTE, LED), 27-30 (four round pads the JLCPCB part names GND, TX, RX, 5V: apparently a separate serial/test header, not the antenna; the module has its own PCB antenna, nothing to connect; confirm on a real module). Pad 19 (PR1, LED, high = on, through 1 kohm) and pad 14 (PC1, BLE LED) are handy for a status
+pads 1-5 (AUX, ADKEY, USB), 14-24 (GPIO, TF card, MUTE, LED). The four round through-hole pads 27-30 duplicate
+power, ground and the UART (table below), so either they or the matching edge pads can be wired. Pad 19 (PR1, LED, high = on, through 1 kohm) and pad 14 (PC1, BLE LED) are handy for a status
 LED. Pad 23 (PB3, MUTE) auto-detects a pull-up/pull-down at power-up: leave it open.
 
 Layout: antenna keep-out. The PCB antenna is the right-hand end of the module in the vendor drawing (pads 27/28
@@ -65,6 +66,24 @@ stamp-hole (castellated) pads 0.8 mm wide on a 1.27 mm pitch; pads 1-13 along on
 end, pads 14-26 along the opposite edge starting at the end away from the antenna, the drawing shows four larger round holes on the left short edge
 (unlabeled; the JLCPCB footprint names them 27-30 GND, TX, RX, 5V). Dimension labels in the drawing: 7.2 mm from the antenna-end edge to pad 1,
 15.5 mm board width, 17.5 mm across the pad tips.
+
+### Round through-hole pads (27-30), measured on a real module
+
+Measured with an ohmmeter on a DFR0781 (2026-10-28). The round pads are wired to these edge pads on the
+module itself, so a footprint can join each pair (or use either one):
+
+| Round pad (JLCPCB name) | Joined to edge pad | Measured | Notes |
+|---|---|---|---|
+| GND | 12, GND (digital) | 0.1 ohm | direct |
+| GND | 11, SGND (analog ground) | 10 ohm | through about 10 ohm on the module: SGND is not the same copper as GND |
+| 5V | 13, VCC | direct | the 3.3-5.2 V supply input, despite the name |
+| TX | 26, PB0, module UART TX | direct | module transmits: to GPIO17 (J2.2) |
+| RX | 25, PB1, module UART RX | direct | module receives: from GPIO16 (J2.3) |
+
+Because SGND reaches ground only through that 10 ohm when just the round GND pad is wired, give pad 11 its own
+connection to the ground at J2.8 as well (one star point, as the vendor asks): the DAC output and the mic input
+return through SGND. Pad 7 (DVDD) is the DAC's internal supply: leave it unpowered; a 1 uF ceramic from pad 7 to
+pad 11 is optional decoupling (the datasheet's "105").
 
 Software: AT text protocol, replies end in CRLF. Answer `AT+BA04`, hang up `AT+BA03`, reject `AT+BA02`, call back
 `AT+BA00`, dial `AT+BT<number>` (reply `OK`), status `AT+TS` (`TS+00` .. `TS+04`), caller number `AT+TT` or the unsolicited
