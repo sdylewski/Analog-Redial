@@ -2482,12 +2482,6 @@
 		(uuid "d45deff5-d42c-46a6-b928-ebb76888be7b")
 	)
 	(junction
-		(at 72.39 119.38)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "6db7c0b6-eb9d-40c5-892e-acf4e382808f")
-	)
-	(junction
 		(at 68.58 110.49)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2505,6 +2499,16 @@
 	)
 	(wire
 		(pts
+			(xy 123.19 102.87) (xy 127 102.87)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0ccc0051-64d6-4495-a5f4-205602148e27")
+	)
+	(wire
+		(pts
 			(xy 133.35 100.33) (xy 123.19 100.33)
 		)
 		(stroke
@@ -2512,6 +2516,16 @@
 			(type default)
 		)
 		(uuid "0e3eef00-1d85-468a-8d36-fccb1c19727b")
+	)
+	(wire
+		(pts
+			(xy 97.79 135.89) (xy 97.79 147.32)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2e9a29d8-bd78-492f-9533-81b2c974da8d")
 	)
 	(wire
 		(pts
@@ -2525,13 +2539,13 @@
 	)
 	(wire
 		(pts
-			(xy 55.88 110.49) (xy 55.88 119.38)
+			(xy 55.88 110.49) (xy 68.58 110.49)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "474bcdf5-3c54-43d9-9031-6014b656d998")
+		(uuid "4134bc4b-a43c-4dc8-9eb6-f63444076bec")
 	)
 	(wire
 		(pts
@@ -2552,6 +2566,16 @@
 			(type default)
 		)
 		(uuid "4de01d06-d354-45c7-bc27-ade439572787")
+	)
+	(wire
+		(pts
+			(xy 127 135.89) (xy 97.79 135.89)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "728123f1-9259-4c35-b960-6169a545fa31")
 	)
 	(wire
 		(pts
@@ -2585,16 +2609,6 @@
 	)
 	(wire
 		(pts
-			(xy 55.88 119.38) (xy 72.39 119.38)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c734aca6-1226-4d56-8186-c6f1f12a4ca1")
-	)
-	(wire
-		(pts
 			(xy 168.91 83.82) (xy 161.29 83.82)
 		)
 		(stroke
@@ -2613,15 +2627,15 @@
 		)
 		(uuid "d18e1509-f6d0-4b8d-a4d7-b9cb1390b80b")
 	)
-	(label "Mic_N1"
-		(at 162.56 114.3 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
+	(wire
+		(pts
+			(xy 127 102.87) (xy 127 135.89)
 		)
-		(uuid "11821638-4762-496b-b966-b32102b0f626")
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d1bec61d-c39c-4878-9857-cd2fd3fe2f95")
 	)
 	(label "USBDP"
 		(at 72.39 92.71 180)
@@ -2673,6 +2687,16 @@
 		)
 		(uuid "2c2843fb-3795-4f79-88b6-fd3bdea34d79")
 	)
+	(label "AudioRP"
+		(at 72.39 102.87 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "5552b699-2929-4399-954d-a2fe2b55e9e6")
+	)
 	(label "USBDP"
 		(at 90.17 147.32 90)
 		(effects
@@ -2683,6 +2707,16 @@
 		)
 		(uuid "6530e6e9-7a6e-4fa4-b72b-4ced753303c3")
 	)
+	(label "Reset"
+		(at 99.06 135.89 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "7b28883c-c71f-46ac-a02b-c800d1a75e0c")
+	)
 	(label "USBDM"
 		(at 92.71 147.32 90)
 		(effects
@@ -2692,6 +2726,16 @@
 			(justify left bottom)
 		)
 		(uuid "88fe2b2a-998e-4a30-b02a-24b9e457c0bc")
+	)
+	(label "AudioRP"
+		(at 95.25 147.32 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "9bd7e8ef-fc07-4b28-84a7-15f12dc6ec94")
 	)
 	(label "espUartRx"
 		(at 123.19 82.55 0)
@@ -2853,7 +2897,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "1ef10e1e-b948-4b33-afef-4bb6c1ab98b7")
-		(property "Reference" "#PWR046"
+		(property "Reference" "#PWR05"
 			(at 148.59 93.98 0)
 			(hide yes)
 			(show_name no)
@@ -2914,7 +2958,7 @@
 		(instances
 			(project "DFR0781_BT401_board_v1"
 				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "#PWR046")
+					(reference "#PWR05")
 					(unit 1)
 				)
 			)
@@ -2931,7 +2975,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "2378a1a9-ce9a-4af8-8629-86b259e27990")
-		(property "Reference" "#PWR044"
+		(property "Reference" "#PWR06"
 			(at 161.29 87.63 0)
 			(hide yes)
 			(show_name no)
@@ -2991,7 +3035,7 @@
 		(instances
 			(project "DFR0781_BT401_board_v1"
 				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "#PWR044")
+					(reference "#PWR06")
 					(unit 1)
 				)
 			)
@@ -3247,7 +3291,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "600e88d0-956d-4d59-8a44-f2f786af394e")
-		(property "Reference" "#PWR042"
+		(property "Reference" "#PWR01"
 			(at 68.58 116.84 0)
 			(hide yes)
 			(show_name no)
@@ -3308,7 +3352,7 @@
 		(instances
 			(project "DFR0781_BT401_board_v1"
 				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "#PWR042")
+					(reference "#PWR01")
 					(unit 1)
 				)
 			)
@@ -3325,7 +3369,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "6be8f3ff-eaff-44d3-a09f-c90ae51d7469")
-		(property "Reference" "#PWR047"
+		(property "Reference" "#PWR04"
 			(at 100.33 140.97 0)
 			(hide yes)
 			(show_name no)
@@ -3386,7 +3430,7 @@
 		(instances
 			(project "DFR0781_BT401_board_v1"
 				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "#PWR047")
+					(reference "#PWR04")
 					(unit 1)
 				)
 			)
@@ -3495,7 +3539,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "7479539c-5fb4-4ba9-893f-877d00e899a1")
-		(property "Reference" "#PWR049"
+		(property "Reference" "#PWR03"
 			(at 86.36 142.24 0)
 			(hide yes)
 			(show_name no)
@@ -3555,7 +3599,7 @@
 		(instances
 			(project "DFR0781_BT401_board_v1"
 				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "#PWR049")
+					(reference "#PWR03")
 					(unit 1)
 				)
 			)
@@ -3652,7 +3696,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "b60ae36a-7c46-41e6-a0f3-fee769accbfe")
-		(property "Reference" "#PWR045"
+		(property "Reference" "#PWR02"
 			(at 72.39 115.57 0)
 			(hide yes)
 			(show_name no)
@@ -3712,7 +3756,7 @@
 		(instances
 			(project "DFR0781_BT401_board_v1"
 				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "#PWR045")
+					(reference "#PWR02")
 					(unit 1)
 				)
 			)
@@ -3729,7 +3773,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "c7024fea-ecc0-42cc-85ba-d3a2be292047")
-		(property "Reference" "#PWR048"
+		(property "Reference" "#PWR07"
 			(at 168.91 107.95 0)
 			(hide yes)
 			(show_name no)
@@ -3790,7 +3834,7 @@
 		(instances
 			(project "DFR0781_BT401_board_v1"
 				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "#PWR048")
+					(reference "#PWR07")
 					(unit 1)
 				)
 			)
@@ -3808,7 +3852,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "d6b9c0cb-7359-4ae4-95d9-0cdee9de6f66")
-		(property "Reference" "D2"
+		(property "Reference" "D1"
 			(at 137.16 106.68 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3870,7 +3914,7 @@
 		(instances
 			(project "DFR0781_BT401_board_v1"
 				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
-					(reference "D2")
+					(reference "D1")
 					(unit 1)
 				)
 			)

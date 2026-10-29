@@ -28,6 +28,14 @@ control we need, at about $3.50. (How it compares with the other modules: `../RE
 
 ## Adapter board for the J2 header (BM64 style)
 
+**Board v1: `DFR0781_BT401_board_v1/`, released for fab 2026-10-28, not built or tested yet.** Through-hole
+parts only: J1 8-pin female header (to the main board's J2), C1 1 uF ceramic from DVDD (pad 7) to ground, D1 5 mm
+LED with R1 1 kohm on pad 19 (PR1, status), and J2 a 6-pin male header: 1 GND, 2 reset (pad 18, PR2), 3 DACR (pad 9,
+right audio out), 4 USB D-, 5 USB D+, 6 3.3 V. Fab outputs come from KiCad (JLCPCB plugin into `jlcpcb/`, which is
+gitignored, and the PCBWay zip next to the board). DRC: clean apart from silkscreen size/overlap warnings.
+To check on the first board: the reset pad's polarity (before ever linking J2.2 to the main board's GPIO15 / MFB,
+which R17 pulls low), and that DACR stays unconnected.
+
 Reference: DFRobot's schematic `DFR0781_bt401-module_schematics_V1.0.pdf` (the "DAC output" version) and
 datasheet page 41 (footprint). Bookmarks in `LINKS.md`. Module pad numbers below are the BT401's own.
 

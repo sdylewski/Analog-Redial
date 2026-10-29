@@ -291,9 +291,9 @@ firmware doesn't start its link on them.
 ### How the Bluetooth board uses it
 
 Two modules work. The **BM64** carrier (about $14) plugs into the header. The
-cheaper **DFRobot DFR0781 (BT401)** module (about $3.50) is hand-wired to it,
-pin for pin as in [its notes](https://github.com/sdylewski/Analog-Redial/blob/main/Bluetooth/DFR0781_BT401/BT401_NOTES.md),
-with no extra parts: J2.7 straight to its DACL pad, J2.5 to its MIC pad. It has a text command set
+cheaper **DFRobot DFR0781 (BT401)** module (about $3.50) works hand-wired to it,
+pin for pin as in [its notes](https://github.com/sdylewski/Analog-Redial/blob/main/Bluetooth/DFR0781_BT401/BT401_NOTES.md);
+an [adapter board](https://github.com/sdylewski/Analog-Redial/tree/main/Bluetooth/DFR0781_BT401/DFR0781_BT401_board_v1) for it, plugging in like the BM64 carrier, is designed but not yet built or tested. No extra parts are needed: J2.7 straight to its DACL pad, J2.5 to its MIC pad. It has a text command set
 with call control and no setup step; the firmware switches its DAC off whenever
 there's no Bluetooth audio, so it doesn't load line 0's earpiece input. The status LED shows pairing and connection
 state once one is fitted: see [the status light reference](setup.md#7-the-status-light).

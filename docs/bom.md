@@ -168,8 +168,11 @@ and resistors that are already on the board.
   if they're elsewhere), and the board configured as one line with no microSD. After that the wires come off.
 - **Cheaper option:** the DFRobot **DFR0781** (BT401 module), about $3.50, with call control over a
   simple text command set, wired to the same header. Choose it in Settings → General → Board hardware;
-  it needs no setup step. Music, incoming calls and dialing out work on a v5 board; it has no adapter
-  board yet, so it's hand-wired for now.
+  it needs no setup step. Music, incoming calls and dialing out work on a v5 board, with the module
+  hand-wired to the header. An [adapter board](https://github.com/sdylewski/Analog-Redial/tree/main/Bluetooth/DFR0781_BT401/DFR0781_BT401_board_v1) that plugs into the
+  header like the BM64 carrier is designed and ready to order, but not yet built or tested. Its parts are
+  through-hole: the module, an 8-pin female header, a 1 uF ceramic capacitor, an optional status LED with
+  a 1 kohm resistor, and an optional 6-pin header (USB, reset and the right audio channel).
 
 ---
 
