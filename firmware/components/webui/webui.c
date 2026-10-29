@@ -4646,7 +4646,7 @@ static int append_autoupdate_form(char *buf, size_t cap, int off)
             "<script>setTimeout(function(){location.reload();},4000);</script>");
     }
     if (autoupdate_status()[0]) {
-        char esc[112 * 6];
+        char esc[512];   /* status is plain text; quotes are the only thing escaped */
         html_escape(autoupdate_status(), esc, sizeof(esc));
         off = appendf(buf, cap, off,
             "<div class=\"statusrow\"><span class=\"label\">Last automatic check</span><span>%s</span></div>", esc);
@@ -4654,7 +4654,8 @@ static int append_autoupdate_form(char *buf, size_t cap, int off)
     return append_hint(buf, cap, off,
         "Installs new releases overnight, at the hour you pick.",
         "It waits while a phone is in use, checks the download, and goes back to the old version "
-        "if the new one doesn't start. Development builds are never replaced.");
+        "if the new one doesn't start. A development build isn't replaced: install a release once "
+        "with Check for updates and nightly updates start from there.");
 }
 
 /* POST /autoupdate_set -- on=1 (checkbox) hour=N [now=1]. */

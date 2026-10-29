@@ -43,7 +43,7 @@ static const char *TAG = "autoupdate";
 volatile uint32_t g_autoupdate_progress;
 
 static autoupdate_cfg_t s_cfg = { .enabled = false, .hour = 2 };
-static char             s_status[112];
+static char             s_status[224];
 static volatile bool    s_busy;
 static volatile bool    s_now;
 static volatile bool    s_slot_taken;
@@ -392,7 +392,8 @@ static bool run_once(bool manual)
     } else if (!parse_release(rel.version, latest)) {
         set_status("the release list has an odd version (%s)", rel.version);
     } else if (!is_release) {
-        set_status("latest release is %s; this is a development build (%s), so it isn't replaced",
+        set_status("latest release is %s; this is a development build (%s), so it isn't replaced "
+                   "automatically. Install a release once with Check for updates to start nightly updates",
                    rel.version, app->version);
     } else if (!newer(latest, cur)) {
         set_status("up to date (%s)", app->version);
