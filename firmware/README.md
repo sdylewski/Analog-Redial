@@ -26,6 +26,11 @@ architecture. GPIO maps live in `components/board/include/`
 
 ## Toolchain setup (macOS)
 
+Linux and Windows: the install steps for all three are in
+[docs/flashing.md §2](../docs/flashing.md#2-install-the-toolchain-once); the build, flash and console
+sections below are the same on every OS (on Windows run the Python scripts with `python <script>.py`, and
+the port is `COMn`). This section is the longer macOS walk-through.
+
 These steps install ESP-IDF and the cross-compiler/tools on your Mac. You only
 run the install once; after that you just `get_idf` (or `source export.sh`) in
 each new terminal before building.

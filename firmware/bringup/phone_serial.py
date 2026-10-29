@@ -41,16 +41,27 @@ def find_ports() -> list[str]:
     return sorted(set(ports))
 
 
+ESPRESSIF_USB_VID = 0x303A   # the ESP32-C6's native USB (USB-Serial/JTAG)
+
+
 def find_board_ports() -> list[str]:
-    """Native-USB boards only, one entry per board: macOS lists each one
-    twice (cu.* and tty.*), and cu.* is the one to use."""
+    """Native-USB boards only, one entry per board, on macOS, Linux and
+    Windows (COMn). macOS lists each one twice (cu.* and tty.*); cu.* is the
+    one to use, and the only one list_ports reports."""
+    try:
+        from serial.tools import list_ports
+        found = [p.device for p in list_ports.comports() if p.vid == ESPRESSIF_USB_VID]
+        if found:
+            return sorted(set(found))
+    except ImportError:
+        pass
     return sorted(set(glob.glob("/dev/cu.usbmodem*") + glob.glob("/dev/ttyACM*")))
 
 
 def pick_port(explicit: str | None) -> str:
     if explicit:
         return explicit
-    ports = find_ports()
+    ports = find_board_ports() or find_ports()
     if not ports:
         raise SystemExit("No serial port found. Plug in the board or pass --port explicitly.")
     if len(ports) > 1:

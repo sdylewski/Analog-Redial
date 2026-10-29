@@ -105,7 +105,8 @@ def build_dir_for(board: str, flash: str) -> tuple[str, list[str]]:
 
 def idf(*args: str) -> int:
     print("  $ idf.py " + " ".join(args))
-    return subprocess.call(["idf.py", *args], cwd=FIRMWARE)
+    # The full path: on Windows idf.py is idf.py.exe, which only which() finds.
+    return subprocess.call([shutil.which("idf.py") or "idf.py", *args], cwd=FIRMWARE)
 
 
 def main() -> int:
@@ -121,7 +122,8 @@ def main() -> int:
     args = ap.parse_args()
 
     if not shutil.which("idf.py"):
-        ap.error("idf.py not found -- run `. ~/esp/esp-idf/export.sh` first")
+        ap.error("idf.py not found -- run `. ~/esp/esp-idf/export.sh` first "
+                 "(Windows: use the ESP-IDF 5.2 PowerShell or CMD shortcut)")
 
     ports = usb_ports()
     port = args.port or (ports[0] if len(ports) == 1 else None)

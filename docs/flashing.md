@@ -10,13 +10,27 @@ toolchain, which you only do once.
 
 - An assembled board ([step 2](building.md))
 - A USB-C cable that carries data, not just power
-- A computer running OSX, Linux or Windows
+- A computer running macOS, Linux or Windows
 - An analog phone to test with
 
 ## 2. Install the toolchain (once)
 
 The firmware is built with **ESP-IDF v5.2.8**, Espressif's official SDK. It
-brings its own compiler and Python environment. On macOS or Linux:
+brings its own compiler and Python environment. Install it once, following
+the section for your computer. Afterwards you start each session by opening
+an "ESP-IDF terminal", which has `idf.py` ready to use.
+
+<details>
+<summary><b>macOS</b></summary>
+
+Install Apple's command-line tools and, with [Homebrew](https://brew.sh), the build helpers:
+
+```bash
+xcode-select --install
+brew install cmake ninja dfu-util python3
+```
+
+Then ESP-IDF itself:
 
 ```bash
 mkdir -p ~/esp && cd ~/esp
@@ -25,13 +39,83 @@ cd esp-idf
 ./install.sh esp32c6
 ```
 
-Then, **in every new terminal** you use for this project:
+**In every new terminal** you use for this project, activate it:
 
 ```bash
 . ~/esp/esp-idf/export.sh
 ```
 
-Windows, and more detail on every step:
+On Apple Silicon, if a tool fails with `bad CPU type in executable`, install
+Rosetta once: `softwareupdate --install-rosetta --agree-to-license`.
+
+</details>
+
+<details>
+<summary><b>Linux</b></summary>
+
+Install the build helpers with your distribution's package manager:
+
+```bash
+# Ubuntu, Debian, Raspberry Pi OS
+sudo apt-get install git wget flex bison gperf python3 python3-pip python3-venv \
+  cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
+# Fedora
+sudo dnf install git wget flex bison gperf python3 cmake ninja-build ccache dfu-util libusbx
+# Arch
+sudo pacman -S --needed gcc git make flex bison gperf python cmake ninja ccache dfu-util libusb
+```
+
+Let your user open serial ports (the group is `uucp` on Arch), then log out
+and back in:
+
+```bash
+sudo usermod -a -G dialout $USER
+```
+
+Then ESP-IDF itself:
+
+```bash
+mkdir -p ~/esp && cd ~/esp
+git clone -b v5.2.8 --recursive https://github.com/espressif/esp-idf.git
+cd esp-idf
+./install.sh esp32c6
+```
+
+**In every new terminal** you use for this project, activate it:
+
+```bash
+. ~/esp/esp-idf/export.sh
+```
+
+</details>
+
+<details>
+<summary><b>Windows</b></summary>
+
+1. Download the **ESP-IDF Tools Installer** from
+   [Espressif's download page](https://dl.espressif.com/dl/esp-idf/) and
+   pick ESP-IDF **v5.2.8** when it asks for a version. It also installs Git
+   and Python.
+2. Install to a short path with no spaces (the default `C:\Espressif` is
+   fine); a long or spaced path breaks the build.
+3. Start each session from the **ESP-IDF 5.2 PowerShell** (or CMD) shortcut
+   it adds to the Start menu. That's the terminal the rest of this page
+   means.
+
+Windows 10 and 11 recognize the board's USB port with no driver: it shows up
+as a `COM` port in Device Manager under *Ports (COM & LPT)*. In the steps
+below, run the Python scripts as `python flash_board.py ...` instead of
+`./flash_board.py ...`.
+
+Already have ESP-IDF set up by hand? `git clone -b v5.2.8 --recursive
+https://github.com/espressif/esp-idf.git C:\esp\esp-idf`, then
+`C:\esp\esp-idf\install.bat esp32c6` once, and `C:\esp\esp-idf\export.ps1`
+(PowerShell) or `export.bat` (CMD) in every new terminal.
+
+</details>
+
+To check it worked, `idf.py --version` should print `ESP-IDF v5.2.8`. More
+detail on every step:
 [Espressif's getting-started guide](https://docs.espressif.com/projects/esp-idf/en/v5.2/esp32c6/get-started/)
 and the [firmware developer notes](https://github.com/sdylewski/Analog-Redial/blob/main/firmware/README.md).
 
@@ -52,6 +136,8 @@ Plug the board into your computer through the DevKit's USB-C port marked
 cd bringup
 ./flash_board.py --board smd4 --yes
 ```
+
+(On Windows: `python flash_board.py --board smd4 --yes`.)
 
 Use `--board smd5` for a v5 board (including a 30-pin clone whose two solder jumpers were moved, see [the v5 reference](hardware-smd5.md#10-mcu-module-variants)); a clone with the jumpers left at the default needs `--board smd5_cheap`, which has no USB console. The script reads the chip's flash size,
 builds the matching image and flashes it. Later flashes don't need
