@@ -35,6 +35,9 @@ esp_err_t bt401_start(bt401_notify_cb cb);
  * so the module stops driving the audio path). */
 void      bt401_stop(bool disconnect);
 bool      bt401_running(void);
+/* With the task stopped: background Bluetooth off, reset, idle mode (radio
+ * off, ~7 mA). Runs in its own short task; bt401_start() brings it back. */
+esp_err_t bt401_sleep(void);
 
 void      bt401_get_status(bt_companion_status_t *out);
 

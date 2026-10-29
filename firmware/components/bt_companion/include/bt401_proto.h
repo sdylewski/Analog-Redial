@@ -54,6 +54,12 @@ extern "C" {
 #define BT401_CMD_QUERY_NUMBER  "TT"
 #define BT401_CMD_QUERY_NAME    "TD"
 #define BT401_CMD_QUERY_ADDR    "TA"
+#define BT401_CMD_QUERY_MODE    "QM"     /* QM+01 = Bluetooth mode */
+#define BT401_CMD_MODE_BT       "CM01"   /* Bluetooth mode */
+#define BT401_CMD_MODE_IDLE     "CM08"   /* idle mode; radio off only with CG00 */
+#define BT401_CMD_BG_ON         "CG01"   /* Bluetooth in the background (factory; stored, after a reset) */
+#define BT401_CMD_BG_OFF        "CG00"   /* no background Bluetooth (stored, after a reset) */
+#define BT401_CMD_RESET         "CZ"
 
 typedef enum {
     BT401_MSG_NONE = 0,

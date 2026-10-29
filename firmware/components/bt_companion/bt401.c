@@ -1,9 +1,8 @@
 /* bt401.c — BT401 backend for bt_companion. See bt401.h.
  *
- * Everything about the module's behaviour here comes from its datasheet and
- * DFRobot's Arduino library; no real unit has run it yet. The assumptions
- * are listed in archive/hardware/bt401.md so they get checked in order on the
- * bench. */
+ * The module's behaviour comes from its datasheet and DFRobot's Arduino
+ * library, checked on a real module; what is still untested is listed in
+ * archive/hardware/bt401.md. */
 #include "bt401.h"
 
 #include "board.h"
@@ -24,6 +23,7 @@ static const char *TAG = "bt401";
 #define POLL_MS           1500   /* status query period (the module also volunteers changes) */
 #define LINK_TIMEOUT_MS   6000   /* no line this long -> link_up = false */
 #define BOOT_SETTLE_MS    1500   /* let the module finish booting before the first query */
+#define RESET_WAIT_MS     3000   /* AT+CZ until the module answers again (burst ends ~2 s in) */
 
 static portMUX_TYPE     s_lock = portMUX_INITIALIZER_UNLOCKED;
 static bt401_state_t    s_st;
@@ -33,6 +33,9 @@ static TaskHandle_t     s_task;
 static volatile bool    s_stop;
 static bool             s_uart_ready;
 static bt401_notify_cb  s_notify;
+static bool             s_module_restarted; /* power-up burst seen; task-only */
+static bool             s_wake_needed;      /* QM said not Bluetooth mode; task-only */
+static TaskHandle_t     s_sleep_task;
 
 static int64_t now_us(void) { return esp_timer_get_time(); }
 
@@ -118,6 +121,11 @@ static void handle_msg(const bt401_msg_t *m, bt_call_state_t *last_call, char *l
 
     if ((chg & BT401_CHG_LINK) && connected) board_led_set_state(BOARD_LED_BT_CONNECTED);
 
+    /* "TR+0123456789" closes the burst the module sends when it powers up
+     * (plugged in while the board runs) or resets (AT+CZ). */
+    if (m->kind == BT401_MSG_OTHER && !strcmp(m->code, "TR")) s_module_restarted = true;
+    if (m->kind == BT401_MSG_MODE && m->num != 1) s_wake_needed = true;
+
     /* The status poll and the repeated caller number would fill the log;
      * only lines that changed something (or aren't plain replies) go at INFO. */
     if (chg || m->kind == BT401_MSG_ERROR || m->kind == BT401_MSG_OTHER) {
@@ -143,6 +151,8 @@ static void bt401_task(void *arg)
     int64_t next_poll = now_us() + (int64_t)BOOT_SETTLE_MS * 1000;
     int stage = 0;             /* startup commands, one per tick so replies don't pile up */
     bool dac_on = true;        /* the module powers up with its DAC on */
+    bool woken = false;        /* reset out of idle mode already (once per start) */
+    bool mode_bt_due = false;  /* send CM01 once the reset's burst is in */
 
     ESP_LOGI(TAG, "listening at %d baud on GPIO%d/GPIO%d", BT401_BAUD, (int)BOARD_UART_TX, (int)BOARD_UART_RX);
 
@@ -153,6 +163,29 @@ static void bt401_task(void *arg)
             if (bt401_parser_feed(&s_parser, buf[i], &m)) handle_msg(&m, &last_call, last_caller);
         }
 
+        if (s_module_restarted) {
+            s_module_restarted = false;
+            dac_on = true;     /* its DAC is back on after a power-up or reset */
+            if (mode_bt_due) {
+                mode_bt_due = false;
+                send_line(BT401_CMD_MODE_BT, NULL);
+            }
+        }
+
+        /* Left in idle mode by bt401_sleep(): the CG01 sent at startup only
+         * applies after a reset, then Bluetooth mode. */
+        if (s_wake_needed) {
+            s_wake_needed = false;
+            if (!woken) {
+                woken = true;
+                mode_bt_due = true;
+                ESP_LOGI(TAG, "module in idle mode -- resetting it into Bluetooth mode");
+                send_line(BT401_CMD_RESET, NULL);
+                next_poll = now_us() + (int64_t)RESET_WAIT_MS * 1000;
+                continue;
+            }
+        }
+
         /* The module's DAC output sits on the line's earpiece input through the
          * adapter's series resistor and, while on, loads the codec's own audio
          * (dial tone, prompts) even when silent. So it is only on while there is
@@ -160,7 +193,7 @@ static void bt401_task(void *arg)
         portENTER_CRITICAL(&s_lock);
         bool want_dac = s_st.music || s_st.call != BT401_CALL_IDLE;
         portEXIT_CRITICAL(&s_lock);
-        if (want_dac != dac_on && (want_dac || stage >= 3)) {
+        if (want_dac != dac_on && (want_dac || stage >= 4)) {
             send_line(BT401_CMD_DAC, want_dac ? "01" : "00");
             dac_on = want_dac;
             ESP_LOGI(TAG, "DAC %s", want_dac ? "on (audio)" : "off (idle)");
@@ -170,7 +203,8 @@ static void bt401_task(void *arg)
         if (now < next_poll) continue;
         next_poll = now + (int64_t)POLL_MS * 1000;
 
-        static const char *const startup[] = { BT401_CMD_QUERY_NAME, BT401_CMD_QUERY_ADDR, BT401_CMD_CALLS_ON };
+        static const char *const startup[] = { BT401_CMD_BG_ON, BT401_CMD_QUERY_NAME, BT401_CMD_QUERY_ADDR,
+                                               BT401_CMD_CALLS_ON, BT401_CMD_QUERY_MODE };
         if (stage < (int)(sizeof(startup) / sizeof(startup[0]))) {
             send_line(startup[stage++], NULL);
             continue;
@@ -196,6 +230,7 @@ static void bt401_task(void *arg)
 esp_err_t bt401_start(bt401_notify_cb cb)
 {
     if (s_task) return ESP_OK;
+    for (int waited = 0; s_sleep_task && waited < 6000; waited += 50) vTaskDelay(pdMS_TO_TICKS(50));
     esp_err_t err = uart_ready();
     if (err != ESP_OK) return err;
     uart_flush_input(BT_UART);
@@ -206,6 +241,8 @@ esp_err_t bt401_start(bt401_notify_cb cb)
     portEXIT_CRITICAL(&s_lock);
     bt401_parser_init(&s_parser);
     s_stop = false;
+    s_module_restarted = false;
+    s_wake_needed = false;
     if (xTaskCreate(bt401_task, "bt401", 3072, NULL, tskIDLE_PRIORITY + 1, &s_task) != pdPASS) {
         s_task = NULL;
         return ESP_ERR_NO_MEM;
@@ -233,6 +270,39 @@ void bt401_stop(bool disconnect)
 }
 
 bool bt401_running(void) { return s_task != NULL; }
+
+/* Idle mode alone keeps the radio up (32 mA, still discoverable); with
+ * background Bluetooth off as well it really stops (7 mA at 3.3 V). CG only
+ * applies after a reset, so: CG00, reset, then idle mode. bt401_start()
+ * undoes it. */
+static void sleep_task(void *arg)
+{
+    (void)arg;
+    send_line(BT401_CMD_BG_OFF, NULL);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    send_line(BT401_CMD_RESET, NULL);
+    vTaskDelay(pdMS_TO_TICKS(RESET_WAIT_MS));
+    send_line(BT401_CMD_DAC, "00");           /* nothing to play; keep line 0 unloaded */
+    vTaskDelay(pdMS_TO_TICKS(200));
+    send_line(BT401_CMD_MODE_IDLE, NULL);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    uart_flush_input(BT_UART);
+    ESP_LOGI(TAG, "module in idle mode, radio off");
+    s_sleep_task = NULL;
+    vTaskDelete(NULL);
+}
+
+esp_err_t bt401_sleep(void)
+{
+    if (s_task || s_sleep_task) return ESP_ERR_INVALID_STATE;
+    esp_err_t err = uart_ready();
+    if (err != ESP_OK) return err;
+    if (xTaskCreate(sleep_task, "bt401_sleep", 2560, NULL, tskIDLE_PRIORITY + 1, &s_sleep_task) != pdPASS) {
+        s_sleep_task = NULL;
+        return ESP_ERR_NO_MEM;
+    }
+    return ESP_OK;
+}
 
 /* ---- call control -------------------------------------------------------- */
 

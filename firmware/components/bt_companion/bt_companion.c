@@ -196,10 +196,22 @@ static void clear_all_calls_locked(void)
 /* Bluetooth is on whenever a module is chosen in Settings -> General -> Board
  * hardware: the module choice is the switch. bt_companion_set_enabled(false)
  * (console `bt_enable 0`, needed by the bm64_* bench commands) pauses it
- * until the next reboot. */
+ * until the next reboot. A BT401 also has its own switch (Settings ->
+ * Bluetooth) that is kept across reboots: off puts the module in idle mode
+ * (radio off), which saves ~25 mA. */
+static board_bt_module_t module(void);
 static void load_config(void)
 {
     s_enabled = board_hw_config_get().has_bt_module;
+    if (s_enabled && module() == BOARD_BT_BT401) {
+        nvs_handle_t h;
+        uint8_t v = 1;
+        if (nvs_open(BT_COMPANION_NVS_NS, NVS_READONLY, &h) == ESP_OK) {
+            nvs_get_u8(h, "enabled", &v);
+            nvs_close(h);
+        }
+        s_enabled = v != 0;
+    }
 }
 
 /* The two EEPROM-programming leads (carrier J2 pin 1 = P2_0, pin 2 = RST_N)
@@ -314,9 +326,9 @@ esp_err_t bt_companion_set_enabled(bool enabled)
             ESP_LOGI(TAG, "enabled -- starting BT401 link");
             return bt401_start(bt401_notify);
         }
-        ESP_LOGI(TAG, "disabled -- disconnecting and stopping BT401 link");
+        ESP_LOGI(TAG, "disabled -- disconnecting, stopping BT401 link, module to idle mode");
         bt401_stop(true);
-        return ESP_OK;
+        return bt401_sleep();
     }
 
     if (enabled) {
@@ -1924,8 +1936,9 @@ void bt_companion_init(void)
                       "(Settings -> Hardware) -- not starting the link");
         return;
     }
-    if (s_enabled && module() == BOARD_BT_BT401) {
-        bt401_start(bt401_notify);
+    if (module() == BOARD_BT_BT401 && board_hw_config_get().has_bt_module) {
+        if (s_enabled) bt401_start(bt401_notify);
+        else bt401_sleep();     /* switched off: keep the radio off after a power cycle too */
         return;
     }
     if (s_enabled) {

@@ -4266,6 +4266,12 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
             note = "Needs a Bluetooth module on the board. Choose the one you fitted in "
                    "<a href=\"/settings?tab=general\">General &rarr; Board hardware</a> and "
                    "reboot: that turns Bluetooth on.";
+        } else if (bt_mod == BOARD_BT_BT401) {
+            note = bt_on
+                ? "Off puts the module in its idle mode: its radio stops, no phone can connect "
+                  "or ring this phone, and it draws about 7 mA instead of 13-30 mA."
+                : "The module is in its idle mode with its radio off (about 7 mA). Turn Bluetooth "
+                  "on to pair or use a phone; the setting is kept across reboots.";
         } else if (!bt_on) {
             note = "Paused from the console (<code>bt_enable 0</code>); a reboot turns it back on.";
         } else {
@@ -4273,7 +4279,8 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
                    "&rarr; Board hardware</a>. Choose None there to turn it off.";
         }
         off = append_feature_bar(buf, cap, off, "Bluetooth", bt_on && bt_mod != BOARD_BT_NONE,
-                                 NULL, note);
+                                 (want == bt_mod && bt_mod == BOARD_BT_BT401) ? "/bt_enable_set" : NULL,
+                                 note);
     }
 
 #if !(CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP)
