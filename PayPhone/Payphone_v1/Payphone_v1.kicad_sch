@@ -5917,7 +5917,7 @@
 	)
 	(text "200V FET"
 		(exclude_from_sim no)
-		(at 123.444 163.576 0)
+		(at 145.288 143.764 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5947,7 +5947,7 @@
 	)
 	(text "150V clamp\n"
 		(exclude_from_sim no)
-		(at 79.756 178.308 0)
+		(at 87.376 159.258 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9235,7 +9235,7 @@
 	)
 	(symbol
 		(lib_id "Diode:1N4148")
-		(at 104.14 185.42 0)
+		(at 106.68 167.64 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9246,7 +9246,7 @@
 		(fields_autoplaced yes)
 		(uuid "3bf70638-472a-42ea-9b76-cd5eaa48e846")
 		(property "Reference" "D4"
-			(at 104.14 182.88 0)
+			(at 106.68 165.1 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9257,7 +9257,7 @@
 			)
 		)
 		(property "Value" "1N4148"
-			(at 104.14 187.96 0)
+			(at 106.68 170.18 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9268,7 +9268,7 @@
 			)
 		)
 		(property "Footprint" "Diode_THT:D_DO-35_SOD27_P7.62mm_Horizontal"
-			(at 104.14 195.42 0)
+			(at 106.68 177.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9279,7 +9279,7 @@
 			)
 		)
 		(property "Datasheet" "https://assets.nexperia.com/documents/data-sheet/1N4148_1N4448.pdf"
-			(at 104.14 195.42 0)
+			(at 106.68 177.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9290,7 +9290,7 @@
 			)
 		)
 		(property "Description" "100V 0.15A standard switching diode, DO-35"
-			(at 104.14 185.42 0)
+			(at 106.68 167.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9554,7 +9554,7 @@
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
-		(at 154.94 185.42 0)
+		(at 124.46 167.64 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9565,7 +9565,7 @@
 		(fields_autoplaced yes)
 		(uuid "4f0a4c50-5c78-4053-ab71-b54153e169bc")
 		(property "Reference" "D6"
-			(at 154.94 182.88 0)
+			(at 124.46 165.1 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9576,7 +9576,7 @@
 			)
 		)
 		(property "Value" "12V"
-			(at 154.94 187.96 0)
+			(at 124.46 170.18 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9587,7 +9587,7 @@
 			)
 		)
 		(property "Footprint" "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
-			(at 154.94 195.42 0)
+			(at 124.46 177.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9598,7 +9598,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 154.94 195.42 0)
+			(at 124.46 177.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9609,7 +9609,7 @@
 			)
 		)
 		(property "Description" "Zener diode"
-			(at 154.94 185.42 0)
+			(at 124.46 167.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12793,7 +12793,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Polarized")
-		(at 41.91 171.45 0)
+		(at 66.04 163.83 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12804,7 +12804,7 @@
 		(fields_autoplaced yes)
 		(uuid "d0b18a41-52e4-4af2-9528-87fb5a91d4fa")
 		(property "Reference" "C1"
-			(at 42.545 168.91 0)
+			(at 66.675 161.29 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12815,7 +12815,7 @@
 			)
 		)
 		(property "Value" "220uF/200V"
-			(at 42.545 173.99 0)
+			(at 66.675 166.37 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12826,7 +12826,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_THT:CP_Radial_D18.0mm_P7.50mm"
-			(at 41.91 181.45 0)
+			(at 66.04 173.83 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12837,7 +12837,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 41.91 181.45 0)
+			(at 66.04 173.83 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12848,7 +12848,7 @@
 			)
 		)
 		(property "Description" "Polarized capacitor"
-			(at 41.91 171.45 0)
+			(at 66.04 163.83 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12965,7 +12965,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "de8390d0-9b07-4ada-b0b3-5888af6e1bcf")
-		(property "Reference" "Q1"
+		(property "Reference" "Qa"
 			(at 59.944 120.142 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13032,7 +13032,7 @@
 		(instances
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "Q1")
+					(reference "Qa")
 					(unit 1)
 				)
 			)
@@ -13711,7 +13711,7 @@
 	)
 	(symbol
 		(lib_id "Diode:1.5KExxA")
-		(at 78.74 185.42 0)
+		(at 86.36 166.37 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -13722,7 +13722,7 @@
 		(fields_autoplaced yes)
 		(uuid "f73ccc7f-67a3-4cd6-9e3c-5aa4b74a7113")
 		(property "Reference" "D3"
-			(at 78.74 182.88 0)
+			(at 86.36 163.83 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13733,7 +13733,7 @@
 			)
 		)
 		(property "Value" "1.5KE150A"
-			(at 78.74 187.96 0)
+			(at 86.36 168.91 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13744,7 +13744,7 @@
 			)
 		)
 		(property "Footprint" "Diode_THT:D_DO-201AD_P15.24mm_Horizontal"
-			(at 78.74 195.42 0)
+			(at 86.36 176.37 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13755,7 +13755,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.vishay.com/docs/88301/15ke.pdf"
-			(at 78.74 195.42 0)
+			(at 86.36 176.37 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13766,7 +13766,7 @@
 			)
 		)
 		(property "Description" "1500W unidirectional TVS diode, DO-201AE"
-			(at 78.74 185.42 0)
+			(at 86.36 166.37 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

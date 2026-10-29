@@ -16,12 +16,12 @@ only **5 V, 3.3 V, GND, SDA, SCL** from the main board.
 ```
  Analog Redial                         COIN BOARD
  (v6 accessory hdr)                                            HV zone (up to 130 V)
- +5V  --- J1.1 --+-- F1 --+--> [U2 MC34063A 5V->20V] --> +20V --> [U3 UC3843A + Q1 IRF630 + L2 + D2] --> HV+ (C_out)
+ +5V  --- J1.1 --+-- F1 --+--> [U2 MC34063A 5V->20V] --> +20V --> [U3 UC3843A + Qa IRF630 + L2 + D2] --> HV+ (Cout)
  +3V3 --- J1.2   |        |         ^EN                          ^COMP (shutdown)                    |
  SDA  --- J1.3 --+        +-> sensor +5V (J3, JP1)                    |                              |
  SCL  --- J1.4 --+--> [U1 MCP23008 @0x20] GP4 HV_EN ----------------+                              |
  GND  --- J1.5      |        GP5 POL --> Q2 (2N7000) --> K1 (DPDT relay) <-- HV+ -------------------+
- (J1 = main board v6 J6)|  GP6 FIRE --> Q3 (IRF630, low side) --> R_sense --> GND
+ (J1 = main board v6 J6)|  GP6 FIRE --> Q3 (IRF630, low side) --> Rsense --> GND
                     |        GP0..2 <-- coin inputs <-- J3 (coin sensor)
                     |        GP3, GP7: spare, to J5
 
@@ -108,7 +108,7 @@ drop) is safe.
 | 180 ohm, pin 8 to pin 7 (**unlabeled** in the figure) | Rpin8 | **82 ohm, 0.25 W** (180 ohm) |
 | L | L1 | about 100 uH (170 uH) |
 | 1N5819 | D1 | 1N5819 |
-| CO | C_out1 | 2 x 22 uF / 35 V (330 uF) |
+| CO | Cout1 | 2 x 22 uF / 35 V (330 uF) |
 | CT | CT | about 1000 pF (1500 pF) |
 | R1 (bottom) | R1 (U2) | **10 k, 1 %** (2.2 k) |
 | R2 (top) | R2 (U2) | **150 k, 1 %** (47 k) |
@@ -165,7 +165,7 @@ At 5 V the input draws about 0.4 A average with about 1 A peaks, so the **500 mA
 
 - **C_in:** 22 uF / 10 V electrolytic + 100 nF ceramic, at pin 6 to GND.
   Footprint: **`Capacitor_THT:CP_Radial_D5.0mm_P2.00mm`**.
-- **CO (C_out1):** 2 x 22 uF / 35 V electrolytic, at the +20 V output to GND.
+- **CO (Cout1):** 2 x 22 uF / 35 V electrolytic, at the +20 V output to GND.
   Footprint: **`Capacitor_THT:CP_Radial_D5.0mm_P2.00mm`** (a 22 uF / 35 V
   is typically 5 mm diameter; if the specific part is 6.3 mm, use
   `CP_Radial_D6.3mm_P2.50mm` — check the datasheet).
@@ -220,8 +220,8 @@ bottom leg of the feedback divider**:
   5 V rail, continuously**. With the disable it is about 1 mA. That is close to
   doubling the main board's idle draw.
 - **Safety.** With the disable, the board sits with **no high voltage** until
-  firmware asks for it, and C_out (3.7 J at 130 V) is drained by the bleed
-  within about 22 s of HV_EN dropping. Always-on means a charged 130 V
+  firmware asks for it, and Cout (3.7 J at 130 V) is drained by the bleed
+  within a few minutes of HV_EN dropping. Always-on means a charged 130 V
   capacitor in the phone around the clock.
 - **Latency is small.** The phone works at about 50-60 V (J4 positions 3-4),
   which stores only about 0.3-0.5 J: stage 1 starts in tens of ms and stage 2
@@ -234,12 +234,12 @@ bottom leg of the feedback divider**:
   3.3 V (or leave Q_EN out and wire R1 to GND); but I'd keep the control and
   just run it in firmware as above.
 - **Things to check on the bench (not designed in):** stage 2 starts when the
-  20 V rail reaches 8.4 V and then draws heavily while charging C_out. If stage
+  20 V rail reaches 8.4 V and then draws heavily while charging Cout. If stage
   1 (about 1 A switch limit, 1 A F1) cannot supply that, the rail may sag into
-  U3's UVLO and hiccup. If so, soften U3's start (a larger RCS for a lower
-  peak current, or a soft start (CSS/RSS, Figure 7-12). RCS is already sized in stage 2 below to keep the draw near stage 1's capacity).
+  U3's UVLO and hiccup. If so, soften U3's start (a larger Rcs for a lower
+  peak current, or a soft start (Css/Rss). Rcs is already sized in stage 2 below to keep the draw near stage 1's capacity).
 
-### Stage 2: 20 V to 50-130 V, U3 = UC3843AN (DIP-8) + Q1 = IRF630 (TO-220)
+### Stage 2: 20 V to 50-130 V, U3 = UC3843AN (DIP-8) + Qa = IRF630 (TO-220)
 
 Current-mode PWM controller, non-synchronous boost, drives an external
 N-FET. The UC3843's UVLO turns on at about 8.4 V (7.8 to 9 V) and off at 7.6 V,
@@ -249,65 +249,92 @@ are limited to 50 % by a toggle flip-flop. 20 V to 130 V needs about 85 %, so th
 **UC3843 is the right part** and the UC3844/5 would not work. (An earlier version
 of this note had the two backwards.)
 
-**U3 designators from the UC3843 datasheet's Figure 7-1** (UCx842/UCx843 block
-diagram, TI SLUS223H) and its design figures. Pins there are named VCC, GROUND,
-VFB, COMP, ISENSE, RT/CT, VREF, OUTPUT; external parts are RCS, RCSF, CCSF
-(Figure 7-3 current sense), RRT, CCT (Figure 7-8 oscillator), CSS, RSS (Figure
-7-12 soft start) and ZI, ZF (Figure 7-4 error amplifier). The datasheet has no
-designators for the output divider or the gate parts, so those keep this board's names.
+**Component labels for our boost converter.** The UC3843A datasheet's
+page-1 simplified application diagram shows the IC with a basic power stage
+but no component labels. The labels below are ours, named to be
+self-describing (lowercase subscripts throughout). Where a name matches a
+datasheet figure (Qa, Rg, Rcs, Rt, Ct, Cf, Rz, Cz, Cvref from the
+Figure 7-1 flyback example or its design figures) we kept it; everything
+else is named for its function. Figure 7-1 is an off-line isolated flyback
+— most of its parts (AC rectifier, transformer, opto-isolator, TL431, RCD
+clamp, VCC start-up resistor) do not exist in our DC-input non-isolated
+boost and are not listed here.
 
-| Datasheet name | This board | Value |
-|---|---|---|
-| RCS | RCS (Q1 source to GND) | about **2 ohm, 1 W** (see below) |
-| RCSF, CCSF | RCSF, CCSF | about 1 k and 470 pF, if switching spikes upset ISENSE **[verify]** |
-| RRT | RRT (VREF to RT/CT) | **12 k** |
-| CCT | CCT (RT/CT to GND) | **2.2 nF** (the datasheet says never below about 1000 pF) |
-| ZI | divider top: R1 = 3 x 200 k in series (this section) | 600 k |
-| (to GROUND) | divider bottom: R2, chosen by J4 | 12 k / 16 k / 22 k / 30 k |
-| ZF | ZF (COMP to VFB) | small R-C network **[verify]** |
-| CSS, RSS | optional soft start (Figure 7-12) | add only if stage 2 loads the 20 V rail too hard on start |
+| Label | Description | Value | Comments |
+|---|---|---|---|
+| **— POWER STAGE —** | | | |
+| L2 | Boost inductor (+20 V to switch node) | **220 uH, Isat >= 1 A** | Bourns RLB9012-221KL or Wurth 7447471221 |
+| Qa | External power MOSFET (drain to switch node, source to Rcs) | **IRF630PBF** (TO-220, 200 V, 9 A) | Name kept from the datasheet's flyback example |
+| D2 | Boost output diode (switch node to Cout) | **UF4003** (DO-41, 200 V, 1 A ultrafast) | Band (cathode) toward Cout / HV+ |
+| Cout | HV output capacitor | **220 uF / 200 V** | Nichicon UCS2D221MHD; 18 x 26.5 mm, 7.5 mm leads |
+| Cin | Stage-2 input decoupling at +20 V | **2 x 22 uF / 35 V** | Close to L2; these are separate from stage 1's output caps |
+| **— GATE DRIVE —** | | | |
+| Rg | Gate drive resistor (OUTPUT pin 6 to Qa gate) | **10 ohm** | Damps gate ringing |
+| Dz | 15 V zener gate clamp (cathode to gate, anode to Qa source) | **1N4744A** (DO-41) | Not in the datasheet's simplified diagram; needed because VCC ≈ 20 V exceeds IRF630's Vgs max |
+| **— CURRENT SENSE —** | | | |
+| Rcs | Current sense resistor (Qa source to GND) | **2 ohm, 1 W** | Ipk = 1 V / Rcs = 0.5 A; limits stage-2 input power |
+| Rf | Current-sense filter resistor (Rcs to ISENSE pin 3) | **~1 k [verify]** | Low-pass with Cf suppresses the leading-edge switch spike |
+| Cf | Current-sense filter cap (ISENSE pin 3 to GND) | **~470 pF [verify]** | Rf x Cf time constant << 1 / 65 kHz |
+| Rslope | Slope compensation resistor (RT/CT to ISENSE path) | **~27 k [verify]** | Duty > 50 %, so slope comp is needed to avoid subharmonic oscillation |
+| Cslope | DC blocking cap in slope-comp path (series with Rslope) | **~1 nF [verify]** | Passes only the oscillator ramp, blocks the DC on RT/CT |
+| **— OSCILLATOR —** | | | |
+| Rt | Timing resistor (VREF pin 8 to RT/CT pin 4) | **12 k** | fOSC = 1.72 / (Rt x Ct) |
+| Ct | Timing capacitor (RT/CT pin 4 to GND) | **2.2 nF** | fOSC = 65 kHz. Never below ~1000 pF |
+| **— FEEDBACK —** | | | |
+| Rfbt | FB divider top (HV+ to VFB pin 2) | **3 x 100 k in series** (300 k) | Same 100 k value as Rbleed; each resistor sees ~41 V |
+| Rfbb | FB divider bottom (VFB pin 2 to GND), J4-selectable | **6.2 k / 8.2 k / 10 k / 15 k** | Vout = 2.5 x (1 + Rfbt / Rfbb); all E24 values |
+| Rz | Compensation zero resistor (COMP pin 1 to VFB pin 2) | **[verify]** | Sets the voltage-loop crossover; must be calculated for our boost |
+| Cz | Compensation zero cap (in series with Rz) | **[verify]** | Places a zero to boost phase margin |
+| **— IC DECOUPLING —** | | | |
+| Cvcc | VCC bypass ceramic (pin 7 to GND, close to pins) | **0.1 uF** | Mandatory. A 10-22 uF electrolytic in parallel is optional (the +20 V rail already has bulk caps) |
+| Cvref | VREF bypass ceramic (pin 8 to GND, close to pins) | **0.1 uF** | Mandatory per the datasheet |
+| **— PROTECTION —** | | | |
+| D3 | OVP TVS clamp across Cout | **1.5KE150A** (DO-201) | 128 V standoff; clamps below 200 V parts' limit |
+| Rbleed | Bleed resistor chain across Cout | **3 x 100 k** (300 k) | Drains Cout with τ ≈ 66 s; safe (<50 V) in ~1 min, full drain ~5 min. 0.019 W per resistor |
+| **— OPTIONAL —** | | | |
+| Css, Rss | Soft start (on COMP pin) | **omit unless needed** | Add only if stage 2 loads the 20 V rail too hard at start-up |
 
 **U3 pin connections (UC3843AN, DIP-8, boost topology):**
 
 | Pin | Name | Net / connection |
 |---|---|---|
-| 1 | COMP | E/A output. ZF to pin 2. Pulling COMP below two diode drops would shut U3 down (Figure 7-10), but it is not needed here: U3 has no Vcc (below UVLO) whenever stage 1 is disabled |
-| 2 | VFB | Divider midpoint: top R1 = 3 x 200 k from HV+, bottom R2 (J4) to GND. The E/A's other input is **2.5 V**, so Vout = 2.5 x (1 + R1/R2) |
-| 3 | ISENSE | Top of RCS (Q1 source), through the optional RCSF/CCSF filter. The cycle ends when ISENSE reaches **1 V** |
-| 4 | RT/CT | RRT from pin 8, CCT to GND. fOSC = 1.72 / (RRT x CCT) = **about 65 kHz** (RRT above 5 k) |
+| 1 | COMP | E/A output. Rz/Cz to pin 2. Pulling COMP below two diode drops would shut U3 down (Figure 7-10), but it is not needed here: U3 has no Vcc (below UVLO) whenever stage 1 is disabled |
+| 2 | VFB | Divider midpoint: top Rfbt = 3 x 100 k from HV+, bottom Rfbb (J4) to GND. Internal reference is **2.5 V**, so Vout = 2.5 x (1 + Rfbt/Rfbb) |
+| 3 | ISENSE | Top of Rcs (Qa source), through the optional Rf/Cf filter. The cycle ends when ISENSE reaches **1 V** |
+| 4 | RT/CT | Rt from pin 8, Ct to GND. fOSC = 1.72 / (Rt x Ct) = **about 65 kHz** (Rt above 5 k) |
 | 5 | GROUND | GND |
-| 6 | OUTPUT | Q1 gate through 10 ohm, clamped by the 15 V zener (cathode to gate, anode to Q1 source). Optional Schottky from GND to OUTPUT, as the datasheet suggests for MOSFET gates |
-| 7 | VCC | +20 V (stage-1 rail), 0.1 uF ceramic to GND. Datasheet: 12 to 28 V recommended, 30 V absolute max, about 11 to 17 mA running |
-| 8 | VREF | **5 V** reference (not 2.5 V). It only feeds RRT here. **0.1 uF ceramic to GND, mandatory** |
+| 6 | OUTPUT | Qa gate through Rg (10 ohm), clamped by Dz (15 V zener, cathode to gate, anode to Qa source). Optional Schottky from GND to OUTPUT per the datasheet |
+| 7 | VCC | +20 V (stage-1 rail), Cvcc (0.1 uF ceramic) to GND. Datasheet: 12 to 28 V recommended, 30 V absolute max, about 11 to 17 mA running |
+| 8 | VREF | **5 V** reference (not 2.5 V). It only feeds Rt here. Cvref **(0.1 uF ceramic to GND, mandatory)** |
 
 **Sizing the numbers** (my arithmetic from the datasheet's equations; **[verify]** on the bench):
 
-- **RCS = VISENSE / Ipk = 1 V / 0.5 A = 2 ohm.** With L2 = 220 uH at 65 kHz the
+- **Rcs = VISENSE / Ipk = 1 V / 0.5 A = 2 ohm.** With L2 = 220 uH at 65 kHz the
   most power one cycle pair can move is about 1/2 x L x Ipk^2 x f = 1.8 W, so
   Ipk = 0.5 A caps stage 2's input at about what stage 1 can supply (about 2 W
-  at 20 V). That is also what answers the start-up hiccup worry: **RCS is the
+  at 20 V). That is also what answers the start-up hiccup worry: **Rcs is the
   knob that keeps stage 2 from collapsing the 20 V rail.** Charging 3.7 J at
   about 1.5 W takes about 2.5 s, which matches the firmware's 3 s wait.
 - **Frequency:** 1.72 / (12 k x 2.2 nF) = 65 kHz, inside the 50 to 100 kHz plan.
   The oscillator dead time (about 1 us) costs only about 6 % of duty, so 85 % is reachable.
 
-- **Q1: Vishay IRF630PBF** (TO-220, 200 V, 9 A). Gate drive comes from the
-  UC3843's output (pin 6), which swings close to its VCC (about 20 V).
-  **Clamp the IRF630 gate with a 15 V zener** (DO-41) so Vgs stays safe.
-  Gate through 10 ohm to damp ringing.
+- **Qa: Vishay IRF630PBF** (TO-220, 200 V, 9 A). Gate drive comes from the
+  UC3843's OUTPUT (pin 6), which swings close to its VCC (about 20 V).
+  **Clamp the IRF630 gate with Dz (15 V zener, DO-41)** so Vgs stays safe.
+  Gate through Rg (10 ohm) to damp ringing.
 
   ```
-  Q1 gate clamp (15 V zener):
+  Qa gate clamp (Dz, 15 V zener):
 
-  UC3843 pin 6 (OUT) --- 10R --- Q1 gate (IRF630)
-                                    |
-                                 15V zener (band toward gate)
-                                    |
-                                 Q1 source (= switch node)
+  UC3843 pin 6 (OUTPUT) --- Rg 10R --- Qa gate (IRF630)
+                                          |
+                                       Dz 15V zener (band toward gate)
+                                          |
+                                       Qa source
 
-  The zener clamps Vgs to 15 V. Band (cathode) faces the gate;
-  anode to source. Current flows gate-to-source through the
-  zener when the drive exceeds 15 V.
+  Dz clamps Vgs to 15 V. Band (cathode) faces the gate;
+  anode to source. Current flows gate-to-source through
+  Dz when the drive exceeds 15 V.
   ```
 - **Shutdown:** none needed on U3. Disabling stage 1 (Q_EN, above) drops its
   rail to about 4.6 V, below U3's 8.4 V / 7.6 V UVLO, so HV_EN gates both
@@ -318,69 +345,69 @@ designators for the output divider or the gate parts, so those keep this board's
   tens of mA, so 1 A is plenty.
 
   ```
-  Stage 2 boost topology (D2 = UF4003):
+  Stage 2 boost topology:
 
               L2                  D2 (UF4003)
-  +20V --+-- [220uH] ---+----->|----+---> HV+ (C_out)
+  +20V --+-- [220uH] ---+----->|----+---> HV+ (Cout)
          |               |          |
-        C_in2          SW node     C_out          D3 (1.5KE150A)
-       2x22uF         Q1 drain    220uF           OVP clamp
+        Cin           SW node     Cout          D3 (1.5KE150A)
+       2x22uF         Qa drain    220uF           OVP clamp
        /35V              |        /200V     (see below)
-         |            Q1 source      |
+         |            Qa source      |
         GND              |          GND
-                         RCS
+                        Rcs
                        (UC3843
                        ISENSE)
                          |
                         GND
 
-  D2 anode  = switch node (L2 / Q1 drain junction)
-  D2 cathode = HV+ output rail (C_out positive)
+  D2 anode  = switch node (L2 / Qa drain junction)
+  D2 cathode = HV+ output rail (Cout positive)
   Band (cathode mark) faces the output, same as D1.
   ```
-- **C_out: 220 uF / 200 V**, or 2 x 100 uF / 200 V in parallel (bulky
+- **Cout: 220 uF / 200 V**, or 2 x 100 uF / 200 V in parallel (bulky
   radial, about 16 x 25 mm: check the pad fit). Energy at 130 V is about 3.7 J.
   For a pulse of 100 mA for 50 ms (5 mC) the droop is about 23 V
-  (dV = Q / C); once the relay pull-in current is measured, resize C.
-- **Feedback** (UC3843 Vref = 2.5 V): Vout = 2.5 x (1 + R1 / R2).
-  **R1 = 3 x 200 k in series (600 k)** so no single resistor sees more than about 50 V, and a
-  duplicate series chain in parallel is **not** needed if the OVP below is fitted.
-  R2 chosen by jumper J4 (values recalculated for 2.5 V reference):
+  (dV = Q / C); once the relay pull-in current is measured, resize Cout.
+- **Feedback** (UC3843 E/A reference = 2.5 V): Vout = 2.5 x (1 + Rfbt / Rfbb).
+  **Rfbt = 3 x 100 k in series (300 k)** — same 100 k value as Rbleed, so one
+  reel covers both chains. Each resistor sees ~41 V.
+  Rfbb chosen by jumper J4:
 
-  | J4 position | R2 (to GND) | Vout (about) |
+  | J4 position | Rfbb (to GND) | Vout (about) |
   |---|---|---|
-  | 1 | 12 k | **127 V** |
-  | 2 | 16 k | 96 V |
-  | 3 | 22 k | 71 V |
-  | 4 | 30 k | 52 V |
+  | 1 | 6.2 k | **123 V** |
+  | 2 | 8.2 k | 94 V |
+  | 3 | 10 k | 78 V |
+  | 4 | 15 k | 52 V |
   | none | open | converter regulates to its minimum, **safe** |
 
-  **R1 open or missing** would let the output run away: that is the failure
+  **Rfbt open or missing** would let the output run away: that is the failure
   to protect against.
-- **OVP: a 150 V TVS clamp across C_out** — **1.5KE150A** (DO-201, through-hole;
+- **OVP: a 150 V TVS clamp across Cout** — **1.5KE150A** (DO-201, through-hole;
   **128 V standoff**, breakdown about 143-158 V: fine with 127 V as the highest
   profile **[verify]**) so a feedback fault clamps below the 200 V parts' limit,
   at the cost of a clamp that may overheat if the fault persists.
 
   ```
-  D3 (1.5KE150A) OVP clamp and bleed resistors across C_out:
+  D3 (1.5KE150A) OVP clamp and bleed resistors across Cout:
 
   HV+ ---+-------+-------+
          |       |       |
-        C_out   D3      3x 33k
+        Cout    D3      3x 100k
        220uF  1.5KE    in series
-       /200V  150A     (99k bleed)
+       /200V  150A     (300k bleed)
          |    (TVS)      |
          |       |       |
   GND ---+-------+-------+
 
   D3 is a unidirectional TVS: band (cathode) toward HV+,
   anode toward GND. It clamps HV+ below about 158 V if
-  the feedback loop fails. The bleed chain drains C_out
-  in about 22 s after HV_EN goes low.
+  the feedback loop fails. The bleed chain drains Cout
+  in about 5 min after HV_EN goes low.
   ```
-- **Bleed: 3 x 33 k in series (99 k) across C_out**: time constant 22 s with
-  220 uF, about 0.17 W at 130 V. HV also falls when HV_EN goes low.
+- **Bleed: 3 x 100 k in series (300 k) across Cout**: time constant 66 s with
+  220 uF, about 0.056 W at 130 V. HV falls when HV_EN goes low.
 - **Soft rise:** the converter's soft-start plus the F1 fuse limit input
   current; **[verify]** charging 3.7 J does not pull the 5 V rail below spec.
 
@@ -393,8 +420,8 @@ designators for the output divider or the gate parts, so those keep this board's
    relay off: A = HV+,    B = RETURN   (one direction)
    relay on : A = RETURN, B = HV+      (the other direction)
 
- RETURN = drain of Q3 (IRF630, TO-220); Q3 source -> R_sense 10 ohm -> GND
- Current path: HV+ -> K1 -> coil -> K1 -> RETURN -> Q3 -> R_sense -> GND
+ RETURN = drain of Q3 (IRF630, TO-220); Q3 source -> Rsense 10 ohm -> GND
+ Current path: HV+ -> K1 -> coil -> K1 -> RETURN -> Q3 -> Rsense -> GND
 ```
 
 Which direction is return and which is deposit is still to confirm on the
@@ -460,7 +487,7 @@ bench (earlier: + on red / white at ground moved the lever right = return).
         |                |                 |
       Q4 source        Q5 source        Q3 source
         |                |                 |
-       GND              GND            R_sense 10R
+       GND              GND            Rsense 10R
                                            |
   GP6 --+-- Q4 gate                       GND
         |
@@ -476,7 +503,7 @@ bench (earlier: + on red / white at ground moved the lever right = return).
            -> Q5 on  -> Q5 drain low  -> Q3 gate 0 V  -> Q3 OFF
 
   12V zener: anode to Q3 source, cathode (band) to Q3 gate.
-  Same orientation as the Q1 gate clamp zener.
+  Same orientation as the Qa gate clamp zener (Dz).
   ```
 - **Sequence** (firmware): set POL, enable HV_EN, wait until the HV reads
   up to voltage (a fixed delay of about 3 s), pulse FIRE, drop FIRE,
@@ -517,7 +544,7 @@ choice: **PCF8591P (DIP-16) is obsolete** at DigiKey. The practical part is an
 **ADS1115** (16-bit, 4 channels, 0x48), but its package is MSOP-10, so use
 a **breakout module** on a 4-pin header (VCC, GND, SDA, SCL). AIN0 reads the HV divider
 (1.17 M / 33 k: 130 V reads 3.6 V, the ADS1115's 4.096 V range), AIN1 the
-voltage across R_sense (fire current), AIN2 the 20 V stage. Firmware can then
+voltage across Rsense (fire current), AIN2 the 20 V stage. Firmware can then
 check "reached target within N s", and see **the cap sag after a fire**
 (the relay really fired). Cost about a few dollars for the module.
 
@@ -548,7 +575,7 @@ dV = I x t / C (about 20 V for 100 mA x 50 ms into 220 uF).
 | U1 | I/O expander | **MCP23008-E/P** (DIP-18) | address 0x20, A0-A2 to GND |
 | U2 | 5 V to 20 V boost | **MC34063AP1G** (DIP-8) | 1.25 V ref; **[verify]** timing cap and boost equations |
 | U3 | boost controller | **UC3843AN** (DIP-8) | E/A reference 2.5 V, VREF pin 5 V; runs from +20 V rail; max duty about 97 % |
-| Q1 | stage-2 switch, 200 V N-FET | **IRF630PBF** (TO-220) | gate clamped with 15 V zener |
+| Qa | stage-2 switch, 200 V N-FET | **IRF630PBF** (TO-220) | gate clamped with Dz (15 V zener) |
 | Q2 | relay driver | **2N7000** (TO-92) | |
 | Q3 | firing FET, 200 V | **IRF630PBF** (TO-220) | gate driven from +20 V rail, 12 V zener clamp |
 | Q4, Q5 | level shifter for Q3 gate | **2N7000** (TO-92) | non-inverting pair from GP6 |
@@ -557,14 +584,14 @@ dV = I x t / C (about 20 V for 100 mA x 50 ms into 220 uF).
 | D2 | 200 V ultrafast | **UF4003** (DO-41, 200 V, 1 A) | |
 | D3 | OVP clamp | **1.5KE150A** (DO-201) | 128 V standoff **[verify]** |
 | D4 | relay flyback | **1N4148** (DO-35) | |
-| zeners | gate clamps (15 V, 12 V) | e.g. 1N4744A, 1N4742A (DO-41) | one for Q1, one for Q3 |
+| zeners | gate clamps (15 V, 12 V) | e.g. 1N4744A, 1N4742A (DO-41) | Dz for Qa, one for Q3 |
 | L1 | 47-100 uH, >= 2 A | **[verify / find]** through-hole inductor | MC34063A's lower frequency needs a larger inductor |
 | L2 | ~220 uH, >= 1 A | Bourns **RLB9012-221KL** or Wurth 7447471221 | **[verify Isat]** |
-| C_out | 220 uF / 200 V | Nichicon **UCS2D221MHD** (radial, 18 x 26.5 mm) | 7.5 mm lead spacing |
-| R1 | 3 x 200 k, 1/4 W axial | | feedback divider; each sees < 50 V |
-| R2 | 12 k / 16 k / 22 k / 30 k | | one fitted per J4 position (2.5 V ref) |
+| Cout | 220 uF / 200 V | Nichicon **UCS2D221MHD** (radial, 18 x 26.5 mm) | 7.5 mm lead spacing |
+| Rfbt | 3 x 100 k, 1 %, 1/4 W axial | | feedback divider top; same value as Rbleed |
+| Rfbb | 6.2 k / 8.2 k / 10 k / 15 k, 1 % | | feedback divider bottom; one fitted per J4 position |
 | F1 | PTC about 500 mA | | |
-| R_sense | 10 ohm, 0.5 W axial | | |
+| Rsense (fire) | 10 ohm, 0.5 W axial | | |
 | J1 | 5-pin header, 2.54 mm | generic 1 x 5 | mates with v6 J6 |
 | J2 | 3-pin KK 396 header | **Molex 0026604030** | mating plug 09-50-3031 + terminals **[verify]** |
 | J3 | 4-pin KK 396 header | **Molex 0026604040** | mating plug 09-50-3041 + terminals **[verify]** |
@@ -572,14 +599,14 @@ dV = I x t / C (about 20 V for 100 mA x 50 ms into 220 uF).
 
 ## 10. Layout notes
 
-- Keep the **HV zone** (C_out, D2, Q1, L2, K1 contacts, Q3, J2, divider
+- Keep the **HV zone** (Cout, D2, Qa, L2, K1 contacts, Q3, J2, divider
   resistors) together, away from J1 and the logic. **Spacing at least 1.0 mm** for anything that
   can reach 130 V (IPC-2221 external bare copper is about 0.6 mm up to 150 V; use
   more); no logic traces under the HV parts, solder mask is not insulation.
 - A **slot or wide gap** between the relay's coil and contact sides.
 - Label the HV zone in silkscreen. 130 V DC is just above the 120 V DC extra-low-voltage
-  line; the C_out cap stays charged until the bleed runs down, so label it.
-- Short, wide switching loop for Q1/L2/D2 and the input capacitor.
+  line; the Cout cap stays charged until the bleed runs down, so label it.
+- Short, wide switching loop for Qa/L2/D2 and the input capacitor.
 
 ## 11. Still to settle
 
@@ -587,9 +614,9 @@ dV = I x t / C (about 20 V for 100 mA x 50 ms into 220 uF).
 2. **Which phone-side voltage is needed:** the 130 V profile is a margin for other
    phones; this phone works at about 50-60 V. Choose the default J4 position.
 3. **Datasheet checks** for the **[verify]** items, above all U2 MC34063A
-   (timing cap, boost equations), U3 UC3843A (RCS and RRT/CCT values) and
+   (timing cap, boost equations), U3 UC3843A (Rcs, Rt/Ct, Rfbt/Rfbb values) and
    K1 (contact rating).
-4. **Measure pull-in charge** (current x time at the operating voltage) to size C_out.
+4. **Measure pull-in charge** (current x time at the operating voltage) to size Cout.
 5. Firmware: a new MCP23008 driver, coin events, and a coin-relay
    output (return/collect) with a safety timeout. **None of it exists yet.**
 6. A KiCad schematic and PCB from this once the above are settled.
@@ -628,14 +655,14 @@ high voltage are the short ones from J2 to the relay.
   needed under 1 m.**
 
 ### Floor plan (2 layers, about 60 x 50 mm to start; the 220 uF / 200 V
-capacitor is about 16 x 25 mm and sets the size)
+Cout is about 16 x 25 mm and sets the size)
 
 ```
  +----------------------------------------------------------------+
  | LOGIC ZONE (left)          | POWER (middle)  | HV ZONE (right) |
  |                            |                 |                 |
- |  J1 cable (5V,GND,SDA,SCL) |  U2 + L1 + D1   |  U3 + Q1 + L2   |
- |  LDO 3.3 V                 |  (5 V -> 20 V)  |  D2, C_out,     |
+ |  J1 cable (5V,GND,SDA,SCL) |  U2 + L1 + D1   |  U3 + Qa + L2   |
+ |  LDO 3.3 V                 |  (5 V -> 20 V)  |  D2, Cout,      |
  |  U1 MCP23008 (DIP-18)      |                 |  bleed, TVS     |
  |  coin inputs -> J3 (edge)  |                 |  K1 relay, Q3   |
  |  J5 spare, J4 voltage jmp  |                 |  J2 (to relay)  |
@@ -645,7 +672,7 @@ capacitor is about 16 x 25 mm and sets the size)
 
 ### Layout rules
 
-- **Net classes in KiCad:** an **`HV`** class (everything from C_out and D2 to
+- **Net classes in KiCad:** an **`HV`** class (everything from Cout and D2 to
   K1, Q3, the divider and J2): **1.0 mm clearance** to everything else
   (IPC-2221 external bare copper needs only about 0.6 mm up to 150 V; use the
   extra), 0.4 mm tracks. Keep 0.8 mm for the 20 V and logic side.
@@ -657,19 +684,19 @@ capacitor is about 16 x 25 mm and sets the size)
   switch loop (SW, inductor, diode, output cap) **short and tight**; keep the
   FB divider and its trace **short and away from the inductors and switch
   node**; one star point where the stages meet GND.
-- **Divider resistors** (3 x 200 k chain) in a straight line, evenly spaced;
-  put the **bleed chain** next to C_out.
+- **Divider resistors** (Rfbt, 3 x 100 k chain) in a straight line, evenly spaced;
+  put the **bleed chain** next to Cout.
 - **Relay K1:** contacts on the HV side, coil on the logic side, with **at
-  least 2 mm or a slot** between them if the pins allow. **Q3 and R_sense**
+  least 2 mm or a slot** between them if the pins allow. **Q3 and Rsense**
   next to it; J2 on the same edge keeps the coil wires short.
 - **Mounting holes** (M3) at the corners, not near HV. **Silkscreen** an HV
   warning, the J4 voltage table, and "capacitor stays charged".
 - **Test points:** 20 V, 3.3 V, HV (a probe pad with a series resistor), GND.
-- **Assembly:** C_out, K1, the Molex KK headers and likely L2 are through-hole
+- **Assembly:** Cout, K1, the Molex KK headers and likely L2 are through-hole
   or large, so expect to hand-solder them (mark them "do not place" for
   JLCPCB, as on the main board).
 - **DRC:** set the net classes first, run DRC with the 1.0 mm rule, then check
-  clearances by hand around C_out, D2 and J2.
+  clearances by hand around Cout, D2 and J2.
 
 ## 13. DigiKey parts and pricing (2026-10-27)
 
@@ -689,13 +716,13 @@ for the UC3843A UVLO, gate clamping and the Q3 level-shifter are in sections
 | U1 | MCP23008 I/O expander, DIP-18 | Microchip **MCP23008-E/P** | MCP23008-E/P-ND | $1.54 (qty 100 $1.24) | 4,996 in stock, active |
 | U2 | stage 1 controller, DIP-8 | onsemi **MC34063AP1G** | MC34063AP1GOS-ND | $1.98 | 6,945 in stock. Cheaper: KA34063A, $0.40 |
 | U3 | stage 2 controller, DIP-8 | onsemi **UC3843AN** ([link](https://www.digikey.com/en/products/detail/onsemi/UC3843AN/610126)) | (see link) | $0.34 | the listing's description reads "buck", so **verify** it is the UC3843A you expect; TI's UC3843AN is $1.79 |
-| Q1, Q3 | 200 V N-FET, TO-220 | Vishay **IRF630PBF** ([link](https://www.digikey.com/en/products/detail/vishay-siliconix/IRF630PBF/812782)) | (see link) | $2.43 each | 200 V, 9 A from memory: **verify**. Needs a heatsink only if it ever runs continuous |
+| Qa, Q3 | 200 V N-FET, TO-220 | Vishay **IRF630PBF** ([link](https://www.digikey.com/en/products/detail/vishay-siliconix/IRF630PBF/812782)) | (see link) | $2.43 each | 200 V, 9 A from memory: **verify**. Needs a heatsink only if it ever runs continuous |
 | Q2, Q4, Q5 | small N-FET, TO-92 | **2N7000** (e.g. [STMicro](https://www.digikey.com/en/products/detail/stmicroelectronics/2N7000/654416)) | (see link) | $0.06-$0.66 | relay driver and the level shifter |
 | K1 | DPDT relay, 5 V coil, through-hole | Omron (Aratas) **G6S-2-DC5** ([link](https://www.digikey.com/en/products/detail/aratas-formerly-omron-components/G6S-2-DC5/333982)) | (see link) | $4.52 | **250 VAC / 220 VDC switching** per the listing; 11,369 in stock |
 | D1 | stage-1 Schottky | **1N5819** (DO-41, 40 V, 1 A), e.g. [TSC](https://www.digikey.com/en/products/detail/taiwan-semiconductor-corporation/1N5819/7357079) | (see link) | $0.32 | 1 A average is plenty here |
 | D2 | 200 V ultrafast | **UF4003** (DO-41, 200 V, 1 A), e.g. [onsemi](https://www.digikey.com/en/products/detail/onsemi/UF4003/1048948) | (see link) | $0.64 | cheaper makers $0.02-$0.20: check reverse recovery on the datasheet |
 | D3 | 150 V clamp | **1.5KE150A** (DO-201), e.g. [TSC](https://www.digikey.com/en/products/detail/taiwan-semiconductor-corporation/1-5KE150A/15783456) | (see link) | $0.19 | **standoff is 128 V**, not 150 V: fine only with the 128 V profile as the highest setting. 1.5KE170A (145 V) if you want more headroom, with a higher clamp |
-| C_out | 220 uF / 200 V radial | Nichicon **UCS2D221MHD** ([link](https://www.digikey.com/en/products/detail/nichicon/UCS2D221MHD/4991877)) | (see link) | $3.08 | 18 mm dia x 26.5 mm, 7.5 mm lead spacing, 15,508 in stock. **Bigger than the 16 x 25 mm I assumed** |
+| Cout | 220 uF / 200 V radial | Nichicon **UCS2D221MHD** ([link](https://www.digikey.com/en/products/detail/nichicon/UCS2D221MHD/4991877)) | (see link) | $3.08 | 18 mm dia x 26.5 mm, 7.5 mm lead spacing, 15,508 in stock. **Bigger than the 16 x 25 mm I assumed** |
 | L2 | 220 uH, 1 A | Bourns **RLB9012-221KL** ([link](https://www.digikey.com/en/products/detail/bourns-inc/RLB9012-221KL/1969608)) | (see link) | $0.66 | 650 mohm DCR, Isat not listed: **check Isat against the controller's peak current**; Wurth 7447471221 ($2.49, 1.3 A) is the sturdier choice |
 | L1 | 47-100 uH, 2 A+ | not found | | | **search DigiKey** for a through-hole 47-100 uH inductor with Isat >= 2 A (my search returned nothing) |
 | J2 | 3-pin KK 396 header | Molex **0026604030** | WM4621-ND | $0.35 (10: $0.30) | 26,865 in stock |
@@ -703,7 +730,7 @@ for the UC3843A UVLO, gate clamping and the Q3 level-shifter are in sections
 | J1 | 5-pin header, 2.54 mm | generic 1 x 5 | | | mates with the v6 J6 |
 
 The listed parts come to about **$19.50** at qty 1, with a pair of
-IRF630s ($4.86) the biggest single item after the relay ($4.52), the
+IRF630s for Qa and Q3 ($4.86) the biggest single item after the relay ($4.52), the
 capacitor ($3.08) and the DIP chips. Add roughly **$5-$8** for the passives
 and the unlisted parts (L1, header, diodes, zeners, trimmer): call it **$25-$28
 a board** at DigiKey qty-1 prices, before the bare PCB. Prices from page listings;
@@ -720,7 +747,7 @@ hour for a few boards) but cheap in parts.
 1. Check each datasheet for the stage-1 and stage-2 equations: MC34063A boost
    at 5 V in and the UC3843A boost at 20 V to 130 V (see **[verify]** notes
    in sections 5 and 6).
-2. Check the IRF630's gate drive, Isat on L2, and the relay's contact rating at
+2. Check the IRF630 (Qa) gate drive, Isat on L2, and the relay's contact rating at
    the datasheet, not the listing.
 
 ## 14. KiCad symbols and footprints (2026-10-27)
@@ -735,7 +762,7 @@ resolve in KiCad as long as the standard libraries are loaded.
 | U1 MCP23008-E/P | `Interface_Expansion:MCP23008-xP` | `Package_DIP:DIP-18_W7.62mm` |
 | U2 MC34063AP1G | `Regulator_Switching:MC34063AP` | `Package_DIP:DIP-8_W7.62mm` |
 | U3 UC3843AN | **`Custom:UC3843AN`** (stock name: `Regulator_Controller:UC3843_DIP8`) | `Package_DIP:DIP-8_W7.62mm` |
-| Q1, Q3 IRF630 | **`Custom:IRF630`** | `Package_TO_SOT_THT:TO-220-3_Vertical` |
+| Qa, Q3 IRF630 | **`Custom:IRF630`** | `Package_TO_SOT_THT:TO-220-3_Vertical` |
 | Q2, Q4, Q5 2N7000 | `Transistor_FET:2N7000` | `Package_TO_SOT_THT:TO-92_Inline` (check pin order against the part) |
 | K1 G6S-2-DC5 | `Relay:G6S-2` | `Relay_THT:Relay_DPDT_Omron_G6S-2` |
 | D1 1N5819 | `Diode:1N5819` | `Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal` |
@@ -743,11 +770,11 @@ resolve in KiCad as long as the standard libraries are loaded.
 | D3 1.5KE150A | `Diode:1.5KExxA` | `Diode_THT:D_DO-201AD_P15.24mm_Horizontal` |
 | D4 relay flyback 1N4148 | `Diode:1N4148` | `Diode_THT:D_DO-35_SOD27_P7.62mm_Horizontal` |
 | zeners (gate clamps) | `Device:D_Zener` | `Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal` |
-| **C_out 220 uF / 200 V** (Nichicon UCS2D221MHD, 18 x 26.5 mm, 7.5 mm leads) | `Device:C_Polarized` | **`Capacitor_THT:CP_Radial_D18.0mm_P7.50mm`** |
+| **Cout 220 uF / 200 V** (Nichicon UCS2D221MHD, 18 x 26.5 mm, 7.5 mm leads) | `Device:C_Polarized` | **`Capacitor_THT:CP_Radial_D18.0mm_P7.50mm`** |
 | other electrolytics (100 uF, 470 uF) | `Device:C_Polarized` | pick by the part's diameter and lead spacing: `CP_Radial_D6.3mm_P2.50mm`, `D8.0mm_P3.50mm`, `D10.0mm_P5.00mm` |
 | 100 nF and small ceramics | `Device:C` | `Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm` |
 | resistors, 1/4 W | `Device:R` | `Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal` |
-| R_sense, bleed (0.5 to 1 W) | `Device:R` | `Resistor_THT:R_Axial_DIN0309_L9.0mm_D3.2mm_P12.70mm_Horizontal` |
+| Rsense (fire), bleed (0.5 to 1 W) | `Device:R` | `Resistor_THT:R_Axial_DIN0309_L9.0mm_D3.2mm_P12.70mm_Horizontal` |
 | trimmer (fine voltage) | `Device:R_Potentiometer_Trim` | `Potentiometer_THT:Potentiometer_Bourns_3296W_Vertical` |
 | L1, L2 | `Device:L` | `Inductor_THT:L_Radial_D10.0mm_P5.00mm_Fastron_07M` is the nearest stock footprint for the Bourns RLB9012 (9 mm): **check the lead spacing against the datasheet** |
 | J1 5-pin I2C | `Connector:Conn_01x05_Pin` | `Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical` |
@@ -764,7 +791,7 @@ board than the all-DIP one is possible. Candidates: **MT3608/SX1308
 for Q3 (watch its 3 V gate threshold), and **UC3843 in SOIC-8** (1.27 mm pitch)
 instead of the DIP. **Not** the TPS40210 (MSOP-10, 0.5 mm pitch); the
 UC3843 route avoids it. 0603 passives are hand-solderable with a fine tip,
-0805 is easier. The high-voltage parts (C_out, IRF630, relay, Molex headers)
+0805 is easier. The high-voltage parts (Cout, IRF630, relay, Molex headers)
 stay through-hole either way.
 
 ## Sources
