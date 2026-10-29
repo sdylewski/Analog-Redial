@@ -297,6 +297,98 @@ bool bt_companion_active(void)
     return s_enabled && board_hw_config_get().has_bt_module;
 }
 
+/* ---- BT401 sleep timer ---- */
+
+static uint8_t          s_sleep_hours = BT_COMPANION_SLEEP_HOURS_DEFAULT;
+static volatile bool    s_bt401_asleep;
+static volatile bool    s_wake_req, s_pair_on_wake, s_sleep_req;
+static int64_t          s_last_phone_us;   /* last time a phone was connected (or the timer restarted) */
+static TaskHandle_t     s_sleep_timer_task;
+
+uint8_t bt_companion_sleep_hours_get(void) { return s_sleep_hours; }
+
+esp_err_t bt_companion_sleep_hours_set(uint8_t hours)
+{
+    if (hours > 24) return ESP_ERR_INVALID_ARG;
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BT_COMPANION_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, "sleep_h", hours);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err != ESP_OK) return err;
+    s_sleep_hours = hours;
+    s_last_phone_us = esp_timer_get_time();   /* a new setting starts a fresh wait */
+    if (hours == 0) bt_companion_wake();
+    return ESP_OK;
+}
+
+void bt_companion_wake(void)
+{
+    if (!s_bt401_asleep || !s_sleep_timer_task) return;
+    s_wake_req = true;
+    xTaskNotifyGive(s_sleep_timer_task);
+}
+
+/* Wakes are handed to this task because bt401_start() can wait for a sleep
+ * sequence still in progress; the callers (telephony's FSM) must not block. */
+esp_err_t bt_companion_sleep_now(void)
+{
+    if (module() != BOARD_BT_BT401 || !s_sleep_timer_task || !s_enabled || s_bt401_asleep)
+        return ESP_ERR_INVALID_STATE;
+    s_sleep_req = true;
+    xTaskNotifyGive(s_sleep_timer_task);
+    return ESP_OK;
+}
+
+static void sleep_timer_task(void *arg)
+{
+    (void)arg;
+    s_last_phone_us = esp_timer_get_time();
+    for (;;) {
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(10000));
+        int64_t now = esp_timer_get_time();
+        if (s_wake_req) {
+            s_wake_req = false;
+            if (s_bt401_asleep && s_enabled) {
+                ESP_LOGI(TAG, "waking the BT401 (radio back on)");
+                s_bt401_asleep = false;
+                s_last_phone_us = now;
+                bt401_start(bt401_notify);
+                if (s_pair_on_wake) bt401_pair_when_ready();
+            }
+            s_pair_on_wake = false;
+            continue;
+        }
+        if (s_sleep_req && s_enabled && !s_bt401_asleep) {
+            s_sleep_req = false;
+            ESP_LOGI(TAG, "BT401 to idle mode now (console) until a handset is lifted");
+            s_bt401_asleep = true;
+            bt401_stop(true);
+            bt401_sleep();
+            continue;
+        }
+        s_sleep_req = false;
+        if (!s_enabled || s_bt401_asleep || !bt401_running() || s_sleep_hours == 0) {
+            if (!s_bt401_asleep) s_last_phone_us = now;
+            continue;
+        }
+        bt_companion_status_t st;
+        bt401_get_status(&st);
+        if (st.bt_connected || st.call_state != BT_CALL_IDLE) {
+            s_last_phone_us = now;
+            continue;
+        }
+        if (now - s_last_phone_us >= (int64_t)s_sleep_hours * 3600 * 1000000LL) {
+            ESP_LOGI(TAG, "no phone connected for %u h -- BT401 to idle mode until a handset is lifted",
+                     (unsigned)s_sleep_hours);
+            s_bt401_asleep = true;
+            bt401_stop(false);
+            bt401_sleep();
+        }
+    }
+}
+
 static void start_task(void);
 static void stop_task(void);
 static void send_command(uint8_t opcode, const uint8_t *params, uint8_t param_count);
@@ -324,9 +416,14 @@ esp_err_t bt_companion_set_enabled(bool enabled)
         s_enabled = enabled;
         if (enabled) {
             ESP_LOGI(TAG, "enabled -- starting BT401 link");
+            s_bt401_asleep = false;
+            s_last_phone_us = esp_timer_get_time();
             return bt401_start(bt401_notify);
         }
         ESP_LOGI(TAG, "disabled -- disconnecting, stopping BT401 link, module to idle mode");
+        bool was_asleep = s_bt401_asleep;
+        s_bt401_asleep = false;
+        if (was_asleep) return ESP_OK;   /* already in idle mode */
         bt401_stop(true);
         return bt401_sleep();
     }
@@ -372,6 +469,7 @@ bt_companion_status_t bt_companion_get_status(void)
     if (module() == BOARD_BT_BT401) {
         bt401_get_status(&out);
         out.enabled = s_enabled;
+        out.asleep = s_enabled && s_bt401_asleep;
         if (!s_enabled) { out.link_up = false; out.bt_connected = false; out.paired_name[0] = '\0'; }
         return out;
     }
@@ -379,6 +477,7 @@ bt_companion_status_t bt_companion_get_status(void)
     out = s_status;
     portEXIT_CRITICAL(&s_lock);
     out.enabled = s_enabled;
+    out.asleep = false;
     if (!s_enabled) { out.link_up = false; out.bt_connected = false; out.paired_name[0] = '\0'; }
     return out;
 }
@@ -477,6 +576,12 @@ esp_err_t bt_companion_start_pairing(void)
 {
     if (module() == BOARD_BT_BT401) {
         if (!s_enabled) return ESP_ERR_INVALID_STATE;
+        if (s_bt401_asleep) {      /* wake it, then pair once it's back in Bluetooth mode */
+            s_pair_on_wake = true;
+            bt_companion_wake();
+            board_led_set_state(BOARD_LED_BT_PAIRING);
+            return ESP_OK;
+        }
         esp_err_t r = bt401_start_pairing();
         if (r == ESP_OK) board_led_set_state(BOARD_LED_BT_PAIRING);
         return r;
@@ -1937,6 +2042,13 @@ void bt_companion_init(void)
         return;
     }
     if (module() == BOARD_BT_BT401 && board_hw_config_get().has_bt_module) {
+        nvs_handle_t h;
+        if (nvs_open(BT_COMPANION_NVS_NS, NVS_READONLY, &h) == ESP_OK) {
+            uint8_t v;
+            if (nvs_get_u8(h, "sleep_h", &v) == ESP_OK && v <= 24) s_sleep_hours = v;
+            nvs_close(h);
+        }
+        xTaskCreate(sleep_timer_task, "bt_sleep", 2560, NULL, tskIDLE_PRIORITY + 1, &s_sleep_timer_task);
         if (s_enabled) bt401_start(bt401_notify);
         else bt401_sleep();     /* switched off: keep the radio off after a power cycle too */
         return;

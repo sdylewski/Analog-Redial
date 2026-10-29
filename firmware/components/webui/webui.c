@@ -562,6 +562,7 @@ static cJSON *build_status_json(void)
     cJSON_AddBoolToObject(root, "bt_enabled", bt_st.enabled);
     cJSON_AddBoolToObject(root, "bt_link_up", bt_st.link_up);
     cJSON_AddBoolToObject(root, "bt_connected", bt_st.bt_connected);
+    cJSON_AddBoolToObject(root, "bt_asleep", bt_st.asleep);
     cJSON_AddStringToObject(root, "bt_paired_name", bt_st.paired_name);
     cJSON_AddStringToObject(root, "bt_addr", bt_st.bd_addr);
     {
@@ -4222,6 +4223,16 @@ static int append_bt_config_card(char *buf, size_t cap, int off,
     return off;
 }
 
+/* Feature-bar lead-in while the BT401 sleep timer has the radio off; "" otherwise. */
+static const char *st_asleep_html(void)
+{
+    static char h[200];
+    if (!bt_companion_get_status().asleep) return "";
+    snprintf(h, sizeof(h), "<b>Asleep:</b> no phone connected for %u h, radio off. Lift a handset or "
+             "press Start pairing to wake it.</p><p class=\"hint\">", (unsigned)bt_companion_sleep_hours_get());
+    return h;
+}
+
 static int append_bluetooth_tab(char *buf, size_t cap, int off)
 {
     bool bt_on = bt_companion_enabled();
@@ -4267,11 +4278,37 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
                    "<a href=\"/settings?tab=general\">General &rarr; Board hardware</a> and "
                    "reboot: that turns Bluetooth on.";
         } else if (bt_mod == BOARD_BT_BT401) {
-            note = bt_on
-                ? "Off puts the module in its idle mode: its radio stops, no phone can connect "
-                  "or ring this phone, and it draws about 7 mA instead of 13-30 mA."
-                : "The module is in its idle mode with its radio off (about 7 mA). Turn Bluetooth "
-                  "on to pair or use a phone; the setting is kept across reboots.";
+            static char bt401_note[1600];
+            uint8_t sh = bt_companion_sleep_hours_get();
+            char sleep_now[96];
+            if (sh) snprintf(sleep_now, sizeof(sleep_now), "on, after %u h with no phone", (unsigned)sh);
+            else snprintf(sleep_now, sizeof(sleep_now), "off");
+            if (!bt_on) {
+                snprintf(bt401_note, sizeof(bt401_note), "%s",
+                    "The module is in its idle mode with its radio off (about 7 mA). Turn Bluetooth "
+                    "on to pair or use a phone; the setting is kept across reboots.");
+            } else {
+                snprintf(bt401_note, sizeof(bt401_note),
+                    "%s"
+                    "Off puts the module in its idle mode: its radio stops, no phone can connect "
+                    "or ring this phone, and it draws about 7 mA instead of 13-30 mA.</p>"
+                    "<p class=\"hint\"><b>Save up to about 1 kWh a year:</b> Bluetooth can sleep after "
+                    "some hours with no phone connected (now: %s, in "
+                    "<a href=\"/settings?tab=hardware#bt-sleep\">Hardware &rarr; Low-power idle mode</a>).</p>"
+                    "<details class=\"hint-detail\"><summary>Pros and cons</summary><ul class=\"hint\">"
+                    "<li><b>Pro:</b> a module searching for a phone that isn't there draws about 30 mA "
+                    "around the clock; asleep it draws about 7 mA.</li>"
+                    "<li><b>Pro:</b> nothing to do to wake it: lift any handset (or a VoIP call comes in, "
+                    "or press Start pairing). Pairings are kept, so no re-pairing.</li>"
+                    "<li><b>Con:</b> while it sleeps your phone can't reconnect when it comes back in range, "
+                    "so its calls don't ring this phone until someone lifts a handset.</li>"
+                    "<li><b>Con:</b> after a wake it takes several seconds, plus however long the phone "
+                    "takes to reconnect, before 9 dials out.</li>"
+                    "<li>A connected phone keeps it awake, so a phone that stays in range is never "
+                    "affected.</li></ul></details><p class=\"hint\">",
+                    st_asleep_html(), sleep_now);
+            }
+            note = bt401_note;
         } else if (!bt_on) {
             note = "Paused from the console (<code>bt_enable 0</code>); a reboot turns it back on.";
         } else {
@@ -4324,7 +4361,8 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
     const char *link_pill = st.link_up ? "on" : "off";
     const char *link_text = st.link_up
         ? i18n_str("bt.link_up", "responding")
-        : i18n_str("bt.link_down", "not responding");
+        : st.asleep ? i18n_str("bt.link_asleep", "asleep (radio off)")
+                    : i18n_str("bt.link_down", "not responding");
     const char *bt_pill = st.bt_connected ? "on" : "off";
     const char *bt_conn_text = st.bt_connected ? i18n_str("bt.connected", "connected")
                                                 : i18n_str("bt.not_connected", "not connected");
@@ -4357,6 +4395,8 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
      * shows something happened -- previously it just re-rendered the same
      * static page on submit, with no feedback while the phone/laptop side
      * hadn't paired yet. */
+    char js_link_asleep[48];
+    js_escape(i18n_str("bt.link_asleep", "asleep (radio off)"), js_link_asleep, sizeof(js_link_asleep));
     char js_link_up[48], js_link_down[48], js_connected[48], js_not_connected[48],
          js_none_paired[48], js_pair_btn[64], js_pairing[64], js_paired[48];
     js_escape(i18n_str("bt.link_up", "responding"), js_link_up, sizeof(js_link_up));
@@ -4377,7 +4417,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
         "</div>"
         "<script>(function(){"
         "var I={"
-        "linkUp:'%s',linkDown:'%s',connected:'%s',notConnected:'%s',nonePaired:'%s',"
+        "linkUp:'%s',linkDown:'%s',linkAsleep:'%s',connected:'%s',notConnected:'%s',nonePaired:'%s',"
         "pairBtn:'%s',pairing:'%s',paired:'%s'"
         "};"
         "var linkPill=document.getElementById('bt-link-pill');"
@@ -4389,22 +4429,22 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
         "var nameEl=document.getElementById('bt-paired-name');"
         "var btn=document.getElementById('bt-pair-btn');"
         "var form=document.getElementById('bt-pair-form');"
-        "var pairing=false, pairingTimeout=null;"
+        "var pairing=false, pairingTimeout=null, asleep=false;"
         "function setBtnState(state){"
         "btn.classList.remove('is-busy','is-active');"
         "if(state==='pairing'){btn.disabled=true;btn.classList.add('is-busy');btn.textContent=I.pairing;}"
         "else if(state==='paired'){btn.disabled=false;btn.classList.add('is-active');btn.textContent=I.paired;}"
-        "else{btn.disabled=(linkPill.className.indexOf('on')<0);btn.textContent=I.pairBtn;}"
+        "else{btn.disabled=(linkPill.className.indexOf('on')<0)&&!asleep;btn.textContent=I.pairBtn;}"
         "}"
         "function poll(){"
         "fetch('/api/status').then(function(r){return r.json();}).then(function(d){"
-        "var up=!!d.bt_link_up, conn=!!d.bt_connected;"
-        "linkPill.className='pill '+(up?'on':'off');linkPill.textContent=up?I.linkUp:I.linkDown;"
+        "var up=!!d.bt_link_up, conn=!!d.bt_connected; asleep=!!d.bt_asleep;"
+        "linkPill.className='pill '+(up?'on':'off');linkPill.textContent=up?I.linkUp:(asleep?I.linkAsleep:I.linkDown);"
         "addrRow.hidden=!(up&&d.bt_addr); if(d.bt_addr)addrEl.textContent=d.bt_addr;"
         "pairedRow.hidden=!up; nameRow.hidden=!up;"
         "pairedPill.className='pill '+(conn?'on':'off');pairedPill.textContent=conn?I.connected:I.notConnected;"
         "nameEl.textContent=conn?(d.bt_paired_name||''):I.nonePaired;"
-        "if(!up){btn.disabled=true;}"
+        "if(!up&&!asleep){btn.disabled=true;}"
         "if(pairing&&conn){"
         "pairing=false; if(pairingTimeout)clearTimeout(pairingTimeout);"
         "setBtnState('paired');"
@@ -4423,7 +4463,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
         "});"
         "setInterval(poll,3000);"
         "})();</script>",
-        st.link_up ? "" : " disabled",
+        (st.link_up || st.asleep) ? "" : " disabled",
         i18n_str("bt.pair_button", "Start pairing"),
         st.link_up
             ? i18n_str("bt.pair_hint", "Puts the companion board into pairing mode -- on your "
@@ -4432,7 +4472,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
             : i18n_str("bt.pair_hint_down",
                        "Greyed out because the companion board isn't responding yet -- check the "
                        "UART wiring (GPIO16/17, crossed TX/RX) once it's connected."),
-        js_link_up, js_link_down, js_connected, js_not_connected, js_none_paired,
+        js_link_up, js_link_down, js_link_asleep, js_connected, js_not_connected, js_none_paired,
         js_pair_btn, js_pairing, js_paired);
 
     off = appendf(buf, cap, off,
@@ -4958,6 +4998,31 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                              : i18n_str("idlepower.audio_running", "running"));
     }
 
+    /* BT401 only: its idle mode is a real radio-off (the BM64 has no equivalent here). */
+    char bt_sleep_html[900] = "";
+    if (bt_companion_module() == BOARD_BT_BT401) {
+        static const uint8_t hours[] = { 0, 1, 4, 8, 24 };
+        uint8_t cur = bt_companion_sleep_hours_get();
+        int o = snprintf(bt_sleep_html, sizeof(bt_sleep_html),
+            "<label id=\"bt-sleep\">%s<select name=\"bt_sleep_h\">",
+            i18n_str("idlepower.bt_sleep_label", "Bluetooth sleeps after no phone connected for"));
+        for (size_t i = 0; i < sizeof(hours) && o < (int)sizeof(bt_sleep_html); i++) {
+            char lbl[16];
+            if (hours[i]) snprintf(lbl, sizeof(lbl), "%u h", (unsigned)hours[i]);
+            else snprintf(lbl, sizeof(lbl), "%s", i18n_str("idlepower.bt_sleep_never", "never"));
+            o += snprintf(bt_sleep_html + o, sizeof(bt_sleep_html) - o, "<option value=\"%u\"%s>%s</option>",
+                          (unsigned)hours[i], hours[i] == cur ? " selected" : "", lbl);
+        }
+        if (o < (int)sizeof(bt_sleep_html)) {
+            snprintf(bt_sleep_html + o, sizeof(bt_sleep_html) - o, "</select></label><p class=\"hint\">%s</p>",
+                i18n_str("idlepower.bt_sleep_hint",
+                    "Turns the Bluetooth module's radio off (about 7 mA instead of 30) when no phone has "
+                    "been connected that long. Lifting a handset, an incoming VoIP call or Start pairing "
+                    "turns it back on. While it sleeps your phone can't reconnect, so its calls don't "
+                    "ring here. Pros and cons on the <a href=\"/settings?tab=bluetooth\">Bluetooth</a> tab."));
+        }
+    }
+
     off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/idle_power\" class=\"settings-form\">"
         "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
@@ -4970,6 +5035,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "</select></label>"
         "<label><input type=\"checkbox\" name=\"pause_audio\" value=\"1\"%s> %s</label>"
         "<label><input type=\"checkbox\" name=\"cpu_scale\" value=\"1\"%s> %s</label>"
+        "%s"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form>",
         ip.enabled ? " checked" : "", i18n_str("general.offhook.enabled", "Enabled"),
@@ -4984,6 +5050,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         ip.cpu_scale ? " checked" : "",
         i18n_str("idlepower.cpu_scale", "Slow the CPU clock to 80 MHz between tasks (full speed "
                                        "whenever there's work to do)"),
+        bt_sleep_html,
         i18n_str("general.button.save", "Save"));
 
     char idlepower_hint[160], idlepower_more[520];
@@ -7427,6 +7494,10 @@ static esp_err_t idle_power_settings_handler(httpd_req_t *req)
         .pause_audio = (pause_audio[0] == '1'),
         .cpu_scale = (cpu_scale[0] == '1'),
     };
+    char bt_sleep[8] = {0};
+    form_field(body, "bt_sleep_h", bt_sleep, sizeof(bt_sleep));
+    if (bt_sleep[0]) bt_companion_sleep_hours_set((uint8_t)strtoul(bt_sleep, NULL, 10));
+
     esp_err_t err = idle_power_set(cfg);
     if (err != ESP_OK) {
         /* idle_power_set() only ever returns ESP_ERR_INVALID_ARG for a

@@ -67,6 +67,8 @@ typedef struct {
                                                 * background poller's one-time startup query
                                                 * gets a reply -- shown in the web UI so you
                                                 * know which device to pick on a phone */
+    bool    asleep;                           /* BT401 put to sleep by the no-phone timer
+                                                * (radio off until a handset is lifted) */
 } bt_companion_status_t;
 
 /* Starts the UART + background poll task if (and only if) enabled -- see
@@ -148,6 +150,18 @@ esp_err_t bt_companion_make_call(const char *number);
  * PAIRING). ESP_ERR_INVALID_STATE if not enabled or the UART link isn't up
  * (nothing to send it to). */
 esp_err_t bt_companion_start_pairing(void);
+
+/* BT401 sleep timer (Settings -> Hardware -> Low-power idle mode): after this
+ * many hours with no phone connected the module goes to its idle mode, radio
+ * off (~7 mA instead of ~30 mA while searching). 0 = never. Kept in NVS. */
+#define BT_COMPANION_SLEEP_HOURS_DEFAULT 4
+uint8_t   bt_companion_sleep_hours_get(void);
+esp_err_t bt_companion_sleep_hours_set(uint8_t hours);
+/* Wakes a module the sleep timer put to sleep (handset lifted, VoIP call
+ * coming in). Cheap and non-blocking; does nothing if it isn't asleep. */
+void      bt_companion_wake(void);
+/* Bench: sleep the BT401 now, as if the timer had run out (console bt_sleep now). */
+esp_err_t bt_companion_sleep_now(void);
 
 /* Bring-up/diagnostic only (see bringup.c's 'bm64_mmi' console command):
  * sends BM64_MMI_CMD with an arbitrary MMI action code, same

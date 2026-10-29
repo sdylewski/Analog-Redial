@@ -37,6 +37,7 @@ static bool             s_module_restarted; /* power-up burst seen; task-only */
 static bool             s_dac_resync;       /* link/call/music changed: re-send CS; task-only */
 static bool             s_wake_needed;      /* QM said not Bluetooth mode; task-only */
 static TaskHandle_t     s_sleep_task;
+static volatile bool    s_pair_pending;
 
 static int64_t now_us(void) { return esp_timer_get_time(); }
 
@@ -216,6 +217,12 @@ static void bt401_task(void *arg)
             continue;
         }
 
+        if (s_pair_pending && !mode_bt_due) {
+            s_pair_pending = false;
+            send_line(BT401_CMD_DISCOVERABLE, NULL);
+            continue;
+        }
+
         /* The module volunteers status changes, but asking is how a missed
          * one (or a link that dropped silently) is noticed. */
         send_line(BT401_CMD_QUERY_STATUS, NULL);
@@ -250,6 +257,7 @@ esp_err_t bt401_start(bt401_notify_cb cb)
     s_module_restarted = false;
     s_wake_needed = false;
     s_dac_resync = false;
+    s_pair_pending = false;
     if (xTaskCreate(bt401_task, "bt401", 3072, NULL, tskIDLE_PRIORITY + 1, &s_task) != pdPASS) {
         s_task = NULL;
         return ESP_ERR_NO_MEM;
@@ -289,15 +297,17 @@ static void sleep_task(void *arg)
     vTaskDelay(pdMS_TO_TICKS(200));
     send_line(BT401_CMD_RESET, NULL);
     vTaskDelay(pdMS_TO_TICKS(RESET_WAIT_MS));
-    send_line(BT401_CMD_DAC, "00");           /* nothing to play; keep line 0 unloaded */
-    vTaskDelay(pdMS_TO_TICKS(200));
     send_line(BT401_CMD_MODE_IDLE, NULL);
+    vTaskDelay(pdMS_TO_TICKS(300));
+    send_line(BT401_CMD_DAC, "00");           /* nothing to play; keep line 0 unloaded */
     vTaskDelay(pdMS_TO_TICKS(200));
     uart_flush_input(BT_UART);
     ESP_LOGI(TAG, "module in idle mode, radio off");
     s_sleep_task = NULL;
     vTaskDelete(NULL);
 }
+
+void bt401_pair_when_ready(void) { s_pair_pending = true; }
 
 esp_err_t bt401_sleep(void)
 {

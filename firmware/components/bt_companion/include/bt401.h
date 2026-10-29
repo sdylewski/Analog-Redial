@@ -38,6 +38,9 @@ bool      bt401_running(void);
 /* With the task stopped: background Bluetooth off, reset, idle mode (radio
  * off, ~7 mA). Runs in its own short task; bt401_start() brings it back. */
 esp_err_t bt401_sleep(void);
+/* Make the module discoverable as soon as the task has it in Bluetooth mode
+ * (pairing asked for while it was asleep). */
+void      bt401_pair_when_ready(void);
 
 void      bt401_get_status(bt_companion_status_t *out);
 

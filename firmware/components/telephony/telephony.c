@@ -1791,14 +1791,16 @@ static void fsm_task(void *arg)
              * board configured for fewer lines than the array width). */
             if (e.line < 0 || e.line >= NLINES_ACTIVE) continue;
             switch (e.type) {
-                case IN_OFFHOOK:        webhook_event("offhook", e.line, NULL);
+                case IN_OFFHOOK:        bt_companion_wake();   /* Bluetooth asleep: lifting a handset wakes it */
+                                        webhook_event("offhook", e.line, NULL);
                                         callcap_hook(e.line, true);   /* before the dial tone starts */
                                         on_offhook(e.line); break;
                 case IN_ONHOOK:         webhook_event("onhook", e.line, NULL);
                                         callcap_hook(e.line, false);
                                         on_onhook(e.line);  break;
                 case IN_DIGIT:          process_digit(e.line, e.digit); break;
-                case IN_VOIP_INCOMING:  on_voip_incoming(e.line); break;
+                case IN_VOIP_INCOMING:  bt_companion_wake();
+                                        on_voip_incoming(e.line); break;
                 case IN_BT_CALL:        on_bt_call(e.line, (bt_call_state_t)e.digit); break;
                 case IN_VOIP_ANSWERED:
                     if (s_line[e.line].state == TEL_RINGBACK) {

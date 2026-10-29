@@ -2781,6 +2781,25 @@ static int cmd_bt_enable(int argc, char **argv)
     return err == ESP_OK ? 0 : 1;
 }
 
+static int cmd_bt_sleep(int argc, char **argv)
+{
+    if (argc >= 2 && !strcmp(argv[1], "now")) {
+        esp_err_t err = bt_companion_sleep_now();
+        printf("%s\n", err == ESP_OK ? "BT401 going to sleep; lift a handset to wake it"
+                                     : "not possible (needs a BT401, Bluetooth on, not already asleep)");
+        return err == ESP_OK ? 0 : 1;
+    }
+    if (argc >= 2) {
+        esp_err_t err = bt_companion_sleep_hours_set((uint8_t)atoi(argv[1]));
+        if (err != ESP_OK) { printf("hours must be 0-24\n"); return 1; }
+    }
+    bt_companion_status_t st = bt_companion_get_status();
+    printf("sleep after %u h with no phone (0 = never); asleep now: %s\n",
+           (unsigned)bt_companion_sleep_hours_get(), st.asleep ? "yes" : "no");
+    printf("usage: bt_sleep [hours|now]\n");
+    return 0;
+}
+
 /* Compact help: one line per command ("cmd  description"), instead of the
  * built-in esp_console help command's 2-line-plus-blank-line-per-command
  * format. We already have every (command, help) pair at registration time,
@@ -3083,6 +3102,7 @@ void bringup_console_start(void)
     register_cmd("bm64_config", "Check (or 'bm64_config apply' to repair) the BM64 EEPROM bytes needed for analog audio -- handles IBDK entry/exit itself, no bt_enable 0 needed", cmd_bm64_config);
     register_cmd("device_name", "Get/set device name (BT + mDNS): device_name [new_name] -- persists to NVS, takes effect on reboot", cmd_device_name);
     register_cmd("bt_enable", "Get/set bt_companion enabled: bt_enable [0|1]", cmd_bt_enable);
+    register_cmd("bt_sleep", "BT401 sleep timer: bt_sleep [hours 0-24 | now]", cmd_bt_sleep);
     register_cmd("bm64_pair", "Start BT pairing (discoverable mode): bm64_pair -- bt_companion must be enabled and link up", cmd_bm64_pair);
     register_cmd("bm64_mmi", "Send a raw MMI action code: bm64_mmi <hex, e.g. 51> -- bt_companion must be ENABLED (opposite of bm64_test/addr/snoop)", cmd_bm64_mmi);
     register_cmd("bm64_cmd", "Send a real command-set command with hex param bytes (e.g. 23 00 01 03 0F 0F 00 for Set_Overall_Gain): bm64_cmd <hex opcode> [params...] -- bt_companion must be ENABLED, log_level debug to see the reply", cmd_bm64_cmd);
