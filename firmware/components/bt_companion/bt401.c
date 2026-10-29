@@ -34,6 +34,7 @@ static volatile bool    s_stop;
 static bool             s_uart_ready;
 static bt401_notify_cb  s_notify;
 static bool             s_module_restarted; /* power-up burst seen; task-only */
+static bool             s_dac_resync;       /* link/call/music changed: re-send CS; task-only */
 static bool             s_wake_needed;      /* QM said not Bluetooth mode; task-only */
 static TaskHandle_t     s_sleep_task;
 
@@ -125,6 +126,9 @@ static void handle_msg(const bt401_msg_t *m, bt_call_state_t *last_call, char *l
      * (plugged in while the board runs) or resets (AT+CZ). */
     if (m->kind == BT401_MSG_OTHER && !strcmp(m->code, "TR")) s_module_restarted = true;
     if (m->kind == BT401_MSG_MODE && m->num != 1) s_wake_needed = true;
+    /* The module may switch its DAC back on by itself when a phone connects
+     * (dial tone went dim with a phone paired), so re-send it on any change. */
+    if (chg & (BT401_CHG_LINK | BT401_CHG_CALL | BT401_CHG_MUSIC)) s_dac_resync = true;
 
     /* The status poll and the repeated caller number would fill the log;
      * only lines that changed something (or aren't plain replies) go at INFO. */
@@ -193,10 +197,12 @@ static void bt401_task(void *arg)
         portENTER_CRITICAL(&s_lock);
         bool want_dac = s_st.music || s_st.call != BT401_CALL_IDLE;
         portEXIT_CRITICAL(&s_lock);
-        if (want_dac != dac_on && (want_dac || stage >= 4)) {
+        bool resync = s_dac_resync && stage >= 4;
+        if (resync) s_dac_resync = false;
+        if ((want_dac != dac_on || resync) && (want_dac || stage >= 4)) {
             send_line(BT401_CMD_DAC, want_dac ? "01" : "00");
+            if (want_dac != dac_on) ESP_LOGI(TAG, "DAC %s", want_dac ? "on (audio)" : "off (idle)");
             dac_on = want_dac;
-            ESP_LOGI(TAG, "DAC %s", want_dac ? "on (audio)" : "off (idle)");
         }
 
         int64_t now = now_us();
@@ -243,6 +249,7 @@ esp_err_t bt401_start(bt401_notify_cb cb)
     s_stop = false;
     s_module_restarted = false;
     s_wake_needed = false;
+    s_dac_resync = false;
     if (xTaskCreate(bt401_task, "bt401", 3072, NULL, tskIDLE_PRIORITY + 1, &s_task) != pdPASS) {
         s_task = NULL;
         return ESP_ERR_NO_MEM;
