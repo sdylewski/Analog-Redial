@@ -166,6 +166,45 @@ DevKit and measures the real before/after idle draw, update the constants
 in `idle_power.c` (`SLIC_SAVINGS_W_PER_LINE`, `WIFI_SAVINGS_W`) to match
 reality rather than the datasheet estimate.
 
+## Measured on real hardware (2026-10-28)
+
+Board ACEBE6C21C04: SMD5 v5, genuine DevKit, one AG1171, electronic ringer. Total current at the 5 V input,
+except the BT401 rows (the module's own VCC lead at 3.3 V; U5 is a linear regulator, so the same current is drawn
+from 5 V). W = mA x 5 V; kWh/yr assumes the state holds all year (x 8.766).
+
+| State | Current | Power | kWh/yr if constant |
+|---|---|---|---|
+| On-hook, no Bluetooth module | 162 mA | 0.81 W | 7.1 |
+| On-hook, BT401 fitted, no phone (searching) | 187 mA | 0.94 W | 8.2 |
+| On-hook, phone paired (recent activity: awake) | 179 mA | 0.90 W | 7.8 |
+| On-hook, phone paired, left alone (most likely low-power idle) | 133 mA | 0.67 W | 5.8 |
+| On-hook, phone streaming music | 183 mA | 0.92 W | (only while playing) |
+| On-hook, loading a web page | 196 mA | 0.98 W | (seconds) |
+| Ringing (electronic ringer) | 300-302 mA | 1.5 W | (only while ringing) |
+| Off-hook, dial tone | 346-350 mA | 1.7 W | (only while in use) |
+| Off-hook, listening to Bluetooth music | 356 mA | 1.8 W | (only while in use) |
+| BT401 alone: phone connected, idle | 13 mA | 0.065 W | 0.57 |
+| BT401 alone: streaming music | 21 mA | 0.105 W | |
+| BT401 alone: no phone, searching | 30-32 mA | 0.15 W | 1.4 |
+| BT401 alone: idle mode + no background BT (Bluetooth off / asleep) | 7 mA | 0.035 W | 0.31 |
+
+What it says about the low-power modes:
+
+- **Low-power idle is the biggest lever, and it's on by default.** If the 133 mA reading was the board asleep, it
+  saves 46 mA (0.23 W, about 2 kWh/yr). The UI's estimate for one line on the balanced preset is 0.39 W
+  (0.21 W SLIC + 0.18 W Wi-Fi), so the datasheet figures look about 1.7x high. Not yet changed in the firmware:
+  the 133 mA reading needs confirming first (below).
+- **Bluetooth sleep saves 24 mA (0.12 W, about 1 kWh/yr)** while no phone is connected: 31 -> 7 mA. With a phone
+  connected the module draws 13 mA, so sleeping then would save only 6 mA and lose its calls; the timer doesn't.
+- **Music streaming costs almost nothing** (+4 mA at the board, +8 mA at the module): not worth optimizing.
+- **Off-hook (~+170 mA) and ringing (~+120 mA) are the phone itself** (loop feed, ringing voltage): nothing to save
+  there beyond quiet hours.
+
+To confirm the idle split: leave the board alone more than 5 minutes (no page, no handset) and read the meter, then load
+Settings -> Hardware and read it within a few seconds. The page's "Right now" line should say it was woken from
+low-power, which confirms the first reading was the asleep figure. Doing the same on the Max savings preset
+(SLIC on 100 ms of every 1000 instead of every 500) gives the SLIC's share, and the rest is Wi-Fi.
+
 ## Open questions for later
 
 - Real bench measurement of both the savings number and the ~600ms latency
