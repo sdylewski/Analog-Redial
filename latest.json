@@ -1,0 +1,48 @@
+{
+  "version": "v1.1.3",
+  "released": "2026-10-28",
+  "notes": "Bluetooth (BT401): on/off switch and a sleep timer that turns the radio off after 4 hours with no phone (lift a handset to wake it); dial tone no longer dims after the module restarts or a phone connects. Install steps for Windows and Linux.",
+  "base": "https://raw.githubusercontent.com/sdylewski/Analog-Redial/firmware/",
+  "images": {
+    "smd4/16MB": {
+      "file": "v1.1.3/smd4-16MB.bin",
+      "size": 1994816,
+      "sha256": "fd8caca08751ac765eacfee5cdddee6e41bf8d33762e2471b3b05bba813cdb30"
+    },
+    "smd5/16MB": {
+      "file": "v1.1.3/smd5-16MB.bin",
+      "size": 1994384,
+      "sha256": "693aa788c72807c5bf28f10dc36ff5c1abe8a553b8d549d92c3853e5f6a116e8"
+    },
+    "smd5_cheap/16MB": {
+      "file": "v1.1.3/smd5_cheap-16MB.bin",
+      "size": 1994624,
+      "sha256": "e90cbc1961c11ae7434b8e36012ef1ac19d01830b0cad5c8890702c985af873f"
+    },
+    "smd2/16MB": {
+      "file": "v1.1.3/smd2-16MB.bin",
+      "size": 1973744,
+      "sha256": "0807b07f3e4f3007df881b4b7fd13c3f6b931ad7d98b0180faea9d5ffbba5598"
+    },
+    "smd4/8MB": {
+      "file": "v1.1.3/smd4-8MB.bin",
+      "size": 1994816,
+      "sha256": "5d7ef6314cb743603e26731b069d378cbfc2e097f79e56e3a25b0af49c735d50"
+    },
+    "smd5/8MB": {
+      "file": "v1.1.3/smd5-8MB.bin",
+      "size": 1994384,
+      "sha256": "8ccdd1c881377a135af1f8585e059c0e19a1135c6da54d6bcce5fcd7200473e7"
+    },
+    "smd5_cheap/8MB": {
+      "file": "v1.1.3/smd5_cheap-8MB.bin",
+      "size": 1994624,
+      "sha256": "13293820199eb4356030d63dc8943c693bf7ac9cea96442655527655ba67c1c1"
+    },
+    "smd2/8MB": {
+      "file": "v1.1.3/smd2-8MB.bin",
+      "size": 1973744,
+      "sha256": "6f50926b21487882f0752f5a70ad4b80d856bbea21cc8314d6f8d3ac24451d12"
+    }
+  }
+}
