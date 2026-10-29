@@ -1,0 +1,4 @@
+Designator,Val,Package,Mid X,Mid Y,Rotation,Layer
+J1,PINHD_1x8_Female,PinSocket_1x08_P2.54mm_Vertical,141.315,-77.175,-90.0,top
+J2,PINHD_1x4_Male,PinHeader_1x02_P2.54mm_Vertical,148.325,-88.145,0.0,top
+U5,BM64SPKS1MC2-0003AA,BM64_MCH,133.955217,-87.2798,90.0,top

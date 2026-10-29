@@ -107,8 +107,11 @@ Bluetooth/**/*-backups/
 Bluetooth/**/*.kicad_prl
 Bluetooth/**/*.lck
 Bluetooth/**/*.step
-Bluetooth/**/jlcpcb/
-Bluetooth/**/production_files/
+# Fab exports (jlcpcb/) are tracked so anyone can order a board, minus the
+# plugin's cache and the BK3266 files left in the BT401 board's export folder.
+Bluetooth/**/jlcpcb/project.db
+Bluetooth/**/jlcpcb/**/.DS_Store
+Bluetooth/DFR0781_BT401/**/jlcpcb/production_files/*BK3266*
 Bluetooth/**/tmp*.rpt
 Bluetooth/**/_restore_backup_*/
 # BK3266 reference material -- vendor manuals, schematics, the Altium
