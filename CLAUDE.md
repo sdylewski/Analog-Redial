@@ -245,3 +245,6 @@ This is engineering guidance, not telecom safety certification.
 
 - Hardware: SMD4 is the current design — schematic unchanged from SMD3, re-routed as a 2-layer PCB. Fabricated and in use.
 - Firmware: core telephony is mature and tested on earlier SMD-family hardware (hand-soldered SMD2 and SMD4, ES8388 + AG1171), selected via board Kconfig (`CONFIG_BOARD_TYPE_SMD2`/`_SMD4`/`_SMD5`); runtime `codec_detect` warns if the ES8388 doesn't answer.
+## Git commits
+
+Never add Devin/AI attribution to commits: no `Co-Authored-By: Devin` trailer, no "Generated with Devin" line, and never set Devin as author. Commits use the user's own git identity and a plain message. Only commit or push when asked.
