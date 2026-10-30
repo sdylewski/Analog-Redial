@@ -55,7 +55,7 @@ v5.1 and v6 have the fix. The warning stays in README/docs (board.md, bom.md, bu
 hardware-smd5.md): keep it in any doc that describes fitting a clone.
 
 **v6 (SMD6, `hardware/kicad/Analog Redial v6/`) is released (2026-10-24) but untested.** It is v5 with the
-clone 5V-pin footprint fixed, D1 changed from SS14 (1 A) to SS34 (3 A, JLCPCB C8678: the schematic needs that edit, done by the user in KiCad), larger vias (0.8/0.4) on +5V/+3.3V where they fit, teardrops, and silkscreen updates; U5 stays the 3.3 V XC6206P332MR (3.6 V not done).
+clone 5V-pin footprint fixed, D1 changed from SS14 (1 A) to SS34 (3 A, JLCPCB C8678: the schematic needs that edit, done by the user in KiCad), larger vias (0.8/0.4) on +5V/+3.3V where they fit, teardrops, silkscreen updates, and **U5 changed to the 3.6 V XC6206P362MR** (JLCPCB C351446, as in the v6 BOM), so J2 pin 1 is 3.6 V on v6 (3.3 V on v5).
 It adds **J6**, a 5-pin I²C accessory header (+5 V, +3.3 V, SDA, SCL, GND, shared bus with the ES8388). The public docs say it should work but v5 is the tested board (README history table,
 docs/board.md version table and callout, the README in the v6 KiCad folder). Don't describe v6 as
 tested or working until the user has built one and says so. JLCPCB export files for v6 are tracked

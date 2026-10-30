@@ -30,12 +30,12 @@ What it changes from v5:
   board's 4.7 kΩ pull-ups, so give an add-on a different address. For a cable
   of up to about 1 m, run the bus at 100 kHz, not 400 kHz, and twist SDA and
   SCL with ground wires.
+- **U5, the expansion header's (J2's) regulator, is the 3.6 V XC6206P362MR
+  (JLCPCB C351446)** instead of v5's 3.3 V XC6206P332MR, so J2 pin 1 is 3.6 V.
 - Teardrops on pads and vias.
 - Silkscreen updates.
 
-What it does not change: the expansion header's (J2's) regulator is still the 3.3 V
-XC6206P332MR (a 3.6 V part was considered and not done), and the rest of the
-design is v5's.
+What it does not change: the rest of the design is v5's.
 
 Fabrication files: `pcbway_production/` (PCBWay) and `jlcpcb/` (JLCPCB: Gerbers,
 BOM and placement files).
