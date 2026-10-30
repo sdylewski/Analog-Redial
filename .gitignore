@@ -79,6 +79,7 @@ firmware/bringup/*.aiff
 # each), not something to commit
 firmware/bringup/piper_voices/
 firmware/bringup/kokoro_models/
+firmware/bringup/tts_venv/
 
 # IDE
 .idea/

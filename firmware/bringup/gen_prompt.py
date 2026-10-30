@@ -16,9 +16,12 @@ rather skip resampling for some reason.
 Text-to-speech uses Kokoro (preferred: a small open neural model, Apache-2.0, runs
 offline on a laptop; default voice af_sarah) when it can be set up, then Piper (also
 neural; en_GB-jenny_dioco-medium), then espeak-ng, then macOS `say`. Kokoro needs
-`pip install kokoro-onnx soundfile` and about 350 MB of model files, which this script
-downloads into firmware/bringup/kokoro_models/ the first time (skipped with
---no-auto-install). Pass --kokoro-voice to pick another voice (af_*, am_*, bf_*, bm_*).
+`pip install kokoro-onnx soundfile` and about 350 MB of model files. If the Python
+running this script doesn't have Kokoro, the script makes its own virtual environment,
+firmware/bringup/tts_venv/, installs Kokoro and Piper into it and re-runs itself there
+(so a Homebrew or distribution Python that refuses `pip install` is fine), and
+downloads the model into firmware/bringup/kokoro_models/, all the first time only
+(skipped with --no-auto-install). Pass --kokoro-voice to pick another voice (af_*, am_*, bf_*, bm_*).
 
 The paragraphs below describe the Piper path (the fallback). Piper (neural, cross-platform -- the same
 engine pi_rotary_phone's install-piper.sh sets up there, since that's been
@@ -112,6 +115,10 @@ PIPER_VOICES_DIR = Path(__file__).resolve().parent / "piper_voices"
 DEFAULT_KOKORO_VOICE = "af_sarah"
 KOKORO_DIR = Path(__file__).resolve().parent / "kokoro_models"
 KOKORO_FILES = ("kokoro-v1.0.onnx", "voices-v1.0.bin")
+# Kokoro and Piper are installed here rather than into the Python running the
+# script: Homebrew's and most Linux distributions' Pythons refuse a plain
+# `pip install` (PEP 668, "externally-managed-environment").
+TTS_VENV_DIR = Path(__file__).resolve().parent / "tts_venv"
 KOKORO_BASE_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0"
 
 # en_GB-jenny_dioco-medium -- one of Piper's more natural-sounding voices
@@ -188,6 +195,43 @@ def _ensure_piper_cli(auto_install: bool) -> str | None:
         return None
     return _which("piper")
 
+
+
+def _use_tts_venv(engine: str, auto_install: bool) -> None:
+    """If Kokoro isn't importable here, re-run this script with the Python in
+    tts_venv/, creating it (and installing Kokoro and Piper into it) the first
+    time. Returns only when that isn't needed or can't be done; the engines
+    then fall back as before."""
+    if engine not in ("auto", "kokoro", "piper") or os.environ.get("REDIAL_TTS_VENV"):
+        return
+    try:
+        import kokoro_onnx  # noqa: F401
+        import soundfile  # noqa: F401
+        return
+    except ImportError:
+        pass
+    if engine == "piper" and _which("piper"):
+        return
+    bin_dir = TTS_VENV_DIR / ("Scripts" if os.name == "nt" else "bin")
+    py = bin_dir / ("python.exe" if os.name == "nt" else "python")
+    if not py.exists():
+        if not auto_install:
+            return
+        print(f"setting up Kokoro and Piper in {TTS_VENV_DIR} (one time, a few minutes)...")
+        try:
+            subprocess.run([sys.executable, "-m", "venv", str(TTS_VENV_DIR)], check=True)
+            subprocess.run([str(py), "-m", "pip", "install", "-q", "kokoro-onnx", "soundfile", "piper-tts"],
+                           check=True)
+        except (subprocess.CalledProcessError, OSError) as e:
+            print(f"warning: couldn't set up {TTS_VENV_DIR} ({e})", file=sys.stderr)
+            shutil.rmtree(TTS_VENV_DIR, ignore_errors=True)
+            return
+    os.environ["REDIAL_TTS_VENV"] = "1"
+    os.environ["PATH"] = str(bin_dir) + os.pathsep + os.environ.get("PATH", "")   # so `piper` is found
+    script = str(Path(__file__).resolve())
+    if os.name == "nt":   # execv on Windows doesn't keep the console attached cleanly
+        raise SystemExit(subprocess.call([str(py), script, *sys.argv[1:]]))
+    os.execv(str(py), [str(py), script, *sys.argv[1:]])
 
 
 _KOKORO = None
@@ -591,6 +635,8 @@ def main() -> None:
     global _web_password
     if args.password:
         _web_password = args.password
+    if args.sync or not args.from_file:
+        _use_tts_venv(args.engine, auto_install)
 
     if args.sync:
         sync_prompts(args.sync, args.secret, args.engine, args.piper_model,
