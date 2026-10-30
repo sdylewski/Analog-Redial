@@ -6,6 +6,10 @@ analysis). **Nothing here is built or simulated.** Values marked **[verify]**
 come from distributor listings or my memory of a datasheet, not from the
 manufacturer's datasheet; check them before ordering.
 
+**Start here for wiring:** [output-stage-wiring.md](output-stage-wiring.md)
+(relay driver, polarity relay, firing switch: pin-by-pin tables against the
+Payphone_v1 schematic). **THT vs. SMT parts:** [coin-board-smt.md](coin-board-smt.md).
+
 One board that (1) fires the HD550002C coin relay in either direction from
 a high-voltage supply made on the board, (2) reads the coin sensor's
 5 / 10 / 25 cent lines, and (3) talks to Analog Redial over I2C. It needs
@@ -479,6 +483,10 @@ boost and are not listed here.
 
 ## 6. Firing and polarity
 
+**Superseded for wiring by [output-stage-wiring.md](output-stage-wiring.md)**,
+which has the K1 pin numbers, the gate drive with Q4/Q6 and the parts to add.
+The outline below is the original concept.
+
 ```
  K1 set 1:  COM1 -> J2.A (white)   NC1 -> HV+      NO1 -> RETURN
  K1 set 2:  COM2 -> J2.B (green)   NC2 -> RETURN   NO2 -> HV+
@@ -851,6 +859,10 @@ for the UC3843A UVLO, gate clamping and the Q3 level-shifter are in sections
 | J2 | 3-pin KK 396 header | Molex **0026604030** | WM4621-ND | $0.35 (10: $0.30) | 26,865 in stock |
 | J3 | 4-pin KK 396 header | Molex **0026604040** | WM4622-ND | $0.44 (10: $0.38) | 57,598 in stock |
 | J1 | 5-pin header, 2.54 mm | generic 1 x 5 | | | mates with the v6 J6 |
+| Q6 | gate-drive PNP, TO-92 | **2N3906** | | | NEW for the firing switch (output-stage-wiring.md, block C) |
+| R19-R24 | 1k, 1k, 4.7k, 10k, 1k, 10k | 1/4 W axial | | | NEW, output stage |
+| R25 | 10 ohm, 1/2 W | axial | | | NEW, fire current sense |
+| (debug) | ADS1115 ADC module | **AliExpress, about $1.90** ([listing](https://www.aliexpress.us/item/2251832488241448.html)) | | | optional, on a 1 x 10 header; bring-up boards only |
 
 The listed parts come to about **$19.50** at qty 1, with a pair of
 IRF630s for Qa and Q3 ($4.86) the biggest single item after the relay ($4.52), the
