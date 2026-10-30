@@ -8813,7 +8813,7 @@
 				)
 			)
 		)
-		(property "Value" "UC3843AN"
+		(property "Value" "UC3843BNG"
 			(at 85.09 105.41 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9000,7 +9000,7 @@
 				)
 			)
 		)
-		(property "Value" "33k"
+		(property "Value" "56k"
 			(at 55.88 177.546 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9454,7 +9454,7 @@
 				)
 			)
 		)
-		(property "Value" "33k"
+		(property "Value" "10k"
 			(at 55.88 182.626 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10482,7 +10482,7 @@
 		)
 	)
 	(symbol
-		(lib_id "power:+5V")
+		(lib_id "power:+3V3")
 		(at 81.28 166.37 0)
 		(unit 1)
 		(body_style 1)
@@ -10504,7 +10504,7 @@
 				)
 			)
 		)
-		(property "Value" "+5V"
+		(property "Value" "+3V3"
 			(at 81.28 161.29 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10536,7 +10536,7 @@
 				)
 			)
 		)
-		(property "Description" "Power symbol creates a global label with name \"+5V\""
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
 			(at 81.28 166.37 0)
 			(hide yes)
 			(show_name no)
@@ -17455,7 +17455,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
 		(at 110.49 162.56 90)
 		(unit 1)
@@ -17544,7 +17545,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
 		(at 128.27 162.56 90)
 		(unit 1)
@@ -17633,7 +17635,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
 		(at 146.05 162.56 90)
 		(unit 1)
@@ -17722,7 +17725,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
 		(at 163.83 162.56 90)
 		(unit 1)
@@ -17811,7 +17815,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
 		(at 110.49 180.34 90)
 		(unit 1)
@@ -17900,7 +17905,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
 		(at 128.27 180.34 90)
 		(unit 1)
@@ -17989,7 +17995,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
 		(at 146.05 180.34 90)
 		(unit 1)
@@ -18078,7 +18085,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "Device:C_Small")
 		(at 163.83 180.34 0)
 		(unit 1)
@@ -18158,7 +18166,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "power:+5V")
 		(at 245.11 118.11 270)
 		(unit 1)
@@ -18236,7 +18245,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "power:+5V")
 		(at 254 96.52 0)
 		(unit 1)
@@ -18314,7 +18324,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 200.66 115.57 270)
 		(unit 1)
@@ -18391,7 +18402,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 229.87 161.29 0)
 		(unit 1)
@@ -18468,7 +18480,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 269.24 151.13 90)
 		(unit 1)
@@ -18545,7 +18558,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 128.27 177.8 180)
 		(unit 1)
@@ -18622,7 +18636,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 146.05 177.8 180)
 		(unit 1)
@@ -18699,7 +18714,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "power:+3V3")
 		(at 163.83 177.8 0)
 		(unit 1)
@@ -18775,7 +18791,8 @@
 				)
 			)
 		)
-	)	(symbol
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 163.83 182.88 0)
 		(unit 1)
@@ -18852,7 +18869,8 @@
 				)
 			)
 		)
-	)	(label "HV"
+	)
+	(label "HV"
 		(at 245.11 125.73 0)
 		(effects
 			(font
@@ -19245,6 +19263,320 @@
 	(no_connect
 		(at 269.24 125.73)
 		(uuid "5f23beab-0ade-4d71-ad04-d71475bdbb87")
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 91.44 184.15 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "d9dd14e6-139c-4649-89d7-a4293b8dd152")
+		(property "Reference" "#PWR036"
+			(at 91.44 190.5 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 91.44 189.23 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 91.44 184.15 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 91.44 184.15 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 91.44 184.15 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "42bb7a3f-92be-4977-8e5a-142d149283c4")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "#PWR036")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 176.53 180.34 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "4d1851fd-8103-4567-b33c-a0444ce986f4")
+		(property "Reference" "C17"
+			(at 171.196 179.07 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "0.1uF"
+			(at 168.148 181.864 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
+			(at 176.53 180.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 176.53 180.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor, small symbol"
+			(at 176.53 170.18 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "f3ced5b3-ba75-4190-959c-e69c83c5e75c")
+		)
+		(pin "1"
+			(uuid "560da316-427f-44eb-9743-1e717662f86b")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "C17")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3V3")
+		(at 176.53 177.8 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "ff56f839-87af-4843-8fff-e5576707f154")
+		(property "Reference" "#PWR037"
+			(at 176.53 181.61 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 179.578 176.022 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 176.53 177.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 176.53 177.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 176.53 177.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "7f5d7a86-fa2b-4dbf-8882-b7533aed5a44")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "#PWR037")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 176.53 182.88 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "8a7b7f0c-de16-4b6b-84cd-c4c0eff1ef38")
+		(property "Reference" "#PWR038"
+			(at 176.53 189.23 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 176.53 187.96 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 176.53 182.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 176.53 182.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 176.53 182.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "5cfedc50-e6c4-4cc0-aadc-6338bd18b91d")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "#PWR038")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(sheet_instances
 		(path "/"

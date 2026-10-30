@@ -23,36 +23,70 @@ part pages don't say Basic or Extended, so check each in the BOM upload.
 - The two DIP-8 chips keep their pinout in SOIC-8, so their values and
   wiring stay exactly the same.
 
-## BOM: THT (v1) and SMT
+## BOM: THT (v1) vs SMT, with prices
 
-| Ref | Function | **THT (v1, DigiKey)** | **SMT option** | SMT package | JLCPCB | Notes |
-|---|---|---|---|---|---|---|
-| U1 | I2C I/O expander | MCP23008-E/P, DIP-18 ($1.54) | MCP23008-E/SO | SOIC-18 | Extended (verify) | same symbol family (`MCP23008-xSO`) |
-| U2 | stage 1, 5 V to 20 V | MC34063AP1G, DIP-8 ($1.98) | MC34063A in SOIC-8 (e.g. MC34063ADR) | SOIC-8 | Extended (verify) | same pinout, same R/C values; `MC34063AD` symbol |
-| U3 | stage 2, 20 V to HV | UC3843AN, DIP-8 ($0.34) | UC3843 in SOIC-8 (e.g. UC3843BD1R2G) | SOIC-8 | Extended (verify) | `UC3843_SOIC8` symbol, same pins |
-| Qa | stage 2 switch, 200 V | IRF630PBF, TO-220 ($2.43) | keep the TO-220, or a 200 V DPAK (IRFR220N class) | TO-220 / DPAK | Extended | peak currents near 1 A: a SOT-223 (1 A) part is too small here |
-| Q3 | fire switch, 200 V | IRF630PBF, TO-220 ($2.43) | **STN4NF20L** | SOT-223 | Extended | 1 A, 200 V; the 12 V gate drive (block C) removes its 3 V-threshold problem |
-| Q2, Q4, Q5 | small N-FETs | 2N7000, TO-92 | **2N7002** | SOT-23 | C8545 (Basic, verify) | **swap the symbol** (pin order) |
-| Q6 | gate-drive PNP | 2N3906, TO-92 | **MMBT3906** | SOT-23 | C2940 (Basic, verify) | swap the symbol |
-| (Q2 alt.) | relay driver NPN | 2N3904, TO-92 | MMBT3904 | SOT-23 | C20526 (Basic, verify) | only if the 2N7000 is marginal |
-| D1 | stage 1 Schottky | 1N5819, DO-41 | **SS34** (40 V 3 A) | SMA | C8678 (already used on v6) | |
-| D2 | stage 2 ultrafast, 200 V | UF4003, DO-41 | ES1D / ES2D (200 V) | SMA | Extended (verify) | |
-| D3 | HV clamp | 1.5KE150A, DO-201 (128 V standoff) | **SMBJ130A** (130 V standoff) | SMB | Extended | **SMBJ numbers are the standoff, 1.5KE numbers the breakdown**: SMBJ150A would be 150 V standoff, a different part from 1.5KE150A |
-| D4 | relay flyback | 1N4148, DO-35 | 1N4148W | SOD-123 | C81598 (already used on v6) | |
-| D6, Dz | gate zeners 12 V, 15 V | 1N4742A, 1N4744A, DO-41 | BZT52C12, BZT52C15 | SOD-123 | (verify) | |
-| C1 | HV storage 220 uF / 200 V | Nichicon UCS2D221MHD ($3.08) | **stays through-hole** | radial 18 mm | hand-solder | no practical SMD part at 200 V / 220 uF |
-| C7, C9, C14, C15 | 20 V rail bulk, 22 uF | 22 uF 35 V electrolytic | 22 uF **50 V** 1206 MLCC, or 2 x 10 uF 50 V 1206 | 1206 | Extended (verify) | see "22 uF at 20 V" below |
-| C5 | 5 V input bulk, 22 uF | electrolytic | 22 uF 25 V 0805 X5R | 0805 | **C45783** (Basic, verify) | fine at 5 V |
-| L1 | stage 1, 100 uH, 2 A+ | radial (to choose) | SMD power inductor (e.g. 12 x 12 mm class) | SMD | Extended | pick Isat >= 2 A |
-| L2 | stage 2, 220 uH, 1 A | Bourns RLB9012-221KL ($0.66) | SMD power inductor, 220 uH, Isat >= 1 A | SMD | Extended | |
-| K1 | DPDT relay | Omron G6S-2-DC5 ($4.52) | G6S-2F (SMD version) or keep THT | SMD / THT | Extended | 220 VDC contacts either way |
-| R11 | stage 1 current sense 0.33 ohm, 1/2 W | axial | 1206 or 2010, 1/2 W | 1206 | (verify) | |
-| Rcs | stage 2 current sense 2 ohm, 1 W | axial | 2512, 1 W | 2512 | (verify) | |
-| R25 | fire current sense 10 ohm, 1/2 W | axial | 1206, 1/4-1/2 W | 1206 | (verify) | |
-| Rbleed, Rfbt, ADC divider | HV resistor chains | axial 1/4 W | **1206** (or 0805, see below) | 1206 | Basic values exist (verify) | 3 in series so each sees under 45 V |
-| RV1 | trimmer | Bourns 3296W | keep THT, or SMD 3314J | | Extended | |
-| J1, J2, J3, J6-J9 | connectors, jumpers | JST EH, Molex KK 396 (WM4621-ND, WM4622-ND), pin headers | stay through-hole | THT | hand-solder / JLC THT | |
-| (debug) | ADS1115 ADC | **ADS1115 module, AliExpress, about $1.90** ([listing](https://www.aliexpress.us/item/2251832488241448.html)) on a 1 x 10 header | ADS1115IDGSR (VSSOP-10, $5.28) or MCP3221 (SOT-23-5, $1.91, 1 channel) | | | optional; fit only on bring-up boards |
+DigiKey qty-1 prices looked up 2026-10-30 (the cheapest active listing
+shown; quantity breaks drop most of them). LCSC/JLCPCB prices weren't
+readable from their pages, but LCSC is usually at or below DigiKey for these.
+"Basic"/"Extended" is my expectation, not confirmed (JLCPCB's pages don't
+show it): check in the BOM upload.
+
+| Ref | Function | **THT part** | THT $ | **SMT part** | SMT $ | JLCPCB | Recommendation (5-board order) |
+|---|---|---|---:|---|---:|---|---|
+| U1 | I2C I/O expander | MCP23008-E/P, DIP-18 | 1.54 | MCP23008-E/SO, SOIC-18 | 1.37 | Extended | hand-solder (SOIC is easy) |
+| U2 | stage 1, 5 V to 20 V | MC34063AP1G, DIP-8 | 1.98 | MC34063ADR2G, SOIC-8 | 0.77 | Extended | hand-solder |
+| U3 | stage 2 controller | **UC3843BNG**, DIP-8 | **1.87** | UC3843BD1R2G, SOIC-8 | 0.71 | Extended | hand-solder. **Only 56 in stock** at DigiKey for the SOIC; 33-week lead time |
+| Qa | stage 2 switch, 200 V | IRF630PBF, TO-220 | 2.43 | keep TO-220 (or a 200 V DPAK) | 2.43 | n/a | hand-solder, through-hole |
+| Q3 | fire switch, 200 V | IRF630PBF, TO-220 | 2.43 | STN4NF20L, SOT-223 | 1.02 | Extended | hand-solder |
+| Q2, Q4, Q5 | small N-FETs (x3) | 2N7000, TO-92 | 0.29 | 2N7002, SOT-23 | 0.02-0.26 | Basic (C8545, verify) | **JLCPCB places** (3 per board, no fee) |
+| Q6 | gate-drive PNP | 2N3906, TO-92 | 0.28 | MMBT3906, SOT-23 | 0.15 | Basic (verify) | **JLCPCB places** |
+| D1 | stage 1 Schottky | 1N5819, DO-41 | 0.32 | SS34, SMA | 0.22 | Basic (C8678, on v6) | **JLCPCB places** |
+| D2 | stage 2 ultrafast | UF4003, DO-41 | 0.64 | ES2D, SMA | 0.40 | Extended | hand-solder |
+| D3 | HV clamp | 1.5KE150A, DO-201 | 0.19 | SMBJ130A, SMB | 0.51 | Extended | hand-solder (or keep the 1.5KE through-hole) |
+| D4 | relay flyback | 1N4148, DO-35 | ~0.10 | 1N4148W, SOD-123 | ~0.05 | Basic (C81598, on v6) | **JLCPCB places** |
+| D6, Dz | gate zeners 12 V, 15 V | 1N4742A / 1N4744A, DO-41 | 0.05-0.28 | BZT52C12 / C15, SOD-123 | 0.01-0.14 | likely Basic (verify) | **JLCPCB places** if Basic, else hand-solder |
+| C1 | 220 uF / 200 V | UCS2D221MHD, radial | 3.08 | (none) | | n/a | through-hole on both boards |
+| L1 | 100 uH, 2 A | radial (to choose) | ~1 | Bourns SRR1260-101M class, 12 x 12 mm | ~1.05 (est.) | Extended | hand-solder |
+| L2 | 220 uH, 1 A | RLB9012-221KL | 0.66 | Bourns SRR1260-221K / Murata 48221SC | 1.05 / 1.14 | Extended | hand-solder |
+| K1 | DPDT relay | G6S-2-DC5 | 4.52 | G6S-2F-DC5 | 5.08 | Extended | keep through-hole (cheaper, sturdier) |
+| R, C | 0805 resistors/caps | axial / disc | | 0805 | | Basic for common values | **JLCPCB places** |
+| R11, Rcs, R26 | power resistors | axial | | 1206 / 2512 | | check | Basic values exist for some |
+| C7, C9, C14, C15 | 20 V rail bulk | 22 uF 35 V electrolytic | | 22 uF 50 V 1206 or 2 x 10 uF 50 V 1206 | not found / ~0.3 | Extended (verify) | hand-solder, or keep SMD electrolytics |
+| J1-J3, J6-J9, RV1 | connectors, trimmer | | | stay through-hole | | n/a | hand-solder |
+| U4 | ADS1115 (debug only) | AliExpress module, ~1.90 ([listing](https://www.aliexpress.us/item/2251832488241448.html)) | 1.90 | ADS1115IDGSR, VSSOP-10 | 5.28 | Extended | leave unfitted; module for bring-up |
+
+**Per board, the semiconductors** (U1-U3, Q2-Q6, D1-D6) come to about
+**$11 through-hole vs. about $5 SMT** at these prices.
+
+### Is the $3 Extended fee worth it?
+
+The fee is **per unique Extended part, per order**, not per board, so it
+shrinks with order size:
+
+| Boards in the order | Fee per Extended part, per board |
+|---:|---:|
+| 5 | $0.60 |
+| 10 | $0.30 |
+| 30 | $0.10 |
+
+With about 8 Extended parts here (U1, U2, U3, Q3, D2, D3, L1, L2), that's
+**$24 per order**: $4.80 a board at 5 boards, $0.80 at 30.
+
+**Recommendation**
+
+- **First SMT order (5 boards): JLCPCB places only Basic parts**, which are free
+  to place: the 2N7002s, MMBT3906, SS34, 1N4148W, zeners, and the 0805 R/C.
+  You hand-solder the Extended ones. They're all easy packages (SOIC-8/18,
+  SOT-223, SMA, SMB, 12 mm inductors), only one of each per board, and
+  hand-soldering them saves about $24 an order, nearly the whole saving from
+  going SMT.
+- **30 boards or more: let JLCPCB place everything SMT.** The fees drop to
+  about $0.80 a board, less than your time.
+- **Through-hole on every version:** C1, K1, Qa (TO-220), the connectors
+  and jumpers, RV1. JLCPCB's through-hole service costs extra too, and
+  these solder in a minute.
+- Buy the hand-solder parts from LCSC in the same order (they ship with the
+  boards) or from DigiKey.
 
 ## Will small resistors and capacitors stand the voltage?
 

@@ -243,7 +243,7 @@ bottom leg of the feedback divider**:
   U3's UVLO and hiccup. If so, soften U3's start (a larger Rcs for a lower
   peak current, or a soft start (Css/Rss). Rcs is already sized in stage 2 below to keep the draw near stage 1's capacity).
 
-### Stage 2: 20 V to 52-119 V, U3 = UC3843AN (DIP-8) + Qa = IRF630 (TO-220)
+### Stage 2: 20 V to 52-119 V, U3 = UC3843BNG (DIP-8) + Qa = IRF630 (TO-220)
 
 The highest setting is 119 V (J7-J9 all fitted). The sizing below uses 130 V
 where it gives the worst case, as a margin.
@@ -302,7 +302,7 @@ boost and are not listed here.
 | **— OPTIONAL —** | | | |
 | Css, Rss | Soft start (on COMP pin) | **omit unless needed** | Add only if stage 2 loads the 20 V rail too hard at start-up |
 
-**U3 pin connections (UC3843AN, DIP-8, boost topology):**
+**U3 pin connections (UC3843BNG, DIP-8, boost topology):**
 
 | Pin | Name | Net / connection |
 |---|---|---|
@@ -652,7 +652,7 @@ small-capacitor links are DigiKey searches on the exact maker part number
 |---|---|---|---|---|
 | U1 | I/O expander | **MCP23008-E/P** (DIP-18) | [MCP23008-E/P](https://www.digikey.com/en/products/result?keywords=MCP23008-E/P) | address 0x20, A0-A2 to GND |
 | U2 | 5 V to 20 V boost | **MC34063AP1G** (DIP-8) | [MC34063AP1G](https://www.digikey.com/en/products/result?keywords=MC34063AP1G) | 1.25 V ref |
-| U3 | boost controller | **UC3843AN** (DIP-8) | [UC3843AN](https://www.digikey.com/en/products/detail/onsemi/UC3843AN/610126) | E/A reference 2.5 V, VREF pin 5 V; runs from the +20 V rail |
+| U3 | boost controller | **UC3843BNG** (DIP-8; onsemi's UC3843AN is obsolete, TI's UC3843AN is an equal) | [UC3843BNG](https://www.digikey.com/en/products/result?keywords=UC3843BNG) | E/A reference 2.5 V, VREF pin 5 V; runs from the +20 V rail |
 | Qa | stage-2 switch, 200 V N-FET | **IRF630PBF** (TO-220) | [IRF630PBF](https://www.digikey.com/en/products/detail/vishay-siliconix/IRF630PBF/812782) | gate clamped with Dz |
 | Q3 | firing FET, 200 V N-FET | **IRF630PBF** (TO-220) | [IRF630PBF](https://www.digikey.com/en/products/detail/vishay-siliconix/IRF630PBF/812782) | gate from the +20 V rail through the level shifter, clamped with D6 |
 | Q2, Q4, Q5, Q6 | small N-FET | **2N7000** (TO-92) | [2N7000](https://www.digikey.com/en/products/detail/stmicroelectronics/2N7000/654416) | Q2 relay driver, Q5 HV enable, Q4 + Q6 level shifter (Q6 not placed yet) |
@@ -846,7 +846,7 @@ for the UC3843A UVLO, gate clamping and the Q3 level-shifter are in sections
 |---|---|---|---|---|---|
 | U1 | MCP23008 I/O expander, DIP-18 | Microchip **MCP23008-E/P** | MCP23008-E/P-ND | $1.54 (qty 100 $1.24) | 4,996 in stock, active |
 | U2 | stage 1 controller, DIP-8 | onsemi **MC34063AP1G** | MC34063AP1GOS-ND | $1.98 | 6,945 in stock. Cheaper: KA34063A, $0.40 |
-| U3 | stage 2 controller, DIP-8 | onsemi **UC3843AN** ([link](https://www.digikey.com/en/products/detail/onsemi/UC3843AN/610126)) | (see link) | $0.34 | the listing's description reads "buck", so **verify** it is the UC3843A you expect; TI's UC3843AN is $1.79 |
+| U3 | stage 2 controller, DIP-8 | onsemi **UC3843BNG** | UC3843BNGOS-ND | $1.87 | 753 in stock, active (2026-10-30). The onsemi UC3843AN is obsolete. TI's UC3843AN ($1.79, 6,770 in stock) is the same chip. **Not the UC3842BNG**: same pins, but it starts at about 16 V and stops at 10 V, too close to the 20 V rail |
 | Qa, Q3 | 200 V N-FET, TO-220 | Vishay **IRF630PBF** ([link](https://www.digikey.com/en/products/detail/vishay-siliconix/IRF630PBF/812782)) | (see link) | $2.43 each | 200 V, 9 A from memory: **verify**. Needs a heatsink only if it ever runs continuous |
 | Q2, Q4, Q5, Q6 | small N-FET, TO-92 | **2N7000** (e.g. [STMicro](https://www.digikey.com/en/products/detail/stmicroelectronics/2N7000/654416)) | (see link) | $0.06-$0.66 | relay driver, HV enable and the level shifter |
 | K1 | DPDT relay, 5 V coil, through-hole | Omron (Aratas) **G6S-2-DC5** ([link](https://www.digikey.com/en/products/detail/aratas-formerly-omron-components/G6S-2-DC5/333982)) | (see link) | $4.52 | **250 VAC / 220 VDC switching** per the listing; 11,369 in stock |
@@ -896,7 +896,7 @@ resolve in KiCad as long as the standard libraries are loaded.
 |---|---|---|
 | U1 MCP23008-E/P | `Interface_Expansion:MCP23008-xP` | `Package_DIP:DIP-18_W7.62mm` |
 | U2 MC34063AP1G | `Regulator_Switching:MC34063AP` | `Package_DIP:DIP-8_W7.62mm` |
-| U3 UC3843AN | **`Custom:UC3843AN`** (stock name: `Regulator_Controller:UC3843_DIP8`) | `Package_DIP:DIP-8_W7.62mm` |
+| U3 UC3843BNG | **`Custom:UC3843AN`** (any UC3843 DIP-8; stock name: `Regulator_Controller:UC3843_DIP8`) | `Package_DIP:DIP-8_W7.62mm` |
 | Qa, Q3 IRF630 | **`Custom:IRF630`** | `Package_TO_SOT_THT:TO-220-3_Vertical` |
 | Q2, Q4, Q5, Q6 2N7000 | `Transistor_FET:2N7000` | `Package_TO_SOT_THT:TO-92_Inline` (check pin order against the part) |
 | K1 G6S-2-DC5 | `Relay:G6S-2` | `Relay_THT:Relay_DPDT_Omron_G6S-2` |
