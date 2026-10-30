@@ -77,7 +77,7 @@ static const entry_t TABLE[] = {
      * behavior as when this used to be #if CONFIG_BOARD_NUM_LINES > 1. */
     { "314", ACT_PI_DIGITS, 0, 0, "Read pi aloud (first 100 decimals)", true },
     /* 846 spells TIM on the keypad. */
-    { "846", ACT_TIMER, 0, 0, "Timer: say how many minutes (1-99, 0 cancels); the phone rings when it's up", true },
+    { "846", ACT_TIMER, 0, 0, "Timer: say how many minutes (1-99, a single 0 cancels); the phone rings when it's up", true },
     /* 256 spells ALM. */
     { "256", ACT_ALARM, 0, 0, "Alarm: dial the time as four digits on a 24 hour clock (0730 = 7:30 am; 99 cancels); the phone rings then", true },
     { "321", ACT_CALL_LINE, -1, FX_NORMAL, "Call other phone (normal voice)", true },

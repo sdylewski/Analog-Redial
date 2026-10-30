@@ -1009,7 +1009,8 @@ void telephony_check_clip_files(void)
 /* ---- dial action dispatch ---- */
 /* ---- timer (dial 846) ---------------------------------------------------- */
 #define TIMER_FIRST_DIGIT_WAIT_US  (10LL * 1000000)  /* after the prompt, for the first digit */
-#define TIMER_SECOND_DIGIT_WAIT_MS 3000              /* wait this long for a second digit (not the 15 s dial-plan timeout) */
+#define TIMER_SECOND_DIGIT_WAIT_MS 4000              /* wait this long for a second digit (not the 15 s dial-plan timeout);
+                                                        a rotary 0 takes about 3 s to wind and pulse back */
 #define TIMER_HANGUP_GRACE_MS      3000              /* after the minutes are accepted, before the line hangs up on the caller */
 #define TIMER_RING_SECS            6
 #define TIMER_RING_ROUNDS          4                 /* rings before it gives up */
@@ -1261,9 +1262,11 @@ static void timer_tick(int line, int64_t now)
                 activity_log("Line %d: alarm: no time entered", line);
                 play_transient(line, TONE_REORDER, 1500, TEL_REORDER, TEL_DIALTONE);
             }
-        } else if (s_line[line].timer_n == 1 &&
+        } else if (s_line[line].timer_n == 1 && !ag1170_is_counting_digit(line) &&
             (now - s_line[line].last_digit_us) / 1000 >= TIMER_SECOND_DIGIT_WAIT_MS) {
-            timer_accept(line, 0);   /* one digit is enough (1-9 minutes), and the 3 s of waiting has passed */
+            /* One digit is enough (1-9 minutes) once the wait has passed and the
+             * dial isn't pulsing out a second one. */
+            timer_accept(line, 0);
         } else if (s_line[line].timer_n == 0 && s_line[line].timer_wait_until_us &&
                    now >= s_line[line].timer_wait_until_us) {
             s_line[line].timer_wait_until_us = 0;
