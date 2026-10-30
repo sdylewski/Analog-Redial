@@ -35,7 +35,7 @@ only **5 V, 3.3 V, GND, SDA, SCL** from the main board.
 | **J1** | 5 x 2.54 mm; mates with the main board's **v6 J6** | **1 +5 V, 2 +3.3 V, 3 SDA, 4 SCL, 5 GND**, the same order as J6, so a straight 1:1 cable |
 | **J2** | **Molex KK 396, 3-pin header, 0026604030** | the relay's plug: A = white, B = green, red unconnected (so the original plug fits). **Check its voltage rating against 130 V** |
 | **J3** | **Molex KK 396, 4-pin header, 0026604040** | coin sensor. **The sensor has 5 wires but this is a 4-pin plug: identify which wires are used**; if five are needed, a 5-pin KK (26-60-4050) is the next size. Intended use: +V, GND, NICKEL, DIME, QUARTER. **The sensor's 5 wires (white, blue, red, green, white) are not yet identified**; measure it first (patent says supply 3-9 V and three open-collector outputs) |
-| **J7-J10** | four 2-pin headers, **HV profile select** | fit one jumper to choose the output voltage (section 5); always fit one, since the divider is also Cout's bleed |
+| **J7-J9** | three 2-pin headers, **HV profile select** | no jumper = 52 V; fit one to raise it (section 5). Fit at most one |
 | **J5** | 1 x 4 | GP3, GP7 (spare I/O), 3V3, GND |
 | JP1 | solder jumper | sensor supply: +5 V (default) or an external supply on J3 |
 
@@ -223,7 +223,7 @@ bottom leg of the feedback divider**:
   firmware asks for it, and Cout (3.7 J at 130 V) is drained by the divider
   within a few minutes of HV_EN dropping. Always-on means a charged 130 V
   capacitor in the phone around the clock.
-- **Latency is small.** The phone works at about 50-60 V (J9 or J10),
+- **Latency is small.** The phone works at about 50-60 V (no jumper, or J9),
   which stores only about 0.3-0.5 J: stage 1 starts in tens of ms and stage 2
   reaches target in **well under 1 s** (even the 130 V profile is a few
   seconds). A coin return or collect happens when a call ends, so waiting about
@@ -282,7 +282,7 @@ boost and are not listed here.
 | Ct | Timing capacitor (RT/CT pin 4 to GND) | **2.2 nF** | fOSC = 65 kHz. Never below ~1000 pF |
 | **— FEEDBACK —** | | | |
 | Rfbt1-3 | FB divider top (HV+ to VFB pin 2) | **3 x 100 k in series** (300 k) | Each resistor sees up to about 41 V, inside an 0603's 50-75 V rating. The divider is also the bleed for Cout (see Rbleed) |
-| Rfbb1-4 | FB divider bottom (VFB pin 2 to GND), selected by jumpers J7-J10 | **6.2 k / 8.2 k / 10 k / 15 k** | Vout = 2.5 x (1 + Rfbt / Rfbb); all E24 values |
+| Rfbb1-4 | FB divider bottom (VFB pin 2 to GND) | **Rfbb4 15 k always fitted**; Rfbb3 100 k, Rfbb2 30 k, Rfbb1 11 k added in parallel by J9 / J8 / J7 | Vout = 2.5 x (1 + Rfbt / Rfbb), Rfbb being the parallel total; all E24 values. Table in section 5 |
 | Rz | Compensation resistor (COMP pin 1 to VFB pin 2, in series with Cz) | **1 M** | Sets the mid-band gain Rz / Rfbt = 3.3, so the crossover is about 50 Hz at 60 V and full current (working under Sizing) **[verify]** |
 | Cz | Compensation zero cap (in series with Rz) | **150 nF**, film or X7R | Zero at 1 / (2 pi x Rz x Cz) = 1.1 Hz, below the lowest crossover (about 5 Hz at light load), for 80-90 degrees of phase margin **[verify]** |
 | Cp | High-frequency pole cap (COMP pin 1 to VFB pin 2, across Rz + Cz) | **100 pF** | Pole at 1 / (2 pi x Rz x Cp) = 1.6 kHz: keeps switching noise out of the error amplifier |
@@ -291,7 +291,7 @@ boost and are not listed here.
 | Cvref | VREF bypass ceramic (pin 8 to GND, close to pins) | **0.1 uF** | Mandatory per the datasheet |
 | **— PROTECTION —** | | | |
 | D3 | OVP TVS clamp across Cout | **1.5KE150A** (DO-201) | 128 V standoff; clamps below 200 V parts' limit |
-| Rbleed | Bleed resistor chain across Cout | **not fitted** | The feedback divider (Rfbt + Rfbb, about 306-315 k) already sits across Cout and drains it with τ ≈ 69 s: under 50 V in about 65 s from 130 V. A separate 300 k chain only halved that. The divider is a bleed only while one of J7-J10 is fitted: with none fitted the converter stays off, but Cout keeps any charge it had, so always leave one jumper on |
+| Rbleed | Bleed resistor chain across Cout | **not fitted** | The feedback divider (Rfbt + Rfbb, about 306-315 k) already sits across Cout and drains it with τ ≈ 69 s: under 50 V in about 65 s from 130 V. A separate 300 k chain only halved that. Rfbb4 is always fitted, so the divider is always there to drain Cout, whatever the jumpers |
 | **— OPTIONAL —** | | | |
 | Css, Rss | Soft start (on COMP pin) | **omit unless needed** | Add only if stage 2 loads the 20 V rail too hard at start-up |
 
@@ -300,7 +300,7 @@ boost and are not listed here.
 | Pin | Name | Net / connection |
 |---|---|---|
 | 1 | COMP | E/A output. Rz/Cz to pin 2. Pulling COMP below two diode drops would shut U3 down (Figure 7-10), but it is not needed here: U3 has no Vcc (below UVLO) whenever stage 1 is disabled |
-| 2 | VFB | Divider midpoint: top Rfbt = 3 x 100 k from HV+, bottom Rfbb1-4 (one of jumpers J7-J10) to GND. Internal reference is **2.5 V**, so Vout = 2.5 x (1 + Rfbt/Rfbb) |
+| 2 | VFB | Divider midpoint: top Rfbt = 3 x 100 k from HV+, bottom Rfbb4 (always) plus Rfbb1-3 through J7-J9, to GND. Internal reference is **2.5 V**, so Vout = 2.5 x (1 + Rfbt/Rfbb) |
 | 3 | ISENSE | Top of Rcs (Qa source), through the optional Rf/Cf filter. The cycle ends when ISENSE reaches **1 V** |
 | 4 | RT/CT | Rt from pin 8, Ct to GND. fOSC = 1.72 / (Rt x Ct) = **about 65 kHz** (Rt above 5 k) |
 | 5 | GROUND | GND |
@@ -411,15 +411,23 @@ boost and are not listed here.
   (dV = Q / C); once the relay pull-in current is measured, resize Cout.
 - **Feedback** (UC3843 E/A reference = 2.5 V): Vout = 2.5 x (1 + Rfbt / Rfbb).
   **Rfbt = 3 x 100 k in series (300 k).** Each resistor sees up to about 41 V.
-  Rfbb chosen by fitting one jumper, J7-J10:
+  **Rfbb4 (15 k) is always fitted** from VFB to GND; each jumper adds one more
+  resistor in parallel, which lowers Rfbb and raises the voltage:
 
-  | Jumper | Rfbb (to GND) | Vout (about) |
-  |---|---|---|
-  | J7 | Rfbb1 6.2 k | **123 V** |
-  | J8 | Rfbb2 8.2 k | 94 V |
-  | J9 | Rfbb3 10 k | 78 V |
-  | J10 | Rfbb4 15 k | 52 V |
-  | none | open | converter stays off (VFB sits at HV+), **safe**, but Cout then has no bleed |
+  | Jumper | Added in parallel | Rfbb total | Vout (about) |
+  |---|---|---|---|
+  | none | (Rfbb4 alone) | 15 k | **52 V**, the default |
+  | J9 | Rfbb3 100 k | 13.0 k | 60 V |
+  | J8 | Rfbb2 30 k | 10 k | 78 V |
+  | J7 | Rfbb1 11 k | 6.35 k | 121 V |
+
+  Why this way round: a missing, lifted or dirty jumper gives the **lowest**
+  voltage, not "off", and the divider (Cout's bleed) is always connected. An
+  open Rfbb4 would turn the converter off (VFB then sits at HV+), which is
+  also safe. Two jumpers at once raise the voltage further: J7 + J8 gives
+  about 146 V, which D3 (143-158 V breakdown) clamps, so silkscreen
+  "one jumper only". (The old scheme, one jumper picking one resistor, gave
+  215 V with two fitted.)
 
   **Rfbt open or missing** would let the output run away: that is the failure
   to protect against.
@@ -438,7 +446,7 @@ boost and are not listed here.
        /200V  150A       |
          |    (TVS)      +--- U3 VFB (pin 2)
          |       |       |
-         |       |     Rfbb (one of J7-J10)
+         |       |     Rfbb4 (+ J7-J9)
          |       |       |
   GND ---+-------+-------+
 
@@ -452,7 +460,7 @@ boost and are not listed here.
   after HV_EN drops from 130 V, and about 0.055 W at 130 V. A separate 3 x 100 k
   chain would only halve the time and double the idle loss. If an Rfbt resistor
   failed open the output would run up to D3 anyway (above), so a second chain
-  adds little. Keep one of J7-J10 fitted at all times.
+  adds little. Rfbb4 is always fitted, so the bleed is always there.
 - **Soft rise:** the converter's soft-start plus the F1 fuse limit input
   current; **[verify]** charging 3.7 J does not pull the 5 V rail below spec.
 
@@ -581,7 +589,7 @@ TI/onsemi/Fairchild listings were unavailable) reads a divider of the HV rail
 - **HV_HIGH** (GP7): high if it is above about 110 %, an overvoltage alarm.
 The outputs are open-collector, pulled up to 3.3 V. This uses the two spare
 pins (GP3, GP7, which also go to J5). Firmware then knows "charged" and
-"too high"; it doesn't get a number. The thresholds depend on the J7-J10
+"too high"; it doesn't get a number. The thresholds depend on the J7-J9
 profile, so set them with a trimmer, or compute for the highest profile only.
 
 **Option B: a real number over I2C.** A through-hole I2C ADC isn't a good
@@ -613,35 +621,64 @@ scale. Two channels (HV and fire current) need the MCP3428 or the ADS1x15.
 relay doesn't fire the voltage stays up; if it does, the cap sags by
 dV = I x t / C (about 20 V for 100 mA x 50 ms into 220 uF).
 
-## 9. Parts list (through-hole default; DigiKey parts from section 13)
+## 9. Parts list (through-hole)
 
-| Ref | Value | Part (package) | Note |
-|---|---|---|---|
-| U1 | I/O expander | **MCP23008-E/P** (DIP-18) | address 0x20, A0-A2 to GND |
-| U2 | 5 V to 20 V boost | **MC34063AP1G** (DIP-8) | 1.25 V ref; **[verify]** timing cap and boost equations |
-| U3 | boost controller | **UC3843AN** (DIP-8) | E/A reference 2.5 V, VREF pin 5 V; runs from +20 V rail; max duty about 97 % |
-| Qa | stage-2 switch, 200 V N-FET | **IRF630PBF** (TO-220) | gate clamped with Dz (15 V zener) |
-| Q2 | relay driver | **2N7000** (TO-92) | |
-| Q3 | firing FET, 200 V | **IRF630PBF** (TO-220) | gate driven from +20 V rail, 12 V zener clamp |
-| Q5 | HV enable (stage 1 feedback switch) | **2N7000** (TO-92) | gate = HV_EN |
-| Q4, Q6 | level shifter for Q3 gate | **2N7000** (TO-92) | non-inverting pair from GP6 |
-| K1 | DPDT relay, 5 V coil | **Omron G6S-2-DC5** (through-hole) | 220 VDC switching **[verify datasheet]** |
-| D1 | stage-1 Schottky | **1N5819** (DO-41, 40 V, 1 A) | |
-| D2 | 200 V ultrafast | **UF4003** (DO-41, 200 V, 1 A) | |
-| D3 | OVP clamp | **1.5KE150A** (DO-201) | 128 V standoff **[verify]** |
-| D4 | relay flyback | **1N4148** (DO-35) | |
-| Dz, D6 | gate clamps (15 V, 12 V) | 1N4744A, 1N4742A (DO-41) | Dz for Qa, D6 for Q3 |
-| L1 | 47-100 uH, >= 2 A | **[verify / find]** through-hole inductor | MC34063A's lower frequency needs a larger inductor |
-| L2 | ~220 uH, >= 1 A | Bourns **RLB9012-221KL** or Wurth 7447471221 | **[verify Isat]** |
-| Cout | 220 uF / 200 V | Nichicon **UCS2D221MHD** (radial, 18 x 26.5 mm) | 7.5 mm lead spacing |
-| Rfbt1-3 | 3 x 100 k, 1 %, 1/4 W axial | | feedback divider top, and Cout's bleed |
-| Rfbb1-4 | 6.2 k / 8.2 k / 10 k / 15 k, 1 % | | feedback divider bottom; one per jumper J7-J10 |
-| F1 | PTC about 500 mA | | |
-| Rsense (fire) | 10 ohm, 0.5 W axial | | |
-| J1 | 5-pin header, 2.54 mm | generic 1 x 5 | mates with v6 J6 |
-| J2 | 3-pin KK 396 header | **Molex 0026604030** | mating plug 09-50-3031 + terminals **[verify]** |
-| J3 | 4-pin KK 396 header | **Molex 0026604040** | mating plug 09-50-3041 + terminals **[verify]** |
-| misc | pull-ups, pulldowns, caps | all 1/4 W axial resistors, disc/radial ceramics | |
+Links marked with a part number go to that DigiKey listing; the resistor and
+small-capacitor links are DigiKey searches on the exact maker part number
+(pick the cut-tape or bulk listing). Check stock and the datasheet before ordering.
+
+| Ref | Value | Part (package) | DigiKey | Note |
+|---|---|---|---|---|
+| U1 | I/O expander | **MCP23008-E/P** (DIP-18) | [MCP23008-E/P](https://www.digikey.com/en/products/result?keywords=MCP23008-E/P) | address 0x20, A0-A2 to GND |
+| U2 | 5 V to 20 V boost | **MC34063AP1G** (DIP-8) | [MC34063AP1G](https://www.digikey.com/en/products/result?keywords=MC34063AP1G) | 1.25 V ref |
+| U3 | boost controller | **UC3843AN** (DIP-8) | [UC3843AN](https://www.digikey.com/en/products/detail/onsemi/UC3843AN/610126) | E/A reference 2.5 V, VREF pin 5 V; runs from the +20 V rail |
+| Qa | stage-2 switch, 200 V N-FET | **IRF630PBF** (TO-220) | [IRF630PBF](https://www.digikey.com/en/products/detail/vishay-siliconix/IRF630PBF/812782) | gate clamped with Dz |
+| Q3 | firing FET, 200 V N-FET | **IRF630PBF** (TO-220) | [IRF630PBF](https://www.digikey.com/en/products/detail/vishay-siliconix/IRF630PBF/812782) | gate from the +20 V rail through the level shifter, clamped with D6 |
+| Q2, Q4, Q5, Q6 | small N-FET | **2N7000** (TO-92) | [2N7000](https://www.digikey.com/en/products/detail/stmicroelectronics/2N7000/654416) | Q2 relay driver, Q5 HV enable, Q4 + Q6 level shifter (Q6 not placed yet) |
+| K1 | DPDT relay, 5 V coil | **Omron G6S-2-DC5** (through-hole) | [G6S-2-DC5](https://www.digikey.com/en/products/detail/aratas-formerly-omron-components/G6S-2-DC5/333982) | 250 VAC / 220 VDC switching per the listing **[verify datasheet]** |
+| D1 | stage-1 Schottky | **1N5819** (DO-41, 40 V, 1 A) | [1N5819](https://www.digikey.com/en/products/detail/taiwan-semiconductor-corporation/1N5819/7357079) |  |
+| D2 | 200 V ultrafast | **UF4003** (DO-41, 200 V, 1 A) | [UF4003](https://www.digikey.com/en/products/detail/onsemi/UF4003/1048948) |  |
+| D3 | OVP clamp | **1.5KE150A** (DO-201) | [1.5KE150A](https://www.digikey.com/en/products/detail/taiwan-semiconductor-corporation/1-5KE150A/15783456) | 128 V standoff |
+| D4 | relay flyback | **1N4148** (DO-35) | [1N4148](https://www.digikey.com/en/products/result?keywords=1N4148) |  |
+| Dz | Qa gate clamp, 15 V | **1N4744A** (DO-41) | [1N4744A](https://www.digikey.com/en/products/result?keywords=1N4744A) |  |
+| D6 | Q3 gate clamp, 12 V | **1N4742A** (DO-41) | [1N4742A](https://www.digikey.com/en/products/result?keywords=1N4742A) |  |
+| L1 | 47-100 uH, >= 2 A | **[find]** through-hole inductor |  | MC34063A's lower frequency needs a larger inductor |
+| L2 | 220 uH, >= 1 A | Bourns **RLB9012-221KL** or Wurth 7447471221 | [RLB9012-221KL](https://www.digikey.com/en/products/detail/bourns-inc/RLB9012-221KL/1969608) | **[verify Isat]** |
+| F1 | PTC, 1.1 A hold | Littelfuse **RXEF110** (radial disc) | [RXEF110](https://www.digikey.com/en/products/detail/littelfuse-inc/RXEF110/1045810) | section 5: 500 mA is too small. **Not on the schematic yet** |
+| C1 (Cout) | 220 uF / 200 V | Nichicon **UCS2D221MHD** (radial, 18 x 26.5 mm, 7.5 mm leads) | [UCS2D221MHD](https://www.digikey.com/en/products/detail/nichicon/UCS2D221MHD/4991877) |  |
+| C5, C7, C9, C14, C15 | 22 uF / 35 V electrolytic | Panasonic **EEU-FR1V220** (radial 5 x 11 mm, 2 mm leads) | [EEU-FR1V220](https://www.digikey.com/en/products/result?keywords=EEU-FR1V220) | C5 +5 V input, C7/C9 stage-1 output, C14/C15 stage-2 input. One part for all five |
+| C2, C3, C4, C6, Cvcc, Cvref | 100 nF / 50 V, X7R | TDK **FG28X7R1H104KNT06** (radial, 5 mm leads) | [FG28X7R1H104KNT06](https://www.digikey.com/en/products/result?keywords=FG28X7R1H104KNT06) | decoupling and coin-line filters: X7R is fine |
+| Ct | 2.2 nF / 50 V, **C0G (NP0)** | TDK **FG28C0G1H222JNT06** (radial, 5 mm leads) | [FG28C0G1H222JNT06](https://www.digikey.com/en/products/result?keywords=FG28C0G1H222JNT06) | **Must be C0G/NP0:** it sets U3's 65 kHz clock. X7R loses 10-15 % with temperature and more with voltage, so the frequency (and Ipk per cycle) would drift |
+| C8 | 1 nF / 50 V, **C0G (NP0)** | TDK **FG28C0G1H102JNT06** (radial, 5 mm leads) | [FG28C0G1H102JNT06](https://www.digikey.com/en/products/result?keywords=FG28C0G1H102JNT06) | **C0G/NP0:** U2's timing cap, same reason as Ct |
+| Cf | 470 pF / 50 V, **C0G (NP0)** | TDK **FG28C0G1H471JNT06** (radial, 5 mm leads) | [FG28C0G1H471JNT06](https://www.digikey.com/en/products/detail/tdk-corporation/FG28C0G1H471JNT06/5812105) | **Must be C0G/NP0:** with Rf it sets the current-sense filter; a drifting value moves the current limit timing. From ISENSE (pin 3) to GND |
+| Cp | 100 pF / 50 V, **C0G (NP0)** | TDK **FG28C0G1H101JNT06** (radial, 5 mm leads) | [FG28C0G1H101JNT06](https://www.digikey.com/en/products/result?keywords=FG28C0G1H101JNT06) | **Must be C0G/NP0:** small values only come in C0G anyway, and it sets the compensation pole |
+| Cslope | 1 nF / 50 V | TDK **FG28C0G1H102JNT06** (radial, 5 mm leads) | [FG28C0G1H102JNT06](https://www.digikey.com/en/products/result?keywords=FG28C0G1H102JNT06) | DC block only, any dielectric works; same part as C8 to save a line |
+| Cz | 150 nF / 63 V film | WIMA **MKS2C031501A00JSSD** (box, 5 mm leads) | [MKS2C031501A00JSSD](https://www.digikey.com/en/products/result?keywords=MKS2C031501A00JSSD) | film (or X7R); sets the compensation zero |
+| R1, R2 | 100 k | 1/4 W 1 % metal film (Yageo MFR-25) | [MFR-25FBF52-100K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-100K) | HV_EN and POL pulldowns |
+| R3 | 10 k | 1/4 W 1 % metal film | [MFR-25FBF52-10K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-10K) | FIRE pulldown |
+| R4, R5, R6 | 10 k | 1/4 W 1 % metal film | [MFR-25FBF52-10K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-10K) | coin-line pull-ups to 3.3 V |
+| R7, R8, R9 | 1 k | 1/4 W 1 % metal film | [MFR-25FBF52-1K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-1K) | coin-line series resistors |
+| R10 | 10 k | 1/4 W 1 % metal film | [MFR-25FBF52-10K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-10K) | MCP23008 reset pull-up |
+| R11 | 0.33 ohm, 0.5 W | TE **LR1LJR33** (axial, 5 %) | [LR1LJR33](https://www.digikey.com/en/products/detail/te-connectivity-passive-product/LR1LJR33/2381302) | U2 current sense (RSC) |
+| R12 | 68 ohm | 1/4 W 1 % metal film | [MFR-25FBF52-68R](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-68R) | U2 pin 8 drive resistor |
+| R13 | 150 k | 1/4 W 1 % metal film | [MFR-25FBF52-150K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-150K) | stage-1 divider top |
+| R14 | 10 k | 1/4 W 1 % metal film | [MFR-25FBF52-10K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-10K) | stage-1 divider bottom |
+| R18 (Rt) | 12 k | 1/4 W 1 % metal film | [MFR-25FBF52-12K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-12K) | U3 oscillator |
+| Rcs | 2 ohm, 1 W | Yageo **FMP100FTF52-2R** (axial) | [FMP100FTF52-2R](https://www.digikey.com/en/products/detail/yageo/FMP100FTF52-2R/9106897) | stage-2 current sense: Ipk = 1 V / 2 ohm |
+| Rf | 1 k | 1/4 W 1 % metal film | [MFR-25FBF52-1K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-1K) | current-sense filter |
+| Rg | 100 ohm | 1/4 W 1 % metal film | [MFR-25FBF52-100R](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-100R) | Qa gate |
+| Rslope | 27 k | 1/4 W 1 % metal film | [MFR-25FBF52-27K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-27K) | **fit only if needed** (section 5) |
+| Rz | 1 M | 1/4 W 1 % metal film | [MFR-25FBF52-1M](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-1M) | compensation |
+| Rfbt1-3 | 100 k | 1/4 W 1 % metal film (250 V rated) | [MFR-25FBF52-100K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-100K) | feedback divider top, and Cout's bleed |
+| Rfbb4 | 15 k | 1/4 W 1 % metal film | [MFR-25FBF52-15K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-15K) | **always fitted**: 52 V with no jumper |
+| Rfbb3, Rfbb2, Rfbb1 | 100 k / 30 k / 11 k | 1/4 W 1 % metal film | [MFR-25FBF52-100K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-100K), [MFR-25FBF52-30K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-30K), [MFR-25FBF52-11K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-11K) | added in parallel by J9 / J8 / J7: 60 / 78 / 121 V |
+| R15, R16 | 4.7 k | 1/4 W 1 % metal film | [MFR-25FBF52-4K7](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-4K7) | level-shifter pull-ups. **Not placed yet** |
+| Rgq3 | 100 ohm | 1/4 W 1 % metal film | [MFR-25FBF52-100R](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-100R) | Q3 gate. **Not placed yet** |
+| Rsense | 10 ohm, 0.5 W | metal film, 0.5 W (e.g. Yageo MFR-50) | [MFR-50FBF52-10R](https://www.digikey.com/en/products/result?keywords=MFR-50FBF52-10R) | firing current sense. **Not placed yet** |
+| J1 | 5-pin header, 2.54 mm | generic 1 x 5 |  | mates with v6 J6 |
+| J2 | 3-pin KK 396 header | **Molex 0026604030** | [0026604030](https://www.digikey.com/en/products/result?keywords=0026604030) | mating plug 09-50-3031 + terminals **[verify]** |
+| J3 | 4-pin KK 396 header | **Molex 0026604040** | [0026604040](https://www.digikey.com/en/products/result?keywords=0026604040) | mating plug 09-50-3041 + terminals **[verify]** |
+| J7, J8, J9 | 2-pin header + jumper, 2.54 mm | generic |  | voltage select; fit at most one |
 
 ## 10. Layout notes
 
@@ -658,7 +695,7 @@ dV = I x t / C (about 20 V for 100 mA x 50 ms into 220 uF).
 
 1. **Identify the coin sensor wires** (supply, ground, 3 outputs) and logic levels.
 2. **Which phone-side voltage is needed:** the 130 V profile is a margin for other
-   phones; this phone works at about 50-60 V. Choose the default jumper (J7-J10).
+   phones; this phone works at about 50-60 V. No jumper (52 V) is the default; J9 gives 60 V.
 3. **Datasheet checks** for the **[verify]** items, above all U2 MC34063A
    (timing cap, boost equations), U3 UC3843A (Rcs, Rt/Ct, Rfbt/Rfbb values) and
    K1 (contact rating).
@@ -679,7 +716,10 @@ dV = I x t / C (about 20 V for 100 mA x 50 ms into 220 uF).
      2N7000 (**Q6**), R15/R16 (4.7 k pull-ups), Q3's 100 ohm gate resistor and
      Rsense (10 ohm) aren't placed yet. J2 (to the relay) is also unconnected.
      All are still needed.
-   - **RV1** (10 k trimmer) isn't part of this design: J7-J10 set the voltage.
+   - **Voltage select:** wire **Rfbb4 (15 k) straight from VFB to GND** and
+     delete J10; change Rfbb3 to **100 k**, Rfbb2 to **30 k** and Rfbb1 to
+     **11 k** (section 5's table).
+   - **RV1** (10 k trimmer) isn't part of this design: J7-J9 set the voltage.
      Delete it. (A trimmer in the HV feedback path is also a hazard: a wiper
      that lifts would let the output run up to D3.)
    - **F1** (PTC, about 1 A hold) and **JP1** (sensor supply select) aren't on
@@ -733,7 +773,7 @@ Cout is about 16 x 25 mm and sets the size)
  |  LDO 3.3 V                 |  (5 V -> 20 V)  |  D2, Cout,      |
  |  U1 MCP23008 (DIP-18)      |                 |  divider, TVS   |
  |  coin inputs -> J3 (edge)  |                 |  K1 relay, Q3   |
- |  J5 spare, J7-J10 volts   |                 |  J2 (to relay)  |
+ |  J5 spare, J7-J9 volts    |                 |  J2 (to relay)  |
  +----------------------------------------------------------------+
    J1 and J3 on the left edge; J2 on the right edge, near the relay
 ```
@@ -758,7 +798,7 @@ Cout is about 16 x 25 mm and sets the size)
   least 2 mm or a slot** between them if the pins allow. **Q3 and Rsense**
   next to it; J2 on the same edge keeps the coil wires short.
 - **Mounting holes** (M3) at the corners, not near HV. **Silkscreen** an HV
-  warning, the J7-J10 voltage table, and "capacitor stays charged".
+  warning, the J7-J9 voltage table, "one jumper only", and "capacitor stays charged".
 - **Test points:** 20 V, 3.3 V, HV (a probe pad with a series resistor), GND.
 - **Assembly:** Cout, K1, the Molex KK headers and likely L2 are through-hole
   or large, so expect to hand-solder them (mark them "do not place" for
@@ -808,7 +848,7 @@ quantity breaks will drop it.
 ceramic disc)**, rough, to finalize with the schematic: about **25
 resistors** (divider chain, pulldowns, pull-ups, gate and base resistors,
 current sense), **12 capacitors** (decoupling, timing, bulk), **6-8 diodes and
-zeners**, plus the J7-J10 jumpers. Not cheap in hand-soldering time (about an
+zeners**, plus the J7-J9 jumpers. Not cheap in hand-soldering time (about an
 hour for a few boards) but cheap in parts.
 
 **Do these before ordering**
