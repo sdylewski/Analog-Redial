@@ -35,7 +35,7 @@ show it): check in the BOM upload.
 |---|---|---|---:|---|---:|---|---|
 | U1 | I2C I/O expander | MCP23008-E/P, DIP-18 | 1.54 | MCP23008-E/SO, SOIC-18 | 1.37 | Extended | hand-solder (SOIC is easy) |
 | U2 | stage 1, 5 V to 20 V | MC34063AP1G, DIP-8 | 1.98 | MC34063ADR2G, SOIC-8 | 0.77 | Extended | hand-solder |
-| U3 | stage 2 controller | **UC3843BNG**, DIP-8 | **1.87** | UC3843BD1R2G, SOIC-8 | 0.71 | Extended | hand-solder. **Only 56 in stock** at DigiKey for the SOIC; 33-week lead time |
+| U3 | stage 2 controller | **UC3843AN (TI)**, DIP-8 | **1.79** | UC3843BD1R2G, SOIC-8 (or UCC38C43DR, see below) | 0.71 | Extended | hand-solder. **Only 56 in stock** at DigiKey for the onsemi SOIC; 33-week lead time |
 | Qa | stage 2 switch, 200 V | IRF630PBF, TO-220 | 2.43 | keep TO-220 (or a 200 V DPAK) | 2.43 | n/a | hand-solder, through-hole |
 | Q3 | fire switch, 200 V | IRF630PBF, TO-220 | 2.43 | STN4NF20L, SOT-223 | 1.02 | Extended | hand-solder |
 | Q2, Q4, Q5 | small N-FETs (x3) | 2N7000, TO-92 | 0.29 | 2N7002, SOT-23 | 0.02-0.26 | Basic (C8545, verify) | **JLCPCB places** (3 per board, no fee) |
@@ -57,6 +57,30 @@ show it): check in the BOM upload.
 
 **Per board, the semiconductors** (U1-U3, Q2-Q6, D1-D6) come to about
 **$11 through-hole vs. about $5 SMT** at these prices.
+
+### UC3843 in surface-mount: what else fits
+
+The 8-pin UC3842/3/4/5 family all share one pinout, and the "43" is the one with
+the 8.4 V start / 7.6 V stop threshold this board needs. DigiKey, 2026-10-30:
+
+| Part | Maker | Package | $ (qty 1) | Stock | Drop-in? |
+|---|---|---|---:|---:|---|
+| **UC3843BD1R2G** | onsemi | SOIC-8 | 0.71 | 56 | **yes**: the same bipolar UC3843, same R/C values. Low stock, 33-week lead time |
+| **UCC38C43DR** | TI | SOIC-8 | 1.56 | 934 | **pin-compatible**, low-power BiCMOS version with the same 8.4 / 7.6 V thresholds. **Its oscillator timing differs from the UC3843**, so recheck R18 and Ct for the frequency you want from its datasheet; the current-sense and error-amp parts carry over |
+| UCC28C43DGKR | TI | VSSOP-8 | 0.90 | 3,074 | same chip as the UCC38C43 (wider temperature range, from memory), but VSSOP-8 at 0.65 mm pitch: fine for JLCPCB, fiddly by hand |
+| UCC28C43DR | TI | SOIC-8 | 1.20 | 0 | as above, out of stock |
+| UC3843AD | TI | **14-pin SOIC** | 2.49 | | **not a drop-in**: TI's "D" UC3843A is the 14-pin version with a different pinout |
+| UCC38C43DGKR | TI | VSSOP-8 | 2.52 | 1,994 | as the UCC38C43DR, smaller package |
+
+My pick for the SMT board is the **UCC38C43DR**. It's in stock, actively
+made, and hand-solderable, and the only change is the oscillator R/C. If
+you'd rather not re-derive anything, use the **UC3843BD1R2G**, but its stock
+is thin. LCSC also lists cheaper UC3843 clones in SOIC-8 for JLCPCB
+assembly; I haven't checked those.
+
+Not drop-ins: the **UC3842** (16 V start / 10 V stop, too close to the 20 V
+rail) and the **UC3844/UC3845** (their output is limited to 50 % duty, too low
+for a 6.5:1 boost).
 
 ### Is the $3 Extended fee worth it?
 

@@ -8184,16 +8184,6 @@
 	)
 	(wire
 		(pts
-			(xy 95.25 128.27) (xy 97.79 128.27)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e7867141-c290-4e3c-9237-362944e8e492")
-	)
-	(wire
-		(pts
 			(xy 170.18 123.19) (xy 170.18 125.73)
 		)
 		(stroke
@@ -8813,7 +8803,7 @@
 				)
 			)
 		)
-		(property "Value" "UC3843BNG"
+		(property "Value" "UC3843AN"
 			(at 85.09 105.41 0)
 			(show_name no)
 			(do_not_autoplace no)
