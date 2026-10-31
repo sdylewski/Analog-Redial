@@ -192,7 +192,7 @@ already matches `/HV*`, `/COIL_A`, `/COIL_B`, `/RETURN` and `/SW2`, so the
 
 | Label | Where |
 |---|---|
-| HV | already on C1+ / D2 / D3 / Rbleed1 / Rfbt1; add K1 pins 3 and 8 |
+| HV | already on C1+ / D2 / D3 / Rbl1 / Rfbt1; add K1 pins 3 and 8 |
 | COIL_A | K1 pin 4, J2 pin 1 |
 | COIL_B | K1 pin 9, J2 pin 3 |
 | RETURN | K1 pins 5 and 10, Q3 pin 2 |
@@ -206,10 +206,22 @@ The resistor-chain midpoints carry 1/3-2/3 of HV, so they're labelled HV_B1, HV_
 
 ## Things I noticed on the rest of the sheet
 
-- **Bleed time.** As designed in coin-board-schematic.md, the feedback divider
-  (about 310 k) is C1's main bleed, about 69 s time constant; Rbleed1-3 (3 M)
-  are the backup if the divider opens (11 min). Treat C1 as live for a few
-  minutes after power-off, or short it through a resistor before touching.
+- **Bleed time.** The feedback divider (about 310 k), R32 + R33 (1.2 M),
+  Rbl1-3 (3 x 1 M) and the HV LED's string (below) drain C1: 119 V falls below
+  24 V (D7 out) in about 33 s and below 20 V in about 42 s. Without the LED
+  string it's about 89 s to 20 V; if the divider opens, about 88 s. Rbl1-3
+  were 3 x 150 k before the LED string, which would now drain it in about
+  34 s; 1 M each keeps it nearer a minute and wastes less power. Still treat
+  C1 as live until D7 is out, or short it through a resistor before touching.
+- **HV indicator (D7).** HV -> R27 33 k -> R28 33 k -> D5 (BZT52C22, cathode
+  to R28) -> D7 red 0805 LED (C84256, the largest Basic red at JLCPCB) -> GND. It lights above about 24 V (22 V zener + LED),
+  so it stays dark with stage 2 off (HV then sits near 20 V) and lights whenever
+  C1 is charged. It runs from C1 itself, so it stays lit while C1 drains,
+  even with the board unpowered. Current: 0.4 mA at 52 V (dim but visible
+  indoors), 1.4 mA at 119 V. R27/R28 share the voltage (about 70 mW each at
+  119 V, so 1206); the nodes between them are HV_LED1/HV_LED2, in the HV net
+  class. For a brighter LED at 52 V, use 2 x 22 k (0.6 mA at 52 V, 2.2 mA and
+  about 100 mW each at 119 V).
 - **D3 orientation.** D3 (1.5KE150A) is wired pin 1 to HV and pin 2 to GND.
   For the unidirectional part the **cathode (band) must be on HV**; check
   the footprint's pad 1 is the cathode before ordering. Its standoff is
@@ -227,12 +239,12 @@ wired now:
 
 | U4 pin | Connects to |
 |---|---|
-| 8 VDD | **+3V3** (changed from +5 V: at 5 V the chip wants I2C highs above 3.5 V, more than the 3.3 V bus gives), with **C17** 100 nF |
+| 8 VDD | **VIO** (the host's I2C logic voltage from J1 pin 2; not +5 V: at 5 V the chip wants I2C highs above 3.5 V, more than a 3.3 V bus gives), with **C17** 100 nF |
 | 3 GND | GND |
 | 1 ADDR | **GND** (was floating): address 0x48 |
 | 10 SCL, 9 SDA | SCL, SDA |
 | 2 ALERT/RDY | no connect |
-| 4 AIN0 | HV through R15 1.17 M / R16 33 k: 119 V reads 3.27 V |
+| 4 AIN0 | HV through R32 1.18 M / R33 33 k: 119 V reads 3.24 V |
 | 5 AIN1 | 20V through **R17 56 k / R19 10 k** (was 33 k / 33 k, which put 10 V on the pin and would destroy the ADC): 20 V reads 3.0 V |
 | 6 AIN2 | ISENSE (R26): 100 mA reads 1 V |
 | 7 AIN3 | spare |
