@@ -15,6 +15,14 @@ CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 
 # FreeRTOS tick at 1 kHz for tight telephony timing
 CONFIG_FREERTOS_HZ=1000
+# uxTaskGetSystemState() for /api/tasks (per-task stack high-water marks)
+CONFIG_FREERTOS_USE_TRACE_FACILITY=y
+
+# FAT is only used on the microSD card, whose sectors are 512 bytes (internal
+# flash is SPIFFS, so wear levelling is unused). FatFs sizes its largest sector
+# from this setting, and the 4096 default made the volume's buffer and every
+# open file's cache 4 KB: about 30 KB of heap held while a card is mounted.
+CONFIG_WL_SECTOR_SIZE_512=y
 
 # Main task stack (app_main wires up a lot)
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192

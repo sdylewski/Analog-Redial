@@ -35,6 +35,7 @@ extern "C" {
 typedef struct {
     uint32_t sample_rate;   /* default/recommended 48000 (keeps codec MCLK=12.288MHz) */
     size_t   frame_samples; /* per-channel samples per I2S transfer; 0 => sample_rate/100 */
+    int      num_lines;     /* lines that get call/playback buffers (~16 KB each); 0 => AUDIO_NUM_LINES */
 } audio_config_t;
 
 #define AUDIO_DEFAULT_CONFIG() (audio_config_t){ .sample_rate = 48000, .frame_samples = 0 }

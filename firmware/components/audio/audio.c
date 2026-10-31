@@ -746,18 +746,26 @@ esp_err_t audio_init(const audio_config_t *cfg)
     if (c.sample_rate == 0) c.sample_rate = 48000;
     s_sr = c.sample_rate;
     s_frame = c.frame_samples ? c.frame_samples : (s_sr / 100);
+    int nbuf = (c.num_lines > 0 && c.num_lines < AUDIO_NUM_LINES) ? c.num_lines : AUDIO_NUM_LINES;
 
     for (int i = 0; i < AUDIO_NUM_LINES; i++) {
         memset(&s_line[i], 0, sizeof(s_line[i]));
         s_line[i].src = SRC_SILENCE;
         s_line[i].bridge_from = -1;
+        s_rx_mono[i]  = calloc(s_frame, sizeof(int16_t));
+        s_fx_tmp[i]   = calloc(s_frame, sizeof(int16_t));
+        if (!s_rx_mono[i]) {
+            ESP_LOGE(TAG, "line %d buffer alloc failed", i);
+            return ESP_ERR_NO_MEM;
+        }
+        /* A line the board doesn't have gets no stream buffers: every reader
+         * and writer below already treats a NULL one as "nothing there". */
+        if (i >= nbuf) continue;
         s_line[i].ext = xStreamBufferCreate(s_frame * 8 * sizeof(int16_t), 1);
         s_line[i].rx  = xStreamBufferCreate(s_frame * 8 * sizeof(int16_t), 1);
         /* 8 kHz, so an eighth the byte count of `rx` for the same time span. */
         s_line[i].aec_out = xStreamBufferCreate(AUDIO_AEC_BLOCK * 8 * sizeof(int16_t), 1);
-        s_rx_mono[i]  = calloc(s_frame, sizeof(int16_t));
-        s_fx_tmp[i]   = calloc(s_frame, sizeof(int16_t));
-        if (!s_line[i].ext || !s_line[i].rx || !s_line[i].aec_out || !s_rx_mono[i]) {
+        if (!s_line[i].ext || !s_line[i].rx || !s_line[i].aec_out) {
             ESP_LOGE(TAG, "line %d buffer alloc failed", i);
             return ESP_ERR_NO_MEM;
         }

@@ -615,6 +615,37 @@ static esp_err_t status_json_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* GET /api/tasks: every task's least free stack since boot, plus heap
+ * figures, for sizing stacks from measurements rather than guesses. */
+static esp_err_t tasks_json_handler(httpd_req_t *req)
+{
+    UBaseType_t n = uxTaskGetNumberOfTasks() + 4;
+    TaskStatus_t *ts = malloc(n * sizeof(*ts));
+    if (!ts) return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "no memory");
+    n = uxTaskGetSystemState(ts, n, NULL);
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "heap_free", (double)esp_get_free_heap_size());
+    cJSON_AddNumberToObject(root, "heap_min_free", (double)esp_get_minimum_free_heap_size());
+    cJSON_AddNumberToObject(root, "heap_largest_block",
+                            (double)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+    cJSON *arr = cJSON_AddArrayToObject(root, "tasks");
+    for (UBaseType_t i = 0; i < n; i++) {
+        cJSON *t = cJSON_CreateObject();
+        cJSON_AddStringToObject(t, "name", ts[i].pcTaskName);
+        cJSON_AddNumberToObject(t, "prio", ts[i].uxCurrentPriority);
+        /* bytes on this port (StackType_t is uint8_t) */
+        cJSON_AddNumberToObject(t, "stack_free_min", ts[i].usStackHighWaterMark);
+        cJSON_AddItemToArray(arr, t);
+    }
+    free(ts);
+    char *text = cJSON_PrintUnformatted(root);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, text ? text : "{}");
+    cJSON_Delete(root);
+    free(text);
+    return ESP_OK;
+}
+
 extern const uint8_t style_css_start[] asm("_binary_style_css_start");
 extern const uint8_t style_css_end[]   asm("_binary_style_css_end");
 
@@ -11002,6 +11033,7 @@ esp_err_t webui_start(void)
         { .uri = "/static/favicon.svg", .method = HTTP_GET, .handler = favicon_svg_handler },
         { .uri = "/favicon.ico",     .method = HTTP_GET, .handler = favicon_ico_handler },
         { .uri = "/api/status",      .method = HTTP_GET, .handler = status_json_handler },
+        { .uri = "/api/tasks",       .method = HTTP_GET, .handler = tasks_json_handler },
         { .uri = "/api/log",         .method = HTTP_GET, .handler = log_handler },
         { .uri = "/api/recordings",  .method = HTTP_GET, .handler = recordings_json_handler },
         { .uri = "/media/*",         .method = HTTP_GET, .handler = media_handler },

@@ -174,6 +174,10 @@ void app_main(void)
 
     /* 2. Audio engine first (sets the I2S master clocks the codec needs). */
     audio_config_t acfg = AUDIO_DEFAULT_CONFIG(); /* 48 kHz stereo */
+    /* A board confirmed as one line skips line 1's buffers (~16 KB). An
+     * unconfirmed one keeps both: board_hw_config_autodetect() runs below and
+     * may still pick two lines for this boot. */
+    if (board_hw_config_is_set() && board_hw_config_get().num_lines == 1) acfg.num_lines = 1;
     esp_err_t err = audio_init(&acfg);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "audio_init failed: %s (continuing for console tests)",

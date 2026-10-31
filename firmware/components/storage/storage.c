@@ -586,14 +586,6 @@ esp_err_t storage_patch(const char *name, size_t offset, const void *data, size_
     return err;
 }
 
-static int cmp_mtime(const void *a, const void *b)
-{
-    const struct stat *sa = a, *sb = b;
-    if (sa->st_mtime < sb->st_mtime) return -1;
-    if (sa->st_mtime > sb->st_mtime) return 1;
-    return 0;
-}
-
 /* The newest max_entries files in mount, newest first. A directory holding
  * more than that keeps the newest ones -- never an arbitrary readdir-order
  * subset, which used to hide (and, through the web UI's existence checks,
@@ -603,10 +595,10 @@ static size_t list_dir(const char *mount, storage_entry_t *out, size_t max_entri
     if (max_entries == 0) return 0;
     DIR *d = opendir(mount);
     if (!d) return 0;
-    /* Heap, not stack: up to ~100 struct stats is too big a frame for a
-     * console/httpd worker task. */
-    struct stat *stats = malloc(max_entries * sizeof(struct stat));
-    if (!stats) {
+    /* Only the times are kept for sorting (a whole struct stat is 88 bytes,
+     * which made a 100-file listing cost 8.8 KB of heap). */
+    time_t *mtimes = malloc(max_entries * sizeof(time_t));
+    if (!mtimes) {
         closedir(d);
         return 0;
     }
@@ -629,11 +621,11 @@ static size_t list_dir(const char *mount, storage_entry_t *out, size_t max_entri
             /* Full: replace the oldest kept entry if this one is newer. */
             slot = 0;
             for (size_t i = 1; i < n; i++) {
-                if (cmp_mtime(&stats[i], &stats[slot]) < 0) slot = i;
+                if (mtimes[i] < mtimes[slot]) slot = i;
             }
-            if (cmp_mtime(&st, &stats[slot]) <= 0) continue;
+            if (st.st_mtime <= mtimes[slot]) continue;
         }
-        stats[slot] = st;
+        mtimes[slot] = st.st_mtime;
         strlcpy(out[slot].name, de->d_name, sizeof(out[slot].name));
         out[slot].size = (size_t)st.st_size;
     }
@@ -642,18 +634,18 @@ static size_t list_dir(const char *mount, storage_entry_t *out, size_t max_entri
     /* Insertion sort, newest first -- a fresh 211 message or a just-uploaded
      * clip is what you're looking for, so it belongs at the top. */
     for (size_t i = 1; i < n; i++) {
-        struct stat key_st = stats[i];
+        time_t key_t = mtimes[i];
         storage_entry_t key = out[i];
         int j = (int)i - 1;
-        while (j >= 0 && cmp_mtime(&stats[j], &key_st) < 0) {
-            stats[j + 1] = stats[j];
+        while (j >= 0 && mtimes[j] < key_t) {
+            mtimes[j + 1] = mtimes[j];
             out[j + 1] = out[j];
             j--;
         }
-        stats[j + 1] = key_st;
+        mtimes[j + 1] = key_t;
         out[j + 1] = key;
     }
-    free(stats);
+    free(mtimes);
     return n;
 }
 
