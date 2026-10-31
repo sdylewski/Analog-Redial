@@ -25,6 +25,9 @@ hardware/kicad/**/*.kicad_prl
 # tracked on purpose; not the plugin's scratch database, Finder files, the
 # stray "<board>.kicad_pcb.zip" a PCBWay export leaves next to the project,
 # or the old "Analog Redial 5" files left in v6's export folder.
+# v6 is in progress: only its README is published until the design is done.
+hardware/kicad/Analog Redial v6/*
+!hardware/kicad/Analog Redial v6/README.md
 hardware/kicad/**/jlcpcb/project.db
 hardware/kicad/**/.DS_Store
 hardware/kicad/**/*.kicad_pcb.zip

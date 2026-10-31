@@ -21,20 +21,20 @@ capacitors and diodes). You add the larger through-hole parts with a soldering i
 
 | | **v4** (SMD4) | **v5** (SMD5) | **v5.1** | **v6** (SMD6) |
 |---|---|---|---|---|
-| Status | **Proven.** Built and in daily use | **Working.** The boards as fabbed and bench-tested; adds the expansion header (Bluetooth) and the clone-module option | **Released, not built yet.** v5 with the clone-module 5V pin fixed, plus small silkscreen and fab-file updates | **Released, not tested yet.** v5 with the clone 5V pin fixed, a 3 A DC-jack diode (SS34, not the 1 A SS14), larger power vias, a 5-pin I²C header (J6), a 3.6 V regulator (U5) for the expansion header and updated silkscreen; nobody has built one |
+| Status | **Proven.** Built and in daily use | **Working.** The boards as fabbed and bench-tested; adds the expansion header (Bluetooth) and the clone-module option | **Released, not built yet.** v5 with the clone-module 5V pin fixed, plus small silkscreen and fab-file updates | **In progress.** Two phone lines, microSD, payphone support and extra I/O all at once (an I²C I/O expander drives the second line), plus the clone 5V pin fix and a 3 A DC-jack diode; design files not published yet |
 | Microcontroller | ESP32-C6-DevKitC-1 | ESP32-C6-DevKitC-1, or a cheaper 30-pin clone (remove one pin) | Same as v5, no pin to remove | Same as v5.1 |
 | Phone lines | 1 or 2 | 1 or 2 | 1 or 2 | 1 or 2 |
-| microSD | Single-line build | Single-line build | Single-line build | Single-line build |
-| Expansion header | No | Yes (used for the Bluetooth board) | Yes | Yes |
+| microSD | Single-line build | Single-line build | Single-line build | With one or two lines |
+| Expansion header | No | Yes (used for the Bluetooth board) | Yes | Yes, plus an I²C header (payphone) and extra I/O |
 | Size | 110 × 54 mm | 115 × 54 mm | same as v5 | same as v5 |
 | Reference | [Board reference (v4)](hardware-smd4.md) | [Board reference (v5)](hardware-smd5.md) | same as v5 | none yet |
-| KiCad project | [`Analog Redial v4`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v4) | [`Analog Redial v5`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5) (as fabbed) | [`Analog Redial v5.1`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5.1) | [`Analog Redial v6`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v6) (released, untested) |
+| KiCad project | [`Analog Redial v4`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v4) | [`Analog Redial v5`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5) (as fabbed) | [`Analog Redial v5.1`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5.1) | Not published yet |
 
 **v4** has the longest track record; **v5** adds the Bluetooth header and takes a cheaper clone ESP32 module. Both take the same parts, so the parts list and
 assembly guide cover either one.
 
 > **v5 is the tested board.** **v5.1** is v5 with the clone-module 5V pin fixed (a clone needs no
-> rework) and small silkscreen and fab-file updates; **v6** is released too. Neither has been built yet.
+> rework) and small silkscreen and fab-file updates; it hasn't been built yet. **v6** is still in progress.
 > This page will say which to order once one of them has been built and tested.
 
 > ⚠️ **v5 boards with the 30-pin clone module: read before soldering.** On a v5 board the clone's
