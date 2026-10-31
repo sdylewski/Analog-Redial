@@ -1957,12 +1957,6 @@ CONFIG_PLAYER_MP3=y
 # end of Player configuration
 
 #
-# Storage configuration
-#
-CONFIG_STORAGE_RECORDING_CAP_BYTES=4194304
-# end of Storage configuration
-
-#
 # WiFi configuration
 #
 CONFIG_WIFI_SSID=""

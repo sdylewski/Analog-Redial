@@ -219,7 +219,7 @@ without a microSD card:
 |---|---|---|
 | Two firmware-update slots | 3 MB each | 2.25 MB each |
 | Built-in audio | 2 MB | 1 MB |
-| Recordings, prompts, greetings | 6 MB, recordings capped at 4 MB | 2.375 MB, recordings capped at 1.5 MB |
+| Recordings, prompts, greetings | 6 MB (about 5.5 MB usable) | 2.375 MB (about 2.1 MB usable) |
 
 Nothing to choose by hand: the flashing script reads the flash size off the
 chip and builds the right image ([step 3](flashing.md)).

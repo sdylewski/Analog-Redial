@@ -11,8 +11,5 @@ CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions_8mb.csv"
 CONFIG_PARTITION_TABLE_FILENAME="partitions_8mb.csv"
 
-# The storage partition is 2.375 MB here instead of 6 MB. Keep ~0.9 MB of
-# it free for prompts, clips and answering-machine greetings; recordings
-# get the rest (oldest deleted first). With a microSD card, recordings go
-# to the card and this cap doesn't apply.
-CONFIG_STORAGE_RECORDING_CAP_BYTES=1572864
+# The storage partition is 2.375 MB here instead of 6 MB; storage.c uses all
+# of it (clips and prompts are never evicted, recordings oldest first).

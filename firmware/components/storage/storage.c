@@ -107,6 +107,8 @@ static bool resolve_existing_path(const char *name, char *out, size_t out_len, b
     return false;
 }
 
+static size_t s_cap;   /* internal flash usable for files: set at mount */
+
 esp_err_t storage_init(void)
 {
     esp_vfs_spiffs_conf_t conf = {
@@ -122,9 +124,13 @@ esp_err_t storage_init(void)
     }
     size_t total = 0, used = 0;
     esp_spiffs_info("storage", &total, &used);
-    ESP_LOGI(TAG, "mounted %s: %u/%u bytes used (recording cap %u)",
-             MOUNT_POINT, (unsigned)used, (unsigned)total,
-             (unsigned)CONFIG_STORAGE_RECORDING_CAP_BYTES);
+    /* The whole partition, less the slack SPIFFS needs to garbage-collect.
+     * Clips and prompts can't be evicted (is_protected_asset), so there is
+     * nothing to hold space back for: a full partition just refuses the next
+     * write once no recording is left to evict. */
+    s_cap = total - total / 20;
+    ESP_LOGI(TAG, "mounted %s: %u/%u bytes used (cap %u)",
+             MOUNT_POINT, (unsigned)used, (unsigned)total, (unsigned)s_cap);
 
     /* Baked-in defaults (firmware/assets/ at build time -- see
      * spiffs_create_partition_image in main/CMakeLists.txt). Never
@@ -168,12 +174,12 @@ static size_t dir_used_bytes(const char *mount)
 }
 
 size_t storage_used_bytes_internal(void) { return dir_used_bytes(MOUNT_POINT); }
-size_t storage_cap_bytes_internal(void) { return CONFIG_STORAGE_RECORDING_CAP_BYTES; }
+size_t storage_cap_bytes_internal(void) { return s_cap; }
 
 size_t storage_free_bytes_internal(void)
 {
     size_t used = storage_used_bytes_internal();
-    size_t free_b = used < (size_t)CONFIG_STORAGE_RECORDING_CAP_BYTES ? CONFIG_STORAGE_RECORDING_CAP_BYTES - used : 0;
+    size_t free_b = used < s_cap ? s_cap - used : 0;
     size_t total = 0, fs_used = 0;
     if (esp_spiffs_info("storage", &total, &fs_used) == ESP_OK && total > fs_used) {
         /* SPIFFS needs a few blocks of slack to garbage-collect; never plan on its last 5 %. */
@@ -292,7 +298,7 @@ static esp_err_t write_begin_ex(const char *name, size_t expected_len, bool pref
         }
         sd_full_path(w->path, sizeof(w->path), name);
     } else {
-        if (expected_len > (size_t)CONFIG_STORAGE_RECORDING_CAP_BYTES) {
+        if (expected_len > s_cap) {
             return ESP_ERR_INVALID_SIZE;
         }
         full_path(w->path, sizeof(w->path), name);
@@ -321,12 +327,12 @@ static esp_err_t write_begin_ex(const char *name, size_t expected_len, bool pref
     if (!sd) {
         size_t used = storage_used_bytes_internal();
         int guard = 64; /* bounded -- never loop forever if the dir is somehow stuck */
-        while (used + expected_len > (size_t)CONFIG_STORAGE_RECORDING_CAP_BYTES && guard-- > 0) {
+        while (used + expected_len > s_cap && guard-- > 0) {
             size_t freed = evict_oldest();
             if (freed == 0) break; /* nothing left to evict */
             used -= freed;
         }
-        if (used + expected_len > (size_t)CONFIG_STORAGE_RECORDING_CAP_BYTES) {
+        if (used + expected_len > s_cap) {
             return ESP_ERR_NO_MEM;
         }
     }

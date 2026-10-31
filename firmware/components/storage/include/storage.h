@@ -4,10 +4,10 @@
  *
  * Two backends, callers never touch the filesystem directly:
  *   - internal: SPIFFS on the "storage" flash partition (a few MB), /assets.
- *     Recordings are capped at CONFIG_STORAGE_RECORDING_CAP_BYTES rather than
- *     the full partition, oldest file evicted first once that's hit -- a
- *     ring buffer, not a permanent archive. This is the only backend on a
- *     board with no microSD.
+ *     All of it is usable (less 5 % SPIFFS needs for garbage collection);
+ *     once it's full the oldest recording is evicted first -- a ring buffer,
+ *     not a permanent archive. Clips and prompts are never evicted. This is
+ *     the only backend on a board with no microSD.
  *   - sd: microSD (sdcard.h), when the board is configured for it AND a card
  *     is actually mounted. No eviction -- a card is big enough that treating
  *     it as a ring buffer would surprise someone expecting their recordings
@@ -170,9 +170,9 @@ bool     storage_sd_present(void); /* same as storage_using_sd() -- named for cl
 
 size_t   storage_list_internal(storage_entry_t *out, size_t max_entries);
 size_t   storage_used_bytes_internal(void);
-size_t   storage_cap_bytes_internal(void); /* always CONFIG_STORAGE_RECORDING_CAP_BYTES */
+size_t   storage_cap_bytes_internal(void); /* the "storage" partition, less 5 % slack */
 /* What a new file can use without evicting anything: the lesser of the room
- * left under the recording cap and the SPIFFS partition's own free space. */
+ * left under the cap and the SPIFFS partition's own free space. */
 size_t   storage_free_bytes_internal(void);
 
 /* 0 for all three if no card is mounted. uint64_t, not size_t -- a card can
