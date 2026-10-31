@@ -1,86 +1,100 @@
-# Coin board: through-hole vs. surface-mount BOM
+# Coin board: parts and PCB layout
 
 Companion to [coin-board-schematic.md](coin-board-schematic.md) and
-[output-stage-wiring.md](output-stage-wiring.md). 2026-10-30. Plan: build v1
-through-hole (easy to probe and rework), and keep the **same schematic** so an
-SMT spin only changes footprints (and, for a few transistors, the symbol).
+[output-stage-wiring.md](output-stage-wiring.md). Reference designators and
+values match `Payphone_v1/Payphone_v1.kicad_sch`.
 
-Only the parts that matter are listed: ordinary resistors and small
-ceramics are left out unless they need a power or voltage rating. LCSC
-numbers marked **(verify)** are from memory or common use, not checked
-against JLCPCB today; JLCPCB's Basic list is paginated (1,586 items) and the
-part pages don't say Basic or Extended, so check each in the BOM upload.
+The board is surface-mount, with through-hole only where it's the better part:
+C1, the 22 uF electrolytics, L1, L2, K1, Qa1 and the connectors.
 
-## How the SMT spin would work in KiCad
+## Parts
 
-- Keep the one schematic. For the SMT board, copy the project and change
-  footprints (Tools -> Assign Footprints does it in one table).
-- **Transistors need their symbol swapped too**, because KiCad numbers the
-  pins differently by package: `2N7000` (TO-92) is 1 S, 2 G, 3 D, while
-  `2N7002` (SOT-23) is 1 G, 2 S, 3 D. Swap the symbol (same nets), don't just
-  change the footprint, or the board will be wired wrong. Same for
-  2N3904/2N3906 (TO-92, E-B-C) vs MMBT3904/MMBT3906 (SOT-23, B-E-C).
-- The two DIP-8 chips keep their pinout in SOIC-8, so their values and
-  wiring stay exactly the same.
+DigiKey qty-1 prices looked up 2026-10-30, unless marked; quantity breaks drop most
+of them, and LCSC is usually at or below DigiKey. "Basic" is confirmed only where
+marked; **(verify)** means my expectation, from memory or common use, so check it in
+the BOM upload.
 
-## BOM: THT (v1) vs SMT, with prices
+**Surface-mount semiconductors**
 
-DigiKey qty-1 prices looked up 2026-10-30 (the cheapest active listing
-shown; quantity breaks drop most of them). LCSC/JLCPCB prices weren't
-readable from their pages, but LCSC is usually at or below DigiKey for these.
-"Basic"/"Extended" is my expectation, not confirmed (JLCPCB's pages don't
-show it): check in the BOM upload.
+| Ref | Function | Part | $ | LCSC / JLCPCB | Fit |
+|---|---|---|---:|---|---|
+| U1 | I2C I/O expander | TCA9534APWR, TSSOP-16, 0.65 mm | ~0.45 (LCSC) | C206010, Extended | JLCPCB, or hand-solder |
+| U2 | stage 1, 5 V to 20 V | MC34063ADR2G, SOIC-8 | 0.77 | Extended | hand-solder |
+| U3 | stage 2 controller | UC3843BD1R2G, SOIC-8 | 0.71 | C16414, Extended | hand-solder, or JLCPCB. DigiKey US stock was thin (56) |
+| U4 | ADC | ADS1115IDGSR, 10-pin, 0.5 mm | 5.28 | Extended | optional (below) |
+| Q3 | fire switch, 200 V | STN4NF20L, SOT-223 | 1.02 | Extended | hand-solder |
+| Q1, Q4 | small N-FETs | 2N7002, SOT-23 | 0.02-0.26 | C8545, Basic (verify) | **JLCPCB** |
+| Q2 | relay driver NPN | MMBT3904, SOT-23 | | Basic (verify) | **JLCPCB** |
+| Q5 | gate-drive PNP | MMBT3906, SOT-23 | 0.15 | Basic (verify) | **JLCPCB** |
+| D1 | stage 1 Schottky | 1N5819HW, SOD-123 | | (verify) | **JLCPCB** if Basic. SS34 (C8678, Basic, on the v6 board) is the alternative, on an SMA footprint |
+| D2 | stage 2 ultrafast | ES2D, SMA | 0.40 | Extended | hand-solder |
+| D3 | HV clamp | SMBJ130A, SMB | 0.51 | Extended | hand-solder |
+| D4 | relay flyback | 1N4148W, SOD-123 | ~0.05 | C81598, Basic (on v6) | **JLCPCB** |
+| D5, D6 | zeners, 22 V, 12 V | BZT52C22, BZT52C12, SOD-123 | 0.01-0.14 | likely Basic (verify) | **JLCPCB** if Basic |
+| Dz1 | Qa1 gate zener, 15 V | SMAZ15, SMA, 1 W | | (verify) | **JLCPCB** if Basic |
+| D7 | HV indicator | red LED, 0805 | | C84256, Basic | **JLCPCB** |
+| D8-D13 | debug LEDs | green LED, 0805, KT-0805G | | C2297, Basic | **JLCPCB** |
 
-| Ref | Function | **THT part** | THT $ | **SMT part** | SMT $ | JLCPCB | Recommendation (5-board order) |
-|---|---|---|---:|---|---:|---|---|
-| U1 | I2C I/O expander | (no DIP version) | | TCA9534APWR, TSSOP-16 (LCSC C206010) | ~0.45 | Extended | JLCPCB places it, or hand-solder (0.65 mm pitch) |
-| U2 | stage 1, 5 V to 20 V | MC34063AP1G, DIP-8 | 1.98 | MC34063ADR2G, SOIC-8 | 0.77 | Extended | hand-solder |
-| U3 | stage 2 controller | **UC3843AN (TI)**, DIP-8 | **1.79** | **UC3843BD1R2G**, SOIC-8 (LCSC C16414) | 0.71 | Extended | hand-solder, or JLCPCB places it from LCSC stock. DigiKey US stock was thin (56) on 2026-10-30 |
-| Qa | stage 2 switch, 200 V | IRF630PBF, TO-220 | 2.43 | keep TO-220 (or a 200 V DPAK) | 2.43 | n/a | hand-solder, through-hole |
-| Q3 | fire switch, 200 V | IRF630PBF, TO-220 | 2.43 | STN4NF20L, SOT-223 | 1.02 | Extended | hand-solder |
-| Q2, Q4, Q5 | small N-FETs (x3) | 2N7000, TO-92 | 0.29 | 2N7002, SOT-23 | 0.02-0.26 | Basic (C8545, verify) | **JLCPCB places** (3 per board, no fee) |
-| Q6 | gate-drive PNP | 2N3906, TO-92 | 0.28 | MMBT3906, SOT-23 | 0.15 | Basic (verify) | **JLCPCB places** |
-| D1 | stage 1 Schottky | 1N5819, DO-41 | 0.32 | SS34, SMA | 0.22 | Basic (C8678, on v6) | **JLCPCB places** |
-| D2 | stage 2 ultrafast | UF4003, DO-41 | 0.64 | ES2D, SMA | 0.40 | Extended | hand-solder |
-| D3 | HV clamp | 1.5KE150A, DO-201 | 0.19 | SMBJ130A, SMB | 0.51 | Extended | hand-solder (or keep the 1.5KE through-hole) |
-| D4 | relay flyback | 1N4148, DO-35 | ~0.10 | 1N4148W, SOD-123 | ~0.05 | Basic (C81598, on v6) | **JLCPCB places** |
-| D6, Dz | gate zeners 12 V, 15 V | 1N4742A / 1N4744A, DO-41 | 0.05-0.28 | BZT52C12 / C15, SOD-123 | 0.01-0.14 | likely Basic (verify) | **JLCPCB places** if Basic, else hand-solder |
-| C1 | 220 uF / 200 V | UCS2D221MHD, radial | 3.08 | (none) | | n/a | through-hole on both boards |
-| L1 | 100 uH, 2 A | **Würth [7447471101](https://www.digikey.com/en/products/detail/w%C3%BCrth-elektronik/7447471101/3476776)** (WE-TIS, shielded, 11 mm, 5 mm pitch; 1.4 A rated, 2.1 A Isat, 0.24 ohm) | 2.49 | Bourns SRR1260-101M, 12 x 12 mm | ~1.05 (est.) | Extended | **through-hole on the SMT board too** |
-| L2 | 220 uH, 1 A | **Würth [7447471221](https://www.digikey.com/en/products/detail/w%C3%BCrth-elektronik/7447471221/3476777)** (WE-TIS, shielded, 11 mm, 5 mm pitch; 1.0 A rated, 1.4 A Isat, 0.51 ohm) | 2.49 | Bourns SRR1260-221K / Murata 48221SC | 1.05 / 1.14 | Extended | **through-hole on the SMT board too** |
-| K1 | DPDT relay | G6S-2-DC5 | 4.52 | G6S-2F-DC5 | 5.08 | Extended | keep through-hole (cheaper, sturdier) |
-| R, C | 0805 resistors/caps | axial / disc | | 0805 | | Basic for common values | **JLCPCB places** |
-| R11, Rcs, R26 | power resistors | axial | | 1206 / 2512 | | check | Basic values exist for some |
-| C5, C7, C9, C14, C15 | 5 V input and 20 V rail bulk | 22 uF 35 V electrolytic, radial 5 mm, 2 mm pitch | | 22 uF 35 V SMD electrolytic, 6.3 x 5.4 mm can | | Extended (no Basic one found) | **through-hole on the SMT board too** (SMD options below) |
-| J1-J3, J6-J9, RV1 | connectors, trimmer | | | stay through-hole | | n/a | hand-solder |
-| U4 | ADS1115 (debug only) | AliExpress module, ~1.90 ([listing](https://www.aliexpress.us/item/2251832488241448.html)) | 1.90 | ADS1115IDGSR, VSSOP-10 | 5.28 | Extended | leave unfitted; module for bring-up |
+The Basic LEDs were checked on JLCPCB's part pages on 2026-10-31. No 1206 red LED is
+Basic, so 0805 is the largest for D7; the 0603 greens (C72043, C12624) are Extended.
 
-**Per board, the semiconductors** (U1-U3, Q2-Q6, D1-D6) come to about
-**$11 through-hole vs. about $5 SMT** at these prices.
+**Through-hole, hand-soldered ("do not place" for JLCPCB)**
 
-### UC3843 in surface-mount: what else fits
+| Ref | Function | Part | $ |
+|---|---|---|---:|
+| C1 | 220 uF / 200 V | Nichicon UCS2D221MHD, 18 x 26.5 mm, 7.5 mm leads | 3.08 |
+| C5, C7, C9, C14, C15 | 22 uF / 35 V, on +5V and 20V | Panasonic EEU-FR1V220, 5 mm, 2 mm leads. One part for all five | |
+| L1 | 100 uH | [Würth 7447471101](https://www.digikey.com/en/products/detail/w%C3%BCrth-elektronik/7447471101/3476776): WE-TIS, shielded, 5 mm pitch; 1.4 A rated, 2.1 A Isat, 0.24 ohm | 2.49 |
+| L2 | 220 uH | [Würth 7447471221](https://www.digikey.com/en/products/detail/w%C3%BCrth-elektronik/7447471221/3476777): WE-TIS, shielded, 5 mm pitch; 1.0 A rated, 1.4 A Isat, 0.51 ohm | 2.49 |
+| K1 | DPDT relay, 5 V coil | Omron (Aratas) G6S-2-DC5: 250 VAC / 220 VDC switching per the listing **(check the datasheet)** | 4.52 |
+| Qa1 | stage 2 switch, 200 V | IRF630PBF, TO-220 | 2.43 |
+| J2 | relay cable | Molex 0026604030, KK 396, 3-pin (plug 09-50-3031 + terminals, verify) | 0.35 |
+| J3 | coin switch cable | Molex 0026604040, KK 396, 4-pin (plug 09-50-3041 + terminals, verify) | 0.44 |
+| J1 or J6 | main board cable | JST B5B-EH-A, or a 1 x 5 pin header, 2.54 mm | |
+| J7-J9 | HV setting | 1 x 2 pin headers + shunts, 2.54 mm | |
 
-The 8-pin UC3842/3/4/5 family all share one pinout, and the "43" is the one with
-the 8.4 V start / 7.6 V stop threshold this board needs. DigiKey, 2026-10-30:
+The priced parts in these two tables, without U4, come to about **$20** a board at
+qty-1 prices.
 
-| Part | Maker | Package | $ (qty 1) | Stock | Drop-in? |
-|---|---|---|---:|---:|---|
-| **UC3843BD1R2G** | onsemi | SOIC-8 | 0.71 | 56 | **yes**: the same bipolar UC3843 (30 V supply rating), same R/C values. LCSC C16414 |
-| UC3843BD1 | ST | SOIC-8 | | | yes, ST's version of the same part |
-| UCC38C43DR, UCC28C43DR, -DGKR | TI | SOIC-8 / VSSOP-8 | 0.90-2.52 | | **no on this board**: the BiCMOS UCC28C4x/38C4x are rated **20 V absolute maximum, 18 V recommended** for VDD ([TI datasheet SLUS458](https://www.ti.com/document-viewer/UCC38C43/datasheet/GUID-7D2F25E7-C9BF-401E-BD1E-0AAA9B0B1602)), and U3's VCC is the 20 V rail |
-| UC3843AD | TI | **14-pin SOIC** | 2.49 | | **not a drop-in**: TI's "D" UC3843A is the 14-pin version with a different pinout |
+**Resistors and small capacitors: 0805, JLCPCB places them**, except:
 
-The SMT board uses the **UC3843BD1R2G**. To use a UCC38C43 anyway, stage 1 would have to make 15-16 V
-instead of 20 V (R13/R14), which also lowers the gate drive.
+| Ref | Value | Size | Why |
+|---|---|---|---|
+| Rfbt1-3, Rbl1-3, R27, R28, R32 | 100 k, 1 M, 33 k, 1.18 M | **1206** | on HV (below) |
+| R26 | 10 ohm | 1206 | firing current sense |
+| R11, Rcs1 | 0.33 ohm 0.5 W, 2 ohm 1 W | **2512** | power; check the exact part's rating |
 
-Not drop-ins: the **UC3842** (16 V start / 10 V stop, too close to the 20 V
-rail) and the **UC3844/UC3845** (their output is limited to 50 % duty, too low
-for a 6.5:1 boost).
+| Capacitors that need care | Value | Requirement |
+|---|---|---|
+| Ct1, C8 | 2.2 nF, 1 nF | **C0G/NP0**: they set U3's and U2's clocks. X7R loses 10-15 % with temperature and more with voltage |
+| Cf1, Cp | 470 pF, 100 pF | **C0G/NP0**: current-sense filter and compensation pole |
+| Cvcc1 | 0.1 uF | **50 V**: on the 20 V rail, where a 16 or 25 V 0805 loses most of its capacitance |
+| Cz1 | 150 nF | X7R; sets the compensation zero |
 
-### Is the $3 Extended fee worth it?
+**U4 is optional.** It only adds readings (coin-board-schematic.md, section 9), and at
+$5.28 plus an Extended fee it's the most expensive chip here. The board has no header
+for one of the under-$2 [ADS1115 modules](https://www.aliexpress.us/item/2251832488241448.html),
+so a module for bring-up would be hand-wired to U4's pads.
 
-The fee is **per unique Extended part, per order**, not per board, so it
-shrinks with order size:
+### UC3843 alternatives
+
+The 8-pin UC3842/3/4/5 family all share one pinout, and the "43" is the one with the
+8.4 V start / 7.6 V stop threshold this board needs.
+
+| Part | Maker | Package | $ (qty 1) | Drop-in? |
+|---|---|---|---:|---|
+| **UC3843BD1R2G** | onsemi | SOIC-8 | 0.71 | the part on the board |
+| UC3843BD1 | ST | SOIC-8 | | yes, ST's version of the same part |
+| UCC38C43DR, UCC28C43DR, -DGKR | TI | SOIC-8 / VSSOP-8 | 0.90-2.52 | **no**: the BiCMOS UCC28C4x/38C4x are rated **20 V absolute maximum, 18 V recommended** for VDD ([TI datasheet SLUS458](https://www.ti.com/document-viewer/UCC38C43/datasheet/GUID-7D2F25E7-C9BF-401E-BD1E-0AAA9B0B1602)), and U3's VCC is the 20 V rail |
+| UC3843AD | TI | **14-pin SOIC** | 2.49 | **no**: TI's "D" UC3843A is the 14-pin version with a different pinout |
+
+Also not drop-ins: the **UC3842** (16 V start / 10 V stop, too close to the 20 V rail)
+and the **UC3844/UC3845** (output limited to 50 % duty, too low for this boost).
+
+### What JLCPCB should place
+
+The Extended fee is **per unique Extended part, per order** (about $3 each last I knew;
+check the current figure), so it shrinks with order size:
 
 | Boards in the order | Fee per Extended part, per board |
 |---:|---:|
@@ -88,96 +102,41 @@ shrinks with order size:
 | 10 | $0.30 |
 | 30 | $0.10 |
 
-With about 6 Extended SMT parts here (U1, U2, U3, Q3, D2, D3; L1 and L2 are
-through-hole), that's **$18 per order**: $3.60 a board at 5 boards, $0.60 at 30.
+With 6 Extended parts (U1, U2, U3, Q3, D2, D3; U4 would be a seventh), that's **$18 per
+order**: $3.60 a board at 5 boards, $0.60 at 30.
 
-**Recommendation**
-
-- **First SMT order (5 boards): JLCPCB places only Basic parts**, which are free
-  to place: the 2N7002s, MMBT3906, SS34, 1N4148W, zeners, and the 0805 R/C.
-  You hand-solder the Extended ones. They're all easy packages (SOIC-8/18,
-  SOT-223, SMA, SMB), only one of each per board, and
-  hand-soldering them saves about $18 an order, nearly the whole saving from
-  going SMT.
-- **30 boards or more: let JLCPCB place everything SMT.** The fees drop to
-  about $0.60 a board, less than your time.
-- **Through-hole on every version:** C1, K1, Qa (TO-220), L1/L2 (Würth
-  WE-TIS, shielded), the five 22 uF electrolytics, the connectors and
-  jumpers. JLCPCB's through-hole service costs extra too, and
-  these solder in a minute.
-- Buy the hand-solder parts from LCSC in the same order (they ship with the
-  boards) or from DigiKey.
+- **First order (5 boards): JLCPCB places only Basic parts.** You hand-solder the Extended
+  ones. They're easy packages apart from U1's 0.65 mm pitch, only one of each per board,
+  and it saves about $18 an order.
+- **30 boards or more: let JLCPCB place everything surface-mount.** The fees drop to about
+  $0.60 a board, less than your time.
+- Buy the hand-solder parts from LCSC in the same order (they ship with the boards) or from
+  DigiKey.
 
 ## Will small resistors and capacitors stand the voltage?
 
-**Resistors.** Thick-film chips have a maximum working voltage, separate from
-their power rating. Typical figures (UniOhm/Yageo-class general parts; check the
-datasheet of the exact part):
+**Resistors.** Thick-film chips have a maximum working voltage, separate from their power
+rating. Typical figures (UniOhm/Yageo-class general parts; check the datasheet of the exact
+part):
 
 | Size | Max working voltage (typ.) | Power (typ.) |
 |---|---|---|
-| 0402 | 50 V | 1/16 W |
 | 0603 | 50-75 V | 1/10 W |
 | 0805 | 150 V | 1/8 W |
 | 1206 | 200 V | 1/4 W |
 | 2512 | 200 V | 1 W |
 
-Where it matters on this board:
-- **The HV chains** (bleed, feedback top, ADC divider) are 3 in series, so at
-  about 120-130 V each resistor sees about 40-45 V. That's within 0603 on
-  paper but with little margin, and 0603 pads sit only about 0.8 mm apart.
-  **Use 1206** (or at least 0805) for anything on a chain from HV.
-- Everything else (logic, 20 V, gate drive) is fine in 0805, or 0603.
+Where it matters on this board, at 119 V:
 
-**Ceramics on the 20 V rail need 50 V parts:** Cvcc1 (U3's VCC bypass) is
-marked **0.1uF 50V** in the schematic; a 16 or 25 V 0805 is too close to 20 V
-and loses most of its capacitance there.
+- **Rfbt1-3, Rbl1-3:** 3 in series, about 40 V each.
+- **R27, R28:** 2 in series, about 47 V each.
+- **R32:** a single resistor, about 115 V, inside a 1206's 200 V.
 
-**Capacitors.** There are no ceramic capacitors directly on HV in this design
-(C1 is the only HV capacitor and it stays through-hole). For the rest, pick a
-rated voltage at least 2x the working voltage, and mind DC bias:
+All are 1206: besides the rating, the wider pad gap helps with HV clearance. Everything else
+(logic, 20 V, gate drive) is fine in 0805.
 
-- **22 uF at 20 V:** a 22 uF 25 V 0805 X5R (C45783) loses most of its
-  capacitance at 20 V (often 70-80 % gone from DC bias), and 20 V on a 25 V
-  part is too close. On the 20 V rail use **50 V 1206** parts (22 uF if
-  stocked, or 2 x 10 uF), or keep an SMD electrolytic.
-- **0805 for rework:** yes, 0805 is a good choice for a board you may want to
-  modify; 0603 is noticeably fiddlier with an iron. Use 1206 for the HV chains
-  and the 1/4-1/2 W resistors.
-
-## The 22 uF electrolytics (C5, C7, C9, C14, C15)
-
-Through-hole radial parts (5 mm, 2 mm pitch, `CP_Radial_D5.0mm_P2.00mm`) on
-this board. For a later spin with JLCPCB placing them: none of the 22 uF 35 V
-SMD electrolytics found at JLCPCB are Basic, but all five are the same part,
-so it's a single $3 Extended fee per order, not five. SMD parts that fit
-`Capacitor_SMD:CP_Elec_6.3x5.4` (LCSC numbers; check
-stock and Basic/Extended in the BOM upload):
-
-| Part | Maker | LCSC | Can | Note |
-|---|---|---|---|---|
-| CS1V220M-CRE54 | ST (Semtech) | [C116086](https://datasheet.lcsc.com/lcsc/1811082138_ST-Semtech-CS1V220M-CRE54_C116086.pdf) | 6.3 x 5.4 mm | exact size |
-| VES220M1VTR-0605 | Lelon | [C249703](https://www.lcsc.com/product-detail/C249703.html) | 6.3 x 5.3 mm | fits the same pads |
-| AVEZ226M35D16T-F | Cornell Dubilier | [C2443005](https://jlcpcb.com/partdetail/2534856-AVEZ226M35D16TF/C2443005) | 6.3 x 5.3 mm | fits the same pads |
-
-Not these: CS1V220M-CRD54 (C116404) is the 5 x 5.4 mm can, too small for
-this footprint.
-
-## Basic vs. Extended at JLCPCB
-
-- **22 uF:** C45783 (Samsung CL21A226MAQNNNE, 22 uF 25 V X5R 0805) is the
-  usual Basic 22 uF; I confirmed the part, not its Basic status. It's right
-  for the 5 V side, not the 20 V rail.
-- **220 uF:** I didn't find a Basic 220 uF in what I could read, and the one
-  this board needs (200 V) isn't an SMD part anyway; it stays through-hole.
-- Most of the special parts here (TCA9534A, MC34063, UC3843, the 200 V FETs,
-  SMBJ130A, the relay, the inductors) will be **Extended**. JLCPCB charges a
-  per-part setup fee for each Extended part (about $3 each last I knew;
-  check the current figure), so 8-10 of them add roughly $25-30 per order,
-  on top of the part prices. Through-hole parts JLCPCB doesn't place stay
-  hand-soldered either way.
-- Your v6 board already uses several Basic parts this board can share:
-  SS34 C8678, 1N4148W C81598, and the 0402 R/C values (here in 0805 instead).
+**Capacitors.** C1 is the only capacitor on HV. For the rest, pick a rated voltage at least 2x
+the working voltage, and mind DC bias.
 
 ## PCB layout and routing
 
@@ -282,19 +241,15 @@ Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
 
 ### Still to do on the board
 
-- **New parts:** run Update PCB from Schematic (it also renames +3V3 to VIO
-  and changes Rbl1-3 to 1 M), then place:
+- **Update PCB from Schematic** hasn't been run yet. It swaps U1 from the MCP23008 to the
+  TCA9534A's TSSOP-16 (re-place it), removes R10, renames +3V3 to VIO, moves J3's pins and
+  changes Rbl1-3 to 1 M. Then place the new parts:
   - **HV LED** (R27, R28, D5, D7): in the STAGE2 group beside C1, with D7
     where it can be seen with the board installed. R27/R28 are HV class.
   - **Debug LEDs** D8-D13 with R34-R39: in a row along an edge, labelled on
     silkscreen 5c / 10c / 25c / HV EN / POL / FIRE. D8-D10 and R34-R36 near
     J3 (COIN group), D11-D13 and R37-R39 near U1 (LOGIC group).
   - **JP1** (VIO = 5V) near J6, with its label on silkscreen.
-  - JLCPCB parts, checked 2026-10-31 on the part pages: red 0805 LED
-    **C84256** (Basic; no 1206 red LED is Basic, so 0805 is the largest),
-    green 0805 LED **C2297** KT-0805G (Basic; the 0603 greens C72043 and
-    C12624 are Extended). Still to check: BZT52C22 in SOD-123, 33 k / 1 M
-    1206, 1.5 k 0805.
 - **Pad-to-pad clearance inside footprints:** with the HV class's 1.0 mm,
   DRC flags the pin spacing of K1 (0.54 mm between neighbouring pads), J2
   (0.8 mm), Qa1 (0.64 mm) and Q3 (0.8 mm). These are the parts' own pitches.
@@ -304,7 +259,7 @@ Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
   K1's contact pins would bring it over.
 - Board outline and mounting holes (M3, away from HV).
 - Test points: 20 V, VIO, HV (a probe pad behind a series resistor), GND.
-- The AIN filter caps and the 100 nF 250 V stage-2 cap, if you want them:
-  add them to the schematic first, then Update PCB.
+- **Cp** (100 pF, COMP to FB) needs adding to the schematic first. So do the AIN filter
+  caps and the 100 nF 250 V stage-2 cap, if you want them.
 - Two reference designators overlap (Cz1/Rz1, Ct1/R18): nudge them when
   tidying silkscreen.
