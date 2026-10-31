@@ -25,11 +25,11 @@ see section 3.
  +5V  --- J1.1 --+-- F1 --+--> [U2 MC34063A 5V->20V] --> +20V --> [U3 UC3843A + Qa IRF630 + L2 + D2] --> HV+ (Cout)
  VIO  --- J1.2   |        |         ^EN                          ^COMP (shutdown)                    |
  SDA  --- J1.3 --+        +-> sensor +5V (J3, JP1)                    |                              |
- SCL  --- J1.4 --+--> [U1 MCP23008 @0x20] GP4 HV_EN ----------------+                              |
- GND  --- J1.5      |        GP5 POL --> Q2 (2N7000) --> K1 (DPDT relay) <-- HV+ -------------------+
- (J1 = main board v6 J6)|  GP6 FIRE --> Q3 (IRF630, low side) --> Rsense --> GND
-                    |        GP0..2 <-- coin inputs <-- J3 (coin sensor)
-                    |        GP3, GP7: spare, to J5
+ SCL  --- J1.4 --+--> [U1 TCA9534A @0x39] P4 HV_EN  ----------------+                              |
+ GND  --- J1.5      |        P5 POL  --> Q2 (2N7000) --> K1 (DPDT relay) <-- HV+ -------------------+
+ (J1 = main board v6 J6)|  P6 FIRE  --> Q3 (IRF630, low side) --> Rsense --> GND
+                    |        P0..2 <-- coin inputs <-- J3 (coin sensor)
+                    |        P3, P7: spare, to J5
 
  K1 poles --> J2 (coil: A / B).  Relay on the coil: HD550002C, white + green wires.
 ```
@@ -42,7 +42,7 @@ see section 3.
 | **J2** | **Molex KK 396, 3-pin header, 0026604030** | the relay's plug: A = white, B = green, red unconnected (so the original plug fits). **Check its voltage rating against 119 V (130 V for margin)** |
 | **J3** | **Molex KK 396, 4-pin header, 0026604040** | coin sensor. **The sensor has 5 wires but this is a 4-pin plug: identify which wires are used**; if five are needed, a 5-pin KK (26-60-4050) is the next size. Intended use: +V, GND, NICKEL, DIME, QUARTER. **The sensor's 5 wires (white, blue, red, green, white) are not yet identified**; measure it first (patent says supply 3-9 V and three open-collector outputs) |
 | **J7-J9** | three 2-pin headers, **HV profile select** | no jumper = 52 V; any combination of jumpers is a valid setting, up to 119 V with all three (section 5) |
-| **J5** | 1 x 4 | GP3, GP7 (spare I/O), VIO, GND |
+| **J5** | 1 x 4 | P3, P7 (spare I/O), VIO, GND |
 | **JP1** | solder jumper, **open** by default | **VIO = 5 V**: bridge it only for a host with no logic supply to give (a 5 V I2C host using four wires). Leave it open whenever pin 2 is wired |
 
 ## 3. I2C devices and the main board
@@ -50,7 +50,16 @@ see section 3.
 | Device | Address | Notes |
 |---|---|---|
 | ES8388 (on the main board) | 0x10 | already there |
-| **U1 MCP23008-E/P** (DIP-18) | **0x20** (A0-A2 wired directly to GND) | VDD = VIO; /RESET tied to VIO via 10 k; I/O pins default to inputs at power-up, so every output below has a pulldown |
+| **U1 TCA9534APWR** (TSSOP-16) | **0x39** (A0 to VIO, A1 and A2 to GND) | VCC = VIO; no reset pin (power-on reset); I/O pins default to inputs at power-up, so every output below has a pulldown |
+| ADS1115 (U4, on this board) | 0x48 | |
+| TCA9534A on Analog Redial v6 | 0x38 | the main board's own expander (line 2), A0-A2 to GND |
+
+**Address:** the TCA9534A's address is 0x38 plus its A2 A1 A0 pins read as a
+binary number. The main board keeps the default, 0x38 (all three to GND); the
+coin board ties **A0 to VIO** to take the next one, **0x39**. Another add-on
+can use 0x3A-0x3F. (The plain TCA9534, without the A, sits at 0x20-0x27
+instead; either works, but the A keeps clear of 0x20 boards like the
+MCP23008.)
 
 The main board already has the I2C pull-ups; add **DNP** 4.7 k pads on this
 board in case it is used standalone.
@@ -68,46 +77,47 @@ drive. **VIO must be 3.0-5.5 V:** the chips work down to 2.0 V, but EN_HV
 and FIRE drive 2N7002 gates (Q1, Q4; threshold up to 2.5 V) and the debug
 LEDs need about 3 V. Below that the HV supply simply won't turn on.
 
-## 4. Pin assignment (MCP23008, VDD = VIO)
+## 4. Pin assignment (TCA9534A, VCC = VIO)
 
-**U1 pin connections (MCP23008-E/P, DIP-18):**
+**U1 pin connections (TCA9534APWR, TSSOP-16):**
 
-| DIP pin | Name | Net / connection |
+| Pin | Name | Net / connection |
 |---|---|---|
-| 1 | SCL | I2C clock (from J1 pin 4) |
-| 2 | SDA | I2C data (from J1 pin 3) |
+| 1 | A0 | VIO (address bit 0 = 1) -> address **0x39** |
+| 2 | A1 | GND (address bit) |
 | 3 | A2 | GND (address bit) |
-| 4 | A1 | GND (address bit) |
-| 5 | A0 | GND (address bit) -> address **0x20** |
-| 6 | ~RESET | VIO via 10 k pull-up (always enabled) |
-| 7 | NC | not connected (no internal bond) |
-| 8 | INT | unused (active-low open-drain interrupt output) |
-| 9 | VSS | GND |
-| 10 | GP0 | NICKEL (coin sensor input) |
-| 11 | GP1 | DIME |
-| 12 | GP2 | QUARTER |
-| 13 | GP3 | SPARE_A (to J5) |
-| 14 | GP4 | HV_EN (output, 100 k pulldown) |
-| 15 | GP5 | POL (output, 100 k pulldown) |
-| 16 | GP6 | FIRE (output, 10 k pulldown) |
-| 17 | GP7 | SPARE_B (to J5) |
-| 18 | VDD | VIO |
+| 4 | P0 | NICKEL (coin sensor input) |
+| 5 | P1 | DIME |
+| 6 | P2 | QUARTER |
+| 7 | P3 | SPARE_A (to J5) |
+| 8 | GND | GND |
+| 9 | P4 | HV_EN (output, 100 k pulldown) |
+| 10 | P5 | POL (output, 100 k pulldown) |
+| 11 | P6 | FIRE (output, 10 k pulldown) |
+| 12 | P7 | SPARE_B (to J5) |
+| 13 | ~INT | unused (active-low open-drain interrupt output) |
+| 14 | SCL | I2C clock (from J1 pin 4) |
+| 15 | SDA | I2C data (from J1 pin 3) |
+| 16 | VCC | VIO |
 
-**GPIO functional assignment:**
+**Pin functional assignment:**
 
 | Pin | Net | Dir | Idle | Notes |
 |---|---|---|---|---|
-| GP0 | NICKEL | in | high (pull-up to VIO) | open-collector sensor out, 10 k pull-up, 1 k series, 100 nF to GND |
-| GP1 | DIME | in | high | same |
-| GP2 | QUARTER | in | high | same |
-| GP3 | SPARE_A | in/out | | to J5 |
-| GP4 | **HV_EN** | out | **low** (100 k pulldown) | enables U2 and U3: HV exists only while high |
-| GP5 | **POL** | out | low (100 k pulldown) | drives Q2 and relay K1: sets which way the coil is driven |
-| GP6 | **FIRE** | out | low (10 k pulldown at the gate) | gates Q3: current through the coil |
-| GP7 | SPARE_B | in/out | | to J5 |
+| P0 | NICKEL | in | high (pull-up to VIO) | open-collector sensor out, 10 k pull-up, 1 k series, 100 nF to GND |
+| P1 | DIME | in | high | same |
+| P2 | QUARTER | in | high | same |
+| P3 | SPARE_A | in/out | | to J5 |
+| P4 | **HV_EN** | out | **low** (100 k pulldown) | enables U2 and U3: HV exists only while high |
+| P5 | **POL** | out | low (100 k pulldown) | drives Q2 and relay K1: sets which way the coil is driven |
+| P6 | **FIRE** | out | low (10 k pulldown at the gate) | gates Q3: current through the coil |
+| P7 | SPARE_B | in/out | | to J5 |
 
-At reset the MCP23008 is all inputs, the pulldowns hold HV_EN, POL and FIRE
-low, so **nothing fires and the HV supply is off** until firmware says so.
+At power-up the TCA9534A is all inputs, the pulldowns hold HV_EN, POL and
+FIRE low, so **nothing fires and the HV supply is off** until firmware says so.
+**Firmware order matters:** its output register powers up as all ones, so
+write 0 to the output register (0x01) *before* making P4-P6 outputs in the
+configuration register (0x03); the other order drives them high for a moment.
 
 **Debug LEDs** (green 0805, KT-0805G, JLCPCB C2297, Basic), each with a
 1.5 k resistor, dim on purpose:
@@ -540,8 +550,8 @@ bench (earlier: + on red / white at ground moved the lever right = return).
   **Omron G6S-2-DC5** (through-hole): distributor listing shows 250 VAC / 220 VDC
   switching, **verify against the datasheet**. The **TQ2-5V** (110 V DC max) is
   **not** enough for the 112 and 119 V settings, fine only up to about 100 V.
-- Coil of K1: +5 V through **Q2 (2N7000, TO-92)** from GP5
-  (100 k pulldown on GP5), flyback diode **1N4148** (DO-35) across the coil.
+- Coil of K1: +5 V through **Q2 (2N7000, TO-92)** from P5
+  (100 k pulldown on P5), flyback diode **1N4148** (DO-35) across the coil.
 
   ```
   D4 (1N4148) flyback diode across K1 relay coil:
@@ -559,7 +569,7 @@ bench (earlier: + on red / white at ground moved the lever right = return).
             |
             +--- Q2 drain
 
-  GP5 --+-- Q2 gate
+  P5 --+-- Q2 gate
         |
       100k
         |
@@ -573,18 +583,18 @@ bench (earlier: + on red / white at ground moved the lever right = return).
   ```
 
 - **Q3: Vishay IRF630PBF** (TO-220, 200 V, 9 A). The IRF630 needs about 4-5 V
-  Vgs to turn on properly — **3.3 V from the MCP23008 is not enough**. Drive
+  Vgs to turn on properly — **3.3 V from the TCA9534A is not enough**. Drive
   its gate from the **+20 V stage-1 rail** through a resistor and a **12 V zener (D6)**
   (gate clamp), pulled down by **two 2N7000s** (TO-92) in a non-inverting stage
-  from GP6. With HV_EN off the rail idles at only about 4.6 V (not 0 V), which
-  can still partly turn Q3 on if GP6 were high, so **Q3 is held off by GP6 low**
+  from P6. With HV_EN off the rail idles at only about 4.6 V (not 0 V), which
+  can still partly turn Q3 on if P6 were high, so **Q3 is held off by P6 low**
   (10 k pulldown) and firmware never sets FIRE without HV. 100 ohm gate
   resistor on Q3.
   Current is limited by the relay's own resistor and self-interrupting switch
   (about 50 mA at 60 V measured).
 
   ```
-  Q3 gate drive: non-inverting level shifter from GP6 (3.3 V) to +20 V
+  Q3 gate drive: non-inverting level shifter from P6 (3.3 V) to +20 V
 
        +20V            +20V
         |                |
@@ -598,7 +608,7 @@ bench (earlier: + on red / white at ground moved the lever right = return).
         |                |                 |
        GND              GND            Rsense 10R
                                            |
-  GP6 --+-- Q4 gate                       GND
+  P6 --+-- Q4 gate                       GND
         |
        10k
         |
@@ -606,9 +616,9 @@ bench (earlier: + on red / white at ground moved the lever right = return).
 
   Two common-source 2N7000 stages, each inverts once = non-inverting:
 
-  GP6 high -> Q4 on  -> Q4 drain low  -> Q6 gate low
+  P6 high -> Q4 on  -> Q4 drain low  -> Q6 gate low
            -> Q6 off -> R16 pulls high -> Q3 gate ~12 V -> Q3 ON
-  GP6 low  -> Q4 off -> R15 pulls high -> Q6 gate high
+  P6 low  -> Q4 off -> R15 pulls high -> Q6 gate high
            -> Q6 on  -> Q6 drain low  -> Q3 gate 0 V  -> Q3 OFF
 
   D6 (12 V zener): anode to Q3 source, cathode (band) to Q3 gate.
@@ -624,16 +634,16 @@ bench (earlier: + on red / white at ground moved the lever right = return).
 
 - J3 supply: +5 V to the sensor (3-9 V per the patent **[measure]**).
 - Each coin line: 10 k pull-up **to VIO** (not to the sensor's supply), 1 k
-  series resistor, 100 nF to ground: the MCP23008 input stays within
+  series resistor, 100 nF to ground: the TCA9534A input stays within
   VIO even if the sensor's supply is higher. D8-D10 show each line (section 4). Optionally clamp with a BAV99 per line
   (DNP).
 - The patent's logic: a nickel blocks one beam, a dime the other, a quarter both.
   The three outputs are separate and open-collector (active low, **[verify]**).
-- Firmware polls the MCP23008 about every 2-5 ms and counts edges, with debounce.
+- Firmware polls the TCA9534A about every 2-5 ms and counts edges, with debounce.
 
 ## 8. Voltage monitor options (2026-10-27)
 
-**The MCP23008's A0, A1, A2 are I2C address pins, not analog inputs.** It has
+**The TCA9534A's A0, A1, A2 are I2C address pins, not analog inputs.** It has
 no ADC; every pin is digital. Two ways to watch the high-voltage output:
 
 **Option A: a two-bit window comparator (all through-hole, about $0.10).**
@@ -641,10 +651,10 @@ An **LM393N** (DIP-8, dual comparator; STMicro listing $0.089 at DigiKey, the
 TI/onsemi/Fairchild listings were unavailable) reads a divider of the HV rail
 (about 1.18 M top, 30 k bottom, so 130 V reads about 3.25 V and 60 V about
 1.5 V) against two fixed thresholds from a divider off 3.3 V:
-- **HV_OK** (GP3): high once the output is above about 90 % of the chosen profile;
-- **HV_HIGH** (GP7): high if it is above about 110 %, an overvoltage alarm.
+- **HV_OK** (P3): high once the output is above about 90 % of the chosen profile;
+- **HV_HIGH** (P7): high if it is above about 110 %, an overvoltage alarm.
 The outputs are open-collector, pulled up to 3.3 V. This uses the two spare
-pins (GP3, GP7, which also go to J5). Firmware then knows "charged" and
+pins (P3, P7, which also go to J5). Firmware then knows "charged" and
 "too high"; it doesn't get a number. The thresholds depend on the J7-J9
 profile, so set them with a trimmer, or compute for the highest profile only.
 
@@ -685,7 +695,7 @@ small-capacitor links are DigiKey searches on the exact maker part number
 
 | Ref | Value | Part (package) | DigiKey | Note |
 |---|---|---|---|---|
-| U1 | I/O expander | **MCP23008-E/P** (DIP-18) | [MCP23008-E/P](https://www.digikey.com/en/products/result?keywords=MCP23008-E/P) | address 0x20, A0-A2 to GND |
+| U1 | I/O expander | **TCA9534APWR** (TSSOP-16; LCSC C206010) | [TCA9534APWR](https://www.digikey.com/en/products/result?keywords=TCA9534APWR) | address 0x39, A0 to VIO, A1-A2 to GND |
 | U2 | 5 V to 20 V boost | **MC34063AP1G** (DIP-8) | [MC34063AP1G](https://www.digikey.com/en/products/result?keywords=MC34063AP1G) | 1.25 V ref |
 | U3 | boost controller | **UC3843AN, Texas Instruments** (DIP-8; onsemi's UC3843AN is obsolete) | [TI UC3843AN](https://www.digikey.com/en/products/detail/texas-instruments/UC3843AN/13479403) | E/A reference 2.5 V, VREF pin 5 V; runs from the +20 V rail |
 | Qa | stage-2 switch, 200 V N-FET | **IRF630PBF** (TO-220) | [IRF630PBF](https://www.digikey.com/en/products/detail/vishay-siliconix/IRF630PBF/812782) | gate clamped with Dz |
@@ -714,7 +724,6 @@ small-capacitor links are DigiKey searches on the exact maker part number
 | R3 | 10 k | 1/4 W 1 % metal film | [MFR-25FBF52-10K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-10K) | FIRE pulldown |
 | R4, R5, R6 | 10 k | 1/4 W 1 % metal film | [MFR-25FBF52-10K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-10K) | coin-line pull-ups to VIO |
 | R7, R8, R9 | 1 k | 1/4 W 1 % metal film | [MFR-25FBF52-1K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-1K) | coin-line series resistors |
-| R10 | 10 k | 1/4 W 1 % metal film | [MFR-25FBF52-10K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-10K) | MCP23008 reset pull-up |
 | R11 | 0.33 ohm, 0.5 W | TE **LR1LJR33** (axial, 5 %) | [LR1LJR33](https://www.digikey.com/en/products/detail/te-connectivity-passive-product/LR1LJR33/2381302) | U2 current sense (RSC) |
 | R12 | 68 ohm | 1/4 W 1 % metal film | [MFR-25FBF52-68R](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-68R) | U2 pin 8 drive resistor |
 | R13 | 150 k | 1/4 W 1 % metal film | [MFR-25FBF52-150K](https://www.digikey.com/en/products/result?keywords=MFR-25FBF52-150K) | stage-1 divider top |
@@ -754,7 +763,7 @@ warning.
    (timing cap, boost equations), U3 UC3843A (Rcs, Rt/Ct, Rfbt/Rfbb values) and
    K1 (contact rating).
 4. **Measure pull-in charge** (current x time at the operating voltage) to size Cout.
-5. Firmware: a new MCP23008 driver, coin events, and a coin-relay
+5. Firmware: a TCA9534A driver (shared with the main board v6 expander), coin events, and a coin-relay
    output (return/collect) with a safety timeout. **None of it exists yet.**
 6. **Schematic (`Payphone_v1/Payphone_v1.kicad_sch`) against this doc.** The
    power section is drawn; these differ:
@@ -805,7 +814,7 @@ high voltage are the short ones from J2 to the relay.
   noise. A 4-wire cable: 5 V, GND, SDA, SCL.
 - At the daughter-board end: **100 ohm series resistors** in SDA and SCL, a
   small ESD/TVS part on each line (the cable is an antenna for static in a
-  phone), and a 100 nF to ground near the MCP23008.
+  phone), and a 100 nF to ground near the TCA9534A.
 - **Keep the VIO wire** rather than making 3.3 V locally: the chips must run
   at the host's I2C level, which only the host knows (section 3). VIO draws a
   few mA, so cable drop doesn't matter.
@@ -848,7 +857,7 @@ for the UC3843A UVLO, gate clamping and the Q3 level-shifter are in sections
 
 | Ref | Part | Maker / part number | DigiKey | Price | Notes |
 |---|---|---|---|---|---|
-| U1 | MCP23008 I/O expander, DIP-18 | Microchip **MCP23008-E/P** | MCP23008-E/P-ND | $1.54 (qty 100 $1.24) | 4,996 in stock, active |
+| U1 | TCA9534A I/O expander, TSSOP-16 | Texas Instruments **TCA9534APWR** | (search TCA9534APWR) | about $0.40-0.55 at LCSC (C206010); check | replaces the MCP23008 (about $1.54) |
 | U2 | stage 1 controller, DIP-8 | onsemi **MC34063AP1G** | MC34063AP1GOS-ND | $1.98 | 6,945 in stock. Cheaper: KA34063A, $0.40 |
 | U3 | stage 2 controller, DIP-8 | **Texas Instruments UC3843AN** ([link](https://www.digikey.com/en/products/detail/texas-instruments/UC3843AN/13479403)) | (see link) | $1.79 | 6,770 in stock (2026-10-30). The onsemi UC3843AN is obsolete; onsemi's UC3843BNG ($1.87) is an equal alternative. **Not the UC3842BNG**: same pins, but it starts at about 16 V and stops at 10 V, too close to the 20 V rail |
 | Qa, Q3 | 200 V N-FET, TO-220 | Vishay **IRF630PBF** ([link](https://www.digikey.com/en/products/detail/vishay-siliconix/IRF630PBF/812782)) | (see link) | $2.43 each | 200 V, 9 A from memory: **verify**. Needs a heatsink only if it ever runs continuous |
@@ -898,7 +907,7 @@ resolve in KiCad as long as the standard libraries are loaded.
 
 | Part | Symbol | Footprint |
 |---|---|---|
-| U1 MCP23008-E/P | `Interface_Expansion:MCP23008-xP` | `Package_DIP:DIP-18_W7.62mm` |
+| U1 TCA9534APWR | `Interface_Expansion:TCA9534` | `Package_SO:TSSOP-16_4.4x5mm_P0.65mm` |
 | U2 MC34063AP1G | `Regulator_Switching:MC34063AP` | `Package_DIP:DIP-8_W7.62mm` |
 | U3 UC3843AN (TI) | **`Custom:UC3843AN`** (any UC3843 DIP-8; stock name: `Regulator_Controller:UC3843_DIP8`) | `Package_DIP:DIP-8_W7.62mm` |
 | Qa, Q3 IRF630 | **`Custom:IRF630`** | `Package_TO_SOT_THT:TO-220-3_Vertical` |
@@ -940,7 +949,7 @@ stay through-hole either way.
 - [Omron G6S-2 5 VDC (Conrad)](https://www.conrad.com/en/p/omron-g6s-2-5-vdc-pcb-relay-5-v-dc-2-a-2-change-overs-1-pc-s-503840.html)
 - [Panasonic TX2-5V (Arrow)](https://www.arrow.com/en/products/tx2-5v/panasonic?region=nac)
 - [Panasonic TQ2-5V (Cytech)](https://www.cytechsystems.com/product/tq2-5v)
-- [MCP23008 datasheet](https://ece-classes.usc.edu/ee459/library/datasheets/MCP23008.pdf)
+- [TCA9534A datasheet](https://www.ti.com/lit/ds/symlink/tca9534a.pdf)
 - [MT3608 guide (LCSC)](https://www.lcsc.com/blog/mt3608-boost-converter-guide/)
 - [ES2D (DigiKey)](https://www.digikey.com/en/products/detail/smc-diode-solutions/ES2D/6022516)
 - [FQT4N20L (findchips): obsolete](https://findchips.com/detail/FQT4N20LTF)

@@ -8,13 +8,13 @@ R20-R26 and C16/C17, connected with net labels, checked against a netlist export
 
 The output stage takes the high voltage on net **HV** (C1, 52-120 V, set by
 J7-J9) and sends it through the payphone's coin relay one way or the other.
-Three small blocks, each driven by one MCP23008 pin:
+Three small blocks, each driven by one TCA9534A pin:
 
 | Block | Driven by | Does |
 |---|---|---|
-| A. Relay driver | **POL** (U1 GP5, pin 15) | energizes K1's 5 V coil |
+| A. Relay driver | **POL** (U1 P5, pin 10) | energizes K1's 5 V coil |
 | B. Polarity relay + coil connector | K1's contacts | picks which coin-relay wire gets HV |
-| C. Firing switch | **FIRE** (U1 GP6, pin 16) | lets current flow through the coin relay |
+| C. Firing switch | **FIRE** (U1 P6, pin 11) | lets current flow through the coin relay |
 
 ## The whole stage at a glance
 
@@ -47,7 +47,7 @@ Three small blocks, each driven by one MCP23008 pin:
 **Which way the coin goes** (from the bench tests: + on white moved the lever
 left = collect; + on red or green moved it right = return):
 
-| POL (GP5) | K1 | J2 pin 1, white | J2 pin 3, green | Coin relay does |
+| POL (P5) | K1 | J2 pin 1, white | J2 pin 3, green | Coin relay does |
 |---|---|---|---|---|
 | low (default at reset) | off | HV | RETURN | **collect** (lever left) |
 | high | on | RETURN | HV | **return to caller** (lever right) |
@@ -67,7 +67,7 @@ K1's contacts never switch a live current (they only ever switch "dead").
   K1 pin 12 --------+-- D4 pin 2 (A)
       |
   Q2 pin 3 (D)                        2N7000
-  Q2 pin 2 (G) --- R20 1k --- POL --- U1 pin 15 (GP5)
+  Q2 pin 2 (G) --- R20 1k --- POL --- U1 pin 10 (P5)
   Q2 pin 1 (S)                 |
       |                        R2 100k (already there)
      GND                       |
@@ -84,7 +84,7 @@ K1's contacts never switch a live current (they only ever switch "dead").
 | Q2 | 2 (G) | R20 to POL |
 | Q2 | 1 (S) | GND |
 | **R20 1k (NEW)** | | Q2 gate to POL |
-| R2 100k (exists) | | POL to GND: keeps K1 off while the MCP23008 resets |
+| R2 100k (exists) | | POL to GND: keeps K1 off while the TCA9534A powers up |
 
 Note: the G6S-2's 5 V coil draws roughly 30-40 mA. A 2N7000 from a 3.3 V gate
 usually handles that, but its worst-case threshold is about 3 V, so a bad one
@@ -124,7 +124,7 @@ moved, which is why the green wire is used: each fire is a single shot.
 ## Block C: firing switch (FIRE -> Q3)
 
 Q3 is an IRF630, which needs about 10 V on its gate, more than the
-MCP23008's 3.3 V. Q4 and a PNP (Q6) lift FIRE to the 20 V rail, and D6
+TCA9534A's 3.3 V. Q4 and a PNP (Q6) lift FIRE to the 20 V rail, and D6
 clamps the gate at 12 V.
 
 ```
@@ -137,7 +137,7 @@ clamps the gate at 12 V.
           R22 4.7k (NEW)   Q6 pin 3 (C)
            |                  |
      Q4 pin 3 (D)            R24 1k (NEW)
-     Q4 pin 2 (G) --- R21 1k (NEW) --- FIRE --- U1 pin 16 (GP6)
+     Q4 pin 2 (G) --- R21 1k (NEW) --- FIRE --- U1 pin 11 (P6)
      Q4 pin 1 (S)             |          |
            |                  |          R3 10k (exists)
           GND                 |          |

@@ -33,7 +33,7 @@ show it): check in the BOM upload.
 
 | Ref | Function | **THT part** | THT $ | **SMT part** | SMT $ | JLCPCB | Recommendation (5-board order) |
 |---|---|---|---:|---|---:|---|---|
-| U1 | I2C I/O expander | MCP23008-E/P, DIP-18 | 1.54 | MCP23008-E/SO, SOIC-18 | 1.37 | Extended | hand-solder (SOIC is easy) |
+| U1 | I2C I/O expander | (no DIP version) | | TCA9534APWR, TSSOP-16 (LCSC C206010) | ~0.45 | Extended | JLCPCB places it, or hand-solder (0.65 mm pitch) |
 | U2 | stage 1, 5 V to 20 V | MC34063AP1G, DIP-8 | 1.98 | MC34063ADR2G, SOIC-8 | 0.77 | Extended | hand-solder |
 | U3 | stage 2 controller | **UC3843AN (TI)**, DIP-8 | **1.79** | **UC3843BD1R2G**, SOIC-8 (LCSC C16414) | 0.71 | Extended | hand-solder, or JLCPCB places it from LCSC stock. DigiKey US stock was thin (56) on 2026-10-30 |
 | Qa | stage 2 switch, 200 V | IRF630PBF, TO-220 | 2.43 | keep TO-220 (or a 200 V DPAK) | 2.43 | n/a | hand-solder, through-hole |
@@ -170,7 +170,7 @@ this footprint.
   for the 5 V side, not the 20 V rail.
 - **220 uF:** I didn't find a Basic 220 uF in what I could read, and the one
   this board needs (200 V) isn't an SMD part anyway; it stays through-hole.
-- Most of the special parts here (MCP23008, MC34063, UC3843, the 200 V FETs,
+- Most of the special parts here (TCA9534A, MC34063, UC3843, the 200 V FETs,
   SMBJ130A, the relay, the inductors) will be **Extended**. JLCPCB charges a
   per-part setup fee for each Extended part (about $3 each last I knew;
   check the current figure), so 8-10 of them add roughly $25-30 per order,
@@ -197,7 +197,7 @@ On the board:
 
 | Block (group) | Parts | Sits |
 |---|---|---|
-| LOGIC | U1, C16, R10, U4, C17, R17, R19, R33 | top left, beside J6/J1 |
+| LOGIC | U1, C16, U4, C17, R17, R19, R33 | top left, beside J6/J1 |
 | (not placed yet) | JP1; debug LEDs D8-D13 with R34-R39; HV LED R27, R28, D5, D7 | see "Still to do" |
 | COIN | R4-R9, C2-C4 | top right, at J3 |
 | STAGE1 (5 V -> 20 V) | U2, L1, D1, R11-R14, Q1, R1, C5-C9, C14, C15 | bottom left |
