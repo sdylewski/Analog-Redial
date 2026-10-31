@@ -1108,7 +1108,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
                      "&#9888; microSD card detected, but this board is configured for 2 lines "
                      "-- microSD and line 1 share the same wiring and can't both be active. "
                      "Line 1 has been disabled until this is fixed: remove the card, or "
-                     "reconfigure this board in <a href=\"/settings?tab=general\">Settings "
+                     "reconfigure this board in <a href=\"/settings?tab=general#hwconfig\">Settings "
                      "&rarr; General &rarr; Board hardware</a> if it's actually meant to be single-line + microSD."));
     }
     if (board_type_mismatch()) {
@@ -4271,11 +4271,11 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
         board_bt_module_t want = board_hw_config_get().bt_module;
         const char *note;
         if (want != bt_mod) {
-            note = "The module choice changed in <a href=\"/settings?tab=general\">General "
+            note = "The module choice changed in <a href=\"/settings?tab=general#hwconfig\">General "
                    "&rarr; Board hardware</a>: reboot to apply it.";
         } else if (bt_mod == BOARD_BT_NONE) {
             note = "Needs a Bluetooth module on the board. Choose the one you fitted in "
-                   "<a href=\"/settings?tab=general\">General &rarr; Board hardware</a> and "
+                   "<a href=\"/settings?tab=general#hwconfig\">General &rarr; Board hardware</a> and "
                    "reboot: that turns Bluetooth on.";
         } else if (bt_mod == BOARD_BT_BT401) {
             static char bt401_note[1600];
@@ -4312,7 +4312,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
         } else if (!bt_on) {
             note = "Paused from the console (<code>bt_enable 0</code>); a reboot turns it back on.";
         } else {
-            note = "On because a module is chosen in <a href=\"/settings?tab=general\">General "
+            note = "On because a module is chosen in <a href=\"/settings?tab=general#hwconfig\">General "
                    "&rarr; Board hardware</a>. Choose None there to turn it off.";
         }
         off = append_feature_bar(buf, cap, off, "Bluetooth", bt_on && bt_mod != BOARD_BT_NONE,
@@ -5352,7 +5352,7 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
     bool confirmed = board_hw_config_is_set();
 
     off = appendf(buf, cap, off,
-        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"card\" id=\"hwconfig\"><h2>%s</h2>"
         "<p class=\"hint\">%s: <b>%s</b>%s</p>",
         i18n_str("hwconfig.title", "Board hardware"),
         i18n_str("hwconfig.current", "Now"),
@@ -5766,12 +5766,17 @@ static int append_callcap_card(char *buf, size_t cap, int off)
 {
     callcap_state_t st = callcap_state();
     bool sd = storage_using_sd();
-    char status[120], last[STORAGE_MAX_NAME * 6] = "", last_u[STORAGE_MAX_NAME * 3] = "";
+    char status[200], last[STORAGE_MAX_NAME * 6] = "", last_u[STORAGE_MAX_NAME * 3] = "";
     switch (st) {
         case CALLCAP_ARMED:     snprintf(status, sizeof(status), "armed: lift a handset to start"); break;
         case CALLCAP_RECORDING: snprintf(status, sizeof(status), "recording, %u s", callcap_elapsed_secs()); break;
         case CALLCAP_SAVING:    snprintf(status, sizeof(status), "saving..."); break;
-        default:                snprintf(status, sizeof(status), sd ? "off" : "off (needs a microSD card)");
+        default:
+            if (sd) snprintf(status, sizeof(status), "off");
+            else if (!board_hw_config_get().has_microsd)   /* the board is set up for line 1 or pin outputs */
+                snprintf(status, sizeof(status),
+                         "off (needs a <a href=\"/settings?tab=general#hwconfig\">microSD card</a>)");
+            else snprintf(status, sizeof(status), "off (no microSD card found: insert a FAT-formatted card)");
     }
     if (callcap_last_name()[0]) {
         html_escape(callcap_last_name(), last, sizeof(last));
