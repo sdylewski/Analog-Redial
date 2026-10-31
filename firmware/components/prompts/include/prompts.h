@@ -8,8 +8,9 @@
  * (a handful of prompts, each a short sentence) that this beats a per-entry
  * key scheme or pulling in cJSON just for storage.
  *
- * A prompt is "pending" whenever text != generated_text -- no separate
- * status field. generated_text starts empty (never generated) and is set
+ * A prompt is "pending" whenever text != generated_text, or (checked in
+ * webui.c, which has storage) it was generated but its file is gone -- no
+ * separate status field. generated_text starts empty (never generated) and is set
  * to match text by prompts_mark_generated(), which the upload handlers
  * (webui.c) call once a WAV actually lands under that name -- fulfillment
  * falls out of the upload that already has to happen, no separate "mark

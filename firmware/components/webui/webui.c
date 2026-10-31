@@ -2859,7 +2859,10 @@ static int append_prompt_field_rows(char *buf, size_t cap, int off, const char *
     prompt_entry_t pe;
     bool have = prompts_get(clip_name, &pe);
     const char *text = have ? pe.text : (default_text ? default_text : "");
-    bool pending = have && strcmp(pe.text, pe.generated_text) != 0;
+    /* Generated once but the file is gone (internal flash wiped by a new
+     * partition layout, or deleted): pending again, so --sync remakes it. */
+    bool missing = have && pe.generated_text[0] && !storage_has_own(clip_name);
+    bool pending = have && (strcmp(pe.text, pe.generated_text) != 0 || missing);
 
     char etext[PROMPT_TEXT_MAX * 6];
     html_escape(text, etext, sizeof(etext));
@@ -2867,8 +2870,9 @@ static int append_prompt_field_rows(char *buf, size_t cap, int off, const char *
     html_escape(clip_name, ename, sizeof(ename));
 
     const char *status = have
-        ? (pending ? "Pending: text changed since last generate."
-                   : "Up to date with the generated audio.")
+        ? (missing ? "Pending: the generated audio file is missing."
+           : pending ? "Pending: text changed since last generate."
+                     : "Up to date with the generated audio.")
         : (text[0] ? ""   /* the built-in text, shown as it is: nothing to flag */
                    : "No text set -- this clip stays silent/skipped until generated.");
 
@@ -10459,7 +10463,8 @@ static esp_err_t prompt_requests_json_handler(httpd_req_t *req)
         char expanded[PROMPT_TEXT_MAX + 64];
         expand_prompt_vars(list[i].text, expanded, sizeof(expanded));
         cJSON_AddStringToObject(e, "text", expanded);
-        cJSON_AddBoolToObject(e, "pending", strcmp(list[i].text, list[i].generated_text) != 0);
+        cJSON_AddBoolToObject(e, "pending", strcmp(list[i].text, list[i].generated_text) != 0 ||
+                                            (list[i].generated_text[0] && !storage_has_own(list[i].name)));
         cJSON_AddItemToArray(arr, e);
     }
     free(list);

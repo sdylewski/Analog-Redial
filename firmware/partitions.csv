@@ -4,27 +4,32 @@ nvs,      data, nvs,     0x9000,  0x6000,
 # ESP-IDF size (0x2000) -- required for OTA support (esp_ota_ops.h).
 otadata,  data, ota,     0xf000,  0x2000,
 phy_init, data, phy,     0x11000, 0x1000,
-# Two 3 MB OTA slots (the image is ~1.9 MB and growing; it used to be 2 MB
-# slots, a few percent from full) so a web-UI firmware upload (Settings -> Hardware ->
-# Firmware) can write the new image into the *inactive* slot while the
-# current one keeps running, then switch on success -- see
+# Layout (16 MB): the two app slots, the bundled audio, then `storage` to
+# the end of flash, so all 16 MB is allocated and a later change that grows
+# the app slots only moves storage's start.
+#
+# Two 3.5 MB OTA slots (the image is ~2.0 MB; 1.5 MB of room) so a web-UI or
+# nightly firmware update can write the new image into the *inactive* slot
+# while the current one keeps running, then switch on success -- see
 # firmware/components/webui's ota_upload_handler and
 # CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE (sdkconfig.defaults). USB flashing
 # via `idf.py flash` writes ota_0.
 #
-# Offsets are explicit so `storage` and `bundled` keep the addresses they
-# had when the slots were 1.75 MB: reflashing over USB doesn't touch the
-# recordings and uploaded clips in `storage`. ota_0 now fills the old gap up
-# to 0x320000 (storage starts at 0x3A0000); ota_1 lives at the end, in space
-# that used to be unused. A board with the old table keeps working until it is
-# reflashed over USB once: an OTA update can't change the table.
-ota_0,    app,  ota_0,   0x20000, 0x300000,
-# Writable SPIFFS: recordings, uploaded prompts/clips, greetings. Without a
-# microSD card recordings are capped (CONFIG_STORAGE_RECORDING_CAP_BYTES)
-# so they can't crowd out prompts.
-storage,  data, spiffs,  0x3A0000, 0x600000,
+# An OTA update can't change this table: only a USB flash writes it. A board
+# flashed with the previous layout (3 MB slots, 6 MB storage at 0x3A0000,
+# bundled at 0x9A0000, ota_1 at 0xBA0000) keeps that layout and keeps
+# working -- the firmware finds partitions by name -- until it's next
+# USB-flashed. That flash moves `storage`, which then reformats on first boot:
+# uploaded clips, greetings and recordings are lost (settings in nvs are not),
+# and flash_board.py regenerates the spoken prompts afterwards. Keep the image
+# under 3 MB while old-layout boards still take OTA updates.
+ota_0,    app,  ota_0,   0x20000,  0x380000,
+ota_1,    app,  ota_1,   0x3A0000, 0x380000,
 # Read-only audio baked in at build time (firmware/main/CMakeLists.txt
-# BUNDLED_AUDIO), reflashed by every `idf.py flash`; a same-named file in
-# `storage` overrides it.
-bundled,  data, spiffs,  0x9A0000, 0x200000,
-ota_1,    app,  ota_1,   0xBA0000, 0x300000,
+# BUNDLED_AUDIO, about 0.8 MB today), reflashed by every `idf.py flash`; a
+# same-named file in `storage` overrides it.
+bundled,  data, spiffs,  0x720000, 0x180000,
+# Writable SPIFFS, the rest of flash (7.375 MB): recordings, uploaded
+# prompts/clips, greetings. storage.c uses all of it but 5 %; clips and
+# prompts are never evicted, recordings oldest first.
+storage,  data, spiffs,  0x8A0000, 0x760000,

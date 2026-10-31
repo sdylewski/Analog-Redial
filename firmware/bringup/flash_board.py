@@ -14,7 +14,12 @@
                                         recordings area, same OTA slots
                                         and bundled audio)
   4. Build, flash, and check the board comes back up as the right PCB.
-  5. Optionally (--setup) run first_setup.py.
+  5. Once it's on Wi-Fi, regenerate its spoken prompts (gen_prompt.py
+     --sync): a flash that changes the partition layout wipes internal
+     flash, and the board then reports every generated prompt as missing.
+     Nothing to do (and quick) when they're all still there. --no-prompts
+     skips it.
+  6. Optionally (--setup) run first_setup.py.
 
 Run it from an ESP-IDF shell (`. ~/esp/esp-idf/export.sh`), with no
 `idf.py monitor` holding the port.
@@ -119,6 +124,8 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true", help="Detect and print the plan only")
     ap.add_argument("--setup", action="store_true", help="Run first_setup.py afterwards")
     ap.add_argument("--host", help="Passed to first_setup.py with --setup")
+    ap.add_argument("--no-prompts", action="store_true",
+                    help="Don't regenerate missing spoken prompts after flashing")
     args = ap.parse_args()
 
     if not shutil.which("idf.py"):
@@ -253,7 +260,15 @@ def main() -> int:
               "3 s to get its setup network.")
     print("=" * 64)
 
-    # 5. setup -- HTTP steps need the board on Wi-Fi; use the IP it reported
+    # 5. spoken prompts: the board lists any whose audio is missing (or whose
+    # text changed) as pending; gen_prompt.py makes and uploads those.
+    if not args.no_prompts and wifi == "connected" and ip:
+        print(f"Regenerating any missing spoken prompts on {ip}...")
+        if subprocess.call([sys.executable, str(HERE / "gen_prompt.py"), "--sync", ip]) != 0:
+            print("WARN: prompt sync failed; run it again with: "
+                  f"firmware/bringup/gen_prompt.py --sync {ip}")
+
+    # 6. setup -- HTTP steps need the board on Wi-Fi; use the IP it reported
     # over USB rather than guessing an mDNS name.
     if args.setup:
         cmd = [sys.executable, str(HERE / "first_setup.py"), "--port", port]
