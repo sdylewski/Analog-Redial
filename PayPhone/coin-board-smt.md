@@ -35,7 +35,7 @@ show it): check in the BOM upload.
 |---|---|---|---:|---|---:|---|---|
 | U1 | I2C I/O expander | MCP23008-E/P, DIP-18 | 1.54 | MCP23008-E/SO, SOIC-18 | 1.37 | Extended | hand-solder (SOIC is easy) |
 | U2 | stage 1, 5 V to 20 V | MC34063AP1G, DIP-8 | 1.98 | MC34063ADR2G, SOIC-8 | 0.77 | Extended | hand-solder |
-| U3 | stage 2 controller | **UC3843AN (TI)**, DIP-8 | **1.79** | UC3843BD1R2G, SOIC-8 (or UCC38C43DR, see below) | 0.71 | Extended | hand-solder. **Only 56 in stock** at DigiKey for the onsemi SOIC; 33-week lead time |
+| U3 | stage 2 controller | **UC3843AN (TI)**, DIP-8 | **1.79** | **UC3843BD1R2G**, SOIC-8 (LCSC C16414) | 0.71 | Extended | hand-solder, or JLCPCB places it from LCSC stock. DigiKey US stock was thin (56) on 2026-10-30 |
 | Qa | stage 2 switch, 200 V | IRF630PBF, TO-220 | 2.43 | keep TO-220 (or a 200 V DPAK) | 2.43 | n/a | hand-solder, through-hole |
 | Q3 | fire switch, 200 V | IRF630PBF, TO-220 | 2.43 | STN4NF20L, SOT-223 | 1.02 | Extended | hand-solder |
 | Q2, Q4, Q5 | small N-FETs (x3) | 2N7000, TO-92 | 0.29 | 2N7002, SOT-23 | 0.02-0.26 | Basic (C8545, verify) | **JLCPCB places** (3 per board, no fee) |
@@ -65,18 +65,13 @@ the 8.4 V start / 7.6 V stop threshold this board needs. DigiKey, 2026-10-30:
 
 | Part | Maker | Package | $ (qty 1) | Stock | Drop-in? |
 |---|---|---|---:|---:|---|
-| **UC3843BD1R2G** | onsemi | SOIC-8 | 0.71 | 56 | **yes**: the same bipolar UC3843, same R/C values. Low stock, 33-week lead time |
-| **UCC38C43DR** | TI | SOIC-8 | 1.56 | 934 | **pin-compatible**, low-power BiCMOS version with the same 8.4 / 7.6 V thresholds. **Its oscillator timing differs from the UC3843**, so recheck R18 and Ct for the frequency you want from its datasheet; the current-sense and error-amp parts carry over |
-| UCC28C43DGKR | TI | VSSOP-8 | 0.90 | 3,074 | same chip as the UCC38C43 (wider temperature range, from memory), but VSSOP-8 at 0.65 mm pitch: fine for JLCPCB, fiddly by hand |
-| UCC28C43DR | TI | SOIC-8 | 1.20 | 0 | as above, out of stock |
+| **UC3843BD1R2G** | onsemi | SOIC-8 | 0.71 | 56 | **yes**: the same bipolar UC3843 (30 V supply rating), same R/C values. LCSC C16414 |
+| UC3843BD1 | ST | SOIC-8 | | | yes, ST's version of the same part |
+| UCC38C43DR, UCC28C43DR, -DGKR | TI | SOIC-8 / VSSOP-8 | 0.90-2.52 | | **no on this board**: the BiCMOS UCC28C4x/38C4x are rated **20 V absolute maximum, 18 V recommended** for VDD ([TI datasheet SLUS458](https://www.ti.com/document-viewer/UCC38C43/datasheet/GUID-7D2F25E7-C9BF-401E-BD1E-0AAA9B0B1602)), and U3's VCC is the 20 V rail |
 | UC3843AD | TI | **14-pin SOIC** | 2.49 | | **not a drop-in**: TI's "D" UC3843A is the 14-pin version with a different pinout |
-| UCC38C43DGKR | TI | VSSOP-8 | 2.52 | 1,994 | as the UCC38C43DR, smaller package |
 
-My pick for the SMT board is the **UCC38C43DR**. It's in stock, actively
-made, and hand-solderable, and the only change is the oscillator R/C. If
-you'd rather not re-derive anything, use the **UC3843BD1R2G**, but its stock
-is thin. LCSC also lists cheaper UC3843 clones in SOIC-8 for JLCPCB
-assembly; I haven't checked those.
+The SMT board uses the **UC3843BD1R2G**. To use a UCC38C43 anyway, stage 1 would have to make 15-16 V
+instead of 20 V (R13/R14), which also lowers the gate drive.
 
 Not drop-ins: the **UC3842** (16 V start / 10 V stop, too close to the 20 V
 rail) and the **UC3844/UC3845** (their output is limited to 50 % duty, too low

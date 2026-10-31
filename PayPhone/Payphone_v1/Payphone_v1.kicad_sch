@@ -6539,6 +6539,16 @@
 			(embedded_fonts no)
 		)
 	)
+	(text "Voltage Measurement"
+		(exclude_from_sim no)
+		(at 60.706 161.544 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "0240ca59-aed3-4d51-a3b2-4681b68c3292")
+	)
 	(text "Rdrv"
 		(exclude_from_sim no)
 		(at 229.108 36.068 0)
@@ -6611,7 +6621,7 @@
 	)
 	(text "Stage 1 controller\n"
 		(exclude_from_sim no)
-		(at 221.234 22.352 0)
+		(at 220.98 24.892 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6711,7 +6721,7 @@
 	)
 	(text "Polarity relay\n"
 		(exclude_from_sim no)
-		(at 223.266 85.598 0)
+		(at 216.662 90.17 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6731,19 +6741,13 @@
 	)
 	(text "Stage 2 controller\n"
 		(exclude_from_sim no)
-		(at 86.868 85.598 0)
+		(at 63.5 93.218 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 		)
 		(uuid "f7b675dc-1279-4978-b0fd-ab6ef9fa4490")
-	)
-	(junction
-		(at 66.04 66.04)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "06069656-bc7c-4e62-bc00-1c9c0a7b0465")
 	)
 	(junction
 		(at 81.28 165.1)
@@ -6822,12 +6826,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "3f467dc0-c10d-4fa3-8453-20e8709ab15f")
-	)
-	(junction
-		(at 186.69 36.83)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "3f63a367-ce60-4a7b-8e27-c1461e0d33b8")
 	)
 	(junction
 		(at 149.86 146.05)
@@ -6950,6 +6948,12 @@
 		(uuid "8e64ef9b-3c67-4cd3-a928-eec6720391c4")
 	)
 	(junction
+		(at 66.04 66.04)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "8f4b7ed4-a1f3-4436-abbf-934cabd95585")
+	)
+	(junction
 		(at 222.25 49.53)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -7064,16 +7068,16 @@
 		(uuid "cdb8fa1f-eaff-4a25-ae74-a55e20618a1e")
 	)
 	(junction
+		(at 78.74 33.02)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "d3a1265e-976f-433c-9cd7-abf4f378efc1")
+	)
+	(junction
 		(at 62.23 128.27)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "d5014273-6a7d-483c-9c55-e490a89ab83c")
-	)
-	(junction
-		(at 78.74 33.02)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "d9508092-7e6d-49ba-a218-e8c7d1734773")
 	)
 	(junction
 		(at 135.89 146.05)
@@ -7452,16 +7456,6 @@
 			(type default)
 		)
 		(uuid "287c985a-7ebe-4598-9638-af3bbdecf349")
-	)
-	(wire
-		(pts
-			(xy 78.74 33.02) (xy 78.74 43.18)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2cb67fe0-1971-422f-b202-ff441dd3bdb0")
 	)
 	(wire
 		(pts
@@ -8145,6 +8139,16 @@
 	)
 	(wire
 		(pts
+			(xy 78.74 33.02) (xy 78.74 43.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8d1bdcea-f44c-4601-b040-7f47aa99c17b")
+	)
+	(wire
+		(pts
 			(xy 240.03 30.48) (xy 240.03 27.94)
 		)
 		(stroke
@@ -8305,6 +8309,16 @@
 	)
 	(wire
 		(pts
+			(xy 66.04 63.5) (xy 66.04 66.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a4b8c240-dd26-4151-8fda-56ec1d7b81a8")
+	)
+	(wire
+		(pts
 			(xy 29.21 124.46) (xy 29.21 146.05)
 		)
 		(stroke
@@ -8382,16 +8396,6 @@
 			(type default)
 		)
 		(uuid "a9d61a33-d24a-4c65-9a3e-6f572fadb9c9")
-	)
-	(wire
-		(pts
-			(xy 186.69 36.83) (xy 191.77 36.83)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "aab91983-4c0f-4c9c-a6b2-50d331692d07")
 	)
 	(wire
 		(pts
@@ -8662,16 +8666,6 @@
 			(type default)
 		)
 		(uuid "c92b3275-55ee-4b9b-904c-600066fe7c1f")
-	)
-	(wire
-		(pts
-			(xy 66.04 63.5) (xy 66.04 66.04)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c99a8366-fb31-469f-b9c9-6509112ff6bc")
 	)
 	(wire
 		(pts
@@ -9085,6 +9079,22 @@
 	)
 	(wire
 		(pts
+			(xy 186.69 36.83) (xy 191.77 36.83)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7f28cca1-168b-4b6e-8077-a83f0ce2331d")
+	)
+	(junction
+		(at 186.69 36.83)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "e9fd9785-a807-4fec-9abf-9d160c71065e")
+	)
+	(wire
+		(pts
 			(xy 240.03 57.15) (xy 240.03 49.53)
 		)
 		(stroke
@@ -9313,7 +9323,7 @@
 		)
 		(uuid "6c5bcb13-412c-41a3-8adc-ca687b51c4a5")
 	)
-	(label "Q2_G"
+	(label "Q2_B"
 		(at 196.85 97.79 180)
 		(effects
 			(font
@@ -9323,7 +9333,7 @@
 		)
 		(uuid "6c5c7e22-1655-478d-a3b5-53c0f2b88698")
 	)
-	(label "Q6_B"
+	(label "Q5_B"
 		(at 241.3 147.32 0)
 		(effects
 			(font
@@ -9453,7 +9463,7 @@
 		)
 		(uuid "f71d6833-20d7-46b9-b666-28ba940b31e6")
 	)
-	(label "Q6_C"
+	(label "Q5_C"
 		(at 251.46 142.24 90)
 		(effects
 			(font
@@ -9774,7 +9784,7 @@
 				)
 			)
 		)
-		(property "Value" "UC3843AN"
+		(property "Value" "UC3843BD1R2G"
 			(at 85.09 105.41 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9784,7 +9794,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_DIP:DIP-8_W7.62mm"
+		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 			(at 85.09 137.16 0)
 			(hide yes)
 			(show_name no)
@@ -10231,7 +10241,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_6.3x5.4"
 			(at 34.29 113.03 0)
 			(hide yes)
 			(show_name no)
@@ -10941,7 +10951,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
 			(at 140.462 111.76 0)
 			(hide yes)
 			(show_name no)
@@ -11204,8 +11214,8 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(in_pos_files yes)
-		(dnp yes)
+		(in_pos_files no)
+		(dnp no)
 		(uuid "27141fad-ab29-4a86-9af3-a2aef8eca4cf")
 		(property "Reference" "J6"
 			(at 31.875 49.53 0)
@@ -12304,7 +12314,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1N4148"
+		(property "Value" "1N4148W"
 			(at 232.156 92.71 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12385,7 +12395,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "1N5819"
+		(property "Value" "1N5819HW"
 			(at 242.316 42.418 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12780,7 +12790,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "12V"
+		(property "Value" "BZT52C12"
 			(at 259.334 132.842 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12791,7 +12801,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
+		(property "Footprint" "Diode_SMD:D_SOD-123"
 			(at 247.81 130.81 0)
 			(hide yes)
 			(show_name no)
@@ -13107,7 +13117,7 @@
 				)
 			)
 		)
-		(property "Value" "UF4003"
+		(property "Value" "ES2D"
 			(at 123.19 93.98 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13117,7 +13127,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
+		(property "Footprint" "Diode_SMD:D_SMA"
 			(at 123.19 87.79 0)
 			(hide yes)
 			(show_name no)
@@ -13274,7 +13284,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
 			(at 43.942 165.1 0)
 			(hide yes)
 			(show_name no)
@@ -13689,7 +13699,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
 			(at 174.752 113.03 0)
 			(hide yes)
 			(show_name no)
@@ -13756,8 +13766,8 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(in_pos_files yes)
-		(dnp yes)
+		(in_pos_files no)
+		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "6600ef80-913f-4434-8401-4af2e89f1ee9")
 		(property "Reference" "J1"
@@ -14275,7 +14285,7 @@
 				)
 			)
 		)
-		(property "Value" "MC34063AP"
+		(property "Value" "MC34063ADR2G"
 			(at 208.788 44.45 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14285,7 +14295,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_DIP:DIP-8_W7.62mm"
+		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 			(at 210.82 53.34 0)
 			(hide yes)
 			(show_name no)
@@ -14465,7 +14475,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "MCP23008-xP"
+		(property "Value" "MCP23008-E/SO"
 			(at 80.8833 43.18 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14476,7 +14486,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Package_DIP:DIP-18_W7.62mm"
+		(property "Footprint" "Package_SO:SOIC-18W_7.5x11.6mm_P1.27mm"
 			(at 78.74 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -14580,7 +14590,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "75532bd3-4dc7-4fc4-8814-defe2d4dda95")
 		(property "Reference" "L2"
@@ -14594,7 +14604,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "220uH"
+		(property "Value" "220uH SRR1260-221K"
 			(at 81.28 95.885 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14605,7 +14615,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Inductor_THT:L_Radial_D10.0mm_P5.00mm_Fastron_07M"
+		(property "Footprint" "Inductor_SMD:L_Bourns_SRR1260"
 			(at 91.28 97.79 0)
 			(hide yes)
 			(show_name no)
@@ -14866,7 +14876,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "7849f30e-cdd3-4361-821a-f965315dcb2d")
 		(property "Reference" "C7"
@@ -14891,7 +14901,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_6.3x5.4"
 			(at 240.03 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -15038,7 +15048,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1N4744A 15V"
+		(property "Value" "SMAZ15 (15V 1W)"
 			(at 108.458 119.126 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15049,7 +15059,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
+		(property "Footprint" "Diode_SMD:D_SMA"
 			(at 97.95 116.84 0)
 			(hide yes)
 			(show_name no)
@@ -15105,7 +15115,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "848f30e8-1d27-4744-a1f7-36d66597db57")
 		(property "Reference" "R11"
@@ -15128,7 +15138,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0309_L9.0mm_D3.2mm_P12.70mm_Horizontal"
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
 			(at 194.818 30.48 0)
 			(hide yes)
 			(show_name no)
@@ -15299,7 +15309,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
 			(at 140.462 119.38 0)
 			(hide yes)
 			(show_name no)
@@ -15366,7 +15376,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "88ab2a7a-6c6a-40bb-8e9a-2c357be0c01e")
 		(property "Reference" "L1"
@@ -15379,7 +15389,7 @@
 				)
 			)
 		)
-		(property "Value" "100uH"
+		(property "Value" "100uH SRR1260-101M"
 			(at 242.316 34.036 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15389,7 +15399,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Inductor_THT:L_Radial_D10.0mm_P5.00mm_Fastron_07M"
+		(property "Footprint" "Inductor_SMD:L_Bourns_SRR1260"
 			(at 240.03 44.29 0)
 			(hide yes)
 			(show_name no)
@@ -15714,7 +15724,7 @@
 				)
 			)
 		)
-		(property "Value" "10R 0.5W"
+		(property "Value" "10R"
 			(at 266.954 126.746 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15724,7 +15734,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0309_L9.0mm_D3.2mm_P12.70mm_Horizontal"
+		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
 			(at 269.24 129.032 0)
 			(hide yes)
 			(show_name no)
@@ -16251,7 +16261,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0414_L11.9mm_D4.5mm_P15.24mm_Horizontal"
+		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
 			(at 121.412 133.35 0)
 			(hide yes)
 			(show_name no)
@@ -16318,7 +16328,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "a7314f22-3c4e-4f30-9b98-5a75500788b8")
 		(property "Reference" "K1"
@@ -16441,7 +16451,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_6.3x5.4"
 			(at 29.21 121.92 0)
 			(hide yes)
 			(show_name no)
@@ -16781,7 +16791,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
 			(at 140.462 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -16962,7 +16972,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_6.3x5.4"
 			(at 191.77 39.37 0)
 			(hide yes)
 			(show_name no)
@@ -18059,7 +18069,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "PCM_JLCPCB:Q_SOT-23"
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
 			(at 247.142 147.32 90)
 			(hide yes)
 			(show_name no)
@@ -18327,7 +18337,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "d0b18a41-52e4-4af2-9528-87fb5a91d4fa")
 		(property "Reference" "C1"
@@ -18408,7 +18418,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "d12ed0e7-2bb3-4ffd-b5c3-fcda0637188c")
 		(property "Reference" "C9"
@@ -18433,7 +18443,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_6.3x5.4"
 			(at 250.19 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -18662,7 +18672,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "IRF630"
+		(property "Value" "STN4NF20L"
 			(at 253.746 115.316 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18673,7 +18683,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_THT:TO-220-3_Vertical"
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
 			(at 261.46 121.92 0)
 			(hide yes)
 			(show_name no)
@@ -18816,7 +18826,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "dfa0fac7-cc70-4fed-9794-428f3f1aa216")
 		(property "Reference" "J2"
@@ -19330,7 +19340,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
 			(at 174.752 120.65 0)
 			(hide yes)
 			(show_name no)
@@ -19510,7 +19520,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
 			(at 174.752 128.27 0)
 			(hide yes)
 			(show_name no)
@@ -19770,7 +19780,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1.5KE150A"
+		(property "Value" "SMBJ130A"
 			(at 158.75 114.3 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19781,7 +19791,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_THT:D_DO-201AD_P15.24mm_Horizontal"
+		(property "Footprint" "Diode_SMD:D_SMB"
 			(at 151.29 114.3 0)
 			(hide yes)
 			(show_name no)
