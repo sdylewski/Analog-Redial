@@ -5810,7 +5810,18 @@ static int append_callcap_card(char *buf, size_t cap, int off)
         "minute, 20 minutes at most. The bell ringing isn't on the line as sound (the board makes ring "
         "voltage), and rotary dial clicks may not show: pick those up with a microphone. Needs a microSD "
         "card and about 50 KB of free memory.");
-    return appendf(buf, cap, off, "</div>");
+    /* The status above is rendered once: reload when a call starts, ends or a
+     * recording is saved, so the new file shows without a manual refresh.
+     * Recording names are generated ("call record YYMMDD HHMMSS.wav"), so
+     * they're safe inside a JS string. */
+    static const char *const cs[] = { "idle", "armed", "recording", "saving" };
+    return appendf(buf, cap, off,
+        "<script>(function(){var st='%s',last='%s';"
+        "setInterval(function(){if(document.hidden)return;"
+        "fetch('/api/status').then(function(r){return r.json();}).then(function(j){"
+        "if(j.callcap!==st||(j.callcap_last||'')!==last)location.reload();"
+        "}).catch(function(){});},3000);})();</script></div>",
+        cs[st & 3], callcap_last_name());
 }
 
 static int append_diag_tab(char *buf, size_t cap, int off)
