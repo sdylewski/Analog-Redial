@@ -212,10 +212,58 @@ Going further: [VoIP setup](docs/voip-setup.md) ·
 | Oct 2026 | **v5.1** | **RECOMMENDED VERSION** v5 with the clone-module 5V pin fixed (nothing to remove) and small silkscreen and fab-file updates. |
 | Oct 2026 | **v6** | **In Progress** v5 with the clone-module 5V pin fixed (no pin to remove), a new expansion header with i2c for payphone support, a 3A diode (SS34) for the DC jack instead of the 1A one, and updated silkscreen. It should work, but v5 is the tested board. |
 
-### Related Projects
-- [RotaryCell](https://evilroot.net/RotaryCell/)
-- [Blue Pot](https://github.com/danjulio/blue_pot)
-- [wee Bell](https://github.com/danjulio/weeBell_hardware)
+### Related projects
+
+Other open-source projects that bring old phones back to life:
+
+| | [Analog Redial](https://github.com/sdylewski/Analog-Redial) | [RotaryCell](https://github.com/fregacmols/RotaryCell) | [weeBell](https://github.com/danjulio/weeBell_hardware) | [Blue Pot](https://github.com/danjulio/blue_pot) | [1dcoinctrl](https://github.com/hharte/1dcoinctrl) |
+|---|---|---|---|---|---|
+| **What it is** | Standalone phone system | Cellular conversion | Bluetooth adapter | Bluetooth adapter | Payphone coin controller |
+| **MCU** | ESP32-C6 | ESP32 (LilyGO) | ESP32 (gCore) | Teensy 3.2 | PIC18F |
+| **SLIC** | AG1171 | AG1171 | AG1171 | AG1171 | — |
+| **Codec** | ES8388 | Passive | ES8388 | — | — |
+| **Custom PCB** | ✅ | ✅ | ✅ | Prototype | ✅ |
+| **Rotary dial** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Touch-tone (DTMF)** | ✅ | ❌ | ✅ | ✅ | ❌ |
+| **VoIP / SIP** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Bluetooth calling** | ✅ | ❌ | ✅ | ✅ | ❌ |
+| **Cellular (SIM)** | ❌ | ✅ | ❌ | ❌ | ❌ |
+| **Web UI** | ✅ | ✅ Maintenance | ❌ LCD only | ❌ Serial only | ❌ |
+| **Answering machine** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Two phone lines** | ✅ +$10 | ❌ | ❌ | ✅ Up to 3 | ✅ Up to 4 |
+| **Offline phone-to-phone** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Dial codes & actions** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Home automation** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Payphone coin support** | In progress | ❌ | ❌ | ❌ | ✅ +/-130 V |
+| **OTA firmware update** | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Battery powered** | ❌ | ✅ | ✅ | ❌ | ❌ |
+| **Approx. cost** | **~$37** (+$15 BT) | **~$60** + SIM | **~$60** kit | **~$50** est. | **~$50-80** est. |
+| **License** | MIT | MIT | CC0 | — | MIT |
+| **GitHub stars** | — | 196 | 18 | 32 | 75 |
+
+**RotaryCell** puts a cellular modem (LilyGO T-SIM7670G) and an AG1171
+inside a rotary phone, turning it into a standalone battery-powered cell
+phone with no Wi-Fi needed. It's the most polished project in the list,
+with an illustrated build guide and multiple documented builds. The
+published BOM is ~$52 for the core parts (LilyGO $29, PCBs $9, AG1171
+$8.50, battery $5) plus a SIM card with ongoing service.
+
+**weeBell** and **Blue Pot** are both by [danjulio](https://github.com/danjulio).
+They pair a phone to your cellphone via Bluetooth (the phone becomes a
+handset). weeBell uses the same ES8388 codec as Analog Redial and is
+[available assembled on Tindie](https://www.tindie.com/products/30895/)
+for about $60 (gCore + POTS shield kit; add an 18650 battery).
+Blue Pot is an earlier prototype on a Teensy 3.2; its cost is estimated
+at ~$50 (Teensy ~$24, BM64 ~$13, AG1171 $8.50, PCB + passives ~$5) but
+the Teensy 3.2 is discontinued, making new builds difficult.
+
+**1dcoinctrl** by [hharte](https://github.com/hharte) is a coin-line
+controller for Western Electric 1D/2D "dumb" payphones. It generates
++/-130 VDC for coin collect/refund and interfaces with Asterisk — the
+closest existing project to the Analog Redial payphone coin board.
+It requires a separate ATA and Asterisk server; it does not generate
+dial tone or ring voltage itself. Cost is estimated at $50-80 for a
+full 4-line build (PIC MCU, DC-DC converter, 7+ relays, PCB).
 
 ## License
 

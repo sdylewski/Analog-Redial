@@ -520,7 +520,7 @@
         "uuid": "65d67a88-28a0-4b0c-a749-df348fda1ee9"
       }
     ],
-    "used_designators": "R15-17,R19,#PWR22,#PWR24-26,Rz1-2,U4,Rfbt4-6",
+    "used_designators": "Rg1,Rslope1,Qa1,Cz1,Cvref1,R15-17,R19,Cvcc1,Ct1,Rcs1,Cslope1,Dz1,Cf1,Rfbt4-6,Q1-2,Q4-5,Rf1,#PWR22,#PWR24-26,Rz1-2,U4",
     "variants": []
   },
   "sheets": [

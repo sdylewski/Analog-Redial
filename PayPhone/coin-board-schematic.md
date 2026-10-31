@@ -190,9 +190,9 @@ bottom leg of the feedback divider**:
 
 ```
   +20V rail ---[ R13 150k ]---+--- U2 pin 5 (Vfb)
-                             |
-                        [ R14 10k ]
-                             |
+                              |
+                         [ R14 10k ]
+                              |
                       Q5 drain  (2N7000 pin 3)
   HV_EN --- Q5 gate (pin 2)     (100k pulldown on HV_EN, already there)
                       Q5 source (pin 1) --- GND
@@ -796,7 +796,7 @@ Cout is about 16 x 25 mm and sets the size)
  |  LDO 3.3 V                 |  (5 V -> 20 V)  |  D2, Cout,      |
  |  U1 MCP23008 (DIP-18)      |                 |  divider, TVS   |
  |  coin inputs -> J3 (edge)  |                 |  K1 relay, Q3   |
- |  J5 spare, J7-J9 volts    |                 |  J2 (to relay)  |
+ |  J5 spare, J7-J9 volts     |                 |  J2 (to relay)  |
  +----------------------------------------------------------------+
    J1 and J3 on the left edge; J2 on the right edge, near the relay
 ```

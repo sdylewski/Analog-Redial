@@ -62,16 +62,16 @@ K1's contacts never switch a live current (they only ever switch "dead").
              |
       +------+------+
       |             |
-   K1 pin 1      D4 pin 1 (K, band)        1N4148
-   [K1 coil]        |
-   K1 pin 12 -------+--- D4 pin 2 (A)
+  K1 pin 1          D4 pin 1 (K, band)     1N4148
+  [K1 coil]         |
+  K1 pin 12 --------+-- D4 pin 2 (A)
       |
-   Q2 pin 3 (D)                            2N7000
-   Q2 pin 2 (G) ---- R20 1k (NEW) ---- POL ---- U1 pin 15 (GP5)
-   Q2 pin 1 (S)                               |
-      |                                     R2 100k (already there)
-     GND                                       |
-                                              GND
+  Q2 pin 3 (D)                        2N7000
+  Q2 pin 2 (G) --- R20 1k --- POL --- U1 pin 15 (GP5)
+  Q2 pin 1 (S)                 |
+      |                        R2 100k (already there)
+     GND                       |
+                              GND
 ```
 
 | Part | Pin | Connects to |
@@ -138,10 +138,10 @@ clamps the gate at 12 V.
            |                  |
      Q4 pin 3 (D)            R24 1k (NEW)
      Q4 pin 2 (G) --- R21 1k (NEW) --- FIRE --- U1 pin 16 (GP6)
-     Q4 pin 1 (S)             |                 |
-           |                  |                R3 10k (exists)
-          GND                 |                 |
-                              |                GND
+     Q4 pin 1 (S)             |          |
+           |                  |          R3 10k (exists)
+          GND                 |          |
+                              |         GND
                   GATE3 ------+------+---------------+
                               |      |               |
                     Q3 pin 1 (G)   D6 pin 1 (K)    R25 10k (NEW)
