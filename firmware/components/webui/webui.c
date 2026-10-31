@@ -5404,7 +5404,8 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
         "<option value=\"bm64\"%s>%s</option>"
         "<option value=\"bt401\"%s>%s</option>"
         "</select></label>"
-        "<button type=\"submit\">%s</button>"
+        "<div class=\"toolbar sub\"><button type=\"submit\">%s</button>"
+        "<button type=\"submit\" name=\"reboot\" value=\"1\" class=\"primary\">%s</button></div>"
         "</form>"
         "<p class=\"hint\">%s %s</p>",
         i18n_str("hwconfig.variant_label", "J5 (GPIO18-21) is used for"),
@@ -5422,6 +5423,7 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
         cfg.bt_module == BOARD_BT_BT401 ? " selected" : "",
         i18n_str("hwconfig.bt_bt401", "BT401 module fitted"),
         i18n_str("hwconfig.button", "Save (takes effect on reboot)"),
+        i18n_str("hwconfig.button_reboot", "Save and reboot"),
         i18n_str("hwconfig.hint",
                  "J5 carries one of three things: a <b>second phone line</b> (J5 shunts on, "
                  "second AG1171 fitted), the <b>microSD card</b> (shunts off), or four "
@@ -7055,7 +7057,7 @@ static void redirect_to_referer_or(httpd_req_t *req, const char *fallback)
 
 /* Shared by /wifi_reprovision and /factory_reset: a short confirmation page,
  * then reboot once the response has flushed (reboot_task, above). */
-static esp_err_t send_reboot_page(httpd_req_t *req, const char *title, const char *body_html)
+static esp_err_t send_reboot_page(httpd_req_t *req, const char *title, const char *body_html, bool reboot)
 {
     char page[900];
     snprintf(page, sizeof(page),
@@ -7069,7 +7071,7 @@ static esp_err_t send_reboot_page(httpd_req_t *req, const char *title, const cha
         title, body_html);
     httpd_resp_set_type(req, "text/html");
     httpd_resp_sendstr(req, page);
-    xTaskCreate(reboot_task, "reboot", 2048, NULL, tskIDLE_PRIORITY + 1, NULL);
+    if (reboot) xTaskCreate(reboot_task, "reboot", 2048, NULL, tskIDLE_PRIORITY + 1, NULL);
     return ESP_OK;
 }
 
@@ -7102,7 +7104,7 @@ static esp_err_t wifi_reprovision_handler(httpd_req_t *req)
         "network%s.</p>",
         forget_name ? ", and the board name is back to <code>phone</code>" : "", ap_esc,
         forget_name ? " -- or unplug it now to hand it to someone" : "");
-    return send_reboot_page(req, "WiFi reset \xe2\x80\x94 rebooting\xe2\x80\xa6", body_html);
+    return send_reboot_page(req, "WiFi reset \xe2\x80\x94 rebooting\xe2\x80\xa6", body_html, true);
 }
 
 /* POST /factory_reset -- erases the ENTIRE NVS partition (WiFi, board
@@ -7128,7 +7130,7 @@ static esp_err_t factory_reset_handler(httpd_req_t *req)
         "<p class=\"hint\">All settings are erased -- WiFi, board name, dial codes, VoIP, "
         "everything. Uploaded audio and recordings are untouched. In a few seconds, look "
         "for the <code>%s</code> setup network.</p>", ap);
-    return send_reboot_page(req, "Factory reset \xe2\x80\x94 rebooting\xe2\x80\xa6", body);
+    return send_reboot_page(req, "Factory reset \xe2\x80\x94 rebooting\xe2\x80\xa6", body, true);
 }
 
 /* POST /board_name -- form body name=.... Persists the name (board_name_set)
@@ -7588,8 +7590,9 @@ static esp_err_t board_hw_set_handler(httpd_req_t *req)
     /* "lines" is the GPIO18-21 either/or; "bt" is independent of it. Accepts
      * the field under its old name "variant" too, so the first-boot banner's
      * form (and any bookmarked POST) keeps working. */
-    char variant[16] = {0}, bt[12] = {0};
+    char variant[16] = {0}, bt[12] = {0}, reboot[4] = {0};
     form_field(body, "lines", variant, sizeof(variant));
+    form_field(body, "reboot", reboot, sizeof(reboot));
     if (!variant[0]) form_field(body, "variant", variant, sizeof(variant));
     form_field(body, "bt", bt, sizeof(bt));
 
@@ -7614,6 +7617,25 @@ static esp_err_t board_hw_set_handler(httpd_req_t *req)
     if (cfg.bt_module == BOARD_BT_NONE && bt_companion_enabled()) bt_companion_set_enabled(false);
     cfg.has_bt_module = cfg.bt_module != BOARD_BT_NONE;
     board_hw_config_set(cfg);
+
+    /* "Save and reboot": the new settings only take effect at boot. Never
+     * cut off a call for it -- the settings stay saved either way. */
+    if (reboot[0] == '1') {
+        int n = board_hw_config_get().num_lines;
+        bool idle = true;
+        for (int l = 0; l < n; l++) if (telephony_state(l) != TEL_IDLE) idle = false;
+        if (!idle) {
+            return send_reboot_page(req, "Saved, not rebooted",
+                "<p>A phone line is in use, so the board didn't reboot. The settings are saved and "
+                "take effect at the next reboot: hang up, then press <b>Save and reboot</b> again.</p>"
+                "<p><a href=\"/settings?tab=general#hwconfig\">Back to Board hardware</a></p>", false);
+        }
+        activity_log("Rebooting to apply the board hardware settings");
+        return send_reboot_page(req, "Saved \xe2\x80\x94 rebooting\xe2\x80\xa6",
+            "<meta http-equiv=\"refresh\" content=\"15;url=/settings?tab=general#hwconfig\">"
+            "<p>The board is restarting with the new hardware settings. This page goes back to "
+            "Board hardware in about 15 seconds.</p>", true);
+    }
 
     /* Also appears on the Status page's first-boot banner -- see
      * board_name_handler's matching comment just above. */
