@@ -5768,17 +5768,22 @@ static int append_callcap_card(char *buf, size_t cap, int off)
 {
     callcap_state_t st = callcap_state();
     bool sd = storage_using_sd();
-    char status[200], last[STORAGE_MAX_NAME * 6] = "", last_u[STORAGE_MAX_NAME * 3] = "";
+    unsigned local_secs = sd ? 0 : callcap_local_secs_free();
+    char status[256], last[STORAGE_MAX_NAME * 6] = "", last_u[STORAGE_MAX_NAME * 3] = "";
     switch (st) {
         case CALLCAP_ARMED:     snprintf(status, sizeof(status), "armed: lift a handset to start"); break;
         case CALLCAP_RECORDING: snprintf(status, sizeof(status), "recording, %u s", callcap_elapsed_secs()); break;
         case CALLCAP_SAVING:    snprintf(status, sizeof(status), "saving..."); break;
         default:
-            if (sd) snprintf(status, sizeof(status), "off");
-            else if (!board_hw_config_get().has_microsd)   /* the board is set up for line 1 or pin outputs */
+            if (sd) snprintf(status, sizeof(status), "off (records to the microSD card)");
+            else if (local_secs < 20)
                 snprintf(status, sizeof(status),
-                         "off (needs a <a href=\"/settings?tab=general#hwconfig\">microSD card</a>)");
-            else snprintf(status, sizeof(status), "off (no microSD card found: insert a FAT-formatted card)");
+                         "off (internal flash is full: free some space under Storage, or fit a "
+                         "<a href=\"/settings?tab=general#hwconfig\">microSD card</a>)");
+            else snprintf(status, sizeof(status),
+                          "off (records to internal flash: room for about %u:%02u; a "
+                          "<a href=\"/settings?tab=general#hwconfig\">microSD card</a> holds 20 minutes)",
+                          local_secs / 60, local_secs % 60);
     }
     if (callcap_last_name()[0]) {
         html_escape(callcap_last_name(), last, sizeof(last));
@@ -5793,12 +5798,12 @@ static int append_callcap_card(char *buf, size_t cap, int off)
             "<div class=\"statusrow\"><span class=\"label\">Last recording</span>"
             "<span><a href=\"/media/%s\">%s</a> (%u s%s)</span></div>",
             last_u, last, callcap_last_secs(),
-            callcap_last_dropped_ms() ? ", some audio lost to a slow card" : "");
+            callcap_last_dropped_ms() ? ", some audio lost to slow writes" : "");
     }
     off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/callcap_%s\" class=\"settings-form\">"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\"%s>%s</button></div></form>",
-        st == CALLCAP_IDLE ? "arm" : "cancel", (st == CALLCAP_IDLE && !sd) ? " disabled" : "",
+        st == CALLCAP_IDLE ? "arm" : "cancel", (st == CALLCAP_IDLE && !sd && local_secs < 20) ? " disabled" : "",
         st == CALLCAP_IDLE ? "Record the next call"
                            : st == CALLCAP_ARMED ? "Cancel" : "Stop and save");
     off = append_hint(buf, cap, off,
@@ -5806,10 +5811,13 @@ static int append_callcap_card(char *buf, size_t cap, int off)
         "up, and switches itself off again. Left channel: what the phone sends (your voice, touch-tone "
         "dialing). Right channel: what the earpiece hears (dial tone, ringback, clips, the other "
         "person). For demos and bug reports.",
-        "Saved to the microSD card as \"call record YYMMDD HHMMSS.wav\", 16 kHz stereo, about 4 MB a "
-        "minute, 20 minutes at most. The bell ringing isn't on the line as sound (the board makes ring "
-        "voltage), and rotary dial clicks may not show: pick those up with a microphone. Needs a microSD "
-        "card and about 50 KB of free memory.");
+        "Saved as \"call record YYMMDD HHMMSS.wav\" (listed under Storage). To a microSD card: 16 kHz "
+        "stereo, about 4 MB a minute, 20 minutes at most. With no card: to internal flash, 8 kHz stereo "
+        "(the phone line carries nothing above 3.4 kHz), using only its free space so no messages are "
+        "deleted for it; it stops when that's full. Internal flash doesn't clear these out by itself: "
+        "delete them when you're done. On a two-line call, either line's recording has both voices. The "
+        "bell ringing isn't on the line as sound (the board makes ring voltage), and rotary dial clicks "
+        "may not show: pick those up with a microphone. Needs about 50 KB of free memory.");
     /* The status above is rendered once: reload when a call starts, ends or a
      * recording is saved, so the new file shows without a manual refresh.
      * Recording names are generated ("call record YYMMDD HHMMSS.wav"), so
@@ -8970,9 +8978,16 @@ static esp_err_t pin_action_set_handler(httpd_req_t *req)
 /* POST /callcap_arm and /callcap_cancel -- see callcap.h. */
 static esp_err_t callcap_arm_handler(httpd_req_t *req)
 {
-    esp_err_t err = callcap_arm();
-    if (err == ESP_ERR_NOT_FOUND) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Call recording needs a microSD card in the slot.");
+    /* where=flash records to internal flash even with a card in (for testing
+     * that path); the card's own button doesn't send it. */
+    char body[64] = "", where[8] = "";
+    int len = httpd_req_recv(req, body, sizeof(body) - 1);
+    if (len > 0) { body[len] = '\0'; form_field(body, "where", where, sizeof(where)); }
+    esp_err_t err = callcap_arm(strcmp(where, "flash") == 0);
+    if (err == ESP_ERR_NO_MEM) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+            "Internal flash has less than 20 seconds of room: delete some files under Settings -> "
+            "Storage, or fit a microSD card.");
         return ESP_OK;
     }
     if (err != ESP_OK) {

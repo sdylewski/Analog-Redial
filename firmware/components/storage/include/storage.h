@@ -171,6 +171,9 @@ bool     storage_sd_present(void); /* same as storage_using_sd() -- named for cl
 size_t   storage_list_internal(storage_entry_t *out, size_t max_entries);
 size_t   storage_used_bytes_internal(void);
 size_t   storage_cap_bytes_internal(void); /* always CONFIG_STORAGE_RECORDING_CAP_BYTES */
+/* What a new file can use without evicting anything: the lesser of the room
+ * left under the recording cap and the SPIFFS partition's own free space. */
+size_t   storage_free_bytes_internal(void);
 
 /* 0 for all three if no card is mounted. uint64_t, not size_t -- a card can
  * exceed 4 GB, which would wrap this chip's 32-bit size_t silently. */

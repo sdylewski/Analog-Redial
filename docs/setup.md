@@ -157,7 +157,8 @@ Click any picture for the full page.
     level, the hardware self-test (including a line audio level check that
     recommends an earpiece level, with a button to apply it), and a one-shot <b>call recording</b>: arm
     it, lift the handset, and the whole call (dial tone, dialing, voice) is
-    saved to the microSD card as a stereo WAV.</td>
+    saved as a stereo WAV: to the microSD card (up to 20 minutes), or with
+    no card to internal flash (a minute or two, using only free space).</td>
   </tr>
 </table>
 

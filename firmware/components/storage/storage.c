@@ -170,6 +170,20 @@ static size_t dir_used_bytes(const char *mount)
 size_t storage_used_bytes_internal(void) { return dir_used_bytes(MOUNT_POINT); }
 size_t storage_cap_bytes_internal(void) { return CONFIG_STORAGE_RECORDING_CAP_BYTES; }
 
+size_t storage_free_bytes_internal(void)
+{
+    size_t used = storage_used_bytes_internal();
+    size_t free_b = used < (size_t)CONFIG_STORAGE_RECORDING_CAP_BYTES ? CONFIG_STORAGE_RECORDING_CAP_BYTES - used : 0;
+    size_t total = 0, fs_used = 0;
+    if (esp_spiffs_info("storage", &total, &fs_used) == ESP_OK && total > fs_used) {
+        /* SPIFFS needs a few blocks of slack to garbage-collect; never plan on its last 5 %. */
+        size_t fs_free = total - fs_used, slack = total / 20;
+        fs_free = fs_free > slack ? fs_free - slack : 0;
+        if (fs_free < free_b) free_b = fs_free;
+    }
+    return free_b;
+}
+
 /* FATFS's own accounting, not a directory walk -- faster and accounts for
  * filesystem overhead a plain file-size sum would miss. 0/0/false whenever
  * nothing's actually mounted (not configured for SD, or configured but no

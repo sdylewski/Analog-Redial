@@ -18,7 +18,8 @@
 
 static const char *TAG = "callcap";
 
-#define TARGET_RATE   16000
+#define TARGET_RATE   16000               /* to the card */
+#define LOCAL_RATE    8000                /* to internal flash: half the write load, and the line carries nothing above 3.4 kHz */
 #define CHUNK_BYTES   2048                /* 512 stereo frames, 32 ms at 16 kHz */
 #define MAX_CHUNKS    10                  /* ~320 ms of slack for a slow card write */
 #define MIN_CHUNKS    6
@@ -26,6 +27,8 @@ static const char *TAG = "callcap";
 #define MAX_SECS      (20 * 60)
 #define MAX_FRAME     960                 /* engine samples per audio pass, upper bound */
 #define RESERVE_BYTES (2 * 1024 * 1024)   /* free space the card must have to start */
+#define LOCAL_MIN_SECS 20                 /* internal flash must have room for this much to start */
+#define LOCAL_MARGIN  (32 * 1024)         /* left free on internal flash */
 
 /* The audio buffering is a pool of small chunks passed between the audio task
  * (fills them) and the capture task (writes them to the card) through two
@@ -35,6 +38,9 @@ static struct {
     volatile callcap_state_t st;
     int      line;
     uint32_t decim, rate;
+    bool     local;                     /* recording to internal flash, not the card */
+    uint32_t max_bytes;                 /* internal flash: stop here (0 = no limit) */
+    volatile bool force_local;          /* armed with where=flash */
     int64_t  t0_us;
     volatile bool stop;
     volatile uint32_t dropped_frames;   /* frames lost to a card stall, kept in the timeline as silence */
@@ -179,13 +185,16 @@ static void cap_task(void *arg)
 {
     (void)arg;
     storage_writer_t w;
-    bool opened = storage_write_begin(s.name, RESERVE_BYTES, &w) == ESP_OK;
+    /* Internal flash: plan on exactly the free space, so nothing (an
+     * answering-machine message) is evicted to make room. */
+    bool opened = (s.local ? storage_write_begin_local(s.name, s.max_bytes + 44, &w)
+                           : storage_write_begin(s.name, RESERVE_BYTES, &w)) == ESP_OK;
     uint32_t data_bytes = 0;
     bool ok = opened;
 
     if (!opened) {
-        ESP_LOGW(TAG, "couldn't open '%s' on the card", s.name);
-        activity_log("Call recording failed: couldn't open the file on the card");
+        ESP_LOGW(TAG, "couldn't open '%s' on %s", s.name, s.local ? "internal flash" : "the card");
+        activity_log("Call recording failed: couldn't open the file on %s", s.local ? "internal flash" : "the card");
     } else {
         uint8_t hdr[44];
         wav_header(hdr, s.rate, 0);
@@ -198,9 +207,14 @@ static void cap_task(void *arg)
             ok = write_chunk(&w, c, CHUNK_BYTES, &data_bytes);
             xQueueSend(s.free_q, &c, 0);
             if (!ok) {
-                ESP_LOGW(TAG, "write failed (card removed or full): stopping");
-                activity_log("Call recording stopped: write to the card failed");
+                ESP_LOGW(TAG, "write failed (%s): stopping", s.local ? "internal flash full" : "card removed or full");
+                activity_log("Call recording stopped: write to %s failed", s.local ? "internal flash" : "the card");
                 break;
+            }
+            if (s.max_bytes && data_bytes + CHUNK_BYTES > s.max_bytes) {
+                ESP_LOGW(TAG, "internal flash is full: stopping");
+                activity_log("Call recording stopped: internal flash is full");
+                s.stop = true;
             }
         }
         unsigned secs = (unsigned)((esp_timer_get_time() - s.t0_us) / 1000000);
@@ -214,9 +228,10 @@ static void cap_task(void *arg)
     remove_taps(s.line);                    /* nothing writes the pool after this */
     if (opened && ok) {
         uint8_t *c = NULL;
-        while (xQueueReceive(s.full_q, &c, 0) == pdTRUE && ok)   /* what the taps left behind */
+        while (xQueueReceive(s.full_q, &c, 0) == pdTRUE && ok &&   /* what the taps left behind */
+               (!s.max_bytes || data_bytes + CHUNK_BYTES <= s.max_bytes))
             ok = write_chunk(&w, c, CHUNK_BYTES, &data_bytes);
-        if (ok && s.cur && s.cur_len)
+        if (ok && s.cur && s.cur_len && (!s.max_bytes || data_bytes + s.cur_len <= s.max_bytes))
             ok = write_chunk(&w, s.cur, s.cur_len, &data_bytes);
     }
 
@@ -237,9 +252,10 @@ static void cap_task(void *arg)
     if (saved) {
         ESP_LOGI(TAG, "saved '%s': %u s, %u KB, %u ms dropped", s.name, secs,
                  (unsigned)(data_bytes / 1024), dropped_ms);
-        if (dropped_ms) activity_log("Call recording saved: %s (%us, %ums lost to a slow card)",
-                                     s.name, secs, dropped_ms);
-        else            activity_log("Call recording saved: %s (%us)", s.name, secs);
+        if (dropped_ms) activity_log("Call recording saved: %s (%us, %ums lost to slow %s)",
+                                     s.name, secs, dropped_ms, s.local ? "flash writes" : "card writes");
+        else            activity_log("Call recording saved: %s (%us%s)", s.name, secs,
+                                     s.local ? ", internal flash" : "");
     }
     finish(secs, dropped_ms, saved);
     vTaskDelete(NULL);
@@ -252,16 +268,25 @@ static void ensure_lock(void)
     if (!s_lock) s_lock = xSemaphoreCreateMutex();
 }
 
-esp_err_t callcap_arm(void)
+unsigned callcap_local_secs_free(void)
+{
+    size_t f = storage_free_bytes_internal();
+    f = f > LOCAL_MARGIN ? f - LOCAL_MARGIN : 0;
+    return (unsigned)(f / (LOCAL_RATE * 4));
+}
+
+esp_err_t callcap_arm(bool force_local)
 {
     ensure_lock();
-    if (!storage_using_sd()) return ESP_ERR_NOT_FOUND;
+    bool local = force_local || !storage_using_sd();
+    if (local && callcap_local_secs_free() < LOCAL_MIN_SECS) return ESP_ERR_NO_MEM;
     esp_err_t err = ESP_OK;
     xSemaphoreTake(s_lock, portMAX_DELAY);
     if (s.st != CALLCAP_IDLE) err = ESP_ERR_INVALID_STATE;
-    else s.st = CALLCAP_ARMED;
+    else { s.st = CALLCAP_ARMED; s.force_local = force_local; }
     xSemaphoreGive(s_lock);
-    if (err == ESP_OK) activity_log("Call recording armed: lift a handset to start");
+    if (err == ESP_OK) activity_log("Call recording armed (%s): lift a handset to start",
+                                    local ? "internal flash" : "microSD card");
     return err;
 }
 
@@ -282,11 +307,17 @@ void callcap_cancel(void)
 /* Called with the lock held. Returns why it couldn't start, or NULL. */
 static const char *start_locked(int line)
 {
-    if (!storage_using_sd()) return "no microSD card";
+    bool local = s.force_local || !storage_using_sd();
+    uint32_t max_bytes = 0;
+    if (local) {
+        unsigned secs = callcap_local_secs_free();
+        if (secs < LOCAL_MIN_SECS) return "internal flash is full";
+        max_bytes = secs * LOCAL_RATE * 4;
+    }
     if (heap_caps_get_free_size(MALLOC_CAP_8BIT) < NEED_HEAP) return "not enough free memory";
 
     uint32_t rate = audio_sample_rate();
-    uint32_t decim = rate / TARGET_RATE;
+    uint32_t decim = rate / (local ? LOCAL_RATE : TARGET_RATE);
     if (decim < 1) decim = 1;
 
     s.free_q = xQueueCreate(MAX_CHUNKS, sizeof(uint8_t *));
@@ -303,6 +334,8 @@ static const char *start_locked(int line)
     if (s.nchunks < MIN_CHUNKS) { free_pool(); return "not enough free memory"; }
 
     s.line = line;
+    s.local = local;
+    s.max_bytes = max_bytes;
     s.decim = decim;
     s.rate = rate / decim;
     s.stop = false;
@@ -333,7 +366,8 @@ void callcap_hook(int line, bool offhook)
             activity_log("Call recording skipped: %s", why);
         } else {
             s.st = CALLCAP_RECORDING;
-            activity_log("Call recording started on line %d", line);
+            activity_log("Call recording started on line %d (%s)", line,
+                         s.local ? "internal flash" : "microSD card");
         }
     } else if (!offhook && s.st == CALLCAP_RECORDING && s.line == line) {
         s.st = CALLCAP_SAVING;
