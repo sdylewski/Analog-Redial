@@ -24,7 +24,7 @@ see section 3.
  (v6 accessory hdr)                                            HV zone (up to 119 V)
  +5V  --- J1.1 --+-- F1 --+--> [U2 MC34063A 5V->20V] --> +20V --> [U3 UC3843A + Qa IRF630 + L2 + D2] --> HV+ (Cout)
  VIO  --- J1.2   |        |         ^EN                          ^COMP (shutdown)                    |
- SDA  --- J1.3 --+        +-> sensor +5V (J3, JP1)                    |                              |
+ SDA  --- J1.3 --+        |                                           |                              |
  SCL  --- J1.4 --+--> [U1 TCA9534A @0x39] P4 HV_EN  ----------------+                              |
  GND  --- J1.5      |        P5 POL  --> Q2 (2N7000) --> K1 (DPDT relay) <-- HV+ -------------------+
  (J1 = main board v6 J6)|  P6 FIRE  --> Q3 (IRF630, low side) --> Rsense --> GND
@@ -40,7 +40,7 @@ see section 3.
 |---|---|---|
 | **J1** | 5 x 2.54 mm; mates with the main board's **v6 J6** | **1 +5 V, 2 VIO (3.3 V from Analog Redial), 3 SDA, 4 SCL, 5 GND**, the same order as J6, so a straight 1:1 cable |
 | **J2** | **Molex KK 396, 3-pin header, 0026604030** | the relay's plug: A = white, B = green, red unconnected (so the original plug fits). **Check its voltage rating against 119 V (130 V for margin)** |
-| **J3** | **Molex KK 396, 4-pin header, 0026604040** | coin sensor. **The sensor has 5 wires but this is a 4-pin plug: identify which wires are used**; if five are needed, a 5-pin KK (26-60-4050) is the next size. Intended use: +V, GND, NICKEL, DIME, QUARTER. **The sensor's 5 wires (white, blue, red, green, white) are not yet identified**; measure it first (patent says supply 3-9 V and three open-collector outputs) |
+| **J3** | **Molex KK 396, 4-pin header, 0026604040** | coin switches, **passive** (measured 2026-10-31): three contacts that close briefly as a coin passes, with green as their common. **Pin 4 green = common (GND), 3 white = quarter, 2 red = dime, 1 blue = nickel.** Seen on the plug with its tab at the bottom, green is the left pin and blue the right. **Check before ordering** that the footprint puts pin 4 where green lands with the plug inserted |
 | **J7-J9** | three 2-pin headers, **HV profile select** | no jumper = 52 V; any combination of jumpers is a valid setting, up to 119 V with all three (section 5) |
 | **J5** | 1 x 4 | P3, P7 (spare I/O), VIO, GND |
 | **JP1** | solder jumper, **open** by default | **VIO = 5 V**: bridge it only for a host with no logic supply to give (a 5 V I2C host using four wires). Leave it open whenever pin 2 is wired |
@@ -124,10 +124,10 @@ configuration register (0x03); the other order drives them high for a moment.
 
 | LEDs | Wired | Lit while |
 |---|---|---|
-| D8 / D9 / D10 (R34-R36) | VIO -> 1.5 k -> LED -> J3's NICKEL_SW / DIME_SW / QUARTER_SW (the sensor side of R7-R9) | that coin line is pulled low by the sensor |
+| D8 / D9 / D10 (R34-R36) | VIO -> 1.5 k -> LED -> J3's NICKEL_SW / DIME_SW / QUARTER_SW (the switch side of R7-R9) | that coin switch is closed |
 | D11 / D12 / D13 (R37-R39) | EN_HV / POL / FIRE -> 1.5 k -> LED -> GND | that output is high |
 
-The coin LEDs take their current from VIO through the sensor's output, not
+The coin LEDs take their current from VIO through the coin switch, not
 through R4-R6, so they don't change what U1 reads. Current: about 0.3-0.5 mA
 at VIO = 3.3 V (the LED's forward voltage is 2.6-3.1 V), about 1.5 mA at
 5 V. A coin pulse is short, so D8-D10 only blink. The HV indicator (D7, red)
@@ -632,13 +632,18 @@ bench (earlier: + on red / white at ground moved the lever right = return).
 
 ## 7. Coin inputs
 
-- J3 supply: +5 V to the sensor (3-9 V per the patent **[measure]**).
+- **The coin switches are passive** (measured 2026-10-31): green is the common,
+  and green to white / red / blue closes briefly for a quarter / dime / nickel.
+  No sensor supply: green goes to GND, and each line is pulled up to VIO.
 - Each coin line: 10 k pull-up **to VIO** (not to the sensor's supply), 1 k
   series resistor, 100 nF to ground: the TCA9534A input stays within
   VIO even if the sensor's supply is higher. D8-D10 show each line (section 4). Optionally clamp with a BAV99 per line
   (DNP).
-- The patent's logic: a nickel blocks one beam, a dime the other, a quarter both.
-  The three outputs are separate and open-collector (active low, **[verify]**).
+- Each closure pulls its line low (active low). The contacts carry about
+  0.3 mA from the pull-up plus about 0.5 mA through the line's debug LED,
+  enough wetting current for old contacts.
+- Mechanical contacts bounce: debounce in firmware (a few ms). The RC on
+  each line (10 k x 100 nF, about 1 ms) takes out the fastest spikes.
 - Firmware polls the TCA9534A about every 2-5 ms and counts edges, with debounce.
 
 ## 8. Voltage monitor options (2026-10-27)
