@@ -189,8 +189,8 @@ applies automatically.
 
 | Label | Where |
 |---|---|
-| HV | C1+, C21, D2, D3, K1 pins 3 and 8, R27, R32, Rbl1, Rfbt1 |
-| HV_B1, HV_B2 | between Rbl1-3 (bleed) |
+| HV | C1+, C21 pin 1, D2, D3, K1 pins 3 and 8, R27, R32, Rbl1, Rfbt1 |
+| HV_B1, HV_B2 | between Rbl1-3 (bleed) and between C21-C23 |
 | HV_F1, HV_F2 | between Rfbt1-3 (feedback) |
 | HV_LED1, HV_LED2 | R27, R28, D5 (HV indicator) |
 | SW2 | Qa1 drain, L2, D2 anode: swings up to HV |

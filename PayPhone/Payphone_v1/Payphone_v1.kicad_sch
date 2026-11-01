@@ -2333,225 +2333,6 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Device:D_TVS_Dual_AAC"
-			(pin_names
-				(offset 1.016)
-				(hide yes)
-			)
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "D"
-				(at 0 4.445 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" "D_TVS_Dual_AAC"
-				(at 0 2.54 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" ""
-				(at -3.81 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Datasheet" ""
-				(at -3.81 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" "Bidirectional dual transient-voltage-suppression diode, center on pin 3"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_keywords" "diode TVS thyrector"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "D_TVS_Dual_AAC_0_0"
-				(polyline
-					(pts
-						(xy 0 -1.27) (xy 0 0)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-			)
-			(symbol "D_TVS_Dual_AAC_0_1"
-				(polyline
-					(pts
-						(xy -6.35 1.27) (xy -1.27 -1.27) (xy -1.27 1.27) (xy -6.35 -1.27) (xy -6.35 1.27)
-					)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -6.35 0) (xy 6.35 0)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -3.302 1.27) (xy -3.81 1.27) (xy -3.81 -1.27) (xy -4.318 -1.27)
-					)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(circle
-					(center 0 0)
-					(radius 0.254)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
-				(polyline
-					(pts
-						(xy 4.318 1.27) (xy 3.81 1.27) (xy 3.81 -1.27) (xy 3.302 -1.27)
-					)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 6.35 1.27) (xy 1.27 -1.27) (xy 1.27 1.27) (xy 6.35 -1.27) (xy 6.35 1.27)
-					)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-			)
-			(symbol "D_TVS_Dual_AAC_1_1"
-				(pin passive line
-					(at -8.89 0 0)
-					(length 2.54)
-					(name "A1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 8.89 0 180)
-					(length 2.54)
-					(name "A2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 0 -3.81 90)
-					(length 2.54)
-					(name "common"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
 		(symbol "Device:L"
 			(pin_numbers
 				(hide yes)
@@ -23556,7 +23337,7 @@
 			)
 		)
 	)
-	(text "Cable entry. F1 protects the main board's 5 V. D14 at the connectors, then R40/R41. R42, R43, J5 not fitted."
+	(text "Cable entry. F1 protects the main board's 5 V (hand-solder). R40/R41 at the connectors. R42, R43, J5 not fitted."
 		(exclude_from_sim no)
 		(at 16.51 13.97 0)
 		(effects
@@ -23602,26 +23383,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "aaee3c8b-b5bc-4fbf-be6e-e7d48b04db67")
-	)
-	(label "SCL_IN"
-		(at 46.99 25.4 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "ad56115b-aa73-4fef-b0d7-a61c7ef17a86")
-	)
-	(label "SDA_IN"
-		(at 64.77 25.4 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "193ce5d5-4f30-499e-9809-affac01938da")
 	)
 	(label "SCL_IN"
 		(at 25.4 36.83 180)
@@ -23776,7 +23537,7 @@
 		(uuid "f2160ebf-0319-4e6e-8ecd-ae04e0201e1b")
 	)
 	(label "HV"
-		(at 171.45 175.26 0)
+		(at 113.03 165.1 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -23784,6 +23545,46 @@
 			(justify left bottom)
 		)
 		(uuid "363bdff4-0036-4915-804a-6dd30a2f3267")
+	)
+	(label "HV_B1"
+		(at 113.03 170.18 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "e832a5b7-e5c7-400b-9c19-c0ae1c4e9b77")
+	)
+	(label "HV_B1"
+		(at 124.46 165.1 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "a87d6609-c70f-420d-9687-55f43226dfc2")
+	)
+	(label "HV_B2"
+		(at 124.46 170.18 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "1bea33b8-053c-4026-a97e-9b208a0c4129")
+	)
+	(label "HV_B2"
+		(at 135.89 165.1 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3c75979a-6b82-4ef9-88ff-853cde05a037")
 	)
 	(symbol
 		(lib_id "Device:Polyfuse_Small")
@@ -23793,7 +23594,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "cd77b14e-f2b4-4dd3-a48c-7ca3e8696335")
 		(property "Reference" "F1"
@@ -23816,7 +23617,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Fuse:Fuse_1812_4532Metric"
+		(property "Footprint" "Capacitor_THT:C_Disc_D9.0mm_W5.0mm_P5.00mm"
 			(at 27.94 25.4 0)
 			(hide yes)
 			(show_name no)
@@ -23838,7 +23639,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C7542972"
+		(property "LCSC" "C208481"
 			(at 27.94 25.4 0)
 			(hide yes)
 			(show_name no)
@@ -23849,7 +23650,7 @@
 				)
 			)
 		)
-		(property "Description" "Resettable fuse, 1.1 A hold, 2.2 A trip, 1812 (LUTE 1812L110/33GR)"
+		(property "Description" "Resettable fuse, 1.1 A hold, 2.2 A trip, 30 V, radial, 5.08 mm leads, hand-solder (Bourns MF-R110)"
 			(at 27.94 25.4 0)
 			(hide yes)
 			(show_name no)
@@ -24119,177 +23920,6 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0114")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:D_TVS_Dual_AAC")
-		(at 55.88 25.4 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files no)
-		(dnp no)
-		(uuid "47867ba1-763d-403b-970c-b49070b10edb")
-		(property "Reference" "D14"
-			(at 55.88 19.05 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "ESD0502TL"
-			(at 55.88 21.59 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
-			(at 55.88 25.4 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 55.88 25.4 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C502589"
-			(at 55.88 25.4 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "2-line ESD protection, 5 V standoff, 0.2 pF, SOT-23 (MDD ESD0502TL)"
-			(at 55.88 25.4 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "63c01495-59b3-48df-97fa-427dbc3096d3")
-		)
-		(pin "2"
-			(uuid "abb2c2f6-1708-415c-8265-cd935c176823")
-		)
-		(pin "3"
-			(uuid "dd3ff18a-b458-40a8-8161-e282363c5113")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "D14")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 55.88 29.21 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "8c5aa86d-481c-4190-b0b6-c53b444eb2b9")
-		(property "Reference" "#PWR0115"
-			(at 55.88 29.21 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 55.88 33.02 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 231.14 157.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 231.14 157.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 231.14 157.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "663b9f7d-ab31-4f99-8151-40f909561665")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "#PWR0115")
 					(unit 1)
 				)
 			)
@@ -25397,7 +25027,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Small")
-		(at 171.45 177.8 0)
+		(at 113.03 167.64 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -25407,7 +25037,7 @@
 		(dnp no)
 		(uuid "d7e4ddc5-b6b6-4999-9e35-e781600e55d5")
 		(property "Reference" "C21"
-			(at 168.91 177.8 0)
+			(at 110.49 167.64 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -25417,8 +25047,8 @@
 				(justify right)
 			)
 		)
-		(property "Value" "100nF 250V"
-			(at 167 186.69 0)
+		(property "Value" "100nF 50V"
+			(at 113.03 162.56 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -25428,7 +25058,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
-			(at 171.45 177.8 0)
+			(at 113.03 167.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25439,7 +25069,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 171.45 177.8 0)
+			(at 113.03 167.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25449,8 +25079,8 @@
 				)
 			)
 		)
-		(property "LCSC" "C97956"
-			(at 171.45 177.8 0)
+		(property "LCSC" "C24497"
+			(at 113.03 167.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25460,8 +25090,8 @@
 				)
 			)
 		)
-		(property "Description" "High-frequency bypass across C1: place at C1, 1206 (Murata GRM31CR72E104KW03L)"
-			(at 171.45 177.8 0)
+		(property "Description" "High-frequency bypass across C1, one of three in series; Rbl1-3 share the voltage (Samsung CL31B104KBCNNNC)"
+			(at 113.03 167.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25487,8 +25117,190 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C_Small")
+		(at 124.46 167.64 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "9c974fad-d766-47f3-900b-8e82d51b94e4")
+		(property "Reference" "C22"
+			(at 121.92 167.64 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "100nF 50V"
+			(at 124.46 162.56 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
+			(at 124.46 167.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 124.46 167.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C24497"
+			(at 124.46 167.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "High-frequency bypass across C1, one of three in series; Rbl1-3 share the voltage (Samsung CL31B104KBCNNNC)"
+			(at 124.46 167.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "80656e2c-2798-487b-8e6f-bdae4d88ab30")
+		)
+		(pin "1"
+			(uuid "b742da10-817c-410b-a069-9f2b855a6d0f")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "C22")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 135.89 167.64 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "42056fff-f501-4694-8af5-77e5ea8be04a")
+		(property "Reference" "C23"
+			(at 133.35 167.64 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "100nF 50V"
+			(at 135.89 162.56 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
+			(at 135.89 167.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 135.89 167.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C24497"
+			(at 135.89 167.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "High-frequency bypass across C1, one of three in series; Rbl1-3 share the voltage (Samsung CL31B104KBCNNNC)"
+			(at 135.89 167.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "b5ea5eae-57f9-4c15-bef7-ad7fd0faa820")
+		)
+		(pin "1"
+			(uuid "59113c46-94b1-46e6-ab8f-e8acba1426a0")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "C23")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
-		(at 171.45 180.34 0)
+		(at 135.89 170.18 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -25499,7 +25311,7 @@
 		(fields_autoplaced yes)
 		(uuid "c8c56531-40c2-463f-90d8-15ef19e0ae80")
 		(property "Reference" "#PWR0122"
-			(at 171.45 180.34 0)
+			(at 135.89 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25510,7 +25322,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 171.45 184.15 0)
+			(at 135.89 173.99 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects

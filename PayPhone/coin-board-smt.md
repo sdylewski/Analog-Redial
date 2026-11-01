@@ -55,6 +55,7 @@ Basic, so 0805 is the largest for D7; the 0603 greens (C72043, C12624) are Exten
 | J1 or J6 | main board cable | JST B5B-EH-A, or a 1 x 5 pin header, 2.54 mm | |
 | J7-J9 | HV setting | 1 x 2 pin headers + shunts, 2.54 mm | |
 | C20 | 100 uF on +5V | Aishi ERZ1HM101E12OT (C160200), 50 V, 6.3 mm, 2.5 mm leads, or any 100 uF of 10 V or more | |
+| F1 | resettable fuse on +5V | Bourns MF-R110 (C208481): 1.1 A hold, 2.2 A trip, 30 V, radial, 5.08 mm leads, 8.9 mm wide | 0.14 |
 | J5, R42, R43 | spare I/O pads, I2C pull-ups | **not fitted** | |
 
 The priced parts in these two tables, without U4, come to about **$20** a board at
@@ -82,13 +83,11 @@ qty-1 prices.
 | R40, R41 | I2C series, 100 ohm 0805 | 0805W8F1000T5E (C17408) | Basic |
 | R42, R43 | I2C pull-ups, 4.7 k 0805, not fitted | 0805W8F4701T5E (C17673) | Basic |
 | C18, C19 | AIN0 and AIN1 filters, 100 nF 0805 | CC0805KRX7R9BB104 (C49678) | Basic |
-| F1 | 1.1 A hold, 2.2 A trip, 33 V, up to 0.25 ohm, 1812 | LUTE 1812L110/33GR (C7542972) | Extended |
-| D14 | 2-line ESD, 5 V standoff, 0.2 pF, SOT-23 | MDD ESD0502TL (C502589) | Extended |
-| C21 | 100 nF 250 V X7R, 1206 | Murata GRM31CR72E104KW03L (C97956) | Extended |
+| C21, C22, C23 | HV bypass, 3 in series, 100 nF 50 V X7R, 1206 | CL31B104KBCNNNC (C24497) | Basic |
 
-I found no suitable Basic part for F1, D14, C20 or C21, though the search wasn't exhaustive.
+I found no suitable Basic part for F1 or C20, though the search wasn't exhaustive.
 The only Basic 100 uF parts I found are 6.3 V, a ceramic that wouldn't damp the cable and a
-tantalum too close to 5 V. F1, D14 and C21 could be hand-soldered to save the Extended fees.
+tantalum too close to 5 V, so both are hand-soldered.
 
 **U4 is optional.** It only adds readings (coin-board-schematic.md, section 9), and at
 $5.28 plus an Extended fee it's the most expensive chip here. The board has no header
@@ -213,8 +212,9 @@ Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
 ### Stage 2 (UC3843)
 
 - **Hot loop:** Qa1 drain -> D2 -> C1+ ... C1- -> Rcs1 -> Qa1 source.
-  C1 is large, so this loop is too. **C21** (100 nF 250 V) closes the fast part of
-  it: place it from D2's cathode to Rcs1's GND end.
+  C1 is large, so this loop is too. **C21-C23** (3 x 100 nF 50 V in series) close the
+  fast part of it: run them from D2's cathode to Rcs1's GND end. Their middle nodes tie to
+  HV_B1 and HV_B2, so Rbl1-3 share the voltage, about 40 V each at 119 V.
 - **SW2** (Qa1 drain, L2, D2 anode) swings 0-120 V at the switching
   frequency: short, and nothing parallel to it. Qa1's tab is SW2 too, so keep
   its copper moderate.
@@ -258,8 +258,8 @@ Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
 
 ### Still to do on the board
 
-- **Update PCB from Schematic** for the cable-entry parts, then place F1, C20, D14, R40-R43
-  by J1 and J6, with D14 closest to the connectors; J5 near U1.
+- **Update PCB from Schematic** for the cable-entry parts, then place F1, C20, R40-R43
+  by J1 and J6, with R40 and R41 closest to the connectors; J5 near U1.
 - **Check placement of the parts added by the last Update PCB:** U1's TSSOP-16, Cp1 at U3
   pins 1 and 2, and:
   - **HV LED** (R27, R28, D5, D7): in the STAGE2 group beside C1, with D7

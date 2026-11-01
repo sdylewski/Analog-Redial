@@ -74,8 +74,8 @@ board's R42 and R43 (4.7 k, on SCL_IN and SDA_IN) are not fitted, and are there 
 the board alone or using it with another host.
 
 **Cable entry.** J1 and J6 carry +5V_IN, SCL_IN and SDA_IN. F1, a 1.1 A PTC, feeds the board's
-+5V, with C20 (100 uF) after it to damp the cable. D14 (ESD) sits on SCL_IN and SDA_IN, then
-R40 and R41 (100 ohm) lead to U1 and U4's SCL and SDA. F1 is there because +5V reaches the
++5V, with C20 (100 uF) after it to damp the cable. R40 and R41 (100 ohm) lead from SCL_IN and
+SDA_IN to U1 and U4's SCL and SDA. F1 is there because +5V reaches the
 20 V rail through L1 and D1 even with stage 1 off.
 
 **VIO: the logic supply comes from the host.** U1 and U4 run from J6 pin 2,
@@ -265,6 +265,7 @@ UCx844/5 are limited to 50 % and wouldn't work.
 | **Protection** | | | |
 | D3 | Clamp across C1 | **SMBJ130A** (SMB) | 130 V standoff; cathode to HV |
 | Rbl1-3 | Bleed across C1 | **3 x 1 M in series** (1206) | section below. 4.7 mW at 119 V, about 40 V each |
+| C21-C23 | Bypass across C1 | **3 x 100 nF 50 V in series** (1206, X7R), middle nodes on HV_B1 and HV_B2 | C1 is slow at high frequency; about 33 nF, less at 119 V. Rbl1-3 share the voltage, about 40 V each at 119 V |
 
 | Pin | Name | Net / connection |
 |---|---|---|
@@ -430,9 +431,7 @@ the relay.
    voltage rating.
 2. **Finish the PCB:** see "Still to do" in [coin-board-smt.md](coin-board-smt.md).
 3. **Datasheet checks** for the **[verify]** items, above all U2 (timing cap, boost
-   equations), U3 (Rcs1, Rt/Ct, the divider), D3's clamp voltage, K1's contact rating, and
-   D14's pinout: the schematic assumes lines on pins 1 and 2, GND on pin 3, but I couldn't
-   download its datasheet.
+   equations), U3 (Rcs1, Rt/Ct, the divider), D3's clamp voltage, and K1's contact rating.
 
 **On the bench**
 
