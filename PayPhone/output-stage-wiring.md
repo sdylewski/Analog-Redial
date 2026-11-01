@@ -1,5 +1,7 @@
 # Coin relay output stage: what connects where
 
+**In progress, not finished:** the PCB isn't routed, and nothing here is built.
+
 Reference designators and pin numbers match
 `Payphone_v1/Payphone_v1.kicad_sch`.
 
@@ -187,7 +189,7 @@ applies automatically.
 
 | Label | Where |
 |---|---|
-| HV | C1+, D2, D3, K1 pins 3 and 8, R27, R32, Rbl1, Rfbt1 |
+| HV | C1+, C21, D2, D3, K1 pins 3 and 8, R27, R32, Rbl1, Rfbt1 |
 | HV_B1, HV_B2 | between Rbl1-3 (bleed) |
 | HV_F1, HV_F2 | between Rfbt1-3 (feedback) |
 | HV_LED1, HV_LED2 | R27, R28, D5 (HV indicator) |
@@ -224,9 +226,9 @@ applies automatically.
 | 8 VDD | **VIO**, with C17 100 nF (not +5 V: at 5 V the chip wants I2C highs above 3.5 V, more than a 3.3 V bus gives) |
 | 3 GND | GND |
 | 1 ADDR | GND: address 0x48 |
-| 10 SCL, 9 SDA | SCL, SDA |
+| 10 SCL, 9 SDA | SCL, SDA (R40 and R41 from the cable) |
 | 2 ALERT/RDY | not connected |
-| 4 AIN0 | HV through R32 1.18 M / R33 33 k: 119 V reads 3.24 V |
-| 5 AIN1 | 20V through R17 56 k / R19 10 k: 20 V reads 3.0 V |
+| 4 AIN0 | HV through R32 1.18 M / R33 33 k: 119 V reads 3.24 V. C18 100 nF to GND |
+| 5 AIN1 | 20V through R17 56 k / R19 10 k: 20 V reads 3.0 V. C19 100 nF to GND |
 | 6 AIN2 | ISENSE (R26): 100 mA reads 1 V |
 | 7 AIN3 | spare |

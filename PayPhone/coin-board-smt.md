@@ -1,5 +1,7 @@
 # Coin board: parts and PCB layout
 
+**In progress, not finished:** the PCB isn't routed yet.
+
 Companion to [coin-board-schematic.md](coin-board-schematic.md) and
 [output-stage-wiring.md](output-stage-wiring.md). Reference designators and
 values match `Payphone_v1/Payphone_v1.kicad_sch`.
@@ -52,6 +54,8 @@ Basic, so 0805 is the largest for D7; the 0603 greens (C72043, C12624) are Exten
 | J3 | coin switch cable | Molex 0026604040, KK 396, 4-pin (plug 09-50-3041 + terminals, verify) | 0.44 |
 | J1 or J6 | main board cable | JST B5B-EH-A, or a 1 x 5 pin header, 2.54 mm | |
 | J7-J9 | HV setting | 1 x 2 pin headers + shunts, 2.54 mm | |
+| C20 | 100 uF on +5V | Aishi ERZ1HM101E12OT (C160200), 50 V, 6.3 mm, 2.5 mm leads, or any 100 uF of 10 V or more | |
+| J5, R42, R43 | spare I/O pads, I2C pull-ups | **not fitted** | |
 
 The priced parts in these two tables, without U4, come to about **$20** a board at
 qty-1 prices.
@@ -70,6 +74,21 @@ qty-1 prices.
 | Cf1, Cp1 | 470 pF, 100 pF | **C0G/NP0**: current-sense filter and compensation pole |
 | Cvcc1 | 0.1 uF | **50 V**: on the 20 V rail, where a 16 or 25 V 0805 loses most of its capacitance |
 | Cz1 | 150 nF | X7R; sets the compensation zero |
+
+**Cable-entry and filter parts**
+
+| Ref | Function | Part | JLCPCB |
+|---|---|---|---|
+| R40, R41 | I2C series, 100 ohm 0805 | 0805W8F1000T5E (C17408) | Basic |
+| R42, R43 | I2C pull-ups, 4.7 k 0805, not fitted | 0805W8F4701T5E (C17673) | Basic |
+| C18, C19 | AIN0 and AIN1 filters, 100 nF 0805 | CC0805KRX7R9BB104 (C49678) | Basic |
+| F1 | 1.1 A hold, 2.2 A trip, 33 V, up to 0.25 ohm, 1812 | LUTE 1812L110/33GR (C7542972) | Extended |
+| D14 | 2-line ESD, 5 V standoff, 0.2 pF, SOT-23 | MDD ESD0502TL (C502589) | Extended |
+| C21 | 100 nF 250 V X7R, 1206 | Murata GRM31CR72E104KW03L (C97956) | Extended |
+
+I found no suitable Basic part for F1, D14, C20 or C21, though the search wasn't exhaustive.
+The only Basic 100 uF parts I found are 6.3 V, a ceramic that wouldn't damp the cable and a
+tantalum too close to 5 V. F1, D14 and C21 could be hand-soldered to save the Extended fees.
 
 **U4 is optional.** It only adds readings (coin-board-schematic.md, section 9), and at
 $5.28 plus an Extended fee it's the most expensive chip here. The board has no header
@@ -194,9 +213,8 @@ Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
 ### Stage 2 (UC3843)
 
 - **Hot loop:** Qa1 drain -> D2 -> C1+ ... C1- -> Rcs1 -> Qa1 source.
-  C1 is large, so this loop is too. A **100 nF 250 V ceramic** (1206 X7R)
-  from D2's cathode to Rcs1's GND end would close the fast part of it; it
-  isn't in the schematic yet.
+  C1 is large, so this loop is too. **C21** (100 nF 250 V) closes the fast part of
+  it: place it from D2's cathode to Rcs1's GND end.
 - **SW2** (Qa1 drain, L2, D2 anode) swings 0-120 V at the switching
   frequency: short, and nothing parallel to it. Qa1's tab is SW2 too, so keep
   its copper moderate.
@@ -234,15 +252,16 @@ Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
 
 - Each divider's low end sits at U4 (R33 for AIN0, R19/R17 for AIN1), so the
   long runs are the 3 V taps.
-- **Add 10-100 nF from each AIN pin to GND** at U4 (not in the schematic yet):
-  the taps are about 30 k source impedance, and the cap makes them
-  low-impedance to noise. The readings are slow, so the delay costs nothing.
-  The same for AIN2 (ISENSE from R26).
+- **C18 and C19** (100 nF, AIN0 and AIN1 to GND) go at U4: the taps are about 30 k and
+  8.5 k source impedance, and the caps make them low-impedance to noise. The readings are
+  slow, so the delay costs nothing. AIN2 (ISENSE) has no cap, because it measures a pulse.
 
 ### Still to do on the board
 
-- **Check placement of the parts added by Update PCB:** U1's TSSOP-16, Cp1 at U3 pins 1
-  and 2, and:
+- **Update PCB from Schematic** for the cable-entry parts, then place F1, C20, D14, R40-R43
+  by J1 and J6, with D14 closest to the connectors; J5 near U1.
+- **Check placement of the parts added by the last Update PCB:** U1's TSSOP-16, Cp1 at U3
+  pins 1 and 2, and:
   - **HV LED** (R27, R28, D5, D7): in the STAGE2 group beside C1, with D7
     where it can be seen with the board installed. R27/R28 are HV class.
   - **Debug LEDs** D8-D13 with R34-R39: in a row along an edge, labelled on
@@ -258,7 +277,5 @@ Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
   K1's contact pins would bring it over.
 - Board outline and mounting holes (M3, away from HV).
 - Test points: 20 V, VIO, HV (a probe pad behind a series resistor), GND.
-- The AIN filter caps and the 100 nF 250 V stage-2 cap need adding to the schematic first,
-  if you want them.
 - Two reference designators overlap (Cz1/Rz1, Ct1/R18): nudge them when
   tidying silkscreen.

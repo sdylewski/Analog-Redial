@@ -1,6 +1,7 @@
 # Payphone coin board: design
 
-**Nothing here is built or simulated.** Values marked **[verify]** come from
+**In progress, not finished.** The PCB isn't routed, and nothing here is built or
+simulated. Values marked **[verify]** come from
 distributor listings or my memory of a datasheet, not from the manufacturer's
 datasheet; check them before ordering. Reference designators match
 `Payphone_v1/Payphone_v1.kicad_sch`.
@@ -48,6 +49,7 @@ green wire, and they aren't the same wires.
 |---|---|---|
 | **J6** | 5 x 2.54 mm pin header | **1 +5 V, 2 VIO, 3 SDA, 4 SCL, 5 GND**: the main board's v6 J6 order, so a straight 1:1 cable |
 | **J1** | JST EH 5-pin (B5B-EH-A) | same five signals, same order, in parallel with J6: fit whichever suits the cable |
+| **J5** | 1 x 4 pin header pads, not fitted | 1 VIO, 2 U1 P3, 3 U1 P7, 4 GND: spare I/O |
 | **J2** | Molex KK 396, 3-pin, 0026604030 | **coin relay cable.** 1 white = COIL_A, 2 red = not connected, 3 green = COIL_B. **Check its voltage rating against 119 V** |
 | **J3** | Molex KK 396, 4-pin, 0026604040 | **coin switch cable.** 4 green = common (GND), 3 white = quarter, 2 red = dime, 1 blue = nickel. On the plug with its tab at the bottom, green is the left pin and blue the right |
 | **J7-J9** | three 2-pin headers + shunts | HV setting: no shunt = 52 V; any combination is valid, up to 119 V with all three (section 6) |
@@ -68,7 +70,13 @@ only that connector's pin numbers change in the schematic.
 
 The TCA9534A's address is 0x38 plus its A2 A1 A0 pins read as a binary number,
 so another add-on can use 0x3A-0x3F. The main board has the I2C pull-ups; this
-board has none.
+board's R42 and R43 (4.7 k, on SCL_IN and SDA_IN) are not fitted, and are there for testing
+the board alone or using it with another host.
+
+**Cable entry.** J1 and J6 carry +5V_IN, SCL_IN and SDA_IN. F1, a 1.1 A PTC, feeds the board's
++5V, with C20 (100 uF) after it to damp the cable. D14 (ESD) sits on SCL_IN and SDA_IN, then
+R40 and R41 (100 ohm) lead to U1 and U4's SCL and SDA. F1 is there because +5V reaches the
+20 V rail through L1 and D1 even with stage 1 off.
 
 **VIO: the logic supply comes from the host.** U1 and U4 run from J6 pin 2,
 not from a regulator on this board. An I2C input must not go above its chip's
@@ -95,12 +103,12 @@ on.
 | 4 | P0 | Nickel | in | high | 10 k pull-up to VIO, 1 k series, 100 nF on the switch side |
 | 5 | P1 | Dime | in | high | same |
 | 6 | P2 | Quarter | in | high | same |
-| 7 | P3 | spare | | | not connected |
+| 7 | P3 | spare | | | J5 pin 2 |
 | 8 | GND | GND | | | |
 | 9 | P4 | **EN_HV** | out | low (R1 100 k) | turns on stage 1, and so stage 2: HV exists only while high |
 | 10 | P5 | **POL** | out | low (R2 100 k) | drives Q2 and K1: sets which way the coil is driven |
 | 11 | P6 | **FIRE** | out | low (R3 10 k) | drives Q3: current through the coil |
-| 12 | P7 | spare | | | not connected |
+| 12 | P7 | spare | | | J5 pin 3. Firmware should set P3 and P7 as outputs unless they're in use, so they don't float |
 | 13 | ~INT | | | | not connected |
 | 14 | SCL | SCL | | | |
 | 15 | SDA | SDA | | | |
@@ -422,16 +430,9 @@ the relay.
    voltage rating.
 2. **Finish the PCB:** see "Still to do" in [coin-board-smt.md](coin-board-smt.md).
 3. **Datasheet checks** for the **[verify]** items, above all U2 (timing cap, boost
-   equations), U3 (Rcs1, Rt/Ct, the divider), D3's clamp voltage and K1's contact rating.
-4. **Not on the schematic, your call:**
-   - **A fuse or PTC on +5V.** There's none, so a stage-1 fault loads the main board's 5 V
-     directly. It would need about 1 A hold (Littelfuse RXEF110, radial).
-   - **At the cable entry:** 100 ohm series resistors in SDA and SCL, ESD parts on each line
-     (the cable is an antenna for static in a phone), and about 100 uF on +5V.
-   - **DNP 4.7 k I2C pull-ups**, for a host without its own.
-   - **A header for the spare pins** P3 and P7.
-   - **Filter caps at U4's inputs and a 100 nF 250 V cap across stage 2's output**
-     (routing notes in [coin-board-smt.md](coin-board-smt.md)).
+   equations), U3 (Rcs1, Rt/Ct, the divider), D3's clamp voltage, K1's contact rating, and
+   D14's pinout: the schematic assumes lines on pins 1 and 2, GND on pin 3, but I couldn't
+   download its datasheet.
 
 **On the bench**
 
