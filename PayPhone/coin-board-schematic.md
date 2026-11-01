@@ -250,7 +250,7 @@ UCx844/5 are limited to 50 % and wouldn't work.
 | Rfbb1-4 | FB pin 2 to GND | **Rfbb4 15 k always fitted**; Rfbb3 100 k, Rfbb2 30 k, Rfbb1 22 k added in parallel by J9 / J8 / J7 | table below |
 | Rz1 | COMP pin 1 to FB pin 2, in series with Cz1 | **1 M** | mid-band gain Rz / Rfbt = 3.3 |
 | Cz1 | In series with Rz1 | **150 nF**, X7R | zero at 1.1 Hz |
-| Cp | COMP pin 1 to FB pin 2, across Rz1 + Cz1 | **100 pF, C0G** | pole at 1.6 kHz, keeps switching noise out of the error amplifier. **Not on the schematic yet** (section 11) |
+| Cp1 | COMP pin 1 to FB pin 2, across Rz1 + Cz1 | **100 pF, C0G** | pole at 1.6 kHz, keeps switching noise out of the error amplifier |
 | **Decoupling** | | | |
 | Cvcc1 | VCC pin 7 to GND | **0.1 uF, 50 V** | on the 20 V rail, so not a 16 or 25 V part |
 | Cvref1 | VREF pin 8 to GND | **0.1 uF** | required by the datasheet |
@@ -420,13 +420,10 @@ the relay.
 
 1. **Connector pin order:** check J2 and J3 against the real plugs (section 2), and J2's
    voltage rating.
-2. **Update PCB from Schematic** hasn't been run since these changes, and the board file
-   still has the MCP23008: see "Still to do" in [coin-board-smt.md](coin-board-smt.md).
+2. **Finish the PCB:** see "Still to do" in [coin-board-smt.md](coin-board-smt.md).
 3. **Datasheet checks** for the **[verify]** items, above all U2 (timing cap, boost
    equations), U3 (Rcs1, Rt/Ct, the divider), D3's clamp voltage and K1's contact rating.
-4. **Not on the schematic yet, needed:**
-   - **Cp**, 100 pF C0G, COMP to FB (section 6).
-5. **Not on the schematic, your call:**
+4. **Not on the schematic, your call:**
    - **A fuse or PTC on +5V.** There's none, so a stage-1 fault loads the main board's 5 V
      directly. It would need about 1 A hold (Littelfuse RXEF110, radial).
    - **At the cable entry:** 100 ohm series resistors in SDA and SCL, ESD parts on each line

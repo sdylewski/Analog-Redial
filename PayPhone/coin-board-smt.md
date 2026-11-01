@@ -67,7 +67,7 @@ qty-1 prices.
 | Capacitors that need care | Value | Requirement |
 |---|---|---|
 | Ct1, C8 | 2.2 nF, 1 nF | **C0G/NP0**: they set U3's and U2's clocks. X7R loses 10-15 % with temperature and more with voltage |
-| Cf1, Cp | 470 pF, 100 pF | **C0G/NP0**: current-sense filter and compensation pole |
+| Cf1, Cp1 | 470 pF, 100 pF | **C0G/NP0**: current-sense filter and compensation pole |
 | Cvcc1 | 0.1 uF | **50 V**: on the 20 V rail, where a 16 or 25 V 0805 loses most of its capacitance |
 | Cz1 | 150 nF | X7R; sets the compensation zero |
 
@@ -241,9 +241,8 @@ Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
 
 ### Still to do on the board
 
-- **Update PCB from Schematic** hasn't been run yet. It swaps U1 from the MCP23008 to the
-  TCA9534A's TSSOP-16 (re-place it), removes R10, renames +3V3 to VIO, moves J3's pins and
-  changes Rbl1-3 to 1 M. Then place the new parts:
+- **Check placement of the parts added by Update PCB:** U1's TSSOP-16, Cp1 at U3 pins 1
+  and 2, and:
   - **HV LED** (R27, R28, D5, D7): in the STAGE2 group beside C1, with D7
     where it can be seen with the board installed. R27/R28 are HV class.
   - **Debug LEDs** D8-D13 with R34-R39: in a row along an edge, labelled on
@@ -259,7 +258,7 @@ Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
   K1's contact pins would bring it over.
 - Board outline and mounting holes (M3, away from HV).
 - Test points: 20 V, VIO, HV (a probe pad behind a series resistor), GND.
-- **Cp** (100 pF, COMP to FB) needs adding to the schematic first. So do the AIN filter
-  caps and the 100 nF 250 V stage-2 cap, if you want them.
+- The AIN filter caps and the 100 nF 250 V stage-2 cap need adding to the schematic first,
+  if you want them.
 - Two reference designators overlap (Cz1/Rz1, Ct1/R18): nudge them when
   tidying silkscreen.
