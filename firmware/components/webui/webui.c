@@ -4296,7 +4296,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
             "<li><b>Incoming calls ring the phone.</b> Lift the handset to answer, hang up to "
             "end the call.</li>"
             "<li><b>Caller ID</b> shows in the activity log when the phone sends it.</li>"
-            "<li><b>Dial out</b> through the paired phone: dial 1 and then the number. Dial "
+            "<li><b>Dial out</b> through the paired phone: dial 9 and then the number. Dial "
             "codes work as usual.</li>"
             "<li><b>Calls placed on the paired phone</b> can be moved to this handset.</li>"
             "</ul>")
@@ -9356,7 +9356,7 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
      * and Home Assistant, then settings. */
 
     /* Calls: the other line (321-324), VoIP (555 + 4 digits) and, with a
-     * Bluetooth module, calling out through the paired phone. 1 and 555 are
+     * Bluetooth module, calling out through the paired phone. 9 and 555 are
      * matched directly in dialplan_feed(), so they are synthetic rows. */
     bool bt_row = board_hw_config_get().has_bt_module;
     size_t in_calls = 0;

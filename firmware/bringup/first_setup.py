@@ -97,7 +97,7 @@ PROMPTS = {
         "op_second_line": "Dial 3 2 1 to call the other phone.",
         "op_record": "Dial 2 1 1 to record a message.",
         "op_bluetooth": "If your phone is paired with this device, you can "
-                        "receive calls, and call out by dialing 1 and then the number.",
+                        "receive calls, and call out by dialing 9 and then the number.",
         "digits": ["zero", "one", "two", "three", "four",
                    "five", "six", "seven", "eight", "nine"],
     },
@@ -107,7 +107,7 @@ PROMPTS = {
         "op_second_line": "Wählen Sie 3 2 1, um das andere Telefon anzurufen.",
         "op_record": "Wählen Sie 2 1 1, um eine Nachricht aufzunehmen.",
         "op_bluetooth": "Wenn Ihr Telefon mit diesem Gerät gekoppelt ist, können Sie "
-                        "Anrufe empfangen und wählen, indem Sie 1 und dann die Nummer wählen.",
+                        "Anrufe empfangen und wählen, indem Sie 9 und dann die Nummer wählen.",
         "digits": ["null", "eins", "zwei", "drei", "vier",
                    "fünf", "sechs", "sieben", "acht", "neun"],
     },
@@ -117,7 +117,7 @@ PROMPTS = {
         "op_second_line": "Composez le 3 2 1 pour appeler l'autre téléphone.",
         "op_record": "Composez le 2 1 1 pour enregistrer un message.",
         "op_bluetooth": "Si votre téléphone est appairé avec cet appareil, vous pouvez "
-                        "recevoir des appels et appeler en composant le 1 puis le numéro.",
+                        "recevoir des appels et appeler en composant le 9 puis le numéro.",
         "digits": ["zéro", "un", "deux", "trois", "quatre",
                    "cinq", "six", "sept", "huit", "neuf"],
     },
@@ -127,7 +127,7 @@ PROMPTS = {
         "op_second_line": "Componi 3 2 1 per chiamare l'altro telefono.",
         "op_record": "Componi 2 1 1 per registrare un messaggio.",
         "op_bluetooth": "Se il tuo telefono è associato a questo dispositivo, puoi ricevere "
-                        "chiamate e chiamare componendo 1 e poi il numero.",
+                        "chiamate e chiamare componendo 9 e poi il numero.",
         "digits": ["zero", "uno", "due", "tre", "quattro",
                    "cinque", "sei", "sette", "otto", "nove"],
     },
@@ -137,7 +137,7 @@ PROMPTS = {
         "op_second_line": "Marque 3 2 1 para llamar al otro teléfono.",
         "op_record": "Marque 2 1 1 para grabar un mensaje.",
         "op_bluetooth": "Si su teléfono está emparejado con este dispositivo, puede recibir "
-                        "llamadas y llamar marcando 1 y luego el número.",
+                        "llamadas y llamar marcando 9 y luego el número.",
         "digits": ["cero", "uno", "dos", "tres", "cuatro",
                    "cinco", "seis", "siete", "ocho", "nueve"],
     },

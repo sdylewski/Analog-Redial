@@ -111,7 +111,7 @@ dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line);
  * local codes (211 still records a message). While off, a leading 9 is just
  * an unassigned prefix (wrong number). The caller sets this before each
  * dialplan_feed() -- telephony turns it on only for the line the Bluetooth
- * module is wired to, and only while the module is enabled. "1" is reserved:
+ * module is wired to, and only while the module is enabled. "9" is reserved:
  * clip codes can never start with it. */
 #define DIALPLAN_BT_PREFIX     '9'
 #define DIALPLAN_BT_DIGITS     11
