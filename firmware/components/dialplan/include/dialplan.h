@@ -127,8 +127,10 @@ void dialplan_set_home_numbers(const char (*numbers)[DIALPLAN_HOME_NUM_MAX], siz
 /* This board's own home numbers, so new dial codes can't take them. */
 void dialplan_set_own_home_numbers(const char *line0, const char *line1);
 /* Why `number` can't be this board's home number, or NULL if it can: it
- * clashes with one of this board's dial codes (or shares a prefix with one,
- * which would make one of them undiallable), or with 555 / Bluetooth dialling. */
+ * clashes with a dial code this board can use right now (or shares a prefix
+ * with one, which would make one of them undiallable), or with 555 / Bluetooth
+ * dialling. A code that was changed no longer counts, nor do the 3xx calls on a
+ * one-line board. */
 const char *dialplan_home_number_problem(const char *number);
 
 /* Inter-digit timeout to use (ms). */

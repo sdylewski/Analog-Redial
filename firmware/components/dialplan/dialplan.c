@@ -776,9 +776,11 @@ esp_err_t dialplan_fixed_set_code(const char *default_code, const char *new_code
     for (size_t i = 0; i < TABLE_N; i++) if (strcmp(TABLE[i].code, default_code) == 0) idx = (int)i;
     if (idx < 0) return ESP_ERR_NOT_FOUND;
     const char *want = (new_code && new_code[0]) ? new_code : TABLE[idx].code;
+    if (strcmp(want, fcode(idx)) == 0) return ESP_OK;   /* no change */
     bool is_default = strcmp(want, TABLE[idx].code) == 0;
     if (!is_default && !valid_code(want)) return ESP_ERR_INVALID_ARG;
-    if (!is_default && code_conflicts_fx(want, -1, -1, idx)) return ESP_ERR_INVALID_STATE;
+    /* The default too: while it was changed, something else may have taken it. */
+    if (code_conflicts_fx(want, -1, -1, idx)) return ESP_ERR_INVALID_STATE;
 
     nvs_handle_t h;
     esp_err_t err = nvs_open(FIXED_NVS_NS, NVS_READWRITE, &h);
@@ -848,6 +850,8 @@ static bool code_conflicts_fx(const char *code, int except_idx, int except_pin, 
     return own;
 }
 
+#define HOME_CLASH_MSG "Clashes with one of this phone's dial codes: change that code first, in Settings -> Dial Codes"
+
 const char *dialplan_home_number_problem(const char *number)
 {
     size_t n = strlen(number);
@@ -860,17 +864,20 @@ const char *dialplan_home_number_problem(const char *number)
      * dial-out on that line. */
     if ((s_bt_dialout || board_hw_config_get().has_bt_module) && number[0] == DIALPLAN_BT_PREFIX)
         return "Can't start with 9 on a board with Bluetooth (it dials out with 9)";
+    /* Only codes this board can dial right now: on a one-line board 321 does
+     * nothing, so another board's number can be 321. */
     for (size_t i = 0; i < TABLE_N; i++) {
+        if (!entry_available(&TABLE[i])) continue;
         size_t tl = strlen(fcode(i));
-        if (strncmp(fcode(i), number, (n < tl) ? n : tl) == 0) return "Clashes with one of this phone's dial codes";
+        if (strncmp(fcode(i), number, (n < tl) ? n : tl) == 0) return HOME_CLASH_MSG;
     }
     for (int i = 0; i < DIALPLAN_MAX_CLIP_ENTRIES; i++) {
         size_t ul = strlen(s_clips[i].code);
-        if (ul && strncmp(s_clips[i].code, number, (n < ul) ? n : ul) == 0) return "Clashes with one of this phone's dial codes";
+        if (ul && strncmp(s_clips[i].code, number, (n < ul) ? n : ul) == 0) return HOME_CLASH_MSG;
     }
     for (int i = 0; i < DIALPLAN_MAX_PIN_ACTIONS; i++) {
         size_t pl = strlen(s_pin_actions[i].code);
-        if (pl && strncmp(s_pin_actions[i].code, number, (n < pl) ? n : pl) == 0) return "Clashes with one of this phone's dial codes";
+        if (pl && strncmp(s_pin_actions[i].code, number, (n < pl) ? n : pl) == 0) return HOME_CLASH_MSG;
     }
     return NULL;
 }

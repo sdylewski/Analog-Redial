@@ -3742,7 +3742,7 @@ static int append_home_calls_card(char *buf, size_t cap, int off)
                 const char *num = peers[i].number[l];
                 if (!num[0]) continue;
                 const char *note = "";
-                char prob_note[160];
+                char prob_note[192];
                 if (!strcmp(num, homecall_number(0)) || !strcmp(num, homecall_number(1))) {
                     note = "<span class=\"pill off\">same number as this board</span>";
                 } else if (dialplan_home_number_problem(num)) {

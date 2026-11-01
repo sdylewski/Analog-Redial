@@ -20,6 +20,11 @@ boards found, and each line's number, are on **Settings → VOIP → Board-to-bo
 calls**, where you can change a number. Boards you haven't numbered yet show up
 as "not set up".
 
+A number can't match a dial code on a board that needs to dial it, because that
+board's own code wins. To number a board 321, for example, change the "Call other
+phone" code on any two-line board first (Settings → Dial Codes, Built-in codes
+card). One-line boards don't use that code, so they need no change.
+
 **Through a SIP server such as Asterisk or FreePBX.** Register each line with
 the server, and other phones registered there (at home or away) can call it, and
 it can call them, by dialing **`555` + the 4-digit extension**. The same four
