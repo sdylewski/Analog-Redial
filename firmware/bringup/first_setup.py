@@ -389,7 +389,7 @@ def step_microsd(run: Run, con, status: dict) -> None:
     if status and not status.get("storage_on_sd"):
         run.record("microsd", "WARN", "no card in use -- none inserted, not FAT-formatted, or "
                    "the board isn't set to single line + microSD. Recordings will use "
-                   "internal flash (~4 MB)")
+                   "internal flash")
         return
     if con is None:
         run.record("microsd", "PASS" if status else "SKIP",
