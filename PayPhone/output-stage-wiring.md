@@ -39,6 +39,7 @@ Three small blocks, each driven by one TCA9534A pin:
                                 |
                                GND
 
+   RETURN --- D14 anode, D14 cathode --- HV                  (ES2D: the coil's freewheel path)
    +5 V --- K1 pin 1 (coil) ... K1 pin 12 --- Q2 collector   (block A)
    FIRE --- Q4 --- Q5 (from 20V) --- Q3 gate, clamped to 12 V by D6   (block C)
 ```
@@ -168,6 +169,9 @@ and D6 clamps the gate at 12 V, so Q3 gets the same full gate drive whatever VIO
 | R24 1k | | Q5 collector to GATE3: limits zener current to about 8 mA |
 | R25 10k | | GATE3 to GND: turns Q3 off |
 | R26 10 ohm (1206) | | Q3 source to GND: current sense (about 1 V at 100 mA) |
+| R44 1 k | | ISENSE to U4 AIN2: limits the current into U4 in a coil-short fault |
+| D14 ES2D | 1 (K, band) | HV |
+| D14 | 2 (A) | RETURN: freewheel path if Q3 turns off while current flows |
 
 How it behaves:
 
@@ -189,17 +193,18 @@ applies automatically.
 
 | Label | Where |
 |---|---|
-| HV | C1+, C21 pin 1, D2, D3, K1 pins 3 and 8, R27, R32, Rbl1, Rfbt1 |
+| HV | C1+, C21 pin 1, D2, D3, D14 cathode, K1 pins 3 and 8, R27, R32, Rbl1, Rfbt1 |
 | HV_B1, HV_B2 | between Rbl1-3 (bleed) and between C21-C23 |
 | HV_F1, HV_F2 | between Rfbt1-3 (feedback) |
 | HV_LED1, HV_LED2 | R27, R28, D5 (HV indicator) |
 | SW2 | Qa1 drain, L2, D2 anode: swings up to HV |
 | COIL_A | K1 pin 4, J2 pin 1 |
 | COIL_B | K1 pin 9, J2 pin 3 |
-| RETURN | K1 pins 5 and 10, Q3 pin 2 |
+| RETURN | K1 pins 5 and 10, Q3 pin 2, D14 anode |
 | GATE3 | Q3 pin 1, D6 pin 1, R24, R25 |
 | RLY_COIL, Q2_B, Q4_G, Q4_D, Q5_B, Q5_C | the small nodes in blocks A and C |
-| ISENSE | Q3 pin 3, R26, U4 AIN2 |
+| ISENSE | Q3 pin 3, R26, R44 |
+| ISENSE_ADC | R44, U4 AIN2 |
 
 ## HV safety
 
@@ -230,5 +235,5 @@ applies automatically.
 | 2 ALERT/RDY | not connected |
 | 4 AIN0 | HV through R32 1.18 M / R33 33 k: 119 V reads 3.24 V. C18 100 nF to GND |
 | 5 AIN1 | 20V through R17 56 k / R19 10 k: 20 V reads 3.0 V. C19 100 nF to GND |
-| 6 AIN2 | ISENSE (R26): 100 mA reads 1 V |
+| 6 AIN2 | ISENSE (R26) through R44 1 k: 100 mA reads 1 V |
 | 7 AIN3 | spare |

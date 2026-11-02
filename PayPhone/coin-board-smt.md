@@ -7,7 +7,7 @@ Companion to [coin-board-schematic.md](coin-board-schematic.md) and
 values match `Payphone_v1/Payphone_v1.kicad_sch`.
 
 The board is surface-mount, with through-hole only where it's the better part:
-C1, the 22 uF electrolytics, L1, L2, K1, Qa1 and the connectors.
+C1, the electrolytics, F1, L1, L2, K1, Qa1, U4's module and the connectors.
 
 ## Parts
 
@@ -23,13 +23,12 @@ the BOM upload.
 | U1 | I2C I/O expander | TCA9534APWR, TSSOP-16, 0.65 mm | ~0.45 (LCSC) | C206010, Extended | JLCPCB, or hand-solder |
 | U2 | stage 1, 5 V to 20 V | MC34063ADR2G, SOIC-8 | 0.77 | Extended | hand-solder |
 | U3 | stage 2 controller | UC3843BD1R2G, SOIC-8 | 0.71 | C16414, Extended | hand-solder, or JLCPCB. DigiKey US stock was thin (56) |
-| U4 | ADC | ADS1115IDGSR, 10-pin, 0.5 mm | 5.28 | Extended | optional (below) |
 | Q3 | fire switch, 200 V | STN4NF20L, SOT-223 | 1.02 | Extended | hand-solder |
 | Q1, Q4 | small N-FETs | 2N7002, SOT-23 | 0.02-0.26 | C8545, Basic (verify) | **JLCPCB** |
 | Q2 | relay driver NPN | MMBT3904, SOT-23 | | Basic (verify) | **JLCPCB** |
-| Q5 | gate-drive PNP | MMBT3906, SOT-23 | 0.15 | Basic (verify) | **JLCPCB** |
+| Q5 | gate-drive PNP | MMBT3906, SOT-23 | 0.15 | C7420354, Preferred (no Extended fee) | **JLCPCB** |
 | D1 | stage 1 Schottky | 1N5819HW, SOD-123 | | (verify) | **JLCPCB** if Basic. SS34 (C8678, Basic, on the v6 board) is the alternative, on an SMA footprint |
-| D2 | stage 2 ultrafast | ES2D, SMA | 0.40 | Extended | hand-solder |
+| D2, D14 | stage 2 ultrafast, coil freewheel | ES2D, SMA | 0.40 | Extended | hand-solder |
 | D3 | HV clamp | SMBJ130A, SMB | 0.51 | Extended | hand-solder |
 | D4 | relay flyback | 1N4148W, SOD-123 | ~0.05 | C81598, Basic (on v6) | **JLCPCB** |
 | D5, D6 | zeners, 22 V, 12 V | BZT52C22, BZT52C12, SOD-123 | 0.01-0.14 | likely Basic (verify) | **JLCPCB** if Basic |
@@ -56,10 +55,10 @@ Basic, so 0805 is the largest for D7; the 0603 greens (C72043, C12624) are Exten
 | J7-J9 | HV setting | 1 x 2 pin headers + shunts, 2.54 mm | |
 | C20 | 100 uF on +5V | Aishi ERZ1HM101E12OT (C160200), 50 V, 6.3 mm, 2.5 mm leads, or any 100 uF of 10 V or more | |
 | F1 | resettable fuse on +5V | Bourns MF-R110 (C208481): 1.1 A hold, 2.2 A trip, 30 V, radial, 5.08 mm leads, 8.9 mm wide | 0.14 |
-| J5, R42, R43 | spare I/O pads, I2C pull-ups | **not fitted** | |
+| U4 | ADC | ADS1115 module on a 1 x 10 header, 2.54 mm (VDD, GND, SCL, SDA, ADDR, ALRT, A0-A3) | under 2 |
+| J5, R42, R43, Rslope1, Cslope1 | spare I/O pads, I2C pull-ups, slope compensation | **not fitted** | |
 
-The priced parts in these two tables, without U4, come to about **$20** a board at
-qty-1 prices.
+The priced parts in these two tables come to about **$22** a board at qty-1 prices.
 
 **Resistors and small capacitors: 0805, JLCPCB places them**, except:
 
@@ -81,6 +80,7 @@ qty-1 prices.
 | Ref | Function | Part | JLCPCB |
 |---|---|---|---|
 | R40, R41 | I2C series, 100 ohm 0805 | 0805W8F1000T5E (C17408) | Basic |
+| R44 | AIN2 series, 1 k 0805 | 0805W8F1001T5E (C17513) | Basic |
 | R42, R43 | I2C pull-ups, 4.7 k 0805, not fitted | 0805W8F4701T5E (C17673) | Basic |
 | C18, C19 | AIN0 and AIN1 filters, 100 nF 0805 | CC0805KRX7R9BB104 (C49678) | Basic |
 | C21, C22, C23 | HV bypass, 3 in series, 100 nF 50 V X7R, 1206 | CL31B104KBCNNNC (C24497) | Basic |
@@ -89,10 +89,10 @@ I found no suitable Basic part for F1 or C20, though the search wasn't exhaustiv
 The only Basic 100 uF parts I found are 6.3 V, a ceramic that wouldn't damp the cable and a
 tantalum too close to 5 V, so both are hand-soldered.
 
-**U4 is optional.** It only adds readings (coin-board-schematic.md, section 9), and at
-$5.28 plus an Extended fee it's the most expensive chip here. The board has no header
-for one of the under-$2 [ADS1115 modules](https://www.aliexpress.us/item/2251832488241448.html),
-so a module for bring-up would be hand-wired to U4's pads.
+**U4 is optional.** It only adds readings (coin-board-schematic.md, section 9). It's one
+of the under-$2 [ADS1115 modules](https://www.aliexpress.us/item/2251832488241448.html) on a
+header, not the bare chip. These modules usually carry their own I2C pull-ups and decoupling,
+which is fine here at VIO.
 
 ### UC3843 alternatives
 
@@ -120,7 +120,7 @@ check the current figure), so it shrinks with order size:
 | 10 | $0.30 |
 | 30 | $0.10 |
 
-With 6 Extended parts (U1, U2, U3, Q3, D2, D3; U4 would be a seventh), that's **$18 per
+With 6 Extended parts (U1, U2, U3, Q3, ES2D, D3), that's **$18 per
 order**: $3.60 a board at 5 boards, $0.60 at 30.
 
 - **First order (5 boards): JLCPCB places only Basic parts.** You hand-solder the Extended
@@ -153,16 +153,15 @@ Where it matters on this board, at 119 V:
 All are 1206: besides the rating, the wider pad gap helps with HV clearance. Everything else
 (logic, 20 V, gate drive) is fine in 0805.
 
-**Capacitors.** C1 is the only capacitor on HV. For the rest, pick a rated voltage at least 2x
+**Capacitors.** On HV, C1 is rated for it, and C21-C23 share the voltage in series (about
+40 V each at 119 V). For the rest, pick a rated voltage at least 2x
 the working voltage, and mind DC bias.
 
 ## PCB layout and routing
 
-The parts in `Payphone_v1.kicad_pcb` are placed in blocks, each a KiCad
-**group** (click one part and the whole block selects; drag it as a unit),
-with room left inside each block for routing. J1, J2, J3 and J6 stay where
-they were, locked. There is no board outline yet: draw Edge.Cuts once the
-mounting is decided.
+The parts in `Payphone_v1.kicad_pcb` start out roughly in the blocks below, ungrouped,
+with room left for routing. J1, J2, J3 and J6 are locked. There is no board outline
+yet: draw Edge.Cuts once the mounting is decided.
 
 On the board:
 
@@ -172,7 +171,7 @@ On the board:
   the routing notes below, next to the block they're about. Hide the layer
   when it gets in the way.
 
-| Block (group) | Parts | Sits |
+| Block | Parts | Sits |
 |---|---|---|
 | LOGIC | U1, C16, U4, C17, R17, R19, R33 | top left, beside J6/J1 |
 | (not placed yet) | JP1; debug LEDs D8-D13 with R34-R39; HV LED R27, R28, D5, D7 | see "Still to do" |
@@ -258,15 +257,20 @@ Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
 
 ### Still to do on the board
 
-- **Update PCB from Schematic** for the cable-entry parts, then place F1, C20, R40-R43
-  by J1 and J6, with R40 and R41 closest to the connectors; J5 near U1.
-- **Check placement of the parts added by the last Update PCB:** U1's TSSOP-16, Cp1 at U3
-  pins 1 and 2, and:
-  - **HV LED** (R27, R28, D5, D7): in the STAGE2 group beside C1, with D7
-    where it can be seen with the board installed. R27/R28 are HV class.
+- **U4's footprint must be fixed first.** `Custom:ADS1115 Module` numbers its pads 1-10 in
+  header order, but the ADS1115 symbol uses the bare chip's pin numbers, so the module's VDD pad
+  gets GND and every other pin is wrong too. Renumber the pads, in header order, to
+  **8, 3, 10, 9, 1, 2, 4, 5, 6, 7** (VDD, GND, SCL, SDA, ADDR, ALRT, A0, A1, A2, A3), then
+  update the footprint on the board.
+- **Update PCB from Schematic** for D14, R44 and J1/J6's new pin order, which moves their nets.
+- **Place what's new:** F1, C20, R40-R43 by J1 and J6, with R40 and R41 closest to the
+  connectors; J5 near U1; D14 by K1; R44 at U4; C21-C23 per the stage 2 notes above; Cp1 at U3
+  pins 1 and 2; and:
+  - **HV LED** (R27, R28, D5, D7): beside C1, with D7 where it can be seen with the board
+    installed. R27/R28 are HV class.
   - **Debug LEDs** D8-D13 with R34-R39: in a row along an edge, labelled on
     silkscreen 5c / 10c / 25c / HV EN / POL / FIRE. D8-D10 and R34-R36 near
-    J3 (COIN group), D11-D13 and R37-R39 near U1 (LOGIC group).
+    J3, D11-D13 and R37-R39 near U1.
   - **JP1** (VIO = 5V) near J6, with its label on silkscreen.
 - **Pad-to-pad clearance inside footprints:** with the HV class's 1.0 mm,
   DRC flags the pin spacing of K1 (0.54 mm between neighbouring pads), J2
@@ -275,6 +279,7 @@ Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
   or exclude them in DRC. K1's pad 3 (HV) to pad 4 (COIL_A) at 0.54 mm is under
   IPC-2221's 0.6 mm for bare external copper at 101-150 V; smaller pads on
   K1's contact pins would bring it over.
+- Silkscreen pin 1 and the signal names at J1 and J6. The v6 end is J11, wired pin for pin.
 - Board outline and mounting holes (M3, away from HV).
 - Test points: 20 V, VIO, HV (a probe pad behind a series resistor), GND.
 - Two reference designators overlap (Cz1/Rz1, Ct1/R18): nudge them when

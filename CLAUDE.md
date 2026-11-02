@@ -58,10 +58,10 @@ hardware-smd5.md): keep it in any doc that describes fitting a clone.
 and fab files are untracked (`.gitignore`, local only; they stay in git history); only its README is on
 GitHub, describing the planned features. New in progress: U6, a TCA9534APWR I²C expander (0x38, A0-A2 to GND)
 driving line 2's SLIC on the `Line1_*` nets so line 2, microSD, payphone (coin board at 0x39) and spare I/O
-(J10, P4-P7) work together; J5 stays as the GPIO alternative and must be open with U6 fitted. Docs say
+(J10, P4-P7) work together; v6 has no J5, so GPIO18-21 are microSD only. Firmware: `CONFIG_BOARD_TYPE_SMD6` / `_SMD6_CHEAP` (`build.smd6*`), driver `firmware/components/ag1170/line_expander.c`, written before any board exists and untested on hardware. **No v6 OTA image or release until the user has boards back and says so**; `release.py` deliberately doesn't know `smd6`. Docs say
 "in progress" (README history table, docs/board.md). Previously released 2026-10-24 as: v5 with the
 clone 5V-pin footprint fixed, D1 changed from SS14 (1 A) to SS34 (3 A, JLCPCB C8678: the schematic needs that edit, done by the user in KiCad), larger vias (0.8/0.4) on +5V/+3.3V where they fit, teardrops, silkscreen updates, and **U5 changed to the 3.6 V XC6206P362MR** (JLCPCB C351446, as in the v6 BOM), so J2 pin 1 is 3.6 V on v6 (3.3 V on v5).
-It adds **J6**, a 5-pin I²C accessory header (+5 V, +3.3 V, SDA, SCL, GND, shared bus with the ES8388). The public docs say it should work but v5 is the tested board (README history table,
+It adds **J11**, a 5-pin I²C accessory header (1 GND, 2 SCL, 3 SDA, 4 +3.3 V, 5 +5 V, shared bus with the ES8388; the coin board's J1/J6 use the same pin numbers). The public docs say it should work but v5 is the tested board (README history table,
 docs/board.md version table and callout, the README in the v6 KiCad folder). Don't describe v6 as
 tested or working until the user has built one and says so. Its JLCPCB/PCBWay exports are local only
 while v6 is in progress; re-track the folder (drop the .gitignore rule) when the user publishes it.

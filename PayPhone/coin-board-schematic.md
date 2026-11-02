@@ -26,12 +26,12 @@ main board. VIO is the host's I2C logic voltage (3.3 V from Analog Redial,
 
 ```
  Analog Redial                         COIN BOARD
- (v6 accessory hdr)                                            HV zone (up to 119 V)
- +5V  --- J6.1 ---------> [U2 MC34063 5V->20V] --> 20V --> [U3 UC3843 + Qa1 + L2 + D2] --> HV (C1)
- VIO  --- J6.2                  ^ Q1                                                        |
+ (v6 J11)                                                      HV zone (up to 119 V)
+ +5V  --- J6.5 ---------> [U2 MC34063 5V->20V] --> 20V --> [U3 UC3843 + Qa1 + L2 + D2] --> HV (C1)
+ VIO  --- J6.4                  ^ Q1                                                        |
  SDA  --- J6.3 --+              |                                                           |
- SCL  --- J6.4 --+--> [U1 TCA9534A @0x39] P4 EN_HV                                          |
- GND  --- J6.5   |                        P5 POL  --> Q2 --> K1 (DPDT relay) <--------------+
+ SCL  --- J6.2 --+--> [U1 TCA9534A @0x39] P4 EN_HV                                          |
+ GND  --- J6.1   |                        P5 POL  --> Q2 --> K1 (DPDT relay) <--------------+
                  |                        P6 FIRE --> Q4, Q5 --> Q3 (low side) --> R26 --> GND
                  |                        P0-P2 <-- coin switches <-- J3
                  +--> [U4 ADS1115 @0x48]  HV, 20V, firing current
@@ -47,7 +47,7 @@ green wire, and they aren't the same wires.
 
 | Ref | Part | Pins |
 |---|---|---|
-| **J6** | 5 x 2.54 mm pin header | **1 +5 V, 2 VIO, 3 SDA, 4 SCL, 5 GND**: the main board's v6 J6 order, so a straight 1:1 cable |
+| **J6** | 5 x 2.54 mm pin header | **1 GND, 2 SCL, 3 SDA, 4 VIO, 5 +5 V**: the same pin numbers as the main board's v6 J11 (pin 4 there is +3.3 V), so a straight 1:1 cable, pin 1 to pin 1 |
 | **J1** | JST EH 5-pin (B5B-EH-A) | same five signals, same order, in parallel with J6: fit whichever suits the cable |
 | **J5** | 1 x 4 pin header pads, not fitted | 1 VIO, 2 U1 P3, 3 U1 P7, 4 GND: spare I/O |
 | **J2** | Molex KK 396, 3-pin, 0026604030 | **coin relay cable.** 1 white = COIL_A, 2 red = not connected, 3 green = COIL_B. **Check its voltage rating against 119 V** |
@@ -78,10 +78,10 @@ the board alone or using it with another host.
 SDA_IN to U1 and U4's SCL and SDA. F1 is there because +5V reaches the
 20 V rail through L1 and D1 even with stage 1 off.
 
-**VIO: the logic supply comes from the host.** U1 and U4 run from J6 pin 2,
-not from a regulator on this board. An I2C input must not go above its chip's
-supply (+0.6 V absolute maximum) nor read high below 0.7 x its supply, so the
-chips have to run at the host's own logic level. Taking it from the host does
+**VIO: the logic supply comes from the host.** U1 and U4 run from J6 pin 4,
+not from a regulator on this board. A chip doesn't read an I2C high below 0.7 x
+its supply, so at 5 V these chips wouldn't see a 3.3 V host's highs, and they
+have to run at the host's own logic level. Taking it from the host does
 that for a 3.3 V host (Analog Redial, ESP32, Pi) and a 5 V one (Arduino Uno)
 alike, with no jumper to set. The 5 V pin powers only the converter and K1. A
 host that has only 5 V bridges **JP1**.
@@ -100,9 +100,9 @@ on.
 |---|---|---|---|---|---|
 | 1 | A0 | VIO | | | address 0x39 |
 | 2, 3 | A1, A2 | GND | | | |
-| 4 | P0 | Nickel | in | high | 10 k pull-up to VIO, 1 k series, 100 nF on the switch side |
+| 4 | P0 | Quarter | in | high | 10 k pull-up to VIO, 1 k series, 100 nF on the switch side |
 | 5 | P1 | Dime | in | high | same |
-| 6 | P2 | Quarter | in | high | same |
+| 6 | P2 | Nickel | in | high | same |
 | 7 | P3 | spare | | | J5 pin 2 |
 | 8 | GND | GND | | | |
 | 9 | P4 | **EN_HV** | out | low (R1 100 k) | turns on stage 1, and so stage 2: HV exists only while high |
@@ -374,7 +374,15 @@ See [output-stage-wiring.md](output-stage-wiring.md) for the wiring.
 or a fixed delay of about 3 s), pulse FIRE, drop FIRE, drop EN_HV. **Never change
 POL while FIRE is high or while current flows**, so K1's contacts only switch
 dead. Cap FIRE at about 1 s. The relay's own switch (red-green) cuts the current
-by itself, so FIRE doesn't need exact timing.
+by itself, so FIRE doesn't need exact timing. If the current doesn't stop, firmware
+should drop FIRE as soon as U4 shows it: the red-green contact can short the coil
+(0.1 ohm), and Q3 then limits the current to about 1 A with R26, which it can't
+stand for long at high HV.
+
+**D14** (ES2D, RETURN to HV) gives the coil's stored energy a path if Q3 turns off
+while current flows. K1 always puts HV on one coil wire and RETURN on the other, so
+one diode covers both directions. It can't clamp the relay's own contact opening,
+which is in series with the coil.
 
 ## 8. Coin inputs
 
@@ -393,7 +401,8 @@ by itself, so FIRE doesn't need exact timing.
 ## 9. Measuring HV, 20 V and firing current (U4, ADS1115)
 
 U1 has no ADC, so U4 does the measuring (16-bit, 4 channels; its wiring table is in
-[output-stage-wiring.md](output-stage-wiring.md)). Firmware can check "reached the
+[output-stage-wiring.md](output-stage-wiring.md)). R44 (1 k) sits between R26 and AIN2,
+because R26 can reach about 10 V in a coil-short fault, far above what AIN2 can take. Firmware can check "reached the
 target within N s", and see **C1 sag after a fire**: if the relay doesn't fire the
 voltage stays up; if it does, it sags by I x t / C (about 20 V for 100 mA x 50 ms).
 U4 can be left off: firmware then falls back on a fixed delay and knows nothing about
@@ -430,27 +439,31 @@ the relay.
 1. **Connector pin order:** check J2 and J3 against the real plugs (section 2), and J2's
    voltage rating.
 2. **Finish the PCB:** see "Still to do" in [coin-board-smt.md](coin-board-smt.md).
-3. **Datasheet checks** for the **[verify]** items, above all U2 (timing cap, boost
+3. **U4's footprint:** `Custom:ADS1115 Module` numbers its pads 1-10 along the header, but the
+   symbol's pin numbers are the bare chip's, so as it stands every module pin lands on the wrong
+   net (the VDD pad gets GND). See "Still to do" in [coin-board-smt.md](coin-board-smt.md).
+4. **Datasheet checks** for the **[verify]** items, above all U2 (timing cap, boost
    equations), U3 (Rcs1, Rt/Ct, the divider), D3's clamp voltage, and K1's contact rating.
 
 **On the bench**
 
-6. **Which voltage the phone needs:** it works at about 50-60 V; no shunt (52 V) is the
+5. **Which voltage the phone needs:** it works at about 50-60 V; no shunt (52 V) is the
    default and J9 gives 60 V. The higher settings are margin for other phones.
-7. **Stage 1 against stage 2:** while charging, stage 2 can ask for more than stage 1's 2 W
+6. **Stage 1 against stage 2:** while charging, stage 2 can ask for more than stage 1's 2 W
    (section 6). The rail may sag, and if it reaches U3's 7.6 V stop, the converter hiccups.
    If it does, raise Rcs1 for a lower peak current, or add a soft start on COMP.
-8. **Overshoot at the end of a charge:** Cz1 winds up while the error amplifier is saturated;
+7. **Overshoot at the end of a charge:** Cz1 winds up while the error amplifier is saturated;
    watch that HV stays below D3's standoff at 119 V. A smaller Cz1 (47 nF, zero at 3.4 Hz) cuts
    overshoot at the cost of light-load phase margin. Audible chirping from skipped cycles at
    light load is harmless.
-9. **U2's switch-node waveform** (section 5), and whether charging pulls the 5 V rail below spec.
-10. **Pull-in charge** (current x time at the operating voltage), to size C1.
+8. **U2's switch-node waveform** (section 5), and whether charging pulls the 5 V rail below spec.
+9. **Pull-in charge** (current x time at the operating voltage), to size C1.
 
 **Firmware**
 
-11. A TCA9534A driver (shared with the main board v6 expander), coin events, and a coin-relay
-    output (return/collect) with a safety timeout. **None of it exists yet.**
+10. U1 and U4 drivers, coin events, and a coin-relay output (return/collect) with a safety
+    timeout and a current check. **None of it exists yet.** The main board's own v6 expander has
+     a driver (`firmware/components/ag1170/line_expander.c`), which is specific to line 2.
 
 ## Sources
 
