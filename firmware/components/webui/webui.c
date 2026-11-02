@@ -4377,7 +4377,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
     }
 
 #if !(CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP || \
-      CONFIG_BOARD_TYPE_SMD6 || CONFIG_BOARD_TYPE_SMD6_CHEAP)
+      CONFIG_BOARD_TYPE_SMD6)
     /* Only a V5 board has the Bluetooth header: say so before anything else on the tab. */
     off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2><p class=\"warn-text\">%s</p></div>",

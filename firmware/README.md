@@ -188,8 +188,7 @@ Every other board type gets its own build directory and its own
 | SMD2 | `build.smd2/` | `CONFIG_BOARD_TYPE_SMD2` |
 | SMD5, real MCU module | `build.smd5/` | `CONFIG_BOARD_TYPE_SMD5` |
 | SMD5, AliExpress clone module | `build.smd5_cheap/` | `CONFIG_BOARD_TYPE_SMD5_CHEAP` |
-| SMD6 (v6, in progress, not tested on hardware), real MCU module | `build.smd6/` | `CONFIG_BOARD_TYPE_SMD6` |
-| SMD6, AliExpress clone module | `build.smd6_cheap/` | `CONFIG_BOARD_TYPE_SMD6_CHEAP` |
+| SMD6 (v6, in progress, not tested on hardware), either MCU module, JP2/JP3 to match | `build.smd6/` | `CONFIG_BOARD_TYPE_SMD6` |
 
 Create (or regenerate) a non-default board's build directory with an
 **explicit `-D SDKCONFIG=`** — leaving it out can silently make `idf.py`

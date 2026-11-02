@@ -63,7 +63,7 @@
 #define BOARD_NUM_LINES 2
 
 /* ---- I2S (ES8388) ---- */
-#if CONFIG_BOARD_TYPE_SMD5_CHEAP || CONFIG_BOARD_TYPE_SMD6_CHEAP
+#if CONFIG_BOARD_TYPE_SMD5_CHEAP
 /* The dual MCU footprint swaps pads 12/13 <-> 19/20 between the real
  * Espressif module and the AliExpress clone (archive/hardware/
  * smd5.md). The I2S_MCLK and SD_CD nets sit on pads 12/13,
@@ -141,7 +141,7 @@
  * yet drawn". Confirm this actually reads a real card-detect signal (not
  * floating) during bring-up before trusting it, same as every other pin
  * on a first-fabrication board. */
-#if CONFIG_BOARD_TYPE_SMD5_CHEAP || CONFIG_BOARD_TYPE_SMD6_CHEAP
+#if CONFIG_BOARD_TYPE_SMD5_CHEAP
 #define BOARD_SD_CD       GPIO_NUM_13   /* clone: pad 13 -- see BOARD_I2S_MCLK above */
 #else
 #define BOARD_SD_CD       GPIO_NUM_3
@@ -166,7 +166,7 @@
  * runtime path -- dualphone's bench BM64 wiring ties MFB to VCC with a
  * fixed resistor instead and has no GPIO control over any of these three. */
 #if CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP || \
-    CONFIG_BOARD_TYPE_SMD6 || CONFIG_BOARD_TYPE_SMD6_CHEAP
+    CONFIG_BOARD_TYPE_SMD6
 /* SMD5 gives MFB a pin of its own on the expanded J12 header: GPIO15, the
  * only genuinely spare pin on this pin map (GPIO8 drives the DevKit's RGB
  * LED, GPIO9 is the download-mode strap -- MFB's pull-down there would boot

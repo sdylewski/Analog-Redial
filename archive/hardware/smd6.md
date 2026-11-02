@@ -21,7 +21,7 @@ GPIO18-21 go only to the microSD socket. There's no J5.
 
 ## Firmware
 
-`CONFIG_BOARD_TYPE_SMD6` or `_SMD6_CHEAP` sets `BOARD_LINE1_ON_EXPANDER`. Only
+`CONFIG_BOARD_TYPE_SMD6` sets `BOARD_LINE1_ON_EXPANDER`. Only
 `ag1170.c` touches SLIC pins, so the change there is one `on_expander(line)` test at
 each pin access. `line_expander.c` does the rest:
 
@@ -70,7 +70,30 @@ Add it there when v6 is tested.
    free heap on the Hardware page during a call with a card mounted.
 8. Pull U6's power or short SCL briefly during a call: the line goes on-hook and recovers.
 
+9. **Two lines on the card at once:** record a 211 on one line while a long clip plays on
+   the other, and listen to both. FatFs's volume lock keeps this safe, but one writer's
+   slow SD write holds up the other stream, and the audio buffers hold about 80 ms
+   (`s_frame * 8` at 48 kHz). Past that, expect a click or a gap, not damage. If it's
+   audible, make those buffers bigger.
+10. **Coin board on the bus:** fire the relay repeatedly and watch `bus_errors` in
+    `line_exp`. The relay's noise shares a cable with SCL and SDA.
+
+## Sharing the bus with the coin board
+
+U1 on the coin board is the same chip at 0x39, also polled every few ms, so reads cost
+about 20 % of the bus together. Poll it from the task in `line_expander.c` rather than a
+second task, and skip it while it isn't answering. `i2c_master_bus_reset()` takes no bus
+lock, so a reset from a second task could land on another transfer.
+
 ## Known to come back to
+
+Two lines recording in the same second get the same filename (`rec_name_timestamped()`,
+`rec_name_voicemail()`, no line number). On SPIFFS that overwrites one recording. On the
+card it's worse: `CONFIG_FATFS_FS_LOCK=0`, so the second writer unlinks and recreates a file
+the first still has open, and both can write to the same clusters. Two lines plus microSD
+makes this reachable for the first time on v6. Fix before v6 ships: add a suffix when the
+other line already holds that name, or set `CONFIG_FATFS_FS_LOCK` to 8 or more so FatFs
+refuses the second open.
 
 The AG1171 datasheet says F/R logic low reverses polarity, and asks for F/R high for
 more than 10 ms before RM goes low when ringing ends. `ag1170.c` idles F/R low and drops

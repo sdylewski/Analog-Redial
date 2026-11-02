@@ -1,5 +1,5 @@
 #include "sdkconfig.h"
-#if CONFIG_BOARD_TYPE_SMD5_CHEAP || CONFIG_BOARD_TYPE_SMD6_CHEAP
+#if CONFIG_BOARD_TYPE_SMD5_CHEAP
 #include "hal/usb_serial_jtag_ll.h"
 #endif
 #include "board.h"
@@ -43,7 +43,7 @@ static board_codec_t s_detected_codec = BOARD_CODEC_NONE;
 
 void board_early_pin_init(void)
 {
-#if CONFIG_BOARD_TYPE_SMD5_CHEAP || CONFIG_BOARD_TYPE_SMD6_CHEAP
+#if CONFIG_BOARD_TYPE_SMD5_CHEAP
     /* The chip's ROM hands GPIO12/13 to the native-USB PHY at every reset
      * (D+ pull-up on), and ESP-IDF's GPIO driver doesn't take them back on
      * its own -- with the PHY still attached, MCLK never reaches the
@@ -1312,7 +1312,7 @@ void board_led_set_state(board_led_state_t state)
     s_led_state = state;
 }
 #elif CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP || \
-      CONFIG_BOARD_TYPE_SMD6 || CONFIG_BOARD_TYPE_SMD6_CHEAP
+      CONFIG_BOARD_TYPE_SMD6
 /* No discrete status LED on this carrier (BOARD_STATUS_LED intentionally
  * not defined -- GPIO11, SMD2's LED pin, is I2S BCLK here instead). This
  * drives the ESP32-C6-DevKitC-1 MODULE's own onboard addressable RGB LED

@@ -20,8 +20,6 @@ static inline const char *board_pcb_variant_name(void)
     return "SMD5 (clone module)";
 #elif CONFIG_BOARD_TYPE_SMD6
     return "SMD6";
-#elif CONFIG_BOARD_TYPE_SMD6_CHEAP
-    return "SMD6 (clone module)";
 #else
 #error "Unknown CONFIG_BOARD_TYPE_* -- pick a board in menuconfig"
 #endif
@@ -29,7 +27,7 @@ static inline const char *board_pcb_variant_name(void)
 
 /* SMD6 drives line 1's SLIC through a TCA9534A instead of GPIO18-21, which
  * leaves those four pins to the microSD card. */
-#if CONFIG_BOARD_TYPE_SMD6 || CONFIG_BOARD_TYPE_SMD6_CHEAP
+#if CONFIG_BOARD_TYPE_SMD6
 #define BOARD_LINE1_ON_EXPANDER 1
 #else
 #define BOARD_LINE1_ON_EXPANDER 0
@@ -48,8 +46,6 @@ static inline const char *board_pcb_variant_name(void)
 #define BOARD_IMAGE_TYPE "smd5_cheap"
 #elif CONFIG_BOARD_TYPE_SMD6
 #define BOARD_IMAGE_TYPE "smd6"
-#elif CONFIG_BOARD_TYPE_SMD6_CHEAP
-#define BOARD_IMAGE_TYPE "smd6_cheap"
 #endif
 #define BOARD_IMAGE_ID BOARD_IMAGE_TYPE "/" CONFIG_ESPTOOLPY_FLASHSIZE
 

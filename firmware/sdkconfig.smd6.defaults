@@ -1,9 +1,7 @@
 # Layered on top of sdkconfig.defaults for the build.smd6/ build directory
-# only (see firmware/README.md's multi-board-type note) -- selects SMD6
-# with the real Espressif MCU module populated (native USB works, SMD5's pin
-# map except for line 1, which is on a TCA9534A). For the
-# AliExpress-clone-module variant of the same board, use
-# sdkconfig.smd6_cheap.defaults instead, not this file.
+# only (see firmware/README.md's multi-board-type note) -- selects SMD6:
+# SMD5's pin map except for line 1, which is on a TCA9534A. A clone module
+# runs this same build once JP2/JP3 are on the clone side.
 # Use: idf.py -B build.smd6 -D SDKCONFIG="build.smd6/sdkconfig" -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.smd6.defaults" set-target esp32c6
 # then plain `idf.py -B build.smd6 build`/`flash` from then on -- the
 # generated build.smd6/sdkconfig remembers this choice without needing

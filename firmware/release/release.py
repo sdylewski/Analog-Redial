@@ -46,7 +46,7 @@ REPO_SLUG = "sdylewski/Analog-Redial"
 RAW_BASE = f"https://raw.githubusercontent.com/{REPO_SLUG}/firmware/"
 
 # image id (what the firmware reports as BOARD_IMAGE_ID) -> sdkconfig overlay.
-# smd6 and smd6_cheap are left out on purpose: no v6 image gets released until
+# smd6 is left out on purpose: no v6 image gets released until
 # v6 boards exist and the firmware has been tested on one.
 OVERLAYS = {
     "smd2": "sdkconfig.smd2.defaults",
