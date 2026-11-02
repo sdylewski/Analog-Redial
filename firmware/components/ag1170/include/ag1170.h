@@ -66,6 +66,9 @@ void ag1170_ring_start(int line);
 void ag1170_ring_start_intercom(int line);
 /* Rings without a cadence at `hz` until stopped, for the ring frequency test. */
 void ag1170_ring_start_test(int line, uint16_t hz);
+/* Sets the frequency every later ring on this line uses (not saved: see
+ * board_ring_hz_set()). Loaded from there at init. */
+void ag1170_set_ring_hz(int line, uint16_t hz);
 void ag1170_ring_stop(int line);
 bool ag1170_is_ringing(int line);
 

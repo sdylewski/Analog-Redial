@@ -4951,6 +4951,33 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                  "Status</a> page."));
     off = appendf(buf, cap, off, "</div>");
 
+    /* Ring frequency, per line */
+    {
+        const uint8_t *rf_hz;
+        int rf_n = telephony_ring_test_freqs(&rf_hz);
+        off = appendf(buf, cap, off, "<div class=\"card\"><h2>%s</h2>",
+                      i18n_str("hardware.ring_hz.title", "Ring frequency"));
+        for (int l = 0; l < board_hw_config_get().num_lines; l++) {
+            uint8_t cur = board_ring_hz_get(l);
+            off = appendf(buf, cap, off,
+                "<form method=\"POST\" action=\"/ring_freq\" class=\"settings-form\">"
+                "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+                "<label>%s %d</label><div class=\"toolbar sub\"><select name=\"hz\">",
+                l, i18n_str("diag.test.line", "Line"), l);
+            for (int i = 0; i < rf_n; i++)
+                off = appendf(buf, cap, off, "<option value=\"%d\"%s>%d Hz</option>",
+                              rf_hz[i], rf_hz[i] == cur ? " selected" : "", rf_hz[i]);
+            off = appendf(buf, cap, off, "</select><button type=\"submit\">%s</button></div></form>",
+                          i18n_str("hardware.ring_hz.save", "Save"));
+        }
+        off = appendf(buf, cap, off, "<p class=\"hint\">%s</p></div>",
+            i18n_str("hardware.ring_hz.hint",
+                     "Most phones ring at 20 Hz. If a phone rings weakly or not at all, run the "
+                     "Ring frequency test on the <a href=\"/settings?tab=diag\">Diagnostics</a> "
+                     "tab, then save the frequency where its bell is loudest. Every ring on that "
+                     "line uses it, right away and after a reboot."));
+    }
+
     idle_power_cfg_t ip = idle_power_get();
     char ip_status[64];
     if (ip.enabled) {
@@ -6097,8 +6124,9 @@ static int append_diag_tab(char *buf, size_t cap, int off)
                      "ringer tuned to one frequency, and a normal ring is 20 Hz. This rings each "
                      "frequency for 3 s with a 2 s pause, about a minute in all, so watch this page "
                      "and note where the bell is clearly loudest. If that isn't 20 Hz, the ringer is "
-                     "tuned to it. Then ring that frequency alone to confirm. The board keeps ringing "
-                     "at 20 Hz for real calls. &#9888; Don't touch tip/ring while it rings."),
+                     "tuned to it. Ring that frequency alone to confirm, then save it under "
+                     "<a href=\"/settings?tab=hardware\">Hardware</a>. "
+                     "&#9888; Don't touch tip/ring while it rings."),
             tl_opts,
             i18n_str("diag.test.ringfreq_sweep", "Step through all"),
             hz_opts,
@@ -8162,6 +8190,27 @@ static esp_err_t test_ring_handler(httpd_req_t *req)
     esp_err_t err = telephony_bell(line, secs, false);
     if (err != ESP_OK) ESP_LOGI(TAG, "test ring line %d refused: %s", line, esp_err_to_name(err));
     return redirect_to(req, "/settings?tab=diag");
+}
+
+/* POST /ring_freq -- line=N&hz=H. Saves a line's ring frequency and applies it. */
+static esp_err_t ring_freq_handler(httpd_req_t *req)
+{
+    char body[64], lbuf[8] = {0}, hbuf[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "line", lbuf, sizeof(lbuf));
+    form_field(body, "hz", hbuf, sizeof(hbuf));
+    int line = atoi(lbuf), hz = atoi(hbuf);
+    const uint8_t *list;
+    int n = telephony_ring_test_freqs(&list);
+    bool known = false;
+    for (int i = 0; i < n; i++) known = known || list[i] == hz;
+    if (line < 0 || line >= board_hw_config_get().num_lines || !known) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad line or frequency"); return ESP_OK;
+    }
+    if (board_ring_hz_set(line, (uint8_t)hz) == ESP_OK) ag1170_set_ring_hz(line, (uint16_t)hz);
+    return redirect_to(req, "/settings?tab=hardware");
 }
 
 /* POST /test/ring_freq -- line=N&hz=H (hz 0 steps through them all), or stop=1. */
@@ -11196,6 +11245,7 @@ esp_err_t webui_start(void)
         { .uri = "/test/sd",                .method = HTTP_POST, .handler = test_sd_handler },
         { .uri = "/test/ring",              .method = HTTP_POST, .handler = test_ring_handler },
         { .uri = "/test/ring_freq",         .method = HTTP_POST, .handler = test_ring_freq_handler },
+        { .uri = "/ring_freq",              .method = HTTP_POST, .handler = ring_freq_handler },
         { .uri = "/api/ring_test",          .method = HTTP_GET,  .handler = ring_test_json_handler },
         { .uri = "/test/progress",          .method = HTTP_POST, .handler = test_progress_handler },
         { .uri = "/sd_selftest_ui",         .method = HTTP_POST, .handler = sd_selftest_ui_handler },

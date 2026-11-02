@@ -332,6 +332,15 @@ uint32_t board_record_max_ms_get(uint32_t fallback_ms);
 /* ESP_ERR_INVALID_ARG outside BOARD_RECORD_MAX_MS_MIN..MAX. */
 esp_err_t board_record_max_ms_set(uint32_t ms);
 
+/* ---- Ring frequency, per line ----
+ * Saved for a phone whose ringer is tuned away from the normal 20 Hz. Every
+ * ring on that line uses it. _set returns ESP_ERR_INVALID_ARG outside MIN..MAX. */
+#define BOARD_RING_HZ_DEFAULT 20
+#define BOARD_RING_HZ_MIN     16
+#define BOARD_RING_HZ_MAX     66
+uint8_t   board_ring_hz_get(int line);
+esp_err_t board_ring_hz_set(int line, uint8_t hz);
+
 /* ---- Speaker (earpiece) drive level, per line ----
  * ES8388 LOUT1VOL/ROUT1VOL convention (see es8388.h / the bring-up `spkamp`
  * command): 0 = mute, 33 = 0 dB, 1 dB/step, 63 = max. Persisted so a level

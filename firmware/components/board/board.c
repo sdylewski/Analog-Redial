@@ -791,6 +791,29 @@ esp_err_t board_aec_delay_set(int line, uint32_t ms)
     return err;
 }
 
+uint8_t board_ring_hz_get(int line)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return BOARD_RING_HZ_DEFAULT;
+    uint8_t hz = 0;
+    esp_err_t err = nvs_get_u8(h, (line == 1) ? "ring_hz1" : "ring_hz0", &hz);
+    nvs_close(h);
+    return (err == ESP_OK && hz >= BOARD_RING_HZ_MIN && hz <= BOARD_RING_HZ_MAX) ? hz : BOARD_RING_HZ_DEFAULT;
+}
+
+esp_err_t board_ring_hz_set(int line, uint8_t hz)
+{
+    if (hz < BOARD_RING_HZ_MIN || hz > BOARD_RING_HZ_MAX) return ESP_ERR_INVALID_ARG;
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, (line == 1) ? "ring_hz1" : "ring_hz0", hz);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err == ESP_OK) ESP_LOGI(TAG, "line %d: ring frequency %u Hz persisted", line, (unsigned)hz);
+    return err;
+}
+
 #define SPK_VOL_NVS_KEY0 "spk_vol0"
 #define SPK_VOL_NVS_KEY1 "spk_vol1"
 
