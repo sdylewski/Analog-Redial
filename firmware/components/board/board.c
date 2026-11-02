@@ -1,5 +1,5 @@
 #include "sdkconfig.h"
-#if CONFIG_BOARD_TYPE_SMD5_CHEAP
+#if CONFIG_BOARD_TYPE_SMD5_CHEAP || CONFIG_BOARD_TYPE_SMD6_CHEAP
 #include "hal/usb_serial_jtag_ll.h"
 #endif
 #include "board.h"
@@ -14,6 +14,7 @@
 #include "nvs.h"
 #include "esp_system.h"
 #include "driver/gpio.h"
+#include "esp_rom_sys.h"
 #include "driver/ledc.h"
 #include "led_strip.h"
 #include "freertos/FreeRTOS.h"
@@ -42,7 +43,7 @@ static board_codec_t s_detected_codec = BOARD_CODEC_NONE;
 
 void board_early_pin_init(void)
 {
-#if CONFIG_BOARD_TYPE_SMD5_CHEAP
+#if CONFIG_BOARD_TYPE_SMD5_CHEAP || CONFIG_BOARD_TYPE_SMD6_CHEAP
     /* The chip's ROM hands GPIO12/13 to the native-USB PHY at every reset
      * (D+ pull-up on), and ESP-IDF's GPIO driver doesn't take them back on
      * its own -- with the PHY still attached, MCLK never reaches the
@@ -57,11 +58,43 @@ void board_early_pin_init(void)
 #endif
 }
 
+#if BOARD_LINE1_ON_EXPANDER
+/* SMD6 reads the bus every few ms, so a reset can land mid-transfer. A slave
+ * left holding SDA low then blocks the codec too, and only clocks free it:
+ * nine, then a STOP. */
+static void i2c_bus_clear(void)
+{
+    gpio_config_t io = {
+        .pin_bit_mask = (1ULL << BOARD_I2C_SCL) | (1ULL << BOARD_I2C_SDA),
+        .mode = GPIO_MODE_INPUT_OUTPUT_OD,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_set_level(BOARD_I2C_SCL, 1);
+    gpio_set_level(BOARD_I2C_SDA, 1);
+    gpio_config(&io);
+    for (int i = 0; i < 9 && !gpio_get_level(BOARD_I2C_SDA); i++) {
+        gpio_set_level(BOARD_I2C_SCL, 0);
+        esp_rom_delay_us(5);
+        gpio_set_level(BOARD_I2C_SCL, 1);
+        esp_rom_delay_us(5);
+    }
+    gpio_set_level(BOARD_I2C_SDA, 0);
+    esp_rom_delay_us(5);
+    gpio_set_level(BOARD_I2C_SDA, 1);
+    esp_rom_delay_us(5);
+}
+#endif
+
 esp_err_t board_i2c_init(void)
 {
     if (s_bus) {
         return ESP_OK;
     }
+#if BOARD_LINE1_ON_EXPANDER
+    i2c_bus_clear();
+#endif
     i2c_master_bus_config_t cfg = {
         .clk_source = I2C_CLK_SRC_DEFAULT,
         .i2c_port = I2C_NUM_0,
@@ -964,7 +997,9 @@ bool board_hw_config_is_set(void)
 esp_err_t board_hw_config_set(board_hw_config_t cfg)
 {
     if (cfg.num_lines < 1 || cfg.num_lines > 2) return ESP_ERR_INVALID_ARG;
+#if !BOARD_LINE1_ON_EXPANDER
     if (cfg.num_lines == 2 && cfg.has_microsd) return ESP_ERR_INVALID_ARG; /* GPIO18-21 conflict */
+#endif
     if (cfg.bt_module > BOARD_BT_BT401) return ESP_ERR_INVALID_ARG;
     /* The two fields describe one fact; callers may fill in either. */
     if (cfg.bt_module == BOARD_BT_NONE && cfg.has_bt_module) cfg.bt_module = BOARD_BT_BM64;
@@ -1042,9 +1077,15 @@ board_hw_evidence_t board_hw_detect_evidence(void)
      * after that (e.g. the Settings -> Hardware page, possibly loaded many
      * times) still need something to show a human sanity-checking the
      * guess against, not just "no evidence available" forever. */
+#if BOARD_LINE1_ON_EXPANDER
+    /* GPIO18-21 are the microSD socket's alone, so they say nothing about line 1. */
+    const bool can_read_pads = false;
+#else
+    const bool can_read_pads = !hw_config_value_written();
+#endif
     if (s_have_cached_gpio_evidence) {
         ev = s_cached_gpio_evidence;
-    } else if (!hw_config_value_written()) {
+    } else if (can_read_pads) {
         const gpio_num_t pins[4] = {
             BOARD_LINE2_PIN_PD_CS, BOARD_LINE2_PIN_SHK_SCLK,
             BOARD_LINE2_PIN_RM_MOSI, BOARD_LINE2_PIN_FR_MISO,
@@ -1075,7 +1116,21 @@ board_hw_evidence_t board_hw_detect_evidence(void)
 
 bool board_sd_line1_conflict(void)
 {
+#if BOARD_LINE1_ON_EXPANDER
+    return false;
+#else
     return board_hw_config_get().num_lines == 2 && board_hw_detect_evidence().card_present;
+#endif
+}
+
+bool board_shared_pads_free(void)
+{
+#if BOARD_LINE1_ON_EXPANDER
+    return false;
+#else
+    board_hw_config_t cfg = board_hw_config_get();
+    return cfg.num_lines == 1 && !cfg.has_microsd;
+#endif
 }
 
 void board_hw_config_autodetect(void)
@@ -1084,6 +1139,13 @@ void board_hw_config_autodetect(void)
 
     board_hw_config_t cfg = { .num_lines = 1, .has_microsd = false }; /* fallback if evidence is ambiguous */
 
+#if BOARD_LINE1_ON_EXPANDER
+    /* The socket is always wired. The expander answering is the best sign of a
+     * second line: with no SLIC fitted, R12 still holds SHK low, so a wrong guess
+     * is an idle line nobody can use, and the first-boot banner asks about it. */
+    cfg.has_microsd = true;
+    if (s_bus && i2c_master_probe(s_bus, BOARD_EXP_I2C_ADDR, 50) == ESP_OK) cfg.num_lines = 2;
+#else
     /* card_present first, and decisive if it fires: a card can only be
      * physically seated on a board actually wired for microSD, never a
      * line-2 SLIC -- this is a real mechanical switch reading, not a
@@ -1096,6 +1158,7 @@ void board_hw_config_autodetect(void)
         cfg.num_lines = 2;
         cfg.has_microsd = false;
     }
+#endif
 
     nvs_handle_t h;
     if (nvs_open(HW_CONFIG_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
@@ -1221,7 +1284,8 @@ void board_led_set_state(board_led_state_t state)
 {
     s_led_state = state;
 }
-#elif CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
+#elif CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP || \
+      CONFIG_BOARD_TYPE_SMD6 || CONFIG_BOARD_TYPE_SMD6_CHEAP
 /* No discrete status LED on this carrier (BOARD_STATUS_LED intentionally
  * not defined -- GPIO11, SMD2's LED pin, is I2S BCLK here instead). This
  * drives the ESP32-C6-DevKitC-1 MODULE's own onboard addressable RGB LED

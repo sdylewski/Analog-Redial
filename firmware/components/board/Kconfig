@@ -34,6 +34,19 @@ config BOARD_TYPE_SMD5_CHEAP
         the USB PHY, and puts the console on UART0 (sdkconfig.smd5_cheap
         .defaults). See archive/hardware/smd5.md.
 
+config BOARD_TYPE_SMD6
+    bool "SMD6 gateway, real Espressif module (ES8388, TCA9534A on line 1, native USB)"
+    help
+        Analog Redial v6, in progress and not yet built. SMD5's pin map, except
+        that line 1's SLIC runs from a TCA9534A I2C expander, so GPIO18-21 are
+        always the microSD card's and two lines plus microSD work together.
+
+config BOARD_TYPE_SMD6_CHEAP
+    bool "SMD6 gateway, AliExpress clone module (ES8388, TCA9534A on line 1, no native USB)"
+    help
+        SMD6 with the clone module and JP2/JP3 at the default, the same
+        arrangement as BOARD_TYPE_SMD5_CHEAP.
+
 endchoice
 
 endmenu

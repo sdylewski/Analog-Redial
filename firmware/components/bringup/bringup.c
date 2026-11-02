@@ -6,6 +6,7 @@
 #include "audio.h"
 #include "aec.h"
 #include "ag1170.h"
+#include "line_expander.h"
 #include "dtmf.h"
 #include "telephony.h"
 #include "selftest.h"
@@ -109,6 +110,22 @@ static int cmd_webhang(int argc, char **argv)
     printf("web server blocked; expect 'webui watchdog' lines, then a restart in ~100 s\n");
     return 0;
 }
+
+#if BOARD_LINE1_ON_EXPANDER
+/* line_exp: what the line 1 expander last did, for bringing up a new board. */
+static int cmd_line_exp(int argc, char **argv)
+{
+    line_exp_status_t st;
+    line_exp_status(&st);
+    printf("TCA9534A at 0x%02X: %s\n", BOARD_EXP_I2C_ADDR, st.chip_ok ? "answering" : "NOT answering");
+    printf("input 0x%02X (SHK %d), output 0x%02X (F/R %d, RM %d), config 0x%02X (SLIC %s)\n",
+           st.input, (st.input >> BOARD_EXP_BIT_SHK) & 1, st.output,
+           (st.output >> BOARD_EXP_BIT_FR) & 1, (st.output >> BOARD_EXP_BIT_RM) & 1, st.config,
+           (st.config >> BOARD_EXP_BIT_PD) & 1 ? "running" : "powered down");
+    printf("bus errors %u, chip resets %u\n", (unsigned)st.bus_errors, (unsigned)st.chip_resets);
+    return st.chip_ok ? 0 : 1;
+}
+#endif
 
 static int cmd_board_info(int argc, char **argv)
 {
@@ -2290,8 +2307,7 @@ static int cmd_bm64_findwire(int argc, char **argv)
     /* One pin per run (bm64_findwire <gpio>): a module that has been reset
      * stays off until the MFB power-on sequence runs again (reboot), so a
      * second pin tested in the same run would always look "stopped". */
-    board_hw_config_t cfg = board_hw_config_get();
-    if (cfg.num_lines != 1 || cfg.has_microsd) {
+    if (!board_shared_pads_free()) {
         printf("bm64_findwire: refusing -- GPIO18-21 are claimed by line 2 / microSD on this config\n");
         return 1;
     }
@@ -2655,7 +2671,7 @@ static int cmd_bm64_pin(int argc, char **argv)
     else { printf("bm64_pin: unknown pin '%s' (want mfb, rst, or p20)\n", argv[1]); return 1; }
 
     board_hw_config_t cfg = board_hw_config_get();
-    if (needs_shared_pads && (cfg.num_lines != 1 || cfg.has_microsd)) {
+    if (needs_shared_pads && !board_shared_pads_free()) {
         printf("bm64_pin: refusing -- this board's config is %d-line%s, GPIO18-20 are claimed "
                "by line 2 SLIC/microSD, not free for BM64 control\n",
                cfg.num_lines, cfg.has_microsd ? " with microSD" : "");
@@ -3011,6 +3027,9 @@ void bringup_console_start(void)
     register_cmd("help", "This list", cmd_help);
 
     register_cmd("board_info", "Print detected board type and pin map", cmd_board_info);
+#if BOARD_LINE1_ON_EXPANDER
+    register_cmd("line_exp", "Show the line 1 I/O expander's state", cmd_line_exp);
+#endif
     register_cmd("bt401_probe", "BT401: is anything answering? listens, then queries status/name/address", cmd_bt401_probe);
     register_cmd("bt401_at", "BT401: send one command: bt401_at <cmd> [listen_ms], e.g. bt401_at TS", cmd_bt401_at);
     register_cmd("bt401_state", "BT401: show decoded link/call/name state", cmd_bt401_state);

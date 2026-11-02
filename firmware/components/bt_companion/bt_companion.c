@@ -1405,7 +1405,7 @@ static void assert_bm64_control_pins(void)
      * also use, so they're only safe on a single-line, no-microSD config.
      * MFB may or may not share that fate -- SMD5 gives it its own pin
      * (BOARD_BT_MFB_DEDICATED), and then it's always drivable. */
-    bool shared_pads_free = (cfg.num_lines == 1 && !cfg.has_microsd);
+    bool shared_pads_free = board_shared_pads_free();
 #ifdef BOARD_BT_MFB_DEDICATED
     const bool mfb_free = true;
 #else
@@ -1568,8 +1568,7 @@ esp_err_t bt_companion_ibdk_enter(bool toggle_pins)
      * point here -- that lets bt_companion_config_check() park the poll task
      * without touching the persisted enabled flag. */
     if (s_task) return ESP_ERR_INVALID_STATE; /* poll task would fight for RX */
-    board_hw_config_t cfg = board_hw_config_get();
-    if (cfg.num_lines != 1 || cfg.has_microsd) {
+    if (!board_shared_pads_free()) {
         ESP_LOGE(TAG, "IBDK: refusing -- GPIO18-20 are claimed by line 1 SLIC/microSD");
         return ESP_ERR_INVALID_STATE;
     }
@@ -1703,8 +1702,7 @@ esp_err_t bt_companion_ibdk_enter(bool toggle_pins)
 
 esp_err_t bt_companion_ibdk_exit(void)
 {
-    board_hw_config_t cfg = board_hw_config_get();
-    if (cfg.num_lines != 1 || cfg.has_microsd) return ESP_ERR_INVALID_STATE;
+    if (!board_shared_pads_free()) return ESP_ERR_INVALID_STATE;
 
     ESP_LOGI(TAG, "IBDK: exiting -> normal Flash Application mode");
     gpio_config_t gpio_cfg = {

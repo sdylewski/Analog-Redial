@@ -416,8 +416,8 @@ board_hw_config_t board_hw_config_get(void);
 bool board_hw_config_is_set(void);
 
 /* Rejects num_lines outside 1-2, and num_lines==2 combined with
- * has_microsd==true (the GPIO conflict this whole API exists to prevent),
- * with ESP_ERR_INVALID_ARG. Takes effect on reboot -- like every other
+ * has_microsd==true (the GPIO conflict this whole API exists to prevent;
+ * SMD6 allows it, having no conflict), with ESP_ERR_INVALID_ARG. Takes effect on reboot -- like every other
  * hardware config in this project, peripheral GPIO/driver init only runs
  * once at boot. Marks the config human-confirmed (board_hw_config_is_set()
  * becomes true) -- this is the one function that does. */
@@ -475,6 +475,10 @@ board_hw_evidence_t board_hw_detect_evidence(void);
  * cheap and safe to call from anywhere, any time, as they already are --
  * no new state, no GPIO side effects. */
 bool board_sd_line1_conflict(void);
+
+/* True when nothing is using GPIO18-21: one line, no microSD. Always false on
+ * SMD6, where they're wired to the microSD socket and nothing else. */
+bool board_shared_pads_free(void);
 
 #ifdef __cplusplus
 }

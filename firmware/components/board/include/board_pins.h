@@ -9,8 +9,10 @@
 
 #if CONFIG_BOARD_TYPE_SMD2
 #include "board_pins_smd.h"
-#elif CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
-/* SMD5 (either MCU module variant) shares SMD4's pin map exactly -- see
+#elif CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP || \
+      CONFIG_BOARD_TYPE_SMD6 || CONFIG_BOARD_TYPE_SMD6_CHEAP
+/* SMD6 shares it too, apart from line 1 (BOARD_LINE1_ON_EXPANDER).
+ * SMD5 (either MCU module variant) shares SMD4's pin map exactly -- see
  * Kconfig's help text and archive/hardware/smd5.md. The two
  * module variants differ only in which physical pad carries GPIO2/3 vs.
  * GPIO12/13 (native USB), which nothing in this pin map currently uses. */

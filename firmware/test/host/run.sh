@@ -20,3 +20,9 @@ for t in test_bt401_proto; do
 done
 cc -std=gnu11 -Wall -Wextra -O1 -Ishim -I. test_dtmf.c dtmf.c -lm -o run_test_dtmf
 ./run_test_dtmf
+EX="$HERE/../../components/ag1170"
+cp "$EX/line_expander.c" "$EX/include/line_expander.h" "$OUT/"
+cp -r "$HERE/shim_line_expander" "$OUT/"
+cc -std=gnu11 -Wall -Wextra -Wno-unused-function -Wno-unused-parameter -O1 -Ishim_line_expander -I. \
+   test_line_expander.c -o run_test_line_expander
+./run_test_line_expander

@@ -1419,6 +1419,26 @@ static int append_first_boot_banner(char *buf, size_t cap, int off)
 
     if (!hw_done) {
         board_hw_config_t cfg = board_hw_config_get();
+#if BOARD_LINE1_ON_EXPANDER
+        off = appendf(buf, cap, off,
+            "<form method=\"POST\" action=\"/board_hw_set\" class=\"settings-form\">"
+            "<label>%s"
+            "<select name=\"variant\">"
+            "<option value=\"2line\"%s>Two phone lines + microSD card</option>"
+            "<option value=\"1line_sd\"%s>One phone line + microSD card</option>"
+            "</select></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">"
+            "%s</button></div>"
+            "</form>"
+            "<p class=\"hint\">%s</p>",
+            i18n_str("firstboot.hw.label_v6", "Hardware type -- is the second phone line's AG1171 fitted?"),
+            cfg.num_lines > 1 ? " selected" : "",
+            cfg.num_lines == 1 ? " selected" : "",
+            i18n_str("firstboot.hw.button", "Confirm hardware type"),
+            i18n_str("firstboot.hw.hint", "Pre-selected from onboard signals so it should already "
+                     "be right and working -- just double-check it matches what you actually "
+                     "built before confirming."));
+#else
         off = appendf(buf, cap, off,
             "<form method=\"POST\" action=\"/board_hw_set\" class=\"settings-form\">"
             "<label>%s"
@@ -1440,6 +1460,7 @@ static int append_first_boot_banner(char *buf, size_t cap, int off)
             i18n_str("firstboot.hw.hint", "Pre-selected from onboard signals so it should already "
                      "be right and working -- just double-check it matches what you actually "
                      "built before confirming."));
+#endif
     }
 
     off = appendf(buf, cap, off, "</div>");
@@ -4355,7 +4376,8 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
                                  note);
     }
 
-#if !(CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP)
+#if !(CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP || \
+      CONFIG_BOARD_TYPE_SMD6 || CONFIG_BOARD_TYPE_SMD6_CHEAP)
     /* Only a V5 board has the Bluetooth header: say so before anything else on the tab. */
     off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2><p class=\"warn-text\">%s</p></div>",
@@ -5418,7 +5440,11 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
         "<p class=\"hint\">%s: <b>%s</b>%s</p>",
         i18n_str("hwconfig.title", "Board hardware"),
         i18n_str("hwconfig.current", "Now"),
+#if BOARD_LINE1_ON_EXPANDER
+        cfg.num_lines > 1 ? i18n_str("hwconfig.2line_sd", "two phone lines + microSD card")
+#else
         cfg.num_lines > 1 ? i18n_str("hwconfig.2line", "two phone lines")
+#endif
                            : (cfg.has_microsd ? i18n_str("hwconfig.1line_sd", "one phone line + microSD card")
                                                : i18n_str("hwconfig.1line_nosd", "one phone line + pin outputs")),
         confirmed ? "" : i18n_str("hwconfig.unconfirmed",
@@ -5452,13 +5478,37 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
      * the board generation isn't in here at all because it's a compile-time
      * choice (CONFIG_BOARD_TYPE_*) -- it's shown above and confirmed
      * separately, not selected. */
+#if BOARD_LINE1_ON_EXPANDER
+    /* No J5 and nothing to choose on GPIO18-21: the microSD card always works. */
+    const char *pins_option = "";
+    const char *variant_label = i18n_str("hwconfig.variant_label_v6", "Phone lines");
+    const char *opt_2line = i18n_str("hwconfig.opt_2line_v6", "Two phone lines + microSD card");
+    const char *opt_1line = i18n_str("hwconfig.opt_1line_v6", "One phone line + microSD card");
+    const char *variant_hint = i18n_str("hwconfig.hint_v6",
+        "The second line's AG1171 runs from an I/O expander on this board, so the microSD card "
+        "works either way. Choosing a Bluetooth module turns Bluetooth on; None turns it off. "
+        "Firmware can't see what's fitted, so a wrong answer here drives real hardware as the "
+        "wrong thing");
+#else
+    const char *pins_option = i18n_str("hwconfig.opt_pins", "Pin outputs (one phone line, no microSD)");
+    const char *variant_label = i18n_str("hwconfig.variant_label", "J5 (GPIO18-21) is used for");
+    const char *opt_2line = i18n_str("hwconfig.opt_2line", "A second phone line");
+    const char *opt_1line = i18n_str("hwconfig.opt_1line_sd", "A microSD card (one phone line)");
+    const char *variant_hint = i18n_str("hwconfig.hint",
+                 "J5 carries one of three things: a <b>second phone line</b> (J5 shunts on, "
+                 "second AG1171 fitted), the <b>microSD card</b> (shunts off), or four "
+                 "<b>pin outputs</b> for dial codes (shunts off, no card; set them up on Dial "
+                 "Codes). Choosing a Bluetooth module turns Bluetooth on; None turns it off. "
+                 "Firmware can't see what's fitted, so a wrong answer here drives real "
+                 "hardware as the wrong thing");
+#endif
     off = appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/board_hw_set\" class=\"settings-form\">"
         "<label>%s"
         "<select name=\"lines\">"
         "<option value=\"2line\"%s>%s</option>"
         "<option value=\"1line_sd\"%s>%s</option>"
-        "<option value=\"1line_nosd\"%s>%s</option>"
+        "%s%s%s%s%s"
         "</select></label>"
         "<label>%s"
         "<select name=\"bt\">"
@@ -5470,13 +5520,16 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
         "<button type=\"submit\" name=\"reboot\" value=\"1\" class=\"primary\">%s</button></div>"
         "</form>"
         "<p class=\"hint\">%s %s</p>",
-        i18n_str("hwconfig.variant_label", "J5 (GPIO18-21) is used for"),
+        variant_label,
         cfg.num_lines > 1 ? " selected" : "",
-        i18n_str("hwconfig.opt_2line", "A second phone line"),
-        (cfg.num_lines == 1 && cfg.has_microsd) ? " selected" : "",
-        i18n_str("hwconfig.opt_1line_sd", "A microSD card (one phone line)"),
-        (cfg.num_lines == 1 && !cfg.has_microsd) ? " selected" : "",
-        i18n_str("hwconfig.opt_pins", "Pin outputs (one phone line, no microSD)"),
+        opt_2line,
+        (cfg.num_lines == 1 && (cfg.has_microsd || !pins_option[0])) ? " selected" : "",
+        opt_1line,
+        pins_option[0] ? "<option value=\"1line_nosd\"" : "",
+        (pins_option[0] && cfg.num_lines == 1 && !cfg.has_microsd) ? " selected" : "",
+        pins_option[0] ? ">" : "",
+        pins_option,
+        pins_option[0] ? "</option>" : "",
         i18n_str("hwconfig.bt_label", "Bluetooth module"),
         cfg.bt_module == BOARD_BT_NONE ? " selected" : "",
         i18n_str("hwconfig.bt_no", "None"),
@@ -5486,13 +5539,7 @@ static int append_hw_config_tab(char *buf, size_t cap, int off)
         i18n_str("hwconfig.bt_bt401", "BT401 module fitted"),
         i18n_str("hwconfig.button", "Save (takes effect on reboot)"),
         i18n_str("hwconfig.button_reboot", "Save and reboot"),
-        i18n_str("hwconfig.hint",
-                 "J5 carries one of three things: a <b>second phone line</b> (J5 shunts on, "
-                 "second AG1171 fitted), the <b>microSD card</b> (shunts off), or four "
-                 "<b>pin outputs</b> for dial codes (shunts off, no card; set them up on Dial "
-                 "Codes). Choosing a Bluetooth module turns Bluetooth on; None turns it off. "
-                 "Firmware can't see what's fitted, so a wrong answer here drives real "
-                 "hardware as the wrong thing"),
+        variant_hint,
         confirmed
             ? i18n_str("hwconfig.hint_confirmed", "-- please double-check before changing it")
             : i18n_str("hwconfig.hint_unconfirmed",
@@ -5711,8 +5758,7 @@ static int append_selftest_card(char *buf, size_t cap, int off)
 static int append_flash_help_card(char *buf, size_t cap, int off)
 {
     const char *pcb = board_pcb_variant_name();
-    const char *key = !strcmp(pcb, "SMD2") ? "smd2" : !strcmp(pcb, "SMD4") ? "smd4"
-                    : !strcmp(pcb, "SMD5") ? "smd5" : "smd5_cheap";
+    const char *key = BOARD_IMAGE_TYPE;
     uint32_t flash_bytes = 0;
     esp_flash_get_size(NULL, &flash_bytes);
     bool mb8 = flash_bytes && flash_bytes <= 8u * 1024 * 1024;
@@ -7756,7 +7802,8 @@ static esp_err_t board_hw_set_handler(httpd_req_t *req)
 
     board_hw_config_t cfg;
     if (strcmp(variant, "2line") == 0) {
-        cfg = (board_hw_config_t){ .num_lines = 2, .has_microsd = false };
+        /* SMD6: the microSD card is on its own pins, so two lines can have it too. */
+        cfg = (board_hw_config_t){ .num_lines = 2, .has_microsd = BOARD_LINE1_ON_EXPANDER };
     } else if (strcmp(variant, "1line_sd") == 0) {
         cfg = (board_hw_config_t){ .num_lines = 1, .has_microsd = true };
     } else if (strcmp(variant, "1line_nosd") == 0) {

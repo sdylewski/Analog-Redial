@@ -439,8 +439,7 @@ static bool entry_available(const entry_t *e)
 
 bool dialplan_pins_active(void)
 {
-    board_hw_config_t cfg = board_hw_config_get();
-    return cfg.num_lines == 1 && !cfg.has_microsd;
+    return board_shared_pads_free();
 }
 
 /* A pin code is live while the pins are free; a Home Assistant code always. */

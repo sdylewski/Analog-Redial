@@ -1,0 +1,1 @@
+#define BOARD_LINE1_ON_EXPANDER 1

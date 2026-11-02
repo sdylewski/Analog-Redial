@@ -1,0 +1,5 @@
+#define BOARD_EXP_I2C_ADDR 0x38
+#define BOARD_EXP_BIT_FR   0
+#define BOARD_EXP_BIT_RM   1
+#define BOARD_EXP_BIT_SHK  2
+#define BOARD_EXP_BIT_PD   3

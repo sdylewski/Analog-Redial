@@ -41,6 +41,9 @@ bool auxpins_valid(int gpio) { return slot_of(gpio) >= 0; }
 bool auxpins_usable(char *why, size_t why_len)
 {
     const char *r = NULL;
+#if BOARD_LINE1_ON_EXPANDER
+    r = "this board has no pin outputs yet: GPIO18-21 are the microSD card's";
+#else
     board_hw_config_t cfg = board_hw_config_get();
     if (cfg.num_lines != 1) {
         r = "J5 is set to a second phone line, which uses these pins "
@@ -55,6 +58,7 @@ bool auxpins_usable(char *why, size_t why_len)
     else if (sdcard_card_present()) {
         r = "a microSD card is in the socket, and its contacts are on these pins";
     }
+#endif
 #endif
     if (r && why && why_len) snprintf(why, why_len, "%s", r);
     return r == NULL;

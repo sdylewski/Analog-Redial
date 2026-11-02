@@ -63,7 +63,7 @@
 #define BOARD_NUM_LINES 2
 
 /* ---- I2S (ES8388) ---- */
-#if CONFIG_BOARD_TYPE_SMD5_CHEAP
+#if CONFIG_BOARD_TYPE_SMD5_CHEAP || CONFIG_BOARD_TYPE_SMD6_CHEAP
 /* The dual MCU footprint swaps pads 12/13 <-> 19/20 between the real
  * Espressif module and the AliExpress clone (archive/hardware/
  * smd5.md). The I2S_MCLK and SD_CD nets sit on pads 12/13,
@@ -110,10 +110,24 @@
 #define BOARD_SD_MOSI     BOARD_LINE2_PIN_RM_MOSI
 #define BOARD_SD_CS       BOARD_LINE2_PIN_PD_CS
 
+#if BOARD_LINE1_ON_EXPANDER
+/* ---- SMD6: line 1's SLIC (U3) on a TCA9534A (U6, A0-A2 to GND). P4-P7 are the
+ * spare pins on J10. GPIO18-21 above are the microSD card's alone. ---- */
+#define BOARD_EXP_I2C_ADDR 0x38
+#define BOARD_EXP_BIT_FR   0
+#define BOARD_EXP_BIT_RM   1
+#define BOARD_EXP_BIT_SHK  2
+#define BOARD_EXP_BIT_PD   3
+#define BOARD_LINE1_FR    GPIO_NUM_NC
+#define BOARD_LINE1_SHK   GPIO_NUM_NC
+#define BOARD_LINE1_RM    GPIO_NUM_NC
+#define BOARD_LINE1_PD    GPIO_NUM_NC
+#else
 #define BOARD_LINE1_FR    BOARD_LINE2_PIN_FR_MISO
 #define BOARD_LINE1_SHK   BOARD_LINE2_PIN_SHK_SCLK
 #define BOARD_LINE1_RM    BOARD_LINE2_PIN_RM_MOSI
 #define BOARD_LINE1_PD    BOARD_LINE2_PIN_PD_CS
+#endif
 
 /* microSD card-detect (Card1 pin 9), SMD4 only -- SMD3 left this pin
  * unconnected. Internal weak pull-up (~45k), no external resistor needed;
@@ -127,7 +141,7 @@
  * yet drawn". Confirm this actually reads a real card-detect signal (not
  * floating) during bring-up before trusting it, same as every other pin
  * on a first-fabrication board. */
-#if CONFIG_BOARD_TYPE_SMD5_CHEAP
+#if CONFIG_BOARD_TYPE_SMD5_CHEAP || CONFIG_BOARD_TYPE_SMD6_CHEAP
 #define BOARD_SD_CD       GPIO_NUM_13   /* clone: pad 13 -- see BOARD_I2S_MCLK above */
 #else
 #define BOARD_SD_CD       GPIO_NUM_3
@@ -151,7 +165,8 @@
  * already use for these same shared pads. Not part of bt_companion's normal
  * runtime path -- dualphone's bench BM64 wiring ties MFB to VCC with a
  * fixed resistor instead and has no GPIO control over any of these three. */
-#if CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP
+#if CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP || \
+    CONFIG_BOARD_TYPE_SMD6 || CONFIG_BOARD_TYPE_SMD6_CHEAP
 /* SMD5 gives MFB a pin of its own on the expanded J12 header: GPIO15, the
  * only genuinely spare pin on this pin map (GPIO8 drives the DevKit's RGB
  * LED, GPIO9 is the download-mode strap -- MFB's pull-down there would boot

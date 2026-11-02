@@ -9,7 +9,7 @@ why, and what else still exists in this tree.
 ## Current hardware: SMD4
 
 | | SMD4 (current) |
-|--|--|
+|---|---|
 | Board | `hardware/kicad/Analog Redial v4/` |
 | MCU | ESP32-C6-DevKitC-1 |
 | Codec | ES8388 @ I²C 0x10 |
@@ -76,7 +76,7 @@ corrupted the wrong `sdkconfig` in a past session (see incident below), so
 follow this exactly:
 
 | Board type | Build dir | Defaults file(s) |
-|--|--|--|
+|---|---|---|
 | SMD4 (current, default) | `build/` | `sdkconfig.defaults` only — its `sdkconfig` is the one tracked in git |
 | SMD2 | `build.smd2/` | `sdkconfig.defaults;sdkconfig.smd2.defaults` |
 | Any SMD board, 8 MB module | `build.<type>_8mb/` | `sdkconfig.defaults;sdkconfig.<type>.defaults;sdkconfig.8mb.defaults` (`partitions_8mb.csv`) |

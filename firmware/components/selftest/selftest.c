@@ -2,6 +2,7 @@
 #include "board.h"
 #include "board_pins.h"
 #include "ag1170.h"
+#include "line_expander.h"
 #include "es8388.h"
 #include "audio.h"
 #include "bt_companion.h"
@@ -150,6 +151,25 @@ static void check_sd_conflict(selftest_check_t *c)
     set_result(c, SELFTEST_PASS, "no microSD/line-1 conflict");
 }
 
+#if BOARD_LINE1_ON_EXPANDER
+static void check_line_expander(selftest_check_t *c)
+{
+    if (board_hw_config_get().num_lines < 2) {
+        set_result(c, SELFTEST_PASS, "not used: configured for one line");
+        return;
+    }
+    line_exp_status_t st;
+    line_exp_status(&st);
+    if (!st.chip_ok) {
+        set_result(c, SELFTEST_FAIL, "TCA9534A not answering at 0x%02X: line 1 can't work",
+                   BOARD_EXP_I2C_ADDR);
+        return;
+    }
+    set_result(c, SELFTEST_PASS, "answering at 0x%02X, %u bus errors, %u resets",
+               BOARD_EXP_I2C_ADDR, (unsigned)st.bus_errors, (unsigned)st.chip_resets);
+}
+#endif
+
 /* Only meaningful once a module is declared fitted (Settings -> Hardware) --
  * which is exactly the distinction that was missing on 2026-09-26, when the
  * feature being merely "enabled" with no hardware attached claimed a phone
@@ -197,6 +217,9 @@ void selftest_begin(void)
 
     check_board_cfg(add_check("board", "Board variant", NULL, SELFTEST_AUTO));
     check_sd_conflict(add_check("sd", "microSD / line-1 conflict", NULL, SELFTEST_AUTO));
+#if BOARD_LINE1_ON_EXPANDER
+    check_line_expander(add_check("lineexp", "Line 1 I/O expander", NULL, SELFTEST_AUTO));
+#endif
     check_codec(add_check("codec", "Audio codec on I2C", NULL, SELFTEST_AUTO));
     check_codec_cfg(add_check("codeccfg", "Codec output configuration", NULL, SELFTEST_AUTO));
 

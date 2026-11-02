@@ -2,6 +2,7 @@
 #include "board_pins.h"
 #include "board_config.h"
 #include "board.h"
+#include "line_expander.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -74,8 +75,20 @@ void ag1170_set_event_cb(ag1170_event_cb cb, void *ctx)
     s_cb_ctx = ctx;
 }
 
-static void set_pd_run(gpio_num_t pd, bool run)
+/* The only place a SLIC pin is driven or read, apart from setup in
+ * config_line_gpio(). On SMD6, line 1's are on an I2C expander. */
+static inline bool on_expander(int line)
 {
+    return BOARD_LINE1_ON_EXPANDER && line == 1;
+}
+
+static void set_pd_run(int line, bool run)
+{
+    if (on_expander(line)) {
+        line_exp_set_pd_run(run);
+        return;
+    }
+    gpio_num_t pd = s_ls[line].pins.pd;
     /* PD is driven through a diode (1N4148W, cathode at the PD pin), not a
      * transistor: GPIO low pulls PD low through the diode (power-down);
      * high-Z lets the AG1171's own internal pull-up hold PD open (run).
@@ -105,7 +118,7 @@ esp_err_t ag1170_set_power(int line, bool run)
         ls->level_since_us = esp_timer_get_time();
     }
     ls->powered = run;
-    set_pd_run(ls->pins.pd, run);
+    set_pd_run(line, run);
     return ESP_OK;
 }
 
@@ -113,13 +126,15 @@ void ag1170_set_fr(int line, int level)
 {
     if (line < 0 || line >= s_active_lines) return;
     s_ls[line].fr_level = level ? 1 : 0;
-    gpio_set_level(s_ls[line].pins.fr, s_ls[line].fr_level);
+    if (on_expander(line)) line_exp_set_fr(s_ls[line].fr_level);
+    else gpio_set_level(s_ls[line].pins.fr, s_ls[line].fr_level);
 }
 
 void ag1170_set_rm(int line, int level)
 {
     if (line < 0 || line >= s_active_lines) return;
-    gpio_set_level(s_ls[line].pins.rm, level ? 1 : 0);
+    if (on_expander(line)) line_exp_set_rm(level ? 1 : 0);
+    else gpio_set_level(s_ls[line].pins.rm, level ? 1 : 0);
 }
 
 void ag1170_ring_start(int line)
@@ -186,10 +201,15 @@ bool ag1170_is_offhook(int line)
     return s_ls[line].offhook_reported;
 }
 
+static int read_shk(int line)
+{
+    return on_expander(line) ? line_exp_shk() : gpio_get_level(s_ls[line].pins.shk);
+}
+
 int ag1170_raw_shk(int line)
 {
     if (line < 0 || line >= s_active_lines) return -1;
-    return gpio_get_level(s_ls[line].pins.shk);
+    return read_shk(line);
 }
 
 int ag1170_pulse_count(int line)
@@ -254,7 +274,7 @@ static void service_hook(int line, int64_t now)
     line_state_t *ls = &s_ls[line];
     if (!ls->powered) return; /* SHK is meaningless right now -- see the `powered` field's doc comment */
 
-    int raw = (gpio_get_level(ls->pins.shk) == BOARD_SHK_OFFHOOK_LEVEL) ? 1 : 0;
+    int raw = (read_shk(line) == BOARD_SHK_OFFHOOK_LEVEL) ? 1 : 0;
 
     /* glitch filter */
     if (raw != ls->level) {
@@ -374,30 +394,33 @@ static void config_line_gpio(int line)
     board_line_pins_t p = board_line_pins(line);
     s_ls[line].pins = p;
 
-    gpio_config_t in_cfg = {
-        .pin_bit_mask = 1ULL << p.shk,
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    gpio_config(&in_cfg);
+    /* On the expander, line_exp_init() has already set the safe idle. */
+    if (!on_expander(line)) {
+        gpio_config_t in_cfg = {
+            .pin_bit_mask = 1ULL << p.shk,
+            .mode = GPIO_MODE_INPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE,
+        };
+        gpio_config(&in_cfg);
 
-    /* PD is not in this mask -- set_pd_run() configures its direction
-     * itself (direction-toggled input/output). */
-    gpio_config_t out_cfg = {
-        .pin_bit_mask = (1ULL << p.fr) | (1ULL << p.rm),
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    gpio_config(&out_cfg);
+        /* PD is not in this mask -- set_pd_run() configures its direction
+         * itself (direction-toggled input/output). */
+        gpio_config_t out_cfg = {
+            .pin_bit_mask = (1ULL << p.fr) | (1ULL << p.rm),
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE,
+        };
+        gpio_config(&out_cfg);
 
-    /* safe idle: run, not ringing */
-    set_pd_run(p.pd, true);
-    gpio_set_level(p.rm, 0);
-    gpio_set_level(p.fr, 0);
+        /* safe idle: run, not ringing */
+        set_pd_run(line, true);
+        gpio_set_level(p.rm, 0);
+        gpio_set_level(p.fr, 0);
+    }
 
     s_ls[line].powered = true;
     s_ls[line].level = 0;
@@ -414,6 +437,13 @@ esp_err_t ag1170_init(const ag1170_config_t *cfg)
      * board configured for microSD, this is 1: GPIO18-21 belong to the SD
      * card, and line 1 (index 1) must never be configured as a SLIC. */
     s_active_lines = board_hw_config_get().num_lines;
+
+#if BOARD_LINE1_ON_EXPANDER
+    if (s_active_lines > 1) {
+        esp_err_t err = line_exp_init();
+        if (err != ESP_OK) ESP_LOGE(TAG, "line 1 expander: %s", esp_err_to_name(err));
+    }
+#endif
 
     for (int line = 0; line < s_active_lines; line++) {
         memset(&s_ls[line], 0, sizeof(s_ls[line]));
