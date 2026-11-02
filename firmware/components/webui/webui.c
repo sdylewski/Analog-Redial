@@ -6089,9 +6089,10 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         int n = telephony_ring_test_freqs(&hz);
         char hz_opts[32 * 12] = "";
         int o = 0;
+        /* Starts on the saved frequency, so pressing Save can't change it by accident. */
         for (int i = 0; i < n && o < (int)sizeof(hz_opts) - 32; i++)
             o += snprintf(hz_opts + o, sizeof(hz_opts) - o, "<option value=\"%d\"%s>%d Hz</option>",
-                          hz[i], hz[i] == 20 ? " selected" : "", hz[i]);
+                          hz[i], hz[i] == board_ring_hz_get(0) ? " selected" : "", hz[i]);
         char rt_saved[128] = "";
         o = 0;
         for (int l = 0; l < tl_n && o < (int)sizeof(rt_saved) - 48; l++)
