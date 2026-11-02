@@ -55,8 +55,9 @@ the test is the way to be sure.
    is clearly loudest.
 3. Choose that frequency and press **Ring this one** to confirm it, then try 20 Hz
    to compare.
-4. If it isn't 20 Hz, save it under **Settings → Hardware → Ring frequency**. It
-   takes effect at once and is kept after a restart.
+4. If it isn't 20 Hz, choose it and press **Save for this line**. You can change it
+   there or under **Settings → Hardware → Ring frequency**. It takes effect at once
+   and is kept after a restart.
 
 | What you hear | What it means |
 |---|---|

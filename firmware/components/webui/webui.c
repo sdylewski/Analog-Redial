@@ -6092,6 +6092,12 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         for (int i = 0; i < n && o < (int)sizeof(hz_opts) - 32; i++)
             o += snprintf(hz_opts + o, sizeof(hz_opts) - o, "<option value=\"%d\"%s>%d Hz</option>",
                           hz[i], hz[i] == 20 ? " selected" : "", hz[i]);
+        char rt_saved[128] = "";
+        o = 0;
+        for (int l = 0; l < tl_n && o < (int)sizeof(rt_saved) - 48; l++)
+            o += snprintf(rt_saved + o, sizeof(rt_saved) - o, "%s%s %d: <b id=\"rts%d\">%u</b> Hz",
+                          l ? ", " : "", i18n_str("diag.test.line", "Line"), l, l,
+                          (unsigned)board_ring_hz_get(l));
         off = appendf(buf, cap, off,
             "<div class=\"settings-form\">"
             "<label>%s</label>"
@@ -6101,10 +6107,12 @@ static int append_diag_tab(char *buf, size_t cap, int off)
             "<button type=\"button\" onclick=\"rtGo(0)\">%s</button>"
             "<select id=\"rthz\">%s</select>"
             "<button type=\"button\" onclick=\"rtGo(document.getElementById('rthz').value)\">%s</button>"
-            "<button type=\"button\" onclick=\"rtStop()\">%s</button></div>"
-            "<p class=\"hint\" id=\"rtstat\" aria-live=\"polite\"></p></div>"
+            "<button type=\"button\" onclick=\"rtStop()\">%s</button>"
+            "<button type=\"button\" onclick=\"rtSave()\">%s</button></div>"
+            "<p class=\"hint\" id=\"rtstat\" aria-live=\"polite\"></p>"
+            "<p class=\"hint\">%s %s <span id=\"rtsaved\" aria-live=\"polite\"></span></p></div>"
             "<script>"
-            "var RT={step:'%s',one:'%s',gap:'%s',done:'%s',busy:'%s'},rtT=0;"
+            "var RT={step:'%s',one:'%s',gap:'%s',done:'%s',busy:'%s',saved:'%s',nosave:'%s'},rtT=0;"
             "function rtShow(d){var e=document.getElementById('rtstat');clearTimeout(rtT);"
             "if(!d.active){if(rtT)e.textContent=RT.done;rtT=0;return;}"
             "e.textContent=!d.ringing?RT.gap:d.sweep?RT.step.replace('%%1',d.step).replace('%%2',d.steps)"
@@ -6116,6 +6124,12 @@ static int append_diag_tab(char *buf, size_t cap, int off)
             "function rtGo(hz){rtPost('line='+document.getElementById('rtline').value+'&hz='+hz)"
             ".then(function(d){if(d.ok){rtT=1;rtPoll();}else{document.getElementById('rtstat').textContent=RT.busy;}});}"
             "function rtStop(){rtPost('stop=1').then(rtPoll);}"
+            "function rtSave(){var l=document.getElementById('rtline').value,h=document.getElementById('rthz').value,"
+            "s=document.getElementById('rtsaved');fetch('/ring_freq',{method:'POST',headers:"
+            "{'Content-Type':'application/x-www-form-urlencoded'},body:'json=1&line='+l+'&hz='+h})"
+            ".then(function(r){return r.json();}).then(function(d){if(!d.ok)throw 0;"
+            "document.getElementById('rts'+l).textContent=h;s.textContent=RT.saved;})"
+            ".catch(function(){s.textContent=RT.nosave;});}"
             "rtPoll();"
             "</script>",
             i18n_str("diag.test.ringfreq_label", "Ring frequency test"),
@@ -6124,8 +6138,8 @@ static int append_diag_tab(char *buf, size_t cap, int off)
                      "ringer tuned to one frequency, and a normal ring is 20 Hz. This rings each "
                      "frequency for 3 s with a 2 s pause, about a minute in all, so watch this page "
                      "and note where the bell is clearly loudest. If that isn't 20 Hz, the ringer is "
-                     "tuned to it. Ring that frequency alone to confirm, then save it under "
-                     "<a href=\"/settings?tab=hardware\">Hardware</a>. Still no luck? See the "
+                     "tuned to it. Ring that frequency alone to confirm, then press Save for this line. "
+                     "Still no luck? See the "
                      "<a href=\"https://github.com/sdylewski/Analog-Redial/blob/main/docs/troubleshooting.md#a-phone-wont-ring\" "
                      "target=\"_blank\" rel=\"noopener\">troubleshooting guide</a>. "
                      "&#9888; Don't touch tip/ring while it rings."),
@@ -6134,11 +6148,15 @@ static int append_diag_tab(char *buf, size_t cap, int off)
             hz_opts,
             i18n_str("diag.test.ringfreq_one", "Ring this one"),
             i18n_str("diag.test.ringfreq_stop", "Stop"),
+            i18n_str("diag.test.ringfreq_save", "Save for this line"),
+            i18n_str("diag.test.ringfreq_current", "Saved ring frequency:"), rt_saved,
             i18n_str("diag.test.ringfreq_step", "Step %1 of %2: ringing at %3 Hz"),
             i18n_str("diag.test.ringfreq_ringing", "Ringing at %3 Hz"),
             i18n_str("diag.test.ringfreq_gap", "Pause..."),
             i18n_str("diag.test.ringfreq_done", "Finished."),
-            i18n_str("diag.test.ringfreq_busy", "That line is in use: hang up and try again."));
+            i18n_str("diag.test.ringfreq_busy", "That line is in use: hang up and try again."),
+            i18n_str("diag.test.ringfreq_saved", "Saved."),
+            i18n_str("diag.test.ringfreq_nosave", "Could not save. Try again."));
     }
 
     /* Harness-only switches, kept to the bottom: these change how the board
@@ -8194,15 +8212,16 @@ static esp_err_t test_ring_handler(httpd_req_t *req)
     return redirect_to(req, "/settings?tab=diag");
 }
 
-/* POST /ring_freq -- line=N&hz=H. Saves a line's ring frequency and applies it. */
+/* POST /ring_freq -- line=N&hz=H[&json=1]. Saves a line's ring frequency and applies it. */
 static esp_err_t ring_freq_handler(httpd_req_t *req)
 {
-    char body[64], lbuf[8] = {0}, hbuf[8] = {0};
+    char body[64], lbuf[8] = {0}, hbuf[8] = {0}, jbuf[4] = {0};
     if (!read_form_body(req, body, sizeof(body))) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
     }
     form_field(body, "line", lbuf, sizeof(lbuf));
     form_field(body, "hz", hbuf, sizeof(hbuf));
+    form_field(body, "json", jbuf, sizeof(jbuf));
     int line = atoi(lbuf), hz = atoi(hbuf);
     const uint8_t *list;
     int n = telephony_ring_test_freqs(&list);
@@ -8211,7 +8230,12 @@ static esp_err_t ring_freq_handler(httpd_req_t *req)
     if (line < 0 || line >= board_hw_config_get().num_lines || !known) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad line or frequency"); return ESP_OK;
     }
-    if (board_ring_hz_set(line, (uint8_t)hz) == ESP_OK) ag1170_set_ring_hz(line, (uint16_t)hz);
+    esp_err_t err = board_ring_hz_set(line, (uint8_t)hz);
+    if (err == ESP_OK) ag1170_set_ring_hz(line, (uint16_t)hz);
+    if (jbuf[0]) { /* the Diagnostics ring test saves without leaving its page */
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_sendstr(req, err == ESP_OK ? "{\"ok\":true}" : "{\"ok\":false}");
+    }
     return redirect_to(req, "/settings?tab=hardware");
 }
 
