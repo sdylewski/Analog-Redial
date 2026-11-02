@@ -9039,16 +9039,6 @@
 	)
 	(wire
 		(pts
-			(xy 40.64 55.88) (xy 30.48 55.88)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a864b36c-6c65-475c-b8d8-bdd55f664c5d")
-	)
-	(wire
-		(pts
 			(xy 34.29 115.57) (xy 34.29 146.05)
 		)
 		(stroke
@@ -9609,16 +9599,6 @@
 	)
 	(wire
 		(pts
-			(xy 33.02 63.5) (xy 30.48 63.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e62eceee-4e48-4025-8960-f4ff4941024c")
-	)
-	(wire
-		(pts
 			(xy 245.11 154.94) (xy 243.84 154.94)
 		)
 		(stroke
@@ -9806,6 +9786,56 @@
 			(type default)
 		)
 		(uuid "fbb8e86a-d7a8-4a00-af7b-12fb04be4ffe")
+	)
+	(label "SCL_IN"
+		(at 40.64 55.88 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "7e51eb68-2c0d-4a62-a2d8-92318f5b60ac")
+	)
+	(label "RETURN"
+		(at 201.93 142.24 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "c869ca23-c4c2-4aee-b38f-832098131428")
+	)
+	(label "HV"
+		(at 209.55 142.24 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c57d1e14-3ec3-4c83-84a9-53b62aadf3fc")
+	)
+	(label "ISENSE"
+		(at 27.94 190.5 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "e2a87ef5-8a11-4126-8da5-e481911951ab")
+	)
+	(label "ISENSE_ADC"
+		(at 33.02 190.5 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "849b8afe-761d-451a-8b9c-9d5a225bc826")
 	)
 	(label "HV_LED1"
 		(at 146.05 161.29 180)
@@ -10078,7 +10108,7 @@
 		(uuid "5d240bb0-03cf-4098-9901-b89a0a0f8372")
 	)
 	(label "SCL_IN"
-		(at 30.48 55.88 0)
+		(at 30.48 60.96 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -10218,14 +10248,24 @@
 		(uuid "8546ef1c-25f4-4831-a228-482025472b2a")
 	)
 	(label "+5V_IN"
-		(at 30.48 63.5 270)
+		(at 30.48 53.34 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify right bottom)
+			(justify left bottom)
 		)
 		(uuid "8c290492-91e1-4ba3-ae05-91d0f983ba3b")
+	)
+	(label "+5V_IN"
+		(at 33.02 63.5 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "da21db17-9710-4e52-b009-f1f2b71dd841")
 	)
 	(label "DIME_SW"
 		(at 139.7 80.01 270)
@@ -10237,7 +10277,7 @@
 		)
 		(uuid "8d700f0c-a20e-4cea-ab1f-f0c8664af026")
 	)
-	(label "ISENSE"
+	(label "ISENSE_ADC"
 		(at 71.12 181.61 180)
 		(effects
 			(font
@@ -14647,7 +14687,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 30.48 53.34 90)
+		(at 30.48 63.5 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -14658,7 +14698,7 @@
 		(fields_autoplaced yes)
 		(uuid "4a761066-9e3b-4a1d-a6ab-197e54074ee7")
 		(property "Reference" "#PWR01"
-			(at 36.83 53.34 0)
+			(at 36.83 63.5 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14669,7 +14709,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 34.29 53.3399 90)
+			(at 34.29 63.5 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14680,7 +14720,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 30.48 53.34 0)
+			(at 30.48 63.5 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14691,7 +14731,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 30.48 53.34 0)
+			(at 30.48 63.5 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14702,7 +14742,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 30.48 53.34 0)
+			(at 30.48 63.5 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15042,7 +15082,7 @@
 	)
 	(symbol
 		(lib_id "power:VCC")
-		(at 30.48 60.96 270)
+		(at 30.48 55.88 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -15052,7 +15092,7 @@
 		(dnp no)
 		(uuid "4fac3498-791d-48d6-ada8-55629a185028")
 		(property "Reference" "#PWR02"
-			(at 26.67 60.96 0)
+			(at 26.67 55.88 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15063,7 +15103,7 @@
 			)
 		)
 		(property "Value" "VIO"
-			(at 33.528 60.96 90)
+			(at 33.53 55.88 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15074,7 +15114,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 30.48 60.96 0)
+			(at 30.48 55.88 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15085,7 +15125,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 30.48 60.96 0)
+			(at 30.48 55.88 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15096,7 +15136,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"VCC\""
-			(at 30.48 60.96 0)
+			(at 30.48 55.88 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15360,6 +15400,86 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Custom:UF4003")
+		(at 205.74 142.24 180)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "65941d34-a8ae-4eaf-8561-4fd398159c17")
+		(property "Reference" "D14"
+			(at 205.74 135.89 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "ES2D"
+			(at 205.74 138.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SMA"
+			(at 205.74 132.24 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://www.onsemi.com/pdf/datasheet/uf4001-d.pdf"
+			(at 205.74 132.24 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Ultrafast rectifier, 200V, 1A, DO-41"
+			(at 205.74 142.24 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "c9e25fbb-eff6-4488-a24d-498561549d21")
+		)
+		(pin "2"
+			(uuid "8a6607c7-8e47-488f-8b55-65840ccd29f1")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "D14")
 					(unit 1)
 				)
 			)
@@ -19483,7 +19603,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "a18adbe2-b58e-4bd0-a91e-3680ed27e62f")
 		(property "Reference" "Rslope1"
 			(at 75.184 155.702 0)
@@ -21621,7 +21741,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "c2783930-3572-46e6-87a8-2594fde218a6")
 		(property "Reference" "Cslope1"
 			(at 87.122 155.194 90)
@@ -24421,6 +24541,96 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R40")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "PCM_SparkFun-Resistor:R_Small")
+		(at 30.48 190.5 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "fb0ab6b2-b1d1-4246-8d11-b50589eb6d57")
+		(property "Reference" "R44"
+			(at 30.48 188.59 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "1k"
+			(at 30.48 192.53 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 30.48 190.5 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 30.48 190.5 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Limits current into AIN2 if R26 sees a fault (0805W8F1001T5E)"
+			(at 30.48 190.5 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C17513"
+			(at 30.48 190.5 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "f9918b39-6444-434d-9549-1a0b250d6aa4")
+		)
+		(pin "1"
+			(uuid "af400758-406a-42d7-a145-44be6c1cb9ff")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "R44")
 					(unit 1)
 				)
 			)
