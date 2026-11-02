@@ -54,6 +54,10 @@ named the board, it's `http://<name>.local` instead.
 
 ## 3. Dialing
 
+On a touch-tone phone, **#** ends a number at once instead of waiting for the pause
+after the last digit. Dial codes you set can also use **\*** and **#** (`*72`, say),
+and Bluetooth dial-out passes them on for service codes like `*86#`.
+
 The **Status** page always shows the board's current dial codes. The
 defaults:
 

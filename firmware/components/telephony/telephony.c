@@ -6,6 +6,8 @@
 #include "dtmf.h"
 #include "dtmf_test.h"
 #include "esp_app_desc.h"
+#include "esp_system.h"
+#include "board_config.h"
 #include "tones.h"
 #include "voip.h"
 #include "homecall.h"
@@ -293,7 +295,7 @@ static void dtmf_tap(int line, const int16_t *mono, size_t n, void *ctx)
         if (d && s_dt_cap) dtmf_test_on_digit(s_dt_cap, d);
         return;
     }
-    if (d >= '0' && d <= '9') {
+    if ((d >= '0' && d <= '9') || d == '*' || d == '#') {
         in_evt_t e = { .line = line, .type = IN_DIGIT, .digit = d };
         xQueueSend(s_q, &e, 0);
     }
@@ -1547,6 +1549,7 @@ static void process_digit(int line, char ch)
     if (st != TEL_DIALTONE && st != TEL_DIALING) {
         return; /* ignore digits unless we're expecting them */
     }
+    if (!dialplan_key_usable(&s_line[line].coll, ch)) return;
     if (st == TEL_DIALTONE || s_line[line].dialout_tone) {
         audio_tx_silence(line); /* stop dial tone on first digit (or the dial-out tone on the next) */
         s_line[line].dialout_tone = false;
@@ -2314,10 +2317,18 @@ static void dt_out(void *ctx, const char *text, size_t len)
 
 static bool dt_save_report(const dtmf_test_capture_t *cap)
 {
-    char hw[64], header[192];
+    char hw[64], name[40], header[448];
     board_hardware_str(hw, sizeof(hw));
-    snprintf(header, sizeof(header), "firmware: %s\nhardware: %s\nline: %d\n",
-             esp_app_get_description()->version, hw, s_dt_result_line);
+    board_name_get(name, sizeof(name));
+    const esp_app_desc_t *app = esp_app_get_description();
+    board_hw_config_t cfg = board_hw_config_get();
+    snprintf(header, sizeof(header),
+             "firmware: %s\nbuilt: %s %s\nesp_idf: %s\nboard_name: %s\nboard_image: %s\nhardware: %s\n"
+             "lines: %d\nmicrosd: %s\nline: %d\nearpiece_level: %u (0 = default)\nuptime_s: %lld\nfree_heap: %u\n",
+             app->version, app->date, app->time, app->idf_ver, name, BOARD_IMAGE_ID, hw,
+             cfg.num_lines, cfg.has_microsd ? "yes" : "no", s_dt_result_line,
+             (unsigned)board_speaker_volume_get(s_dt_result_line, 0),
+             (long long)(esp_timer_get_time() / 1000000), (unsigned)esp_get_free_heap_size());
     dt_out_t count = { 0 };
     dtmf_test_report(cap, &s_dt_result, header, dt_out, &count);
 
@@ -2579,7 +2590,7 @@ esp_err_t telephony_test_digit(int line, char digit)
 {
     if (!s_test_enabled) return ESP_ERR_INVALID_STATE;
     if (line < 0 || line >= NLINES_ACTIVE) return ESP_ERR_INVALID_ARG;
-    if (digit < '0' || digit > '9') return ESP_ERR_INVALID_ARG;
+    if ((digit < '0' || digit > '9') && digit != '*' && digit != '#') return ESP_ERR_INVALID_ARG;
     in_evt_t e = { .line = line, .type = IN_DIGIT, .digit = digit };
     return (xQueueSend(s_q, &e, pdMS_TO_TICKS(50)) == pdTRUE) ? ESP_OK : ESP_FAIL;
 }

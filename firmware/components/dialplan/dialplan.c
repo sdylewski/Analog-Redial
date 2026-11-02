@@ -612,15 +612,45 @@ static dialplan_action_t fire_home(const char *buf)
     return a;
 }
 
+/* Does any code, or any code's start, equal `buf`? */
+static bool is_code_or_prefix(const char *buf)
+{
+    return exact_match(buf) || clip_exact_match(buf) || pin_exact_match(buf) ||
+           has_longer_prefix(buf) || clip_has_longer_prefix(buf) || pin_has_longer_prefix(buf);
+}
+
+bool dialplan_key_usable(const dialplan_collector_t *c, char key)
+{
+    if (key != '*' && key != '#') return key >= '0' && key <= '9';
+    if (c->len > 0) return true;
+    const char first[2] = { key, '\0' };
+    return is_code_or_prefix(first);
+}
+
 dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit)
 {
-    if (digit < '0' || digit > '9') return make(ACT_NONE, 0, 0);
+    if (!dialplan_key_usable(c, digit)) return make(ACT_NONE, 0, 0);
+
+    /* # finishes what's been dialed, without waiting for the pause, unless it
+     * belongs to a dial code, or to a dial-out service code like *86#. */
+    if (digit == '#') {
+        char with_key[sizeof(c->buf) + 1];
+        snprintf(with_key, sizeof(with_key), "%s#", c->buf);
+        bool service = s_bt_dialout && c->buf[0] == DIALPLAN_BT_PREFIX &&
+                       (c->len < 2 || strpbrk(c->buf, "*#"));
+        if (!service && !is_code_or_prefix(with_key)) {
+            dialplan_action_t a = dialplan_timeout(c, line);
+            return a.kind != ACT_NONE ? a : make(ACT_WRONG_NUMBER, 0, 0);
+        }
+    }
+
     if (c->len >= sizeof(c->buf) - 1) dialplan_collector_reset(c);
     c->buf[c->len++] = digit;
     c->buf[c->len] = '\0';
 
     /* VoIP: 555 + 4 digits = 7-digit dial. */
     if (c->len >= 3 && strncmp(c->buf, "555", 3) == 0) {
+        if (digit == '*' || digit == '#') return make(ACT_WRONG_NUMBER, 0, 0);
         if (c->len >= 7) {
             dialplan_action_t a = make(ACT_VOIP_DIAL, 0, 0);
             strncpy(a.number, c->buf, sizeof(a.number) - 1);
@@ -638,6 +668,7 @@ dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit)
         size_t want = DIALPLAN_BT_DIGITS;
         if (c->len >= 2 && c->buf[1] == '1') want++;
         if (c->len >= 2 && c->buf[1] == '0') want = 0;
+        if (strpbrk(c->buf, "*#")) want = 0; /* a service code: no fixed length either */
         if (want && c->len >= want) {
             dialplan_action_t a = make(ACT_BT_DIAL, 0, 0);
             strncpy(a.number, c->buf + 1, sizeof(a.number) - 1);   /* drop the 9 */
@@ -934,7 +965,7 @@ static bool valid_code(const char *code)
     size_t len = strlen(code);
     if (len < 2 || len > DIALPLAN_CODE_MAX_DIGITS) return false;
     for (size_t i = 0; i < len; i++) {
-        if (code[i] < '0' || code[i] > '9') return false;
+        if ((code[i] < '0' || code[i] > '9') && code[i] != '*' && code[i] != '#') return false;
     }
     return true;
 }

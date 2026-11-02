@@ -90,11 +90,16 @@ typedef struct {
 void dialplan_collector_reset(dialplan_collector_t *c);
 
 /*
- * Feed one dialed digit ('0'-'9'). Returns an action:
+ * Feed one dialed key ('0'-'9', '*', '#'). Returns an action:
  *   kind == ACT_NONE     -> keep collecting (start/continue inter-digit timer)
  * Any other kind is terminal for this dial attempt (reset collector after).
+ * '#' ends the number at once, unless it's part of a dial code.
  */
 dialplan_action_t dialplan_feed(dialplan_collector_t *c, int line, char digit);
+
+/* False for * or # with nothing dialed yet and no code starting with it: the
+ * key means nothing, so it shouldn't even stop the dial tone. */
+bool dialplan_key_usable(const dialplan_collector_t *c, char key);
 
 /*
  * Call when the inter-digit timeout expires with a non-empty buffer. Resolves a

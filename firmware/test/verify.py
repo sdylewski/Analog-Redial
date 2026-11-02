@@ -435,6 +435,72 @@ def t_voip(ctx):
         else:
             print("      ! left voip_server=dvt.local: clear it with sip_set from the console")
 
+@test("page_scripts")
+def t_page_scripts(ctx):
+    # A syntax error stops every button on a page while the API behind it still
+    # works, so API tests alone never notice one.
+    import shutil
+    node = shutil.which("node")
+    if not node:
+        raise Skip("node not installed")
+    checked = 0
+    for path in ["/", "/recordings"] + ["/settings?tab=" + t for t in
+                 ("general", "phone", "dialcodes", "voip", "bluetooth", "ha", "hardware", "storage", "diag")]:
+        s, d = ctx.dev.get(path)
+        if s != 200:
+            raise Fail("GET %s returned %d" % (path, s))
+        for js in re.findall(r"<script>(.*?)</script>", d.decode("utf-8", "replace"), re.S):
+            with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False) as f:
+                f.write(js)
+            p = subprocess.run([node, "--check", f.name], capture_output=True, text=True)
+            os.unlink(f.name)
+            if p.returncode != 0:
+                raise Fail("%s: %s" % (path, p.stderr.strip().splitlines()[-3:]))
+            checked += 1
+    ctx.note("%d inline scripts parse" % checked)
+
+@test("touch_tone_test_refused_on_hook")
+def t_touch_tone_refused(ctx):
+    set_mode(ctx, True)
+    try:
+        inject(ctx, "onhook")
+        s, d = ctx.dev.post_form("/test/dtmf", {"action": "start", "line": "0"})
+        if json.loads(d).get("reason") != "onhook":
+            raise Fail("on-hook start answered %r" % d)
+    finally:
+        set_mode(ctx, False)
+
+@test("star_and_pound")
+def t_star_pound(ctx):
+    # Recodes the operator's built-in code to *05 for a moment, then puts it back.
+    set_mode(ctx, True)
+    try:
+        inject(ctx, "offhook")
+        poll_state(ctx, want="DIALTONE")
+        # Alone, they mean nothing: dial tone stays.
+        dial(ctx, "#*")
+        l = poll_state(ctx)
+        if l["state"] != "DIALTONE":
+            raise Fail("# or * alone left dial tone (state=%s)" % l["state"])
+        # # ends a number at once: 77 isn't a code, so wrong number with no pause.
+        dial(ctx, "77#")
+        l = poll_state(ctx)
+        if l["state"] in ("DIALING", "DIALTONE"):
+            raise Fail("# didn't end the number (state=%s)" % l["state"])
+        inject(ctx, "onhook")
+        poll_state(ctx, want="IDLE")
+        ctx.dev.post_form("/fixed_code_set", {"def": "0", "new_code": "*05"})
+        inject(ctx, "offhook")
+        poll_state(ctx, want="DIALTONE")
+        dial(ctx, "*05")
+        l = poll_state(ctx, want="PLAYING")
+        if l["state"] != "PLAYING":
+            raise Fail("code *05 didn't play the operator (state=%s)" % l["state"])
+    finally:
+        inject(ctx, "onhook")
+        ctx.dev.post_form("/fixed_code_set", {"def": "0", "new_code": ""})
+        set_mode(ctx, False)
+
 # ---- serial-only tests ----
 
 @test("dtmf_gen_detect", needs_serial=True)

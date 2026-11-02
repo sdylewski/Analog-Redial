@@ -3211,8 +3211,8 @@ static int append_pin_actions_card(char *buf, size_t cap, int off)
     if (used < DIALPLAN_MAX_PIN_ACTIONS) {
         off = appendf(buf, cap, off,
             "<form method=\"POST\" action=\"/pin_action_set\" class=\"settings-form\">"
-            "<label>Dial code (2&ndash;10 digits; spaces and dashes are ignored) <input name=\"code\" inputmode=\"numeric\" "
-            "pattern=\"[0-9 \\(\\)\\-]{2,16}\" maxlength=\"16\" required></label>"
+            "<label>Dial code (2&ndash;10 digits, * or #; spaces and dashes are ignored) <input name=\"code\" inputmode=\"tel\" "
+            "pattern=\"[0-9*# \\(\\)\\-]{2,16}\" maxlength=\"16\" required></label>"
             "<label>Pin <select name=\"gpio\">");
         for (size_t i = 0; i < ng; i++) {
             off = appendf(buf, cap, off, "<option value=\"%d\">GPIO%d</option>", gp[i], gp[i]);
@@ -3289,8 +3289,8 @@ static int append_ha_codes_card(char *buf, size_t cap, int off)
     if (used < DIALPLAN_MAX_PIN_ACTIONS) {
         off = appendf(buf, cap, off,
             "<form method=\"POST\" action=\"/ha_code_set\" class=\"settings-form\">"
-            "<label>Dial code (2&ndash;10 digits; spaces and dashes are ignored) <input name=\"code\" inputmode=\"numeric\" "
-            "pattern=\"[0-9 \\(\\)\\-]{2,16}\" maxlength=\"16\" required></label>"
+            "<label>Dial code (2&ndash;10 digits, * or #; spaces and dashes are ignored) <input name=\"code\" inputmode=\"tel\" "
+            "pattern=\"[0-9*# \\(\\)\\-]{2,16}\" maxlength=\"16\" required></label>"
             "<label>Note <input name=\"desc\" maxlength=\"39\" placeholder=\"e.g. porch light\"></label>"
             "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Add</button></div></form>");
     } else {
@@ -3427,7 +3427,7 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 "<div class=\"dc-line dc-line-code\">"
                 "<form method=\"POST\" action=\"/dialcode_set_code\" class=\"dc-inline\">"
                 "<input type=\"hidden\" name=\"old_code\" value=\"%s\">"
-                "<input name=\"new_code\" value=\"%s\" pattern=\"[0-9 \\(\\)\\-]{2,16}\" maxlength=\"16\" "
+                "<input name=\"new_code\" value=\"%s\" pattern=\"[0-9*# \\(\\)\\-]{2,16}\" maxlength=\"16\" "
                 "size=\"12\" required>"
                 "<button type=\"submit\">%s</button></form>",
                 clips[i].code, clips[i].code, i18n_str("dialcodes.save", "save"));
@@ -3491,14 +3491,14 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         "<form method=\"POST\" action=\"/dialcode_upload\" enctype=\"multipart/form-data\" class=\"settings-form\">"
         "<h3>%s</h3>"
         "<div class=\"grid2\">"
-        "<label>%s <input name=\"new_code\" pattern=\"[0-9 \\(\\)\\-]{2,16}\" "
+        "<label>%s <input name=\"new_code\" pattern=\"[0-9*# \\(\\)\\-]{2,16}\" "
         "maxlength=\"16\" required></label>"
         "<label>%s <input name=\"desc\" maxlength=\"63\"></label></div>"
         "<label>%s <input type=\"file\" name=\"file\" accept=\"audio/wav\" required></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
         "</form></div>",
         i18n_str("dialcodes.add_title", "Add a code"),
-        i18n_str("dialcodes.new_code_label", "New code (2-10 digits; spaces and dashes are ignored)"),
+        i18n_str("dialcodes.new_code_label", "New code (2-10 digits, * or #; spaces and dashes are ignored)"),
         i18n_str("dialcodes.desc_label", "Description (optional)"),
         i18n_str("dialcodes.audio_label", "Audio file (WAV)"),
         i18n_str("dialcodes.upload_button", "Upload + add dial code"));
@@ -3516,7 +3516,7 @@ static int append_fixed_codes_card(char *buf, size_t cap, int off)
     off = appendf(buf, cap, off,
         "<div class=\"card wide\" id=\"builtin\"><h2>Built-in codes</h2>"
         "<p class=\"hint\">What the phone does by itself. Change a code to anything free "
-        "(2&ndash;10 digits); clear the box and save to put the original back.</p>"
+        "(2&ndash;10 digits, * or #); clear the box and save to put the original back.</p>"
         "<table class=\"table\"><tr><th>Code</th><th>What it does</th><th></th></tr>");
     for (size_t i = 0; i < n; i++) {
         const char *note = "";
@@ -3531,7 +3531,7 @@ static int append_fixed_codes_card(char *buf, size_t cap, int off)
             "<tr%s><td>"
             "<form method=\"POST\" action=\"/fixed_code_set\" class=\"dc-inline\">"
             "<input type=\"hidden\" name=\"def\" value=\"%s\">"
-            "<input name=\"new_code\" value=\"%s\" pattern=\"[0-9 \\(\\)\\-]{0,16}\" maxlength=\"16\" "
+            "<input name=\"new_code\" value=\"%s\" pattern=\"[0-9*# \\(\\)\\-]{0,16}\" maxlength=\"16\" "
             "size=\"12\"%s>"
             "<button type=\"submit\"%s>save</button></form></td>"
             "<td>%s%s</td><td>%s</td></tr>",
@@ -4865,9 +4865,6 @@ static int append_restarts_card(char *buf, size_t cap, int off)
     return off;
 }
 
-/* Where the touch-tone test's "Email the report" goes. Empty hides that link,
- * leaving the GitHub one. Goes out in public firmware and pages. */
-#define DTMF_REPORT_EMAIL ""
 
 /* The touch-tone test card's script. DT (the strings) is written just before it. */
 static const char DTMF_TEST_JS[] =
@@ -4877,20 +4874,23 @@ static const char DTMF_TEST_JS[] =
 "function dtLine(){return +dtEl('dtline').value;}"
 "function dtPost(b){return fetch('/test/dtmf',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b})"
 ".then(function(r){return r.json();}).then(function(d){if(d.ok){if(b=='action=save')dtLast='saved';dtPoll();}"
-"else dtEl('dtmsg').textContent=d.reason=='mem'?DT.mem:DT.busy;return d;});}"
-"function dtStart(){dtShow('dtres',false);dtEl('dtmsg').textContent='';dtLast='';dtPost('action=start&line='+dtLine());}"
+"else dtEl('dtmsg').textContent=d.reason=='mem'?DT.mem:d.reason=='onhook'?DT.pickup:DT.busy;return d;})"
+".catch(function(){dtEl('dtmsg').textContent=DT.unreach;});}"
+"function dtStart(){dtShow('dtres',false);dtShow('dtlog',false);dtEl('dtlog').value='';dtEl('dtmsg').textContent='';dtLast='';dtPost('action=start&line='+dtLine());}"
+"function dtCopy(){var t=dtEl('dtlog'),ok=false;t.hidden=false;t.focus();t.select();t.setSelectionRange(0,t.value.length);"
+"try{ok=!!t.value&&document.execCommand('copy');}catch(e){}dtEl('dtmsg').textContent=ok?DT.copied:DT.nocopy;}"
 "function dtStd(){dtPost('action=std&line='+dtLine());}"
 "function dtRows(d){var b=dtEl('dttab');b.textContent='';d.keys.forEach(function(k){var r=b.insertRow();"
 "var bad=k.n&&k.std<60;[k.k,!k.n?DT.skipped:(k.h||'-')+(k.s&&k.s!=k.k?' ('+k.s+'?)':''),k.n?k.std+'%':'-',k.n?k.rec+'%':'-']"
 ".forEach(function(t,i){var c=r.insertCell();c.textContent=t;if(bad&&i==2)c.style.fontWeight='700';});});}"
-"function dtSummary(d){var s='Touch-tone test report\nFirmware: '+d.fw+'\nResult: '+d.verdict+'\n\nkey heard standard tuned twist\n';"
-"d.keys.forEach(function(k){s+=k.k+' '+(k.h||'-')+' '+(k.n?k.std+'% '+k.rec+'% '+(k.tw/10)+'dB':'not tested')+'\n';});"
-"return s+'\n'+DT.attach+'\n';}"
-"function dtDone(d){dtRows(d);dtShow('dtres',true);dtShow('dtsave',d.can_save);dtShow('dtrep',d.report);"
+"function dtSummary(d){var s='Touch-tone test report\\nFirmware: '+d.fw+'\\nResult: '+d.verdict+'\\n\\nkey heard standard tuned twist\\n';"
+"d.keys.forEach(function(k){s+=k.k+' '+(k.h||'-')+' '+(k.n?k.std+'% '+k.rec+'% '+(k.tw/10)+'dB':'not tested')+'\\n';});"
+"return s+'\\n'+DT.attach+'\\n';}"
+"function dtDone(d){dtRows(d);dtShow('dtres',true);dtShow('dtsave',d.can_save);dtShow('dtrep',d.report);dtShow('dtcopy',d.report);"
+"if(d.report&&!dtEl('dtlog').value)fetch('/dtmf_report.txt').then(function(r){return r.text();}).then(function(x){dtEl('dtlog').value=x;});"
 "var m=d.verdict=='good'?DT.good:d.verdict=='tuned'?DT.tuned:d.verdict=='partial'?DT.partial:DT.none;"
 "if(!d.can_save&&dtLast=='saved')m=DT.saved;if(d.clipped)m+=' '+DT.clip;if(!d.report)m+=' '+DT.nosave;dtEl('dtmsg').textContent=m;"
 "var s=dtSummary(d),su=encodeURIComponent('Touch-tone test report ('+d.verdict+')'),bo=encodeURIComponent(s);"
-"var a=dtEl('dtmail');dtShow('dtmail',!!DT.email&&d.report);a.href='mailto:'+DT.email+'?subject='+su+'&body='+bo;"
 "var g=dtEl('dtissue');dtShow('dtissue',d.report);g.href='https://github.com/sdylewski/Analog-Redial/issues/new?title='+su+'&body='+bo;}"
 "function dtPoll(){clearTimeout(dtT);fetch('/api/dtmf_test').then(function(r){return r.json();}).then(function(d){"
 "var run=d.state=='running',work=d.state=='analyzing';dtShow('dtkey',run);dtShow('dtskip',run);dtShow('dtstop',run);"
@@ -6265,7 +6265,9 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         "<div class=\"toolbar sub\">"
         "<button type=\"button\" id=\"dtsave\" hidden onclick=\"dtPost('action=save')\">%s</button>"
         "<a class=\"button\" id=\"dtrep\" hidden href=\"/dtmf_report.txt\" download>%s</a>"
-        "<a id=\"dtmail\" hidden>%s</a> <a id=\"dtissue\" hidden target=\"_blank\" rel=\"noopener\">%s</a></div></div>"
+        "<button type=\"button\" id=\"dtcopy\" hidden onclick=\"dtCopy()\">%s</button>"
+        "<a class=\"button\" id=\"dtissue\" hidden target=\"_blank\" rel=\"noopener\">%s</a></div>"
+        "<textarea id=\"dtlog\" hidden readonly rows=\"8\" style=\"width:100%%;font-family:monospace;font-size:12px;margin-top:.5em\"></textarea></div>"
         "<div class=\"toolbar sub\"><button type=\"button\" id=\"dtstd\" hidden onclick=\"dtStd()\">%s</button></div></div>",
         i18n_str("diag.test.dtmf_label", "Touch-tone test"),
         i18n_str("diag.test.dtmf_hint",
@@ -6274,8 +6276,9 @@ static int append_diag_tab(char *buf, size_t cap, int off)
                  "shows each key in turn: press and hold it until the next one appears, about a "
                  "second, and keep quiet in between. Nothing gets dialed. Afterwards it shows how "
                  "well each key was heard and, if it helps, offers settings for this line to save. "
-                 "It also makes a report you can send in, to help make more phones work without "
-                 "tuning: tone measurements and about 50 ms of audio per key, with no Wi-Fi details."),
+                 "It also makes a log you can send in, to help make more phones work without tuning: "
+                 "firmware and board details, tone measurements and about 50 ms of audio per key, "
+                 "with no Wi-Fi details or serial number."),
         tl_opts,
         i18n_str("diag.test.dtmf_start", "Start"),
         i18n_str("diag.test.dtmf_skip", "Skip this key"),
@@ -6286,13 +6289,13 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         i18n_str("diag.test.dtmf_col_rec", "With these settings"),
         i18n_str("diag.test.dtmf_save", "Save for this line"),
         i18n_str("diag.test.dtmf_download", "Download report"),
-        i18n_str("diag.test.dtmf_email", "Email the report"),
+        i18n_str("diag.test.dtmf_copy", "Copy log"),
         i18n_str("diag.test.dtmf_issue", "Post it on GitHub"),
         i18n_str("diag.test.dtmf_std", "Back to standard settings"));
     off = appendf(buf, cap, off,
         "<script>var DT={noise:'%s',release:'%s',press:'%s',hold:'%s',step:'%s',work:'%s',stopped:'%s',"
         "good:'%s',tuned:'%s',partial:'%s',none:'%s',clip:'%s',nosave:'%s',saved:'%s',busy:'%s',mem:'%s',"
-        "skipped:'%s',attach:'%s',std:'%s',email:'%s'};",
+        "skipped:'%s',attach:'%s',std:'%s',pickup:'%s',unreach:'%s',copied:'%s',nocopy:'%s'};",
         i18n_str("diag.test.dtmf_noise", "Keep quiet for a moment..."),
         i18n_str("diag.test.dtmf_release", "Let go of the key"),
         i18n_str("diag.test.dtmf_press", "Press and hold"),
@@ -6307,12 +6310,15 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         i18n_str("diag.test.dtmf_clip", "Some keys are so loud they clip, which these settings cannot fix."),
         i18n_str("diag.test.dtmf_nosave", "The report could not be saved: there is too little free storage."),
         i18n_str("diag.test.dtmf_saved", "Saved for this line."),
-        i18n_str("diag.test.dtmf_busy", "Lift the handset on this line and wait for dial tone, then press Start."),
+        i18n_str("diag.test.dtmf_busy", "This line is busy. Hang up, pick up again and wait for dial tone, then press Start."),
         i18n_str("diag.test.dtmf_mem", "The board is short of memory right now. Try again in a moment."),
         i18n_str("diag.test.dtmf_skipped", "not tested"),
-        i18n_str("diag.test.dtmf_attach", "Please attach the report file you downloaded (dtmf_report.txt)."),
+        i18n_str("diag.test.dtmf_attach", "Please paste the copied log here, or attach dtmf_report.txt."),
         i18n_str("diag.test.dtmf_tuned_now", "This line is using tuned settings."),
-        DTMF_REPORT_EMAIL);
+        i18n_str("diag.test.dtmf_pickup", "Pick up the handset on this line and wait for dial tone, then press Start."),
+        i18n_str("diag.test.dtmf_unreach", "Could not reach the board. Check the connection and try again."),
+        i18n_str("diag.test.dtmf_copied", "Log copied. Paste it into an email or a GitHub issue."),
+        i18n_str("diag.test.dtmf_nocopy", "Could not copy automatically: select everything in the box above and copy it."));
     off = appendf(buf, cap, off, "%s", DTMF_TEST_JS);
 
     /* Harness-only switches, kept to the bottom: these change how the board
@@ -8450,8 +8456,10 @@ static esp_err_t test_dtmf_handler(httpd_req_t *req)
     form_field(body, "line", lbuf, sizeof(lbuf));
     int line = atoi(lbuf);
     esp_err_t err = ESP_OK;
+    bool onhook = false;
     if (!strcmp(abuf, "start")) {
         err = telephony_dtmf_test_start(line);
+        onhook = err == ESP_ERR_INVALID_STATE && telephony_state(line) == TEL_IDLE;
     } else if (!strcmp(abuf, "skip")) {
         telephony_dtmf_test_skip();
     } else if (!strcmp(abuf, "stop")) {
@@ -8466,7 +8474,8 @@ static esp_err_t test_dtmf_handler(httpd_req_t *req)
     }
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_sendstr(req, err == ESP_OK ? "{\"ok\":true}" :
-                              err == ESP_ERR_NO_MEM ? "{\"ok\":false,\"reason\":\"mem\"}" : "{\"ok\":false,\"reason\":\"busy\"}");
+                              err == ESP_ERR_NO_MEM ? "{\"ok\":false,\"reason\":\"mem\"}" :
+                              onhook ? "{\"ok\":false,\"reason\":\"onhook\"}" : "{\"ok\":false,\"reason\":\"busy\"}");
 }
 
 static esp_err_t dtmf_test_json_handler(httpd_req_t *req)
@@ -9387,7 +9396,7 @@ static esp_err_t dialcode_set_code_handler(httpd_req_t *req)
     esp_err_t err = dialplan_clip_set_code(old_code, new_code);
     if (err != ESP_OK) {
         const char *why =
-            (err == ESP_ERR_INVALID_ARG)   ? "code must be 2-10 digits" :
+            (err == ESP_ERR_INVALID_ARG)   ? "code must be 2-10 digits, * or #" :
             (err == ESP_ERR_INVALID_STATE) ? "that code conflicts with an existing one" :
             (err == ESP_ERR_NOT_FOUND)     ? "code not found" : esp_err_to_name(err);
         ESP_LOGW(TAG, "dialcode_set_code '%s' -> '%s' failed: %s", old_code, new_code, why);
@@ -9463,7 +9472,7 @@ static esp_err_t fixed_code_set_handler(httpd_req_t *req)
     esp_err_t err = dialplan_fixed_set_code(def, new_code);
     if (err != ESP_OK) {
         const char *why =
-            (err == ESP_ERR_INVALID_ARG)   ? "code must be 2-10 digits" :
+            (err == ESP_ERR_INVALID_ARG)   ? "code must be 2-10 digits, * or #" :
             (err == ESP_ERR_INVALID_STATE) ? "that code conflicts with an existing one "
                                              "(the same code, or one starts with the other)" :
             (err == ESP_ERR_NOT_FOUND)     ? "no such built-in code" : esp_err_to_name(err);
@@ -10656,13 +10665,17 @@ static esp_err_t dialcode_upload_handler(httpd_req_t *req)
                  * written first, so a rejected code still left it behind. */
                 esp_err_t cerr = dialplan_clip_check_new(new_code);
                 if (cerr != ESP_OK) {
-                    err_msg = (cerr == ESP_ERR_INVALID_ARG) ? "code must be 2-10 digits" :
+                    err_msg = (cerr == ESP_ERR_INVALID_ARG) ? "code must be 2-10 digits, * or #" :
                               (cerr == ESP_ERR_INVALID_STATE) ? "that code conflicts with an existing one" :
                               "dial code limit reached";
                     break;
                 }
                 char fallback[40];
                 snprintf(fallback, sizeof(fallback), "clip_%s.wav", new_code);
+                for (char *p = fallback; *p; p++) { /* not allowed in file names */
+                    if (*p == '*') *p = 's';
+                    if (*p == '#') *p = 'p';
+                }
                 sanitize_upload_name(filename, fallback, dest, sizeof(dest));
                 /* Never reuse a name that's taken: uploading "operator.wav"
                  * or a second "song.wav" overwrote the operator message or
@@ -10693,7 +10706,7 @@ static esp_err_t dialcode_upload_handler(httpd_req_t *req)
                      * added (bad code / conflict / table full) -- still
                      * leave the file in storage; report the failure rather
                      * than silently dropping it. */
-                    err_msg = (aerr == ESP_ERR_INVALID_ARG) ? "code must be 2-10 digits" :
+                    err_msg = (aerr == ESP_ERR_INVALID_ARG) ? "code must be 2-10 digits, * or #" :
                               (aerr == ESP_ERR_INVALID_STATE) ? "that code conflicts with an existing one" :
                               "dial code limit reached";
                     break;

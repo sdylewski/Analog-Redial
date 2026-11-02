@@ -111,11 +111,13 @@ the test only suggests them when a key needs them, and they only apply to that l
 They belong to the line, not the phone, so use **Back to standard settings** if you
 plug in a different phone.
 
-**Please send in your report.** The goal is for more phones to work with no tuning at
-all, and every report helps with that. **Download report** saves `dtmf_report.txt`,
-which has the tone measurements and about 50 ms of audio per key, and no Wi-Fi details.
-Then attach it to a [GitHub issue](https://github.com/sdylewski/Analog-Redial/issues/new),
-which the test's own link opens with its results filled in.
+**Please send in your log.** The goal is for more phones to work with no tuning at all,
+and every log helps with that. It has the firmware and board details, the tone
+measurements and about 50 ms of audio per key, and no Wi-Fi details or serial number.
+**Copy log** copies it to paste into an email, **Download report** saves it as
+`dtmf_report.txt`, and **Post it on GitHub** opens a new
+[issue](https://github.com/sdylewski/Analog-Redial/issues/new) with the results filled in,
+for you to paste the log into.
 
 ## Calls between boards
 

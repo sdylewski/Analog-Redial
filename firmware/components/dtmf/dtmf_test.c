@@ -409,8 +409,9 @@ void dtmf_test_report(const dtmf_test_capture_t *c, const dtmf_test_result_t *r,
     const dtmf_tuning_t std = DTMF_TUNING_DEFAULT;
     outf(out, ctx, "Analog Redial touch-tone test report, format 1\n");
     out(ctx, header, strlen(header));
-    outf(out, ctx, "verdict: %s\nclipped: %s\ntested: %d of %d\nstill_poor: %d\nnoise_peak: %d\n",
-         VERDICTS[r->verdict], r->clipped ? "yes" : "no", r->tested, DTMF_TEST_KEYS, r->poor_rec, r->noise_peak);
+    outf(out, ctx, "verdict: %s\nclipped: %s\ntested: %d of %d\nstill_poor: %d\nnoise_peak: %d\nkey_level: %d\n",
+         VERDICTS[r->verdict], r->clipped ? "yes" : "no", r->tested, DTMF_TEST_KEYS, r->poor_rec, r->noise_peak,
+         c->tone_peak_min);
     out_tuning(out, ctx, "tuning_standard", &std);
     out_tuning(out, ctx, "tuning_current", &r->current);
     out_tuning(out, ctx, "tuning_recommended", &r->recommended);
