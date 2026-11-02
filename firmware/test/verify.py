@@ -127,7 +127,9 @@ class Serial:
         time.sleep(wait)
         out = b""
         end = time.time() + settle
-        while time.time() < end:
+        # Debug logging never goes quiet, so "until it settles" needs a limit too.
+        limit = time.time() + settle + 5.0
+        while time.time() < min(end, limit):
             chunk = self.s.read(512)
             if chunk:
                 out += chunk
@@ -347,7 +349,8 @@ def t_record(ctx):
         inject(ctx, "offhook")
         poll_state(ctx, want="DIALTONE")
         dial(ctx, "211")
-        l = poll_state(ctx, want="RECORDING", timeout=3)
+        # The spoken prompt and the beep come first, and a board can have its own prompt.
+        l = poll_state(ctx, want="RECORDING", timeout=15)
         if l["state"] != "RECORDING":
             raise Fail("dial 211 did not reach RECORDING (state=%s)" % l["state"])
         ctx.note("dial 211 -> RECORDING")
@@ -405,6 +408,8 @@ def t_voip(ctx):
     orig = ctx.dev.status()
     orig_server = orig.get("voip_server", "")
     orig_user0 = orig.get("voip_user0", "")
+    if not (orig_server or orig_user0 or ctx.ser):
+        raise Skip("no VoIP settings to restore afterwards without --serial")
     try:
         ctx.dev.post_form("/voip_set", {"server": "dvt.local", "user0": "1000"})
         s, d = ctx.dev.get_bytes("/voip_server_script")
@@ -422,6 +427,13 @@ def t_voip(ctx):
         if orig_server or orig_user0:
             ctx.dev.post_form("/voip_set", {"server": orig_server, "user0": orig_user0})
             ctx.note("restored prior VoIP config (server=%r, user0=%r)" % (orig_server, orig_user0))
+        elif ctx.ser:
+            # /voip_set treats a blank field as "leave unchanged", so a board
+            # with no VoIP settings can only get back to that from the console.
+            ctx.ser.cmd('sip_set "" "" ""', wait=1.0)
+            ctx.note("cleared the dummy VoIP config")
+        else:
+            print("      ! left voip_server=dvt.local: clear it with sip_set from the console")
 
 # ---- serial-only tests ----
 
@@ -451,17 +463,18 @@ def t_debug_log(ctx):
     ctx.ser.cmd("log_level debug", wait=1.0)
     set_mode(ctx, True)
     try:
+        ctx.ser.s.reset_input_buffer()
         inject(ctx, "offhook")
         time.sleep(0.5)
         inject(ctx, "digit", digit="0")
         time.sleep(0.8)
         inject(ctx, "onhook")
         time.sleep(0.5)
-        # pull the ring-buffer log via HTTP and look for our debug lines
-        s, d = ctx.dev.get("/api/log")
-        log = d.decode("utf-8", "replace")
-        if "->" not in log and "DIALTONE" not in log:
-            raise Fail("no telephony debug state-transition lines found in log")
+        # From the console: at debug level, NVS messages push these out of the
+        # 8 KB web log before it can be read.
+        log = ctx.ser.s.read(ctx.ser.s.in_waiting or 1).decode("utf-8", "replace")
+        if "-> DIALTONE" not in log:
+            raise Fail("no telephony debug state-transition lines on the console")
         ctx.note("debug log shows telephony transitions")
     finally:
         inject(ctx, "onhook")
