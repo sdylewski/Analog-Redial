@@ -341,6 +341,13 @@ esp_err_t board_record_max_ms_set(uint32_t ms);
 uint8_t   board_ring_hz_get(int line);
 esp_err_t board_ring_hz_set(int line, uint8_t hz);
 
+/* ---- Touch-tone detector limits, per line ----
+ * Saved by the touch-tone test, as an opaque blob (dtmf_tuning_t: board can't
+ * depend on dtmf). _get returns false if none is saved, or it's another size.
+ * _set with data NULL goes back to none. */
+bool      board_dtmf_tuning_get(int line, void *out, size_t len);
+esp_err_t board_dtmf_tuning_set(int line, const void *data, size_t len);
+
 /* ---- Speaker (earpiece) drive level, per line ----
  * ES8388 LOUT1VOL/ROUT1VOL convention (see es8388.h / the bring-up `spkamp`
  * command): 0 = mute, 33 = 0 dB, 1 dB/step, 63 = max. Persisted so a level

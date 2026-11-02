@@ -824,6 +824,33 @@ esp_err_t board_aec_delay_set(int line, uint32_t ms)
     return err;
 }
 
+bool board_dtmf_tuning_get(int line, void *out, size_t len)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return false;
+    size_t got = len;
+    esp_err_t err = nvs_get_blob(h, (line == 1) ? "dtmf_t1" : "dtmf_t0", out, &got);
+    nvs_close(h);
+    return err == ESP_OK && got == len;
+}
+
+esp_err_t board_dtmf_tuning_set(int line, const void *data, size_t len)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    const char *key = (line == 1) ? "dtmf_t1" : "dtmf_t0";
+    if (data) {
+        err = nvs_set_blob(h, key, data, len);
+    } else {
+        err = nvs_erase_key(h, key);
+        if (err == ESP_ERR_NVS_NOT_FOUND) err = ESP_OK;
+    }
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
+
 uint8_t board_ring_hz_get(int line)
 {
     nvs_handle_t h;

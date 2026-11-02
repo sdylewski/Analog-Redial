@@ -63,13 +63,11 @@ bool dtmf_make_osc(tone_osc_t *o, uint32_t sample_rate, char key, float amp)
 #endif
 /* A real DTMF window holds nearly all of its energy in two bins; speech and
  * music spread theirs. Percent of the ideal (all of it in the strongest row
- * and column bin) that a window must reach to count as a key. 50 passes
- * tones with 4 kHz-wide noise 14 dB under them, +-5 dB twist, and tones
- * clipped flat by a 1.2x overdrive, and rejects the speech, music and modem
- * clips this was tried on (tests in firmware/test/host). */
-#ifndef DTMF_MIN_CONC_PCT
-#define DTMF_MIN_CONC_PCT 50
-#endif
+ * and column bin) that a window must reach to count as a key
+ * (dtmf_tuning_t.conc_pct). 50 passes tones with 4 kHz-wide noise 14 dB under
+ * them, +-5 dB twist, and tones clipped flat by a 1.2x overdrive, and rejects
+ * the speech, music and modem clips this was tried on (tests in
+ * firmware/test/host). */
 /* ...and ends after this many in a row that classify as nothing. A pause of
  * 40 ms always contains at least two windows with no tone in them at all. */
 #define END_WINDOWS 2
@@ -86,7 +84,8 @@ bool dtmf_make_osc(tone_osc_t *o, uint32_t sample_rate, char key, float amp)
  * coeff multiply is scaled, then shifted back down), so MIN_MAG and the
  * ratio thresholds below are unchanged from the float version. */
 
-static char classify(const int64_t mags[8], int64_t min_mag, int64_t energy, size_t block_n)
+static char classify(const int64_t mags[8], int64_t min_mag, int64_t energy, size_t block_n,
+                     const dtmf_tuning_t *t)
 {
     /* strongest row and strongest col */
     int rb = 0, cb = 0;
@@ -100,8 +99,7 @@ static char classify(const int64_t mags[8], int64_t min_mag, int64_t energy, siz
 
     /* tone-ness: two bins should hold most of the window's energy. For a pure
      * pair, |Xr|^2 + |Xc|^2 = N * sum(x^2) / 2. */
-    if (DTMF_MIN_CONC_PCT > 0 &&
-        (rmag + cmag) * 200 < (int64_t)DTMF_MIN_CONC_PCT * (int64_t)block_n * energy) return 0;
+    if ((rmag + cmag) * 200 < (int64_t)t->conc_pct * (int64_t)block_n * energy) return 0;
 
     /* twist: row/col should be within a reasonable ratio (cross-multiplied
      * to avoid division). A single tight limit, not tiered by loudness --
@@ -119,8 +117,8 @@ static char classify(const int64_t mags[8], int64_t min_mag, int64_t energy, siz
      * functioning phone. The original false-positive this also guards
      * against (~770Hz line/board noise, see telephony.c's dtmf_tap
      * comment) measured twist 4.1-7.7x, comfortably rejected by 3x. */
-    const int64_t twist_limit = 3;
-    if (rmag > twist_limit * cmag || cmag > twist_limit * rmag) return 0;
+    if (rmag * 10 > (int64_t)t->row_over_col_x10 * cmag ||
+        cmag * 10 > (int64_t)t->col_over_row_x10 * rmag) return 0;
 
     /* second-harmonic / spurious rejection: the chosen row & col must
      * clearly dominate the other three in their group. Row0/row1
@@ -140,9 +138,9 @@ static char classify(const int64_t mags[8], int64_t min_mag, int64_t energy, siz
     for (int i = 0; i < 4; i++) {
         if (i != rb) {
             bool row01_pair = (rb == 0 && i == 1) || (rb == 1 && i == 0);
-            if (row01_pair ? (mags[i] * 5 > rmag * 4) : (mags[i] * 4 > rmag)) return 0;
+            if (mags[i] * 100 > (int64_t)(row01_pair ? t->row01_pct : t->row_other_pct) * rmag) return 0;
         }
-        if (i != cb && mags[4 + i] * 4 > cmag) return 0;
+        if (i != cb && mags[4 + i] * 100 > (int64_t)t->col_other_pct * cmag) return 0;
     }
     return result;
 }
@@ -179,6 +177,22 @@ void dtmf_detector_init(dtmf_detector_t *d, uint32_t sample_rate)
     for (int b = 0; b < DTMF_BANKS; b++) d->filled[b] = (size_t)b * d->block_n / DTMF_BANKS;
 
     d->agc_gain_q8 = 256; /* unity -- see dtmf_detector_push() */
+    d->tuning = DTMF_TUNING_DEFAULT;
+}
+
+void dtmf_detector_set_tuning(dtmf_detector_t *d, const dtmf_tuning_t *t)
+{
+    d->tuning = *t;
+}
+
+void dtmf_detector_set_capture(dtmf_detector_t *d, dtmf_window_cb_t window_cb,
+                               dtmf_sample_cb_t sample_cb, void *ctx)
+{
+    d->window_cb = NULL;
+    d->sample_cb = NULL;
+    d->capture_ctx = ctx;
+    d->sample_cb = sample_cb;
+    d->window_cb = window_cb;
 }
 
 /* AGC tuning. Target/gate are raw int16 sample-amplitude units (peak, not
@@ -218,6 +232,7 @@ char dtmf_detector_push(dtmf_detector_t *d, const int16_t *samples, size_t n)
         int32_t raw = d->dec_acc / (int32_t)d->dec;
         d->dec_acc = 0;
         d->dec_n = 0;
+        if (d->sample_cb) d->sample_cb(d->capture_ctx, (int16_t)raw);
 
         int32_t a = raw < 0 ? -raw : raw;
         int32_t in = (raw * d->agc_gain_q8) >> 8;
@@ -238,7 +253,12 @@ char dtmf_detector_push(dtmf_detector_t *d, const int16_t *samples, size_t n)
                 int64_t cross = (((int64_t)d->coeff[i] * q1) >> 14) * q2;
                 mags[i] = q1 * q1 + q2 * q2 - cross;
             }
-            char digit = classify(mags, d->min_mag, d->energy[b], d->block_n);
+            char digit = classify(mags, d->min_mag, d->energy[b], d->block_n, &d->tuning);
+            if (d->window_cb) {
+                const dtmf_window_t w = { .mags = mags, .energy = d->energy[b], .peak = d->peak[b],
+                                          .block_n = d->block_n, .bank = b };
+                d->window_cb(d->capture_ctx, &w);
+            }
 
             /* AGC: re-estimate gain for the *next* window from this one's
              * peak. Gated per the comment above AGC_TARGET_PEAK. */

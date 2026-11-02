@@ -4865,6 +4865,46 @@ static int append_restarts_card(char *buf, size_t cap, int off)
     return off;
 }
 
+/* Where the touch-tone test's "Email the report" goes. Empty hides that link,
+ * leaving the GitHub one. Goes out in public firmware and pages. */
+#define DTMF_REPORT_EMAIL ""
+
+/* The touch-tone test card's script. DT (the strings) is written just before it. */
+static const char DTMF_TEST_JS[] =
+"var dtT=0,dtLast='';"
+"function dtEl(i){return document.getElementById(i);}"
+"function dtShow(i,on){dtEl(i).hidden=!on;}"
+"function dtLine(){return +dtEl('dtline').value;}"
+"function dtPost(b){return fetch('/test/dtmf',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b})"
+".then(function(r){return r.json();}).then(function(d){if(d.ok){if(b=='action=save')dtLast='saved';dtPoll();}"
+"else dtEl('dtmsg').textContent=d.reason=='mem'?DT.mem:DT.busy;return d;});}"
+"function dtStart(){dtShow('dtres',false);dtEl('dtmsg').textContent='';dtLast='';dtPost('action=start&line='+dtLine());}"
+"function dtStd(){dtPost('action=std&line='+dtLine());}"
+"function dtRows(d){var b=dtEl('dttab');b.textContent='';d.keys.forEach(function(k){var r=b.insertRow();"
+"var bad=k.n&&k.std<60;[k.k,!k.n?DT.skipped:(k.h||'-')+(k.s&&k.s!=k.k?' ('+k.s+'?)':''),k.n?k.std+'%':'-',k.n?k.rec+'%':'-']"
+".forEach(function(t,i){var c=r.insertCell();c.textContent=t;if(bad&&i==2)c.style.fontWeight='700';});});}"
+"function dtSummary(d){var s='Touch-tone test report\nFirmware: '+d.fw+'\nResult: '+d.verdict+'\n\nkey heard standard tuned twist\n';"
+"d.keys.forEach(function(k){s+=k.k+' '+(k.h||'-')+' '+(k.n?k.std+'% '+k.rec+'% '+(k.tw/10)+'dB':'not tested')+'\n';});"
+"return s+'\n'+DT.attach+'\n';}"
+"function dtDone(d){dtRows(d);dtShow('dtres',true);dtShow('dtsave',d.can_save);dtShow('dtrep',d.report);"
+"var m=d.verdict=='good'?DT.good:d.verdict=='tuned'?DT.tuned:d.verdict=='partial'?DT.partial:DT.none;"
+"if(!d.can_save&&dtLast=='saved')m=DT.saved;if(d.clipped)m+=' '+DT.clip;if(!d.report)m+=' '+DT.nosave;dtEl('dtmsg').textContent=m;"
+"var s=dtSummary(d),su=encodeURIComponent('Touch-tone test report ('+d.verdict+')'),bo=encodeURIComponent(s);"
+"var a=dtEl('dtmail');dtShow('dtmail',!!DT.email&&d.report);a.href='mailto:'+DT.email+'?subject='+su+'&body='+bo;"
+"var g=dtEl('dtissue');dtShow('dtissue',d.report);g.href='https://github.com/sdylewski/Analog-Redial/issues/new?title='+su+'&body='+bo;}"
+"function dtPoll(){clearTimeout(dtT);fetch('/api/dtmf_test').then(function(r){return r.json();}).then(function(d){"
+"var run=d.state=='running',work=d.state=='analyzing';dtShow('dtkey',run);dtShow('dtskip',run);dtShow('dtstop',run);"
+"dtShow('dtstart',!run&&!work);"
+"var l=dtLine();dtShow('dtstd',!!d.tuned[l]&&!run);"
+"if(run){var k=d.phase=='press'||d.phase=='hold';dtEl('dtphase').textContent=DT[d.phase];dtEl('dtbig').textContent=k?d.key:'';"
+"dtEl('dtstep').textContent=DT.step.replace('%1',d.step).replace('%2',d.total);dtEl('dtmsg').textContent='';dtLast=dtLast||'run';}"
+"else if(work){dtEl('dtmsg').textContent=DT.work;}"
+"else if(d.state=='done'){dtDone(d);}"
+"else if(d.state=='stopped'&&dtLast=='run'){dtEl('dtmsg').textContent=DT.stopped;dtLast='';}"
+"else if(d.tuned[l]&&!dtEl('dtmsg').textContent){dtEl('dtmsg').textContent=DT.std;}"
+"if(run||work)dtT=setTimeout(dtPoll,250);}).catch(function(){dtT=setTimeout(dtPoll,1000);});}"
+"dtEl('dtline').addEventListener('change',dtPoll);dtPoll();</script>";
+
 static int append_hardware_tab(char *buf, size_t cap, int off)
 {
     char hw[64], serial[16];
@@ -6205,6 +6245,75 @@ static int append_diag_tab(char *buf, size_t cap, int off)
             i18n_str("diag.test.ringfreq_saved", "Saved."),
             i18n_str("diag.test.ringfreq_nosave", "Could not save. Try again."));
     }
+
+    /* --- touch-tone test --- */
+    off = appendf(buf, cap, off,
+        "<div class=\"settings-form\">"
+        "<label>%s</label>"
+        "<p class=\"hint\">%s</p>"
+        "<div class=\"toolbar sub\">"
+        "<select id=\"dtline\">%s</select>"
+        "<button type=\"button\" id=\"dtstart\" onclick=\"dtStart()\">%s</button>"
+        "<button type=\"button\" id=\"dtskip\" hidden onclick=\"dtPost('action=skip')\">%s</button>"
+        "<button type=\"button\" id=\"dtstop\" hidden onclick=\"dtPost('action=stop')\">%s</button></div>"
+        "<div id=\"dtkey\" aria-live=\"polite\" hidden style=\"margin:.6em 0\"><span id=\"dtphase\"></span> "
+        "<b id=\"dtbig\" style=\"font-size:2.6em;line-height:1;margin-left:.2em\"></b> "
+        "<span id=\"dtstep\" class=\"hint\"></span></div>"
+        "<p class=\"hint\" id=\"dtmsg\" aria-live=\"polite\"></p>"
+        "<div id=\"dtres\" hidden><table class=\"mini\"><thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>"
+        "<tbody id=\"dttab\"></tbody></table>"
+        "<div class=\"toolbar sub\">"
+        "<button type=\"button\" id=\"dtsave\" hidden onclick=\"dtPost('action=save')\">%s</button>"
+        "<a class=\"button\" id=\"dtrep\" hidden href=\"/dtmf_report.txt\" download>%s</a>"
+        "<a id=\"dtmail\" hidden>%s</a> <a id=\"dtissue\" hidden target=\"_blank\" rel=\"noopener\">%s</a></div></div>"
+        "<div class=\"toolbar sub\"><button type=\"button\" id=\"dtstd\" hidden onclick=\"dtStd()\">%s</button></div></div>",
+        i18n_str("diag.test.dtmf_label", "Touch-tone test"),
+        i18n_str("diag.test.dtmf_hint",
+                 "For a touch-tone phone that dials wrong numbers or doesn't dial at all. Lift the "
+                 "handset on the line you choose and press Start. The dial tone stops and this page "
+                 "shows each key in turn: press and hold it until the next one appears, about a "
+                 "second, and keep quiet in between. Nothing gets dialed. Afterwards it shows how "
+                 "well each key was heard and, if it helps, offers settings for this line to save. "
+                 "It also makes a report you can send in, to help make more phones work without "
+                 "tuning: tone measurements and about 50 ms of audio per key, with no Wi-Fi details."),
+        tl_opts,
+        i18n_str("diag.test.dtmf_start", "Start"),
+        i18n_str("diag.test.dtmf_skip", "Skip this key"),
+        i18n_str("diag.test.dtmf_stop", "Stop"),
+        i18n_str("diag.test.dtmf_col_key", "Key"),
+        i18n_str("diag.test.dtmf_col_heard", "Heard as"),
+        i18n_str("diag.test.dtmf_col_std", "Standard"),
+        i18n_str("diag.test.dtmf_col_rec", "With these settings"),
+        i18n_str("diag.test.dtmf_save", "Save for this line"),
+        i18n_str("diag.test.dtmf_download", "Download report"),
+        i18n_str("diag.test.dtmf_email", "Email the report"),
+        i18n_str("diag.test.dtmf_issue", "Post it on GitHub"),
+        i18n_str("diag.test.dtmf_std", "Back to standard settings"));
+    off = appendf(buf, cap, off,
+        "<script>var DT={noise:'%s',release:'%s',press:'%s',hold:'%s',step:'%s',work:'%s',stopped:'%s',"
+        "good:'%s',tuned:'%s',partial:'%s',none:'%s',clip:'%s',nosave:'%s',saved:'%s',busy:'%s',mem:'%s',"
+        "skipped:'%s',attach:'%s',std:'%s',email:'%s'};",
+        i18n_str("diag.test.dtmf_noise", "Keep quiet for a moment..."),
+        i18n_str("diag.test.dtmf_release", "Let go of the key"),
+        i18n_str("diag.test.dtmf_press", "Press and hold"),
+        i18n_str("diag.test.dtmf_hold", "Keep holding"),
+        i18n_str("diag.test.dtmf_step", "Key %1 of %2"),
+        i18n_str("diag.test.dtmf_work", "Working it out..."),
+        i18n_str("diag.test.dtmf_stopped", "Test stopped. Hanging up or dialing also ends it."),
+        i18n_str("diag.test.dtmf_good", "This phone works on the standard settings, so there is nothing to change."),
+        i18n_str("diag.test.dtmf_tuned", "These settings should get every key working on this phone. Save them, then run the test again or dial a number to check."),
+        i18n_str("diag.test.dtmf_partial", "These settings help, but some keys may still fail. Save them and try, and please send the report."),
+        i18n_str("diag.test.dtmf_none", "No tones were heard. Check the phone is set to tone, not pulse, and try again."),
+        i18n_str("diag.test.dtmf_clip", "Some keys are so loud they clip, which these settings cannot fix."),
+        i18n_str("diag.test.dtmf_nosave", "The report could not be saved: there is too little free storage."),
+        i18n_str("diag.test.dtmf_saved", "Saved for this line."),
+        i18n_str("diag.test.dtmf_busy", "Lift the handset on this line and wait for dial tone, then press Start."),
+        i18n_str("diag.test.dtmf_mem", "The board is short of memory right now. Try again in a moment."),
+        i18n_str("diag.test.dtmf_skipped", "not tested"),
+        i18n_str("diag.test.dtmf_attach", "Please attach the report file you downloaded (dtmf_report.txt)."),
+        i18n_str("diag.test.dtmf_tuned_now", "This line is using tuned settings."),
+        DTMF_REPORT_EMAIL);
+    off = appendf(buf, cap, off, "%s", DTMF_TEST_JS);
 
     /* Harness-only switches, kept to the bottom: these change how the board
      * behaves rather than exercising hardware, and normal users never need
@@ -8287,6 +8396,114 @@ static esp_err_t ring_freq_handler(httpd_req_t *req)
     return redirect_to(req, "/settings?tab=hardware");
 }
 
+/* POST /test/dtmf -- action=start&line=N, skip, stop, save (the finished test's
+ * recommendation, for its line), or std&line=N (back to the standard limits). */
+static esp_err_t test_dtmf_handler(httpd_req_t *req)
+{
+    char body[64], abuf[8] = {0}, lbuf[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "action", abuf, sizeof(abuf));
+    form_field(body, "line", lbuf, sizeof(lbuf));
+    int line = atoi(lbuf);
+    esp_err_t err = ESP_OK;
+    if (!strcmp(abuf, "start")) {
+        err = telephony_dtmf_test_start(line);
+    } else if (!strcmp(abuf, "skip")) {
+        telephony_dtmf_test_skip();
+    } else if (!strcmp(abuf, "stop")) {
+        telephony_dtmf_test_stop();
+    } else if (!strcmp(abuf, "save")) {
+        const dtmf_test_result_t *r = telephony_dtmf_test_result();
+        err = r ? telephony_dtmf_tuning_set(telephony_dtmf_test_status().line, &r->recommended) : ESP_ERR_INVALID_STATE;
+    } else if (!strcmp(abuf, "std")) {
+        err = telephony_dtmf_tuning_set(line, NULL);
+    } else {
+        err = ESP_ERR_INVALID_ARG;
+    }
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_sendstr(req, err == ESP_OK ? "{\"ok\":true}" :
+                              err == ESP_ERR_NO_MEM ? "{\"ok\":false,\"reason\":\"mem\"}" : "{\"ok\":false,\"reason\":\"busy\"}");
+}
+
+static esp_err_t dtmf_test_json_handler(httpd_req_t *req)
+{
+    static const char *const STATES[] = { "idle", "running", "analyzing", "done", "stopped" };
+    static const char *const PHASES[] = { "noise", "release", "press", "hold", "hold" };
+    static const char *const VERDICTS[] = { "good", "tuned", "partial", "none" };
+    telephony_dtmf_test_status_t st = telephony_dtmf_test_status();
+    const dtmf_tuning_t std = DTMF_TUNING_DEFAULT;
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "state", STATES[st.state]);
+    cJSON_AddNumberToObject(root, "line", st.line);
+    cJSON *tuned = cJSON_AddArrayToObject(root, "tuned");
+    for (int l = 0; l < board_hw_config_get().num_lines; l++) {
+        dtmf_tuning_t t = telephony_dtmf_tuning(l);
+        cJSON_AddItemToArray(tuned, cJSON_CreateBool(memcmp(&t, &std, sizeof(t)) != 0));
+    }
+    if (st.state == TEL_DTMF_TEST_RUNNING) {
+        char key[2] = { st.key, 0 };
+        cJSON_AddStringToObject(root, "key", key);
+        cJSON_AddStringToObject(root, "phase", PHASES[st.phase]);
+        cJSON_AddNumberToObject(root, "step", st.idx + 1);
+        cJSON_AddNumberToObject(root, "total", st.total);
+    }
+    const dtmf_test_result_t *r = telephony_dtmf_test_result();
+    if (r) {
+        dtmf_tuning_t cur = telephony_dtmf_tuning(st.line);
+        cJSON_AddStringToObject(root, "verdict", VERDICTS[r->verdict]);
+        cJSON_AddBoolToObject(root, "clipped", r->clipped);
+        cJSON_AddBoolToObject(root, "report", st.report_saved);
+        cJSON_AddBoolToObject(root, "can_save", memcmp(&r->recommended, &cur, sizeof(cur)) != 0);
+        cJSON_AddStringToObject(root, "fw", esp_app_get_description()->version);
+        cJSON *keys = cJSON_AddArrayToObject(root, "keys");
+        for (int k = 0; k < DTMF_TEST_KEYS; k++) {
+            const dtmf_test_key_result_t *kr = &r->keys[k];
+            char s[2] = { kr->key, 0 }, h[2] = { kr->heard, 0 }, se[2] = { kr->sent, 0 };
+            cJSON *o = cJSON_CreateObject();
+            cJSON_AddStringToObject(o, "k", s);
+            cJSON_AddStringToObject(o, "h", h);
+            cJSON_AddStringToObject(o, "s", se);
+            cJSON_AddNumberToObject(o, "n", kr->n);
+            cJSON_AddNumberToObject(o, "std", kr->pass_std);
+            cJSON_AddNumberToObject(o, "rec", kr->pass_rec);
+            cJSON_AddNumberToObject(o, "tw", kr->twist_db10);
+            cJSON_AddItemToArray(keys, o);
+        }
+    }
+    char *text = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    httpd_resp_set_type(req, "application/json");
+    esp_err_t err = httpd_resp_sendstr(req, text ? text : "{}");
+    free(text);
+    return err;
+}
+
+static esp_err_t dtmf_report_handler(httpd_req_t *req)
+{
+    storage_reader_t rd;
+    if (storage_read_open(telephony_dtmf_test_report_name(), &rd) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "no report yet: run the touch-tone test");
+        return ESP_OK;
+    }
+    char *chunk = malloc(1024);
+    if (!chunk) {
+        storage_read_close(&rd);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "no memory");
+        return ESP_OK;
+    }
+    httpd_resp_set_type(req, "text/plain");
+    httpd_resp_set_hdr(req, "Content-Disposition", "attachment; filename=\"dtmf_report.txt\"");
+    size_t n;
+    while ((n = storage_read_chunk(&rd, chunk, 1024)) > 0) {
+        if (httpd_resp_send_chunk(req, chunk, n) != ESP_OK) break;
+    }
+    storage_read_close(&rd);
+    free(chunk);
+    return httpd_resp_send_chunk(req, NULL, 0);
+}
+
 /* POST /test/ring_freq -- line=N&hz=H (hz 0 steps through them all), or stop=1. */
 static esp_err_t test_ring_freq_handler(httpd_req_t *req)
 {
@@ -8369,12 +8586,13 @@ static esp_err_t test_loopback_handler(httpd_req_t *req)
  * this actually drives real hardware for real time. */
 static esp_err_t test_tone_handler(httpd_req_t *req)
 {
-    char body[64], line_s[8] = {0}, hz_s[16] = {0}, ms_s[16] = {0};
+    char body[64], line_s[8] = {0}, hz_s[16] = {0}, hz2_s[16] = {0}, ms_s[16] = {0};
     if (!read_form_body(req, body, sizeof(body))) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
     }
     form_field(body, "line", line_s, sizeof(line_s));
     form_field(body, "hz", hz_s, sizeof(hz_s));
+    form_field(body, "hz2", hz2_s, sizeof(hz2_s));
     form_field(body, "ms", ms_s, sizeof(ms_s));
 
     int line = line_s[0] ? (int)strtol(line_s, NULL, 10) : 0;
@@ -8386,7 +8604,7 @@ static esp_err_t test_tone_handler(httpd_req_t *req)
     if (ms < 50) ms = 50;
     if (ms > 5000) ms = 5000;
 
-    audio_tx_burst(line, hz, 0.0f, 0.6f, (uint32_t)ms);
+    audio_tx_burst(line, hz, hz2_s[0] ? strtof(hz2_s, NULL) : 0.0f, 0.6f, (uint32_t)ms);
     return redirect_to(req, "/settings?tab=diag");
 }
 
@@ -11319,6 +11537,9 @@ esp_err_t webui_start(void)
         { .uri = "/test/sd",                .method = HTTP_POST, .handler = test_sd_handler },
         { .uri = "/test/ring",              .method = HTTP_POST, .handler = test_ring_handler },
         { .uri = "/test/ring_freq",         .method = HTTP_POST, .handler = test_ring_freq_handler },
+        { .uri = "/test/dtmf",              .method = HTTP_POST, .handler = test_dtmf_handler },
+        { .uri = "/api/dtmf_test",          .method = HTTP_GET,  .handler = dtmf_test_json_handler },
+        { .uri = "/dtmf_report.txt",        .method = HTTP_GET,  .handler = dtmf_report_handler },
         { .uri = "/ring_freq",              .method = HTTP_POST, .handler = ring_freq_handler },
         { .uri = "/api/ring_test",          .method = HTTP_GET,  .handler = ring_test_json_handler },
         { .uri = "/test/progress",          .method = HTTP_POST, .handler = test_progress_handler },

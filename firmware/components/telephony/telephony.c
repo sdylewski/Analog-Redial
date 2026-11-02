@@ -4,6 +4,8 @@
 #include "board_pins.h"   /* BOARD_NUM_LINES */
 #include "audio.h"
 #include "dtmf.h"
+#include "dtmf_test.h"
+#include "esp_app_desc.h"
 #include "tones.h"
 #include "voip.h"
 #include "homecall.h"
@@ -262,6 +264,11 @@ static void ag_cb(const ag1170_event_t *ev, void *ctx)
     xQueueSend(s_q, &e, 0);
 }
 
+/* The line under the touch-tone test (telephony_dtmf_test_*), -1 = none. Its
+ * digits go to the test, not the dial plan. */
+static volatile int s_dt_line = -1;
+static dtmf_test_capture_t *volatile s_dt_cap;
+
 static void dtmf_tap(int line, const int16_t *mono, size_t n, void *ctx)
 {
     /* On-hook, the only thing on this input is SLIC/line noise -- which the
@@ -281,6 +288,10 @@ static void dtmf_tap(int line, const int16_t *mono, size_t n, void *ctx)
          * of dial state, so this is a free non-invasive tap point. */
         s_line[line].last_dtmf_digit = d;
         s_line[line].last_dtmf_us = esp_timer_get_time();
+    }
+    if (line == s_dt_line) {
+        if (d && s_dt_cap) dtmf_test_on_digit(s_dt_cap, d);
+        return;
     }
     if (d >= '0' && d <= '9') {
         in_evt_t e = { .line = line, .type = IN_DIGIT, .digit = d };
@@ -2193,6 +2204,173 @@ int telephony_ring_test_freqs(const uint8_t **list)
     return RING_TEST_STEPS;
 }
 
+/* ---- touch-tone test (telephony_dtmf_test_*) ---- */
+#define DT_TIMEOUT_US  (6 * 60 * 1000000LL) /* in case the page is closed with the handset up */
+#define DT_REPORT_NAME "dtmf_report.txt"
+
+static volatile telephony_dtmf_test_state_t s_dt_state = TEL_DTMF_TEST_IDLE;
+static volatile bool s_dt_stop;
+static volatile bool s_dt_report_saved;
+static int s_dt_result_line;
+static dtmf_test_result_t s_dt_result;
+
+typedef struct {
+    size_t n;
+    storage_writer_t *w;
+    bool failed;
+} dt_out_t;
+
+static void dt_out(void *ctx, const char *text, size_t len)
+{
+    dt_out_t *o = ctx;
+    o->n += len;
+    if (o->w && !o->failed && storage_write_chunk(o->w, text, len) != ESP_OK) o->failed = true;
+}
+
+static bool dt_save_report(const dtmf_test_capture_t *cap)
+{
+    char hw[64], header[192];
+    board_hardware_str(hw, sizeof(hw));
+    snprintf(header, sizeof(header), "firmware: %s\nhardware: %s\nline: %d\n",
+             esp_app_get_description()->version, hw, s_dt_result_line);
+    dt_out_t count = { 0 };
+    dtmf_test_report(cap, &s_dt_result, header, dt_out, &count);
+
+    storage_delete(DT_REPORT_NAME);
+    /* A write that doesn't fit evicts the oldest files: never a recording for this. */
+    size_t cap_b = storage_cap_bytes(), used = storage_used_bytes();
+    if (cap_b < used || cap_b - used < count.n + 16384) {
+        ESP_LOGW(TAG, "touch-tone test: no room for the %u byte report", (unsigned)count.n);
+        return false;
+    }
+    storage_writer_t w;
+    if (storage_write_begin(DT_REPORT_NAME, count.n, &w) != ESP_OK) return false;
+    dt_out_t o = { .w = &w };
+    dtmf_test_report(cap, &s_dt_result, header, dt_out, &o);
+    if (o.failed) { storage_write_abort(&w); return false; }
+    return storage_write_end(&w) == ESP_OK;
+}
+
+static void dt_task(void *arg)
+{
+    int line = (int)(intptr_t)arg;
+    dtmf_test_capture_t *cap = s_dt_cap;
+    int64_t deadline = esp_timer_get_time() + DT_TIMEOUT_US;
+    while (cap->phase != DTMF_TEST_FINISHED && !s_dt_stop &&
+           s_line[line].state == TEL_DIALTONE && esp_timer_get_time() < deadline) {
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+    bool finished = cap->phase == DTMF_TEST_FINISHED;
+
+    dtmf_detector_set_capture(&s_line[line].det, NULL, NULL, NULL);
+    s_dt_cap = NULL;
+    s_dt_line = -1;
+    vTaskDelay(pdMS_TO_TICKS(40)); /* lets a frame in the audio task finish with the capture */
+    telephony_resume_dialtone(line);
+
+    if (finished) {
+        s_dt_state = TEL_DTMF_TEST_ANALYZING;
+        s_dt_result_line = line;
+        dtmf_tuning_t cur = telephony_dtmf_tuning(line);
+        dtmf_test_analyze(cap, &cur, &s_dt_result);
+        s_dt_report_saved = dt_save_report(cap);
+        ESP_LOGI(TAG, "touch-tone test line %d: verdict %d, %d keys tested, %d still poor, report %s",
+                 line, s_dt_result.verdict, s_dt_result.tested, s_dt_result.poor_rec,
+                 s_dt_report_saved ? "saved" : "not saved");
+    }
+    free(cap);
+    s_dt_state = finished ? TEL_DTMF_TEST_DONE : TEL_DTMF_TEST_STOPPED;
+    vTaskDelete(NULL);
+}
+
+esp_err_t telephony_dtmf_test_start(int line)
+{
+    if (line < 0 || line >= NLINES_ACTIVE || line >= board_hw_config_get().num_lines)
+        return ESP_ERR_INVALID_ARG;
+    if (s_dt_state == TEL_DTMF_TEST_RUNNING || s_dt_state == TEL_DTMF_TEST_ANALYZING)
+        return ESP_ERR_INVALID_STATE;
+    if (s_line[line].state != TEL_DIALTONE) return ESP_ERR_INVALID_STATE;
+    dtmf_test_capture_t *cap = malloc(sizeof(*cap));
+    if (!cap) return ESP_ERR_NO_MEM;
+    dtmf_test_init(cap);
+    s_dt_stop = false;
+    s_dt_report_saved = false;
+    /* The dial tone would drown the keys, and neither timer applies now. */
+    s_line[line].offhook_alert_at_us = 0;
+    s_line[line].intercom_at_us = 0;
+    audio_tx_silence(line);
+    s_dt_cap = cap;
+    s_dt_line = line;
+    s_dt_state = TEL_DTMF_TEST_RUNNING;
+    dtmf_detector_set_capture(&s_line[line].det, dtmf_test_on_window, dtmf_test_on_sample, cap);
+    if (xTaskCreate(dt_task, "dtmf_test", 5120, (void *)(intptr_t)line, 3, NULL) != pdPASS) {
+        dtmf_detector_set_capture(&s_line[line].det, NULL, NULL, NULL);
+        s_dt_cap = NULL;
+        s_dt_line = -1;
+        s_dt_state = TEL_DTMF_TEST_IDLE;
+        vTaskDelay(pdMS_TO_TICKS(40));
+        telephony_resume_dialtone(line);
+        free(cap);
+        return ESP_ERR_NO_MEM;
+    }
+    ESP_LOGI(TAG, "touch-tone test line %d started", line);
+    return ESP_OK;
+}
+
+void telephony_dtmf_test_skip(void)
+{
+    dtmf_test_capture_t *cap = s_dt_cap;
+    if (cap) cap->skip = true;
+}
+
+void telephony_dtmf_test_stop(void)
+{
+    if (s_dt_state == TEL_DTMF_TEST_RUNNING) s_dt_stop = true;
+}
+
+telephony_dtmf_test_status_t telephony_dtmf_test_status(void)
+{
+    telephony_dtmf_test_status_t st = { .state = s_dt_state, .total = DTMF_TEST_KEYS,
+                                        .report_saved = s_dt_report_saved };
+    dtmf_test_capture_t *cap = s_dt_cap;
+    if (cap) {
+        st.line = s_dt_line;
+        st.idx = cap->idx;
+        st.key = dtmf_test_key(st.idx);
+        st.phase = cap->phase;
+    } else {
+        st.line = s_dt_result_line;
+    }
+    return st;
+}
+
+const dtmf_test_result_t *telephony_dtmf_test_result(void)
+{
+    return s_dt_state == TEL_DTMF_TEST_DONE ? &s_dt_result : NULL;
+}
+
+const char *telephony_dtmf_test_report_name(void)
+{
+    return DT_REPORT_NAME;
+}
+
+dtmf_tuning_t telephony_dtmf_tuning(int line)
+{
+    if (line < 0 || line >= NLINES_ACTIVE) return DTMF_TUNING_DEFAULT;
+    return s_line[line].det.tuning;
+}
+
+esp_err_t telephony_dtmf_tuning_set(int line, const dtmf_tuning_t *t)
+{
+    if (line < 0 || line >= NLINES_ACTIVE) return ESP_ERR_INVALID_ARG;
+    const dtmf_tuning_t std = DTMF_TUNING_DEFAULT;
+    esp_err_t err = t ? board_dtmf_tuning_set(line, t, sizeof(*t)) : board_dtmf_tuning_set(line, NULL, 0);
+    if (err != ESP_OK) return err;
+    dtmf_detector_set_tuning(&s_line[line].det, t ? t : &std);
+    ESP_LOGI(TAG, "line %d: touch-tone limits %s", line, t ? "tuned" : "back to standard");
+    return ESP_OK;
+}
+
 /* ---- message waiting ---- */
 #define MSG_NVS_NS  "telmsg"
 static volatile int s_new_msgs = -1;   /* -1 = not loaded yet */
@@ -2261,6 +2439,11 @@ esp_err_t telephony_start(void)
     /* DTMF detector + RX tap only for lines that actually exist. */
     for (int line = 0; line < NLINES_ACTIVE; line++) {
         dtmf_detector_init(&s_line[line].det, audio_sample_rate());
+        dtmf_tuning_t tuning;
+        if (board_dtmf_tuning_get(line, &tuning, sizeof(tuning))) {
+            dtmf_detector_set_tuning(&s_line[line].det, &tuning);
+            ESP_LOGI(TAG, "line %d: tuned touch-tone limits", line);
+        }
         audio_set_rx_tap(line, dtmf_tap, NULL);
     }
 

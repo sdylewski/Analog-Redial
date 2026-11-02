@@ -86,10 +86,36 @@ line later will ring weakly until you set it back to 20 Hz.
 
 - **Digits come out wrong on a rotary phone:** run `pulsemon` on the console and dial.
   It shows each pulse and its timing, which shows up a dirty or slow dial.
-- **Touch-tone digits aren't recognized:** run `tonemon` and press some keys to see
-  which digits the board hears. If it misses them, try another phone.
+- **Touch-tone digits aren't recognized:** run the
+  [touch-tone test](#touch-tone-test).
 - **A code does something unexpected:** look it up in Settings → Dial Codes. The
   Status page also lists what happened recently, including misdials.
+
+### Touch-tone test
+
+Old phones can send tones that are further out of spec than the board accepts: one
+tone much louder than the other, or a stray tone alongside the real ones. Check first
+that the phone is set to tone, not pulse.
+
+1. Go to **Settings → Diagnostics → Touch-tone test** and choose the line. Lift the
+   handset and press **Start**. The dial tone stops and nothing gets dialed.
+2. The page shows each key in turn. Press and hold it until the next one appears,
+   about a second, and keep quiet in between. If a key doesn't work, use **Skip this key**.
+3. Read the result. It shows what the board heard for each key, and how often the tone
+   was accepted on the standard settings and on the settings it suggests.
+4. If it offers them, press **Save for this line**, then run the test again or dial a
+   number to check. **Back to standard settings** undoes this.
+
+Looser settings make it a little likelier that speech or music is taken for a key, so
+the test only suggests them when a key needs them, and they only apply to that line.
+They belong to the line, not the phone, so use **Back to standard settings** if you
+plug in a different phone.
+
+**Please send in your report.** The goal is for more phones to work with no tuning at
+all, and every report helps with that. **Download report** saves `dtmf_report.txt`,
+which has the tone measurements and about 50 ms of audio per key, and no Wi-Fi details.
+Then attach it to a [GitHub issue](https://github.com/sdylewski/Analog-Redial/issues/new),
+which the test's own link opens with its results filled in.
 
 ## Calls between boards
 

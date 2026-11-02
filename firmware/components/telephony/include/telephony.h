@@ -10,6 +10,7 @@
  */
 #pragma once
 
+#include "dtmf_test.h"
 #include "esp_err.h"
 #include <stdint.h>
 #include <time.h>
@@ -150,6 +151,40 @@ typedef struct {
 } telephony_ring_test_status_t;
 telephony_ring_test_status_t telephony_ring_test_status(void);
 int telephony_ring_test_freqs(const uint8_t **list);
+
+/* Touch-tone test: one at a time, on a line sitting on dial tone. Silences the
+ * dial tone and keeps that line's digits from the dial plan while it guides the
+ * user through each key (see dtmf_test.h). Hanging up or dialing ends it. When
+ * it finishes it analyzes the tones and writes a report file. */
+typedef enum {
+    TEL_DTMF_TEST_IDLE = 0,
+    TEL_DTMF_TEST_RUNNING,
+    TEL_DTMF_TEST_ANALYZING,
+    TEL_DTMF_TEST_DONE,
+    TEL_DTMF_TEST_STOPPED,
+} telephony_dtmf_test_state_t;
+
+typedef struct {
+    telephony_dtmf_test_state_t state;
+    int  line;
+    char key;
+    int  idx, total;
+    dtmf_test_phase_t phase;
+    bool report_saved;
+} telephony_dtmf_test_status_t;
+
+/* ESP_ERR_INVALID_STATE if the line isn't on dial tone or a test is running. */
+esp_err_t telephony_dtmf_test_start(int line);
+void telephony_dtmf_test_skip(void);
+void telephony_dtmf_test_stop(void);
+telephony_dtmf_test_status_t telephony_dtmf_test_status(void);
+/* NULL until a test has finished. */
+const dtmf_test_result_t *telephony_dtmf_test_result(void);
+const char *telephony_dtmf_test_report_name(void);
+
+/* The line's touch-tone limits. _set saves and applies; NULL goes back to the standard ones. */
+dtmf_tuning_t telephony_dtmf_tuning(int line);
+esp_err_t telephony_dtmf_tuning_set(int line, const dtmf_tuning_t *t);
 
 /* Puts dial tone back on a line that is still sitting on it, after something
  * (the echo measurement) silenced it. Does nothing in any other state. */

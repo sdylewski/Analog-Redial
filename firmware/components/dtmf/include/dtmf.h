@@ -31,6 +31,31 @@ bool dtmf_make_osc(tone_osc_t *o, uint32_t sample_rate, char key, float amp);
  * the detector follow a fast tone dialer (tones and pauses of 40-50 ms). */
 #define DTMF_BANKS 4
 
+/* The limits classify() applies, which a phone that sends out-of-spec tones can
+ * have loosened (the touch-tone test, dtmf_test.h). All compare window powers. */
+typedef struct {
+    uint8_t col_over_row_x10; /* how far the column tone may beat the row tone, x10 */
+    uint8_t row_over_col_x10; /* ...and the other way round */
+    uint8_t row_other_pct;    /* another row bin, as % of the strongest */
+    uint8_t row01_pct;        /* the same, between 697 and 770 Hz: see classify() */
+    uint8_t col_other_pct;    /* another column bin, as % of the strongest */
+    uint8_t conc_pct;         /* share of the window's energy in the two bins */
+} dtmf_tuning_t;
+
+#define DTMF_TUNING_DEFAULT ((dtmf_tuning_t){ .col_over_row_x10 = 30, .row_over_col_x10 = 30, \
+    .row_other_pct = 25, .row01_pct = 80, .col_other_pct = 25, .conc_pct = 50 })
+
+/* What the touch-tone test sees of each finished window. */
+typedef struct {
+    const int64_t *mags;  /* 8 bin powers: rows, then columns */
+    int64_t energy;
+    int32_t peak;         /* before the AGC */
+    size_t  block_n;
+    int     bank;
+} dtmf_window_t;
+typedef void (*dtmf_window_cb_t)(void *ctx, const dtmf_window_t *w);
+typedef void (*dtmf_sample_cb_t)(void *ctx, int16_t raw);
+
 typedef struct {
     uint32_t sample_rate;
     uint32_t dec;            /* input samples averaged into one analysis sample (6 at 48 kHz -> 8 kHz) */
@@ -59,6 +84,10 @@ typedef struct {
      * amplitude-based thresholds works across different phones' natural
      * DTMF loudness instead of needing per-phone tuning. */
     int32_t  agc_gain_q8;    /* current gain, Q8 (256 = 1.0x) */
+    dtmf_tuning_t tuning;
+    dtmf_window_cb_t window_cb;
+    dtmf_sample_cb_t sample_cb;
+    void    *capture_ctx;
 } dtmf_detector_t;
 
 void dtmf_detector_init(dtmf_detector_t *d, uint32_t sample_rate);
@@ -68,6 +97,15 @@ void dtmf_detector_init(dtmf_detector_t *d, uint32_t sample_rate);
  * (0 otherwise). Call repeatedly with consecutive audio.
  */
 char dtmf_detector_push(dtmf_detector_t *d, const int16_t *samples, size_t n);
+
+/* Starts on DTMF_TUNING_DEFAULT. Safe to call while audio is running. */
+void dtmf_detector_set_tuning(dtmf_detector_t *d, const dtmf_tuning_t *t);
+
+/* Taps the detector's windows and its 8 kHz samples from inside
+ * dtmf_detector_push(), for the touch-tone test. NULL callbacks stop it; the
+ * last call may still be running for one audio frame after that. */
+void dtmf_detector_set_capture(dtmf_detector_t *d, dtmf_window_cb_t window_cb,
+                               dtmf_sample_cb_t sample_cb, void *ctx);
 
 #ifdef __cplusplus
 }
