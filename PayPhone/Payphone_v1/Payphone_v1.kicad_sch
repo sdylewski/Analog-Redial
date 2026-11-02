@@ -2168,171 +2168,6 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Device:Polyfuse_Small"
-			(pin_numbers
-				(hide yes)
-			)
-			(pin_names
-				(offset 0)
-			)
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "F"
-				(at -1.905 0 90)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" "Polyfuse_Small"
-				(at 1.905 0 90)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" ""
-				(at 1.27 -5.08 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left)
-				)
-			)
-			(property "Datasheet" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" "Resettable fuse, polymeric positive temperature coefficient, small symbol"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_keywords" "resettable fuse PTC PPTC polyfuse polyswitch"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_fp_filters" "*polyfuse* *PTC*"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "Polyfuse_Small_0_1"
-				(polyline
-					(pts
-						(xy -1.016 1.27) (xy -1.016 0.762) (xy 1.016 -0.762) (xy 1.016 -1.27)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -0.508 1.27)
-					(end 0.508 -1.27)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 2.54) (xy 0 -2.54)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-			)
-			(symbol "Polyfuse_Small_1_1"
-				(pin passive line
-					(at 0 2.54 270)
-					(length 0.635)
-					(name ""
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 0 -2.54 90)
-					(length 0.635)
-					(name ""
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
 		(symbol "Device:L"
 			(pin_numbers
 				(hide yes)
@@ -2695,6 +2530,171 @@
 					(at 3.81 0 180)
 					(length 2.54)
 					(name "A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "Device:Polyfuse_Small"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "F"
+				(at -1.905 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "Polyfuse_Small"
+				(at 1.905 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 1.27 -5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Resettable fuse, polymeric positive temperature coefficient, small symbol"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "resettable fuse PTC PPTC polyfuse polyswitch"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "*polyfuse* *PTC*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "Polyfuse_Small_0_1"
+				(polyline
+					(pts
+						(xy -1.016 1.27) (xy -1.016 0.762) (xy 1.016 -0.762) (xy 1.016 -1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -0.508 1.27)
+					(end 0.508 -1.27)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0 -2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "Polyfuse_Small_1_1"
+				(pin passive line
+					(at 0 2.54 270)
+					(length 0.635)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -2.54 90)
+					(length 0.635)
+					(name ""
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -7039,15 +7039,26 @@
 		)
 		(uuid "365fd90c-1520-4399-b482-765ca5f12937")
 	)
-	(text "Short if not using ADC monitor"
+	(text "Short R26 if not using ADC monitor"
 		(exclude_from_sim no)
-		(at 273.558 124.46 90)
+		(at 274.32 113.538 90)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 		)
 		(uuid "388722b4-c1b8-4393-830c-a1b275532949")
+	)
+	(text "Cable entry. F1 protects the main board's 5 V (hand-solder). R40/R41 at the connectors. R42, R43, J5 not fitted."
+		(exclude_from_sim no)
+		(at 16.51 13.97 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "38909175-b0d6-4a23-812e-ab9b202bee3f")
 	)
 	(text "Ct"
 		(exclude_from_sim no)
@@ -7243,6 +7254,12 @@
 		(uuid "1843da48-14aa-4190-9c8b-12ed8187c191")
 	)
 	(junction
+		(at 110.49 43.18)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "20233e3c-15a1-47c6-b7fb-ba91b0b24733")
+	)
+	(junction
 		(at 116.84 97.79)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -7315,6 +7332,12 @@
 		(uuid "4ed117bc-e6e6-4e2a-8748-cabc7ed6b2b0")
 	)
 	(junction
+		(at 30.48 63.5)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "4f8491c1-534e-4139-90b1-b2934b08894f")
+	)
+	(junction
 		(at 223.52 27.94)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -7351,6 +7374,12 @@
 		(uuid "619eb2b3-9d2c-4936-8377-9f19eaf0d8f9")
 	)
 	(junction
+		(at 41.91 50.8)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "6357909b-fb69-498c-aa7a-ad813e098177")
+	)
+	(junction
 		(at 52.07 146.05)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -7363,16 +7392,22 @@
 		(uuid "7f05b2f0-5ce1-41b9-afa9-d7a50647f89a")
 	)
 	(junction
+		(at 44.45 58.42)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "853d388a-8dec-4b46-aac8-134058845cb8")
+	)
+	(junction
 		(at 161.29 146.05)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "877a28e9-6e59-44fc-a317-bdd83b0d3803")
 	)
 	(junction
-		(at 110.49 43.18)
+		(at 45.72 168.91)
 		(diameter 0)
 		(color 0 0 0 0)
-		(uuid "89926425-57f3-43d5-8b2b-e684f09f0bb7")
+		(uuid "88187854-d02c-4ab2-b462-f483eb907175")
 	)
 	(junction
 		(at 128.27 146.05)
@@ -7441,6 +7476,12 @@
 		(uuid "9c3da138-9acc-433c-b9c0-61c49623489a")
 	)
 	(junction
+		(at 30.48 58.42)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "9e2cbbb9-f46c-4eef-bd61-c4994f095b1d")
+	)
+	(junction
 		(at 135.89 97.79)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -7463,6 +7504,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "a9997762-c272-420a-9a74-c00e67ea1f1c")
+	)
+	(junction
+		(at 40.64 68.58)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "aaee3c8b-b5bc-4fbf-be6e-e7d48b04db67")
 	)
 	(junction
 		(at 44.45 146.05)
@@ -7495,12 +7542,6 @@
 		(uuid "c5e6937b-cf1b-43ff-91a6-ce1cd73a7041")
 	)
 	(junction
-		(at 46.99 66.04)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "ccf24d0c-78b1-4363-bccc-ad68be489f06")
-	)
-	(junction
 		(at 107.95 113.03)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -7525,6 +7566,18 @@
 		(uuid "da6abdb6-f126-4961-bad8-3e3f85329c34")
 	)
 	(junction
+		(at 30.48 53.34)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "dec3b60e-ca44-4b24-9d83-bc9b2f8f60f7")
+	)
+	(junction
+		(at 30.48 55.88)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "decafe38-53e7-4f64-bcb9-5dc4ed95e357")
+	)
+	(junction
 		(at 153.67 146.05)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -7543,10 +7596,10 @@
 		(uuid "e59ea084-180c-4930-b76d-c2436bc2ae91")
 	)
 	(junction
-		(at 46.99 55.88)
+		(at 30.48 60.96)
 		(diameter 0)
 		(color 0 0 0 0)
-		(uuid "e70b2641-13ba-4642-bfb1-ffbe6a8d80d5")
+		(uuid "e77de22e-ae84-49a1-816d-29af0e27c204")
 	)
 	(junction
 		(at 219.71 27.94)
@@ -7567,10 +7620,10 @@
 		(uuid "f0f29878-d535-4b16-b41a-ac2c89f61945")
 	)
 	(junction
-		(at 46.99 63.5)
+		(at 60.96 180.34)
 		(diameter 0)
 		(color 0 0 0 0)
-		(uuid "f147b049-4f7e-4ceb-aee3-fcbb9454beb5")
+		(uuid "f2160ebf-0319-4e6e-8ecd-ae04e0201e1b")
 	)
 	(junction
 		(at 143.51 128.27)
@@ -7746,7 +7799,7 @@
 	)
 	(wire
 		(pts
-			(xy 35.56 63.5) (xy 46.99 63.5)
+			(xy 22.86 60.96) (xy 30.48 60.96)
 		)
 		(stroke
 			(width 0)
@@ -7816,6 +7869,16 @@
 	)
 	(wire
 		(pts
+			(xy 134.62 40.64) (xy 142.24 40.64)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "14b49663-5850-4a72-8959-ea4f85b8e7df")
+	)
+	(wire
+		(pts
 			(xy 29.21 97.79) (xy 29.21 119.38)
 		)
 		(stroke
@@ -7826,7 +7889,7 @@
 	)
 	(wire
 		(pts
-			(xy 35.56 66.04) (xy 46.99 66.04)
+			(xy 22.86 63.5) (xy 30.48 63.5)
 		)
 		(stroke
 			(width 0)
@@ -7836,7 +7899,7 @@
 	)
 	(wire
 		(pts
-			(xy 35.56 58.42) (xy 46.99 58.42)
+			(xy 22.86 55.88) (xy 30.48 55.88)
 		)
 		(stroke
 			(width 0)
@@ -7896,16 +7959,6 @@
 	)
 	(wire
 		(pts
-			(xy 110.49 43.18) (xy 142.24 43.18)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "210df242-7704-48f9-a29d-35c723f65a4f")
-	)
-	(wire
-		(pts
 			(xy 62.23 120.65) (xy 72.39 120.65)
 		)
 		(stroke
@@ -7956,6 +8009,16 @@
 	)
 	(wire
 		(pts
+			(xy 30.48 58.42) (xy 44.45 58.42)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "28a4c6c5-22d1-4ec0-8eed-4ae86a99f312")
+	)
+	(wire
+		(pts
 			(xy 71.12 60.96) (xy 66.04 60.96)
 		)
 		(stroke
@@ -7963,6 +8026,26 @@
 			(type default)
 		)
 		(uuid "29dfc147-39ba-4cac-811e-b64dff991b11")
+	)
+	(wire
+		(pts
+			(xy 40.64 50.8) (xy 40.64 55.88)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2d30456d-433b-43aa-af6d-0d33519ad382")
+	)
+	(wire
+		(pts
+			(xy 110.49 43.18) (xy 142.24 43.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2dc6e90e-605a-4782-bd17-f0f532e92a02")
 	)
 	(wire
 		(pts
@@ -8023,16 +8106,6 @@
 			(type default)
 		)
 		(uuid "380b6445-1748-458b-9f43-f2920609d095")
-	)
-	(wire
-		(pts
-			(xy 139.7 48.26) (xy 139.7 45.72)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3d88ecdc-1081-48db-99ef-df420a029ed4")
 	)
 	(wire
 		(pts
@@ -8186,7 +8259,7 @@
 	)
 	(wire
 		(pts
-			(xy 35.56 60.96) (xy 46.99 60.96)
+			(xy 22.86 58.42) (xy 30.48 58.42)
 		)
 		(stroke
 			(width 0)
@@ -8213,6 +8286,16 @@
 			(type default)
 		)
 		(uuid "53da9ee0-5ad9-4594-ba31-bb738d48521b")
+	)
+	(wire
+		(pts
+			(xy 52.07 58.42) (xy 60.96 58.42)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "55b8e8b7-609e-4688-89f9-0566f977ed9d")
 	)
 	(wire
 		(pts
@@ -8293,6 +8376,16 @@
 			(type default)
 		)
 		(uuid "5d9b927a-cf0e-45d0-ad25-004cfe3ec3bd")
+	)
+	(wire
+		(pts
+			(xy 33.02 68.58) (xy 33.02 63.5)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5f01cd53-513d-4179-924f-81ee08e46f11")
 	)
 	(wire
 		(pts
@@ -8586,16 +8679,6 @@
 	)
 	(wire
 		(pts
-			(xy 139.7 45.72) (xy 142.24 45.72)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "81fede65-6cf1-41fa-a33a-a3541e1b1140")
-	)
-	(wire
-		(pts
 			(xy 78.74 31.75) (xy 78.74 33.02)
 		)
 		(stroke
@@ -8643,6 +8726,16 @@
 			(type default)
 		)
 		(uuid "881d3c2b-430b-4cc8-b9ae-5c23e047ddab")
+	)
+	(wire
+		(pts
+			(xy 41.91 50.8) (xy 46.99 50.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "88990757-fc9d-429e-a74c-75f26aeff686")
 	)
 	(wire
 		(pts
@@ -8713,6 +8806,16 @@
 			(type default)
 		)
 		(uuid "90722ca2-1048-4771-97a3-0944fd955bf4")
+	)
+	(wire
+		(pts
+			(xy 137.16 45.72) (xy 142.24 45.72)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "94eda8a9-b529-4ad8-8840-64d172d50e61")
 	)
 	(wire
 		(pts
@@ -8806,6 +8909,26 @@
 	)
 	(wire
 		(pts
+			(xy 38.1 68.58) (xy 40.64 68.58)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9c9fd1fc-183b-47c6-9b33-2e490684a127")
+	)
+	(wire
+		(pts
+			(xy 52.07 50.8) (xy 68.58 50.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9e143f02-2318-4a1c-9e73-ccef650a90ae")
+	)
+	(wire
+		(pts
 			(xy 219.71 39.37) (xy 223.52 39.37)
 		)
 		(stroke
@@ -8896,6 +9019,16 @@
 	)
 	(wire
 		(pts
+			(xy 137.16 53.34) (xy 137.16 45.72)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a83b6b99-382b-4d71-b88a-f6afc99d129b")
+	)
+	(wire
+		(pts
 			(xy 116.84 118.11) (xy 116.84 120.65)
 		)
 		(stroke
@@ -8903,6 +9036,16 @@
 			(type default)
 		)
 		(uuid "a843036f-b9df-41ed-8027-24d5b0f9bbc7")
+	)
+	(wire
+		(pts
+			(xy 40.64 55.88) (xy 30.48 55.88)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a864b36c-6c65-475c-b8d8-bdd55f664c5d")
 	)
 	(wire
 		(pts
@@ -9006,6 +9149,16 @@
 	)
 	(wire
 		(pts
+			(xy 44.45 58.42) (xy 46.99 58.42)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b5608f1b-5919-4155-b06a-6ed6dba59e85")
+	)
+	(wire
+		(pts
 			(xy 66.04 97.79) (xy 77.47 97.79)
 		)
 		(stroke
@@ -9016,7 +9169,7 @@
 	)
 	(wire
 		(pts
-			(xy 35.56 55.88) (xy 46.99 55.88)
+			(xy 22.86 53.34) (xy 30.48 53.34)
 		)
 		(stroke
 			(width 0)
@@ -9166,6 +9319,16 @@
 	)
 	(wire
 		(pts
+			(xy 60.96 58.42) (xy 60.96 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c518b7ef-7008-4fe2-aaef-1b33b4996f90")
+	)
+	(wire
+		(pts
 			(xy 81.28 134.62) (xy 81.28 146.05)
 		)
 		(stroke
@@ -9173,6 +9336,16 @@
 			(type default)
 		)
 		(uuid "c627db5f-bb84-464d-bd87-7aa3f6c92921")
+	)
+	(wire
+		(pts
+			(xy 134.62 26.67) (xy 134.62 40.64)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c6b722db-610e-47e4-b49a-c98e10dad634")
 	)
 	(wire
 		(pts
@@ -9213,16 +9386,6 @@
 			(type default)
 		)
 		(uuid "cba190ee-3d57-4930-9ca2-b02f2f6ba281")
-	)
-	(wire
-		(pts
-			(xy 137.16 40.64) (xy 142.24 40.64)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "cbeecdd3-2649-46a2-995c-abba5836afd6")
 	)
 	(wire
 		(pts
@@ -9316,6 +9479,16 @@
 	)
 	(wire
 		(pts
+			(xy 44.45 63.5) (xy 44.45 62.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d33ee0ec-5577-48a7-bf90-59ace114aca3")
+	)
+	(wire
+		(pts
 			(xy 246.38 119.38) (xy 231.14 119.38)
 		)
 		(stroke
@@ -9346,23 +9519,13 @@
 	)
 	(wire
 		(pts
-			(xy 137.16 40.64) (xy 137.16 53.34)
+			(xy 40.64 50.8) (xy 41.91 50.8)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "dc275eca-33f7-4c97-9483-efece6c44118")
-	)
-	(wire
-		(pts
-			(xy 134.62 26.67) (xy 134.62 48.26)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "dc6f77e1-fe21-4bd6-bfde-1151fff36521")
+		(uuid "ded896a3-c8fa-466c-9685-a3e0dd273e93")
 	)
 	(wire
 		(pts
@@ -9426,16 +9589,6 @@
 	)
 	(wire
 		(pts
-			(xy 134.62 48.26) (xy 139.7 48.26)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e390f1b4-995e-499a-bb2c-008c40b99d19")
-	)
-	(wire
-		(pts
 			(xy 62.23 146.05) (xy 81.28 146.05)
 		)
 		(stroke
@@ -9453,6 +9606,16 @@
 			(type default)
 		)
 		(uuid "e5cb8bd4-8126-44aa-a63d-4f5f113e28ef")
+	)
+	(wire
+		(pts
+			(xy 33.02 63.5) (xy 30.48 63.5)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e62eceee-4e48-4025-8960-f4ff4941024c")
 	)
 	(wire
 		(pts
@@ -9616,16 +9779,6 @@
 	)
 	(wire
 		(pts
-			(xy 58.42 50.8) (xy 68.58 50.8)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f5e570c5-1e61-43a3-ac7b-304087b97837")
-	)
-	(wire
-		(pts
 			(xy 177.8 36.83) (xy 186.69 36.83)
 		)
 		(stroke
@@ -9655,7 +9808,7 @@
 		(uuid "fbb8e86a-d7a8-4a00-af7b-12fb04be4ffe")
 	)
 	(label "HV_LED1"
-		(at 152.4 163.83 180)
+		(at 146.05 161.29 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9675,7 +9828,7 @@
 		(uuid "0c0bb61f-2609-4a88-bf35-969c56f50188")
 	)
 	(label "EN_HV"
-		(at 167.64 69.85 90)
+		(at 154.94 67.31 90)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9703,6 +9856,16 @@
 			(justify left bottom)
 		)
 		(uuid "17b26ccc-b9f8-4e2f-9366-824bbd4ee427")
+	)
+	(label "HV_B2"
+		(at 124.46 170.18 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "1bea33b8-053c-4026-a97e-9b208a0c4129")
 	)
 	(label "RETURN"
 		(at 231.14 119.38 0)
@@ -9755,7 +9918,7 @@
 		(uuid "3245e85f-e97a-41e0-a3dd-d464b86dded2")
 	)
 	(label "NICKEL_SW"
-		(at 144.78 82.55 270)
+		(at 132.08 80.01 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9764,7 +9927,7 @@
 		)
 		(uuid "324dd5a9-ae80-43cc-a3c6-e1a96b964a03")
 	)
-	(label "Nickel"
+	(label "Quarter"
 		(at 91.44 48.26 0)
 		(effects
 			(font
@@ -9774,8 +9937,18 @@
 		)
 		(uuid "347e06ee-2772-41bb-9a40-74f093523ab2")
 	)
+	(label "HV"
+		(at 124.46 160.02 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "363bdff4-0036-4915-804a-6dd30a2f3267")
+	)
 	(label "QUARTER_SW"
-		(at 160.02 82.55 270)
+		(at 147.32 80.01 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9783,6 +9956,36 @@
 			(justify right bottom)
 		)
 		(uuid "3bc58dc8-234d-4d7a-a3cd-0cd820ca395c")
+	)
+	(label "HV_B2"
+		(at 124.46 170.18 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3c75979a-6b82-4ef9-88ff-853cde05a037")
+	)
+	(label "SCL"
+		(at 58.42 50.8 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3dda1379-0bf1-4f05-b0c4-d44401be1eac")
+	)
+	(label "SDA"
+		(at 60.96 53.34 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3dddfb53-6a8e-4ba9-be56-ea26738a0965")
 	)
 	(label "SCL"
 		(at 91.44 179.07 0)
@@ -9834,6 +10037,16 @@
 		)
 		(uuid "4d0218da-8f5d-4614-b092-5635c3fb556f")
 	)
+	(label "SCL"
+		(at 52.07 50.8 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "4e17939d-93e5-40cd-955c-b2664ae349c3")
+	)
 	(label "POL"
 		(at 96.52 60.96 0)
 		(effects
@@ -9864,6 +10077,16 @@
 		)
 		(uuid "5d240bb0-03cf-4098-9901-b89a0a0f8372")
 	)
+	(label "SCL_IN"
+		(at 30.48 55.88 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "630e7598-272b-4ae0-bf23-57bc8900761c")
+	)
 	(label "HV_B2"
 		(at 170.18 123.19 270)
 		(effects
@@ -9875,7 +10098,7 @@
 		(uuid "64bf1754-0c36-4d64-bee2-7126591e7945")
 	)
 	(label "POL"
-		(at 175.26 69.85 90)
+		(at 162.56 67.31 90)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9915,7 +10138,7 @@
 		(uuid "6c5c7e22-1655-478d-a3b5-53c0f2b88698")
 	)
 	(label "HV"
-		(at 152.4 158.75 180)
+		(at 146.05 156.21 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9925,7 +10148,7 @@
 		(uuid "6cf2847e-e069-4cfc-a9ba-ad973acc0a72")
 	)
 	(label "LED_HV_A"
-		(at 152.4 176.53 180)
+		(at 146.05 173.99 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9944,6 +10167,16 @@
 		)
 		(uuid "7b2f4330-c290-4992-bca0-1d44689acbde")
 	)
+	(label "SDA"
+		(at 52.07 58.42 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "7b9ebba8-0134-4cfc-9dfb-9b6b18a1b6ef")
+	)
 	(label "FIRE"
 		(at 93.98 63.5 0)
 		(effects
@@ -9955,7 +10188,7 @@
 		(uuid "7d267ea5-a724-4399-86b1-133f10cbf2b7")
 	)
 	(label "FIRE"
-		(at 182.88 69.85 90)
+		(at 170.18 67.31 90)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9963,6 +10196,16 @@
 			(justify left bottom)
 		)
 		(uuid "80d105ee-31e7-4c03-8a4c-9d202e4c8c63")
+	)
+	(label "P3"
+		(at 91.44 55.88 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "825732c0-86e1-4ab2-abd5-b2a4c62a6cd0")
 	)
 	(label "RETURN"
 		(at 231.14 124.46 0)
@@ -9974,8 +10217,18 @@
 		)
 		(uuid "8546ef1c-25f4-4831-a228-482025472b2a")
 	)
+	(label "+5V_IN"
+		(at 30.48 63.5 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "8c290492-91e1-4ba3-ae05-91d0f983ba3b")
+	)
 	(label "DIME_SW"
-		(at 152.4 82.55 270)
+		(at 139.7 80.01 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9994,6 +10247,16 @@
 		)
 		(uuid "984e1f9d-5cae-427b-b323-1197b398e441")
 	)
+	(label "SDA_IN"
+		(at 30.48 58.42 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "a0be4978-99b7-450d-82ee-fc562be49f04")
+	)
 	(label "POL"
 		(at 196.85 90.17 90)
 		(effects
@@ -10003,6 +10266,16 @@
 			(justify left bottom)
 		)
 		(uuid "a0c4a554-9193-4fc5-b39e-dc87fe2f10f1")
+	)
+	(label "HV_B1"
+		(at 124.46 165.1 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "a87d6609-c70f-420d-9687-55f43226dfc2")
 	)
 	(label "HV_B1"
 		(at 170.18 115.57 270)
@@ -10044,6 +10317,16 @@
 		)
 		(uuid "afaf45d4-062c-43bc-b2e6-7c1bc431344a")
 	)
+	(label "P7"
+		(at 49.53 30.48 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "b193384d-5e55-408f-892e-2ea42cd30e47")
+	)
 	(label "20V"
 		(at 24.13 97.79 180)
 		(effects
@@ -10055,7 +10338,7 @@
 		(uuid "b6125543-7c4e-4e97-8d03-0a194d62260b")
 	)
 	(label "HV_LED2"
-		(at 152.4 168.91 180)
+		(at 146.05 166.37 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -10073,6 +10356,16 @@
 			(justify left bottom)
 		)
 		(uuid "bf8ce20f-1241-4cbd-b3b7-a7ed928aa6f6")
+	)
+	(label "P7"
+		(at 91.44 66.04 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "d0b04f24-de1c-484c-b529-ecfd1eb42b62")
 	)
 	(label "HV"
 		(at 166.37 97.79 0)
@@ -10104,6 +10397,16 @@
 		)
 		(uuid "e4f9f581-61cf-4d46-a4e0-3e0f0ee1c03c")
 	)
+	(label "HV_B1"
+		(at 124.46 165.1 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "e832a5b7-e5c7-400b-9c19-c0ae1c4e9b77")
+	)
 	(label "NICKEL_SW"
 		(at 142.24 45.72 180)
 		(effects
@@ -10124,6 +10427,16 @@
 		)
 		(uuid "f71d6833-20d7-46b9-b666-28ba940b31e6")
 	)
+	(label "P3"
+		(at 49.53 27.94 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "f842a8fb-d8e7-4ac3-acb6-fe260a1b98e0")
+	)
 	(label "Q5_C"
 		(at 251.46 142.24 90)
 		(effects
@@ -10134,7 +10447,7 @@
 		)
 		(uuid "f958fe0a-6a81-43d4-a465-8f32d22c2895")
 	)
-	(label "Quarter"
+	(label "Nickel"
 		(at 91.44 53.34 0)
 		(effects
 			(font
@@ -10163,6 +10476,98 @@
 			(justify left bottom)
 		)
 		(uuid "ff05415b-511c-43e7-8628-b18fcf112841")
+	)
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 45.72 171.45 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "034c0528-ee25-42cb-b2e2-70e66f801328")
+		(property "Reference" "C18"
+			(at 48.26 170.18 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "0.1uF"
+			(at 48.26 172.72 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 45.72 171.45 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 45.72 171.45 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "AIN0 filter, 0805 (JLCPCB Basic)"
+			(at 45.72 171.45 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C49678"
+			(at 45.72 171.45 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "48bfa899-05f5-44a3-a71e-344184411952")
+		)
+		(pin "1"
+			(uuid "0f902ace-f7d3-4494-acd4-02f19a2c2b7b")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "C18")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
@@ -10783,7 +11188,7 @@
 	)
 	(symbol
 		(lib_id "power:VCC")
-		(at 54.61 81.28 0)
+		(at 31.75 29.21 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -10793,7 +11198,7 @@
 		(dnp no)
 		(uuid "0f18f200-c86b-4f58-886d-f780485fc586")
 		(property "Reference" "#PWR0102"
-			(at 54.61 85.09 0)
+			(at 31.75 33.02 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10804,7 +11209,7 @@
 			)
 		)
 		(property "Value" "VIO"
-			(at 55.626 77.724 0)
+			(at 32.766 25.654 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10814,7 +11219,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 54.61 81.28 0)
+			(at 31.75 29.21 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10825,7 +11230,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 54.61 81.28 0)
+			(at 31.75 29.21 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10836,7 +11241,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"VCC\""
-			(at 54.61 81.28 0)
+			(at 31.75 29.21 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11064,8 +11469,8 @@
 		)
 	)
 	(symbol
-		(lib_id "power:VCC")
-		(at 144.78 69.85 0)
+		(lib_id "power:GND")
+		(at 45.72 173.99 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -11073,9 +11478,10 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "142ff9c0-5bc3-4160-8b98-bc23a7f7fdb3")
-		(property "Reference" "#PWR0105"
-			(at 144.78 62.23 0)
+		(fields_autoplaced yes)
+		(uuid "142df95e-c4eb-4766-84d8-52aa2f9dce74")
+		(property "Reference" "#PWR0120"
+			(at 45.72 173.99 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11085,8 +11491,8 @@
 				)
 			)
 		)
-		(property "Value" "VIO"
-			(at 144.78 66.04 0)
+		(property "Value" "GND"
+			(at 45.72 177.8 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11096,7 +11502,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 54.61 81.28 0)
+			(at 231.14 157.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11107,7 +11513,84 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 54.61 81.28 0)
+			(at 231.14 157.48 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 231.14 157.48 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "5bb943cb-30bd-4568-a960-9253e1226479")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "#PWR0120")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:VCC")
+		(at 132.08 67.31 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "142ff9c0-5bc3-4160-8b98-bc23a7f7fdb3")
+		(property "Reference" "#PWR0105"
+			(at 132.08 59.69 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "VIO"
+			(at 132.08 63.5 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 41.91 78.74 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 41.91 78.74 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11118,7 +11601,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"VCC\""
-			(at 54.61 81.28 0)
+			(at 41.91 78.74 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11298,7 +11781,7 @@
 	)
 	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
-		(at 152.4 72.39 90)
+		(at 139.7 69.85 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -11308,7 +11791,7 @@
 		(dnp no)
 		(uuid "158af2e2-767f-4d23-b949-1b131fa1491f")
 		(property "Reference" "R35"
-			(at 149.86 72.39 0)
+			(at 137.16 69.85 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11318,7 +11801,7 @@
 			)
 		)
 		(property "Value" "1.5k"
-			(at 154.94 72.39 0)
+			(at 142.24 69.85 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11328,7 +11811,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 94.488 24.13 0)
+			(at 81.788 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11339,7 +11822,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
-			(at 90.17 22.86 0)
+			(at 77.47 20.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11350,7 +11833,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 87.63 24.13 0)
+			(at 74.93 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11361,7 +11844,7 @@
 			)
 		)
 		(property "PROD_ID" "RES-07856"
-			(at 92.202 24.13 0)
+			(at 79.502 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11568,7 +12051,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 175.26 82.55 0)
+		(at 162.56 80.01 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -11579,7 +12062,7 @@
 		(fields_autoplaced yes)
 		(uuid "1696bd82-dbce-468d-b732-0a84d44b692f")
 		(property "Reference" "#PWR0109"
-			(at 175.26 90.17 0)
+			(at 162.56 87.63 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11590,7 +12073,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 175.26 86.36 0)
+			(at 162.56 83.82 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11600,7 +12083,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 231.14 157.48 0)
+			(at 218.44 154.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11611,7 +12094,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 231.14 157.48 0)
+			(at 218.44 154.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11622,7 +12105,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 231.14 157.48 0)
+			(at 218.44 154.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11826,7 +12309,7 @@
 	)
 	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
-		(at 144.78 72.39 90)
+		(at 132.08 69.85 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -11836,7 +12319,7 @@
 		(dnp no)
 		(uuid "1e9c498d-28aa-45dc-896c-afd4dece207d")
 		(property "Reference" "R34"
-			(at 142.24 72.39 0)
+			(at 129.54 69.85 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11846,7 +12329,7 @@
 			)
 		)
 		(property "Value" "1.5k"
-			(at 147.32 72.39 0)
+			(at 134.62 69.85 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11856,7 +12339,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 94.488 24.13 0)
+			(at 81.788 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11867,7 +12350,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
-			(at 90.17 22.86 0)
+			(at 77.47 20.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11878,7 +12361,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 87.63 24.13 0)
+			(at 74.93 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11889,7 +12372,7 @@
 			)
 		)
 		(property "PROD_ID" "RES-07856"
-			(at 92.202 24.13 0)
+			(at 79.502 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11916,7 +12399,7 @@
 	)
 	(symbol
 		(lib_id "power:+5V")
-		(at 45.72 82.55 0)
+		(at 22.86 30.48 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -11926,7 +12409,7 @@
 		(dnp no)
 		(uuid "23b2984c-f62f-49c9-87c7-2e6cb2af9fad")
 		(property "Reference" "#PWR0101"
-			(at 45.72 86.36 0)
+			(at 22.86 34.29 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11937,7 +12420,7 @@
 			)
 		)
 		(property "Value" "+5V"
-			(at 45.72 78.486 0)
+			(at 22.86 26.416 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11947,7 +12430,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 45.72 82.55 0)
+			(at 22.86 30.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11958,7 +12441,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 45.72 82.55 0)
+			(at 22.86 30.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11969,7 +12452,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+5V\""
-			(at 45.72 82.55 0)
+			(at 22.86 30.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11993,7 +12476,7 @@
 	)
 	(symbol
 		(lib_id "power:PWR_FLAG")
-		(at 54.61 81.28 0)
+		(at 31.75 29.21 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12003,7 +12486,7 @@
 		(dnp no)
 		(uuid "24fbbab6-e1e4-4a47-aa24-be2fc9997c44")
 		(property "Reference" "#FLG02"
-			(at 54.61 85.09 0)
+			(at 31.75 33.02 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12014,7 +12497,7 @@
 			)
 		)
 		(property "Value" "PWR_FLAG"
-			(at 55.372 75.946 0)
+			(at 32.512 23.876 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12024,7 +12507,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 54.61 81.28 0)
+			(at 31.75 29.21 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12035,7 +12518,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 54.61 81.28 0)
+			(at 31.75 29.21 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12046,7 +12529,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"VCC\""
-			(at 54.61 81.28 0)
+			(at 31.75 29.21 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12266,7 +12749,7 @@
 	)
 	(symbol
 		(lib_id "PCM_SL_Pin_Headers:PINHD_1x5_Male")
-		(at 31.75 60.96 180)
+		(at 19.05 58.42 180)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12276,7 +12759,7 @@
 		(dnp no)
 		(uuid "27141fad-ab29-4a86-9af3-a2aef8eca4cf")
 		(property "Reference" "J6"
-			(at 31.875 49.53 0)
+			(at 19.175 46.99 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12286,7 +12769,7 @@
 			)
 		)
 		(property "Value" "PINHD_1x5_Male"
-			(at 27.178 52.324 0)
+			(at 16.256 56.134 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12296,7 +12779,7 @@
 			)
 		)
 		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical"
-			(at 33.02 73.66 0)
+			(at 20.32 71.12 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12307,7 +12790,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 31.75 72.39 0)
+			(at 19.05 69.85 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12318,7 +12801,7 @@
 			)
 		)
 		(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -5"
-			(at 31.75 60.96 0)
+			(at 19.05 58.42 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12437,6 +12920,84 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R20")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 60.96 185.42 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "2a37b287-4b35-47c8-8ef5-27c69f83b723")
+		(property "Reference" "#PWR0121"
+			(at 60.96 185.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 60.96 189.23 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 231.14 157.48 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 231.14 157.48 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 231.14 157.48 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "535ddc33-4cb8-4b03-a669-9e7d8416617d")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "#PWR0121")
 					(unit 1)
 				)
 			)
@@ -12929,7 +13490,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 110.49 176.53 0)
+		(at 101.6 157.48 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12940,7 +13501,7 @@
 		(fields_autoplaced yes)
 		(uuid "2f6b70ab-f482-4e58-a883-c9c1008a5f4a")
 		(property "Reference" "#PWR0103"
-			(at 110.49 182.88 0)
+			(at 101.6 163.83 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12951,7 +13512,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 110.49 181.61 0)
+			(at 101.6 162.56 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12961,7 +13522,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 110.49 176.53 0)
+			(at 101.6 157.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12972,7 +13533,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 110.49 176.53 0)
+			(at 101.6 157.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12983,7 +13544,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 110.49 176.53 0)
+			(at 101.6 157.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13592,7 +14153,7 @@
 	)
 	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
-		(at 152.4 166.37 90)
+		(at 146.05 163.83 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -13602,7 +14163,7 @@
 		(dnp no)
 		(uuid "3eaac8d5-4192-476c-8378-35a0d96f8b01")
 		(property "Reference" "R28"
-			(at 156.972 166.37 0)
+			(at 150.622 163.83 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13612,7 +14173,7 @@
 			)
 		)
 		(property "Value" "33k"
-			(at 154.94 166.624 0)
+			(at 148.59 164.084 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13622,7 +14183,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
-			(at 174.752 128.27 0)
+			(at 168.402 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13633,7 +14194,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
-			(at 179.07 129.54 0)
+			(at 172.72 127 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13644,7 +14205,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 181.61 128.27 0)
+			(at 175.26 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13655,7 +14216,7 @@
 			)
 		)
 		(property "PROD_ID" "RES-07856"
-			(at 177.038 128.27 0)
+			(at 170.688 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13682,7 +14243,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 152.4 184.15 0)
+		(at 146.05 181.61 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -13693,7 +14254,7 @@
 		(fields_autoplaced yes)
 		(uuid "3f2d6e01-8918-4707-9857-1321a2ebb86e")
 		(property "Reference" "#PWR0104"
-			(at 152.4 190.5 0)
+			(at 146.05 187.96 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13704,7 +14265,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 152.4 189.23 0)
+			(at 146.05 186.69 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13714,7 +14275,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 231.14 157.48 0)
+			(at 224.79 154.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13725,7 +14286,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 231.14 157.48 0)
+			(at 224.79 154.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13736,7 +14297,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 231.14 157.48 0)
+			(at 224.79 154.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13840,6 +14401,174 @@
 		)
 	)
 	(symbol
+		(lib_id "power:VCC")
+		(at 41.91 45.72 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "41bdc20a-6e42-445c-9e58-1e6263573de3")
+		(property "Reference" "#PWR0116"
+			(at 41.91 45.72 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "VIO"
+			(at 41.91 41.91 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 54.61 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 54.61 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"VCC\""
+			(at 54.61 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "d272b345-1dc7-475e-8777-cfc66bfbf5a4")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "#PWR0116")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 124.46 172.72 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "42056fff-f501-4694-8af5-77e5ea8be04a")
+		(property "Reference" "C23"
+			(at 121.92 172.72 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "100nF 50V"
+			(at 118.618 174.752 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
+			(at 124.46 172.72 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 124.46 172.72 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "High-frequency bypass across C1, one of three in series; Rbl1-3 share the voltage (Samsung CL31B104KBCNNNC)"
+			(at 124.46 172.72 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C24497"
+			(at 124.46 172.72 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "b5ea5eae-57f9-4c15-bef7-ad7fd0faa820")
+		)
+		(pin "1"
+			(uuid "59113c46-94b1-46e6-ab8f-e8acba1426a0")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "C23")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 106.68 31.75 0)
 		(unit 1)
@@ -13918,7 +14647,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 46.99 55.88 90)
+		(at 30.48 53.34 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -13929,7 +14658,7 @@
 		(fields_autoplaced yes)
 		(uuid "4a761066-9e3b-4a1d-a6ab-197e54074ee7")
 		(property "Reference" "#PWR01"
-			(at 53.34 55.88 0)
+			(at 36.83 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13940,7 +14669,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 50.8 55.8799 90)
+			(at 34.29 53.3399 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13951,7 +14680,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 46.99 55.88 0)
+			(at 30.48 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13962,7 +14691,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 46.99 55.88 0)
+			(at 30.48 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13973,7 +14702,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 46.99 55.88 0)
+			(at 30.48 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14313,7 +15042,7 @@
 	)
 	(symbol
 		(lib_id "power:VCC")
-		(at 46.99 63.5 270)
+		(at 30.48 60.96 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -14321,10 +15050,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "4fac3498-791d-48d6-ada8-55629a185028")
 		(property "Reference" "#PWR02"
-			(at 43.18 63.5 0)
+			(at 26.67 60.96 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14335,7 +15063,7 @@
 			)
 		)
 		(property "Value" "VIO"
-			(at 50.8 63.4999 90)
+			(at 33.528 60.96 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14346,7 +15074,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 46.99 63.5 0)
+			(at 30.48 60.96 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14357,7 +15085,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 46.99 63.5 0)
+			(at 30.48 60.96 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14368,7 +15096,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"VCC\""
-			(at 46.99 63.5 0)
+			(at 30.48 60.96 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14392,7 +15120,7 @@
 	)
 	(symbol
 		(lib_id "power:VCC")
-		(at 190.5 80.01 180)
+		(at 181.61 78.74 180)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -14402,7 +15130,7 @@
 		(dnp no)
 		(uuid "50b029e4-e9b7-4eca-afa6-0a4180fc873d")
 		(property "Reference" "#PWR0112"
-			(at 190.5 87.63 0)
+			(at 181.61 86.36 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14413,7 +15141,7 @@
 			)
 		)
 		(property "Value" "VIO"
-			(at 190.5 83.82 0)
+			(at 181.61 82.55 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14423,7 +15151,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 54.61 81.28 0)
+			(at 45.72 80.01 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14434,7 +15162,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 54.61 81.28 0)
+			(at 45.72 80.01 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14445,7 +15173,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"VCC\""
-			(at 54.61 81.28 0)
+			(at 45.72 80.01 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14717,7 +15445,7 @@
 	)
 	(symbol
 		(lib_id "power:VCC")
-		(at 160.02 69.85 0)
+		(at 147.32 67.31 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -14727,7 +15455,7 @@
 		(dnp no)
 		(uuid "59eeffff-0a07-4cb7-bdb1-37aec459b49b")
 		(property "Reference" "#PWR0107"
-			(at 160.02 62.23 0)
+			(at 147.32 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14738,7 +15466,7 @@
 			)
 		)
 		(property "Value" "VIO"
-			(at 160.02 66.04 0)
+			(at 147.32 63.5 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14748,7 +15476,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 54.61 81.28 0)
+			(at 41.91 78.74 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14759,7 +15487,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 54.61 81.28 0)
+			(at 41.91 78.74 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14770,7 +15498,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"VCC\""
-			(at 54.61 81.28 0)
+			(at 41.91 78.74 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14794,7 +15522,7 @@
 	)
 	(symbol
 		(lib_id "Device:LED")
-		(at 152.4 78.74 90)
+		(at 139.7 76.2 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -14804,7 +15532,7 @@
 		(dnp no)
 		(uuid "5acddb16-9da5-4e2d-be7b-888ba63bd9e4")
 		(property "Reference" "D9"
-			(at 149.86 78.74 0)
+			(at 137.16 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14814,7 +15542,7 @@
 			)
 		)
 		(property "Value" "green"
-			(at 155.45 78.74 0)
+			(at 142.75 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14824,7 +15552,7 @@
 			)
 		)
 		(property "Footprint" "LED_SMD:LED_0805_2012Metric"
-			(at 247.81 130.81 0)
+			(at 235.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14835,7 +15563,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 247.81 130.81 0)
+			(at 235.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14846,7 +15574,7 @@
 			)
 		)
 		(property "Description" "Green LED, KT-0805G (JLCPCB C2297, Basic)"
-			(at 257.81 130.81 0)
+			(at 245.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15041,40 +15769,40 @@
 		)
 	)
 	(symbol
-		(lib_id "power:GND")
-		(at 182.88 82.55 0)
+		(lib_id "PCM_SparkFun-Resistor:R_Small")
+		(at 41.91 48.26 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "5fd2ce4d-8f66-4879-a06d-3c818c312321")
-		(property "Reference" "#PWR0110"
-			(at 182.88 90.17 0)
-			(hide yes)
+		(dnp yes)
+		(uuid "5cda063a-c443-43a5-b6f7-4a7db0b27b82")
+		(property "Reference" "R42"
+			(at 43.18 47.24 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify right)
 			)
 		)
-		(property "Value" "GND"
-			(at 182.88 86.36 0)
+		(property "Value" "4.7k"
+			(at 43.18 49.53 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify right)
 			)
 		)
-		(property "Footprint" ""
-			(at 231.14 157.48 0)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 41.91 48.26 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15085,7 +15813,99 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 231.14 157.48 0)
+			(at 41.91 48.26 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "I2C pull-up, not fitted: the main board has its own (JLCPCB Basic)"
+			(at 41.91 48.26 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C17673"
+			(at 41.91 48.26 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "48591307-6a45-4ab9-b639-d6b9505c02bd")
+		)
+		(pin "1"
+			(uuid "e0d2499a-7c25-4dee-97bf-839a81939975")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "R42")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 170.18 80.01 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "5fd2ce4d-8f66-4879-a06d-3c818c312321")
+		(property "Reference" "#PWR0110"
+			(at 170.18 87.63 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 170.18 83.82 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 218.44 154.94 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 218.44 154.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15096,7 +15916,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 231.14 157.48 0)
+			(at 218.44 154.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15120,7 +15940,7 @@
 	)
 	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
-		(at 167.64 72.39 90)
+		(at 154.94 69.85 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -15130,7 +15950,7 @@
 		(dnp no)
 		(uuid "612d3b5c-42d3-42dc-b42f-c4f6d9aef5db")
 		(property "Reference" "R37"
-			(at 165.1 72.39 0)
+			(at 152.4 69.85 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15140,7 +15960,7 @@
 			)
 		)
 		(property "Value" "1.5k"
-			(at 170.18 72.39 0)
+			(at 157.48 69.85 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15150,7 +15970,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 94.488 24.13 0)
+			(at 81.788 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15161,7 +15981,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
-			(at 90.17 22.86 0)
+			(at 77.47 20.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15172,7 +15992,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 87.63 24.13 0)
+			(at 74.93 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15183,7 +16003,7 @@
 			)
 		)
 		(property "PROD_ID" "RES-07856"
-			(at 92.202 24.13 0)
+			(at 79.502 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15623,7 +16443,7 @@
 	)
 	(symbol
 		(lib_id "PCM_SL_Connectors:JST_05")
-		(at 43.18 60.96 180)
+		(at 26.67 58.42 180)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -15634,7 +16454,7 @@
 		(fields_autoplaced yes)
 		(uuid "6600ef80-913f-4434-8401-4af2e89f1ee9")
 		(property "Reference" "J1"
-			(at 43.18 49.53 0)
+			(at 26.67 46.99 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15644,7 +16464,7 @@
 			)
 		)
 		(property "Value" "JST_05"
-			(at 43.18 52.07 0)
+			(at 26.67 49.53 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15654,7 +16474,7 @@
 			)
 		)
 		(property "Footprint" "Connector_JST:JST_EH_B5B-EH-A_1x05_P2.50mm_Vertical"
-			(at 43.18 71.12 0)
+			(at 26.67 68.58 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15665,7 +16485,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 43.18 71.12 0)
+			(at 26.67 68.58 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15676,7 +16496,7 @@
 			)
 		)
 		(property "Description" "JST Connector  5 pins"
-			(at 43.18 60.96 0)
+			(at 26.67 58.42 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16227,7 +17047,7 @@
 	)
 	(symbol
 		(lib_id "Device:LED")
-		(at 152.4 180.34 90)
+		(at 146.05 177.8 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -16237,7 +17057,7 @@
 		(dnp no)
 		(uuid "70893a59-5310-4b48-ac4b-d3aa9f14f0b6")
 		(property "Reference" "D7"
-			(at 157.226 180.34 90)
+			(at 150.876 177.8 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -16248,7 +17068,7 @@
 			)
 		)
 		(property "Value" "LED red"
-			(at 149.606 180.34 90)
+			(at 143.256 177.8 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -16259,7 +17079,7 @@
 			)
 		)
 		(property "Footprint" "LED_SMD:LED_0805_2012Metric"
-			(at 247.81 130.81 0)
+			(at 241.46 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16270,7 +17090,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 247.81 130.81 0)
+			(at 241.46 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16281,7 +17101,7 @@
 			)
 		)
 		(property "Description" "Light emitting diode"
-			(at 257.81 130.81 0)
+			(at 251.46 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17057,7 +17877,7 @@
 	)
 	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
-		(at 182.88 72.39 90)
+		(at 170.18 69.85 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -17067,7 +17887,7 @@
 		(dnp no)
 		(uuid "82efe7ee-e96a-4f28-8e76-ef51cbe3e8e7")
 		(property "Reference" "R39"
-			(at 180.34 72.39 0)
+			(at 167.64 69.85 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17077,7 +17897,7 @@
 			)
 		)
 		(property "Value" "1.5k"
-			(at 185.42 72.39 0)
+			(at 172.72 69.85 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17087,7 +17907,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 94.488 24.13 0)
+			(at 81.788 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17098,7 +17918,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
-			(at 90.17 22.86 0)
+			(at 77.47 20.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17109,7 +17929,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 87.63 24.13 0)
+			(at 74.93 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17120,7 +17940,7 @@
 			)
 		)
 		(property "PROD_ID" "RES-07856"
-			(at 92.202 24.13 0)
+			(at 79.502 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17140,6 +17960,84 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R39")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 49.53 33.02 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "8434e30d-d39c-4618-9af5-cfc21071d121")
+		(property "Reference" "#PWR0119"
+			(at 49.53 33.02 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 53.59 33.02 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 68.58 7.62 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 68.58 7.62 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 68.58 7.62 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "81c04e83-f631-47d8-bc9a-8d5b8420d557")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "#PWR0119")
 					(unit 1)
 				)
 			)
@@ -17653,7 +18551,7 @@
 	)
 	(symbol
 		(lib_id "power:PWR_FLAG")
-		(at 110.49 176.53 0)
+		(at 101.6 157.48 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -17663,7 +18561,7 @@
 		(dnp no)
 		(uuid "8dc9519e-c0ba-47fb-87a4-f79b3164724e")
 		(property "Reference" "#FLG03"
-			(at 110.49 182.88 0)
+			(at 101.6 163.83 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17674,7 +18572,7 @@
 			)
 		)
 		(property "Value" "PWR_FLAG"
-			(at 110.744 179.578 0)
+			(at 101.854 160.528 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17684,7 +18582,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 110.49 176.53 0)
+			(at 101.6 157.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17695,7 +18593,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 110.49 176.53 0)
+			(at 101.6 157.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17706,7 +18604,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 110.49 176.53 0)
+			(at 101.6 157.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17820,7 +18718,7 @@
 	)
 	(symbol
 		(lib_id "power:+5V")
-		(at 190.5 69.85 0)
+		(at 181.61 68.58 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -17831,7 +18729,7 @@
 		(fields_autoplaced yes)
 		(uuid "8ef8ed29-d86c-4700-a4b8-fe36aade2560")
 		(property "Reference" "#PWR0111"
-			(at 190.5 62.23 0)
+			(at 181.61 60.96 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17842,7 +18740,7 @@
 			)
 		)
 		(property "Value" "+5V"
-			(at 190.5 66.04 0)
+			(at 181.61 64.77 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17853,7 +18751,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 46.99 66.04 0)
+			(at 38.1 64.77 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17864,7 +18762,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 46.99 66.04 0)
+			(at 38.1 64.77 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17875,7 +18773,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+5V\""
-			(at 46.99 66.04 0)
+			(at 38.1 64.77 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17892,6 +18790,170 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0111")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:Conn_01x04_Pin")
+		(at 44.45 27.94 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files no)
+		(dnp yes)
+		(fields_autoplaced yes)
+		(uuid "95344e48-92de-432a-98eb-42f9e31f1892")
+		(property "Reference" "J5"
+			(at 44.45 22.86 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "spare I/O"
+			(at 44.45 36.83 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
+			(at 44.45 27.94 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 44.45 27.94 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Pads for U1 spare pins, header not fitted"
+			(at 44.45 27.94 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "016d0161-eaea-4cc0-9efb-787ca67af6a9")
+		)
+		(pin "2"
+			(uuid "71464e7b-7e95-45c0-a93e-db728419bbe6")
+		)
+		(pin "3"
+			(uuid "71122fbb-b334-46f0-8455-4a01a60df3ee")
+		)
+		(pin "4"
+			(uuid "1082d007-2ec8-4f30-95f5-9365ccbb1f8e")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "J5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+5V")
+		(at 40.64 68.58 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "97d02a4f-8860-4042-90ad-1b17952129ad")
+		(property "Reference" "#PWR0113"
+			(at 40.64 68.58 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+5V"
+			(at 40.64 64.77 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 54.61 109.22 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 54.61 109.22 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+5V\""
+			(at 54.61 109.22 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "386dbb40-a794-4ae0-81d0-384061197bff")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "#PWR0113")
 					(unit 1)
 				)
 			)
@@ -18078,8 +19140,8 @@
 		)
 	)
 	(symbol
-		(lib_id "power:PWR_FLAG")
-		(at 45.72 82.55 0)
+		(lib_id "Device:C_Small")
+		(at 124.46 167.64 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -18087,10 +19149,20 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "9caf5033-7d88-4739-a762-72b08a98386b")
-		(property "Reference" "#FLG01"
-			(at 45.72 86.36 0)
-			(hide yes)
+		(uuid "9c974fad-d766-47f3-900b-8e82d51b94e4")
+		(property "Reference" "C22"
+			(at 121.92 167.64 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "100nF 50V"
+			(at 118.364 169.672 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18099,18 +19171,8 @@
 				)
 			)
 		)
-		(property "Value" "PWR_FLAG"
-			(at 45.974 76.454 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 45.72 82.55 0)
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
+			(at 124.46 167.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18121,7 +19183,98 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 45.72 82.55 0)
+			(at 124.46 167.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "High-frequency bypass across C1, one of three in series; Rbl1-3 share the voltage (Samsung CL31B104KBCNNNC)"
+			(at 124.46 167.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C24497"
+			(at 124.46 167.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "80656e2c-2798-487b-8e6f-bdae4d88ab30")
+		)
+		(pin "1"
+			(uuid "b742da10-817c-410b-a069-9f2b855a6d0f")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "C22")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:PWR_FLAG")
+		(at 22.86 30.48 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "9caf5033-7d88-4739-a762-72b08a98386b")
+		(property "Reference" "#FLG01"
+			(at 22.86 34.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 23.114 24.384 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 22.86 30.48 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 22.86 30.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18132,7 +19285,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+5V\""
-			(at 45.72 82.55 0)
+			(at 22.86 30.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18503,7 +19656,7 @@
 	)
 	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
-		(at 160.02 72.39 90)
+		(at 147.32 69.85 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -18513,7 +19666,7 @@
 		(dnp no)
 		(uuid "a487a483-e143-4d4c-9a41-d619723a53e0")
 		(property "Reference" "R36"
-			(at 157.48 72.39 0)
+			(at 144.78 69.85 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18523,7 +19676,7 @@
 			)
 		)
 		(property "Value" "1.5k"
-			(at 162.56 72.39 0)
+			(at 149.86 69.85 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18533,7 +19686,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 94.488 24.13 0)
+			(at 81.788 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18544,7 +19697,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
-			(at 90.17 22.86 0)
+			(at 77.47 20.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18555,7 +19708,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 87.63 24.13 0)
+			(at 74.93 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18566,7 +19719,7 @@
 			)
 		)
 		(property "PROD_ID" "RES-07856"
-			(at 92.202 24.13 0)
+			(at 79.502 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18862,7 +20015,7 @@
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
-		(at 152.4 172.72 270)
+		(at 146.05 170.18 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -18872,7 +20025,7 @@
 		(dnp no)
 		(uuid "a7f67ec2-2d42-4e6f-8ba0-365f928a7799")
 		(property "Reference" "D5"
-			(at 154.686 172.212 90)
+			(at 148.336 169.672 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18883,7 +20036,7 @@
 			)
 		)
 		(property "Value" "BZT52C22"
-			(at 154.686 175.006 90)
+			(at 148.336 172.466 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18894,7 +20047,7 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 247.81 130.81 0)
+			(at 241.46 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18905,7 +20058,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 247.81 130.81 0)
+			(at 241.46 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18916,7 +20069,7 @@
 			)
 		)
 		(property "Description" "Zener diode"
-			(at 257.81 130.81 0)
+			(at 251.46 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18943,7 +20096,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 167.64 82.55 0)
+		(at 154.94 80.01 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -18954,7 +20107,7 @@
 		(fields_autoplaced yes)
 		(uuid "aa0ded3f-cf79-4cd6-b2b3-3601e45f07d2")
 		(property "Reference" "#PWR0108"
-			(at 167.64 90.17 0)
+			(at 154.94 87.63 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18965,7 +20118,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 167.64 86.36 0)
+			(at 154.94 83.82 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18975,7 +20128,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 231.14 157.48 0)
+			(at 218.44 154.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18986,7 +20139,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 231.14 157.48 0)
+			(at 218.44 154.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18997,7 +20150,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 231.14 157.48 0)
+			(at 218.44 154.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19021,7 +20174,7 @@
 	)
 	(symbol
 		(lib_id "Jumper:SolderJumper_2_Open")
-		(at 190.5 74.93 90)
+		(at 181.61 73.66 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -19031,7 +20184,7 @@
 		(dnp no)
 		(uuid "aa1b83d1-b1c4-407e-9a6b-342371e1e20f")
 		(property "Reference" "JP1"
-			(at 187.96 74.93 0)
+			(at 179.07 73.66 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19041,7 +20194,7 @@
 			)
 		)
 		(property "Value" "VIO=5V"
-			(at 193.04 74.93 0)
+			(at 184.15 73.66 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19051,7 +20204,7 @@
 			)
 		)
 		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm"
-			(at 94.488 24.13 0)
+			(at 85.598 22.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19062,7 +20215,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
-			(at 90.17 22.86 0)
+			(at 81.28 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19073,7 +20226,7 @@
 			)
 		)
 		(property "Description" "Solder jumper, open: bridge to run VIO from the 5 V pin"
-			(at 87.63 24.13 0)
+			(at 78.74 22.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19084,7 +20237,7 @@
 			)
 		)
 		(property "PROD_ID" "RES-07856"
-			(at 92.202 24.13 0)
+			(at 83.312 22.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19298,7 +20451,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Package_SO:TSSOP-10_3x3mm_P0.5mm"
+		(property "Footprint" "Custom:ADS1115 Module"
 			(at 81.28 191.77 0)
 			(hide yes)
 			(show_name no)
@@ -19989,7 +21142,7 @@
 	)
 	(symbol
 		(lib_id "Device:LED")
-		(at 167.64 78.74 90)
+		(at 154.94 76.2 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -19999,7 +21152,7 @@
 		(dnp no)
 		(uuid "bf4be0aa-7ce3-4a47-a114-902dc96450d3")
 		(property "Reference" "D11"
-			(at 165.1 78.74 0)
+			(at 152.4 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20009,7 +21162,7 @@
 			)
 		)
 		(property "Value" "green"
-			(at 170.69 78.74 0)
+			(at 157.99 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20019,7 +21172,7 @@
 			)
 		)
 		(property "Footprint" "LED_SMD:LED_0805_2012Metric"
-			(at 247.81 130.81 0)
+			(at 235.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20030,7 +21183,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 247.81 130.81 0)
+			(at 235.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20041,7 +21194,7 @@
 			)
 		)
 		(property "Description" "Green LED, KT-0805G (JLCPCB C2297, Basic)"
-			(at 257.81 130.81 0)
+			(at 245.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20068,7 +21221,7 @@
 	)
 	(symbol
 		(lib_id "Device:LED")
-		(at 160.02 78.74 90)
+		(at 147.32 76.2 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -20078,7 +21231,7 @@
 		(dnp no)
 		(uuid "bf5a378d-514c-4b3c-bead-06394c217923")
 		(property "Reference" "D10"
-			(at 157.48 78.74 0)
+			(at 144.78 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20088,7 +21241,7 @@
 			)
 		)
 		(property "Value" "green"
-			(at 163.07 78.74 0)
+			(at 150.37 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20098,7 +21251,7 @@
 			)
 		)
 		(property "Footprint" "LED_SMD:LED_0805_2012Metric"
-			(at 247.81 130.81 0)
+			(at 235.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20109,7 +21262,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 247.81 130.81 0)
+			(at 235.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20120,7 +21273,7 @@
 			)
 		)
 		(property "Description" "Green LED, KT-0805G (JLCPCB C2297, Basic)"
-			(at 257.81 130.81 0)
+			(at 245.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20296,6 +21449,83 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR04")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:VCC")
+		(at 44.45 62.23 180)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "c06580c9-645c-46d3-aaa9-df855707e123")
+		(property "Reference" "#PWR0117"
+			(at 44.45 62.23 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "VIO"
+			(at 44.45 66.04 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 39.37 16.51 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 39.37 16.51 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"VCC\""
+			(at 39.37 16.51 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "3876a829-01d5-4eb0-9bbd-9ddbe45e5daf")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "#PWR0117")
 					(unit 1)
 				)
 			)
@@ -20544,7 +21774,7 @@
 	)
 	(symbol
 		(lib_id "Device:LED")
-		(at 175.26 78.74 90)
+		(at 162.56 76.2 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -20554,7 +21784,7 @@
 		(dnp no)
 		(uuid "c2a54e0c-a3c7-48d5-a4ef-a76577c9bc44")
 		(property "Reference" "D12"
-			(at 172.72 78.74 0)
+			(at 160.02 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20564,7 +21794,7 @@
 			)
 		)
 		(property "Value" "green"
-			(at 178.31 78.74 0)
+			(at 165.61 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20574,7 +21804,7 @@
 			)
 		)
 		(property "Footprint" "LED_SMD:LED_0805_2012Metric"
-			(at 247.81 130.81 0)
+			(at 235.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20585,7 +21815,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 247.81 130.81 0)
+			(at 235.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20596,7 +21826,7 @@
 			)
 		)
 		(property "Description" "Green LED, KT-0805G (JLCPCB C2297, Basic)"
-			(at 257.81 130.81 0)
+			(at 245.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20787,6 +22017,174 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rfbb2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "PCM_SparkFun-Resistor:R_Small")
+		(at 49.53 58.42 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "c743e83a-ee00-4bbd-8efa-85ee017459d0")
+		(property "Reference" "R41"
+			(at 49.53 56.51 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100R"
+			(at 49.53 60.45 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 49.53 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 49.53 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Series resistor in the I2C line, 0805 (JLCPCB Basic)"
+			(at 49.53 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C17408"
+			(at 49.53 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "8618b189-d49e-49f8-b16f-7eec77874a5f")
+		)
+		(pin "1"
+			(uuid "83a2c2a0-eaa8-4116-969c-0ca4431ec8ea")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "R41")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 124.46 175.26 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "c8c56531-40c2-463f-90d8-15ef19e0ae80")
+		(property "Reference" "#PWR0122"
+			(at 124.46 175.26 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 124.46 179.07 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 219.71 162.56 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 219.71 162.56 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 219.71 162.56 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "c7cc0968-71c2-4684-9db1-f478cdaec93a")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "#PWR0122")
 					(unit 1)
 				)
 			)
@@ -21177,8 +22575,98 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:Polyfuse_Small")
+		(at 35.56 68.58 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files no)
+		(dnp no)
+		(uuid "cd77b14e-f2b4-4dd3-a48c-7ca3e8696335")
+		(property "Reference" "F1"
+			(at 35.56 66.04 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "1.1A PTC"
+			(at 33.02 71.37 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_THT:C_Disc_D9.0mm_W5.0mm_P5.00mm"
+			(at 35.56 68.58 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 35.56 68.58 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Resettable fuse, 1.1 A hold, 2.2 A trip, 30 V, radial, 5.08 mm leads, hand-solder (Bourns MF-R110)"
+			(at 35.56 68.58 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C208481"
+			(at 35.56 68.58 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "dc05a89b-039a-4d72-b119-5768db98a3e0")
+		)
+		(pin "1"
+			(uuid "49463165-6c28-4f84-8b23-3154a92bb876")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "F1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
-		(at 152.4 161.29 90)
+		(at 146.05 158.75 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -21188,7 +22676,7 @@
 		(dnp no)
 		(uuid "cea4326b-a593-47b3-91de-e05072cc3d02")
 		(property "Reference" "R27"
-			(at 156.972 160.782 0)
+			(at 150.622 158.242 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21198,7 +22686,7 @@
 			)
 		)
 		(property "Value" "33k"
-			(at 154.686 160.528 0)
+			(at 148.336 157.988 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21208,7 +22696,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
-			(at 174.752 128.27 0)
+			(at 168.402 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21219,7 +22707,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
-			(at 179.07 129.54 0)
+			(at 172.72 127 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21230,7 +22718,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 181.61 128.27 0)
+			(at 175.26 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21241,7 +22729,7 @@
 			)
 		)
 		(property "PROD_ID" "RES-07856"
-			(at 177.038 128.27 0)
+			(at 170.688 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21268,7 +22756,7 @@
 	)
 	(symbol
 		(lib_id "Device:LED")
-		(at 144.78 78.74 90)
+		(at 132.08 76.2 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -21278,7 +22766,7 @@
 		(dnp no)
 		(uuid "d014c292-5411-4649-8411-f43aa87ea2e3")
 		(property "Reference" "D8"
-			(at 142.24 78.74 0)
+			(at 129.54 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21288,7 +22776,7 @@
 			)
 		)
 		(property "Value" "green"
-			(at 147.83 78.74 0)
+			(at 135.13 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21298,7 +22786,7 @@
 			)
 		)
 		(property "Footprint" "LED_SMD:LED_0805_2012Metric"
-			(at 247.81 130.81 0)
+			(at 235.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21309,7 +22797,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 247.81 130.81 0)
+			(at 235.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21320,7 +22808,7 @@
 			)
 		)
 		(property "Description" "Green LED, KT-0805G (JLCPCB C2297, Basic)"
-			(at 257.81 130.81 0)
+			(at 245.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21508,6 +22996,189 @@
 		)
 	)
 	(symbol
+		(lib_id "PCM_SparkFun-Resistor:R_Small")
+		(at 44.45 60.96 270)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp yes)
+		(uuid "d17373d8-fbab-49d2-b390-e1ecf98c9057")
+		(property "Reference" "R43"
+			(at 43.18 61.98 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "4.7k"
+			(at 43.18 59.69 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 44.45 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 44.45 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "I2C pull-up, not fitted: the main board has its own (JLCPCB Basic)"
+			(at 44.45 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C17673"
+			(at 44.45 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "38cbfa0b-ee88-4d3e-a1df-c955a97146c3")
+		)
+		(pin "1"
+			(uuid "a80ddb94-5ff7-47bd-b6e7-7e466beeb419")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "R43")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 124.46 162.56 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "d7e4ddc5-b6b6-4999-9e35-e781600e55d5")
+		(property "Reference" "C21"
+			(at 121.92 162.56 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "100nF 50V"
+			(at 118.618 160.782 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
+			(at 124.46 162.56 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 124.46 162.56 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "High-frequency bypass across C1, one of three in series; Rbl1-3 share the voltage (Samsung CL31B104KBCNNNC)"
+			(at 124.46 162.56 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C24497"
+			(at 124.46 162.56 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "3fe94d05-4db8-469e-a674-458ea1a96c16")
+		)
+		(pin "1"
+			(uuid "3ca4ac2e-14c5-44bb-90a9-510af89213b2")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "C21")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 91.44 184.15 90)
 		(unit 1)
@@ -21580,6 +23251,84 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR036")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:VCC")
+		(at 49.53 25.4 270)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "da994849-4260-4986-9b5f-2df8deec4e7e")
+		(property "Reference" "#PWR0118"
+			(at 49.53 25.4 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "VIO"
+			(at 53.59 25.4 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 68.58 15.24 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 68.58 15.24 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"VCC\""
+			(at 68.58 15.24 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "6aa1a07f-ac10-4c76-bd36-c9a7b4c7990e")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "#PWR0118")
 					(unit 1)
 				)
 			)
@@ -21667,8 +23416,100 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C_Small")
+		(at 60.96 182.88 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "dd744295-2bdb-42d4-bac2-37f291a86baa")
+		(property "Reference" "C19"
+			(at 63.5 183.13 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "0.1uF"
+			(at 63.5 185.42 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 60.96 182.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 60.96 182.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "AIN1 filter, 0805 (JLCPCB Basic)"
+			(at 60.96 182.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C49678"
+			(at 60.96 182.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "b610c106-62cc-4f17-87ad-7941b7b35554")
+		)
+		(pin "1"
+			(uuid "addad58d-4a63-4c11-9ff8-2833bcc0e8e9")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "C19")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
-		(at 175.26 72.39 90)
+		(at 162.56 69.85 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -21678,7 +23519,7 @@
 		(dnp no)
 		(uuid "dd9da614-e7ad-48f1-89a7-39cdf35afcfb")
 		(property "Reference" "R38"
-			(at 172.72 72.39 0)
+			(at 160.02 69.85 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21688,7 +23529,7 @@
 			)
 		)
 		(property "Value" "1.5k"
-			(at 177.8 72.39 0)
+			(at 165.1 69.85 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21698,7 +23539,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 94.488 24.13 0)
+			(at 81.788 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21709,7 +23550,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
-			(at 90.17 22.86 0)
+			(at 77.47 20.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21720,7 +23561,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 87.63 24.13 0)
+			(at 74.93 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21731,7 +23572,7 @@
 			)
 		)
 		(property "PROD_ID" "RES-07856"
-			(at 92.202 24.13 0)
+			(at 79.502 21.59 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22259,7 +24100,7 @@
 	)
 	(symbol
 		(lib_id "Device:LED")
-		(at 182.88 78.74 90)
+		(at 170.18 76.2 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -22269,7 +24110,7 @@
 		(dnp no)
 		(uuid "e77eeeac-87ee-4bb9-9d24-c46543b217d6")
 		(property "Reference" "D13"
-			(at 180.34 78.74 0)
+			(at 167.64 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -22279,7 +24120,7 @@
 			)
 		)
 		(property "Value" "green"
-			(at 185.93 78.74 0)
+			(at 173.23 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -22289,7 +24130,7 @@
 			)
 		)
 		(property "Footprint" "LED_SMD:LED_0805_2012Metric"
-			(at 247.81 130.81 0)
+			(at 235.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22300,7 +24141,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 247.81 130.81 0)
+			(at 235.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22311,7 +24152,7 @@
 			)
 		)
 		(property "Description" "Green LED, KT-0805G (JLCPCB C2297, Basic)"
-			(at 257.81 130.81 0)
+			(at 245.11 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22412,6 +24253,174 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C16")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 40.64 73.66 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "e805f8c8-464e-453c-9d0b-2f1b8cc0af35")
+		(property "Reference" "#PWR0114"
+			(at 40.64 73.66 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 40.64 77.47 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 238.76 200.66 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 238.76 200.66 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 238.76 200.66 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "8ba8db8b-54f4-4670-9811-35c615ec2cbf")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "#PWR0114")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "PCM_SparkFun-Resistor:R_Small")
+		(at 49.53 50.8 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "e88ece5d-ec94-4cc5-a2bc-134f190d2c09")
+		(property "Reference" "R40"
+			(at 49.53 48.89 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100R"
+			(at 49.53 52.83 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 49.53 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 49.53 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Series resistor in the I2C line, 0805 (JLCPCB Basic)"
+			(at 49.53 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C17408"
+			(at 49.53 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "7f22acb2-ed29-479f-ba01-d87b1a6b0755")
+		)
+		(pin "1"
+			(uuid "1b090fd7-7631-4747-9788-be7dfeb92c8c")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "R40")
 					(unit 1)
 				)
 			)
@@ -22579,6 +24588,99 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rbl2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_Polarized_Small")
+		(at 40.64 71.12 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "eb355593-76a4-4259-8f90-303b3508ce9c")
+		(property "Reference" "C20"
+			(at 43.18 69.85 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100uF 50V"
+			(at 43.18 72.39 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
+			(at 40.64 71.12 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 40.64 71.12 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Electrolytic on +5V, through-hole: damps the cable (Aishi ERZ1HM101E12OT, or any 100 uF 10 V or more)"
+			(at 40.64 71.12 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C160200"
+			(at 40.64 71.12 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "4ffab9ea-da49-48b6-a9df-7f8c7d4cb9e9")
+		)
+		(pin "2"
+			(uuid "077d034f-193e-4aa6-a03b-025027ad6e40")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "C20")
 					(unit 1)
 				)
 			)
@@ -22854,7 +24956,7 @@
 	)
 	(symbol
 		(lib_id "power:VCC")
-		(at 152.4 69.85 0)
+		(at 139.7 67.31 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -22864,7 +24966,7 @@
 		(dnp no)
 		(uuid "f573ffdb-c7c8-4d0d-a650-8637fd73307f")
 		(property "Reference" "#PWR0106"
-			(at 152.4 62.23 0)
+			(at 139.7 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22875,7 +24977,7 @@
 			)
 		)
 		(property "Value" "VIO"
-			(at 152.4 66.04 0)
+			(at 139.7 63.5 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -22885,7 +24987,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 54.61 81.28 0)
+			(at 41.91 78.74 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22896,7 +24998,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 54.61 81.28 0)
+			(at 41.91 78.74 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22907,7 +25009,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"VCC\""
-			(at 54.61 81.28 0)
+			(at 41.91 78.74 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23332,2045 +25434,6 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR026")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(text "Cable entry. F1 protects the main board's 5 V (hand-solder). R40/R41 at the connectors. R42, R43, J5 not fitted."
-		(exclude_from_sim no)
-		(at 16.51 13.97 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left top)
-		)
-		(uuid "38909175-b0d6-4a23-812e-ab9b202bee3f")
-	)
-	(label "+5V_IN"
-		(at 46.99 66.04 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "8c290492-91e1-4ba3-ae05-91d0f983ba3b")
-	)
-	(label "+5V_IN"
-		(at 25.4 25.4 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "2e728579-8462-41c8-9a2c-1a4e3da71655")
-	)
-	(wire
-		(pts
-			(xy 30.48 25.4) (xy 33.02 25.4)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9c9fd1fc-183b-47c6-9b33-2e490684a127")
-	)
-	(junction
-		(at 33.02 25.4)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "aaee3c8b-b5bc-4fbf-be6e-e7d48b04db67")
-	)
-	(label "SCL_IN"
-		(at 25.4 36.83 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "b9e7fcc7-039a-4d16-9112-d8ca6eb49357")
-	)
-	(label "SCL"
-		(at 30.48 36.83 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "4e17939d-93e5-40cd-955c-b2664ae349c3")
-	)
-	(label "SDA_IN"
-		(at 25.4 43.18 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "fb82771a-6b59-456d-ae93-f3506e5e9a37")
-	)
-	(label "SDA"
-		(at 30.48 43.18 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "7b9ebba8-0134-4cfc-9dfb-9b6b18a1b6ef")
-	)
-	(label "SCL_IN"
-		(at 41.91 40.64 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "fac71bb3-c4d6-4796-b5eb-a0340f22ed36")
-	)
-	(label "SDA_IN"
-		(at 49.53 40.64 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "0afaffb2-5e29-41b8-9ad4-af377de0bb77")
-	)
-	(label "SCL"
-		(at 58.42 50.8 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "3dda1379-0bf1-4f05-b0c4-d44401be1eac")
-	)
-	(label "SDA"
-		(at 60.96 53.34 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "3dddfb53-6a8e-4ba9-be56-ea26738a0965")
-	)
-	(label "SCL_IN"
-		(at 46.99 58.42 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "630e7598-272b-4ae0-bf23-57bc8900761c")
-	)
-	(label "SDA_IN"
-		(at 46.99 60.96 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "a0be4978-99b7-450d-82ee-fc562be49f04")
-	)
-	(label "P3"
-		(at 27.94 76.2 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "f842a8fb-d8e7-4ac3-acb6-fe260a1b98e0")
-	)
-	(label "P7"
-		(at 27.94 78.74 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "b193384d-5e55-408f-892e-2ea42cd30e47")
-	)
-	(label "P3"
-		(at 91.44 55.88 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "825732c0-86e1-4ab2-abd5-b2a4c62a6cd0")
-	)
-	(label "P7"
-		(at 91.44 66.04 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "d0b04f24-de1c-484c-b529-ecfd1eb42b62")
-	)
-	(junction
-		(at 45.72 168.91)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "88187854-d02c-4ab2-b462-f483eb907175")
-	)
-	(junction
-		(at 60.96 180.34)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "f2160ebf-0319-4e6e-8ecd-ae04e0201e1b")
-	)
-	(label "HV"
-		(at 113.03 165.1 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "363bdff4-0036-4915-804a-6dd30a2f3267")
-	)
-	(label "HV_B1"
-		(at 113.03 170.18 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "e832a5b7-e5c7-400b-9c19-c0ae1c4e9b77")
-	)
-	(label "HV_B1"
-		(at 124.46 165.1 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "a87d6609-c70f-420d-9687-55f43226dfc2")
-	)
-	(label "HV_B2"
-		(at 124.46 170.18 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "1bea33b8-053c-4026-a97e-9b208a0c4129")
-	)
-	(label "HV_B2"
-		(at 135.89 165.1 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "3c75979a-6b82-4ef9-88ff-853cde05a037")
-	)
-	(symbol
-		(lib_id "Device:Polyfuse_Small")
-		(at 27.94 25.4 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files no)
-		(dnp no)
-		(uuid "cd77b14e-f2b4-4dd3-a48c-7ca3e8696335")
-		(property "Reference" "F1"
-			(at 27.94 22.86 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "1.1A PTC"
-			(at 25.4 28.19 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D9.0mm_W5.0mm_P5.00mm"
-			(at 27.94 25.4 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 27.94 25.4 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C208481"
-			(at 27.94 25.4 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Resettable fuse, 1.1 A hold, 2.2 A trip, 30 V, radial, 5.08 mm leads, hand-solder (Bourns MF-R110)"
-			(at 27.94 25.4 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "dc05a89b-039a-4d72-b119-5768db98a3e0")
-		)
-		(pin "1"
-			(uuid "49463165-6c28-4f84-8b23-3154a92bb876")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "F1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+5V")
-		(at 33.02 25.4 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "97d02a4f-8860-4042-90ad-1b17952129ad")
-		(property "Reference" "#PWR0113"
-			(at 33.02 25.4 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+5V"
-			(at 33.02 21.59 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 46.99 66.04 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 46.99 66.04 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"+5V\""
-			(at 46.99 66.04 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "386dbb40-a794-4ae0-81d0-384061197bff")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "#PWR0113")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C_Polarized_Small")
-		(at 33.02 27.94 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "eb355593-76a4-4259-8f90-303b3508ce9c")
-		(property "Reference" "C20"
-			(at 35.56 26.67 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "100uF 50V"
-			(at 35.56 29.21 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
-			(at 33.02 27.94 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 33.02 27.94 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C160200"
-			(at 33.02 27.94 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Electrolytic on +5V, through-hole: damps the cable (Aishi ERZ1HM101E12OT, or any 100 uF 10 V or more)"
-			(at 33.02 27.94 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "4ffab9ea-da49-48b6-a9df-7f8c7d4cb9e9")
-		)
-		(pin "2"
-			(uuid "077d034f-193e-4aa6-a03b-025027ad6e40")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "C20")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 33.02 30.48 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "e805f8c8-464e-453c-9d0b-2f1b8cc0af35")
-		(property "Reference" "#PWR0114"
-			(at 33.02 30.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 33.02 34.29 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 231.14 157.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 231.14 157.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 231.14 157.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "8ba8db8b-54f4-4670-9811-35c615ec2cbf")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "#PWR0114")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "PCM_SparkFun-Resistor:R_Small")
-		(at 27.94 36.83 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "e88ece5d-ec94-4cc5-a2bc-134f190d2c09")
-		(property "Reference" "R40"
-			(at 27.94 34.92 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "100R"
-			(at 27.94 38.86 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 27.94 36.83 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 27.94 36.83 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C17408"
-			(at 27.94 36.83 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Series resistor in the I2C line, 0805 (JLCPCB Basic)"
-			(at 27.94 36.83 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "7f22acb2-ed29-479f-ba01-d87b1a6b0755")
-		)
-		(pin "1"
-			(uuid "1b090fd7-7631-4747-9788-be7dfeb92c8c")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "R40")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "PCM_SparkFun-Resistor:R_Small")
-		(at 27.94 43.18 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "c743e83a-ee00-4bbd-8efa-85ee017459d0")
-		(property "Reference" "R41"
-			(at 27.94 41.27 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "100R"
-			(at 27.94 45.21 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 27.94 43.18 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 27.94 43.18 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C17408"
-			(at 27.94 43.18 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Series resistor in the I2C line, 0805 (JLCPCB Basic)"
-			(at 27.94 43.18 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "8618b189-d49e-49f8-b16f-7eec77874a5f")
-		)
-		(pin "1"
-			(uuid "83a2c2a0-eaa8-4116-969c-0ca4431ec8ea")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "R41")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "PCM_SparkFun-Resistor:R_Small")
-		(at 41.91 38.1 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp yes)
-		(uuid "5cda063a-c443-43a5-b6f7-4a7db0b27b82")
-		(property "Reference" "R42"
-			(at 43.18 37.08 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "4.7k"
-			(at 43.18 39.37 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 41.91 38.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 41.91 38.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C17673"
-			(at 41.91 38.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "I2C pull-up, not fitted: the main board has its own (JLCPCB Basic)"
-			(at 41.91 38.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "48591307-6a45-4ab9-b639-d6b9505c02bd")
-		)
-		(pin "1"
-			(uuid "e0d2499a-7c25-4dee-97bf-839a81939975")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "R42")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:VCC")
-		(at 41.91 35.56 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "41bdc20a-6e42-445c-9e58-1e6263573de3")
-		(property "Reference" "#PWR0116"
-			(at 41.91 35.56 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "VIO"
-			(at 41.91 31.75 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 54.61 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 54.61 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"VCC\""
-			(at 54.61 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "d272b345-1dc7-475e-8777-cfc66bfbf5a4")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "#PWR0116")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "PCM_SparkFun-Resistor:R_Small")
-		(at 49.53 38.1 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp yes)
-		(uuid "d17373d8-fbab-49d2-b390-e1ecf98c9057")
-		(property "Reference" "R43"
-			(at 50.8 37.08 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "4.7k"
-			(at 50.8 39.37 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 49.53 38.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 49.53 38.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C17673"
-			(at 49.53 38.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "I2C pull-up, not fitted: the main board has its own (JLCPCB Basic)"
-			(at 49.53 38.1 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "38cbfa0b-ee88-4d3e-a1df-c955a97146c3")
-		)
-		(pin "1"
-			(uuid "a80ddb94-5ff7-47bd-b6e7-7e466beeb419")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "R43")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:VCC")
-		(at 49.53 35.56 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "c06580c9-645c-46d3-aaa9-df855707e123")
-		(property "Reference" "#PWR0117"
-			(at 49.53 35.56 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "VIO"
-			(at 49.53 31.75 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 54.61 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 54.61 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"VCC\""
-			(at 54.61 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "3876a829-01d5-4eb0-9bbd-9ddbe45e5daf")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "#PWR0117")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:Conn_01x04_Pin")
-		(at 22.86 76.2 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files no)
-		(dnp yes)
-		(fields_autoplaced yes)
-		(uuid "95344e48-92de-432a-98eb-42f9e31f1892")
-		(property "Reference" "J5"
-			(at 22.86 71.12 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "spare I/O"
-			(at 22.86 85.09 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
-			(at 22.86 76.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 22.86 76.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Pads for U1 spare pins, header not fitted"
-			(at 22.86 76.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "016d0161-eaea-4cc0-9efb-787ca67af6a9")
-		)
-		(pin "2"
-			(uuid "71464e7b-7e95-45c0-a93e-db728419bbe6")
-		)
-		(pin "3"
-			(uuid "71122fbb-b334-46f0-8455-4a01a60df3ee")
-		)
-		(pin "4"
-			(uuid "1082d007-2ec8-4f30-95f5-9365ccbb1f8e")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "J5")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:VCC")
-		(at 27.94 73.66 270)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "da994849-4260-4986-9b5f-2df8deec4e7e")
-		(property "Reference" "#PWR0118"
-			(at 27.94 73.66 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "VIO"
-			(at 32.0 73.66 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 46.99 63.5 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 46.99 63.5 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"VCC\""
-			(at 46.99 63.5 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "6aa1a07f-ac10-4c76-bd36-c9a7b4c7990e")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "#PWR0118")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 27.94 81.28 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "8434e30d-d39c-4618-9af5-cfc21071d121")
-		(property "Reference" "#PWR0119"
-			(at 27.94 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 32.0 81.28 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 46.99 55.88 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 46.99 55.88 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 46.99 55.88 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "81c04e83-f631-47d8-bc9a-8d5b8420d557")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "#PWR0119")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C_Small")
-		(at 45.72 171.45 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "034c0528-ee25-42cb-b2e2-70e66f801328")
-		(property "Reference" "C18"
-			(at 48.26 170.18 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "0.1uF"
-			(at 48.26 172.72 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 45.72 171.45 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 45.72 171.45 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C49678"
-			(at 45.72 171.45 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "AIN0 filter, 0805 (JLCPCB Basic)"
-			(at 45.72 171.45 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "48bfa899-05f5-44a3-a71e-344184411952")
-		)
-		(pin "1"
-			(uuid "0f902ace-f7d3-4494-acd4-02f19a2c2b7b")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "C18")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 45.72 173.99 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "142df95e-c4eb-4766-84d8-52aa2f9dce74")
-		(property "Reference" "#PWR0120"
-			(at 45.72 173.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 45.72 177.8 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 231.14 157.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 231.14 157.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 231.14 157.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "5bb943cb-30bd-4568-a960-9253e1226479")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "#PWR0120")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C_Small")
-		(at 60.96 182.88 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "dd744295-2bdb-42d4-bac2-37f291a86baa")
-		(property "Reference" "C19"
-			(at 63.5 183.13 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "0.1uF"
-			(at 63.5 185.42 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 60.96 182.88 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 60.96 182.88 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C49678"
-			(at 60.96 182.88 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "AIN1 filter, 0805 (JLCPCB Basic)"
-			(at 60.96 182.88 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "b610c106-62cc-4f17-87ad-7941b7b35554")
-		)
-		(pin "1"
-			(uuid "addad58d-4a63-4c11-9ff8-2833bcc0e8e9")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "C19")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 60.96 185.42 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "2a37b287-4b35-47c8-8ef5-27c69f83b723")
-		(property "Reference" "#PWR0121"
-			(at 60.96 185.42 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 60.96 189.23 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 231.14 157.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 231.14 157.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 231.14 157.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "535ddc33-4cb8-4b03-a669-9e7d8416617d")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "#PWR0121")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C_Small")
-		(at 113.03 167.64 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "d7e4ddc5-b6b6-4999-9e35-e781600e55d5")
-		(property "Reference" "C21"
-			(at 110.49 167.64 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "100nF 50V"
-			(at 113.03 162.56 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
-			(at 113.03 167.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 113.03 167.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C24497"
-			(at 113.03 167.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "High-frequency bypass across C1, one of three in series; Rbl1-3 share the voltage (Samsung CL31B104KBCNNNC)"
-			(at 113.03 167.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "3fe94d05-4db8-469e-a674-458ea1a96c16")
-		)
-		(pin "1"
-			(uuid "3ca4ac2e-14c5-44bb-90a9-510af89213b2")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "C21")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C_Small")
-		(at 124.46 167.64 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "9c974fad-d766-47f3-900b-8e82d51b94e4")
-		(property "Reference" "C22"
-			(at 121.92 167.64 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "100nF 50V"
-			(at 124.46 162.56 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
-			(at 124.46 167.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 124.46 167.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C24497"
-			(at 124.46 167.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "High-frequency bypass across C1, one of three in series; Rbl1-3 share the voltage (Samsung CL31B104KBCNNNC)"
-			(at 124.46 167.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "80656e2c-2798-487b-8e6f-bdae4d88ab30")
-		)
-		(pin "1"
-			(uuid "b742da10-817c-410b-a069-9f2b855a6d0f")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "C22")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C_Small")
-		(at 135.89 167.64 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "42056fff-f501-4694-8af5-77e5ea8be04a")
-		(property "Reference" "C23"
-			(at 133.35 167.64 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "100nF 50V"
-			(at 135.89 162.56 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
-			(at 135.89 167.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 135.89 167.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C24497"
-			(at 135.89 167.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "High-frequency bypass across C1, one of three in series; Rbl1-3 share the voltage (Samsung CL31B104KBCNNNC)"
-			(at 135.89 167.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "b5ea5eae-57f9-4c15-bef7-ad7fd0faa820")
-		)
-		(pin "1"
-			(uuid "59113c46-94b1-46e6-ab8f-e8acba1426a0")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "C23")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 135.89 170.18 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "c8c56531-40c2-463f-90d8-15ef19e0ae80")
-		(property "Reference" "#PWR0122"
-			(at 135.89 170.18 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 135.89 173.99 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 231.14 157.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 231.14 157.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 231.14 157.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "c7cc0968-71c2-4684-9db1-f478cdaec93a")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "#PWR0122")
 					(unit 1)
 				)
 			)
