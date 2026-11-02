@@ -472,7 +472,7 @@ def t_debug_log(ctx):
         time.sleep(0.5)
         # From the console: at debug level, NVS messages push these out of the
         # 8 KB web log before it can be read.
-        log = ctx.ser.s.read(ctx.ser.s.in_waiting or 1).decode("utf-8", "replace")
+        log = ctx.ser.s.read(200000).decode("utf-8", "replace")  # up to its 1 s timeout
         if "-> DIALTONE" not in log:
             raise Fail("no telephony debug state-transition lines on the console")
         ctx.note("debug log shows telephony transitions")
