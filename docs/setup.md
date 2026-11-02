@@ -3,7 +3,8 @@
 # 4 · Set up & use
 
 Get a flashed board onto your Wi-Fi. This describes everything you can do from its
-web interface. If someone handed you a ready-made board, start here.
+web interface. If someone handed you a ready-made board, start here. If something
+isn't working, see [Troubleshooting](troubleshooting.md).
 
 ## 1. Get it on your Wi-Fi
 
@@ -143,7 +144,7 @@ Click any picture for the full page.
     <td><a href="pics/settings-hardware.png"><img src="pics/thumbs/settings-hardware.png" alt="Hardware settings"></a></td>
     <td valign="top"><b>Settings → Hardware.</b> Board and chip
     details, low-power idle mode (on by default; it saves power when the
-    phones have been idle for a few minutes), firmware updates (with a check for new
+    phones have been idle for a few minutes), each line's ring frequency, firmware updates (with a check for new
     releases), restart counts, the memory map, and resets.</td>
   </tr>
   <tr>
@@ -155,7 +156,8 @@ Click any picture for the full page.
     <td><a href="pics/settings-diag.png"><img src="pics/thumbs/settings-diag.png" alt="Diagnostics"></a></td>
     <td valign="top"><b>Settings → Diagnostics.</b> The full log, log
     level, the hardware self-test (including a line audio level check that
-    recommends an earpiece level, with a button to apply it), and a one-shot <b>call recording</b>: arm
+    recommends an earpiece level, with a button to apply it), a
+    ring frequency test for a phone that rings weakly, and a one-shot <b>call recording</b>: arm
     it, lift the handset, and the whole call (dial tone, dialing, voice) is
     saved as a stereo WAV: to the microSD card (up to 20 minutes), or with
     no card to internal flash (a minute or two, using only free space).</td>
@@ -248,10 +250,10 @@ USB, or upload the `rotary_phone_gateway.bin` from your build directory in the
 same Firmware card. The board checks that the file is a firmware image for this
 board type before it will use it.
 
-**When USB is still needed.** A board's first flash, and any release that
-changes the flash layout (the update slots grew from 2 MB to 3 MB on 16 MB
-boards; the board keeps working on the old layout until it's reflashed once).
-Reflashing over USB keeps your recordings, clips and settings.
+**When USB is still needed.** A board's first flash, and moving a board to a newer
+flash layout (a board keeps working on its old layout until then, and web updates
+never change it). Moving to a new layout erases recordings and clips, so download
+any you want to keep first. Settings are kept.
 
 ## 10. Payphones
 

@@ -176,7 +176,8 @@ few commands in a terminal, you can build one.
 | **3** | [Flash & test](docs/flashing.md) | Install ESP-IDF, flash the firmware, run the hardware self-test |
 | **4** | [Set up & use](docs/setup.md) | Wi-Fi, the web interface, dial codes, your own audio |
 
-Going further: [VoIP setup](docs/voip-setup.md) ·
+Going further: [Troubleshooting](docs/troubleshooting.md) ·
+[VoIP setup](docs/voip-setup.md) ·
 [Home Assistant](docs/home-assistant.md) ·
 [Board reference (v4)](docs/hardware-smd4.md) ·
 [Board reference (v5)](docs/hardware-smd5.md) ·

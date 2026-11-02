@@ -6125,7 +6125,9 @@ static int append_diag_tab(char *buf, size_t cap, int off)
                      "frequency for 3 s with a 2 s pause, about a minute in all, so watch this page "
                      "and note where the bell is clearly loudest. If that isn't 20 Hz, the ringer is "
                      "tuned to it. Ring that frequency alone to confirm, then save it under "
-                     "<a href=\"/settings?tab=hardware\">Hardware</a>. "
+                     "<a href=\"/settings?tab=hardware\">Hardware</a>. Still no luck? See the "
+                     "<a href=\"https://github.com/sdylewski/Analog-Redial/blob/main/docs/troubleshooting.md#a-phone-wont-ring\" "
+                     "target=\"_blank\" rel=\"noopener\">troubleshooting guide</a>. "
                      "&#9888; Don't touch tip/ring while it rings."),
             tl_opts,
             i18n_str("diag.test.ringfreq_sweep", "Step through all"),
