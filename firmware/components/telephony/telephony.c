@@ -2099,6 +2099,100 @@ esp_err_t telephony_bell(int line, int secs, bool respect_quiet)
     return esp_timer_start_once(s_bell_timer[line], (uint64_t)secs * 1000000);
 }
 
+/* ---- ring frequency test (telephony_ring_test_*) ---- */
+/* The frequencies party-line selective ringers were built for: the harmonic
+ * (16, 25, 33, 50, 66), decimonic (20, 30, 40, 50, 60) and synchromonic
+ * (16, 30, 42, 54, 66) series. */
+static const uint8_t RING_TEST_HZ[] = { 16, 20, 25, 30, 33, 40, 42, 50, 54, 60, 66 };
+#define RING_TEST_STEPS   (int)(sizeof(RING_TEST_HZ) / sizeof(RING_TEST_HZ[0]))
+#define RING_TEST_ON_US   3000000
+#define RING_TEST_GAP_US  2000000
+#define RING_TEST_ONE_US  5000000
+
+static esp_timer_handle_t s_rt_timer;
+static volatile int  s_rt_line = -1;
+static volatile int  s_rt_hz;
+static volatile int  s_rt_step;
+static volatile bool s_rt_sweep;
+static volatile bool s_rt_ringing;
+
+static void ring_test_cb(void *arg)
+{
+    int line = s_rt_line;
+    if (line < 0) return;
+    /* A lifted handset has already stopped the ring, and a call that started
+     * ringing owns the bell now: just end the test. */
+    if (line_offhook(line) || s_line[line].state != TEL_IDLE) {
+        s_rt_ringing = false;
+        s_rt_line = -1;
+        return;
+    }
+    if (s_rt_ringing) {
+        ag1170_ring_stop(line);
+        s_rt_ringing = false;
+        if (!s_rt_sweep || s_rt_step + 1 >= RING_TEST_STEPS) {
+            s_rt_line = -1;
+            return;
+        }
+        esp_timer_start_once(s_rt_timer, RING_TEST_GAP_US);
+        return;
+    }
+    s_rt_step++;
+    s_rt_hz = RING_TEST_HZ[s_rt_step];
+    s_rt_ringing = true;
+    ag1170_ring_start_test(line, (uint16_t)s_rt_hz);
+    ESP_LOGI(TAG, "ring test line %d: %d Hz (%d of %d)", line, s_rt_hz, s_rt_step + 1, RING_TEST_STEPS);
+    esp_timer_start_once(s_rt_timer, RING_TEST_ON_US);
+}
+
+void telephony_ring_test_stop(void)
+{
+    int line = s_rt_line;
+    if (line < 0) return;
+    if (s_rt_timer) esp_timer_stop(s_rt_timer);
+    s_rt_line = -1;
+    s_rt_ringing = false;
+    if (s_line[line].state == TEL_IDLE) ag1170_ring_stop(line);
+}
+
+esp_err_t telephony_ring_test_start(int line, int hz)
+{
+    if (line < 0 || line >= NLINES_ACTIVE || line >= board_hw_config_get().num_lines)
+        return ESP_ERR_INVALID_ARG;
+    if (hz != 0 && (hz < RING_TEST_HZ[0] || hz > RING_TEST_HZ[RING_TEST_STEPS - 1]))
+        return ESP_ERR_INVALID_ARG;
+    if (line_offhook(line) || s_line[line].state != TEL_IDLE) return ESP_ERR_INVALID_STATE;
+    telephony_ring_test_stop();
+    if (!s_rt_timer) {
+        const esp_timer_create_args_t a = { .callback = ring_test_cb, .name = "ringtest" };
+        esp_err_t err = esp_timer_create(&a, &s_rt_timer);
+        if (err != ESP_OK) return err;
+    }
+    if (s_bell_timer[line]) esp_timer_stop(s_bell_timer[line]);
+    s_rt_sweep = (hz == 0);
+    s_rt_step = 0;
+    s_rt_hz = s_rt_sweep ? RING_TEST_HZ[0] : hz;
+    s_rt_ringing = true;
+    s_rt_line = line;
+    ag1170_ring_start_test(line, (uint16_t)s_rt_hz);
+    ESP_LOGI(TAG, "ring test line %d: %d Hz%s", line, s_rt_hz, s_rt_sweep ? " (1 of the sweep)" : "");
+    return esp_timer_start_once(s_rt_timer, s_rt_sweep ? RING_TEST_ON_US : RING_TEST_ONE_US);
+}
+
+telephony_ring_test_status_t telephony_ring_test_status(void)
+{
+    return (telephony_ring_test_status_t){
+        .active = s_rt_line >= 0, .ringing = s_rt_ringing, .sweep = s_rt_sweep,
+        .hz = s_rt_hz, .step = s_rt_step + 1, .steps = RING_TEST_STEPS,
+    };
+}
+
+int telephony_ring_test_freqs(const uint8_t **list)
+{
+    *list = RING_TEST_HZ;
+    return RING_TEST_STEPS;
+}
+
 /* ---- message waiting ---- */
 #define MSG_NVS_NS  "telmsg"
 static volatile int s_new_msgs = -1;   /* -1 = not loaded yet */

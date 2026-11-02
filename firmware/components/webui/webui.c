@@ -6056,6 +6056,61 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         i18n_str("diag.test.tone_off", "Stop"),
         i18n_str("diag.test.progress_button", "Play"));
 
+    /* --- ring frequency test --- */
+    {
+        const uint8_t *hz;
+        int n = telephony_ring_test_freqs(&hz);
+        char hz_opts[32 * 12] = "";
+        int o = 0;
+        for (int i = 0; i < n && o < (int)sizeof(hz_opts) - 32; i++)
+            o += snprintf(hz_opts + o, sizeof(hz_opts) - o, "<option value=\"%d\"%s>%d Hz</option>",
+                          hz[i], hz[i] == 20 ? " selected" : "", hz[i]);
+        off = appendf(buf, cap, off,
+            "<div class=\"settings-form\">"
+            "<label>%s</label>"
+            "<p class=\"hint\">%s</p>"
+            "<div class=\"toolbar sub\">"
+            "<select id=\"rtline\">%s</select>"
+            "<button type=\"button\" onclick=\"rtGo(0)\">%s</button>"
+            "<select id=\"rthz\">%s</select>"
+            "<button type=\"button\" onclick=\"rtGo(document.getElementById('rthz').value)\">%s</button>"
+            "<button type=\"button\" onclick=\"rtStop()\">%s</button></div>"
+            "<p class=\"hint\" id=\"rtstat\" aria-live=\"polite\"></p></div>"
+            "<script>"
+            "var RT={step:'%s',one:'%s',gap:'%s',done:'%s',busy:'%s'},rtT=0;"
+            "function rtShow(d){var e=document.getElementById('rtstat');clearTimeout(rtT);"
+            "if(!d.active){if(rtT)e.textContent=RT.done;rtT=0;return;}"
+            "e.textContent=!d.ringing?RT.gap:d.sweep?RT.step.replace('%%1',d.step).replace('%%2',d.steps)"
+            ".replace('%%3',d.hz):RT.one.replace('%%3',d.hz);rtT=setTimeout(rtPoll,500);}"
+            "function rtPoll(){fetch('/api/ring_test').then(function(r){return r.json();}).then(rtShow)"
+            ".catch(function(){rtT=setTimeout(rtPoll,2000);});}"
+            "function rtPost(b){return fetch('/test/ring_freq',{method:'POST',headers:"
+            "{'Content-Type':'application/x-www-form-urlencoded'},body:b}).then(function(r){return r.json();});}"
+            "function rtGo(hz){rtPost('line='+document.getElementById('rtline').value+'&hz='+hz)"
+            ".then(function(d){if(d.ok){rtT=1;rtPoll();}else{document.getElementById('rtstat').textContent=RT.busy;}});}"
+            "function rtStop(){rtPost('stop=1').then(rtPoll);}"
+            "rtPoll();"
+            "</script>",
+            i18n_str("diag.test.ringfreq_label", "Ring frequency test"),
+            i18n_str("diag.test.ringfreq_hint",
+                     "For a phone that rings weakly or not at all. Party-line phones often have a "
+                     "ringer tuned to one frequency, and a normal ring is 20 Hz. This rings each "
+                     "frequency for 3 s with a 2 s pause, about a minute in all, so watch this page "
+                     "and note where the bell is clearly loudest. If that isn't 20 Hz, the ringer is "
+                     "tuned to it. Then ring that frequency alone to confirm. The board keeps ringing "
+                     "at 20 Hz for real calls. &#9888; Don't touch tip/ring while it rings."),
+            tl_opts,
+            i18n_str("diag.test.ringfreq_sweep", "Step through all"),
+            hz_opts,
+            i18n_str("diag.test.ringfreq_one", "Ring this one"),
+            i18n_str("diag.test.ringfreq_stop", "Stop"),
+            i18n_str("diag.test.ringfreq_step", "Step %1 of %2: ringing at %3 Hz"),
+            i18n_str("diag.test.ringfreq_ringing", "Ringing at %3 Hz"),
+            i18n_str("diag.test.ringfreq_gap", "Pause..."),
+            i18n_str("diag.test.ringfreq_done", "Finished."),
+            i18n_str("diag.test.ringfreq_busy", "That line is in use: hang up and try again."));
+    }
+
     /* Harness-only switches, kept to the bottom: these change how the board
      * behaves rather than exercising hardware, and normal users never need
      * them. */
@@ -8107,6 +8162,35 @@ static esp_err_t test_ring_handler(httpd_req_t *req)
     esp_err_t err = telephony_bell(line, secs, false);
     if (err != ESP_OK) ESP_LOGI(TAG, "test ring line %d refused: %s", line, esp_err_to_name(err));
     return redirect_to(req, "/settings?tab=diag");
+}
+
+/* POST /test/ring_freq -- line=N&hz=H (hz 0 steps through them all), or stop=1. */
+static esp_err_t test_ring_freq_handler(httpd_req_t *req)
+{
+    char body[64], lbuf[8] = {0}, hbuf[8] = {0}, sbuf[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "line", lbuf, sizeof(lbuf));
+    form_field(body, "hz", hbuf, sizeof(hbuf));
+    form_field(body, "stop", sbuf, sizeof(sbuf));
+    esp_err_t err = ESP_OK;
+    if (sbuf[0]) telephony_ring_test_stop();
+    else         err = telephony_ring_test_start(atoi(lbuf), atoi(hbuf));
+    if (err != ESP_OK) ESP_LOGI(TAG, "ring frequency test refused: %s", esp_err_to_name(err));
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_sendstr(req, err == ESP_OK ? "{\"ok\":true}" : "{\"ok\":false}");
+}
+
+static esp_err_t ring_test_json_handler(httpd_req_t *req)
+{
+    telephony_ring_test_status_t s = telephony_ring_test_status();
+    char json[96];
+    snprintf(json, sizeof(json), "{\"active\":%s,\"ringing\":%s,\"sweep\":%s,\"hz\":%d,\"step\":%d,\"steps\":%d}",
+             s.active ? "true" : "false", s.ringing ? "true" : "false", s.sweep ? "true" : "false",
+             s.hz, s.step, s.steps);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_sendstr(req, json);
 }
 
 static esp_err_t test_progress_handler(httpd_req_t *req)
@@ -11111,6 +11195,8 @@ esp_err_t webui_start(void)
         { .uri = "/test/record",            .method = HTTP_POST, .handler = test_record_handler },
         { .uri = "/test/sd",                .method = HTTP_POST, .handler = test_sd_handler },
         { .uri = "/test/ring",              .method = HTTP_POST, .handler = test_ring_handler },
+        { .uri = "/test/ring_freq",         .method = HTTP_POST, .handler = test_ring_freq_handler },
+        { .uri = "/api/ring_test",          .method = HTTP_GET,  .handler = ring_test_json_handler },
         { .uri = "/test/progress",          .method = HTTP_POST, .handler = test_progress_handler },
         { .uri = "/sd_selftest_ui",         .method = HTTP_POST, .handler = sd_selftest_ui_handler },
         { .uri = "/sd_format",              .method = HTTP_POST, .handler = sd_format_handler },

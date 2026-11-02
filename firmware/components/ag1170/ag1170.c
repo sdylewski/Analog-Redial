@@ -36,6 +36,8 @@ typedef struct {
     /* ring state */
     bool    ringing;
     bool    ring_intercom; /* short double ring instead of the normal cadence */
+    bool    ring_steady;   /* no cadence: rings until stopped (frequency test) */
+    uint16_t ring_hz;      /* frequency for this ring, 0 = the configured one */
     int64_t ring_phase_start_us;
     int64_t last_fr_toggle_us;
     int     fr_level;
@@ -125,6 +127,8 @@ void ag1170_ring_start(int line)
     int64_t now = esp_timer_get_time();
     s_ls[line].ringing = true;
     s_ls[line].ring_intercom = false;
+    s_ls[line].ring_steady = false;
+    s_ls[line].ring_hz = 0;
     s_ls[line].ring_phase_start_us = now;
     s_ls[line].last_fr_toggle_us = now;
     ESP_LOGI(TAG, "line %d ring start", line);
@@ -135,6 +139,14 @@ void ag1170_ring_start_intercom(int line)
     if (line < 0 || line >= s_active_lines) return;
     ag1170_ring_start(line);
     s_ls[line].ring_intercom = true;
+}
+
+void ag1170_ring_start_test(int line, uint16_t hz)
+{
+    if (line < 0 || line >= s_active_lines) return;
+    ag1170_ring_start(line);
+    s_ls[line].ring_hz = hz;
+    s_ls[line].ring_steady = true;
 }
 
 void ag1170_ring_stop(int line)
@@ -210,11 +222,18 @@ static void service_ring(int line, int64_t now)
         on        = phase_ms < 400 || (phase_ms >= 600 && phase_ms < 1000);
     }
 
+    if (ls->ring_steady) on = true;
+
     if (on) {
         ag1170_set_rm(line, 1);
-        int64_t half_us = (int64_t)(1000000 / (2 * (s_cfg.ring_freq_hz ? s_cfg.ring_freq_hz : 20)));
-        if (now - ls->last_fr_toggle_us >= half_us) {
-            ls->last_fr_toggle_us = now;
+        uint16_t hz = ls->ring_hz ? ls->ring_hz : (s_cfg.ring_freq_hz ? s_cfg.ring_freq_hz : 20);
+        int64_t half_us = 500000 / hz;
+        int64_t since = now - ls->last_fr_toggle_us;
+        if (since >= half_us) {
+            /* Step by the exact half period, so a frequency whose half period
+             * isn't a whole number of 1 ms ticks is still right on average.
+             * After a cadence gap, start again from now. */
+            ls->last_fr_toggle_us = since < 2 * half_us ? ls->last_fr_toggle_us + half_us : now;
             ag1170_set_fr(line, !ls->fr_level);
         }
     } else {

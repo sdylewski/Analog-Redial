@@ -133,6 +133,24 @@ void telephony_set_monitor_suppress(bool on);
  * Lifting the handset stops the bell at once (the SLIC's ring trip). */
 esp_err_t telephony_bell(int line, int secs, bool respect_quiet);
 
+/* Ring frequency test, for finding a party-line ringer's tuning. hz 0 steps
+ * through telephony_ring_test_freqs() (3 s ringing, 2 s pause each); any other
+ * value in that range rings just that frequency for 5 s. Refused
+ * (ESP_ERR_INVALID_STATE) if the line isn't idle and on-hook; lifting the
+ * handset or an incoming call ends it. */
+esp_err_t telephony_ring_test_start(int line, int hz);
+void telephony_ring_test_stop(void);
+typedef struct {
+    bool active;
+    bool ringing; /* false during the pause between steps */
+    bool sweep;
+    int  hz;
+    int  step;    /* 1-based, while sweeping */
+    int  steps;
+} telephony_ring_test_status_t;
+telephony_ring_test_status_t telephony_ring_test_status(void);
+int telephony_ring_test_freqs(const uint8_t **list);
+
 /* Puts dial tone back on a line that is still sitting on it, after something
  * (the echo measurement) silenced it. Does nothing in any other state. */
 void telephony_resume_dialtone(int line);
