@@ -2173,6 +2173,7 @@ esp_err_t telephony_ring_test_start(int line, int hz)
     if (hz != 0 && (hz < RING_TEST_HZ[0] || hz > RING_TEST_HZ[RING_TEST_STEPS - 1]))
         return ESP_ERR_INVALID_ARG;
     if (line_offhook(line) || s_line[line].state != TEL_IDLE) return ESP_ERR_INVALID_STATE;
+    telephony_ring_custom_stop();
     telephony_ring_test_stop();
     if (!s_rt_timer) {
         const esp_timer_create_args_t a = { .callback = ring_test_cb, .name = "ringtest" };
@@ -2202,6 +2203,90 @@ int telephony_ring_test_freqs(const uint8_t **list)
 {
     *list = RING_TEST_HZ;
     return RING_TEST_STEPS;
+}
+
+/* ---- custom ring test (telephony_ring_custom_*) ---- */
+static esp_timer_handle_t s_rc_timer;
+static volatile int  s_rc_line = -1;
+static volatile int  s_rc_ring;   /* 1-based number of the current or last ring */
+static volatile int  s_rc_rings;
+static volatile bool s_rc_ringing;
+static uint32_t s_rc_on_ms;
+static uint32_t s_rc_off_ms;
+
+static void ring_custom_cb(void *arg)
+{
+    int line = s_rc_line;
+    if (line < 0) return;
+    /* A lifted handset stops the ring in ag1170, and a real call owns the bell
+     * once it starts ringing: either one just ends the test. */
+    if (line_offhook(line) || s_line[line].state != TEL_IDLE ||
+        (s_rc_ringing && !ag1170_is_ringing(line))) {
+        s_rc_ringing = false;
+        s_rc_line = -1;
+        return;
+    }
+    if (s_rc_ringing) {
+        ag1170_ring_stop(line);
+        s_rc_ringing = false;
+        if (s_rc_ring >= s_rc_rings) {
+            s_rc_line = -1;
+            return;
+        }
+        esp_timer_start_once(s_rc_timer, (uint64_t)s_rc_off_ms * 1000);
+        return;
+    }
+    s_rc_ring++;
+    s_rc_ringing = true;
+    ag1170_ring_start_test(line, 0);
+    esp_timer_start_once(s_rc_timer, (uint64_t)s_rc_on_ms * 1000);
+}
+
+void telephony_ring_custom_stop(void)
+{
+    int line = s_rc_line;
+    if (line < 0) return;
+    if (s_rc_timer) esp_timer_stop(s_rc_timer);
+    s_rc_line = -1;
+    s_rc_ringing = false;
+    if (s_line[line].state == TEL_IDLE) ag1170_ring_stop(line);
+}
+
+esp_err_t telephony_ring_custom_start(int line, uint32_t on_ms, uint32_t off_ms, int rings)
+{
+    if (line < 0 || line >= NLINES_ACTIVE || line >= board_hw_config_get().num_lines)
+        return ESP_ERR_INVALID_ARG;
+    if (on_ms < RING_CUSTOM_MIN_MS || on_ms > RING_CUSTOM_MAX_ON_MS ||
+        off_ms < RING_CUSTOM_MIN_MS || off_ms > RING_CUSTOM_MAX_OFF_MS ||
+        rings < 1 || rings > RING_CUSTOM_MAX_RINGS)
+        return ESP_ERR_INVALID_ARG;
+    if (line_offhook(line) || s_line[line].state != TEL_IDLE) return ESP_ERR_INVALID_STATE;
+    telephony_ring_test_stop();
+    telephony_ring_custom_stop();
+    if (!s_rc_timer) {
+        const esp_timer_create_args_t a = { .callback = ring_custom_cb, .name = "ringcustom" };
+        esp_err_t err = esp_timer_create(&a, &s_rc_timer);
+        if (err != ESP_OK) return err;
+    }
+    if (s_bell_timer[line]) esp_timer_stop(s_bell_timer[line]);
+    s_rc_on_ms = on_ms;
+    s_rc_off_ms = off_ms;
+    s_rc_rings = rings;
+    s_rc_ring = 1;
+    s_rc_ringing = true;
+    s_rc_line = line;
+    ag1170_ring_start_test(line, 0);
+    ESP_LOGI(TAG, "custom ring line %d: %u ms on, %u ms off, %d rings", line,
+             (unsigned)on_ms, (unsigned)off_ms, rings);
+    return esp_timer_start_once(s_rc_timer, (uint64_t)on_ms * 1000);
+}
+
+telephony_ring_custom_status_t telephony_ring_custom_status(void)
+{
+    return (telephony_ring_custom_status_t){
+        .active = s_rc_line >= 0, .ringing = s_rc_ringing,
+        .ring = s_rc_ring, .rings = s_rc_rings,
+    };
 }
 
 /* ---- touch-tone test (telephony_dtmf_test_*) ---- */
