@@ -77,7 +77,7 @@ capacitance at 20 V, and has too little ESR for C20.
 | U4 | ADC | ADS1115 module on a 1 x 10 header, 2.54 mm (VDD, GND, SCL, SDA, ADDR, ALRT, A0-A3) | under 2 |
 | J5, R42, R43, Rslope1, Cslope1 | spare I/O pads, I2C pull-ups, slope compensation | **not fitted** | |
 
-The priced parts in these two tables come to about **$22** a board at qty-1 prices.
+These come to about **$16.50** a board at DigiKey qty-1 prices, U4's module included (section "What it costs").
 
 **Resistors and small capacitors: 0805, JLCPCB places them**, except:
 
@@ -128,27 +128,52 @@ The 8-pin UC3842/3/4/5 family all share one pinout, and the "43" is the one with
 Also not drop-ins: the **UC3842** (16 V start / 10 V stop, too close to the 20 V rail)
 and the **UC3844/UC3845** (output limited to 50 % duty, too low for this boost).
 
-### What JLCPCB should place
+### What it costs
 
-The Extended fee is **per unique Extended part, per order** (about $3 each last I knew;
-check the current figure), so it shrinks with order size:
+Estimated 2026-11-04 for a board about the size of the Analog Redial (115 x 54 mm), 2 layers,
+top-side assembly only, JLCPCB Economic, delivered to the US. JLCPCB part prices are its own
+price breaks at the order's real quantities (232 solder joints a board). DigiKey prices are its
+breaks where shown, and the qty-1 price where not. **Estimates, not a quote:** the PCB and
+shipping figures for 10 and 30 boards are scaled from the 5-board Analog Redial quote
+([docs/board.md](../docs/board.md)), and the fees are JLCPCB's as I know them: $8 setup, $1.50
+stencil, $0.0017 a joint, **$3 per unique Extended part per order** (Preferred parts have no fee).
 
-| Boards in the order | Fee per Extended part, per board |
-|---:|---:|
-| 5 | $0.60 |
-| 10 | $0.30 |
-| 30 | $0.10 |
+| | 5 boards | 10 boards | 30 boards |
+|---|---:|---:|---:|
+| PCB | 8.10 | ~11 | ~25 |
+| SMT parts (JLCPCB places all of them) | 26.74 | 48.73 | 132.44 |
+| Extended fees, 17 parts | 51.00 | 51.00 | 51.00 |
+| Setup, stencil, placement | 11.47 | 13.44 | 21.33 |
+| **JLCPCB merchandise** | **97.31** | **124.18** | **229.77** |
+| Shipping | 30.86 | ~35 | ~50 |
+| Sales tax 8.625 %, tariff about 47.5 % of merchandise | 54.61 | 69.69 | 128.96 |
+| **JLCPCB delivered** | **182.78** | **228.87** | **408.73** |
+| DigiKey hand-solder parts (C1, K1, Qa1, J1-J3 with mating plugs, J6-J9, shunts, U4 socket), with tax and about $7 shipping | 79.85 | 142.87 | 407.27 |
+| U4, ADS1115 module (AliExpress, about $2) | 10 | 20 | 60 |
+| **Order total** | **~273** | **~392** | **~876** |
+| **Per board** | **~$55** | **~$39** | **~$29** |
+| Per board with the six swaps below | ~$49 | ~$36 | ~$28 |
 
-With 6 Extended parts (U1, U2, U3, Q3, ES2D, D3), that's **$18 per
-order**: $3.60 a board at 5 boards, $0.60 at 30.
+The Extended fee is fixed per order, so it's most of the gap between 5 and 30 boards: $10 a
+board at 5, $1.70 at 30. Six of the 17 have a no-fee part that drops in:
 
-- **First order (5 boards): JLCPCB places only Basic parts.** You hand-solder the Extended
-  ones. They're easy packages apart from U1's 0.65 mm pitch, only one of each per board,
-  and it saves about $18 an order.
-- **30 boards or more: let JLCPCB place everything surface-mount.** The fees drop to about
-  $0.60 a board, less than your time.
-- Buy the hand-solder parts from LCSC in the same order (they ship with the boards) or from
-  DigiKey.
+| Ref | Now (Extended) | Swap | Change |
+|---|---|---|---|
+| Ct1 | 2.2 nF C0G, not stocked as specified | CL21C222JBFNNNE (C28260), Basic | none |
+| Cp1 | 100 pF C0G (C62768) | CL21C101JBANNNC (C1790), Basic | none |
+| D5 | BZT52C22 (C173423) | MMSZ5251B (C22395560), Preferred | none, SOD-123 |
+| D6 | BZT52C12 (C173429) | MMSZ5242B (C19077426), Preferred | none, SOD-123 |
+| Dz1 | SMAZ15 (C110524) | 1SMA4744A (C19077482), Preferred | none, SMA |
+| D1 | 1N5819HW (C82544) | SS34 (C8678), Basic, as on the v6 board | footprint to SMA |
+
+The other 11 have no Basic equivalent: C5/C7/C14/C20, L1, L2, F1, U1, U3, Q3, D3, C8 and Cf1
+(C0G; Basic has only X7R at 1 nF and 470 pF), and R12 (82 ohm). U2, D2/D14 (ES2D), Q5 and R17
+are Preferred, so they cost no fee. Hand-soldering some Extended parts yourself still saves $3
+each per order.
+
+The biggest single items are the hand-solder parts: K1 ($3.84-4.52), C1 ($3.08) and Qa1
+($2.43). The DigiKey figures for C1, Qa1, the JST parts and the pin strip had no quantity
+breaks on the page, so they're qty-1 prices and a little high at 30.
 
 ## Will small resistors and capacitors stand the voltage?
 
