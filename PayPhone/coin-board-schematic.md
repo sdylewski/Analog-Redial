@@ -145,7 +145,7 @@ Datasheet designators (TI SLLS636N's step-up converter figure) on this board:
 | Datasheet | This board | Value here (datasheet example: 12 V in, 28 V / 175 mA out) |
 |---|---|---|
 | VIN | +5V | 5 V |
-| RSC | R11 | **0.33 ohm, 0.5 W** (0.22 ohm) |
+| RSC | R11, R45, R46 | **3 x 1 ohm in parallel = 0.33 ohm** (0.22 ohm) |
 | 180 ohm, pin 8 to pin 7 (unlabeled in the figure) | R12 | **82 ohm** (180 ohm) |
 | L | L1 | **100 uH**, SXN SMDRI127-101MT (170 uH) |
 | 1N5819 | D1 | 1N5819HW (SOD-123) |
@@ -158,13 +158,13 @@ Datasheet designators (TI SLLS636N's step-up converter figure) on this board:
 
 | Pin | Name | Net / connection |
 |---|---|---|
-| 1 | SwC (switch collector) | The switch node: L1 (far end) and D1 anode. Switch on: current flows +5V -> R11 -> L1 -> pin 1 -> pin 2 -> GND. Off: the inductor kick forward-biases D1 and charges C7/C9 |
+| 1 | SwC (switch collector) | The switch node: L1 (far end) and D1 anode. Switch on: current flows +5V -> R11/R45/R46 -> L1 -> pin 1 -> pin 2 -> GND. Off: the inductor kick forward-biases D1 and charges C7/C9 |
 | 2 | SwE (switch emitter) | **Straight to GND** |
 | 3 | TC (timing cap) | C8 to GND. Nothing else on this pin |
 | 4 | GND | GND |
 | 5 | Vfb | Divider midpoint: R13 from 20V, R14 to the **Q1 drain** (Q1 source = GND, gate = EN_HV) |
-| 6 | Vcc | +5V (the input side of R11), with C5/C6 to GND |
-| 7 | Ipk (peak current sense) | The L1 side of R11. The cycle ends when the drop across R11 reaches about 330 mV |
+| 6 | Vcc | +5V (the input side of R11/R45/R46), with C5/C6 to GND |
+| 7 | Ipk (peak current sense) | The L1 side of R11/R45/R46. The cycle ends when the drop across them reaches about 330 mV |
 | 8 | DC (driver collector) | Through R12 to pin 7 |
 
 **Feedback.** Vout = 1.25 x (1 + R13/R14): 150 k and 10 k give 1.25 x 16 =
@@ -187,7 +187,7 @@ verify designs on the bench):
 | ton / toff | about 24 us / 6 us | (Vout + VF - Vin) / (Vin - Vsat) = 3.85 |
 | C8 (CT) | about 1000 pF | CT = 4e-5 x ton |
 | Ipk(switch) | about 1 A | 2 x Iout(max) x (ton/toff + 1) |
-| R11 (RSC) | **0.33 ohm, 0.5 W** | 0.3 V / Ipk(switch) |
+| R11, R45, R46 (RSC) | **3 x 1 ohm in parallel, 0.33 ohm** | 0.3 V / Ipk(switch). About 0.5 A RMS, so 0.08 W in all, under 30 mW each |
 | L1 | about 100 uH, Isat > 1.5 A | L(min) = (Vin - Vsat) / Ipk x ton |
 | C7, C9 (CO) | 2 x 22 uF gives about 0.5 V p-p by the equation | CO = 9 x Iout x ton / Vripple wants about 220 uF for 100 mV; real ripple is higher with ESR (the datasheet's own 330 uF example measures 400 mV p-p) |
 
