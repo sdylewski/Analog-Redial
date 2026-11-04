@@ -7060,9 +7060,19 @@
 		)
 		(uuid "3d24ad7a-853e-4152-afba-42298d00c74a")
 	)
+	(text "0805 33k 150V\navailable"
+		(exclude_from_sim no)
+		(at 179.578 108.966 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "52b0b1a2-77a4-47c2-9fdd-f1cbeeef8d2d")
+	)
 	(text "Stage 1 controller\n"
 		(exclude_from_sim no)
-		(at 220.98 24.892 0)
+		(at 211.582 24.384 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7180,6 +7190,16 @@
 			)
 		)
 		(uuid "b50b1787-a03e-4a16-8625-d9b10adb80e9")
+	)
+	(text "0603 available\nnot 0804"
+		(exclude_from_sim no)
+		(at 223.774 26.67 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "c39ca3ae-1367-47d8-8d9f-949c8da48cf8")
 	)
 	(text "R1_lower"
 		(exclude_from_sim no)
@@ -10691,7 +10711,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "0.1uF"
+		(property "Value" "100nF"
 			(at 35.56 172.72 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11568,7 +11588,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "0.1uF"
+		(property "Value" "100nF"
 			(at 129.54 54.6162 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12688,7 +12708,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "0.1uF"
+		(property "Value" "100nF"
 			(at 109.22 27.9462 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12802,7 +12822,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "0.1uF"
+		(property "Value" "100nF"
 			(at 45.974 131.826 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14218,7 +14238,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric_Pad1.20x1.40mm_HandSolder"
 			(at 198.882 86.36 0)
 			(hide yes)
 			(show_name no)
@@ -14781,7 +14801,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "0.1uF"
+		(property "Value" "100nF"
 			(at 95.758 169.418 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17410,7 +17430,7 @@
 			)
 		)
 		(property "Value" "220uH 7447471221"
-			(at 81.28 95.885 0)
+			(at 89.916 99.568 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17491,7 +17511,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "0.1uF"
+		(property "Value" "100nF"
 			(at 113.03 44.4562 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18111,7 +18131,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0309_L9.0mm_D3.2mm_P12.70mm_Horizontal"
 			(at 194.818 30.48 0)
 			(hide yes)
 			(show_name no)
@@ -20746,7 +20766,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "b36f20b0-3676-4ade-b07a-9ca4192f0c35")
@@ -20761,7 +20781,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "22uF"
+		(property "Value" "22uF 35V"
 			(at 194.31 40.0938 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22654,7 +22674,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric_Pad1.20x1.40mm_HandSolder"
 			(at 198.882 86.36 0)
 			(hide yes)
 			(show_name no)
@@ -23396,7 +23416,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "0.1uF"
+		(property "Value" "100nF"
 			(at 54.61 185.42 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23830,7 +23850,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "0.1uF 50V"
+		(property "Value" "100nF 50V"
 			(at 45.974 115.062 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24158,7 +24178,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "0.1uF"
+		(property "Value" "100nF"
 			(at 67.818 37.084 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25183,7 +25203,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "0.1uF"
+		(property "Value" "100nF"
 			(at 178.308 40.894 0)
 			(show_name no)
 			(do_not_autoplace no)

@@ -702,6 +702,132 @@
           "label": "#",
           "name": "${ITEM_NUMBER}",
           "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Collector-Emitter Saturation Voltage (VCE(sat)@Ic,Ib)",
+          "name": "Collector-Emitter Saturation Voltage (VCE(sat)@Ic,Ib)",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "DC Current Gain (hFE@Ic,Vce)",
+          "name": "DC Current Gain (hFE@Ic,Vce)",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "LCSC",
+          "name": "LCSC",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Manufacturer",
+          "name": "Manufacturer",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Minimum Qty",
+          "name": "Minimum Qty",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Operating Temperature",
+          "name": "Operating Temperature",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Part",
+          "name": "Part",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Power Dissipation (Pd)",
+          "name": "Power Dissipation (Pd)",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Price",
+          "name": "Price",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Process",
+          "name": "Process",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Collector Current (Ic)",
+          "name": "Collector Current (Ic)",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Sim.Device",
+          "name": "Sim.Device",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Sim.Pins",
+          "name": "Sim.Pins",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Stock",
+          "name": "Stock",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Category",
+          "name": "Category",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Transistor Type",
+          "name": "Transistor Type",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Transition Frequency (fT)",
+          "name": "Transition Frequency (fT)",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Class",
+          "name": "Class",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Attrition Qty",
+          "name": "Attrition Qty",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Collector Cut-Off Current (Icbo)",
+          "name": "Collector Cut-Off Current (Icbo)",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Collector-Emitter Breakdown Voltage (Vceo)",
+          "name": "Collector-Emitter Breakdown Voltage (Vceo)",
+          "show": false
         }
       ],
       "filter_string": "",
@@ -709,7 +835,7 @@
       "include_excluded_from_bom": true,
       "name": "",
       "sort_asc": true,
-      "sort_field": "Reference"
+      "sort_field": "${EXCLUDE_FROM_BOM}"
     },
     "bus_aliases": {},
     "connection_grid_size": 50.0,
