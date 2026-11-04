@@ -7,7 +7,8 @@ Companion to [coin-board-schematic.md](coin-board-schematic.md) and
 values match `Payphone_v1/Payphone_v1.kicad_sch`.
 
 The board is surface-mount, with through-hole only where it's the better part:
-C1, the electrolytics, F1, K1, Qa1, U4's module and the connectors.
+C1, K1, Qa1, U4's module and the connectors. None of them has an LCSC number, so
+none lands on the JLCPCB BOM and there's no hand-solder fee.
 
 ## Parts
 
@@ -52,6 +53,16 @@ SXN rates saturation at a 25 % drop in inductance.
 
 Each is an Extended part, so JLCPCB adds its per-part fee (about $3 per order) on top.
 
+**Surface-mount electrolytic and fuse** (JLCPCB, Extended, checked 2026-11-04)
+
+| Ref | Function | Part | $ | LCSC | Why this one |
+|---|---|---|---:|---|---|
+| C5, C7, C14, C20 | 100 uF / 50 V on +5V and 20V | Ymin VKMD1001H101MV, 8 x 10 mm, footprint `CP_Elec_8x10` | 0.24 | C487360 | 724 mA ripple at 100 kHz against about 0.25 A in C7 and 0.15 A in C14; 10,000 h at 105 C. Aluminium, not polymer: C20 needs some ESR to damp the cable. One part for all four |
+| F1 | resettable fuse on +5V | Littelfuse 1812L110PR, 1812 | 0.05 | C163516 | 1.1 A hold, 2.2 A trip, 8 V (the same hold and trip as the MF-R110 it replaces) |
+
+Ceramics don't suit the 100 uF positions: a 22 uF 35 V X5R keeps only about a third of its
+capacitance at 20 V, and has too little ESR for C20.
+
 **Through-hole, hand-soldered ("do not place" for JLCPCB)**
 
 | Ref | Function | Part | $ |
@@ -63,8 +74,6 @@ Each is an Extended part, so JLCPCB adds its per-part fee (about $3 per order) o
 | J3 | coin switch cable | Molex 0026604040, KK 396, 4-pin (plug 09-50-3041 + terminals, verify) | 0.44 |
 | J1 or J6 | main board cable | JST B5B-EH-A, or a 1 x 5 pin header, 2.54 mm | |
 | J7-J9 | HV setting | 1 x 2 pin headers + shunts, 2.54 mm | |
-| C5, C7, C14, C20 | 100 uF / 50 V, on +5V and 20V | Aishi ERZ1HM101E12OT (C160200), 6.3 mm, 2.5 mm leads, 0.04. One part for all four; its ripple rating isn't published, so check C7 and C14 for warmth on the bench | 0.04 |
-| F1 | resettable fuse on +5V | Bourns MF-R110 (C208481): 1.1 A hold, 2.2 A trip, 30 V, radial, 5.08 mm leads, 8.9 mm wide | 0.14 |
 | U4 | ADC | ADS1115 module on a 1 x 10 header, 2.54 mm (VDD, GND, SCL, SDA, ADDR, ALRT, A0-A3) | under 2 |
 | J5, R42, R43, Rslope1, Cslope1 | spare I/O pads, I2C pull-ups, slope compensation | **not fitted** | |
 
@@ -96,7 +105,7 @@ The priced parts in these two tables come to about **$22** a board at qty-1 pric
 | C18, C19 | AIN0 and AIN1 filters, 100 nF 0805 | CC0805KRX7R9BB104 (C49678) | Basic |
 | C21, C22, C23 | HV bypass, 3 in series, 100 nF 50 V X7R, 1206 | CL31B104KBCNNNC (C24497) | Basic |
 
-I found no suitable Basic part for F1 or C20, though the search wasn't exhaustive.
+No Basic part fits C5/C7/C14/C20 or F1, so both are Extended (below).
 The only Basic 100 uF parts I found are 6.3 V, a ceramic that wouldn't damp the cable and a
 tantalum too close to 5 V, so both are hand-soldered.
 

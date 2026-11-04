@@ -11320,7 +11320,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_8x10"
 			(at 34.29 113.03 0)
 			(hide yes)
 			(show_name no)
@@ -11353,7 +11353,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C160200"
+		(property "LCSC" "C487360"
 			(at 34.29 113.03 0)
 			(hide yes)
 			(show_name no)
@@ -17740,7 +17740,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_8x10"
 			(at 240.03 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -17773,7 +17773,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C160200"
+		(property "LCSC" "C487360"
 			(at 240.03 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -20941,7 +20941,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_8x10"
 			(at 191.77 39.37 0)
 			(hide yes)
 			(show_name no)
@@ -20974,7 +20974,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C160200"
+		(property "LCSC" "C487360"
 			(at 191.77 39.37 0)
 			(hide yes)
 			(show_name no)
@@ -22755,7 +22755,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:C_Disc_D9.0mm_W5.0mm_P5.00mm"
+		(property "Footprint" "Fuse:Fuse_1812_4532Metric"
 			(at 38.1 72.39 0)
 			(hide yes)
 			(show_name no)
@@ -22788,7 +22788,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C208481"
+		(property "LCSC" "C163516"
 			(at 38.1 72.39 0)
 			(hide yes)
 			(show_name no)
@@ -24696,7 +24696,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
+		(property "Footprint" "Capacitor_SMD:CP_Elec_8x10"
 			(at 43.18 74.93 0)
 			(hide yes)
 			(show_name no)
@@ -24729,7 +24729,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C160200"
+		(property "LCSC" "C487360"
 			(at 43.18 74.93 0)
 			(hide yes)
 			(show_name no)
