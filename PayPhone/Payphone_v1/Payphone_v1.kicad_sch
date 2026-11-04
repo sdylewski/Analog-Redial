@@ -7546,7 +7546,7 @@
 		(uuid "a9997762-c272-420a-9a74-c00e67ea1f1c")
 	)
 	(junction
-		(at 40.64 68.58)
+		(at 43.18 72.39)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "aaee3c8b-b5bc-4fbf-be6e-e7d48b04db67")
@@ -8451,16 +8451,6 @@
 	)
 	(wire
 		(pts
-			(xy 33.02 68.58) (xy 33.02 63.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5f01cd53-513d-4179-924f-81ee08e46f11")
-	)
-	(wire
-		(pts
 			(xy 69.85 50.8) (xy 71.12 50.8)
 		)
 		(stroke
@@ -9041,7 +9031,7 @@
 	)
 	(wire
 		(pts
-			(xy 38.1 68.58) (xy 40.64 68.58)
+			(xy 40.64 72.39) (xy 43.18 72.39)
 		)
 		(stroke
 			(width 0)
@@ -10570,12 +10560,12 @@
 		(uuid "d0b04f24-de1c-484c-b529-ecfd1eb42b62")
 	)
 	(label "+5V_IN"
-		(at 33.02 63.5 90)
+		(at 35.56 72.39 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "da21db17-9710-4e52-b009-f1f2b71dd841")
 	)
@@ -14625,7 +14615,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 30.48 63.5 90)
+		(at 30.48 63.5 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -14636,7 +14626,7 @@
 		(fields_autoplaced yes)
 		(uuid "4a761066-9e3b-4a1d-a6ab-197e54074ee7")
 		(property "Reference" "#PWR01"
-			(at 36.83 63.5 0)
+			(at 30.48 69.85 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14647,14 +14637,14 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 34.29 63.5 90)
+			(at 33.02 64.7699 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify right)
+				(justify left)
 			)
 		)
 		(property "Footprint" ""
@@ -18962,7 +18952,7 @@
 	)
 	(symbol
 		(lib_id "power:+5V")
-		(at 40.64 68.58 0)
+		(at 43.18 72.39 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -18973,7 +18963,7 @@
 		(fields_autoplaced yes)
 		(uuid "97d02a4f-8860-4042-90ad-1b17952129ad")
 		(property "Reference" "#PWR0113"
-			(at 40.64 68.58 0)
+			(at 43.18 72.39 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18984,7 +18974,7 @@
 			)
 		)
 		(property "Value" "+5V"
-			(at 40.64 64.77 0)
+			(at 43.18 68.58 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18994,7 +18984,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 54.61 109.22 0)
+			(at 57.15 113.03 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19005,7 +18995,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 54.61 109.22 0)
+			(at 57.15 113.03 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19016,7 +19006,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+5V\""
-			(at 54.61 109.22 0)
+			(at 57.15 113.03 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21632,7 +21622,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "150nF film or X7R"
+		(property "Value" "100nF"
 			(at 86.614 138.684 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21666,6 +21656,17 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor, small symbol"
+			(at 106.68 137.16 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C49678"
 			(at 106.68 137.16 0)
 			(hide yes)
 			(show_name no)
@@ -22577,7 +22578,7 @@
 	)
 	(symbol
 		(lib_id "Device:Polyfuse_Small")
-		(at 35.56 68.58 90)
+		(at 38.1 72.39 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -22587,7 +22588,7 @@
 		(dnp no)
 		(uuid "cd77b14e-f2b4-4dd3-a48c-7ca3e8696335")
 		(property "Reference" "F1"
-			(at 35.56 66.04 90)
+			(at 38.1 69.85 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -22597,7 +22598,7 @@
 			)
 		)
 		(property "Value" "1.1A PTC"
-			(at 33.02 71.37 90)
+			(at 35.56 75.18 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -22607,7 +22608,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_THT:C_Disc_D9.0mm_W5.0mm_P5.00mm"
-			(at 35.56 68.58 0)
+			(at 38.1 72.39 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22618,7 +22619,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 35.56 68.58 0)
+			(at 38.1 72.39 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22629,7 +22630,7 @@
 			)
 		)
 		(property "Description" "Resettable fuse, 1.1 A hold, 2.2 A trip, 30 V, radial, 5.08 mm leads, hand-solder (Bourns MF-R110)"
-			(at 35.56 68.58 0)
+			(at 38.1 72.39 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22640,7 +22641,7 @@
 			)
 		)
 		(property "LCSC" "C208481"
-			(at 35.56 68.58 0)
+			(at 38.1 72.39 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24261,7 +24262,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 40.64 73.66 0)
+		(at 43.18 77.47 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -24272,7 +24273,7 @@
 		(fields_autoplaced yes)
 		(uuid "e805f8c8-464e-453c-9d0b-2f1b8cc0af35")
 		(property "Reference" "#PWR0114"
-			(at 40.64 73.66 0)
+			(at 43.18 77.47 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24283,7 +24284,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 40.64 77.47 0)
+			(at 43.18 81.28 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -24293,7 +24294,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 238.76 200.66 0)
+			(at 241.3 204.47 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24304,7 +24305,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 238.76 200.66 0)
+			(at 241.3 204.47 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24315,7 +24316,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 238.76 200.66 0)
+			(at 241.3 204.47 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24596,18 +24597,18 @@
 	)
 	(symbol
 		(lib_id "Device:C_Polarized_Small")
-		(at 40.64 71.12 0)
+		(at 43.18 74.93 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "eb355593-76a4-4259-8f90-303b3508ce9c")
 		(property "Reference" "C20"
-			(at 43.18 69.85 0)
+			(at 45.72 73.66 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -24618,7 +24619,7 @@
 			)
 		)
 		(property "Value" "100uF 50V"
-			(at 43.18 72.39 0)
+			(at 45.72 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -24629,7 +24630,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
-			(at 40.64 71.12 0)
+			(at 43.18 74.93 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24640,7 +24641,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 40.64 71.12 0)
+			(at 43.18 74.93 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24651,7 +24652,7 @@
 			)
 		)
 		(property "Description" "Electrolytic on +5V, through-hole: damps the cable (Aishi ERZ1HM101E12OT, or any 100 uF 10 V or more)"
-			(at 40.64 71.12 0)
+			(at 43.18 74.93 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24662,7 +24663,7 @@
 			)
 		)
 		(property "LCSC" "C160200"
-			(at 40.64 71.12 0)
+			(at 43.18 74.93 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

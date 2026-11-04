@@ -84,7 +84,7 @@ The priced parts in these two tables come to about **$22** a board at qty-1 pric
 | Ct1, C8 | 2.2 nF, 1 nF | **C0G/NP0**: they set U3's and U2's clocks. X7R loses 10-15 % with temperature and more with voltage |
 | Cf1, Cp1 | 470 pF, 100 pF | **C0G/NP0**: current-sense filter and compensation pole |
 | Cvcc1 | 0.1 uF | **50 V**: on the 20 V rail, where a 16 or 25 V 0805 loses most of its capacitance |
-| Cz1 | 150 nF | X7R; sets the compensation zero |
+| Cz1 | 100 nF | X7R, 0805 50 V: C49678, Basic, the same part as C17. Sets the compensation zero (1.6 Hz) |
 
 **Cable-entry and filter parts**
 
