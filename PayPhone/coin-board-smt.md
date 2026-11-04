@@ -7,7 +7,7 @@ Companion to [coin-board-schematic.md](coin-board-schematic.md) and
 values match `Payphone_v1/Payphone_v1.kicad_sch`.
 
 The board is surface-mount, with through-hole only where it's the better part:
-C1, K1, Qa1, U4's module and the connectors. None of them has an LCSC number, so
+C1, K1, U4's module and the connectors. None of them has an LCSC number, so
 none lands on the JLCPCB BOM and there's no hand-solder fee.
 
 ## Parts
@@ -24,7 +24,7 @@ the BOM upload.
 | U1 | I2C I/O expander | TCA9534APWR, TSSOP-16 | 1.26 | C206010 | Extended |
 | U2 | stage 1, 5 V to 20 V | MC34063ADR2G, SOIC-8 | 0.47 | C32078 | Preferred, no fee |
 | U3 | stage 2 controller | UC3843BD1R2G, SOIC-8 | 0.37 | C16414 | Extended |
-| Q3 | fire switch, 200 V | STN4NF20L (TECH PUBLIC), SOT-223 | 0.33 | C7603336 | Extended. ST's own is C183261, $0.61 |
+| Q3, Qa1 | fire switch, stage 2 switch, 200 V | STN4NF20L (TECH PUBLIC), SOT-223 | 0.33 | C7603336 | Extended (one fee for both). ST's own is C183261, $0.61 |
 | Q1, Q4 | small N-FETs | 2N7002, SOT-23 | 0.02 | C8545 | Basic |
 | Q2 | relay driver NPN | MMBT3904, SOT-23 | 0.01 | C20526 | Basic |
 | Q5 | gate-drive PNP | MMBT3906, SOT-23 | 0.01 | C7420354 | Preferred, no fee |
@@ -69,7 +69,6 @@ capacitance at 20 V, and has too little ESR for C20.
 |---|---|---|---:|
 | C1 | 220 uF / 200 V | Nichicon UCS2D221MHD, 18 x 26.5 mm, 7.5 mm leads | 3.08 |
 | K1 | DPDT relay, 5 V coil | Omron (Aratas) G6S-2-DC5: 250 VAC / 220 VDC switching per the listing **(check the datasheet)** | 4.52 |
-| Qa1 | stage 2 switch, 200 V | IRF630PBF, TO-220 | 2.43 |
 | J2 | relay cable | Molex 0026604030, KK 396, 3-pin (plug 09-50-3031 + terminals, verify) | 0.35 |
 | J3 | coin switch cable | Molex 0026604040, KK 396, 4-pin (plug 09-50-3041 + terminals, verify) | 0.44 |
 | J1 or J6 | main board cable | JST B5B-EH-A, or a 1 x 5 pin header, 2.54 mm | |
@@ -145,23 +144,23 @@ them: $8 setup, $1.50 stencil, $0.0017 a joint, **$3 per unique Extended part pe
 | | 5 boards | 10 boards | 30 boards |
 |---|---:|---:|---:|
 | PCB | 8.10 | ~11 | ~25 |
-| SMT parts (JLCPCB places all of them) | 24.28 | 45.14 | 124.46 |
+| SMT parts (JLCPCB places all of them) | 25.94 | 48.46 | 134.41 |
 | Extended fees, 8 parts | 24.00 | 24.00 | 24.00 |
-| Setup, stencil, placement | 11.47 | 13.44 | 21.33 |
-| **JLCPCB merchandise** | **67.85** | **93.59** | **194.79** |
+| Setup, stencil, placement | 11.50 | 13.51 | 21.53 |
+| **JLCPCB merchandise** | **69.54** | **96.98** | **204.94** |
 | Shipping | 30.86 | ~35 | ~50 |
-| Sales tax 8.625 %, tariff about 47.5 % of merchandise | 38.08 | 52.53 | 109.33 |
-| **JLCPCB delivered** | **136.79** | **181.11** | **354.12** |
-| DigiKey hand-solder parts (C1, K1, Qa1, J1-J3 with mating plugs, J6-J9, shunts, U4 socket), with tax and about $7 shipping | 79.85 | 142.87 | 407.27 |
+| Sales tax 8.625 %, tariff about 47.5 % of merchandise | 39.03 | 54.43 | 115.02 |
+| **JLCPCB delivered** | **139.43** | **186.41** | **369.96** |
+| DigiKey hand-solder parts (C1, K1, J1-J3 with mating plugs, J6-J9, shunts, U4 socket), with tax and about $7 shipping | 66.65 | 116.47 | 328.08 |
 | U4, ADS1115 module (AliExpress, about $2) | 10 | 20 | 60 |
-| **Order total** | **~227** | **~344** | **~821** |
-| **Per board** | **~$45** | **~$34** | **~$27** |
+| **Order total** | **~216** | **~323** | **~758** |
+| **Per board** | **~$43** | **~$32** | **~$25** |
 
 The 8 parts with an Extended fee have no Basic or Preferred equivalent: C5/C7/C14/C20, L1, L2,
-F1, U1, U3, Q3 and D3. Hand-soldering one yourself saves its $3 per order.
+F1, U1, U3, Q3/Qa1 and D3. Hand-soldering one yourself saves its $3 per order.
 
-The biggest single items are the hand-solder parts: K1 ($3.84-4.52), C1 ($3.08) and Qa1
-($2.43). The DigiKey figures for C1, Qa1, the JST parts and the pin strip had no quantity
+The biggest single items are the hand-solder parts: K1 ($3.84-4.52) and C1 ($3.08). The
+DigiKey figures for C1, the JST parts and the pin strip had no quantity
 breaks on the page, so they're qty-1 prices and a little high at 30.
 
 ### The JLCPCB plugin
@@ -172,8 +171,7 @@ should match the schematic's LCSC fields. Check before each upload:
 - Every surface-mount part is in the CPL file, not just the BOM. A symbol marked "exclude from
   position files" carries that to its footprint on Update PCB, and JLCPCB then buys the part but
   doesn't place it.
-- No through-hole part has an LCSC number (Qa1 especially: JLCPCB stocks the IRF630), or it
-  lands on the BOM with the hand-solder fee.
+- No through-hole part has an LCSC number, or it lands on the BOM with the hand-solder fee.
 
 ## Will small resistors and capacitors stand the voltage?
 
@@ -259,8 +257,8 @@ Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
   fast part of it: run them from D2's cathode to Rcs1's GND end. Their middle nodes tie to
   HV_B1 and HV_B2, so Rbl1-3 share the voltage, about 40 V each at 119 V.
 - **SW2** (Qa1 drain, L2, D2 anode) swings 0-120 V at the switching
-  frequency: short, and nothing parallel to it. Qa1's tab is SW2 too, so keep
-  its copper moderate.
+  frequency: short, and nothing parallel to it. Qa1's SOT-223 tab is SW2 too, so give
+  it only the copper the footprint has: it dissipates about 0.05 W and needs no heatsink area.
 - **Gate:** U3 OUT -> Rg1 -> Qa1 gate, returning through Qa1 source / Rcs1 to
   U3's GND. Dz1 right at the gate and source.
 - **Current sense:** a separate (Kelvin) trace from Rcs1's top pad to Rf1;
@@ -318,7 +316,7 @@ Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
   - **JP1** (VIO = 5V) near J6, with its label on silkscreen.
 - **Pad-to-pad clearance inside footprints:** with the HV class's 1.0 mm,
   DRC flags the pin spacing of K1 (0.54 mm between neighbouring pads), J2
-  (0.8 mm), Qa1 (0.64 mm) and Q3 (0.8 mm). These are the parts' own pitches.
+  (0.8 mm), and Q3 and Qa1 (0.8 mm, SOT-223). These are the parts' own pitches.
   Either add a rule that relaxes clearance between pads of the same footprint,
   or exclude them in DRC. K1's pad 3 (HV) to pad 4 (COIL_A) at 0.54 mm is under
   IPC-2221's 0.6 mm for bare external copper at 101-150 V; smaller pads on

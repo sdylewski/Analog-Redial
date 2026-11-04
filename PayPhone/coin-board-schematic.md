@@ -226,7 +226,7 @@ asks for it. The wait is small: stage 1 starts in tens of ms and stage 2 reaches
 when a call ends, so this doesn't show. Firmware can also raise EN_HV early and
 drop it after about 10 s.
 
-## 6. Stage 2: 20 V to 52-119 V (U3, UC3843BD1R2G + Qa1, IRF630)
+## 6. Stage 2: 20 V to 52-119 V (U3, UC3843BD1R2G + Qa1, STN4NF20L)
 
 Current-mode PWM controller, non-synchronous boost, driving an external N-FET.
 It starts at about 8.4 V (7.8 to 9 V) and stops at 7.6 V, so it runs from the
@@ -237,13 +237,13 @@ UCx844/5 are limited to 50 % and wouldn't work.
 |---|---|---|---|
 | **Power stage** | | | |
 | L2 | Boost inductor (20V to SW2) | **220 uH**, SXN SMDRI127-221MT | shielded, 2.0 A Isat, 0.39 ohm |
-| Qa1 | Switch (drain SW2, source to Rcs1) | **IRF630PBF** (TO-220, 200 V, 9 A) | |
+| Qa1 | Switch (drain SW2, source to Rcs1) | **STN4NF20L** (SOT-223, 200 V, 1 A, 1.35 ohm; C7603336, the same part as Q3) | 0.45 A peak, about 0.15 A RMS: 30 mW on, and 3.2 nC of gate charge switches it in about 10 ns, so switching loss is a few mW. Turn-on is at zero current (DCM) |
 | D2 | Output diode (SW2 to HV) | **ES2D** (SMA, 200 V, 2 A ultrafast) | cathode toward C1. Average current is only tens of mA |
 | C1 | HV output capacitor | **220 uF / 200 V** | Nichicon UCS2D221MHD, 18 x 26.5 mm, 7.5 mm leads |
 | C14 | Input decoupling on 20V | **100 uF / 50 V** | at L2 and Qa1's source return: it carries stage 2's switching current, so it can't share C7 at stage 1 |
 | **Gate drive** | | | |
-| Rg1 | U3 OUT to Qa1 gate | **100 ohm** | damps ringing and limits the current into Dz1: OUT swings to about 18.5 V, so Dz1 sees about 35 mA each on-time; still switches the IRF630 in about 0.3 us |
-| Dz1 | 15 V gate clamp (cathode to gate, anode to Qa1 source) | **SMAZ15** (1 W) | OUT is just under the IRF630's 20 V Vgs maximum, so this is margin |
+| Rg1 | U3 OUT to Qa1 gate | **100 ohm** | damps ringing and limits the current into Dz1: OUT swings to about 18.5 V, so Dz1 sees about 35 mA each on-time; switches Qa1 in about 10 ns |
+| Dz1 | 15 V gate clamp (cathode to gate, anode to Qa1 source) | **SMAZ15** (1 W) | OUT is just under the STN4NF20L's 20 V Vgs maximum, so this is margin |
 | **Current sense** | | | |
 | Rcs1 | Qa1 source to GND | **2.2 ohm**, 0805 (C17521, Basic) | Ipk = 1 V / Rcs1 = 0.45 A. About 0.15 A RMS, so 0.05 W, inside the 0805's 0.125 W |
 | Rf1 | Rcs1 to CS pin 3 | **1 k** | with Cf1, filters the leading-edge spike (the UC3843 has no blanking) |

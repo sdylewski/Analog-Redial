@@ -24509,7 +24509,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "IRF630"
+		(property "Value" "STN4NF20L"
 			(at 119.38 109.22 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24520,7 +24520,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_THT:TO-220-3_Vertical"
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
 			(at 114.3 123.03 0)
 			(hide yes)
 			(show_name no)
@@ -24543,6 +24543,17 @@
 			)
 		)
 		(property "Description" "N-Channel MOSFET, 200V, 9A, TO-220"
+			(at 114.3 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C7603336"
 			(at 114.3 113.03 0)
 			(hide yes)
 			(show_name no)
