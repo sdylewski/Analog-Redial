@@ -57,14 +57,13 @@ Each is an Extended part, so JLCPCB adds its per-part fee (about $3 per order) o
 | Ref | Function | Part | $ |
 |---|---|---|---:|
 | C1 | 220 uF / 200 V | Nichicon UCS2D221MHD, 18 x 26.5 mm, 7.5 mm leads | 3.08 |
-| C5, C7, C9, C14, C15 | 22 uF / 35 V, on +5V and 20V | Panasonic EEU-FR1V220, 5 mm, 2 mm leads. One part for all five | |
 | K1 | DPDT relay, 5 V coil | Omron (Aratas) G6S-2-DC5: 250 VAC / 220 VDC switching per the listing **(check the datasheet)** | 4.52 |
 | Qa1 | stage 2 switch, 200 V | IRF630PBF, TO-220 | 2.43 |
 | J2 | relay cable | Molex 0026604030, KK 396, 3-pin (plug 09-50-3031 + terminals, verify) | 0.35 |
 | J3 | coin switch cable | Molex 0026604040, KK 396, 4-pin (plug 09-50-3041 + terminals, verify) | 0.44 |
 | J1 or J6 | main board cable | JST B5B-EH-A, or a 1 x 5 pin header, 2.54 mm | |
 | J7-J9 | HV setting | 1 x 2 pin headers + shunts, 2.54 mm | |
-| C20 | 100 uF on +5V | Aishi ERZ1HM101E12OT (C160200), 50 V, 6.3 mm, 2.5 mm leads, or any 100 uF of 10 V or more | |
+| C5, C7, C14, C20 | 100 uF / 50 V, on +5V and 20V | Aishi ERZ1HM101E12OT (C160200), 6.3 mm, 2.5 mm leads, 0.04. One part for all four; its ripple rating isn't published, so check C7 and C14 for warmth on the bench | 0.04 |
 | F1 | resettable fuse on +5V | Bourns MF-R110 (C208481): 1.1 A hold, 2.2 A trip, 30 V, radial, 5.08 mm leads, 8.9 mm wide | 0.14 |
 | U4 | ADC | ADS1115 module on a 1 x 10 header, 2.54 mm (VDD, GND, SCL, SDA, ADDR, ALRT, A0-A3) | under 2 |
 | J5, R42, R43, Rslope1, Cslope1 | spare I/O pads, I2C pull-ups, slope compensation | **not fitted** | |
@@ -188,8 +187,8 @@ On the board:
 | LOGIC | U1, C16, U4, C17, R17, R19, R33 | top left, beside J6/J1 |
 | (not placed yet) | JP1; debug LEDs D8-D13 with R34-R39; HV LED R27, R28, D5, D7 | see "Still to do" |
 | COIN | R4-R9, C2-C4 | top right, at J3 |
-| STAGE1 (5 V -> 20 V) | U2, L1, D1, R11-R14, R45, R46, Q1, R1, C5-C9, C14, C15 | bottom left |
-| STAGE2 (20 V -> HV, with C1) | U3 and its small parts, Qa1, L2, D2, Rcs1, Dz1, Rg1, J7-J9, Rfbb1-4, Rfbt1-3, C1, D3, R32, Rbl1-3 | bottom middle |
+| STAGE1 (5 V -> 20 V) | U2, L1, D1, R11-R14, R45, R46, Q1, R1, C5-C8 | bottom left |
+| STAGE2 (20 V -> HV, with C1) | U3 and its small parts, Qa1, L2, C14, D2, Rcs1, Dz1, Rg1, J7-J9, Rfbb1-4, Rfbt1-3, C1, D3, R32, Rbl1-3 | bottom middle |
 | FIRE | R3, R21-R25, Q4, Q5, D6, Q3, R26 | right, above K1 |
 | POL | K1, Q2, D4, R2, R20 | right, beside J2 |
 
@@ -211,14 +210,14 @@ Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
 
 ### Stage 1 (MC34063)
 
-- **Hot loop:** U2 pin 1 (SwC) -> D1 -> C7/C9 -> GND -> U2 pin 2. Smallest
+- **Hot loop:** U2 pin 1 (SwC) -> D1 -> C7 -> GND -> U2 pin 2. Smallest
   possible, all on top.
 - **Input:** J6 +5V -> C5/C6 -> R11/R45/R46 -> U2 pin 7 and L1. Put the three side by side, with short equal paths, so they share the current. Wide traces (1 mm or
   more): this draws about 1 A peaks from the main board.
 - **SW1** (L1, D1 anode, U2 pin 1): short, with little copper.
 - C8 at pin 3; R13/R14 at the FB pin (pin 5).
-- 20V leaves from C9/C15 to stage 2 (L2, U3 pin 7), and up to Q5/R23 in the
-  FIRE block.
+- 20V leaves from C7 to stage 2 (L2, U3 pin 7), and up to Q5/R23 in the
+  FIRE block. C14 sits at L2 and Qa1's source return, not back at stage 1.
 
 ### Stage 2 (UC3843)
 

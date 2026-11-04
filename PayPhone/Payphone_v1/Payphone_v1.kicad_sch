@@ -7312,12 +7312,6 @@
 		(uuid "3f467dc0-c10d-4fa3-8453-20e8709ab15f")
 	)
 	(junction
-		(at 248.92 49.53)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "46f086c2-62db-42c9-b60d-44ccd3c21d6f")
-	)
-	(junction
 		(at 222.25 71.12)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -7474,12 +7468,6 @@
 		(uuid "92c8e3d0-14c9-499f-ae18-cfd16083571c")
 	)
 	(junction
-		(at 29.21 146.05)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "93c99495-99d3-4744-aa21-134fb01ca12c")
-	)
-	(junction
 		(at 135.89 128.27)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -7568,12 +7556,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "ba80deaa-357f-4efa-b7a9-010b7253cea4")
-	)
-	(junction
-		(at 29.21 97.79)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "c2893ee4-5bc0-4e3e-8b8d-1b96fad66dfd")
 	)
 	(junction
 		(at 130.81 128.27)
@@ -7724,12 +7706,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "ffc102b0-9e39-4569-a2e4-27e19e00d68a")
-	)
-	(junction
-		(at 240.03 71.12)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "ffd08228-1e04-410c-8be7-0db010b59bac")
 	)
 	(junction
 		(at 44.45 97.79)
@@ -7905,16 +7881,6 @@
 	)
 	(wire
 		(pts
-			(xy 240.03 71.12) (xy 250.19 71.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1381cdf6-f826-4982-9bae-673a5acb4c91")
-	)
-	(wire
-		(pts
 			(xy 214.63 95.25) (xy 214.63 106.68)
 		)
 		(stroke
@@ -7965,16 +7931,6 @@
 	)
 	(wire
 		(pts
-			(xy 29.21 97.79) (xy 29.21 119.38)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "15558df7-c502-4208-81f5-8755e392a993")
-	)
-	(wire
-		(pts
 			(xy 22.86 63.5) (xy 30.48 63.5)
 		)
 		(stroke
@@ -8002,16 +7958,6 @@
 			(type default)
 		)
 		(uuid "17b3cc4c-3bcd-4407-8446-6272db00ea65")
-	)
-	(wire
-		(pts
-			(xy 248.92 57.15) (xy 250.19 57.15)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "19d3d6ec-7d74-433e-b46d-b870fd22c5a0")
 	)
 	(wire
 		(pts
@@ -8895,16 +8841,6 @@
 	)
 	(wire
 		(pts
-			(xy 250.19 71.12) (xy 250.19 62.23)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8b740267-152c-4f84-b162-59d6ecb6ef7e")
-	)
-	(wire
-		(pts
 			(xy 199.39 52.07) (xy 199.39 71.12)
 		)
 		(stroke
@@ -9035,16 +8971,6 @@
 	)
 	(wire
 		(pts
-			(xy 248.92 57.15) (xy 248.92 49.53)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9b8a50f8-27f0-4c60-86d7-3d7142293cb5")
-	)
-	(wire
-		(pts
 			(xy 248.92 49.53) (xy 240.03 49.53)
 		)
 		(stroke
@@ -9142,16 +9068,6 @@
 			(type default)
 		)
 		(uuid "a4a01732-a191-4991-acc7-25231e834f17")
-	)
-	(wire
-		(pts
-			(xy 29.21 124.46) (xy 29.21 146.05)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a4c6f023-f41d-46fb-b65d-8549bd7e1010")
 	)
 	(wire
 		(pts
@@ -11393,7 +11309,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "22uF 35V"
+		(property "Value" "100uF 50V"
 			(at 36.322 110.744 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11404,7 +11320,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm"
+		(property "Footprint" "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
 			(at 34.29 113.03 0)
 			(hide yes)
 			(show_name no)
@@ -11427,6 +11343,17 @@
 			)
 		)
 		(property "Description" "Polarized capacitor, small symbol"
+			(at 34.29 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C160200"
 			(at 34.29 113.03 0)
 			(hide yes)
 			(show_name no)
@@ -17802,7 +17729,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "22uF 35V"
+		(property "Value" "100uF 50V"
 			(at 234.95 57.15 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17813,7 +17740,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm"
+		(property "Footprint" "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
 			(at 240.03 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -17836,6 +17763,17 @@
 			)
 		)
 		(property "Description" "Polarized capacitor, small symbol"
+			(at 240.03 59.69 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C160200"
 			(at 240.03 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -20282,87 +20220,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:C_Polarized_Small")
-		(at 29.21 121.92 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "a769f6af-f4e3-4dfb-88b9-c49ee84403b4")
-		(property "Reference" "C15"
-			(at 29.972 123.952 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "22uF 35V"
-			(at 30.48 119.634 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm"
-			(at 29.21 121.92 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 29.21 121.92 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Polarized capacitor, small symbol"
-			(at 29.21 121.92 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "d6b512d1-ccd3-4dc7-b762-679a220d50ae")
-		)
-		(pin "2"
-			(uuid "4b3505dc-94f9-4395-beba-903c36fbf7f6")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "C15")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:D_Zener")
 		(at 176.53 130.81 270)
 		(unit 1)
@@ -21073,7 +20930,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "22uF 35V"
+		(property "Value" "100uF 50V"
 			(at 194.31 40.0938 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21084,7 +20941,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm"
+		(property "Footprint" "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
 			(at 191.77 39.37 0)
 			(hide yes)
 			(show_name no)
@@ -21107,6 +20964,17 @@
 			)
 		)
 		(property "Description" "Polarized capacitor, small symbol"
+			(at 191.77 39.37 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C160200"
 			(at 191.77 39.37 0)
 			(hide yes)
 			(show_name no)
@@ -23191,87 +23059,6 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C_Polarized_Small")
-		(at 250.19 59.69 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files no)
-		(dnp no)
-		(uuid "d12ed0e7-2bb3-4ffd-b5c3-fcda0637188c")
-		(property "Reference" "C9"
-			(at 250.952 61.722 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "22uF 35V"
-			(at 250.952 57.404 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm"
-			(at 250.19 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 250.19 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Polarized capacitor, small symbol"
-			(at 250.19 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "597fdaf4-3f68-40d0-ada1-261e11e4c478")
-		)
-		(pin "2"
-			(uuid "a64f61bc-3d92-4e9f-8277-f4c81f13bc48")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "C9")
 					(unit 1)
 				)
 			)

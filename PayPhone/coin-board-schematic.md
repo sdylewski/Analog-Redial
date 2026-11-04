@@ -149,16 +149,16 @@ Datasheet designators (TI SLLS636N's step-up converter figure) on this board:
 | 180 ohm, pin 8 to pin 7 (unlabeled in the figure) | R12 | **82 ohm** (180 ohm) |
 | L | L1 | **100 uH**, SXN SMDRI127-101MT (170 uH) |
 | 1N5819 | D1 | 1N5819HW (SOD-123) |
-| CO | C7, C9 | 2 x 22 uF / 35 V (330 uF) |
+| CO | C7 | 100 uF / 50 V (330 uF) |
 | CT | C8 | **1 nF** (1500 pF) |
 | R1 (bottom) | R14 | **10 k, 1 %** (2.2 k) |
 | R2 (top) | R13 | **150 k, 1 %** (47 k) |
-| 100 uF input cap | C5, C6 | 22 uF + 100 nF (100 uF) |
+| 100 uF input cap | C5, C6 | 100 uF + 100 nF (100 uF) |
 | 1 uH / 100 uF "optional filter" | not fitted | |
 
 | Pin | Name | Net / connection |
 |---|---|---|
-| 1 | SwC (switch collector) | The switch node: L1 (far end) and D1 anode. Switch on: current flows +5V -> R11/R45/R46 -> L1 -> pin 1 -> pin 2 -> GND. Off: the inductor kick forward-biases D1 and charges C7/C9 |
+| 1 | SwC (switch collector) | The switch node: L1 (far end) and D1 anode. Switch on: current flows +5V -> R11/R45/R46 -> L1 -> pin 1 -> pin 2 -> GND. Off: the inductor kick forward-biases D1 and charges C7 |
 | 2 | SwE (switch emitter) | **Straight to GND** |
 | 3 | TC (timing cap) | C8 to GND. Nothing else on this pin |
 | 4 | GND | GND |
@@ -189,7 +189,7 @@ verify designs on the bench):
 | Ipk(switch) | about 1 A | 2 x Iout(max) x (ton/toff + 1) |
 | R11, R45, R46 (RSC) | **3 x 1 ohm in parallel, 0.33 ohm** | 0.3 V / Ipk(switch). About 0.5 A RMS, so 0.08 W in all, under 30 mW each |
 | L1 | about 100 uH, Isat > 1.5 A | L(min) = (Vin - Vsat) / Ipk x ton |
-| C7, C9 (CO) | 2 x 22 uF gives about 0.5 V p-p by the equation | CO = 9 x Iout x ton / Vripple wants about 220 uF for 100 mV; real ripple is higher with ESR (the datasheet's own 330 uF example measures 400 mV p-p) |
+| C7 (CO) | 100 uF gives about 0.2 V p-p by the equation | CO = 9 x Iout x ton / Vripple wants about 220 uF for 100 mV; real ripple is higher with ESR (the datasheet's own 330 uF example measures 400 mV p-p) |
 
 At 5 V the input draws about 0.4 A average with about 1 A peaks.
 
@@ -240,7 +240,7 @@ UCx844/5 are limited to 50 % and wouldn't work.
 | Qa1 | Switch (drain SW2, source to Rcs1) | **IRF630PBF** (TO-220, 200 V, 9 A) | |
 | D2 | Output diode (SW2 to HV) | **ES2D** (SMA, 200 V, 2 A ultrafast) | cathode toward C1. Average current is only tens of mA |
 | C1 | HV output capacitor | **220 uF / 200 V** | Nichicon UCS2D221MHD, 18 x 26.5 mm, 7.5 mm leads |
-| C14, C15 | Input decoupling on 20V | **2 x 22 uF / 35 V** | close to L2 |
+| C14 | Input decoupling on 20V | **100 uF / 50 V** | at L2 and Qa1's source return: it carries stage 2's switching current, so it can't share C7 at stage 1 |
 | **Gate drive** | | | |
 | Rg1 | U3 OUT to Qa1 gate | **100 ohm** | damps ringing and limits the current into Dz1: OUT swings to about 18.5 V, so Dz1 sees about 35 mA each on-time; still switches the IRF630 in about 0.3 us |
 | Dz1 | 15 V gate clamp (cathode to gate, anode to Qa1 source) | **SMAZ15** (1 W) | OUT is just under the IRF630's 20 V Vgs maximum, so this is margin |
