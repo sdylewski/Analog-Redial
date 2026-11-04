@@ -17429,7 +17429,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "220uH 7447471221"
+		(property "Value" "220uH SMDRI127-221MT"
 			(at 89.916 99.568 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17440,7 +17440,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Inductor_THT:L_Radial_D12.0mm_P5.00mm_Fastron_11P"
+		(property "Footprint" "Inductor_SMD:L_SXN_SMDRI127"
 			(at 91.28 97.79 0)
 			(hide yes)
 			(show_name no)
@@ -17451,7 +17451,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/lcsc_datasheet_2108131530_SXN-Shun-Xiang-Nuo-Elec-SMDRI127-221MT_C10151.pdf"
 			(at 91.28 97.79 0)
 			(hide yes)
 			(show_name no)
@@ -17463,6 +17463,17 @@
 			)
 		)
 		(property "Description" "Inductor"
+			(at 81.28 97.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C10151"
 			(at 81.28 97.79 0)
 			(hide yes)
 			(show_name no)
@@ -18382,7 +18393,7 @@
 				)
 			)
 		)
-		(property "Value" "100uH 7447471101"
+		(property "Value" "100uH SMDRI127-101MT"
 			(at 242.316 34.036 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18392,7 +18403,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Inductor_THT:L_Radial_D12.0mm_P5.00mm_Fastron_11P"
+		(property "Footprint" "Inductor_SMD:L_SXN_SMDRI127"
 			(at 240.03 44.29 0)
 			(hide yes)
 			(show_name no)
@@ -18403,7 +18414,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/lcsc_datasheet_2108131530_SXN-Shun-Xiang-Nuo-Elec-SMDRI127-101MT_C10150.pdf"
 			(at 240.03 44.29 0)
 			(hide yes)
 			(show_name no)
@@ -18415,6 +18426,17 @@
 			)
 		)
 		(property "Description" "Inductor"
+			(at 240.03 34.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C10150"
 			(at 240.03 34.29 0)
 			(hide yes)
 			(show_name no)

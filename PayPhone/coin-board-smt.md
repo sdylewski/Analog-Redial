@@ -7,7 +7,7 @@ Companion to [coin-board-schematic.md](coin-board-schematic.md) and
 values match `Payphone_v1/Payphone_v1.kicad_sch`.
 
 The board is surface-mount, with through-hole only where it's the better part:
-C1, the electrolytics, F1, L1, L2, K1, Qa1, U4's module and the connectors.
+C1, the electrolytics, F1, K1, Qa1, U4's module and the connectors.
 
 ## Parts
 
@@ -39,14 +39,25 @@ the BOM upload.
 The Basic LEDs were checked on JLCPCB's part pages on 2026-10-31. No 1206 red LED is
 Basic, so 0805 is the largest for D7; the 0603 greens (C72043, C12624) are Extended.
 
+**Surface-mount inductors**
+
+Both are SXN's SMDRI127 (12.3 x 12.3 x 8 mm, shielded), on KiCad's
+`Inductor_SMD:L_SXN_SMDRI127` footprint. JLCPCB prices and stock checked 2026-11-03.
+SXN rates saturation at a 25 % drop in inductance.
+
+| Ref | Value | Part | Isat | Heating (40 C rise) | DCR max | Peak here | $ (JLCPCB, qty 1) | LCSC / JLCPCB | Fit |
+|---|---|---|---|---|---|---|---:|---|---|
+| L1 | 100 uH | SMDRI127-101MT | 3.5 A | 1.7 A | 0.22 ohm | about 1 A (R11) | 0.23 | C10150, Extended, 64,000 in stock | **JLCPCB** |
+| L2 | 220 uH | SMDRI127-221MT | 2.0 A | 1.16 A | 0.39 ohm | 0.5 A (Rcs1) | 0.23 | C10151, Extended, 17,000 in stock | **JLCPCB** |
+
+Each is an Extended part, so JLCPCB adds its per-part fee (about $3 per order) on top.
+
 **Through-hole, hand-soldered ("do not place" for JLCPCB)**
 
 | Ref | Function | Part | $ |
 |---|---|---|---:|
 | C1 | 220 uF / 200 V | Nichicon UCS2D221MHD, 18 x 26.5 mm, 7.5 mm leads | 3.08 |
 | C5, C7, C9, C14, C15 | 22 uF / 35 V, on +5V and 20V | Panasonic EEU-FR1V220, 5 mm, 2 mm leads. One part for all five | |
-| L1 | 100 uH | [Würth 7447471101](https://www.digikey.com/en/products/detail/w%C3%BCrth-elektronik/7447471101/3476776): WE-TIS, shielded, 5 mm pitch; 1.4 A rated, 2.1 A Isat, 0.24 ohm | 2.49 |
-| L2 | 220 uH | [Würth 7447471221](https://www.digikey.com/en/products/detail/w%C3%BCrth-elektronik/7447471221/3476777): WE-TIS, shielded, 5 mm pitch; 1.0 A rated, 1.4 A Isat, 0.51 ohm | 2.49 |
 | K1 | DPDT relay, 5 V coil | Omron (Aratas) G6S-2-DC5: 250 VAC / 220 VDC switching per the listing **(check the datasheet)** | 4.52 |
 | Qa1 | stage 2 switch, 200 V | IRF630PBF, TO-220 | 2.43 |
 | J2 | relay cable | Molex 0026604030, KK 396, 3-pin (plug 09-50-3031 + terminals, verify) | 0.35 |

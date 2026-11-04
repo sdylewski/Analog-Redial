@@ -147,7 +147,7 @@ Datasheet designators (TI SLLS636N's step-up converter figure) on this board:
 | VIN | +5V | 5 V |
 | RSC | R11 | **0.33 ohm, 0.5 W** (0.22 ohm) |
 | 180 ohm, pin 8 to pin 7 (unlabeled in the figure) | R12 | **82 ohm** (180 ohm) |
-| L | L1 | **100 uH**, Würth 7447471101 (170 uH) |
+| L | L1 | **100 uH**, SXN SMDRI127-101MT (170 uH) |
 | 1N5819 | D1 | 1N5819HW (SOD-123) |
 | CO | C7, C9 | 2 x 22 uF / 35 V (330 uF) |
 | CT | C8 | **1 nF** (1500 pF) |
@@ -236,7 +236,7 @@ UCx844/5 are limited to 50 % and wouldn't work.
 | Ref | Function | Value | Notes |
 |---|---|---|---|
 | **Power stage** | | | |
-| L2 | Boost inductor (20V to SW2) | **220 uH**, Würth 7447471221 | shielded, 1.4 A Isat, 0.51 ohm |
+| L2 | Boost inductor (20V to SW2) | **220 uH**, SXN SMDRI127-221MT | shielded, 2.0 A Isat, 0.39 ohm |
 | Qa1 | Switch (drain SW2, source to Rcs1) | **IRF630PBF** (TO-220, 200 V, 9 A) | |
 | D2 | Output diode (SW2 to HV) | **ES2D** (SMA, 200 V, 2 A ultrafast) | cathode toward C1. Average current is only tens of mA |
 | C1 | HV output capacitor | **220 uF / 200 V** | Nichicon UCS2D221MHD, 18 x 26.5 mm, 7.5 mm leads |
