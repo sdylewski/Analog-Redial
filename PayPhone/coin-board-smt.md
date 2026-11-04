@@ -105,9 +105,8 @@ The priced parts in these two tables come to about **$22** a board at qty-1 pric
 | C18, C19 | AIN0 and AIN1 filters, 100 nF 0805 | CC0805KRX7R9BB104 (C49678) | Basic |
 | C21, C22, C23 | HV bypass, 3 in series, 100 nF 50 V X7R, 1206 | CL31B104KBCNNNC (C24497) | Basic |
 
-No Basic part fits C5/C7/C14/C20 or F1, so both are Extended (below).
-The only Basic 100 uF parts I found are 6.3 V, a ceramic that wouldn't damp the cable and a
-tantalum too close to 5 V, so both are hand-soldered.
+No Basic part fits C5/C7/C14/C20 or F1, so both are Extended (above). The only Basic 100 uF
+parts are 6.3 V: a ceramic that wouldn't damp the cable, and a tantalum too close to 5 V.
 
 **U4 is optional.** It only adds readings (coin-board-schematic.md, section 9). It's one
 of the under-$2 [ADS1115 modules](https://www.aliexpress.us/item/2251832488241448.html) on a
