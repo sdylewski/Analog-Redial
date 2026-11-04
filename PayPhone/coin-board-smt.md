@@ -17,25 +17,25 @@ of them, and LCSC is usually at or below DigiKey. "Basic" is confirmed only wher
 marked; **(verify)** means my expectation, from memory or common use, so check it in
 the BOM upload.
 
-**Surface-mount semiconductors**
+**Surface-mount semiconductors** (JLCPCB places all of them; prices and stock checked 2026-11-04)
 
-| Ref | Function | Part | $ | LCSC / JLCPCB | Fit |
+| Ref | Function | Part | $ (JLCPCB) | LCSC | Fee |
 |---|---|---|---:|---|---|
-| U1 | I2C I/O expander | TCA9534APWR, TSSOP-16, 0.65 mm | ~0.45 (LCSC) | C206010, Extended | JLCPCB, or hand-solder |
-| U2 | stage 1, 5 V to 20 V | MC34063ADR2G, SOIC-8 | 0.77 | Extended | hand-solder |
-| U3 | stage 2 controller | UC3843BD1R2G, SOIC-8 | 0.71 | C16414, Extended | hand-solder, or JLCPCB. DigiKey US stock was thin (56) |
-| Q3 | fire switch, 200 V | STN4NF20L, SOT-223 | 1.02 | Extended | hand-solder |
-| Q1, Q4 | small N-FETs | 2N7002, SOT-23 | 0.02-0.26 | C8545, Basic (verify) | **JLCPCB** |
-| Q2 | relay driver NPN | MMBT3904, SOT-23 | | Basic (verify) | **JLCPCB** |
-| Q5 | gate-drive PNP | MMBT3906, SOT-23 | 0.15 | C7420354, Preferred (no Extended fee) | **JLCPCB** |
-| D1 | stage 1 Schottky | 1N5819HW, SOD-123 | | (verify) | **JLCPCB** if Basic. SS34 (C8678, Basic, on the v6 board) is the alternative, on an SMA footprint |
-| D2, D14 | stage 2 ultrafast, coil freewheel | ES2D, SMA | 0.40 | Extended | hand-solder |
-| D3 | HV clamp | SMBJ130A, SMB | 0.51 | Extended | hand-solder |
-| D4 | relay flyback | 1N4148W, SOD-123 | ~0.05 | C81598, Basic (on v6) | **JLCPCB** |
-| D5, D6 | zeners, 22 V, 12 V | BZT52C22, BZT52C12, SOD-123 | 0.01-0.14 | likely Basic (verify) | **JLCPCB** if Basic |
-| Dz1 | Qa1 gate zener, 15 V | SMAZ15, SMA, 1 W | | (verify) | **JLCPCB** if Basic |
-| D7 | HV indicator | red LED, 0805 | | C84256, Basic | **JLCPCB** |
-| D8-D13 | debug LEDs | green LED, 0805, KT-0805G | | C2297, Basic | **JLCPCB** |
+| U1 | I2C I/O expander | TCA9534APWR, TSSOP-16 | 1.26 | C206010 | Extended |
+| U2 | stage 1, 5 V to 20 V | MC34063ADR2G, SOIC-8 | 0.47 | C32078 | Preferred, no fee |
+| U3 | stage 2 controller | UC3843BD1R2G, SOIC-8 | 0.37 | C16414 | Extended |
+| Q3 | fire switch, 200 V | STN4NF20L (TECH PUBLIC), SOT-223 | 0.33 | C7603336 | Extended. ST's own is C183261, $0.61 |
+| Q1, Q4 | small N-FETs | 2N7002, SOT-23 | 0.02 | C8545 | Basic |
+| Q2 | relay driver NPN | MMBT3904, SOT-23 | 0.01 | C20526 | Basic |
+| Q5 | gate-drive PNP | MMBT3906, SOT-23 | 0.01 | C7420354 | Preferred, no fee |
+| D1 | stage 1 Schottky | SS34, 3 A 40 V, SMA | 0.04 | C8678 | Basic (as on the v6 board) |
+| D2, D14 | stage 2 ultrafast, coil freewheel | ES2D, SMA | 0.03 | C18199161 | Preferred, no fee |
+| D3 | HV clamp | SMBJ130A (FOSAN), 600 W unidirectional, SMB | 0.04 | C5353290 | Extended |
+| D4 | relay flyback | 1N4148W, SOD-123 | 0.01 | C81598 | Basic |
+| D5, D6 | zeners, 22 V, 12 V | BZT52C22, BZT52C12 (hongjiacheng), SOD-123 | 0.02 | C22375295, C19077410 | Preferred, no fee |
+| Dz1 | Qa1 gate zener, 15 V 1 W | 1SMA4744A, SMA | 0.06 | C19077482 | Preferred, no fee |
+| D7 | HV indicator | red LED, 0805 | 0.01 | C84256 | Basic |
+| D8-D13 | debug LEDs | green LED, 0805, KT-0805G | 0.02 | C2297 | Basic |
 
 The Basic LEDs were checked on JLCPCB's part pages on 2026-10-31. No 1206 red LED is
 Basic, so 0805 is the largest for D7; the 0603 greens (C72043, C12624) are Extended.
@@ -86,14 +86,17 @@ These come to about **$16.50** a board at DigiKey qty-1 prices, U4's module incl
 | Rfbt1-3, Rbl1-3, R27, R28, R32 | 100 k, 1 M, 33 k, 1 M | **1206** | on HV (below). R32 1 M is C17927, Basic |
 | R26 | 10 ohm | 1206 | firing current sense |
 | Rcs1 | 2.2 ohm | 0805 | C17521, Basic. About 0.05 W against the 0.125 W rating |
+| R12 | 100 ohm | **1206** | C17901, Basic. U2's driver resistor: about 4 V across it for 80 % of each cycle, 0.13 W, too much for an 0805 |
 | R11, R45, R46 | 1 ohm, in parallel (0.33 ohm) | 1206 | C17928, Basic. No 0.33 ohm part is Basic. Under 30 mW each against 0.25 W |
 
 | Capacitors that need care | Value | Requirement |
 |---|---|---|
-| Ct1, C8 | 2.2 nF, 1 nF | **C0G/NP0**: they set U3's and U2's clocks. X7R loses 10-15 % with temperature and more with voltage |
-| Cf1, Cp1 | 470 pF, 100 pF | **C0G/NP0**: current-sense filter and compensation pole |
+| Ct1 | 2.2 nF | **C0G** (C28260, Basic): it sets U3's 65 kHz clock, which the DCM sizing depends on |
+| C8 | 1 nF | X7R (C46653, Basic). It sets U2's clock; X7R's 10-15 % drift moves that a little, which U2's own current limit makes harmless. C0G at 1 nF is Extended only |
+| Cp1 | 100 pF | **C0G** (C1790, Basic): compensation pole |
+| Cf1 | 470 pF | X7R (C1743, Basic): current-sense filter, where 10-15 % doesn't matter. C0G at 470 pF is Extended only |
 | Cvcc1 | 0.1 uF | **50 V**: on the 20 V rail, where a 16 or 25 V 0805 loses most of its capacitance |
-| Cz1 | 100 nF | X7R, 0805 50 V: C49678, Basic, the same part as C17. Sets the compensation zero (1.6 Hz) |
+| Cz1 | 100 nF | X7R, 0805 50 V: C49678, Basic (the same part as Cvcc1). Sets the compensation zero (1.6 Hz) |
 
 **Cable-entry and filter parts**
 
@@ -131,49 +134,46 @@ and the **UC3844/UC3845** (output limited to 50 % duty, too low for this boost).
 ### What it costs
 
 Estimated 2026-11-04 for a board about the size of the Analog Redial (115 x 54 mm), 2 layers,
-top-side assembly only, JLCPCB Economic, delivered to the US. JLCPCB part prices are its own
-price breaks at the order's real quantities (232 solder joints a board). DigiKey prices are its
-breaks where shown, and the qty-1 price where not. **Estimates, not a quote:** the PCB and
-shipping figures for 10 and 30 boards are scaled from the 5-board Analog Redial quote
-([docs/board.md](../docs/board.md)), and the fees are JLCPCB's as I know them: $8 setup, $1.50
-stencil, $0.0017 a joint, **$3 per unique Extended part per order** (Preferred parts have no fee).
+top-side assembly only, JLCPCB Economic, delivered to the US, with the parts as chosen above.
+JLCPCB part prices are its own price breaks at the order's real quantities (232 solder joints a
+board). DigiKey prices are its breaks where shown, and the qty-1 price where not. **Estimates,
+not a quote:** the PCB and shipping figures for 10 and 30 boards are scaled from the 5-board
+Analog Redial quote ([docs/board.md](../docs/board.md)), and the fees are JLCPCB's as I know
+them: $8 setup, $1.50 stencil, $0.0017 a joint, **$3 per unique Extended part per order**
+(Basic and Preferred parts have no fee).
 
 | | 5 boards | 10 boards | 30 boards |
 |---|---:|---:|---:|
 | PCB | 8.10 | ~11 | ~25 |
-| SMT parts (JLCPCB places all of them) | 26.74 | 48.73 | 132.44 |
-| Extended fees, 17 parts | 51.00 | 51.00 | 51.00 |
+| SMT parts (JLCPCB places all of them) | 24.28 | 45.14 | 124.46 |
+| Extended fees, 8 parts | 24.00 | 24.00 | 24.00 |
 | Setup, stencil, placement | 11.47 | 13.44 | 21.33 |
-| **JLCPCB merchandise** | **97.31** | **124.18** | **229.77** |
+| **JLCPCB merchandise** | **67.85** | **93.59** | **194.79** |
 | Shipping | 30.86 | ~35 | ~50 |
-| Sales tax 8.625 %, tariff about 47.5 % of merchandise | 54.61 | 69.69 | 128.96 |
-| **JLCPCB delivered** | **182.78** | **228.87** | **408.73** |
+| Sales tax 8.625 %, tariff about 47.5 % of merchandise | 38.08 | 52.53 | 109.33 |
+| **JLCPCB delivered** | **136.79** | **181.11** | **354.12** |
 | DigiKey hand-solder parts (C1, K1, Qa1, J1-J3 with mating plugs, J6-J9, shunts, U4 socket), with tax and about $7 shipping | 79.85 | 142.87 | 407.27 |
 | U4, ADS1115 module (AliExpress, about $2) | 10 | 20 | 60 |
-| **Order total** | **~273** | **~392** | **~876** |
-| **Per board** | **~$55** | **~$39** | **~$29** |
-| Per board with the six swaps below | ~$49 | ~$36 | ~$28 |
+| **Order total** | **~227** | **~344** | **~821** |
+| **Per board** | **~$45** | **~$34** | **~$27** |
 
-The Extended fee is fixed per order, so it's most of the gap between 5 and 30 boards: $10 a
-board at 5, $1.70 at 30. Six of the 17 have a no-fee part that drops in:
-
-| Ref | Now (Extended) | Swap | Change |
-|---|---|---|---|
-| Ct1 | 2.2 nF C0G, not stocked as specified | CL21C222JBFNNNE (C28260), Basic | none |
-| Cp1 | 100 pF C0G (C62768) | CL21C101JBANNNC (C1790), Basic | none |
-| D5 | BZT52C22 (C173423) | MMSZ5251B (C22395560), Preferred | none, SOD-123 |
-| D6 | BZT52C12 (C173429) | MMSZ5242B (C19077426), Preferred | none, SOD-123 |
-| Dz1 | SMAZ15 (C110524) | 1SMA4744A (C19077482), Preferred | none, SMA |
-| D1 | 1N5819HW (C82544) | SS34 (C8678), Basic, as on the v6 board | footprint to SMA |
-
-The other 11 have no Basic equivalent: C5/C7/C14/C20, L1, L2, F1, U1, U3, Q3, D3, C8 and Cf1
-(C0G; Basic has only X7R at 1 nF and 470 pF), and R12 (82 ohm). U2, D2/D14 (ES2D), Q5 and R17
-are Preferred, so they cost no fee. Hand-soldering some Extended parts yourself still saves $3
-each per order.
+The 8 parts with an Extended fee have no Basic or Preferred equivalent: C5/C7/C14/C20, L1, L2,
+F1, U1, U3, Q3 and D3. Hand-soldering one yourself saves its $3 per order.
 
 The biggest single items are the hand-solder parts: K1 ($3.84-4.52), C1 ($3.08) and Qa1
 ($2.43). The DigiKey figures for C1, Qa1, the JST parts and the pin strip had no quantity
 breaks on the page, so they're qty-1 prices and a little high at 30.
+
+### The JLCPCB plugin
+
+`Payphone_v1/jlcpcb/` (kicad-jlcpcb-tools: its database and exports, not tracked in git)
+should match the schematic's LCSC fields. Check before each upload:
+
+- Every surface-mount part is in the CPL file, not just the BOM. A symbol marked "exclude from
+  position files" carries that to its footprint on Update PCB, and JLCPCB then buys the part but
+  doesn't place it.
+- No through-hole part has an LCSC number (Qa1 especially: JLCPCB stocks the IRF630), or it
+  lands on the BOM with the hand-solder fee.
 
 ## Will small resistors and capacitors stand the voltage?
 

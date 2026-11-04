@@ -146,7 +146,7 @@ Datasheet designators (TI SLLS636N's step-up converter figure) on this board:
 |---|---|---|
 | VIN | +5V | 5 V |
 | RSC | R11, R45, R46 | **3 x 1 ohm in parallel = 0.33 ohm** (0.22 ohm) |
-| 180 ohm, pin 8 to pin 7 (unlabeled in the figure) | R12 | **82 ohm** (180 ohm) |
+| 180 ohm, pin 8 to pin 7 (unlabeled in the figure) | R12 | **100 ohm, 1206** (180 ohm): about 40 mA of drive at 5 V, a forced beta of 25 at the 1 A limit, the datasheet example's ratio. 0.13 W |
 | L | L1 | **100 uH**, SXN SMDRI127-101MT (170 uH) |
 | 1N5819 | D1 | 1N5819HW (SOD-123) |
 | CO | C7 | 100 uF / 50 V (330 uF) |
@@ -247,7 +247,7 @@ UCx844/5 are limited to 50 % and wouldn't work.
 | **Current sense** | | | |
 | Rcs1 | Qa1 source to GND | **2.2 ohm**, 0805 (C17521, Basic) | Ipk = 1 V / Rcs1 = 0.45 A. About 0.15 A RMS, so 0.05 W, inside the 0805's 0.125 W |
 | Rf1 | Rcs1 to CS pin 3 | **1 k** | with Cf1, filters the leading-edge spike (the UC3843 has no blanking) |
-| Cf1 | CS pin 3 to GND | **470 pF, C0G** | 0.47 us, well under the 15 us period |
+| Cf1 | CS pin 3 to GND | **470 pF**, X7R | 0.47 us, well under the 15 us period |
 | Rslope1 | RT/CT ramp to CS, in series with Cslope1 | **27 k, fit only if needed** | The converter runs in discontinuous mode (below), where subharmonic oscillation can't happen. Fit it if the switch node shows alternating long and short pulses |
 | Cslope1 | DC block in the same path | **1 nF** | passes only the ramp |
 | **Oscillator** | | | |
