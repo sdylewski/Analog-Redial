@@ -208,9 +208,9 @@ applies automatically.
 
 ## HV safety
 
-- **Bleed time.** The feedback divider (about 310 k), R32 + R33 (1.2 M), Rbl1-3
+- **Bleed time.** The feedback divider (about 310 k), R32 + R33 (about 1 M), Rbl1-3
   (3 x 1 M) and the HV LED's string (below) drain C1: 119 V falls below 24 V (D7 out)
-  in about 33 s and below 20 V in about 42 s. Without the LED string it's about 89 s
+  in about 33 s and below 20 V in about 42 s. Without the LED string it's about 86 s
   to 20 V; if the divider opens, about 88 s. Still treat C1 as live until D7 is out,
   or short it through a resistor before touching.
 - **HV indicator (D7).** HV -> R27 33 k -> R28 33 k -> D5 (BZT52C22, cathode to R28) ->
@@ -233,7 +233,7 @@ applies automatically.
 | 1 ADDR | GND: address 0x48 |
 | 10 SCL, 9 SDA | SCL, SDA (R40 and R41 from the cable) |
 | 2 ALERT/RDY | not connected |
-| 4 AIN0 | HV through R32 1.18 M / R33 33 k: 119 V reads 3.24 V. C18 100 nF to GND |
+| 4 AIN0 | HV through R32 1 M / R33 27 k: 119 V reads 3.13 V. C18 100 nF to GND |
 | 5 AIN1 | 20V through R17 56 k / R19 10 k: 20 V reads 3.0 V. C19 100 nF to GND |
 | 6 AIN2 | ISENSE (R26) through R44 1 k: 100 mA reads 1 V |
 | 7 AIN3 | spare |

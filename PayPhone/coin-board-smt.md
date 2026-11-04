@@ -48,7 +48,7 @@ SXN rates saturation at a 25 % drop in inductance.
 | Ref | Value | Part | Isat | Heating (40 C rise) | DCR max | Peak here | $ (JLCPCB, qty 1) | LCSC / JLCPCB | Fit |
 |---|---|---|---|---|---|---|---:|---|---|
 | L1 | 100 uH | SMDRI127-101MT | 3.5 A | 1.7 A | 0.22 ohm | about 1 A (R11) | 0.23 | C10150, Extended, 64,000 in stock | **JLCPCB** |
-| L2 | 220 uH | SMDRI127-221MT | 2.0 A | 1.16 A | 0.39 ohm | 0.5 A (Rcs1) | 0.23 | C10151, Extended, 17,000 in stock | **JLCPCB** |
+| L2 | 220 uH | SMDRI127-221MT | 2.0 A | 1.16 A | 0.39 ohm | 0.45 A (Rcs1) | 0.23 | C10151, Extended, 17,000 in stock | **JLCPCB** |
 
 Each is an Extended part, so JLCPCB adds its per-part fee (about $3 per order) on top.
 
@@ -60,6 +60,7 @@ Each is an Extended part, so JLCPCB adds its per-part fee (about $3 per order) o
 | C5, C7, C9, C14, C15 | 22 uF / 35 V, on +5V and 20V | Panasonic EEU-FR1V220, 5 mm, 2 mm leads. One part for all five | |
 | K1 | DPDT relay, 5 V coil | Omron (Aratas) G6S-2-DC5: 250 VAC / 220 VDC switching per the listing **(check the datasheet)** | 4.52 |
 | Qa1 | stage 2 switch, 200 V | IRF630PBF, TO-220 | 2.43 |
+| R11 | stage 1 current sense | 0.33 ohm, 0.5 W, axial (DIN0309, 12.7 mm pitch) | |
 | J2 | relay cable | Molex 0026604030, KK 396, 3-pin (plug 09-50-3031 + terminals, verify) | 0.35 |
 | J3 | coin switch cable | Molex 0026604040, KK 396, 4-pin (plug 09-50-3041 + terminals, verify) | 0.44 |
 | J1 or J6 | main board cable | JST B5B-EH-A, or a 1 x 5 pin header, 2.54 mm | |
@@ -75,9 +76,9 @@ The priced parts in these two tables come to about **$22** a board at qty-1 pric
 
 | Ref | Value | Size | Why |
 |---|---|---|---|
-| Rfbt1-3, Rbl1-3, R27, R28, R32 | 100 k, 1 M, 33 k, 1.18 M | **1206** | on HV (below) |
+| Rfbt1-3, Rbl1-3, R27, R28, R32 | 100 k, 1 M, 33 k, 1 M | **1206** | on HV (below). R32 1 M is C17927, Basic |
 | R26 | 10 ohm | 1206 | firing current sense |
-| R11, Rcs1 | 0.33 ohm 0.5 W, 2 ohm 1 W | **2512** | power; check the exact part's rating |
+| Rcs1 | 2.2 ohm | 0805 | C17521, Basic. About 0.05 W against the 0.125 W rating |
 
 | Capacitors that need care | Value | Requirement |
 |---|---|---|

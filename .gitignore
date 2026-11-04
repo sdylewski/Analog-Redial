@@ -140,3 +140,6 @@ voice_prompts/**/*.wav
 firmware/release/out/
 node_modules/
 Bluetooth/BM64/DSPK v2.1.5 Package/
+
+# JLCPCB plugin parts database and fab exports: local only
+PayPhone/Payphone_v1/jlcpcb/

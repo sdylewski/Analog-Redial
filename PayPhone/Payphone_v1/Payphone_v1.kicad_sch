@@ -15184,7 +15184,7 @@
 				)
 			)
 		)
-		(property "Value" "33k"
+		(property "Value" "27k"
 			(at 26.416 174.752 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15229,6 +15229,17 @@
 		)
 		(property "PROD_ID" "RES-07856"
 			(at 36.068 172.72 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C17593"
+			(at 40.64 172.72 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15588,7 +15599,7 @@
 				)
 			)
 		)
-		(property "Value" "1.18M"
+		(property "Value" "1M"
 			(at 25.654 166.624 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15633,6 +15644,17 @@
 		)
 		(property "PROD_ID" "RES-07856"
 			(at 25.4 162.052 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C17927"
+			(at 25.4 157.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19834,7 +19856,7 @@
 				)
 			)
 		)
-		(property "Value" "2R 1W"
+		(property "Value" "2.2R"
 			(at 120.904 133.35 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19844,7 +19866,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_2512_6332Metric"
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
 			(at 121.412 133.35 0)
 			(hide yes)
 			(show_name no)
@@ -19879,6 +19901,17 @@
 		)
 		(property "PROD_ID" "RES-07856"
 			(at 123.698 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C17521"
+			(at 128.27 133.35 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

@@ -245,7 +245,7 @@ UCx844/5 are limited to 50 % and wouldn't work.
 | Rg1 | U3 OUT to Qa1 gate | **100 ohm** | damps ringing and limits the current into Dz1: OUT swings to about 18.5 V, so Dz1 sees about 35 mA each on-time; still switches the IRF630 in about 0.3 us |
 | Dz1 | 15 V gate clamp (cathode to gate, anode to Qa1 source) | **SMAZ15** (1 W) | OUT is just under the IRF630's 20 V Vgs maximum, so this is margin |
 | **Current sense** | | | |
-| Rcs1 | Qa1 source to GND | **2 ohm, 1 W** (2512) | Ipk = 1 V / Rcs1 = 0.5 A |
+| Rcs1 | Qa1 source to GND | **2.2 ohm**, 0805 (C17521, Basic) | Ipk = 1 V / Rcs1 = 0.45 A. About 0.15 A RMS, so 0.05 W, inside the 0805's 0.125 W |
 | Rf1 | Rcs1 to CS pin 3 | **1 k** | with Cf1, filters the leading-edge spike (the UC3843 has no blanking) |
 | Cf1 | CS pin 3 to GND | **470 pF, C0G** | 0.47 us, well under the 15 us period |
 | Rslope1 | RT/CT ramp to CS, in series with Cslope1 | **27 k, fit only if needed** | The converter runs in discontinuous mode (below), where subharmonic oscillation can't happen. Fit it if the switch node shows alternating long and short pulses |
@@ -300,22 +300,22 @@ that's the failure D3 is there for.
 **Sizing** (my arithmetic from the datasheet's equations; **[verify]** on the
 bench):
 
-- **Power.** With L2 = 220 uH at 65 kHz and Ipk = 0.5 A, each cycle takes
-  1/2 x L x Ipk^2 x f = 1.8 W out of L2, and the boost adds what comes straight
-  from the input: about **2.2 W at 119 V, 2.7 W at 60 V, 2.9 W at 52 V** from the
-  20 V rail. Stage 1 supplies about 2 W (100 mA), so while C1 charges, stage 2 can
-  ask for more than stage 1 gives: see the bench checks in section 11.
+- **Power.** With L2 = 220 uH at 65 kHz and Ipk = 0.45 A, each cycle takes
+  1/2 x L x Ipk^2 x f = 1.45 W out of L2, and the boost adds what comes straight
+  from the input: about **1.7 W at 119 V, 2.2 W at 60 V, 2.4 W at 52 V** from the
+  20 V rail. Stage 1 supplies about 2 W (100 mA), so while C1 charges below about
+  70 V, stage 2 can ask for more than stage 1 gives: see the bench checks in section 11.
 - **Charge time.** C1 stores 1/2 C V^2: 0.3 J at 52 V, 0.4 J at 60 V, 1.6 J at
-  119 V. At about 2 W that's a fraction of a second up to about 1 s, so the
+  119 V. At 1.7-2.4 W that's a fraction of a second up to about 1 s, so the
   firmware's 3 s wait is generous.
 - **Frequency.** 1.72 / (12 k x 2.2 nF) = 65 kHz.
-- **Mode: discontinuous (DCM) once HV is above about 31 V.** At the 0.5 A peak the
-  switch is on for L2 x Ipk / 20 V = 5.5 us, and L2 empties in
-  L2 x Ipk / (HV - 20 V): 2.75 us at 60 V, about 1 us at 119 V. Both sum to less than the
+- **Mode: discontinuous (DCM) once HV is above about 30 V.** At the 0.45 A peak the
+  switch is on for L2 x Ipk / 20 V = 5 us, and L2 empties in
+  L2 x Ipk / (HV - 20 V): 2.5 us at 60 V, about 1 us at 119 V. Both sum to less than the
   15.4 us period, so the current returns to zero every cycle, with no right-half-plane
-  zero and no subharmonic oscillation. Duty is only about 36 %.
+  zero and no subharmonic oscillation. Duty is only about 32 %.
 - **Loop compensation.** In DCM each cycle delivers 1/2 x L2 x Ipk^2, and Ipk
-  follows COMP: Ipk = (V_COMP - 1.4 V) / (3 x Rcs1), a gain of 1/6 A per volt.
+  follows COMP: Ipk = (V_COMP - 1.4 V) / (3 x Rcs1), a gain of 0.15 A per volt.
   Above a very low pole the power stage is an integrator:
 
   G(s) = L2 x f x Ipk / (3 x Rcs1 x HV x C1 x s)
@@ -327,10 +327,10 @@ bench):
 
   | Case | Ipk | fc with Rz1 = 1 M |
   |---|---|---|
-  | 60 V, full current (charging) | 0.5 A | about 50 Hz |
-  | 60 V, divider load only | about 60 mA | about 6 Hz |
-  | 130 V, full current | 0.5 A | about 22 Hz |
-  | 130 V, divider load only | about 0.12 A | about 5 Hz |
+  | 60 V, full current (charging) | 0.45 A | about 40 Hz |
+  | 60 V, divider load only | about 60 mA | about 5.5 Hz |
+  | 130 V, full current | 0.45 A | about 18 Hz |
+  | 130 V, divider load only | about 0.12 A | about 4.5 Hz |
 
   Loop gain falls with Ipk, so the zero (1.6 Hz) goes below the lowest crossover,
   for 70-90 degrees of phase margin in every case. C1's ESR zero (about 1 kHz) is
@@ -345,11 +345,11 @@ bench):
   HV ----+-------+-------+-----------+-----------+-----------+
          |       |       |           |           |           |
         C1      D3     Rfbt1-3     Rbl1-3       R32        R27, R28
-      220uF   SMBJ130A  3x 100k     3x 1M      1.18M       D5, D7
+      220uF   SMBJ130A  3x 100k     3x 1M       1M         D5, D7
       /200V              |           |           |         (HV LED)
          |       |       +-- FB      |         +-- AIN0      |
          |       |       |           |         R33           |
-         |       |     Rfbb4         |          33k          |
+         |       |     Rfbb4         |          27k          |
          |       |    (+ J7-J9)      |           |           |
   GND ---+-------+-------+-----------+-----------+-----------+
 ```
