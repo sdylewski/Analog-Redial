@@ -35,9 +35,17 @@ PORT_GLOBS = ["/dev/cu.usbserial*", "/dev/cu.usbmodem*", "/dev/tty.usb*", "/dev/
 
 
 def find_ports() -> list[str]:
+    """Every serial port on the machine (globs on macOS/Linux, list_ports
+    everywhere, which is the only way to see Windows COM ports)."""
     ports: list[str] = []
     for pattern in PORT_GLOBS:
         ports.extend(glob.glob(pattern))
+    try:
+        from serial.tools import list_ports
+        ports.extend(p.device for p in list_ports.comports()
+                     if not p.device.startswith(("/dev/cu.Bluetooth", "/dev/cu.debug")))
+    except ImportError:
+        pass
     return sorted(set(ports))
 
 

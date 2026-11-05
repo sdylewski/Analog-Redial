@@ -1,5 +1,13 @@
 # Bring-up guide
 
+**macOS, Linux and Windows.** Run every script here from an ESP-IDF terminal
+(`. ~/esp/esp-idf/export.sh` on macOS/Linux, the *ESP-IDF 5.2 PowerShell* or
+CMD shortcut on Windows): its Python already has pyserial and esptool. On
+macOS and Linux run them as `./flash_board.py ...`; on Windows as
+`python flash_board.py ...`. The board's port is `/dev/cu.usbmodem*` on
+macOS, `/dev/ttyACM*` on Linux and `COMn` on Windows, and the scripts find it
+on their own when one board is plugged in.
+
 Hardware bring-up for Analog Redial boards (SMD2/SMD4/SMD5, ES8388 codec).
 Two layers:
 
@@ -33,7 +41,7 @@ Two layers:
 
 ## first_setup.py — bring up and provision a board, one gated step at a time
 
-Run it from an ESP-IDF shell (`. ~/esp/esp-idf/export.sh`), with the board on
+Run it from an ESP-IDF terminal, with the board on
 USB and, for the HTTP steps, on Wi-Fi. Close any `idf.py monitor` first — it
 holds the serial port.
 
@@ -65,9 +73,13 @@ single-line board isn't told to dial 321, and the Bluetooth sentence only
 appears when Bluetooth is fitted. Prompts go to internal flash, so they don't
 depend on a card.
 
-HTTP goes through `curl`: on macOS, Python's sockets to a LAN address are
-blocked unless the terminal has Local Network permission. Speech is
-generated locally by `gen_prompt.py`.
+HTTP goes through `curl` (built into macOS, Linux distributions and Windows
+10/11): on macOS, Python's sockets to a LAN address are blocked unless the
+terminal has Local Network permission. Speech is generated locally by
+`gen_prompt.py` with Kokoro, which it installs into `tts_venv/` the first
+time; converting the result to the board's 8 kHz WAV needs no other tool
+(`afconvert` or `ffmpeg` are used when present, and `ffmpeg` is needed only
+for MP3 input or output).
 
 ## 1. Build and flash
 
@@ -104,27 +116,30 @@ logs a warning if it doesn't. Run it manually any time with the
 
 ## 2. Install the host-side script dependencies
 
+Nothing to do in an ESP-IDF terminal. From any other Python:
+
 ```bash
 cd firmware/bringup
-pip install -r requirements.txt
+python3 -m pip install -r requirements.txt      # Windows: python -m pip install -r requirements.txt
 ```
 
 ## 3. Find the serial port
 
 ```bash
-python3 serial_probe.py
+./serial_probe.py            # Windows: python serial_probe.py
 ```
 
-If it prints exactly one port, every script below will auto-detect it. If it
-prints more than one (or none), pass `--port /dev/cu.usbserial-XXXX`
-explicitly to each script.
+It lists the ESP32-C6 boards it finds (by USB ID), or every serial port if
+there are none. With exactly one board, every script below auto-detects it.
+With more than one, pass `--port` to each script: `--port /dev/cu.usbmodem101`
+(macOS), `--port /dev/ttyACM0` (Linux) or `--port COM5` (Windows).
 
 ## 4. Run the bring-up sequence
 
 Either run everything in order:
 
 ```bash
-python3 bringup_checklist.py
+./bringup_checklist.py       # Windows: python bringup_checklist.py
 ```
 
 This runs each step below, in order, and stops at the first failure (each

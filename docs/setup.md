@@ -182,6 +182,9 @@ converts it on the board. Changes take effect immediately, no rebuild.
 
 **From the command line:** `firmware/bringup/gen_prompt.py` makes a clip
 from an MP3 or from text (text-to-speech on your computer) and uploads it.
+It runs on macOS, Linux and Windows (`python gen_prompt.py` there); text and
+WAV files need nothing else installed, while an MP3 needs
+[ffmpeg](https://ffmpeg.org) on Linux and Windows.
 To build your own clips into every firmware image instead, see
 [`firmware/assets/README.md`](https://github.com/sdylewski/Analog-Redial/blob/main/firmware/assets/README.md).
 

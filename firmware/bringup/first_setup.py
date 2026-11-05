@@ -199,8 +199,11 @@ def curl(host: str, path: str, *, form: dict[str, str] | None = None,
     """One request through curl. Returns (HTTP status, body); status 0 = no
     connection. Form handlers answer with a 303 redirect, which counts as
     success -- it isn't followed."""
-    with tempfile.NamedTemporaryFile() as body:
-        cmd = ["curl", "-sS", "-m", str(timeout), "-o", body.name, "-w", "%{http_code}"]
+    # A file in a temporary directory, not a NamedTemporaryFile: on Windows an
+    # open NamedTemporaryFile can't be opened again, so curl couldn't write it.
+    with tempfile.TemporaryDirectory() as tmp:
+        body = Path(tmp) / "body"
+        cmd = ["curl", "-sS", "-m", str(timeout), "-o", str(body), "-w", "%{http_code}"]
         if os.environ.get("REDIAL_PASSWORD"):  # the board's web password, if it has one
             cmd += ["-u", "admin:" + os.environ["REDIAL_PASSWORD"]]
         if form is not None:
@@ -214,7 +217,7 @@ def curl(host: str, path: str, *, form: dict[str, str] | None = None,
             code = int(proc.stdout.strip() or 0)
         except ValueError:
             code = 0
-        return code, Path(body.name).read_bytes()
+        return code, body.read_bytes() if body.exists() else b""
 
 
 def ok_status(code: int) -> bool:

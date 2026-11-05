@@ -176,7 +176,15 @@ for you to paste the log into.
   goes back to the old one by itself. Check the log under Settings → Diagnostics.
 - **The computer can't see the board:** use the DevKit's USB-C port marked **USB**, not
   **UART**, and a cable that carries data. Close any serial monitor that is still
-  holding the port.
+  holding the port. Then check it's listed:
+  - **macOS:** `ls /dev/cu.usbmodem*`
+  - **Linux:** `ls /dev/ttyACM*`. "Permission denied" means your user isn't in the
+    `dialout` group yet (see [step 2 of flashing](flashing.md#2-install-the-toolchain-once));
+    a flash that fails right after plugging in is often ModemManager probing the port,
+    so wait 10 seconds and retry.
+  - **Windows:** Device Manager → *Ports (COM & LPT)* → "USB Serial Device (COMn)".
+  - **Any OS:** `python serial_probe.py` in `firmware/bringup/`, from the ESP-IDF
+    terminal, lists the boards it finds.
 - **Flashing fails or the board stays in flashing mode afterwards:** try again once or
   twice. If it's still stuck, unplug the USB cable and plug it back in.
 - **The serial monitor restarts the board:** opening the port resets it. That's normal

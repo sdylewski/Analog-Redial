@@ -413,9 +413,69 @@ def convert_to_wav(src: Path, dst: Path, rate: int) -> None:
             check=True, capture_output=True,
         )
         return
+    if src.suffix.lower() == ".wav":
+        # Kokoro, Piper and espeak-ng all write PCM WAV, so Linux and Windows
+        # need no extra tool for text-to-speech.
+        _convert_wav_python(src, dst, rate)
+        return
     raise SystemExit(
-        "Need 'afconvert' (macOS, built in) or 'ffmpeg' on PATH to convert audio."
+        "Need 'afconvert' (macOS, built in) or 'ffmpeg' on PATH to convert "
+        f"{src.suffix or 'this'} audio (WAV converts without either)."
     )
+
+
+def _convert_wav_python(src: Path, dst: Path, rate: int) -> None:
+    """PCM WAV (8/16/24/32-bit, any channel count and rate) to mono 16-bit at
+    `rate`, in plain Python: mixdown, a windowed-sinc low-pass below the new
+    Nyquist when downsampling, then linear interpolation. Slow for long
+    files, fine for a few seconds of speech."""
+    import array
+    import math
+    import wave
+    with wave.open(str(src), "rb") as w:
+        nch, width, src_rate, n = w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getnframes()
+        raw = w.readframes(n)
+    if width == 1:
+        vals = [b - 128 << 8 for b in raw]
+    elif width == 2:
+        vals = array.array("h", raw)
+        if sys.byteorder == "big":
+            vals.byteswap()
+    elif width in (3, 4):
+        vals = [int.from_bytes(raw[i:i + width], "little", signed=True) >> (8 * (width - 2))
+                for i in range(0, len(raw), width)]
+    else:
+        raise SystemExit(f"{src}: unsupported {width * 8}-bit WAV")
+    mono = [sum(vals[i:i + nch]) / nch for i in range(0, len(vals), nch)]
+    if rate < src_rate:
+        cutoff = 0.9 * rate / 2 / src_rate          # cycles per input sample
+        taps = 63
+        mid = taps // 2
+        h = []
+        for k in range(taps):
+            x = k - mid
+            s = 2 * cutoff if x == 0 else math.sin(2 * math.pi * cutoff * x) / (math.pi * x)
+            h.append(s * (0.54 - 0.46 * math.cos(2 * math.pi * k / (taps - 1))))
+        total = sum(h)
+        h = [c / total for c in h]
+        padded = [0.0] * mid + mono + [0.0] * mid
+        mono = [sum(c * padded[i + k] for k, c in enumerate(h)) for i in range(len(mono))]
+    out = array.array("h")
+    step = src_rate / rate
+    pos = 0.0
+    while pos <= len(mono) - 1:
+        i = int(pos)
+        f = pos - i
+        v = mono[i] if i + 1 >= len(mono) else mono[i] * (1 - f) + mono[i + 1] * f
+        out.append(max(-32768, min(32767, round(v))))
+        pos += step
+    if sys.byteorder == "big":
+        out.byteswap()
+    with wave.open(str(dst), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(out.tobytes())
 
 
 # Mono voice/music at telephone bandwidth (~300-3400Hz, matching this

@@ -103,9 +103,7 @@ cd esp-idf
    means.
 
 Windows 10 and 11 recognize the board's USB port with no driver: it shows up
-as a `COM` port in Device Manager under *Ports (COM & LPT)*. In the steps
-below, run the Python scripts as `python flash_board.py ...` instead of
-`./flash_board.py ...`.
+as a `COM` port in Device Manager under *Ports (COM & LPT)*.
 
 Already have ESP-IDF set up by hand? `git clone -b v5.2.8 --recursive
 https://github.com/espressif/esp-idf.git C:\esp\esp-idf`, then
@@ -121,25 +119,82 @@ and the [firmware developer notes](https://github.com/sdylewski/Analog-Redial/bl
 
 ## 3. Get the code
 
+In the ESP-IDF terminal:
+
 ```bash
 git clone https://github.com/sdylewski/Analog-Redial.git analog-redial
 cd analog-redial/firmware
 ```
 
+On Windows, clone to a short path with no spaces, such as `C:\redial`
+(`cd C:\` first, then `git clone https://github.com/sdylewski/Analog-Redial.git redial`
+and `cd redial\firmware`): the build makes deep folder paths, and a long
+starting path can push them past Windows' path-length limit.
+
 ## 4. Flash it
 
 Plug the board into your computer through the DevKit's USB-C port marked
 **USB** (the right-hand one). The DevKitC-1 has two; the other, marked
-**UART**, isn't connected to the console on this board. Then:
+**UART**, isn't connected to the console on this board.
+
+Then run `flash_board.py` from the ESP-IDF terminal. That terminal's Python
+already has the serial and flashing libraries the script needs.
+
+<details open>
+<summary><b>macOS</b></summary>
 
 ```bash
 cd bringup
-./flash_board.py --board smd4 --yes
+./flash_board.py --board smd5 --yes
 ```
 
-(On Windows: `python flash_board.py --board smd4 --yes`.)
+The board appears as `/dev/cu.usbmodem…` (`ls /dev/cu.usbmodem*` lists it).
+The scripts find it on their own; if they ever need `--port`, use the `cu.`
+name, not the `tty.` one.
 
-Use `--board smd5` for a v5 board (including a 30-pin clone whose two solder jumpers were moved, see [the v5 reference](hardware-smd5.md#10-mcu-module-variants)); a clone with the jumpers left at the default needs `--board smd5_cheap`, which has no USB console. The script reads the chip's flash size,
+The first time a script talks to the board over Wi-Fi, macOS may ask whether
+your terminal app may find devices on your local network. Allow it, or the
+spoken-prompt upload fails with "No route to host".
+
+</details>
+
+<details>
+<summary><b>Linux</b></summary>
+
+```bash
+cd bringup
+./flash_board.py --board smd5 --yes
+```
+
+The board appears as `/dev/ttyACM0` (`ls /dev/ttyACM*` lists it).
+
+- **"Permission denied" on the port:** your user isn't in the `dialout`
+  group yet (`uucp` on Arch). Run the `usermod` line from step 2, then log
+  out and back in.
+- **Flashing fails just after plugging in (Ubuntu, Debian, Fedora):**
+  ModemManager probes new USB serial ports for a few seconds. Wait 10
+  seconds and try again; if it keeps happening, `sudo systemctl stop
+  ModemManager` (or remove it if you don't use a USB modem).
+
+</details>
+
+<details>
+<summary><b>Windows</b></summary>
+
+In the **ESP-IDF 5.2 PowerShell** (or CMD), run the scripts through `python`:
+
+```powershell
+cd bringup
+python flash_board.py --board smd5 --yes
+```
+
+The board appears as a `COM` port (`COM3`, `COM5`, …) in Device Manager
+under *Ports (COM & LPT)*, as "USB Serial Device". The scripts find it on
+their own; pass `--port COM5` if several are plugged in.
+
+</details>
+
+`--board smd5` is for a v5 or v5.1 board, including a 30-pin clone whose two solder jumpers were moved (see [the v5 reference](hardware-smd5.md#10-mcu-module-variants)); a clone with the jumpers left at the default needs `--board smd5_cheap`, which has no USB console. A v4 board uses `--board smd4`. The script reads the chip's flash size,
 builds the matching image and flashes it. Later flashes don't need
 `--board`: the script asks the running firmware what it is.
 
@@ -147,14 +202,7 @@ builds the matching image and flashes it. Later flashes don't need
 <summary>Prefer to drive <code>idf.py</code> yourself?</summary>
 
 Each board type builds in its own directory with its own settings. From
-`firmware/`, for a v4 board (the default `build/` directory):
-
-```bash
-idf.py build
-idf.py -p <PORT> flash monitor
-```
-
-For a v5 board, create its directory once, then build and flash into it:
+`firmware/`, for a v5 board, create its directory once, then build and flash into it:
 
 ```bash
 idf.py -B build.smd5 -D SDKCONFIG="build.smd5/sdkconfig" \
@@ -163,7 +211,11 @@ idf.py -B build.smd5 -D SDKCONFIG="build.smd5/sdkconfig" -p <PORT> flash monitor
 ```
 
 Always pass the same `-B` and `-D SDKCONFIG=` pair, or the build can fall back to
-the v4 settings.
+the v4 settings in the default `build/` directory (which a v4 board uses: plain
+`idf.py build` and `idf.py -p <PORT> flash monitor`).
+
+On Windows, type each command on one line: the `\` at a line end continues
+it on macOS and Linux only.
 
 `<PORT>` is the board's serial device: `/dev/cu.usbmodem…` on macOS,
 `/dev/ttyACM…` on Linux, `COM…` on Windows. Leave `-p` off to let idf.py
@@ -187,8 +239,16 @@ flashing in Settings → General → Board hardware (or with
 
 ## 5. Watch it boot
 
-Open the serial monitor (`idf.py monitor` from `firmware/`). You'll see each
-part come up (codec, phone lines, audio, telephony) ending with:
+Open the serial monitor from `firmware/`, with the port from step 4:
+
+| | Command |
+|---|---|
+| macOS | `idf.py -p /dev/cu.usbmodem101 monitor` |
+| Linux | `idf.py -p /dev/ttyACM0 monitor` |
+| Windows | `idf.py -p COM5 monitor` |
+
+Quit it with **Ctrl-]**. You'll see each part come up (codec, phone lines, audio,
+telephony) ending with:
 
 ```
 All subsystems up. Lift a handset to get dial tone.
@@ -239,6 +299,11 @@ To set up a batch of boards that each come up fresh for whoever gets them:
    your Wi-Fi and the board name, keeps everything else, and reboots into
    setup mode.
 4. Unplug it once its setup network appears.
+
+On Windows, run these as `python first_setup.py …`. `first_setup.py` uses
+`curl`, which macOS, Linux and Windows 10/11 all include, and makes its
+spoken prompts on your computer with no other tools to install (the first
+run downloads a speech model of about 350 MB).
 
 The recipient powers it up and follows [step 4](setup.md). Full script
 reference: [`firmware/bringup/README.md`](https://github.com/sdylewski/Analog-Redial/blob/main/firmware/bringup/README.md).
