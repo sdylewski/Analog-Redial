@@ -272,8 +272,8 @@ anything that fits these signals.
 | J2 pin | Signal | What it is | Notes for your own use |
 |--------|--------|------------|------------------------|
 | 1 | `+3V3_BM` | 3.3 V from **U5**, a dedicated XC6206 LDO off the +5 V rail (not the DevKit's 3.3 V) | Up to about 200 mA (the XC6206's rating), minus what U5's own drop allows from the 5 V rail |
-| 2 | GPIO17 (U0RXD) | ESP32-C6 input: the board **receives** serial data here | 3.3 V logic. Also on **J4**. A UART at any baud the firmware sets, or a plain GPIO |
-| 3 | GPIO16 (U0TXD) | ESP32-C6 output: the board **transmits** serial data here | 3.3 V logic. Also on **J3** |
+| 2 | GPIO17 (U0RXD) | ESP32-C6 input: the board **receives** serial data here | 3.3 V logic. A UART at any baud the firmware sets, or a plain GPIO |
+| 3 | GPIO16 (U0TXD) | ESP32-C6 output: the board **transmits** serial data here | 3.3 V logic |
 | 4 | GPIO15 | Control pin, with a **100 kΩ pull-down** on the main board | GPIO15 is an ESP32-C6 strapping pin: it must be low at power-up, which the pull-down sees to. Fine as an output (power button, reset, enable) or an input |
 | 5 | Line 0 microphone out | Line 0's SLIC `VOUT` (the handset's microphone) through **C22**, 1 µF | Analog audio, AC-coupled: what the person on line 0 says |
 | 6 | Audio ground reference | GND through **C24**, 1 µF | AC ground for a differential microphone input (`-` side) |
@@ -284,9 +284,10 @@ anything that fits these signals.
 rotated 180° shorts the regulator's output straight to ground. Mark pin 1 on
 both silkscreens and dry-fit before applying power.
 
-**The serial pins are shared.** GPIO16/17 are also on headers **J3**/**J4**.
-With no Bluetooth module chosen in Settings → General → Board hardware, the
-firmware doesn't start its link on them.
+**The serial pins are free when nothing is fitted.** With no Bluetooth module
+chosen in Settings → General → Board hardware, the firmware doesn't start its
+link on GPIO16/17. (On SMD4 they were on headers J3/J4. On SMD5, J3/J4 carry
+different signals: see [§10](#j3-and-j4-on-smd5).)
 
 ### How the Bluetooth board uses it
 
@@ -360,6 +361,19 @@ the normal `CONFIG_BOARD_TYPE_SMD5` build with native USB working.
 </table>
 
 Bridge one side only: both sides together short GPIO2 to a USB data line.
+<a id="j3-and-j4-on-smd5"></a>**J3 and J4** (2-pin headers, signal and GND) are wired to pads 20 and 19, so
+what they carry depends on the module:
+
+| Header | Pad | Genuine DevKitC-1 | 30-pin clone, jumpers on the clone side |
+|---|---|---|---|
+| **J3** | 20 | `GPIO13` / USB D+ | `GPIO3`, microSD card-detect (via JP2) |
+| **J4** | 19 | `GPIO12` / USB D− | `GPIO2`, I²S MCLK (via JP3) |
+
+With the genuine module they are the live USB data lines, so leave them unconnected
+unless you mean to wire USB there. With a clone they are in use by the board, so
+don't connect anything; the clone's USB lines (pads 12/13) reach only the
+cut side of JP2/JP3 and come out on no header.
+
 (`CONFIG_BOARD_TYPE_SMD5_CHEAP` remains for a clone board with the jumpers
 left at the default, which costs native USB.) Full detail, including the
 symptoms of getting it wrong, is in
@@ -374,7 +388,7 @@ symptoms of getting it wrong, is in
 | Power | USB-C (via the DevKit module's own port) and DC jack (**J1**), diode-ORed |
 | Storage | microSD, optional, single-line build only |
 | Expansion header | **J2**, currently used for the optional Bluetooth board — §9 |
-| Debug | UART header (**J3** TX / **J4** RX), optional |
+| J3, J4 | 2-pin headers on module pads 20/19; what they carry depends on the module (§10) |
 
 ---
 

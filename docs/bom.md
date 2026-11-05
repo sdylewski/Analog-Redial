@@ -145,7 +145,7 @@ None of these are needed for any feature. Generic 2.54 mm pin headers.
 | Ref | What it is | What it's for |
 |-----|-----------|---------------|
 | **J7** | 1×3 audio monitor output | Mirrors the earpiece audio: scope it, feed a powered speaker, or listen in without picking up. Needs **C10** and **C11** fitted (below) |
-| **J3**, **J4** | 1×2 each, GPIO16 and GPIO17 | Spare ESP32 pins: a button, an LED, a relay, or a serial port. Not available with the Bluetooth companion, which uses them for its serial link |
+| **J3**, **J4** | 1×2 each, signal and GND | **v4:** GPIO16 (J3) and GPIO17 (J4), spare pins for a button, an LED, a relay or a serial port. **v5:** J3 is module pad 20 and J4 pad 19, so what they carry depends on the module. On the genuine 32-pin DevKitC-1 they are GPIO13 (USB D+) and GPIO12 (USB D−), the module's live USB lines: leave them unconnected unless you mean to wire USB there. On a 30-pin clone with JP2/JP3 set for the clone they are GPIO3 (microSD card-detect) and GPIO2 (the codec's MCLK clock): in use, don't connect anything |
 
 **C10/C11, for J7 only:** fit two **1 µF** non-polarized film or ceramic
 capacitors in the 5 mm disc footprints. That passes the whole phone band.
