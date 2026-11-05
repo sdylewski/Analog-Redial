@@ -1,6 +1,7 @@
 # Coin board: parts and PCB layout
 
-**In progress, not finished:** the PCB isn't routed yet.
+**In progress: not for use or fab.** The PCB layout isn't finished, and nothing here is
+built or tested. The cost estimate below is for planning, not a sign the design is ready.
 
 Companion to [coin-board-schematic.md](coin-board-schematic.md) and
 [output-stage-wiring.md](output-stage-wiring.md). Reference designators and

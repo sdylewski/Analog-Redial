@@ -1,6 +1,7 @@
 # Coin relay output stage: what connects where
 
-**In progress, not finished:** the PCB isn't routed, and nothing here is built.
+**In progress: not for use or fab.** The PCB layout isn't finished, and nothing here is built
+or tested.
 
 Reference designators and pin numbers match
 `Payphone_v1/Payphone_v1.kicad_sch`.

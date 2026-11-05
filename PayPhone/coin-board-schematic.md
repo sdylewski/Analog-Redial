@@ -1,7 +1,7 @@
 # Payphone coin board: design
 
-**In progress, not finished.** The PCB isn't routed, and nothing here is built or
-simulated. Values marked **[verify]** come from
+**In progress: not for use or fab.** The PCB layout isn't finished, and nothing here is
+built, tested or simulated. Values marked **[verify]** come from
 distributor listings or my memory of a datasheet, not from the manufacturer's
 datasheet; check them before ordering. Reference designators match
 `Payphone_v1/Payphone_v1.kicad_sch`.
