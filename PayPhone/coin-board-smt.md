@@ -226,6 +226,28 @@ On the board:
 
 Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
 
+### Track widths and vias
+
+The net classes in `Payphone_v1.kicad_pro` set these, so the router picks the width
+from the net (1 oz copper; the currents are peaks):
+
+| Net class | Nets | Track | Clearance | Via | Carries |
+|---|---|---|---|---|---|
+| HighCurrent | +5V_IN, U2 Ipk node, SW1 (D1 anode) | 1.0 mm | 0.25 mm | 0.8 / 0.4 mm | stage 1's 1 A peaks |
+| Power | +5V, VIO, 20V, GND | 0.8 mm | 0.2 mm | 0.8 / 0.4 mm | up to about 0.5 A |
+| HV | HV, HV_*, SW2, COIL_A/B, RETURN | 0.5 mm | 1.0 mm | 0.8 / 0.4 mm | the coin relay pulse, 0.45 A peaks on SW2 |
+| Default | everything else: I2C, FIRE/POL, gates, ADC, LEDs | 0.25 mm | 0.2 mm | 0.6 / 0.3 mm | a few mA |
+
+- 0.2 mm (in the width list) is fine for any signal line where space is tight; JLCPCB's
+  standard process goes down to 0.13 mm at no extra cost.
+- Power and HV tracks can narrow to 0.5 mm to get past a pin, and short 20V branches
+  (Q5/R23, U3 VCC) can be 0.4 mm. The 20V rail is about 100 mA, so 0.8 mm is
+  for low resistance, not heat.
+- One 0.4 mm via carries about 1 A; use two or more where a HighCurrent or
+  hot-loop path changes layers, and several at each power capacitor's GND.
+- The HighCurrent patterns use KiCad's auto net names (`Net-(U2-Ipk)`,
+  `Net-(D1-A)`). If a re-annotation renames them, update the patterns.
+
 ### Ground
 
 - **One ground, no splits.** There's no transformer, so the "HV ground" and
