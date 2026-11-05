@@ -295,6 +295,14 @@ from the net (1 oz copper; the currents are peaks):
 
 - HV, HV_*, SW2, COIL_A/B and RETURN are in the **HV net class** (1.0 mm
   clearance), so DRC enforces it.
+- **Pads inside one part** are checked against 0.6 mm instead (IPC-2221 B2,
+  external uncoated copper, 101-150 V), by the rules in `Payphone_v1.kicad_dru`
+  for K1, J2, Q3, Qa1, R27 and R28: their pin spacing is fixed by the part
+  (SOT-223 and 1206 pads are 0.8 mm apart). A new HV part with the same issue
+  gets its own rule there.
+- **K1's switch pads (3, 4, 5, 8, 9, 10) are 1.7 mm**, not the library's
+  2.0 mm, for 0.84 mm between them instead of 0.54 mm (1.0 mm holes, as Omron
+  specifies). DRC lists K1 as differing from the library; that's this change.
 - D3 straight across C1; Rbl1-3 beside it.
 - **R32 sits at C1:** only its 3 V tap (AIN0) runs to U4, so no HV enters the
   logic block.
