@@ -23,7 +23,7 @@ static line_state_t s_line[AUDIO_NUM_LINES];
  * handset is still on its way to an ear. Applies to every clip started with a
  * done callback (prompts, greetings, voicemail playback); ringback clips and
  * chained follow-on clips start at once. */
-#define PROMPT_LEAD_IN_MS 2000
+#define PROMPT_LEAD_IN_MS 1500
 
 typedef struct {
     int    line;
