@@ -200,7 +200,6 @@ void app_main(void)
     /* 3b. Echo canceller state (starts disabled; enable per line at runtime
      * once a call is up -- see aec.h and the `aec` console command). */
     aec_init();
-    prompts_init();
     payphone_init();   /* before telephony_start(): its audio taps read the settings */
 
     /* 3c. Best-effort hardware auto-detect -- only ever does anything on a
@@ -243,6 +242,7 @@ void app_main(void)
     } else {
         telephony_check_clip_files();
     }
+    prompts_init();   /* after storage: the prompt texts are a file there */
     if (board_hw_config_get().has_microsd) {
         /* microSD configured (line 2 traded for the SD card, board.h): mount
          * it here so the boot log shows whether the card actually came up.

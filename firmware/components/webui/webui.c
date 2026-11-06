@@ -2264,8 +2264,9 @@ static void regen_add(regen_item_t *it, int *n, int max, const char *name, const
 static int regen_build(regen_item_t *it, int max)
 {
     int n = 0;
-    prompt_entry_t *list = malloc(PROMPT_MAX_ENTRIES * sizeof(prompt_entry_t));
-    size_t np = list ? prompts_list(list, PROMPT_MAX_ENTRIES) : 0;
+    size_t pc = prompts_count();
+    prompt_entry_t *list = malloc((pc ? pc : 1) * sizeof(prompt_entry_t));
+    size_t np = list ? prompts_list(list, pc) : 0;
     char expanded[PROMPT_TEXT_MAX + 64];
     for (size_t i = 0; i < np; i++) {
         if (!is_wav_name(list[i].name) || !list[i].text[0]) continue;
@@ -2915,8 +2916,8 @@ static int append_prompt_field_rows(char *buf, size_t cap, int off, const char *
     const char *text = have ? pe.text : (default_text ? default_text : "");
     /* Generated once but the file is gone (internal flash wiped by a new
      * partition layout, or deleted): pending again, so --sync remakes it. */
-    bool missing = have && pe.generated_text[0] && !storage_has_own(clip_name);
-    bool pending = have && (strcmp(pe.text, pe.generated_text) != 0 || missing);
+    bool missing = have && pe.generated && !storage_has_own(clip_name);
+    bool pending = have && (prompts_text_pending(&pe) || missing);
 
     char etext[PROMPT_TEXT_MAX * 6];
     html_escape(text, etext, sizeof(etext));
@@ -7484,6 +7485,7 @@ static esp_err_t factory_reset_handler(httpd_req_t *req)
 {
     if (!destructive_confirmed(req, "reset")) return ESP_OK;
     ESP_LOGW(TAG, "web UI: factory reset requested -- erasing all settings");
+    prompts_reset();   /* the prompt texts are a file, not NVS */
     esp_err_t err = nvs_flash_erase();
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "nvs_flash_erase failed: %s", esp_err_to_name(err));
@@ -11285,17 +11287,17 @@ static esp_err_t prompt_requests_json_handler(httpd_req_t *req)
         }
     }
 
-    /* Heap, not stack -- PROMPT_MAX_ENTRIES * sizeof(prompt_entry_t) is
-     * ~6.9KB (each entry carries two 200-byte text fields), which overflowed
-     * the httpd worker task's 8KB stack when it was a local array here
-     * (silent corruption/hang, not a clean panic -- see media_upload_handler
-     * above for the same fix on the same task). */
-    prompt_entry_t *list = malloc(PROMPT_MAX_ENTRIES * sizeof(prompt_entry_t));
+    /* Heap, not stack -- a list of prompt_entry_t (about 240 bytes each)
+     * overflowed the httpd worker task's 8KB stack when it was a local array
+     * here (silent corruption/hang, not a clean panic -- see
+     * media_upload_handler above for the same fix on the same task). */
+    size_t pc = prompts_count();
+    prompt_entry_t *list = malloc((pc ? pc : 1) * sizeof(prompt_entry_t));
     if (!list) {
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
-    size_t n = prompts_list(list, PROMPT_MAX_ENTRIES);
+    size_t n = prompts_list(list, pc);
     cJSON *arr = cJSON_CreateArray();
     for (size_t i = 0; i < n; i++) {
         cJSON *e = cJSON_CreateObject();
@@ -11303,8 +11305,8 @@ static esp_err_t prompt_requests_json_handler(httpd_req_t *req)
         char expanded[PROMPT_TEXT_MAX + 64];
         expand_prompt_vars(list[i].text, expanded, sizeof(expanded));
         cJSON_AddStringToObject(e, "text", expanded);
-        cJSON_AddBoolToObject(e, "pending", strcmp(list[i].text, list[i].generated_text) != 0 ||
-                                            (list[i].generated_text[0] && !storage_has_own(list[i].name)));
+        cJSON_AddBoolToObject(e, "pending", prompts_text_pending(&list[i]) ||
+                                            (list[i].generated && !storage_has_own(list[i].name)));
         cJSON_AddItemToArray(arr, e);
     }
     free(list);
