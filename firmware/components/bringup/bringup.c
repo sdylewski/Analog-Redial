@@ -14,6 +14,8 @@
 #include "webauth.h"
 #include "webui.h"
 #include "auxpins.h"
+#include "coinboard.h"
+#include "payphone.h"
 #include "dialplan.h"
 #include "esp_pm.h"
 #include "wifi.h"
@@ -78,23 +80,66 @@ static int cmd_auxpin(int argc, char **argv)
     size_t n = auxpins_list(gp, AUXPINS_COUNT);
     if (argc < 3) {
         printf("spare pins %s%s%s\n", usable ? "usable" : "NOT usable: ", usable ? "" : why, "");
-        for (size_t i = 0; i < n; i++) printf("  GPIO%d  %s\n", gp[i], auxpins_level(gp[i]) ? "high" : "low");
+        char pl[16];
+        for (size_t i = 0; i < n; i++)
+            printf("  %-7s (id %d)  %s\n", auxpins_label(gp[i], pl, sizeof(pl)), gp[i],
+                   auxpins_level(gp[i]) ? "high" : "low");
         printf("pin dial codes %s\n", dialplan_pins_active() ? "active" : "inactive (not one line + no microSD)");
+        char cl[16];
         dialplan_pin_entry_t pe[DIALPLAN_MAX_PIN_ACTIONS];
         size_t np = dialplan_list_pin_entries(pe, DIALPLAN_MAX_PIN_ACTIONS);
         for (size_t i = 0; i < np; i++) {
-            printf("  code %-6s -> GPIO%u, %s (%s)\n", pe[i].code, pe[i].gpio,
+            printf("  code %-6s -> %s, %s (%s)\n", pe[i].code, auxpins_label(pe[i].gpio, cl, sizeof(cl)),
                    pe[i].secs ? "timed" : "toggle", pe[i].desc);
         }
-        printf("usage: auxpin <18-21> <seconds high | 0 = toggle>\n");
+        printf("usage: auxpin <id> <seconds high | 0 = toggle>   (id: GPIO 18-21; on v6 J10's 4-7)\n");
         return 0;
     }
     int gpio = atoi(argv[1]), secs = atoi(argv[2]);
     esp_err_t err = auxpins_pulse(gpio, secs);
     if (err == ESP_ERR_INVALID_STATE) { printf("not driven: %s\n", why); return 1; }
     if (err != ESP_OK) { printf("auxpin: %s\n", esp_err_to_name(err)); return 1; }
-    printf("GPIO%d is now %s\n", gpio, auxpins_level(gpio) ? "high" : "low");
+    char pl[16];
+    printf("%s is now %s\n", auxpins_label(gpio, pl, sizeof(pl)), auxpins_level(gpio) ? "high" : "low");
     return 0;
+}
+
+/* coinboard [collect|return|hv]: the payphone coin board's state, or a test. */
+static int cmd_coinboard(int argc, char **argv)
+{
+    if (argc >= 2) {
+        cf_what_t w = !strcmp(argv[1], "collect") ? CF_COLLECT : !strcmp(argv[1], "return") ? CF_RETURN :
+                      !strcmp(argv[1], "hv") ? CF_HV_TEST : (cf_what_t)-1;
+        esp_err_t err = coinboard_test(w);
+        if (err == ESP_ERR_INVALID_STATE) {
+            printf("not running: needs Settings -> Payphone on, \"A coin board is connected\" ticked, "
+                   "and the board answering at 0x%02X\n", COINBOARD_IO_ADDR);
+            return 1;
+        }
+        if (err != ESP_OK) { printf("usage: coinboard [collect|return|hv]\n"); return 1; }
+        printf("%s started; run 'coinboard' to watch it\n", coin_fire_what_name(w));
+        return 0;
+    }
+    coinboard_cfg_t c = coinboard_cfg();
+    coinboard_status_t st;
+    coinboard_status(&st);
+    printf("coin board: %s, line %d, payphone features %s\n", c.enabled ? "enabled" : "not enabled",
+           c.line, payphone_enabled() ? "on" : "off");
+    printf("U1 TCA9534A 0x%02X: %s; U4 ADS1115 0x%02X: %s\n", COINBOARD_IO_ADDR,
+           st.io_ok ? "answering" : "NOT answering", COINBOARD_ADC_ADDR, st.adc_ok ? "answering" : "not answering");
+    printf("input 0x%02X, output 0x%02X (EN_HV %d, POL %d, FIRE %d)\n", st.input, st.output,
+           (st.output >> COINBOARD_BIT_EN_HV) & 1, (st.output >> COINBOARD_BIT_POL) & 1,
+           (st.output >> COINBOARD_BIT_FIRE) & 1);
+    for (int b = 0; b < 4; b++)
+        printf("  %-8s %s%s\n", coinboard_input_name(b), (st.closed >> b) & 1 ? "closed" : "open",
+               (st.stuck >> b) & 1 ? " (stuck)" : "");
+    printf("20 V rail %d mV, HV %d mV, coil %d mA, AIN3 %d mV (-1: not read)\n",
+           st.rail_mv, st.hv_mv, st.i_ma, st.ain3_mv);
+    printf("relay %s (%s); last: %s\n", coin_fire_state_name(st.state), coin_fire_what_name(st.doing),
+           st.result_msg[0] ? st.result_msg : "-");
+    printf("coins %u, pulses %u, bus errors %u, chip resets %u\n", (unsigned)st.coins,
+           (unsigned)st.fires, (unsigned)st.bus_errors, (unsigned)st.chip_resets);
+    return st.io_ok ? 0 : 1;
 }
 
 /* webhang: freezes the web server on purpose to check the watchdog restarts
@@ -3035,7 +3080,8 @@ void bringup_console_start(void)
     register_cmd("bt401_state", "BT401: show decoded link/call/name state", cmd_bt401_state);
     register_cmd("bt401_dial", "BT401: place a call: bt401_dial <number>", cmd_bt401_dial);
     register_cmd("bt401_selftest", "BT401: check the protocol code on built-in lines", cmd_bt401_selftest);
-    register_cmd("auxpin", "Spare pins GPIO18-21 (one line, no microSD): auxpin [<gpio> <secs|0 toggle>]", cmd_auxpin);
+    register_cmd("auxpin", "Spare pins (GPIO18-21 on J5, or v6's J10 P4-P7): auxpin [<id> <secs|0 toggle>]", cmd_auxpin);
+    register_cmd("coinboard", "Payphone coin board: state, or a test: coinboard [collect|return|hv]", cmd_coinboard);
     register_cmd("webhang", "Test: freeze the web server to check its watchdog restarts the board", cmd_webhang);
     register_cmd("webpass", "Web UI password: webpass [clear] -- clear removes a forgotten one", cmd_webpass);
     register_cmd("i2c_scan", "Scan I2C bus for the codec", cmd_i2c_scan);

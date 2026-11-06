@@ -4043,6 +4043,102 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "PCM_SL_Mechanical:MountingHole_M3"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "H"
+				(at 0 7.62 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "MountingHole_M3"
+				(at 0 5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "MountingHole:MountingHole_3.2mm_M3"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "3.2mm Diameter Mounting Hole (M3)"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "Mounting Hole"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "MountingHole_M3_0_1"
+				(circle
+					(center 0 0)
+					(radius 1.27)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(circle
+					(center 0 0)
+					(radius 1.7961)
+					(stroke
+						(width 2)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "PCM_SL_Pin_Headers:PINHD_1x2_Male"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -7193,6 +7289,17 @@
 		)
 		(uuid "9b57bb17-1405-4573-b435-972e080bf772")
 	)
+	(text "HV SET (fit jumpers)\nno J14         19 V\nJ14            52 V\nJ14 J9         60 V\nJ14 J8         78 V\nJ14 J8 J9      85 V\nJ14 J7         87 V\nJ14 J7 J9      94 V\nJ14 J7 J8     112 V\nJ14 J7 J8 J9  119 V"
+		(exclude_from_sim no)
+		(at 172.72 199.39 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "ac7f6ecb-652e-40e8-9a8d-2e292066063d")
+	)
 	(text "HV indicator: D7 lights above about 24 V (D5 22 V + LED).\nIt runs from C1 itself, so it stays lit\nuntil C1 has drained below 24 V, even\nwith the board unpowered."
 		(exclude_from_sim no)
 		(at 171.704 189.23 0)
@@ -7408,12 +7515,6 @@
 		(uuid "39f8b0c5-1968-4774-aa30-f7a3479d1882")
 	)
 	(junction
-		(at 86.36 223.52)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "3a9f5e7a-c4d4-4041-a077-f09d16c612a8")
-	)
-	(junction
 		(at 158.75 109.22)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -7430,12 +7531,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "471a64e0-74f3-4daa-b836-29dff93c86f3")
-	)
-	(junction
-		(at 105.41 233.68)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "47f34c00-7c50-491b-8995-5a42105b0294")
 	)
 	(junction
 		(at 82.55 161.29)
@@ -7696,6 +7791,12 @@
 		(uuid "b0043762-313a-49c1-ac5a-5aa726ed6393")
 	)
 	(junction
+		(at 105.41 233.68)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "b00f121b-079e-452a-801e-db4281655577")
+	)
+	(junction
 		(at 82.55 186.69)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -7850,6 +7951,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "f4df1886-9881-4a9a-b7fe-500227b7ea41")
+	)
+	(junction
+		(at 86.36 223.52)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "fd5df86a-e018-4679-a688-d557aa02b3bc")
 	)
 	(junction
 		(at 149.86 35.56)
@@ -8052,16 +8159,6 @@
 			(type default)
 		)
 		(uuid "13e6832c-8ce6-4aa8-a76f-bfa2f8244739")
-	)
-	(wire
-		(pts
-			(xy 124.46 231.14) (xy 124.46 223.52)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "13f119b0-9197-48c9-a065-a6d581d7c7bd")
 	)
 	(wire
 		(pts
@@ -8285,6 +8382,16 @@
 	)
 	(wire
 		(pts
+			(xy 105.41 231.14) (xy 105.41 233.68)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "31aef125-8d18-4b8f-9345-b57e472d6156")
+	)
+	(wire
+		(pts
 			(xy 332.74 176.53) (xy 332.74 173.99)
 		)
 		(stroke
@@ -8292,6 +8399,16 @@
 			(type default)
 		)
 		(uuid "34b7b62b-7c5e-4f87-8bf4-f0f46106bc40")
+	)
+	(wire
+		(pts
+			(xy 124.46 231.14) (xy 105.41 231.14)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "352acd50-fdba-4547-992d-f59b9496d49a")
 	)
 	(wire
 		(pts
@@ -8422,16 +8539,6 @@
 			(type default)
 		)
 		(uuid "4be7554d-1148-4740-9f68-71b66b7ae4b3")
-	)
-	(wire
-		(pts
-			(xy 86.36 223.52) (xy 124.46 223.52)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "4c19b7ef-0422-4b1c-b23c-28d87669e931")
 	)
 	(wire
 		(pts
@@ -9205,6 +9312,16 @@
 	)
 	(wire
 		(pts
+			(xy 124.46 233.68) (xy 113.03 233.68)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9848d07d-c772-448d-adf3-b78f0a5b893e")
+	)
+	(wire
+		(pts
 			(xy 134.62 161.29) (xy 142.24 161.29)
 		)
 		(stroke
@@ -9595,6 +9712,16 @@
 	)
 	(wire
 		(pts
+			(xy 113.03 233.68) (xy 113.03 223.52)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "be3bbd5f-c6df-4ec6-99d4-b37de5fd5f3f")
+	)
+	(wire
+		(pts
 			(xy 170.18 168.91) (xy 163.83 168.91)
 		)
 		(stroke
@@ -9895,6 +10022,16 @@
 	)
 	(wire
 		(pts
+			(xy 113.03 223.52) (xy 86.36 223.52)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "dae8320d-3d3d-4770-a823-21315932a3a7")
+	)
+	(wire
+		(pts
 			(xy 96.52 63.5) (xy 102.87 63.5)
 		)
 		(stroke
@@ -10062,16 +10199,6 @@
 			(type default)
 		)
 		(uuid "e9bd8a2e-02b3-4f9a-9630-78b8a2287982")
-	)
-	(wire
-		(pts
-			(xy 105.41 233.68) (xy 124.46 233.68)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e9f3c7c4-373b-4718-a9e0-4f70707a5df0")
 	)
 	(wire
 		(pts
@@ -10393,16 +10520,6 @@
 		)
 		(uuid "3245e85f-e97a-41e0-a3dd-d464b86dded2")
 	)
-	(label "Quarter"
-		(at 91.44 48.26 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "347e06ee-2772-41bb-9a40-74f093523ab2")
-	)
 	(label "DIME_IN"
 		(at 176.53 59.69 0)
 		(effects
@@ -10503,16 +10620,6 @@
 		)
 		(uuid "4b5d9cf1-25e0-4efa-9af8-80a5bb5ad8b1")
 	)
-	(label "Dime"
-		(at 91.44 50.8 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "4cd5917e-c13f-47db-b04c-5e2adf2f622a")
-	)
 	(label "SW2"
 		(at 139.7 138.43 180)
 		(effects
@@ -10534,7 +10641,7 @@
 		(uuid "4e17939d-93e5-40cd-955c-b2664ae349c3")
 	)
 	(label "POL"
-		(at 96.52 60.96 0)
+		(at 93.98 60.96 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -10552,6 +10659,16 @@
 			(justify right bottom)
 		)
 		(uuid "54b6620b-237e-4128-a704-eb78745ffa23")
+	)
+	(label "FIRE"
+		(at 93.98 58.42 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "5c7e3242-a6c5-48bd-ae75-9868a45214e5")
 	)
 	(label "RLY_COIL"
 		(at 293.37 153.67 180)
@@ -10673,16 +10790,6 @@
 		)
 		(uuid "7b9ebba8-0134-4cfc-9dfb-9b6b18a1b6ef")
 	)
-	(label "FIRE"
-		(at 93.98 63.5 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "7d267ea5-a724-4399-86b1-133f10cbf2b7")
-	)
 	(label "SCL_IN"
 		(at 40.64 50.8 180)
 		(effects
@@ -10692,6 +10799,16 @@
 			(justify right bottom)
 		)
 		(uuid "7e51eb68-2c0d-4a62-a2d8-92318f5b60ac")
+	)
+	(label "COIN4"
+		(at 91.44 48.26 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "81f6cd56-3909-41ac-b982-e94288efbfdc")
 	)
 	(label "HV"
 		(at 283.21 198.12 0)
@@ -10712,6 +10829,16 @@
 			(justify left bottom)
 		)
 		(uuid "8546ef1c-25f4-4831-a228-482025472b2a")
+	)
+	(label "Quarter"
+		(at 91.44 50.8 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "8ac6f82f-2e61-4b1a-8104-034e16a6fbca")
 	)
 	(label "+5V_IN"
 		(at 30.48 53.34 0)
@@ -10742,6 +10869,16 @@
 			(justify right bottom)
 		)
 		(uuid "8fa465f4-e7e0-41a6-a8c0-45427310727a")
+	)
+	(label "EN_HV"
+		(at 92.71 63.5 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "91190d94-5493-4456-9c6d-bfe038cfbd2d")
 	)
 	(label "SDA_IN"
 		(at 30.48 58.42 0)
@@ -10893,16 +11030,6 @@
 		)
 		(uuid "cc037ed2-1132-4d69-8bec-0ce9d0b8b7a3")
 	)
-	(label "COIN4"
-		(at 91.44 55.88 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "d0b86ecd-c553-4078-9310-9b3b273d312e")
-	)
 	(label "AIN3"
 		(at 110.49 252.73 0)
 		(effects
@@ -10973,6 +11100,26 @@
 		)
 		(uuid "eac80f7b-b6d0-434a-905e-4d0a56b740c3")
 	)
+	(label "Nickel"
+		(at 91.44 55.88 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "ee39314a-f2bb-425b-8a93-be4fbb71b30d")
+	)
+	(label "Dime"
+		(at 91.44 53.34 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "f04e6fd9-3cdc-4104-a823-54657cc313aa")
+	)
 	(label "ISENSE"
 		(at 350.52 166.37 180)
 		(effects
@@ -10992,16 +11139,6 @@
 			(justify left bottom)
 		)
 		(uuid "f958fe0a-6a81-43d4-a465-8f32d22c2895")
-	)
-	(label "Nickel"
-		(at 91.44 53.34 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "fa24b0b0-12c9-46ea-bef7-38251926766e")
 	)
 	(label "SDA"
 		(at 144.78 236.22 0)
@@ -11032,16 +11169,6 @@
 			(justify left bottom)
 		)
 		(uuid "fd5fa6ca-cf78-4662-bde8-cc7a6b20ebf1")
-	)
-	(label "EN_HV"
-		(at 95.25 58.42 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "ff05415b-511c-43e7-8628-b18fcf112841")
 	)
 	(symbol
 		(lib_id "Device:C_Small")
@@ -15357,6 +15484,82 @@
 		)
 	)
 	(symbol
+		(lib_id "PCM_SL_Mechanical:MountingHole_M3")
+		(at 370.84 120.65 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files no)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "3def2f60-58f8-4135-852d-4608bb7942ec")
+		(property "Reference" "H3"
+			(at 374.65 119.3799 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MountingHole_M3"
+			(at 374.65 121.9199 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_3.2mm_M3"
+			(at 370.84 124.46 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 370.84 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "3.2mm Diameter Mounting Hole (M3)"
+			(at 370.84 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "H3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
 		(at 196.85 165.1 90)
 		(unit 1)
@@ -15544,6 +15747,82 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "PCM_SL_Mechanical:MountingHole_M3")
+		(at 369.57 130.81 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files no)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "415c0dd7-82eb-42da-9637-a55c74cba449")
+		(property "Reference" "H4"
+			(at 373.38 129.5399 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MountingHole_M3"
+			(at 373.38 132.0799 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_3.2mm_M3"
+			(at 369.57 134.62 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 369.57 130.81 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "3.2mm Diameter Mounting Hole (M3)"
+			(at 369.57 130.81 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "H4")
 					(unit 1)
 				)
 			)
@@ -21647,6 +21926,82 @@
 		)
 	)
 	(symbol
+		(lib_id "PCM_SL_Mechanical:MountingHole_M3")
+		(at 370.84 99.06 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files no)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "9dd679e5-a206-44b1-bcca-078de14a2394")
+		(property "Reference" "H1"
+			(at 374.65 97.7899 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MountingHole_M3"
+			(at 374.65 100.3299 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_3.2mm_M3"
+			(at 370.84 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 370.84 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "3.2mm Diameter Mounting Hole (M3)"
+			(at 370.84 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "H1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
 		(at 170.18 177.8 90)
 		(unit 1)
@@ -25669,6 +26024,82 @@
 		)
 	)
 	(symbol
+		(lib_id "PCM_SL_Mechanical:MountingHole_M3")
+		(at 369.57 110.49 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files no)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "ce3503ac-cddd-4745-adf8-7ac905147742")
+		(property "Reference" "H2"
+			(at 373.38 109.2199 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MountingHole_M3"
+			(at 373.38 111.7599 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_3.2mm_M3"
+			(at 369.57 114.3 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 369.57 110.49 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "3.2mm Diameter Mounting Hole (M3)"
+			(at 369.57 110.49 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "H2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
 		(at 196.85 160.02 90)
 		(unit 1)
@@ -28860,17 +29291,6 @@
 				)
 			)
 		)
-	)
-	(text "HV SET (fit jumpers)\nno J14         19 V\nJ14            52 V\nJ14 J9         60 V\nJ14 J8         78 V\nJ14 J8 J9      85 V\nJ14 J7         87 V\nJ14 J7 J9      94 V\nJ14 J7 J8     112 V\nJ14 J7 J8 J9  119 V"
-		(exclude_from_sim no)
-		(at 172.72 199.39 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left top)
-		)
-		(uuid "ac7f6ecb-652e-40e8-9a8d-2e292066063d")
 	)
 	(sheet_instances
 		(path "/"

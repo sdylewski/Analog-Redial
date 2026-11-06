@@ -3,3 +3,4 @@
 #define BOARD_EXP_BIT_RM   1
 #define BOARD_EXP_BIT_SHK  2
 #define BOARD_EXP_BIT_PD   3
+#define BOARD_EXP_BIT_SPARE0 4

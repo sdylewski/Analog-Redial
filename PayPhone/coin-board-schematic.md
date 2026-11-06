@@ -11,7 +11,7 @@ datasheet; check them before ordering. Reference designators match
 | This one | how the board works: connectors, logic, the two power stages, coin inputs, cable, open items |
 | [output-stage-wiring.md](output-stage-wiring.md) | relay driver, polarity relay and firing switch, pin by pin |
 | [coin-board-smt.md](coin-board-smt.md) | parts list, what JLCPCB places, PCB layout and routing |
-| [payphone-firmware-plan.md](payphone-firmware-plan.md) | the firmware's Payphone tab (coin tones, coin required, messages, log) and what's left for the coin board |
+| [payphone-firmware-plan.md](payphone-firmware-plan.md) | the firmware: the Payphone tab (coin tones, coin required, messages, log) and the coin board's driver |
 
 The bench measurements of the coin relay and the patent notes are in
 `Scott/coin-return-board.md` (local only, not in git).
@@ -34,9 +34,9 @@ main board. VIO is the host's I2C logic voltage (3.3 V from Analog Redial,
  +5V  --- J6.5 ---------> [U2 MC34063 5V->20V] --> 20V --> [U3 UC3843 + Qa1 + L2 + D2] --> HV (C1)
  VIO  --- J6.4                  ^ Q1                                                        |
  SDA  --- J6.3 --+              |                                                           |
- SCL  --- J6.2 --+--> [U1 TCA9534A @0x39] P4 EN_HV                                          |
+ SCL  --- J6.2 --+--> [U1 TCA9534A @0x39] P6 EN_HV                                          |
  GND  --- J6.1   |                        P5 POL  --> Q2 --> K1 (DPDT relay) <--------------+
-                 |                        P6 FIRE --> Q4, Q5 --> Q3 (low side) --> R26 --> GND
+                 |                        P4 FIRE --> Q4, Q5 --> Q3 (low side) --> R26 --> GND
                  |                        P0-P3 <-- D16-D19 <-- coin inputs <-- J3 / J12
                  +--> [U4 ADS1115 @0x48]  HV, 20V, firing current; AIN3 spare (J13)
 
@@ -60,7 +60,7 @@ green wire, and they aren't the same wires.
 | **J10** | 1 x 2 pin header + shunt | **two-coil relays only:** ties COIL_C (J11 pin 2) to HV (section 7). It can't reach J2, so a relay on J2 is unaffected either way |
 | **J14** | 1 x 2 pin header + shunt | **HV boost:** 20V to U3's VCC. **No shunt (the safe default): HV stays at about 19 V**, whatever the firmware does. Shunt fitted: HV goes to J7-J9's setting (section 6) |
 | **J3** | Molex KK 396, 4-pin, 0026604040 | **coin switch cable.** 4 green = common (GND), 3 white = quarter, 2 red = dime, 1 blue = nickel. On the plug with its tab at the bottom, green is the left pin and blue the right |
-| **J12** | Phoenix MKDS 1,5/5-5,08 screw terminal | 1 nickel, 2 dime, 3 quarter, 4 GND (J3's pins, in parallel), **5 coin 4** (U1 P3) |
+| **J12** | Phoenix MKDS 1,5/5-5,08 screw terminal | 1 nickel, 2 dime, 3 quarter, 4 GND (J3's pins, in parallel), **5 coin 4** (U1 P0) |
 | **J13** | 1 x 3 pin header, 2.54 mm | spare analog input: 1 VIO, 2 AIN3 (through R52 10 k, C25 100 nF to GND), 3 GND (section 9) |
 | **J7-J9** | three 2-pin headers + shunts | HV setting with J14 fitted: no shunt = 52 V; any combination is valid, up to 119 V with all three (section 6) |
 | **JP1** | solder jumper, **open** | **VIO = 5 V**: bridge it only for a host with no logic supply to give (a 5 V I2C host using four wires). Leave it open whenever pin 2 is wired |
@@ -110,15 +110,15 @@ on.
 |---|---|---|---|---|---|
 | 1 | A0 | VIO | | | address 0x39 |
 | 2, 3 | A1, A2 | GND | | | |
-| 4 | P0 | Quarter | in | high | 10 k pull-up to VIO, 1 k series, 100 nF on the switch side |
-| 5 | P1 | Dime | in | high | same |
-| 6 | P2 | Nickel | in | high | same |
-| 7 | P3 | Coin 4 | in | high | wired like P0-P2 (R49 10 k pull-up, R50 1 k, C24 100 nF), from J12 pin 5. Next to P0-P2, so the four coin inputs are together |
+| 4 | P0 | Coin 4 | in | high | wired like P1-P3 (R49 10 k pull-up, R50 1 k, C24 100 nF), from J12 pin 5. Next to P1-P3, so the four coin inputs are together |
+| 5 | P1 | Quarter | in | high | R4 10 k pull-up to VIO, R7 1 k series, C2 100 nF on the switch side |
+| 6 | P2 | Dime | in | high | the same with R5, R8, C3 |
+| 7 | P3 | Nickel | in | high | the same with R6, R9, C4 |
 | 8 | GND | GND | | | |
-| 9 | P4 | **EN_HV** | out | low (R1 100 k) | turns on stage 1, and so stage 2: HV exists only while high |
+| 9 | P4 | **FIRE** | out | low (R1 100 k) | drives Q3: current through the coil |
 | 10 | P5 | **POL** | out | low (R2 100 k) | drives Q2 and K1: sets which way the coil is driven |
-| 11 | P6 | **FIRE** | out | low (R3 10 k) | drives Q3: current through the coil |
-| 12 | P7 | spare | | | not connected. Firmware should set it as an output so it doesn't float |
+| 11 | P6 | **EN_HV** | out | low (R3 10 k) | turns on stage 1, and so stage 2: HV exists only while high |
+| 12 | P7 | spare | | | not connected. The firmware makes it an output, low, so it doesn't float |
 | 13 | ~INT | | | | not connected |
 | 14 | SCL | SCL | | | |
 | 15 | SDA | SDA | | | |
@@ -136,7 +136,7 @@ moment.
 | LEDs | Wired | Lit while |
 |---|---|---|
 | D8 / D9 / D10 / D15 (R34-R36, R51) | VIO -> 1.5 k -> LED -> NICKEL_SW / DIME_SW / QUARTER_SW / COIN4_SW (the board side of D16-D19) | that coin input is low |
-| D11 / D12 / D13 (R37-R39) | EN_HV / POL / FIRE -> 1.5 k -> LED -> GND | that output is high |
+| D11 / D12 / D13 (R37-R39) | FIRE / POL / EN_HV -> 1.5 k -> LED -> GND | that output is high |
 
 The coin LEDs take their current from VIO through the coin switch, not through
 R4-R6, so they don't change what U1 reads. Current: about 0.3-0.5 mA at
@@ -212,7 +212,7 @@ leg of the feedback divider**:
                    [ R14 10k ]
                         |
                      Q1 drain
-  EN_HV --- Q1 gate     (R1 100k pulldown on EN_HV)
+  EN_HV --- Q1 gate     (R3 10k pulldown on EN_HV)
                      Q1 source --- GND
 ```
 
@@ -369,7 +369,7 @@ bench):
         C1      D3     Rfbt1-3     Rbl1-3       R32        R27, R28
       220uF   SMBJ130A  3x 100k     3x 1M       1M         D5, D7
       /200V              |           |           |         (HV LED)
-         |       |       +-- FB      |         +-- AIN0      |
+         |       |       +-- FB      |         +-- AIN1      |
          |       |       |           |         R33           |
          |       |     Rfbb4         |          27k          |
          |       |    (+ J7-J9)      |           |           |
@@ -435,7 +435,7 @@ which is in series with the coil.
   / blue closes briefly for a quarter / dime / nickel. There's no supply to them:
   green goes to GND, and each line is pulled up to VIO.
 - **Each line:** R4-R6 10 k pull-up to VIO, R7-R9 1 k series to U1, C2-C4 100 nF to
-  GND on the switch side. D8-D10 show each line (section 4). **Coin 4** (U1 P3, J12 pin 5)
+  GND on the switch side. D8-D10 show each line (section 4). **Coin 4** (U1 P0, J12 pin 5)
   is the same: R49, R50, C24, D15 with R51. It's for a 50c or $1 switch, a coin-present
   switch, or a coin acceptor's pulse output.
 - **D16-D19 (B5819W Schottky, 40 V)** sit in series between each connector pin and its
@@ -507,8 +507,8 @@ the relay.
 
 **On the bench**
 
-5. **Which voltage the phone needs:** it works at about 50-60 V; no shunt (52 V) is the
-   default and J9 gives 60 V. The higher settings are margin for other phones.
+5. **Which voltage the phone needs:** it works at about 50-60 V; J14 alone gives 52 V and
+   J14 + J9 gives 60 V. The higher settings are margin for other phones.
 6. **Stage 1 against stage 2:** while charging, stage 2 can ask for more than stage 1's 2 W
    (section 6). The rail may sag, and if it reaches U3's 7.6 V stop, the converter hiccups.
    If it does, raise Rcs1 for a lower peak current, or add a soft start on COMP.
@@ -524,11 +524,11 @@ the relay.
 
 **Firmware**
 
-12. U1 and U4 drivers, coin events from the board, and a coin-relay output (return/collect)
-    with a safety timeout and a current check. **None of the coin board's part exists yet.**
-    The Payphone tab it plugs into (credit, coin required, messages, the log) is built:
-    [payphone-firmware-plan.md](payphone-firmware-plan.md). The main board's own v6 expander has
-     a driver (`firmware/components/ag1170/line_expander.c`), which is specific to line 2.
+12. **Written, tested only against simulated chips:** `firmware/components/coinboard/` drives U1
+    and U4, counts coins, and fires the relay with the sequence and limits of section 7
+    ([payphone-firmware-plan.md](payphone-firmware-plan.md) has the details and the bring-up
+    steps). On the first board, check it against the real thing: the coin inputs' timing, U4's
+    readings against a meter, the pulse length the relay needs, and the overcurrent limit.
 
 ## Sources
 

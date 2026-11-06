@@ -14,7 +14,7 @@ Three small blocks, each driven by one TCA9534A pin:
 |---|---|---|
 | A. Relay driver | **POL** (U1 P5, pin 10) | energizes K1's 5 V coil |
 | B. Polarity relay + coil connector | K1's contacts | picks which coin-relay wire gets HV |
-| C. Firing switch | **FIRE** (U1 P6, pin 11) | lets current flow through the coin relay |
+| C. Firing switch | **FIRE** (U1 P4, pin 9) | lets current flow through the coin relay |
 
 ## The whole stage at a glance
 
@@ -139,9 +139,9 @@ and D6 clamps the gate at 12 V, so Q3 gets the same full gate drive whatever VIO
           R22 4.7k         Q5 pin 3 (C)
            |                  |
      Q4 pin 3 (D)            R24 1k
-     Q4 pin 1 (G) --- R21 1k --- FIRE --- U1 pin 11 (P6)
+     Q4 pin 1 (G) --- R21 1k --- FIRE --- U1 pin 9 (P4)
      Q4 pin 2 (S)             |     |
-           |                  |     R3 10k
+           |                  |     R1 100k
           GND                 |     |
                               |    GND
                   GATE3 ------+------+---------------+
@@ -169,7 +169,7 @@ and D6 clamps the gate at 12 V, so Q3 gets the same full gate drive whatever VIO
 | D6 BZT52C12 | 1 (K, band) | GATE3 |
 | D6 | 2 (A) | GND |
 | R21 1k | | FIRE to Q4 gate |
-| R3 10k | | FIRE to GND: Q3 stays off while U1 powers up |
+| R1 100k | | FIRE to GND: Q3 stays off while U1 powers up |
 | R22 4.7k | | Q4 drain to Q5 base (about 4 mA base current) |
 | R23 10k | | Q5 base to 20V: turns Q5 off |
 | R24 1k | | Q5 collector to GATE3: limits zener current to about 8 mA |
@@ -183,7 +183,7 @@ How it behaves:
 
 | FIRE | Q4 | Q5 | Q3 gate | Coin relay |
 |---|---|---|---|---|
-| low, or U1 powering up (R3 holds it low) | off | off | 0 V (R25) | no current |
+| low, or U1 powering up (R1 holds it low) | off | off | 0 V (R25) | no current |
 | high | on | on | 12 V (D6) | current flows HV -> K1 -> coin relay -> K1 -> Q3 -> GND |
 
 **FIRE with EN_HV low.** The 20V rail then sits at about 4.6 V (5 V coming through
@@ -241,7 +241,7 @@ so don't name one that way.)
 | 1 ADDR | GND: address 0x48 |
 | 10 SCL, 9 SDA | SCL, SDA (R40 and R41 from the cable) |
 | 2 ALERT/RDY | not connected |
-| 4 AIN0 | HV through R32 1 M / R33 27 k: 119 V reads 3.13 V. C18 100 nF to GND |
-| 5 AIN1 | 20V through R17 56 k / R19 10 k: 20 V reads 3.0 V. C19 100 nF to GND |
+| 4 AIN0 | 20V through R17 56 k / R19 10 k: 20 V reads 3.0 V. C19 100 nF to GND |
+| 5 AIN1 | HV through R32 1 M / R33 27 k: 119 V reads 3.13 V. C18 100 nF to GND |
 | 6 AIN2 | ISENSE (R26) through R44 1 k: 100 mA reads 1 V |
 | 7 AIN3 | J13 pin 2 through R52 10 k, C25 100 nF to GND: spare analog input |

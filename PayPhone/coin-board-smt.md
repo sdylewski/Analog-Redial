@@ -114,7 +114,7 @@ These come to about **$16.50** a board at DigiKey qty-1 prices, U4's module incl
 | R53 | Qa1 gate to source, 10 k | C17414 | Basic |
 | R49-R51, C24 | coin 4: 10 k pull-up, 1 k series, 1.5 k LED, 100 nF | C17414, C17513, C4310, C28233 | Basic |
 | R42, R43 | I2C pull-ups, 4.7 k 0805, not fitted | 0805W8F4701T5E (C17673) | Basic |
-| C18, C19 | AIN0 and AIN1 filters, 100 nF 0805 | CC0805KRX7R9BB104 (C49678) | Basic |
+| C18, C19 | AIN1 (HV) and AIN0 (20 V) filters, 100 nF 0805 | CC0805KRX7R9BB104 (C49678) | Basic |
 | C21, C22, C23 | HV bypass, 3 in series, 100 nF 50 V X7R, 1206 | CL31B104KBCNNNC (C24497) | Basic |
 
 No Basic part fits C5/C7/C14/C20 or F1, so both are Extended (above). The only Basic 100 uF
@@ -233,9 +233,9 @@ On the board:
 | LOGIC | U1, C16, U4, C17, R17, R19, R33 | top left, beside J6/J1 |
 | (not placed yet) | JP1; debug LEDs D8-D13 with R34-R39; HV LED R27, R28, D5, D7 | see "Still to do" |
 | COIN | R4-R9, C2-C4, D16-D19, and coin 4's R49-R51, C24, D15 | top right, at J3 and J12 |
-| STAGE1 (5 V -> 20 V) | U2, L1, D1, R11-R14, R45, R46, Q1, R1, C5-C8 | bottom left |
+| STAGE1 (5 V -> 20 V) | U2, L1, D1, R11-R14, R45, R46, Q1, R3, C5-C8 | bottom left |
 | STAGE2 (20 V -> HV, with C1) | U3 and its small parts, Qa1, L2, C14, D2, Rcs1, Dz1, Rg1, J7-J9, Rfbb1-4, Rfbt1-3, C1, D3, R32, Rbl1-3 | bottom middle |
-| FIRE | R3, R21-R25, Q4, Q5, D6, Q3, R26 | right, above K1 |
+| FIRE | R1, R21-R25, Q4, Q5, D6, Q3, R26 | right, above K1 |
 | POL | K1, Q2, D4, R2, R20, J10, J11 | right, beside J2 |
 
 Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
@@ -318,7 +318,7 @@ from the net (1 oz copper; the currents are peaks):
   2.0 mm, for 0.84 mm between them instead of 0.54 mm (1.0 mm holes, as Omron
   specifies). DRC lists K1 as differing from the library; that's this change.
 - D3 straight across C1; Rbl1-3 beside it.
-- **R32 sits at C1:** only its 3 V tap (AIN0) runs to U4, so no HV enters the
+- **R32 sits at C1:** only its 3 V tap (AIN1) runs to U4, so no HV enters the
   logic block.
 - Silkscreen: the HV warning (C1 stays charged until D7, the HV LED, is out)
   and the J7-J9 table are on the board.
@@ -336,9 +336,9 @@ from the net (1 oz copper; the currents are peaks):
 
 ### ADC lines
 
-- Each divider's low end sits at U4 (R33 for AIN0, R19/R17 for AIN1), so the
+- Each divider's low end sits at U4 (R19/R17 for AIN0, R33 for AIN1), so the
   long runs are the 3 V taps.
-- **C18 and C19** (100 nF, AIN0 and AIN1 to GND) go at U4: the taps are about 30 k and
+- **C18 and C19** (100 nF, AIN1 and AIN0 to GND) go at U4: the taps are about 30 k and
   8.5 k source impedance, and the caps make them low-impedance to noise. The readings are
   slow, so the delay costs nothing. AIN2 (ISENSE) has no cap, because it measures a pulse.
 
@@ -362,7 +362,7 @@ from the net (1 oz copper; the currents are peaks):
   - **HV LED** (R27, R28, D5, D7): beside C1, with D7 where it can be seen with the board
     installed. R27/R28 are HV class.
   - **Debug LEDs** D8-D13 with R34-R39: in a row along an edge, labelled on
-    silkscreen 5c / 10c / 25c / HV EN / POL / FIRE. D8-D10 and R34-R36 near
+    silkscreen 5c / 10c / 25c / FIRE / POL / HV EN. D8-D10 and R34-R36 near
     J3, D11-D13 and R37-R39 near U1.
   - **JP1** (VIO = 5V) near J6, with its label on silkscreen.
 - **K1's switch pads to 1.7 mm** (section HV above), if not done yet: until then DRC flags

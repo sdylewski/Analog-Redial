@@ -5,7 +5,12 @@
  * line's audio to the coin tone detector (coin_tone.h).
  *
  * Coins come from the line's coin tones, from the web UI's "simulate a coin"
- * buttons, and later from the coin board (PayPhone/ in the repo).
+ * buttons, and from the coin board's switches (coinboard.h).
+ *
+ * Collect and return: telephony.c keeps the coins dropped since the handset
+ * was lifted (the phone's hopper holds them) and calls payphone_relay():
+ * collect when a call it placed is answered, return when the handset goes
+ * down without one. The coin board, if one is set up, fires its relay.
  */
 #pragma once
 
@@ -40,7 +45,7 @@ typedef struct {
 typedef enum {
     PAYPHONE_SRC_TONE = 0,   /* coin tones on the line */
     PAYPHONE_SRC_SIM,        /* the web UI's simulate buttons */
-    PAYPHONE_SRC_BOARD,      /* the coin board's switches (not built yet) */
+    PAYPHONE_SRC_BOARD,      /* the coin board's switches */
 } payphone_src_t;
 
 typedef struct {
@@ -80,6 +85,29 @@ void payphone_log_clear(void);
 
 payphone_totals_t payphone_totals(void);
 void payphone_totals_reset(void);
+
+/* ---- collect and return ---- */
+
+typedef enum {
+    PAYPHONE_COLLECT = 0,   /* into the coin box */
+    PAYPHONE_RETURN  = 1,   /* back to the caller */
+} payphone_relay_t;
+
+/* Does the work, from telephony's task: keep it short (queue it). */
+typedef void (*payphone_relay_fn)(int line, payphone_relay_t what);
+void payphone_set_relay_handler(payphone_relay_fn fn);
+
+/* Called by telephony.c: logs it ("25 c collected: call answered") and passes
+ * it to the coin board, if one has registered. */
+void payphone_relay(int line, payphone_relay_t what, int cents, const char *why);
+
+/* The line the coin board's switches count coins on (-1: none). Coin tones
+ * are ignored on that line, since the switches see the same coins. */
+void payphone_set_board_line(int line);
+int  payphone_board_line(void);
+/* Coin tones are listened for on `line`: payphone_tones_on(), and not the
+ * coin board's line. */
+bool payphone_tones_on_line(int line);
 
 #ifdef __cplusplus
 }

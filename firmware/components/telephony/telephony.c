@@ -198,6 +198,12 @@ typedef struct {
     int                  credit_cents;
     int64_t              coin_next_us;
     int64_t              coin_alert_us;
+    /* The coins dropped since the handset was lifted and not yet collected
+     * (the phone's hopper), whether a call this line placed was answered,
+     * and the state at the last tick, to see that answer happen. */
+    int                  hopper_cents;
+    bool                 answered;
+    tel_state_t          tick_state;
 } line_t;
 
 static line_t        s_line[NLINES];
@@ -296,7 +302,7 @@ static void dtmf_tap(int line, const int16_t *mono, size_t n, void *ctx)
      * `dtmf_gen`'s own test script (test_dtmf.py) never touches the detector
      * at all, just plays tones for a human to listen to. */
     if (!line_offhook(line)) return;
-    if (payphone_tones_on()) {
+    if (payphone_tones_on_line(line)) {
         int c = coin_tone_push(&s_line[line].coin, mono, n);
         if (c) {
             in_evt_t e = { .line = line, .type = IN_COIN, .digit = (char)c, .kind = PAYPHONE_SRC_TONE };
@@ -389,7 +395,15 @@ static void enter_idle(int line)
     s_line[line].dialout_tone = false;
     s_line[line].tone_return_us = 0;
     dialplan_collector_reset(&s_line[line].coll);
-    /* A payphone's credit lasts one pickup. */
+    /* A payphone's credit lasts one pickup; coins still in the hopper go back,
+     * unless a call was answered (coins dropped during it). */
+    if (s_line[line].hopper_cents > 0) {
+        bool ans = s_line[line].answered;
+        payphone_relay(line, ans ? PAYPHONE_COLLECT : PAYPHONE_RETURN, s_line[line].hopper_cents,
+                       ans ? "hung up after an answered call" : "hung up, no call answered");
+    }
+    s_line[line].hopper_cents = 0;
+    s_line[line].answered = false;
     s_line[line].credit_cents = 0;
     s_line[line].coin_next_us = 0;
     s_line[line].coin_alert_us = 0;
@@ -653,11 +667,18 @@ static void on_coin(int line, int cents, payphone_src_t src)
     }
     tel_state_t st = s_line[line].state;
     bool up = st != TEL_IDLE && st != TEL_RINGING;
-    if (up) s_line[line].credit_cents += cents;
+    if (up) {
+        s_line[line].credit_cents += cents;
+        s_line[line].hopper_cents += cents;
+    }
     payphone_coin_seen(line, cents, src, s_line[line].credit_cents);
     webhook_eventf("coin", line, "%d", cents);
     activity_log("Line %d: %d c coin (%s)", line, cents, payphone_src_name(src));
-    if (!up) return;
+    /* A coin with the handset down buys nothing: give it back. */
+    if (!up) {
+        if (src == PAYPHONE_SRC_BOARD) payphone_relay(line, PAYPHONE_RETURN, cents, "handset down");
+        return;
+    }
 
     const char *clip = coin_clip_for(&c, cents);
     if (st == TEL_COIN_WAIT) {
@@ -1588,12 +1609,14 @@ static void handle_action(int line, const dialplan_action_t *a)
                 break;
             }
             esp_err_t pr = auxpins_pulse(a->arg, a->arg2);
+            char pl[16];
+            auxpins_label(a->arg, pl, sizeof(pl));
             if (pr == ESP_OK) {
-                activity_log("Line %d: dial code -> GPIO%d %s", line, a->arg,
+                activity_log("Line %d: dial code -> %s %s", line, pl,
                              a->arg2 ? "high" : "toggled");
                 play_transient(line, TONE_CONFIRM, 400, TEL_DIALTONE, TEL_DIALTONE);
             } else {
-                ESP_LOGW(TAG, "line %d: pin code for GPIO%d not run (%s)", line, a->arg,
+                ESP_LOGW(TAG, "line %d: pin code for %s not run (%s)", line, pl,
                          esp_err_to_name(pr));
                 play_transient(line, TONE_REORDER, 700, TEL_DIALTONE, TEL_DIALTONE);
             }
@@ -2102,6 +2125,17 @@ static void fsm_task(void *arg)
 
         int64_t now = esp_timer_get_time();
         for (int line = 0; line < NLINES_ACTIVE; line++) {
+            /* Payphone: a call this line placed was answered (ringback or
+             * dialing, then in a call), so the coins in the hopper are spent. */
+            tel_state_t ts = s_line[line].state;
+            if (ts == TEL_INCALL && ts != s_line[line].tick_state &&
+                (s_line[line].tick_state == TEL_RINGBACK || s_line[line].tick_state == TEL_DIALING)) {
+                s_line[line].answered = true;
+                if (s_line[line].hopper_cents > 0)
+                    payphone_relay(line, PAYPHONE_COLLECT, s_line[line].hopper_cents, "call answered");
+                s_line[line].hopper_cents = 0;
+            }
+            s_line[line].tick_state = ts;
             timer_tick(line, now);
             alarm_tick(line, now);
             /* inter-digit timeout */
@@ -2776,12 +2810,12 @@ esp_err_t telephony_test_digit(int line, char digit)
     return (xQueueSend(s_q, &e, pdMS_TO_TICKS(50)) == pdTRUE) ? ESP_OK : ESP_FAIL;
 }
 
-esp_err_t telephony_coin_inject(int line, int cents)
+esp_err_t telephony_coin_inject(int line, int cents, payphone_src_t src)
 {
     if (line < 0 || line >= NLINES_ACTIVE) return ESP_ERR_INVALID_ARG;
     if (cents < 1 || cents > 100) return ESP_ERR_INVALID_ARG;
-    if (!payphone_enabled()) return ESP_ERR_INVALID_STATE;
-    in_evt_t e = { .line = line, .type = IN_COIN, .digit = (char)cents, .kind = PAYPHONE_SRC_SIM };
+    if (!payphone_enabled() || !s_q) return ESP_ERR_INVALID_STATE;
+    in_evt_t e = { .line = line, .type = IN_COIN, .digit = (char)cents, .kind = src };
     return xQueueSend(s_q, &e, 0) == pdTRUE ? ESP_OK : ESP_ERR_TIMEOUT;
 }
 

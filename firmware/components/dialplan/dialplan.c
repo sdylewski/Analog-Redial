@@ -1,6 +1,7 @@
 #include "dialplan.h"
 #include "sdkconfig.h"
 #include "board.h"
+#include "board_config.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "nvs_flash.h"
@@ -439,7 +440,11 @@ static bool entry_available(const entry_t *e)
 
 bool dialplan_pins_active(void)
 {
+#if BOARD_LINE1_ON_EXPANDER
+    return true;   /* v6: J10's pins are the expander's, free whatever the lines are */
+#else
     return board_shared_pads_free();
+#endif
 }
 
 /* A pin code is live while the pins are free; a Home Assistant code always. */

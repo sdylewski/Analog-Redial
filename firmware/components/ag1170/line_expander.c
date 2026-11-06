@@ -176,6 +176,20 @@ static void set_output_bit(int bit, int level)
 void line_exp_set_fr(int level) { set_output_bit(BOARD_EXP_BIT_FR, level); }
 void line_exp_set_rm(int level) { set_output_bit(BOARD_EXP_BIT_RM, level); }
 
+void line_exp_set_spare(int n, int level)
+{
+    if (n < 0 || n >= LINE_EXP_SPARE_N) return;
+    set_output_bit(BOARD_EXP_BIT_SPARE0 + n, level);
+}
+
+int line_exp_spare(int n)
+{
+    if (n < 0 || n >= LINE_EXP_SPARE_N) return 0;
+    return (atomic_load(&s_want_output) >> (BOARD_EXP_BIT_SPARE0 + n)) & 1;
+}
+
+bool line_exp_started(void) { return s_task != NULL; }
+
 void line_exp_set_pd_run(bool run)
 {
     atomic_store(&s_want_config, run ? CONFIG_RUN : CONFIG_POWERDOWN);
@@ -199,6 +213,8 @@ void line_exp_status(line_exp_status_t *out)
 
 esp_err_t line_exp_init(void)
 {
+    /* ag1170 starts it for a second line, auxpins for J10's pins: once. */
+    if (s_task) return ESP_OK;
     esp_err_t err = board_i2c_init();
     if (err != ESP_OK) return err;
     i2c_device_config_t dcfg = {
@@ -206,15 +222,17 @@ esp_err_t line_exp_init(void)
         .device_address = BOARD_EXP_I2C_ADDR,
         .scl_speed_hz = EXP_I2C_HZ,
     };
-    err = i2c_master_bus_add_device(board_i2c_bus(), &dcfg, &s_dev);
-    if (err != ESP_OK) return err;
+    if (!s_dev) {
+        err = i2c_master_bus_add_device(board_i2c_bus(), &dcfg, &s_dev);
+        if (err != ESP_OK) return err;
+    }
 
     if (chip_setup() == ESP_OK) {
         atomic_store(&s_chip_ok, true);
         ESP_LOGI(TAG, "expander at 0x%02X set up", BOARD_EXP_I2C_ADDR);
     } else {
-        ESP_LOGE(TAG, "no expander answering at 0x%02X: line 1 reads on-hook until it does",
-                 BOARD_EXP_I2C_ADDR);
+        ESP_LOGE(TAG, "no expander answering at 0x%02X: line 1 reads on-hook and J10 stays "
+                 "off until it does", BOARD_EXP_I2C_ADDR);
     }
 
     /* Below ag1170's monitor task, which never waits on this one. */

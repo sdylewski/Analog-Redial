@@ -287,7 +287,8 @@ esp_err_t dialplan_pin_check_new(const char *code);
 esp_err_t dialplan_pin_set(const char *code, int gpio, int secs, const char *desc);
 esp_err_t dialplan_pin_remove(const char *code);   /* ESP_ERR_NOT_FOUND if unknown */
 size_t    dialplan_list_pin_entries(dialplan_pin_entry_t *out, size_t max);
-/* True while pin codes that drive a pin are live (one line, no microSD). */
+/* True while pin codes that drive a pin are live (one line, no microSD; on v6
+ * always, its pins being J10's). */
 bool      dialplan_pins_active(void);
 
 #ifdef __cplusplus

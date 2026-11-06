@@ -11,6 +11,7 @@
 #pragma once
 
 #include "dtmf_test.h"
+#include "payphone.h"
 #include "esp_err.h"
 #include <stdint.h>
 #include <time.h>
@@ -116,9 +117,10 @@ const char *telephony_caller_number(int line);
 char telephony_last_dtmf(int line, int64_t *at_us);
 
 /* Payphone (payphone.h): a coin arriving on `line` from anything but the line's
- * own coin tones (the web UI's simulate buttons, later the coin board).
+ * own coin tones: the web UI's simulate buttons (PAYPHONE_SRC_SIM), the coin
+ * board (PAYPHONE_SRC_BOARD). 1-100 cents. Safe from any task.
  * ESP_ERR_INVALID_STATE when the payphone features are off. */
-esp_err_t telephony_coin_inject(int line, int cents);
+esp_err_t telephony_coin_inject(int line, int cents, payphone_src_t src);
 /* The credit on `line` now, in cents (it's cleared when the handset goes down). */
 int telephony_credit(int line);
 

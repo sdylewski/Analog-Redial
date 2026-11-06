@@ -59,6 +59,7 @@
 #include "webhook.h"
 #include "mqtt_ha.h"
 #include "payphone.h"
+#include "coinboard.h"
 #include "callcap.h"
 #include "auxpins.h"
 #include "esp_attr.h"
@@ -3166,16 +3167,29 @@ static int append_pin_actions_card(char *buf, size_t cap, int off)
 
     off = appendf(buf, cap, off,
         "<div class=\"card wide\" id=\"pins\"><h2>Pin outputs</h2>"
+#if BOARD_LINE1_ON_EXPANDER
+        "<p class=\"hint\">This board has four spare pins, <b>P4&ndash;P7</b> on header "
+        "J10 (pins 2&ndash;5; pin 6 is 3.3 V, pin 7 ground). Dial a code and one of them goes "
+        "high for a few seconds (or toggles): switch a relay or a MOSFET, sound a "
+        "buzzer, flash a light. The output is <b>3.3 V</b> and only a few mA, so drive a "
+        "solenoid or a lock through a relay or a MOSFET, not straight from the pin.</p>"
+#else
         "<p class=\"hint\">A one-line board with no microSD card has four spare pins, "
         "<b>GPIO18&ndash;21</b>, wired to header J5. Dial a code and one of them goes "
         "high for a few seconds (or toggles): switch a relay or a MOSFET, sound a "
         "buzzer, flash a light. The output is <b>3.3 V</b> and only a few mA, so drive a "
         "solenoid or a lock through a relay or a MOSFET, not straight from the pin.</p>"
+#endif
         "<p class=\"hint\">3.3 V will often switch a 5 V relay <i>module</i> (one with its own "
         "transistor or optocoupler), but check yours: a bare relay coil needs a transistor, and "
         "some modules switch on a <i>low</i> input, so a \"high\" pin would turn those off. "
+#if BOARD_LINE1_ON_EXPANDER
+        "The pins are low from power-up, but float for a moment while the board starts, so "
+        "if the input must stay off, add a 10 k&Omega; resistor from it to ground.</p>");
+#else
         "The pins float until the first code fires after a restart, so if the input must stay "
         "off, add a 10 k&Omega; resistor from it to ground.</p>");
+#endif
     if (!usable) {
         char why_esc[400];
         html_escape(why, why_esc, sizeof(why_esc));
@@ -3183,9 +3197,13 @@ static int append_pin_actions_card(char *buf, size_t cap, int off)
             "<p class=\"hint warn-text\">Not active: %s. The codes below are saved and "
             "start working when this changes.</p>", why_esc);
     } else {
+#if BOARD_LINE1_ON_EXPANDER
+        off = appendf(buf, cap, off, "<p class=\"hint\">Active.</p>");
+#else
         off = appendf(buf, cap, off,
             "<p class=\"hint\">Active. Take the four shunts off J5 first: with a shunt in, "
             "the pin is wired to the second phone line's chip.</p>");
+#endif
     }
 
     if (np) {
@@ -3193,18 +3211,19 @@ static int append_pin_actions_card(char *buf, size_t cap, int off)
             "<table class=\"table\"><tr><th>Code</th><th>Pin</th><th>Does</th>"
             "<th>Note</th><th></th></tr>");
         for (size_t i = 0; i < np; i++) {
-            char desc_esc[40 * 6], act[40];
+            char desc_esc[40 * 6], act[40], pl[16];
             html_escape(pins[i].desc, desc_esc, sizeof(desc_esc));
+            auxpins_label(pins[i].gpio, pl, sizeof(pl));
             if (pins[i].secs) snprintf(act, sizeof(act), "High for %u s", pins[i].secs);
             else snprintf(act, sizeof(act), "Toggle");
             off = appendf(buf, cap, off,
-                "<tr><td><b>%s</b></td><td>GPIO%u%s</td><td>%s</td><td>%s</td><td>"
+                "<tr><td><b>%s</b></td><td>%s%s</td><td>%s</td><td>%s</td><td>"
                 "<form method=\"POST\" action=\"/pin_action_test/%s\" style=\"display:inline\">"
                 "<button type=\"submit\"%s>Test</button></form> "
                 "<form method=\"POST\" action=\"/pin_action_delete/%s\" style=\"display:inline\" "
                 "onsubmit=\"return confirm('Remove dial code %s?')\">"
                 "<button type=\"submit\" class=\"danger\">Remove</button></form></td></tr>",
-                pins[i].code, pins[i].gpio,
+                pins[i].code, pl,
                 auxpins_level(pins[i].gpio) ? " &#9679; high" : "", act, desc_esc,
                 pins[i].code, usable ? "" : " disabled", pins[i].code, pins[i].code);
         }
@@ -3218,7 +3237,9 @@ static int append_pin_actions_card(char *buf, size_t cap, int off)
             "pattern=\"[0-9*# \\(\\)\\-]{2,16}\" maxlength=\"16\" required></label>"
             "<label>Pin <select name=\"gpio\">");
         for (size_t i = 0; i < ng; i++) {
-            off = appendf(buf, cap, off, "<option value=\"%d\">GPIO%d</option>", gp[i], gp[i]);
+            char pl[16];
+            off = appendf(buf, cap, off, "<option value=\"%d\">%s</option>", gp[i],
+                          auxpins_label(gp[i], pl, sizeof(pl)));
         }
         off = appendf(buf, cap, off,
             "</select></label>"
@@ -8632,8 +8653,9 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
     off = append_feature_bar(buf, cap, off, "Payphone", c.enabled, "/payphone_enable",
         "<b>Experimental.</b> For a phone in a payphone: hears the coin tones a payphone "
         "sends when a coin drops, can ask for a coin before a call, plays a message after "
-        "a coin, and keeps a coin count. Collecting and returning coins needs the coin "
-        "board, which isn't finished. Turning it off keeps the settings below.");
+        "a coin, and keeps a coin count. With the coin board (still in development) it "
+        "also counts coins from the phone's coin switches and collects or returns them. "
+        "Turning it off keeps the settings below.");
     if (!c.enabled) return off;
 
     int nlines = board_hw_config_get().num_lines;
@@ -8724,6 +8746,60 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
         "Tones it hears but can't place show in the log as not recognized.</p></div>",
         c.tone_detect ? " checked" : "");
 
+    /* Coin board */
+    {
+        coinboard_cfg_t b = coinboard_cfg();
+        off = appendf(buf, cap, off,
+            "<div class=\"card\"><h2>Coin board</h2>"
+            "<p class=\"hint\"><b>In development:</b> the coin board isn't built or tested yet. "
+            "It reads the phone's coin switches and fires its coin relay to collect or return "
+            "the coins, over I2C (0x39 and 0x48).</p>"
+            "<form method=\"POST\" action=\"/coinboard_set\" class=\"settings-form\">"
+            "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> "
+            "A coin board is connected</label>",
+            b.enabled ? " checked" : "");
+        if (nlines > 1) {
+            off = appendf(buf, cap, off,
+                "<label>On line <select name=\"line\"><option value=\"0\"%s>0</option>"
+                "<option value=\"1\"%s>1</option></select></label>",
+                b.line == 0 ? " selected" : "", b.line == 1 ? " selected" : "");
+        } else {
+            off = appendf(buf, cap, off, "<input type=\"hidden\" name=\"line\" value=\"0\">");
+        }
+        off = appendf(buf, cap, off,
+            "<label><input type=\"checkbox\" name=\"auto\" value=\"1\"%s> "
+            "Collect the coins when a call is answered, return them when the handset goes down "
+            "without one</label>"
+            "<label><input type=\"checkbox\" name=\"swap\" value=\"1\"%s> "
+            "Collect and return are the wrong way round (swap them)</label>"
+            "<label>Relay pulse, ms <input type=\"number\" name=\"pulse\" min=\"%d\" max=\"%d\" "
+            "value=\"%u\"></label>"
+            "<label>Coin 4 input is worth, cents (0: not a coin, just logged) "
+            "<input type=\"number\" name=\"coin4\" min=\"0\" max=\"100\" value=\"%u\"></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+            "</form>",
+            b.auto_relay ? " checked" : "", b.swap ? " checked" : "",
+            CF_PULSE_MIN_MS, CF_PULSE_MAX_MS, (unsigned)b.pulse_ms, (unsigned)b.coin4_cents);
+        if (b.enabled) {
+            off = appendf(buf, cap, off,
+                "<p id=\"ppboard\">Reading the board&hellip;</p>"
+                "<form method=\"POST\" action=\"/coinboard_test\" class=\"settings-form\" "
+                "onsubmit=\"return confirm('The board makes up to 119 V for this. Keep clear of "
+                "the relay wiring. Go on?')\">"
+                "<div class=\"toolbar sub\">Test: "
+                "<button type=\"submit\" name=\"what\" value=\"collect\">Collect</button>"
+                "<button type=\"submit\" name=\"what\" value=\"return\">Return</button>"
+                "<button type=\"submit\" name=\"what\" value=\"hv\">HV on for %d s</button>"
+                "</div></form>"
+                "<p class=\"hint\">Coins from its switches count on its line, and coin tones are "
+                "ignored there (the switches see the same coins). The HV test charges to the "
+                "voltage J7-J9 set (about 19 V with J14 off) and reads it, without firing. Results "
+                "go in the log below.</p>",
+                CF_HVTEST_MS / 1000);
+        }
+        off = appendf(buf, cap, off, "</div>");
+    }
+
     /* Coins: credit, counter, simulate, log */
     payphone_totals_t t = payphone_totals();
     off = appendf(buf, cap, off,
@@ -8785,6 +8861,15 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
         "j.log.forEach(function(e){h+='<tr><td>'+esc(e.time)+'</td><td>'+(e.line<0?'-':e.line)+'</td><td>'+esc(e.msg)+'</td></tr>';});"
         "if(!j.log.length)h+='<tr><td colspan=\"3\">No coins yet.</td></tr>';t.innerHTML=h;"
         "c.innerHTML='Credit now: '+j.credit.map(function(v,i){return 'line '+i+': <b>'+v+' c</b>';}).join(', ');"
+        "var b=document.getElementById('ppboard'),d=j.board;if(b&&d){"
+        "function v(x,u){return x<0?'-':(x/1000).toFixed(1)+' '+u;}"
+        "var s=!d.io_ok?'<b>Not answering</b> at 0x39 (check the cable, and that the board has power).':"
+        "'Answering. Coin switches: '+['coin 4','quarter','dime','nickel'].map(function(n,i){"
+        "return n+(d.closed>>i&1?' <b>closed</b>':' open')+(d.stuck>>i&1?' (stuck)':'');}).join(', ')+'. ';"
+        "if(d.io_ok)s+=d.adc_ok?'20 V rail '+v(d.rail_mv,'V')+', HV '+v(d.hv_mv,'V')+', coil '+(d.i_ma<0?'-':d.i_ma+' mA')+"
+        "', AIN3 '+v(d.ain3_mv,'V')+'. ':'ADC (0x48) not answering: fixed timing, nothing measured. ';"
+        "s+='Relay: <b>'+esc(d.state)+'</b>'+(d.state!='idle'?' ('+esc(d.doing)+')':'')+'.';"
+        "if(d.result)s+=' Last: '+esc(d.result)+'.';b.innerHTML=s;}"
         "}).catch(function(){});}setInterval(tick,2000);})();</script>",
         PAYPHONE_LOG_N);
     return off;
@@ -8850,12 +8935,51 @@ static esp_err_t payphone_coin_handler(httpd_req_t *req)
     }
     form_field(body, "line", lbuf, sizeof(lbuf));
     form_field(body, "cents", cbuf, sizeof(cbuf));
-    esp_err_t err = telephony_coin_inject(atoi(lbuf), atoi(cbuf));
+    esp_err_t err = telephony_coin_inject(atoi(lbuf), atoi(cbuf), PAYPHONE_SRC_SIM);
     if (err != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
             err == ESP_ERR_INVALID_STATE ? "payphone features are off" : "bad line or coin");
         return ESP_OK;
     }
+    return redirect_to(req, "/settings?tab=payphone");
+}
+
+static esp_err_t coinboard_set_handler(httpd_req_t *req)
+{
+    char body[256], v[8];
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    coinboard_cfg_t c = coinboard_cfg();
+#define CB_FIELD(name) (v[0] = '\0', form_field(body, name, v, sizeof(v)), v)
+    c.enabled = CB_FIELD("enabled")[0] == '1';
+    c.auto_relay = CB_FIELD("auto")[0] == '1';
+    c.swap = CB_FIELD("swap")[0] == '1';
+    if (CB_FIELD("line")[0]) c.line = (uint8_t)atoi(v);
+    if (CB_FIELD("pulse")[0]) c.pulse_ms = (uint16_t)atoi(v);
+    if (CB_FIELD("coin4")[0]) c.coin4_cents = (uint8_t)atoi(v);
+#undef CB_FIELD
+    coinboard_cfg_set(&c);
+    activity_log("Coin board %s", c.enabled ? "enabled" : "disabled");
+    return redirect_to(req, "/settings?tab=payphone");
+}
+
+static esp_err_t coinboard_test_handler(httpd_req_t *req)
+{
+    char body[64], w[12] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "what", w, sizeof(w));
+    cf_what_t what = !strcmp(w, "collect") ? CF_COLLECT : !strcmp(w, "return") ? CF_RETURN :
+                     !strcmp(w, "hv") ? CF_HV_TEST : (cf_what_t)-1;
+    esp_err_t err = coinboard_test(what);
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+            err == ESP_ERR_INVALID_STATE ? "the coin board isn't answering" : "unknown test");
+        return ESP_OK;
+    }
+    activity_log("Coin board test: %s", coin_fire_what_name(what));
     return redirect_to(req, "/settings?tab=payphone");
 }
 
@@ -8906,6 +9030,31 @@ static esp_err_t payphone_json_handler(httpd_req_t *req)
         cJSON_AddItemToArray(arr, e);
     }
     free(log);
+    {
+        coinboard_status_t bs;
+        coinboard_status(&bs);
+        cJSON *b = cJSON_AddObjectToObject(root, "board");
+        cJSON_AddBoolToObject(b, "enabled", bs.enabled);
+        cJSON_AddBoolToObject(b, "active", bs.active);
+        cJSON_AddBoolToObject(b, "io_ok", bs.io_ok);
+        cJSON_AddBoolToObject(b, "adc_ok", bs.adc_ok);
+        cJSON_AddNumberToObject(b, "line", coinboard_cfg().line);
+        cJSON_AddNumberToObject(b, "input", bs.input);
+        cJSON_AddNumberToObject(b, "output", bs.output);
+        cJSON_AddNumberToObject(b, "closed", bs.closed);
+        cJSON_AddNumberToObject(b, "stuck", bs.stuck);
+        cJSON_AddNumberToObject(b, "rail_mv", bs.rail_mv);
+        cJSON_AddNumberToObject(b, "hv_mv", bs.hv_mv);
+        cJSON_AddNumberToObject(b, "i_ma", bs.i_ma);
+        cJSON_AddNumberToObject(b, "ain3_mv", bs.ain3_mv);
+        cJSON_AddStringToObject(b, "state", coin_fire_state_name(bs.state));
+        cJSON_AddStringToObject(b, "doing", coin_fire_what_name(bs.doing));
+        cJSON_AddStringToObject(b, "result", bs.result_msg);
+        cJSON_AddNumberToObject(b, "coins", bs.coins);
+        cJSON_AddNumberToObject(b, "fires", bs.fires);
+        cJSON_AddNumberToObject(b, "bus_errors", bs.bus_errors);
+        cJSON_AddNumberToObject(b, "chip_resets", bs.chip_resets);
+    }
     char *out = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
     if (!out) { httpd_resp_send_500(req); return ESP_FAIL; }
@@ -9813,7 +9962,9 @@ static esp_err_t pin_action_set_handler(httpd_req_t *req)
                                    : "The code must be 2 to 6 digits, and seconds 0 to 3600.");
         return ESP_OK;
     }
-    activity_log("Pin dial code %s set: GPIO%d, %s", code, gpio, secs ? "timed" : "toggle");
+    char pl[16];
+    activity_log("Pin dial code %s set: %s, %s", code, auxpins_label(gpio, pl, sizeof(pl)),
+                 secs ? "timed" : "toggle");
     return redirect_to(req, "/settings?tab=dialcodes#pins");
 }
 
@@ -9900,7 +10051,9 @@ static esp_err_t pin_action_test_handler(httpd_req_t *req)
                 return redirect_to(req, "/settings?tab=dialcodes#hacodes");
             }
             esp_err_t err = auxpins_pulse(pins[i].gpio, pins[i].secs);
-            if (err == ESP_OK) activity_log("Pin dial code %s tested: GPIO%u", code, pins[i].gpio);
+            char pl[16];
+            if (err == ESP_OK) activity_log("Pin dial code %s tested: %s", code,
+                                            auxpins_label(pins[i].gpio, pl, sizeof(pl)));
             break;
         }
     }
@@ -10121,8 +10274,12 @@ static int append_guide_pins(char *buf, size_t cap, int off)
         if (pins[i].gpio == DIALPLAN_PIN_NONE)
             snprintf(d, sizeof(d), "Home Assistant%s", pins[i].desc[0] ? " - " : "");
         else
-            snprintf(d, sizeof(d), "GPIO%u, %s%s%s", pins[i].gpio, pins[i].secs ? "high for " : "toggle",
+        {
+            char pl[16];
+            snprintf(d, sizeof(d), "%s, %s%s%s", auxpins_label(pins[i].gpio, pl, sizeof(pl)),
+                     pins[i].secs ? "high for " : "toggle",
                      pins[i].secs ? "a few s" : "", pins[i].desc[0] ? " - " : "");
+        }
         size_t dl = strlen(d);
         snprintf(d + dl, sizeof(d) - dl, "%s", pins[i].desc);
         html_escape(d, desc_esc, sizeof(desc_esc));
@@ -11929,6 +12086,8 @@ esp_err_t webui_start(void)
         { .uri = "/payphone_set",           .method = HTTP_POST, .handler = payphone_set_handler },
         { .uri = "/payphone_coin",          .method = HTTP_POST, .handler = payphone_coin_handler },
         { .uri = "/payphone_reset",         .method = HTTP_POST, .handler = payphone_reset_handler },
+        { .uri = "/coinboard_set",          .method = HTTP_POST, .handler = coinboard_set_handler },
+        { .uri = "/coinboard_test",         .method = HTTP_POST, .handler = coinboard_test_handler },
         { .uri = "/api/payphone",           .method = HTTP_GET,  .handler = payphone_json_handler },
         { .uri = "/test/dtmf",              .method = HTTP_POST, .handler = test_dtmf_handler },
         { .uri = "/api/dtmf_test",          .method = HTTP_GET,  .handler = dtmf_test_json_handler },

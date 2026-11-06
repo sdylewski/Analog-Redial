@@ -8,6 +8,7 @@
 #include "bt_companion.h"
 #include "aec.h"
 #include "telephony.h"
+#include "coinboard.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -170,6 +171,30 @@ static void check_line_expander(selftest_check_t *c)
 }
 #endif
 
+static void check_coinboard(selftest_check_t *c)
+{
+    coinboard_status_t st;
+    coinboard_status(&st);
+    if (!st.enabled) { set_result(c, SELFTEST_SKIP, "no coin board set up (Payphone tab)"); return; }
+    if (!st.active) { set_result(c, SELFTEST_SKIP, "the Payphone features are off"); return; }
+    if (!st.io_ok) {
+        set_result(c, SELFTEST_FAIL, "TCA9534A not answering at 0x%02X", COINBOARD_IO_ADDR);
+        return;
+    }
+    if (st.stuck) {
+        set_result(c, SELFTEST_FAIL, "a coin input is stuck closed (input 0x%02X)", st.input);
+        return;
+    }
+    if (!st.adc_ok) {
+        set_result(c, SELFTEST_PASS, "answering; ADS1115 at 0x%02X not answering (fixed timing)",
+                   COINBOARD_ADC_ADDR);
+        return;
+    }
+    int r = st.rail_mv < 0 ? 0 : st.rail_mv;
+    set_result(c, SELFTEST_PASS, "answering, ADC too: rail %d.%d V idle, %u bus errors",
+               r / 1000, (r % 1000) / 100, (unsigned)st.bus_errors);
+}
+
 /* Only meaningful once a module is declared fitted (Settings -> Hardware) --
  * which is exactly the distinction that was missing on 2026-09-26, when the
  * feature being merely "enabled" with no hardware attached claimed a phone
@@ -268,6 +293,8 @@ void selftest_begin(void)
               "Lift the line 1 handset, put it on the table, then measure. Sets the echo delay.",
               SELFTEST_ACTION);
     if (lines < 2) set_result(ec1, SELFTEST_SKIP, "board has one line");
+
+    check_coinboard(add_check("coinboard", "Payphone coin board", NULL, SELFTEST_AUTO));
 
     selftest_check_t *bl = add_check("btlink", "Bluetooth module link", NULL, SELFTEST_AUTO);
     selftest_check_t *be = add_check("bteeprom", "Bluetooth audio EEPROM", NULL, SELFTEST_AUTO);

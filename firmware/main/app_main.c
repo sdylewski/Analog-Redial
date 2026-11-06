@@ -15,6 +15,7 @@
 #include "aec.h"
 #include "prompts.h"
 #include "payphone.h"
+#include "coinboard.h"
 #include "ag1170.h"
 #include "dialplan.h"
 #include "telephony.h"
@@ -201,6 +202,7 @@ void app_main(void)
      * once a call is up -- see aec.h and the `aec` console command). */
     aec_init();
     payphone_init();   /* before telephony_start(): its audio taps read the settings */
+    coinboard_init();  /* early: a crash mid-pulse can have left its outputs on */
 
     /* 3c. Best-effort hardware auto-detect -- only ever does anything on a
      * truly fresh board/factory-reset (no-op once any value, guessed or

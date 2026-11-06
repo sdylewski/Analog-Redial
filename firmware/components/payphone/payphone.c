@@ -37,6 +37,8 @@ static payphone_log_t     s_log[PAYPHONE_LOG_N];
 static size_t             s_log_head;   /* next slot to write */
 static size_t             s_log_n;
 static SemaphoreHandle_t  s_lock;
+static payphone_relay_fn  s_relay;
+static volatile int       s_board_line = -1;
 
 static void lock(void)   { if (s_lock) xSemaphoreTake(s_lock, portMAX_DELAY); }
 static void unlock(void) { if (s_lock) xSemaphoreGive(s_lock); }
@@ -190,4 +192,23 @@ void payphone_totals_reset(void)
     unlock();
     save_blob(KEY_TOTALS, &t, sizeof(t));
     payphone_logf(-1, "coin box counter reset");
+}
+
+void payphone_set_relay_handler(payphone_relay_fn fn) { s_relay = fn; }
+
+void payphone_relay(int line, payphone_relay_t what, int cents, const char *why)
+{
+    payphone_relay_fn fn = s_relay;
+    bool board = fn && line == s_board_line;
+    payphone_logf(line, "%d c %s: %s%s", cents, what == PAYPHONE_COLLECT ? "collected" : "returned",
+                  why, board ? "" : " (no coin board on this line)");
+    if (board) fn(line, what);
+}
+
+void payphone_set_board_line(int line) { s_board_line = line; }
+int  payphone_board_line(void) { return s_board_line; }
+
+bool payphone_tones_on_line(int line)
+{
+    return payphone_tones_on() && line != s_board_line;
 }

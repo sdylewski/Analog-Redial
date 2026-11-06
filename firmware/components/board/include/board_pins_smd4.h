@@ -118,6 +118,7 @@
 #define BOARD_EXP_BIT_RM   1
 #define BOARD_EXP_BIT_SHK  2
 #define BOARD_EXP_BIT_PD   3
+#define BOARD_EXP_BIT_SPARE0 4   /* P4-P7: J10 pins 2-5, the pin outputs */
 #define BOARD_LINE1_FR    GPIO_NUM_NC
 #define BOARD_LINE1_SHK   GPIO_NUM_NC
 #define BOARD_LINE1_RM    GPIO_NUM_NC

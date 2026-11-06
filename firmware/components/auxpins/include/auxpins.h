@@ -1,5 +1,7 @@
 /*
- * auxpins.h -- the four spare GPIOs of a one-line board, as outputs.
+ * auxpins.h -- four spare pins, as outputs: the spare GPIOs of a one-line
+ * board, or on v6 (BOARD_LINE1_ON_EXPANDER) the line 1 expander's P4-P7 on
+ * J10, which work whatever the lines and microSD card are set to.
  *
  * GPIO18-21 are shared: line 1's SLIC (through the J5 jumper shunts) and the
  * microSD socket both use them. A one-line board with neither a second line
@@ -25,10 +27,15 @@ extern "C" {
 
 #define AUXPINS_COUNT 4
 
-/* The GPIO numbers usable as outputs, in a fixed order (18, 19, 20, 21 on
- * every board so far). Returns the number written (<= max). */
+/* The pin ids usable as outputs, in a fixed order: GPIO numbers 18, 19, 20,
+ * 21, or on v6 the expander's pin numbers 4-7. A dial code stores the id.
+ * Returns the number written (<= max). */
 size_t auxpins_list(int *gpio_out, size_t max);
 bool   auxpins_valid(int gpio);
+/* How to show a pin id: "GPIO18", or on v6 "J10 P4". Returns buf. */
+const char *auxpins_label(int id, char *buf, size_t len);
+/* The header the pins are on: "J5", or "J10" on v6. */
+const char *auxpins_header(void);
 
 /* True when the pins are free to drive. If not, `why` (if non-NULL) says
  * what's in the way, in a sentence the web UI can show. */

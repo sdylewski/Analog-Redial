@@ -22,7 +22,8 @@ extern "C" {
 
 /* Sets the chip to the safe idle (not ringing, SLIC running, spare pins low)
  * and starts the task. A chip that doesn't answer isn't fatal: the task keeps
- * retrying, and the line reads on-hook until it does. */
+ * retrying, and the line reads on-hook until it does. A second call does
+ * nothing: ag1170 calls it for a second line, auxpins for J10's pins. */
 esp_err_t line_exp_init(void);
 
 void line_exp_set_fr(int level);
@@ -30,6 +31,15 @@ void line_exp_set_rm(int level);
 void line_exp_set_pd_run(bool run);
 /* Latest SHK level read over I2C, at most about 4 ms old. */
 int  line_exp_shk(void);
+
+/* J10's spare pins, P4-P7 (n = 0-3): outputs, low from power-up until set.
+ * Safe from any task or timer callback; the task sends it within a poll.
+ * line_exp_spare() is the level last asked for. */
+#define LINE_EXP_SPARE_N 4
+void line_exp_set_spare(int n, int level);
+int  line_exp_spare(int n);
+/* line_exp_init() has run (it's safe to call again). */
+bool line_exp_started(void);
 
 typedef struct {
     bool     chip_ok;     /* answering, and its registers match what was written */

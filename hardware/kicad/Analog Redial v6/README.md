@@ -14,10 +14,12 @@ What v6 adds:
   other.
 - **An I²C I/O expander** (TI TCA9534A, address 0x38) drives the second
   line's SLIC, which frees those ESP32 pins for the microSD card. Its four
-  spare pins come out on a header as extra I/O.
+  spare pins (P4-P7) come out on header J10 as extra I/O: the firmware drives
+  them from pin dial codes (Settings → Dial Codes → Pin outputs), whatever the
+  lines and microSD card are set to.
 - **Payphone support:** a 5-pin I²C accessory header (1 GND, 2 SCL, 3 SDA,
   4 +3.3 V, 5 +5 V) for add-on boards such as the payphone coin board, itself
-  in progress.
+  in progress (its firmware is in Settings → Payphone → Coin board).
 - The clone-module footprint is corrected, so there is no pin to remove.
 - A 3 A diode (SS34) between the DC jack and the +5 V rail instead of v5's
   1 A SS14.

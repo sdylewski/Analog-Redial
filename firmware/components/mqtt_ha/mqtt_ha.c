@@ -212,14 +212,15 @@ static void discovery(esp_mqtt_client_handle_t c, int nlines)
     size_t np = dialplan_list_pin_entries(pins, DIALPLAN_MAX_PIN_ACTIONS);
     for (size_t i = 0; i < np; i++) {
         if (pins[i].gpio == DIALPLAN_PIN_NONE) continue;
-        char edesc[96];
+        char edesc[96], pl[16];
         jesc(pins[i].desc[0] ? pins[i].desc : "Pin output", edesc, sizeof(edesc));
+        auxpins_label(pins[i].gpio, pl, sizeof(pl));
         topic(ct, sizeof(ct), "cmd/pin/%s", pins[i].code);
         snprintf(t, sizeof(t), "homeassistant/button/%s/pin%s/config", s_id, pins[i].code);
         snprintf(body, sizeof(body),
-                 "{\"name\":\"%s (GPIO%d)\",\"unique_id\":\"%s_pin%s\",\"has_entity_name\":true,"
+                 "{\"name\":\"%s (%s)\",\"unique_id\":\"%s_pin%s\",\"has_entity_name\":true,"
                  "\"icon\":\"mdi:electric-switch\",\"command_topic\":\"%s\",\"payload_press\":\"1\","
-                 "\"availability_topic\":\"%s\",%s}", edesc, pins[i].gpio, s_id, pins[i].code, ct, avail, dev);
+                 "\"availability_topic\":\"%s\",%s}", edesc, pl, s_id, pins[i].code, ct, avail, dev);
         pub(c, t, body, 1, 1);
     }
 }
@@ -241,7 +242,9 @@ static void cmd_pin(const char *code)
     for (size_t i = 0; i < n; i++) {
         if (strcmp(pins[i].code, code) != 0 || pins[i].gpio == DIALPLAN_PIN_NONE) continue;
         esp_err_t err = auxpins_pulse(pins[i].gpio, pins[i].secs);
-        if (err == ESP_OK) activity_log("Home Assistant fired pin code %s (GPIO%d)", code, pins[i].gpio);
+        char pl[16];
+        if (err == ESP_OK) activity_log("Home Assistant fired pin code %s (%s)", code,
+                                        auxpins_label(pins[i].gpio, pl, sizeof(pl)));
         else ESP_LOGW(TAG, "pin code %s not run: %s", code, esp_err_to_name(err));
         return;
     }

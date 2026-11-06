@@ -1,8 +1,11 @@
 /* Host test of the v6 line 1 expander driver: a simulated TCA9534A in place of
  * the I2C bus. */
 #include "line_expander.c"
-#include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
+/* Not assert(): on the machine these were written on, a failed assert hangs
+ * in abort() instead of exiting. */
+#define assert(c) do { if (!(c)) { fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); exit(1); } } while (0)
 #include <string.h>
 
 /* ---- simulated chip, in its power-on state ---- */
@@ -136,6 +139,21 @@ int main(void)
     run_ms(EXP_RETRY_MS + EXP_POLL_MS + 2);
     assert(atomic_load(&s_chip_ok) && reg[REG_OUTPUT] == (1u << BOARD_EXP_BIT_FR));
     assert(line_exp_shk() == 1 && !rm_ever_high);
+
+    /* J10's spare pins: P4-P7 outputs, each set alone, none touching the line's. */
+    for (int n = 0; n < LINE_EXP_SPARE_N; n++) {
+        line_exp_set_spare(n, 1); run_ms(1);
+        assert(line_exp_spare(n) == 1);
+        assert((reg[REG_OUTPUT] & 0xF0) == (1u << (BOARD_EXP_BIT_SPARE0 + n)));
+        assert(!(reg[REG_CONFIG] & 0xF0));
+        line_exp_set_spare(n, 0); run_ms(1);
+        assert((reg[REG_OUTPUT] & 0xF0) == 0);
+    }
+    line_exp_set_spare(7, 1); line_exp_set_spare(-1, 1); run_ms(1);
+    assert((reg[REG_OUTPUT] & 0xF0) == 0);
+    /* A second init (auxpins after ag1170) changes nothing. */
+    int before = log_n;
+    assert(line_exp_init() == ESP_OK && log_n == before);
 
     printf("line expander: all checks passed\n");
     return 0;
