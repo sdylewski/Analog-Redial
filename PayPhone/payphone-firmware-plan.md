@@ -1,78 +1,74 @@
-# Payphone features: firmware plan
+# Payphone features in the firmware
 
-**Plan only: none of this is built.** It describes a future Settings → **Payphone**
-tab, marked *Experimental*, for Analog Redial boards in a payphone. Items marked
-**[verify]** are from memory and need checking against a real phone.
+Settings → **Payphone**, marked *Experimental*. Everything on it works on any
+Analog Redial board, without the coin board. Items marked **[verify]** are from
+memory and need checking against a real phone. The coin board's part (coin
+switches, collecting and returning coins) isn't built yet: see the end.
 
 ## The tab
 
-- **Enable payphone features** (checkbox, off by default). Off, the board behaves
-  exactly as it does today and nothing below runs.
-- An **Experimental** badge on the tab, like the other in-progress features.
+- **Enable Payphone** (off by default). Off, the board behaves exactly as before
+  and nothing below runs; the settings are kept.
+- **Coin required.** Lifting the handset plays a spoken message ("Please deposit
+  10 cents for your call", text editable) instead of dial tone, repeated every few
+  seconds, until the coins add up to the **price**. Then dial tone. Calls (the other
+  line, VoIP, Bluetooth, other boards) always need the credit and use it up when
+  placed. With **"the board's own dial codes are free"** ticked (the default), the
+  operator, clips, timer and so on work without a coin, even before dial tone; untick
+  it and every code waits for a coin. Dialing a call without enough credit goes back
+  to the message. Credit is cleared when the handset goes down. Left waiting longer
+  than the off-hook alert's delay (Settings → Phone), the line sounds the alert.
+- **Message after a coin.** Off by default. Each coin can play its own clip (any
+  audio file on the board, picked by name), or the general message ("Thank you",
+  text editable). It plays while the line is waiting for a coin or on dial tone,
+  never during dialing or a call.
+- **Coin tones.** Listens to the line for the tones a payphone's totalizer sends:
+  1700 and 2200 Hz together, one 66 ms beep for a nickel, two for a dime, five 33 ms
+  beeps for a quarter **[verify]**. It counts any beep and gap of 20 ms or more, so
+  timing a little off still works; a burst it can't place is logged as not
+  recognized. Whether a converted phone still sends these depends on the phone:
+  the totalizer needs line current, and some conversions bypass the coin mechanism
+  **[verify on real phones]**.
+- **Coins.** The credit on each line, a coin box counter (nickels, dimes, quarters,
+  total) with a reset, **simulate** buttons for each coin on each line (handset up),
+  and a log of the last 40 events: coins with their source and the credit after,
+  calls that needed more, credit used, unrecognized tones. The log refreshes by
+  itself every 2 seconds and is lost on a restart; the counter is kept.
 
-## Where coins are detected
+The two spoken messages are prompts like the operator message: type the text, then
+generate the audio with `gen_prompt.py --sync` or the VoIP server's text-to-speech
+(the tab shows the exact command). Until the "please deposit" audio exists, the line
+is silent while waiting for a coin.
 
-| Source | How | Needs |
-|---|---|---|
-| **Coin board inputs** | U1 on the coin board (I2C 0x39): nickel, dime, quarter and coin 4, each a short low pulse | the coin board |
-| **Coin tones on the line** | Phones with a totalizer send tones down the line when a coin drops: 1700 + 2200 Hz together, one 66 ms beep for a nickel, two for a dime, five 33 ms beeps for a quarter **[verify]**. The main board already hears the line, so this is a tone detector next to the DTMF one | nothing extra |
-| Both | either one counts; a coin seen by both within about 0.5 s counts once | |
+## For scripts and Home Assistant
 
-Each source has its own checkbox. Tone detection is useful even without a coin
-board, for phones whose totalizer still works.
+- `GET /api/payphone`: settings, credit per line, the counter and the log, as JSON.
+- `POST /payphone_coin` with `line` and `cents` (5, 10 or 25): the same as a
+  simulate button.
+- Each coin sends the webhook / Home Assistant event `coin`, with the cents as its
+  detail.
 
-Whether most converted payphones still send coin tones is unknown: a single-slot
-phone's totalizer needs line current to work, and some home conversions bypass the coin
-mechanism entirely **[verify on real phones]**. It's firmware only, so it costs nothing
-to offer.
+## How it's built
 
-## What happens on a coin
+- `firmware/components/payphone/`: settings and the counter (NVS namespace
+  `payphone`), the log, and `coin_tone.c`, the tone detector (two Goertzel bins on
+  10 ms windows at 8 kHz; no ESP-IDF code, so `firmware/test/host/test_coin_tone.c`
+  runs it against synthetic coins, dial tone, DTMF and noise).
+- `telephony.c`: the detector runs on each line's received audio next to the DTMF
+  detector, only while off-hook; a coin is a queued event like a digit. The state
+  `COIN_WAIT` is the "please deposit" wait; the coin rule sits in front of every
+  dial-plan action.
+- `webui.c`: the tab, `/payphone_enable`, `/payphone_set`, `/payphone_coin`,
+  `/payphone_reset`, `/api/payphone`.
 
-In the order they'd appear on the tab:
+## Still to build
 
-1. **Coin required for dial tone.** Off-hook with no credit plays a message instead
-   of dial tone ("Please deposit 10 cents", text editable, spoken by the same
-   prompt system as the operator message), repeated every few seconds. Dial tone
-   starts once the credit reaches the set price. Options: the price, and numbers
-   that are always free (the operator code, the board's own dial codes, emergency
-   numbers).
-2. **Message after any coin**: a chosen clip or spoken text when any coin is seen.
-3. **Message after a specific coin**: a clip per coin type (nickel, dime, quarter,
-   coin 4), overriding the one above.
-4. **Detect coin tones** (the source above), with a sensitivity setting.
-
-## Other features worth having
-
-- **Credit and timing:** price per call, and a time limit with a warning ("please
-  deposit 5 cents for the next 3 minutes"), like an old payphone.
-- **Coin collect and return** (coin board's relay): collect when a call is answered,
-  return when the caller hangs up before an answer or the call fails. A per-call
-  override, and **test buttons** for collect and return.
-- **Coin box counter:** total coins and value since the last reset, with a reset
-  button ("emptied the box").
-- **Simulate a coin** button for testing without a phone.
-- **Coin value for coin 4** (50c, $1 or "coin present").
-- **Home Assistant event** on each coin, if the integration is on.
-
-## Logging
-
-A log on the tab, newest first, kept in RAM (and on microSD if there is one):
-
-| Time | Line | Event | Detail |
-|---|---|---|---|
-| 14:02:11 | 0 | coin | quarter, coin board |
-| 14:02:13 | 0 | coin | dime, line tones |
-| 14:05:40 | 0 | collect | 119 V, 82 mA, 45 ms (coin board) |
-
-Coin events from each source, credit changes, and (with the coin board) every
-collect and return with its voltage, current and pulse length from U4, plus faults
-(no current, current that didn't stop, HV not reached).
-
-## Notes for the build
-
-- Coin board driver: poll U1 every 2-5 ms over I2C and debounce (coin-board-schematic.md
-  section 8); write U1's output register before its direction register (section 4).
-- Firing sequence and limits: coin-board-schematic.md section 7, plus the 19 V mode
-  (S2_OFF) for low-voltage coils in section 6.
-- Settings in NVS, like the other tabs; the tab is hidden when the feature is off,
-  except the enable checkbox.
+- **The coin board** (this folder): a driver for U1 (I2C 0x39, coin inputs P0-P3,
+  polled every 2-5 ms and debounced, coin-board-schematic.md section 8) and U4, coins
+  from its switches as a third source, and collect / return: collect when a call is
+  answered, return when the caller hangs up first or the call fails, with test buttons,
+  the firing sequence and limits of coin-board-schematic.md section 7, and the 19 V
+  mode (S2_OFF) for low-voltage coils.
+- Timed calls ("please deposit 5 cents for the next 3 minutes").
+- A value for coin 4 (50 c, $1, or "coin present").
+- A refund of the credit when a call fails, instead of using it when the call is placed.

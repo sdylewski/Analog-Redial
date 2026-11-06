@@ -55,6 +55,9 @@ typedef enum {
                                 * companion's GPIO25/34, so normal telephony
                                 * tones would electrically fight the
                                 * Bluetooth audio on the same node. */
+    TEL_COIN_WAIT,             /* Payphone tab, coin required: no dial tone yet,
+                                * the "please deposit" message repeats until the
+                                * credit covers a call (payphone.h) */
 } tel_state_t;
 
 /* 211's optional spoken prompt ("record your message after the beep...").
@@ -111,6 +114,13 @@ const char *telephony_caller_number(int line);
  * (independent of dial state), so this reflects live touch-tone dialing --
  * see bringup's `tonemon`. */
 char telephony_last_dtmf(int line, int64_t *at_us);
+
+/* Payphone (payphone.h): a coin arriving on `line` from anything but the line's
+ * own coin tones (the web UI's simulate buttons, later the coin board).
+ * ESP_ERR_INVALID_STATE when the payphone features are off. */
+esp_err_t telephony_coin_inject(int line, int cents);
+/* The credit on `line` now, in cents (it's cleared when the handset goes down). */
+int telephony_credit(int line);
 
 /* Bring-up escape hatch: cancel any pending transient-tone auto-return and
  * immediately drop the line to dial tone (if off-hook) or idle (if

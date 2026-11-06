@@ -22,6 +22,10 @@ cc -std=gnu11 -Wall -Wextra -O1 -Ishim -I. test_dtmf.c dtmf.c -lm -o run_test_dt
 ./run_test_dtmf
 cc -std=gnu11 -Wall -Wextra -O1 -Ishim -I. test_dtmf_test.c dtmf_test.c dtmf.c -lm -o run_test_dtmf_test
 ./run_test_dtmf_test
+PP="$HERE/../../components/payphone"
+cp "$PP/coin_tone.c" "$PP/include/coin_tone.h" "$OUT/"
+cc -std=gnu11 -Wall -Wextra -O1 -I. test_coin_tone.c coin_tone.c -lm -o run_test_coin_tone
+./run_test_coin_tone
 EX="$HERE/../../components/ag1170"
 cp "$EX/line_expander.c" "$EX/include/line_expander.h" "$OUT/"
 cp -r "$HERE/shim_line_expander" "$OUT/"

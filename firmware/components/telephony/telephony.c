@@ -19,6 +19,8 @@
 #include "callcap.h"
 #include "bt_companion.h"
 #include "auxpins.h"
+#include "payphone.h"
+#include "coin_tone.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "nvs.h"
@@ -94,6 +96,8 @@ typedef enum {
     IN_CLIP_DONE,
     IN_REC_DONE,
     IN_BT_CALL,   /* .digit carries the new bt_call_state_t */
+    IN_COIN,      /* .digit = cents (negative: unrecognized tones, minus the beeps),
+                   * .kind = payphone_src_t */
 } in_type_t;
 
 typedef struct {
@@ -186,6 +190,14 @@ typedef struct {
      * already-ringing call's behavior, which is the more sensible
      * semantic anyway). */
     board_am_cfg_t        ring_am_cfg;
+    /* Payphone (payphone.h): the line's coin tone detector, the credit for
+     * this pickup, and the "please deposit" message's timing in TEL_COIN_WAIT
+     * (coin_next_us: play it again then; coin_alert_us: give up and sound the
+     * off-hook alert then; 0 = not armed). */
+    coin_tone_det_t      coin;
+    int                  credit_cents;
+    int64_t              coin_next_us;
+    int64_t              coin_alert_us;
 } line_t;
 
 static line_t        s_line[NLINES];
@@ -223,6 +235,7 @@ const char *telephony_state_name(tel_state_t s)
         case TEL_RECORD_BEEP: return "RECORD_BEEP";
         case TEL_TIMER_ENTRY: return "TIMER_ENTRY";
         case TEL_BT_PASSTHROUGH: return "BT_PASSTHROUGH";
+        case TEL_COIN_WAIT: return "COIN_WAIT";
         default: return "?";
     }
 }
@@ -283,6 +296,13 @@ static void dtmf_tap(int line, const int16_t *mono, size_t n, void *ctx)
      * `dtmf_gen`'s own test script (test_dtmf.py) never touches the detector
      * at all, just plays tones for a human to listen to. */
     if (!line_offhook(line)) return;
+    if (payphone_tones_on()) {
+        int c = coin_tone_push(&s_line[line].coin, mono, n);
+        if (c) {
+            in_evt_t e = { .line = line, .type = IN_COIN, .digit = (char)c, .kind = PAYPHONE_SRC_TONE };
+            xQueueSend(s_q, &e, 0);
+        }
+    }
     char d = dtmf_detector_push(&s_line[line].det, mono, n);
     if (d) {
         /* Recorded for tonemon/bringup introspection regardless of key --
@@ -369,6 +389,10 @@ static void enter_idle(int line)
     s_line[line].dialout_tone = false;
     s_line[line].tone_return_us = 0;
     dialplan_collector_reset(&s_line[line].coll);
+    /* A payphone's credit lasts one pickup. */
+    s_line[line].credit_cents = 0;
+    s_line[line].coin_next_us = 0;
+    s_line[line].coin_alert_us = 0;
     /* Deliberately does NOT touch AEC's enabled state. It's only ever
      * turned on by hand via the `aec`/`aec sweep` bring-up commands, and
      * stays on across hangup on purpose -- `aec sweep` needs a fresh call
@@ -530,6 +554,130 @@ static void play_persistent(int line, call_progress_t tone, tel_state_t state)
     audio_tx_tone(line, tone);
     s_line[line].state = state;
     s_line[line].tone_return_us = 0;
+}
+
+/* ---- payphone (payphone.h) ---- */
+
+/* True when a call on `line` has to wait for coins. */
+static bool coin_needed(int line)
+{
+    payphone_cfg_t c = payphone_cfg();
+    return c.enabled && c.coin_required && s_line[line].credit_cents < c.price_cents;
+}
+
+/* Which dial-plan results the coin rule holds back: calls always, and with
+ * "codes free" off, every code. */
+static bool action_needs_coin(const dialplan_action_t *a)
+{
+    switch (a->kind) {
+        case ACT_NONE:
+        case ACT_WRONG_NUMBER:
+            return false;
+        case ACT_CALL_LINE:
+        case ACT_VOIP_DIAL:
+        case ACT_BT_DIAL:
+        case ACT_HOME_CALL:
+            return true;
+        default:
+            return !payphone_cfg().codes_free;
+    }
+}
+
+static bool action_is_call(const dialplan_action_t *a)
+{
+    return a->kind == ACT_CALL_LINE || a->kind == ACT_VOIP_DIAL ||
+           a->kind == ACT_BT_DIAL || a->kind == ACT_HOME_CALL;
+}
+
+static void clip_done_cb(int line, void *ctx);
+
+/* The "please deposit" message, or with no audio for it yet, silence until
+ * the next try (the Payphone tab says the clip is missing). */
+static void coin_prompt(int line)
+{
+    int64_t now = esp_timer_get_time();
+    s_line[line].coin_next_us = 0;
+    if (player_play(line, PAYPHONE_DEPOSIT_CLIP, clip_done_cb, NULL) != ESP_OK) {
+        audio_tx_silence(line);
+        s_line[line].coin_next_us = now + (int64_t)payphone_cfg().repeat_s * 1000000;
+    }
+}
+
+/* Off-hook with no credit, or a call that needs more: no dial tone, the
+ * message instead. Digits still work (the board's own codes may be free). */
+static void enter_coin_wait(int line)
+{
+    if (s_line[line].rb_clip) { player_stop_and_wait(line, 150); s_line[line].rb_clip = false; }
+    ESP_LOGD(TAG, "line %d: %s -> COIN_WAIT", line, telephony_state_name(s_line[line].state));
+    audio_tx_silence(line);
+    s_line[line].state = TEL_COIN_WAIT;
+    s_line[line].peer = PEER_NONE;
+    s_line[line].dialing = false;
+    s_line[line].dialout_tone = false;
+    s_line[line].tone_return_us = 0;
+    s_line[line].seq = NULL;
+    dialplan_collector_reset(&s_line[line].coll);
+    board_offhook_alert_t roh = board_offhook_alert_get();
+    s_line[line].coin_alert_us =
+        roh.enabled ? esp_timer_get_time() + (int64_t)roh.seconds * 1000000 : 0;
+    coin_prompt(line);
+}
+
+/* Leaves the "please deposit" message (it may be mid-sentence). */
+static void coin_wait_end(int line)
+{
+    player_stop_and_wait(line, 150);
+    s_line[line].coin_next_us = 0;
+    s_line[line].coin_alert_us = 0;
+}
+
+/* The clip for a coin of `cents`: its own, or the general thank-you; "" for none. */
+static const char *coin_clip_for(const payphone_cfg_t *c, int cents)
+{
+    if (!c->coin_msg) return "";
+    int i = payphone_coin_index(cents);
+    if (i >= 0 && c->coin_clip[i][0]) return c->coin_clip[i];
+    return PAYPHONE_THANKS_CLIP;
+}
+
+static void enter_dialtone(int line);
+static esp_err_t play_clip_any_ext(int line, const char *name);
+
+static void on_coin(int line, int cents, payphone_src_t src)
+{
+    payphone_cfg_t c = payphone_cfg();
+    if (!c.enabled) return;
+    if (cents < 0) {
+        payphone_logf(line, "coin tones not recognized (%d beeps)", -cents);
+        return;
+    }
+    tel_state_t st = s_line[line].state;
+    bool up = st != TEL_IDLE && st != TEL_RINGING;
+    if (up) s_line[line].credit_cents += cents;
+    payphone_coin_seen(line, cents, src, s_line[line].credit_cents);
+    webhook_eventf("coin", line, "%d", cents);
+    activity_log("Line %d: %d c coin (%s)", line, cents, payphone_src_name(src));
+    if (!up) return;
+
+    const char *clip = coin_clip_for(&c, cents);
+    if (st == TEL_COIN_WAIT) {
+        bool paid = !coin_needed(line);
+        if (!paid && !clip[0]) return;   /* keep asking */
+        coin_wait_end(line);
+        if (clip[0] && play_clip_any_ext(line, clip) == ESP_OK) {
+            /* Paid: TEL_PLAYING goes on to dial tone when the clip ends.
+             * Short: back to asking for the rest when it ends. */
+            if (paid) s_line[line].state = TEL_PLAYING;
+            return;
+        }
+        if (paid) enter_dialtone(line);
+        else coin_prompt(line);
+    } else if (st == TEL_DIALTONE && clip[0]) {
+        audio_tx_silence(line);
+        s_line[line].seq = NULL;
+        if (play_clip_any_ext(line, clip) == ESP_OK) s_line[line].state = TEL_PLAYING;
+        else enter_dialtone(line);
+    }
 }
 
 /* 2min compiled fallback -- board_record_max_ms_get() returns whatever was
@@ -1338,6 +1486,20 @@ static void handle_action(int line, const dialplan_action_t *a)
         player_stop_and_wait(line, 150);
         s_line[line].rb_clip = false;
     }
+    /* Payphone: a call (or with "codes free" off, any code) waits for coins. */
+    if (action_needs_coin(a) && coin_needed(line)) {
+        payphone_cfg_t pc = payphone_cfg();
+        payphone_logf(line, "dialed %s: needs %d c, credit %d c", s_line[line].coll.buf,
+                      pc.price_cents, s_line[line].credit_cents);
+        enter_coin_wait(line);
+        return;
+    }
+    if (action_is_call(a) && payphone_enabled() && payphone_cfg().coin_required) {
+        payphone_cfg_t pc = payphone_cfg();
+        s_line[line].credit_cents -= pc.price_cents;
+        payphone_logf(line, "call to %s: %d c used, credit %d c", s_line[line].coll.buf,
+                      pc.price_cents, s_line[line].credit_cents);
+    }
     switch (a->kind) {
         case ACT_NONE:
             return;
@@ -1546,10 +1708,11 @@ static void process_digit(int line, char ch)
         timer_digit(line, ch);
         return;
     }
-    if (st != TEL_DIALTONE && st != TEL_DIALING) {
+    if (st != TEL_DIALTONE && st != TEL_DIALING && st != TEL_COIN_WAIT) {
         return; /* ignore digits unless we're expecting them */
     }
     if (!dialplan_key_usable(&s_line[line].coll, ch)) return;
+    if (st == TEL_COIN_WAIT) coin_wait_end(line);   /* dialing anyway: stop asking */
     if (st == TEL_DIALTONE || s_line[line].dialout_tone) {
         audio_tx_silence(line); /* stop dial tone on first digit (or the dial-out tone on the next) */
         s_line[line].dialout_tone = false;
@@ -1690,7 +1853,8 @@ static void on_offhook(int line)
         play_transient(line, TONE_LOW_POWER, TONE_LOW_POWER_MS, TEL_REORDER, TEL_DIALTONE);
         return;
     }
-    enter_dialtone(line);
+    if (coin_needed(line)) enter_coin_wait(line);   /* payphone: a coin first */
+    else enter_dialtone(line);
 }
 
 static void on_onhook(int line)
@@ -1819,6 +1983,7 @@ static void fsm_task(void *arg)
                 case IN_VOIP_INCOMING:  bt_companion_wake();
                                         on_voip_incoming(e.line); break;
                 case IN_BT_CALL:        on_bt_call(e.line, (bt_call_state_t)e.digit); break;
+                case IN_COIN:           on_coin(e.line, (signed char)e.digit, (payphone_src_t)e.kind); break;
                 case IN_VOIP_ANSWERED:
                     if (s_line[e.line].state == TEL_RINGBACK) {
                         audio_tx_external(e.line, true);
@@ -1861,7 +2026,11 @@ static void fsm_task(void *arg)
                 case IN_CLIP_DONE:
                     /* Ignore if we've already moved on (e.g. hung up mid-clip --
                      * end_call() already handled state via player_stop()). */
-                    if (s_line[e.line].state == TEL_PLAYING && s_line[e.line].seq &&
+                    if (s_line[e.line].state == TEL_COIN_WAIT) {
+                        /* The "please deposit" message (or a coin's clip) ended: ask again later. */
+                        s_line[e.line].coin_next_us = esp_timer_get_time() +
+                            (int64_t)payphone_cfg().repeat_s * 1000000;
+                    } else if (s_line[e.line].state == TEL_PLAYING && s_line[e.line].seq &&
                         s_line[e.line].seq_i < strlen(s_line[e.line].seq)) {
                         s_line[e.line].seq_playing = false;
                         s_line[e.line].seq_next_us = esp_timer_get_time() +
@@ -2064,6 +2233,17 @@ static void fsm_task(void *arg)
                         ESP_LOGI(TAG, "intercom: line %d rings line %d", line, other);
                         start_local_call_ex(line, other, FX_NORMAL, true);
                     }
+                }
+            }
+            /* Payphone: repeat the "please deposit" message; after the off-hook
+             * alert's delay with no coin, sound the alert as dial tone would. */
+            if (s_line[line].state == TEL_COIN_WAIT) {
+                if (s_line[line].coin_alert_us && now >= s_line[line].coin_alert_us) {
+                    coin_wait_end(line);
+                    ESP_LOGI(TAG, "line %d: off-hook too long waiting for a coin -- alert tone", line);
+                    play_persistent(line, TONE_OFFHOOK_ALERT, TEL_OFFHOOK_ALERT);
+                } else if (s_line[line].coin_next_us && now >= s_line[line].coin_next_us) {
+                    coin_prompt(line);
                 }
             }
             if (s_line[line].state == TEL_DIALTONE &&
@@ -2535,6 +2715,7 @@ esp_err_t telephony_start(void)
     /* DTMF detector + RX tap only for lines that actually exist. */
     for (int line = 0; line < NLINES_ACTIVE; line++) {
         dtmf_detector_init(&s_line[line].det, audio_sample_rate());
+        coin_tone_init(&s_line[line].coin, audio_sample_rate());
         dtmf_tuning_t tuning;
         if (board_dtmf_tuning_get(line, &tuning, sizeof(tuning))) {
             dtmf_detector_set_tuning(&s_line[line].det, &tuning);
@@ -2593,4 +2774,18 @@ esp_err_t telephony_test_digit(int line, char digit)
     if ((digit < '0' || digit > '9') && digit != '*' && digit != '#') return ESP_ERR_INVALID_ARG;
     in_evt_t e = { .line = line, .type = IN_DIGIT, .digit = digit };
     return (xQueueSend(s_q, &e, pdMS_TO_TICKS(50)) == pdTRUE) ? ESP_OK : ESP_FAIL;
+}
+
+esp_err_t telephony_coin_inject(int line, int cents)
+{
+    if (line < 0 || line >= NLINES_ACTIVE) return ESP_ERR_INVALID_ARG;
+    if (cents < 1 || cents > 100) return ESP_ERR_INVALID_ARG;
+    if (!payphone_enabled()) return ESP_ERR_INVALID_STATE;
+    in_evt_t e = { .line = line, .type = IN_COIN, .digit = (char)cents, .kind = PAYPHONE_SRC_SIM };
+    return xQueueSend(s_q, &e, 0) == pdTRUE ? ESP_OK : ESP_ERR_TIMEOUT;
+}
+
+int telephony_credit(int line)
+{
+    return (line >= 0 && line < NLINES) ? s_line[line].credit_cents : 0;
 }

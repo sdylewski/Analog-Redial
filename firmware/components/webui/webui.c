@@ -58,6 +58,7 @@
 #include "webauth.h"
 #include "webhook.h"
 #include "mqtt_ha.h"
+#include "payphone.h"
 #include "callcap.h"
 #include "auxpins.h"
 #include "esp_attr.h"
@@ -1749,6 +1750,7 @@ static const settings_tab_t SETTINGS_TABS[] = {
     { "voip",       "VOIP",                 "settings.tab.voip" },
     { "bluetooth",  "Bluetooth",            "settings.tab.bluetooth" },
     { "home",       "HA",                   "settings.tab.home" },
+    { "payphone",   "Payphone",             "settings.tab.payphone" },
     { "hardware",   "Hardware",             "settings.tab.hardware" },
     { "storage",    "Storage",              "settings.tab.storage" },
     { "diag",       "Diagnostics",          "settings.tab.diag" },
@@ -7008,6 +7010,8 @@ static int append_storage_section(char *buf, size_t cap, int off)
     return off;
 }
 
+static int append_payphone_tab(char *buf, size_t cap, int off);   /* with its handlers, below */
+
 static esp_err_t settings_page_handler(httpd_req_t *req)
 {
     s_viewer_signed_in = request_signed_in(req);
@@ -7114,6 +7118,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     }
     else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off, checked, result, created, createresult);
     else if (strcmp(tab, "bluetooth") == 0) off = append_bluetooth_tab(buf, cap, off);
+    else if (strcmp(tab, "payphone") == 0) off = append_payphone_tab(buf, cap, off);
     else if (strcmp(tab, "diag") == 0) off = append_diag_tab(buf, cap, off);
     /* Storage: the full SD+internal file manager, kept separate from
      * Hardware -- see SETTINGS_TABS's comment for why (its per-file
@@ -8613,6 +8618,299 @@ static esp_err_t ring_custom_json_handler(httpd_req_t *req)
              s.active ? "true" : "false", s.ringing ? "true" : "false", s.ring, s.rings);
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_sendstr(req, json);
+}
+
+/* ---- Payphone tab (payphone.h; experimental) ---- */
+
+static const int PP_CENTS[PAYPHONE_COINS] = { 5, 10, 25 };
+
+static int append_payphone_tab(char *buf, size_t cap, int off)
+{
+    payphone_cfg_t c = payphone_cfg();
+    off = append_feature_bar(buf, cap, off, "Payphone", c.enabled, "/payphone_enable",
+        "<b>Experimental.</b> For a phone in a payphone: hears the coin tones a payphone "
+        "sends when a coin drops, can ask for a coin before a call, plays a message after "
+        "a coin, and keeps a coin count. Collecting and returning coins needs the coin "
+        "board, which isn't finished. Turning it off keeps the settings below.");
+    if (!c.enabled) return off;
+
+    int nlines = board_hw_config_get().num_lines;
+    if (nlines < 1) nlines = 1;
+
+    /* Coin required */
+    off = appendf(buf, cap, off,
+        "<div class=\"card\"><h2>Coin required</h2>"
+        "<form method=\"POST\" action=\"/payphone_set\" class=\"settings-form\">"
+        "<input type=\"hidden\" name=\"section\" value=\"req\">"
+        "<label><input type=\"checkbox\" name=\"coin_required\" value=\"1\"%s> "
+        "Ask for a coin before a call</label>"
+        "<label>Price of a call, cents <input type=\"number\" name=\"price\" min=\"1\" max=\"500\" "
+        "value=\"%u\"></label>"
+        "<label>Repeat the message every <input type=\"number\" name=\"repeat\" min=\"2\" "
+        "max=\"60\" value=\"%u\"> seconds</label>"
+        "<label><input type=\"checkbox\" name=\"codes_free\" value=\"1\"%s> "
+        "The board's own dial codes are free (operator, clips, timer, alarm)</label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+        "</form>"
+        "<p class=\"hint\">Lifting the handset plays the message below instead of dial tone "
+        "until the coins add up to the price. Calls (the other line, VoIP, Bluetooth, other "
+        "boards) always need the credit, and use it up when they're placed. Credit is cleared "
+        "when the handset goes down.</p>",
+        c.coin_required ? " checked" : "", (unsigned)c.price_cents, (unsigned)c.repeat_s,
+        c.codes_free ? " checked" : "");
+    off = append_prompt_field(buf, cap, off, PAYPHONE_DEPOSIT_CLIP,
+                              "Please deposit 10 cents for your call.");
+    off = appendf(buf, cap, off, "</div>");
+
+    /* Messages after a coin */
+    off = appendf(buf, cap, off,
+        "<div class=\"card\"><h2>Message after a coin</h2>"
+        "<form method=\"POST\" action=\"/payphone_set\" class=\"settings-form\">"
+        "<input type=\"hidden\" name=\"section\" value=\"msg\">"
+        "<label><input type=\"checkbox\" name=\"coin_msg\" value=\"1\"%s> "
+        "Play a message after each coin</label>",
+        c.coin_msg ? " checked" : "");
+    {
+        storage_entry_t *names = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
+        off = appendf(buf, cap, off, "<datalist id=\"ppfiles\">");
+        if (names) {
+            size_t nn = storage_list(names, STORAGE_LIST_MAX);
+            size_t nb = storage_list_bundled(names + nn, STORAGE_LIST_MAX - nn);
+            for (size_t i = 0; i < nn + nb; i++) {
+                if (!is_wav_name(names[i].name) && !is_mp3_name(names[i].name)) continue;
+                bool dup = false;
+                for (size_t k = 0; k < i && !dup; k++) dup = strcmp(names[k].name, names[i].name) == 0;
+                if (dup) continue;
+                char en[STORAGE_MAX_NAME * 6];
+                html_escape(names[i].name, en, sizeof(en));
+                off = appendf(buf, cap, off, "<option value=\"%s\">", en);
+            }
+            free(names);
+        }
+        off = appendf(buf, cap, off, "</datalist>");
+    }
+    for (int i = 0; i < PAYPHONE_COINS; i++) {
+        char ev[PAYPHONE_CLIP_MAX * 6];
+        html_escape(c.coin_clip[i], ev, sizeof(ev));
+        off = appendf(buf, cap, off,
+            "<label>%d c coin plays <input name=\"clip%d\" list=\"ppfiles\" maxlength=\"%d\" "
+            "value=\"%s\" placeholder=\"the message below\"></label>",
+            PP_CENTS[i], i, PAYPHONE_CLIP_MAX - 1, ev);
+    }
+    off = appendf(buf, cap, off,
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+        "</form>"
+        "<p class=\"hint\">A coin with no clip of its own plays the message below. A message "
+        "plays while the line is waiting for a coin or on dial tone, not during dialing or a "
+        "call.</p>");
+    off = append_prompt_field(buf, cap, off, PAYPHONE_THANKS_CLIP, "Thank you.");
+    off = appendf(buf, cap, off, "</div>");
+
+    /* Coin tones */
+    off = appendf(buf, cap, off,
+        "<div class=\"card\"><h2>Coin tones</h2>"
+        "<form method=\"POST\" action=\"/payphone_set\" class=\"settings-form\">"
+        "<input type=\"hidden\" name=\"section\" value=\"tones\">"
+        "<label><input type=\"checkbox\" name=\"tone_detect\" value=\"1\"%s> "
+        "Listen for coin tones on the line</label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+        "</form>"
+        "<p class=\"hint\">A payphone with a working totalizer sends a tone down the line for "
+        "each coin: 1700 and 2200 Hz together, one beep for a nickel, two for a dime, five "
+        "short ones for a quarter. This hears them while the handset is up. Many phones "
+        "converted for home use don't send them any more; drop a coin and watch the log. "
+        "Tones it hears but can't place show in the log as not recognized.</p></div>",
+        c.tone_detect ? " checked" : "");
+
+    /* Coins: credit, counter, simulate, log */
+    payphone_totals_t t = payphone_totals();
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\"><h2>Coins</h2>"
+        "<p id=\"ppcredit\">Credit now: ");
+    for (int l = 0; l < nlines; l++)
+        off = appendf(buf, cap, off, "%sline %d: <b>%d c</b>", l ? ", " : "", l, telephony_credit(l));
+    off = appendf(buf, cap, off,
+        "</p><table class=\"mini\"><tr><th>Coin box</th><th>5 c</th><th>10 c</th><th>25 c</th>"
+        "<th>Total</th></tr><tr><td>since the last reset</td><td>%lu</td><td>%lu</td><td>%lu</td>"
+        "<td>$%lu.%02lu</td></tr></table>"
+        "<form method=\"POST\" action=\"/payphone_reset\" class=\"settings-form\" "
+        "onsubmit=\"return confirm('Reset the coin count to zero?')\">"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"danger\">Reset count "
+        "(emptied the box)</button></div></form>",
+        (unsigned long)t.count[0], (unsigned long)t.count[1], (unsigned long)t.count[2],
+        (unsigned long)(t.cents / 100), (unsigned long)(t.cents % 100));
+    for (int l = 0; l < nlines; l++) {
+        off = appendf(buf, cap, off,
+            "<form method=\"POST\" action=\"/payphone_coin\" class=\"settings-form\">"
+            "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+            "<div class=\"toolbar sub\">Simulate a coin on line %d (handset up): ", l, l);
+        for (int i = 0; i < PAYPHONE_COINS; i++)
+            off = appendf(buf, cap, off,
+                "<button type=\"submit\" name=\"cents\" value=\"%d\">%d c</button>",
+                PP_CENTS[i], PP_CENTS[i]);
+        off = appendf(buf, cap, off, "</div></form>");
+    }
+    off = appendf(buf, cap, off,
+        "<h3>Log</h3><table class=\"mini\" id=\"pplog\"><tr><th>Time</th><th>Line</th>"
+        "<th>Event</th></tr>");
+    payphone_log_t *log = malloc(PAYPHONE_LOG_N * sizeof(payphone_log_t));
+    size_t nlog = log ? payphone_log_list(log, PAYPHONE_LOG_N) : 0;
+    for (size_t i = 0; i < nlog; i++) {
+        char when[24], em[PAYPHONE_MSG_LEN * 6];
+        if (log[i].when > 1700000000) {
+            struct tm tm;
+            localtime_r(&log[i].when, &tm);
+            strftime(when, sizeof(when), "%m-%d %H:%M:%S", &tm);
+        } else {
+            snprintf(when, sizeof(when), "+%llds", (long long)(log[i].up_ms / 1000));
+        }
+        html_escape(log[i].msg, em, sizeof(em));
+        char ln[8];
+        if (log[i].line >= 0) snprintf(ln, sizeof(ln), "%d", log[i].line);
+        else snprintf(ln, sizeof(ln), "-");
+        off = appendf(buf, cap, off, "<tr><td>%s</td><td>%s</td><td>%s</td></tr>", when, ln, em);
+    }
+    free(log);
+    if (nlog == 0)
+        off = appendf(buf, cap, off, "<tr><td colspan=\"3\">No coins yet.</td></tr>");
+    off = appendf(buf, cap, off,
+        "</table><p class=\"hint\">Newest first, the last %d events, kept until a restart. "
+        "Updates by itself.</p></div>"
+        "<script>(function(){var t=document.getElementById('pplog'),c=document.getElementById('ppcredit');"
+        "function esc(s){return String(s).replace(/[&<>\"]/g,function(x){return{'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[x];});}"
+        "function tick(){fetch('/api/payphone').then(function(r){return r.json();}).then(function(j){"
+        "var h='<tr><th>Time</th><th>Line</th><th>Event</th></tr>';"
+        "j.log.forEach(function(e){h+='<tr><td>'+esc(e.time)+'</td><td>'+(e.line<0?'-':e.line)+'</td><td>'+esc(e.msg)+'</td></tr>';});"
+        "if(!j.log.length)h+='<tr><td colspan=\"3\">No coins yet.</td></tr>';t.innerHTML=h;"
+        "c.innerHTML='Credit now: '+j.credit.map(function(v,i){return 'line '+i+': <b>'+v+' c</b>';}).join(', ');"
+        "}).catch(function(){});}setInterval(tick,2000);})();</script>",
+        PAYPHONE_LOG_N);
+    return off;
+}
+
+static esp_err_t payphone_enable_handler(httpd_req_t *req)
+{
+    char body[64], en[4] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "enabled", en, sizeof(en));
+    payphone_cfg_t c = payphone_cfg();
+    c.enabled = en[0] == '1';
+    payphone_cfg_set(&c);
+    activity_log("Payphone features %s", c.enabled ? "on" : "off");
+    return redirect_to(req, "/settings?tab=payphone");
+}
+
+/* One card's form at a time (section=req|msg|tones), so a card's unticked
+ * boxes don't clear the other cards' settings. */
+static esp_err_t payphone_set_handler(httpd_req_t *req)
+{
+    char body[512], sec[8] = {0}, v[PAYPHONE_CLIP_MAX * 3 + 1];
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "section", sec, sizeof(sec));
+    payphone_cfg_t c = payphone_cfg();
+#define PP_BOX(name) (v[0] = '\0', form_field(body, name, v, sizeof(v)), v[0] == '1')
+    if (!strcmp(sec, "req")) {
+        c.coin_required = PP_BOX("coin_required");
+        c.codes_free = PP_BOX("codes_free");
+        v[0] = '\0'; form_field(body, "price", v, sizeof(v));
+        if (v[0]) c.price_cents = (uint16_t)atoi(v);
+        v[0] = '\0'; form_field(body, "repeat", v, sizeof(v));
+        if (v[0]) c.repeat_s = (uint8_t)atoi(v);
+    } else if (!strcmp(sec, "msg")) {
+        c.coin_msg = PP_BOX("coin_msg");
+        for (int i = 0; i < PAYPHONE_COINS; i++) {
+            char key[8];
+            snprintf(key, sizeof(key), "clip%d", i);
+            v[0] = '\0';
+            form_field(body, key, v, sizeof(v));
+            /* A file name only: no paths. */
+            if (strchr(v, '/') || strchr(v, '\\')) v[0] = '\0';
+            strncpy(c.coin_clip[i], v, PAYPHONE_CLIP_MAX - 1);
+            c.coin_clip[i][PAYPHONE_CLIP_MAX - 1] = '\0';
+        }
+    } else if (!strcmp(sec, "tones")) {
+        c.tone_detect = PP_BOX("tone_detect");
+    }
+#undef PP_BOX
+    payphone_cfg_set(&c);
+    return redirect_to(req, "/settings?tab=payphone");
+}
+
+static esp_err_t payphone_coin_handler(httpd_req_t *req)
+{
+    char body[64], lbuf[8] = {0}, cbuf[8] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "line", lbuf, sizeof(lbuf));
+    form_field(body, "cents", cbuf, sizeof(cbuf));
+    esp_err_t err = telephony_coin_inject(atoi(lbuf), atoi(cbuf));
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+            err == ESP_ERR_INVALID_STATE ? "payphone features are off" : "bad line or coin");
+        return ESP_OK;
+    }
+    return redirect_to(req, "/settings?tab=payphone");
+}
+
+static esp_err_t payphone_reset_handler(httpd_req_t *req)
+{
+    char body[16];
+    read_form_body(req, body, sizeof(body));
+    payphone_totals_reset();
+    return redirect_to(req, "/settings?tab=payphone");
+}
+
+/* GET /api/payphone: what the tab's log refreshes from, and for scripts. */
+static esp_err_t payphone_json_handler(httpd_req_t *req)
+{
+    payphone_cfg_t c = payphone_cfg();
+    payphone_totals_t t = payphone_totals();
+    cJSON *root = cJSON_CreateObject();
+    if (!root) { httpd_resp_send_500(req); return ESP_FAIL; }
+    cJSON_AddBoolToObject(root, "enabled", c.enabled);
+    cJSON_AddBoolToObject(root, "tone_detect", c.tone_detect);
+    cJSON_AddBoolToObject(root, "coin_required", c.coin_required);
+    cJSON_AddNumberToObject(root, "price_cents", c.price_cents);
+    int nlines = board_hw_config_get().num_lines;
+    if (nlines < 1) nlines = 1;
+    cJSON *cr = cJSON_AddArrayToObject(root, "credit");
+    for (int l = 0; l < nlines; l++) cJSON_AddItemToArray(cr, cJSON_CreateNumber(telephony_credit(l)));
+    cJSON *tot = cJSON_AddObjectToObject(root, "totals");
+    cJSON_AddNumberToObject(tot, "nickels", t.count[0]);
+    cJSON_AddNumberToObject(tot, "dimes", t.count[1]);
+    cJSON_AddNumberToObject(tot, "quarters", t.count[2]);
+    cJSON_AddNumberToObject(tot, "cents", t.cents);
+    cJSON *arr = cJSON_AddArrayToObject(root, "log");
+    payphone_log_t *log = malloc(PAYPHONE_LOG_N * sizeof(payphone_log_t));
+    size_t nlog = log ? payphone_log_list(log, PAYPHONE_LOG_N) : 0;
+    for (size_t i = 0; i < nlog; i++) {
+        char when[24];
+        if (log[i].when > 1700000000) {
+            struct tm tm;
+            localtime_r(&log[i].when, &tm);
+            strftime(when, sizeof(when), "%m-%d %H:%M:%S", &tm);
+        } else {
+            snprintf(when, sizeof(when), "+%llds", (long long)(log[i].up_ms / 1000));
+        }
+        cJSON *e = cJSON_CreateObject();
+        cJSON_AddStringToObject(e, "time", when);
+        cJSON_AddNumberToObject(e, "line", log[i].line);
+        cJSON_AddStringToObject(e, "msg", log[i].msg);
+        cJSON_AddItemToArray(arr, e);
+    }
+    free(log);
+    char *out = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!out) { httpd_resp_send_500(req); return ESP_FAIL; }
+    httpd_resp_set_type(req, "application/json");
+    esp_err_t r = httpd_resp_sendstr(req, out);
+    free(out);
+    return r;
 }
 
 static esp_err_t test_progress_handler(httpd_req_t *req)
@@ -11625,6 +11923,11 @@ esp_err_t webui_start(void)
         { .uri = "/test/ring_freq",         .method = HTTP_POST, .handler = test_ring_freq_handler },
         { .uri = "/test/ring_custom",       .method = HTTP_POST, .handler = test_ring_custom_handler },
         { .uri = "/api/ring_custom",        .method = HTTP_GET,  .handler = ring_custom_json_handler },
+        { .uri = "/payphone_enable",        .method = HTTP_POST, .handler = payphone_enable_handler },
+        { .uri = "/payphone_set",           .method = HTTP_POST, .handler = payphone_set_handler },
+        { .uri = "/payphone_coin",          .method = HTTP_POST, .handler = payphone_coin_handler },
+        { .uri = "/payphone_reset",         .method = HTTP_POST, .handler = payphone_reset_handler },
+        { .uri = "/api/payphone",           .method = HTTP_GET,  .handler = payphone_json_handler },
         { .uri = "/test/dtmf",              .method = HTTP_POST, .handler = test_dtmf_handler },
         { .uri = "/api/dtmf_test",          .method = HTTP_GET,  .handler = dtmf_test_json_handler },
         { .uri = "/dtmf_report.txt",        .method = HTTP_GET,  .handler = dtmf_report_handler },

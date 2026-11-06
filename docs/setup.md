@@ -168,9 +168,9 @@ Click any picture for the full page.
   </tr>
 </table>
 
-Optional features (VoIP, Bluetooth, Home Assistant) always have their tab, so
+Optional features (VoIP, Bluetooth, Home Assistant, Payphone) always have their tab, so
 you can read how they work first. A bar at the top says whether the feature
-is on: VoIP and Home Assistant have their switch there, and Bluetooth turns on
+is on: VoIP, Home Assistant and Payphone have their switch there, and Bluetooth turns on
 when you choose its module in Board hardware. Settings are kept while a
 feature is off. Bluetooth needs the v5 board with the BM64 companion.
 
@@ -268,9 +268,26 @@ The board works with a payphone just as with any other phone: it gives dial
 tone, rings the bell, reads the dial or keypad, and handles calls and every
 other feature the same way.
 
-**Not supported yet: the coin mechanism**, meaning counting coins and the
-solenoid that collects or returns them. I'm connecting a 1997 Quadrum payphone's
-coin system to the 4-pin header and will update this page when it works.
+**Settings → Payphone (experimental)** adds what a payphone needs, with no
+extra hardware:
+
+- **Coin tones:** a payphone whose totalizer still works sends a tone down the
+  line for each coin, and the board hears them while the handset is up: one beep
+  for a nickel, two for a dime, five short ones for a quarter. Not every phone
+  converted for home use still sends them; drop a coin and watch the tab's log.
+- **Coin required:** lifting the handset plays a spoken "please deposit" message
+  instead of dial tone until the coins add up to the price of a call. Calls need
+  the credit; the board's own dial codes can stay free.
+- **A message after a coin**, one for each coin or one for all.
+- **A coin count** with a reset, simulate buttons for testing, a log of every
+  coin, and a `coin` event for Home Assistant.
+
+Set the two spoken messages' text on the tab, then generate their audio like the
+operator message (the tab shows the command).
+
+**Not supported yet: the coin mechanism itself**, meaning the coin switches and the
+solenoid that collects or returns coins. That needs a separate coin board, which is
+still in development.
 
 Also still to find out: whether the board can sit inside a payphone's metal
 housing and still reach Wi-Fi and Bluetooth through it.

@@ -74,6 +74,7 @@ Legend: ✅ working · 🧪 experimental, off by default · 🔜 coming soon · 
 | **Board-to-board calls, local VoIP (Settings → VOIP)** | ✅ | Boards on the same Wi-Fi call each other with no server, for phones that can't share one two-line board: each line gets a free 4-digit number the first time the board is on your network (starting with 6, 7 or 9, never 1, which Bluetooth dial-out uses; change it any time), and other boards dial it. The same four digits are the default extension on a VoIP server (other phones there dial 555 + the digits). Phones on the network that have no number yet are listed as "not set up". Boards find each other over mDNS and call directly (SIP + RTP, same audio path as VoIP); a number already used by another board is refused. The VoIP server section starts folded away until VoIP is turned on |
 | **Web UI (status/log/recordings)** | ✅ | `esp_http_server`; settings page with WiFi/mode tabs |
 | **WiFi provisioning (first boot / factory reset)** | ✅ | No creds, or none in range after 3 tries each → open SoftAP (named after the board once it has one) + captive setup page; BOOT-button hold (3 s) forces it without touching saved creds, (10 s) wipes them. Remembers several networks and reconnects to whichever is strongest |
+| **Payphone (Settings → Payphone)** | 🧪 experimental, off by default | Hears a payphone's coin tones (1700 + 2200 Hz: one beep a nickel, two a dime, five a quarter) while the handset is up; can ask for coins before a call (a spoken "please deposit" message instead of dial tone until the credit covers the price; the board's own codes can stay free); a message after each coin; a coin count, simulate buttons, a coin log and a `coin` Home Assistant event. The coin switches and collect/return need the coin board, which isn't finished |
 | **Event log** | ✅ | Two tiers: a short activity feed (calls, recordings, dial errors) on the Status page, and the full ring-buffer debug log under Settings → Diagnostics |
 
 ---
@@ -137,7 +138,7 @@ on that signal path: `webui` (HTTP server, all settings pages) / `webauth`
 (text-to-speech prompt tracking, UI string translation), `bt_companion`
 (BM64 UART link, pairing, call control and the one-time audio setup), `idle_power` (Wi-Fi/CPU power saving), and
 `activity`/`logbuf`/`logctl` (the Status page's activity feed, the full
-debug log, and runtime log-level control), `webhook` / `mqtt_ha` (Home Assistant), `callcap` (call recording), `player` / `recorder` (clips and messages), `aec` (echo cancellation) and `voip_prov` (number provisioning).
+debug log, and runtime log-level control), `webhook` / `mqtt_ha` (Home Assistant), `callcap` (call recording), `player` / `recorder` (clips and messages), `aec` (echo cancellation), `voip_prov` (number provisioning) and `payphone` (the Payphone tab's settings, coin count and log, and the coin tone detector).
 
 ### Threading model (FreeRTOS tasks)
 
