@@ -27,7 +27,8 @@ capacitors and diodes). You add the larger through-hole parts with a soldering i
 | microSD | Single-line build | Single-line build | Single-line build | With one or two lines |
 | Expansion header | No | Yes (used for the Bluetooth board) | Yes | Yes, plus an I²C header (payphone) and extra I/O |
 | Size | 110 × 54 mm | 115 × 54 mm | same as v5 | same as v5 |
-| Reference | [Board reference (v4)](hardware-smd4.md) | [Board reference (v5)](hardware-smd5.md) | same as v5 | none yet |
+| Reference | [Board reference (v4)](hardware-smd4.md) | [Board reference (v5)](hardware-smd5.md) | same as v5 | [Board reference (v6)](hardware-smd6.md), in progress |
+| Build guide | [Assembly](building.md) | [Build a v5 board](build-v5.md) | same as v5 | [Build a v6 board](build-v6.md), in progress |
 | KiCad project | [`Analog Redial v4`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v4) | [`Analog Redial v5`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5) (as fabbed) | [`Analog Redial v5.1`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5.1) | Not published yet |
 
 **v4** has the longest track record; **v5** adds the Bluetooth header and takes a cheaper clone ESP32 module. Both take the same parts, so the parts list and

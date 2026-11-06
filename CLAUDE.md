@@ -198,6 +198,8 @@ Always use at least three dashes in each table header separator cell (`|---|---|
 - [`docs/features.md`](docs/features.md) — feature list, firmware architecture (components, threading model, VoIP seams)
 - [`docs/hardware-smd4.md`](docs/hardware-smd4.md) — SMD4 schematic reference, GPIO pin map, power tree
 - [`docs/hardware-smd5.md`](docs/hardware-smd5.md) — SMD5 board reference (Bluetooth companion, LDO, dual MCU footprint); built and working
+- [`docs/hardware-smd6.md`](docs/hardware-smd6.md) — v6 board reference (U6 expander, J10 extra I/O, J11 I²C accessory); in progress, says so at the top
+- [`docs/build-v5.md`](docs/build-v5.md), [`docs/build-v6.md`](docs/build-v6.md) — step-by-step build guides with photo placeholders (`assets/photo-placeholder.svg`, each captioned with the `pics/build-v5/…` / `pics/build-v6/…` filename to use); a step with two options gets one subsection per option and a two-photo row; build-v6 says in progress
 - [`archive/signal-levels.md`](archive/signal-levels.md) — SLIC/codec levels, SHK dividers
 - [`docs/voip-setup.md`](docs/voip-setup.md) — SIP server setup, dial-plan reference
 - [`server/voip-provisioner/`](server/voip-provisioner/README.md) — the Asterisk-side number-provisioning service (stdlib Python, HMAC-signed protocol, per-board tokens); its board-side client is `firmware/components/voip_prov`. Tests: `python3 -m unittest test_redial_provisioner.py` in that folder

@@ -115,9 +115,9 @@ on.
 | 6 | P2 | Dime | in | high | the same with R5, R8, C3 |
 | 7 | P3 | Nickel | in | high | the same with R6, R9, C4 |
 | 8 | GND | GND | | | |
-| 9 | P4 | **FIRE** | out | low (R1 100 k) | drives Q3: current through the coil |
+| 9 | P4 | **FIRE** | out | low (R1 10 k) | drives Q3: current through the coil |
 | 10 | P5 | **POL** | out | low (R2 100 k) | drives Q2 and K1: sets which way the coil is driven |
-| 11 | P6 | **EN_HV** | out | low (R3 10 k) | turns on stage 1, and so stage 2: HV exists only while high |
+| 11 | P6 | **EN_HV** | out | low (R3 100 k) | turns on stage 1, and so stage 2: HV exists only while high |
 | 12 | P7 | spare | | | not connected. The firmware makes it an output, low, so it doesn't float |
 | 13 | ~INT | | | | not connected |
 | 14 | SCL | SCL | | | |
@@ -212,7 +212,7 @@ leg of the feedback divider**:
                    [ R14 10k ]
                         |
                      Q1 drain
-  EN_HV --- Q1 gate     (R3 10k pulldown on EN_HV)
+  EN_HV --- Q1 gate     (R3 100k pulldown on EN_HV)
                      Q1 source --- GND
 ```
 

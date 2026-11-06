@@ -5,7 +5,7 @@
 From a fab-assembled board and the [parts list](bom.md) to a board that's
 ready to flash. Everything you solder is through-hole, so a regular iron is
 all you need. Written for v4; v5 differences are called out where they come
-up.
+up. For v5 and v5.1 there's also a [step-by-step guide with photos](build-v5.md).
 
 ## 1. Tools
 

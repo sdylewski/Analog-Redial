@@ -126,7 +126,7 @@ signals (F/R, RM, PD, SHK) are brought out to a second row on header **J5**
 GPIOs to line 1's SLIC instead of the microSD card:
 
 | J5 pin | Signal | J5 pin | Signal |
-|--|--|--|--|
+|---|---|---|---|
 | 1 | GPIO21 (SD CS) | 2 | Line 1 PD |
 | 3 | GPIO20 (SD MOSI) | 4 | Line 1 RM |
 | 5 | GPIO19 (SD CLK) | 6 | Line 1 SHK |
@@ -397,7 +397,9 @@ symptoms of getting it wrong, is in
 | Doc | What's in it |
 |-----|--------------|
 | [`hardware-smd4.md`](hardware-smd4.md) | The v4 board, the one with the longest track record |
+| [`build-v5.md`](build-v5.md) | Building a v5 board, step by step |
 | [`building.md`](building.md) | Hand-solder order, pre-power checks, first power-on |
+| [`hardware-smd6.md`](hardware-smd6.md) | v6, in progress: two lines and microSD together, J10, J11 |
 | [`bom.md`](bom.md) | Parts list / shopping checklist |
 | [`archive/hardware/smd5.md`](https://github.com/sdylewski/Analog-Redial/blob/main/archive/hardware/smd5.md) | Dev notes: jumper plan, MCU footprint details, open questions |
 | [KiCad project](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5) | The real source of truth for anything not covered above |

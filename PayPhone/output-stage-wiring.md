@@ -141,7 +141,7 @@ and D6 clamps the gate at 12 V, so Q3 gets the same full gate drive whatever VIO
      Q4 pin 3 (D)            R24 1k
      Q4 pin 1 (G) --- R21 1k --- FIRE --- U1 pin 9 (P4)
      Q4 pin 2 (S)             |     |
-           |                  |     R1 100k
+           |                  |     R1 10k
           GND                 |     |
                               |    GND
                   GATE3 ------+------+---------------+
@@ -169,7 +169,7 @@ and D6 clamps the gate at 12 V, so Q3 gets the same full gate drive whatever VIO
 | D6 BZT52C12 | 1 (K, band) | GATE3 |
 | D6 | 2 (A) | GND |
 | R21 1k | | FIRE to Q4 gate |
-| R1 100k | | FIRE to GND: Q3 stays off while U1 powers up |
+| R1 10k | | FIRE to GND: Q3 stays off while U1 powers up |
 | R22 4.7k | | Q4 drain to Q5 base (about 4 mA base current) |
 | R23 10k | | Q5 base to 20V: turns Q5 off |
 | R24 1k | | Q5 collector to GATE3: limits zener current to about 8 mA |
