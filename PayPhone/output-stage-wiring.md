@@ -195,7 +195,7 @@ down (D7 out). Firmware must keep FIRE low unless it means to fire.
 The HV net class in `Payphone_v1.kicad_pro` matches `/HV*`, `HV*`, `/COIL_A`,
 `/COIL_B`, `/COIL_C`, `/RETURN` and `/SW2`, so keep these names: the 1.0 mm clearance then
 applies automatically. (A logic net whose name starts with HV would pick up the HV class too,
-which is why U1 P3's net is S2_OFF.)
+which is why U1 P7's net is S2_OFF.)
 
 | Label | Where |
 |---|---|
