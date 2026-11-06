@@ -6988,17 +6988,6 @@
 		)
 		(uuid "0b3feb55-d011-45b1-ab1b-5b3829329cd7")
 	)
-	(text "Stage 2 off: S2_OFF high stops U3,\nHV = 20V less D2, about 19 V"
-		(exclude_from_sim no)
-		(at 81.534 215.138 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left top)
-		)
-		(uuid "124cb337-0dd8-49aa-b154-c288f9554138")
-	)
 	(text "D16-D19 B5819W: coin inputs\nup to 40 V"
 		(exclude_from_sim no)
 		(at 146.304 14.986 0)
@@ -7204,7 +7193,7 @@
 		)
 		(uuid "b07e021a-2348-430e-bc79-09524fcb82e3")
 	)
-	(text "J10 on: pin 2 = HV (2-coil relay).\nLeave OFF for the HD550002C"
+	(text "J10 on: J11 pin 2 = HV (2-coil relay).\nJ2 pin 2 (red) is not connected"
 		(exclude_from_sim no)
 		(at 207.01 179.324 0)
 		(effects
@@ -7726,12 +7715,6 @@
 		(uuid "d5014273-6a7d-483c-9c55-e490a89ab83c")
 	)
 	(junction
-		(at 109.22 181.61)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "d739637a-faba-458c-a7ca-163c9728a83e")
-	)
-	(junction
 		(at 156.21 186.69)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -7821,12 +7804,6 @@
 		(color 0 0 0 0)
 		(uuid "ffc102b0-9e39-4569-a2e4-27e19e00d68a")
 	)
-	(junction
-		(at 64.77 138.43)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "ffe6f8cd-aff6-4dd9-ac3f-c34f9ff1a2ac")
-	)
 	(no_connect
 		(at 102.87 243.84)
 		(uuid "27228070-3f54-467c-a118-0f84863cfea4")
@@ -7834,6 +7811,10 @@
 	(no_connect
 		(at 71.12 55.88)
 		(uuid "d5101f5a-43b2-4186-9e1a-533a83f6b4c5")
+	)
+	(no_connect
+		(at 288.29 168.91)
+		(uuid "fd04660c-5195-4298-9d8b-0cf2b8d87b4f")
 	)
 	(wire
 		(pts
@@ -7937,16 +7918,6 @@
 	)
 	(wire
 		(pts
-			(xy 109.22 181.61) (xy 109.22 198.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0d8b8c89-99e1-4353-80f5-c7ab910a28ce")
-	)
-	(wire
-		(pts
 			(xy 59.69 248.92) (xy 63.5 248.92)
 		)
 		(stroke
@@ -7954,16 +7925,6 @@
 			(type default)
 		)
 		(uuid "0ec16cae-02ed-4bce-9c0c-ba627ca6655d")
-	)
-	(wire
-		(pts
-			(xy 99.06 203.2) (xy 101.6 203.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0f06a776-7ecb-4a4a-9bc3-960928304507")
 	)
 	(wire
 		(pts
@@ -8587,16 +8548,6 @@
 	)
 	(wire
 		(pts
-			(xy 86.36 203.2) (xy 93.98 203.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6198ad6f-6b94-4279-99a9-21914acfb78f")
-	)
-	(wire
-		(pts
 			(xy 123.19 171.45) (xy 123.19 161.29)
 		)
 		(stroke
@@ -8744,16 +8695,6 @@
 			(type default)
 		)
 		(uuid "724151b9-f9c2-4273-afb0-0357844865e1")
-	)
-	(wire
-		(pts
-			(xy 64.77 151.13) (xy 64.77 138.43)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "72764738-c8e7-4fc3-8e57-495af45cbe36")
 	)
 	(wire
 		(pts
@@ -9617,16 +9558,6 @@
 	)
 	(wire
 		(pts
-			(xy 91.44 66.04) (xy 93.98 66.04)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c5cbd7b0-2a72-43fd-b458-c1acb4c3635d")
-	)
-	(wire
-		(pts
 			(xy 101.6 175.26) (xy 101.6 186.69)
 		)
 		(stroke
@@ -9684,16 +9615,6 @@
 			(type default)
 		)
 		(uuid "c9a5c98a-db67-4fac-9788-44207b3f976d")
-	)
-	(wire
-		(pts
-			(xy 86.36 153.67) (xy 86.36 138.43)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c9ecd16f-0572-46b8-a580-d9f8b387abc5")
 	)
 	(wire
 		(pts
@@ -10486,7 +10407,7 @@
 		(uuid "54b6620b-237e-4128-a704-eb78745ffa23")
 	)
 	(label "RLY_COIL"
-		(at 294.64 153.67 180)
+		(at 293.37 153.67 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -10494,16 +10415,6 @@
 			(justify right bottom)
 		)
 		(uuid "5d240bb0-03cf-4098-9901-b89a0a0f8372")
-	)
-	(label "S2_OFF"
-		(at 92.71 203.2 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "5ec2a7dd-4ecf-4d78-8a1b-147d1c391d02")
 	)
 	(label "SCL_IN"
 		(at 30.48 60.96 0)
@@ -10835,26 +10746,6 @@
 		)
 		(uuid "cc037ed2-1132-4d69-8bec-0ce9d0b8b7a3")
 	)
-	(label "S2_OFF"
-		(at 92.71 66.04 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "cda0c676-834c-4b3c-ae74-f883582a958a")
-	)
-	(label "COIL_C"
-		(at 288.29 168.91 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "cf7fdac7-11fd-411e-8d2f-f8c630ddcc7b")
-	)
 	(label "COIN4"
 		(at 91.44 55.88 0)
 		(effects
@@ -10874,16 +10765,6 @@
 			(justify left bottom)
 		)
 		(uuid "d0c2f4aa-5de2-40ad-9a6d-d67b0b9fe493")
-	)
-	(label "COMP"
-		(at 109.22 198.12 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "d676a3de-f36c-4aeb-871b-77f6d05783eb")
 	)
 	(label "+5V_IN"
 		(at 35.56 72.39 180)
@@ -18567,104 +18448,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Transistor_FET:2N7002")
-		(at 106.68 203.2 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "6b255e88-ca49-42f4-a6d5-f5e9aa2d03fb")
-		(property "Reference" "Q6"
-			(at 112.522 201.93 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "2N7002"
-			(at 111.506 206.248 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
-			(at 111.76 205.105 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-					(italic yes)
-				)
-				(justify left)
-			)
-		)
-		(property "Datasheet" "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF"
-			(at 111.76 207.01 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Description" "0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23: pulls U3 COMP low"
-			(at 106.68 203.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C8545"
-			(at 106.68 203.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "a381ee7e-673e-4bc8-8337-5dcd4839ab0f")
-		)
-		(pin "3"
-			(uuid "c012ab0d-d5bf-4430-ade8-c908680d3260")
-		)
-		(pin "2"
-			(uuid "7aabb365-a5cc-4f87-9280-1c074c51c3bb")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "Q6")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:GND")
 		(at 181.61 36.83 0)
 		(unit 1)
@@ -18737,84 +18520,6 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0203")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 109.22 208.28 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "6d75ec3b-2602-47cc-a2e1-2afc442a9716")
-		(property "Reference" "#PWR0206"
-			(at 109.22 212.09 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 109.22 212.09 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 41.91 35.56 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 41.91 35.56 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 41.91 35.56 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "fe3777c0-8760-4fcb-b0db-2bc549b4aae0")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "#PWR0206")
 					(unit 1)
 				)
 			)
@@ -22764,107 +22469,6 @@
 		)
 	)
 	(symbol
-		(lib_id "PCM_SparkFun-Resistor:R_Small")
-		(at 96.52 203.2 180)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "aac4bb63-c9c1-4a3e-970a-2f2fe7859055")
-		(property "Reference" "R47"
-			(at 95.25 200.66 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "1k"
-			(at 98.806 200.914 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 96.52 198.628 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
-			(at 97.79 194.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Resistor"
-			(at 96.52 191.77 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "PROD_ID" "RES-07856"
-			(at 96.52 196.342 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C17513"
-			(at 96.52 203.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "0f156238-5b91-4413-8f88-df307810dbe3")
-		)
-		(pin "1"
-			(uuid "c7c0f872-1bf7-4564-8ca4-ad87a28bca1a")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "R47")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:GND")
 		(at 132.08 62.23 0)
 		(unit 1)
@@ -24507,84 +24111,6 @@
 		)
 	)
 	(symbol
-		(lib_id "power:GND")
-		(at 93.98 71.12 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "c1c689a4-73bb-40c3-bd25-d2c444fc64ad")
-		(property "Reference" "#PWR0205"
-			(at 93.98 74.93 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 93.98 74.93 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 49.53 -101.6 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 49.53 -101.6 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 49.53 -101.6 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "c1413e7b-f92d-4b64-a428-f181795a2d7d")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "#PWR0205")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "PCM_SparkFun-Resistor:R_Small")
 		(at 166.37 29.21 90)
 		(unit 1)
@@ -26087,107 +25613,6 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R43")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "PCM_SparkFun-Resistor:R_Small")
-		(at 93.98 68.58 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "d4efeba6-2f78-4993-99a7-8f648313d92f")
-		(property "Reference" "R48"
-			(at 91.44 68.58 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "100k"
-			(at 96.52 68.58 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 43.688 20.32 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
-			(at 39.37 19.05 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Resistor"
-			(at 36.83 20.32 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "PROD_ID" "RES-07856"
-			(at 41.402 20.32 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" "C149504"
-			(at 93.98 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "ef68630f-6425-4805-916e-692629c02c19")
-		)
-		(pin "1"
-			(uuid "94854126-6eb5-4dd1-8152-c7fe56a00fe3")
-		)
-		(instances
-			(project "Payphone_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "R48")
 					(unit 1)
 				)
 			)
@@ -29017,6 +28442,360 @@
 			(project "Payphone_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR026")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "PCM_SL_Pin_Headers:PINHD_1x2_Male")
+		(at 82.55 146.05 180)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files no)
+		(dnp no)
+		(uuid "2716c123-2f9d-4cbf-8899-820eb69d0f3c")
+		(property "Reference" "J14"
+			(at 83.945 149.86 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "HV boost"
+			(at 79.756 142.748 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+			(at 81.28 142.24 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 82.55 153.67 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Shunt fitted: U3 gets 20V and stage 2 runs (HV per J7-J9). No shunt: stage 2 unpowered, HV about 19 V (hand-solder)"
+			(at 82.55 146.05 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "efbd50ee-06da-4649-8d76-2200f3fe2794")
+		)
+		(pin "2"
+			(uuid "58a9c89c-0d03-4e08-b05a-a9ff7fd8851e")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "J14")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 86.36 138.43) (xy 86.36 144.78)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cb390dac-f223-4603-b937-ffb42cf479d7")
+	)
+	(wire
+		(pts
+			(xy 86.36 147.32) (xy 86.36 153.67)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "375632be-d116-4e91-85d8-392277cf8c87")
+	)
+	(label "U3_VCC"
+		(at 86.36 153.67 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "86c486ee-a865-43d0-b2c6-474f8086c1ce")
+	)
+	(label "U3_VCC"
+		(at 64.77 151.13 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "4a452958-722d-481c-97be-3f4618596e2c")
+	)
+	(symbol
+		(lib_id "PCM_SparkFun-Resistor:R_Small")
+		(at 109.22 203.2 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "5aee09cf-7ca3-4251-babd-f6bd91fef5b9")
+		(property "Reference" "R53"
+			(at 111.76 202.565 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10k"
+			(at 111.76 205.105 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 58.928 154.94 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
+			(at 54.61 153.67 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Qa1 gate to source: holds Qa1 off while U3 is unpowered (J14 open)"
+			(at 52.07 154.94 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "PROD_ID" "RES-07856"
+			(at 56.642 154.94 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C17414"
+			(at 109.22 203.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "fadfcab7-655d-429d-85f8-9db89ab9c409")
+		)
+		(pin "1"
+			(uuid "fed47d82-244a-4fd2-9509-0968d7dd415d")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "R53")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(label "QA1_G"
+		(at 109.22 200.66 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "39867a9c-ed3e-4bc7-8432-27a341387698")
+	)
+	(label "QA1_S"
+		(at 109.22 205.74 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "a8557978-4a8c-4287-b91c-93d8db884827")
+	)
+	(label "QA1_G"
+		(at 129.54 153.67 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "fd5fa6ca-cf78-4662-bde8-cc7a6b20ebf1")
+	)
+	(label "QA1_S"
+		(at 128.27 161.29 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "8c9dabb2-b642-4210-9370-3b3f095d7cbe")
+	)
+	(text "J14 HV boost: no shunt = U3 unpowered, HV about 19 V;\nshunt fitted = the J7-J9 voltage. R53 holds Qa1 off\nwhile U3 has no power"
+		(exclude_from_sim no)
+		(at 99.06 212.09 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "13b99faf-4776-4781-ab58-968c30dee708")
+	)
+	(no_connect
+		(at 91.44 66.04)
+		(uuid "97d181b1-9f97-4948-98e8-027640f1edc3")
+	)
+	(symbol
+		(lib_id "power:PWR_FLAG")
+		(at 64.77 151.13 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "a80fd606-4c17-4b06-b5dd-cf75b17e381c")
+		(property "Reference" "#FLG05"
+			(at 64.77 154.94 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 65.532 145.796 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 64.77 151.13 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 64.77 151.13 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"VCC\""
+			(at 31.75 86.36 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "bc6c66fb-144e-4dfc-86e8-adb0a017b917")
+		)
+		(instances
+			(project "Payphone_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "#FLG05")
 					(unit 1)
 				)
 			)

@@ -109,12 +109,13 @@ J2 takes the coin relay's own 3-wire cable. The coin switches are a separate
 | J2 (Molex KK 396, 3 pin) or J11 (screw terminal) | Wire from the coin relay | Net |
 |---|---|---|
 | 1 | white | COIL_A |
-| 2 | red (the relay switch's other side) | COIL_C: connected only to J10, so floating unless J10 is fitted |
+| 2 | red (the relay switch's other side) | not connected |
 | 3 | green | COIL_B |
 
-**J10** (shunt) ties COIL_C to HV, for a relay with two coils and a common wire on pin 2.
-**Keep it off for the HD550002C:** its red wire is the relay's own switch, and J10 would let
-that switch short HV through Q3 (coin-board-schematic.md, section 7).
+**J11** (screw terminal) has COIL_A on pin 1 and COIL_B on pin 3, like J2, and **COIL_C on
+pin 2**, which only J10 connects: its shunt ties COIL_C to HV, for a relay with two coils
+and a common wire. J2 pin 2 isn't connected, so the HD550002C's red wire never sees HV.
+Which coil fires for each POL setting: coin-board-schematic.md, section 7.
 
 **Check the original plug before routing:** look at which position white, red
 and green sit in on the phone's 3-pin plug, and number J2 to match. If the order
@@ -195,7 +196,7 @@ down (D7 out). Firmware must keep FIRE low unless it means to fire.
 The HV net class in `Payphone_v1.kicad_pro` matches `/HV*`, `HV*`, `/COIL_A`,
 `/COIL_B`, `/COIL_C`, `/RETURN` and `/SW2`, so keep these names: the 1.0 mm clearance then
 applies automatically. (A logic net whose name starts with HV would pick up the HV class too,
-which is why U1 P7's net is S2_OFF.)
+so don't name one that way.)
 
 | Label | Where |
 |---|---|
@@ -206,7 +207,7 @@ which is why U1 P7's net is S2_OFF.)
 | SW2 | Qa1 drain, L2, D2 anode: swings up to HV |
 | COIL_A | K1 pin 4, J2 pin 1, J11 pin 1 |
 | COIL_B | K1 pin 9, J2 pin 3, J11 pin 3 |
-| COIL_C | J2 pin 2, J11 pin 2, J10 pin 2 (J10 pin 1 is HV) |
+| COIL_C | J11 pin 2, J10 pin 2 (J10 pin 1 is HV) |
 | RETURN | K1 pins 5 and 10, Q3 pin 2, D14 anode |
 | GATE3 | Q3 pin 1, D6 pin 1, R24, R25 |
 | RLY_COIL, Q2_B, Q4_G, Q4_D, Q5_B, Q5_C | the small nodes in blocks A and C |

@@ -20,7 +20,7 @@ One board, surface-mount with a few through-hole parts, that (1) fires the
 HD550002C coin relay in either direction from a high voltage made on the
 board, (2) reads the phone's 5 / 10 / 25 cent coin switches, and (3) talks to
 Analog Redial over I2C. Options for other payphones: a relay with two coils
-and a common wire (J10), 12-24 V coils (stage 2 off, section 6), a fourth coin
+and a common wire (J10), 12-24 V coils (J14 off, section 6), a fourth coin
 input, inputs that take a coin acceptor's logic output up to 40 V (section 8),
 screw terminals beside the phone's own plugs, and a spare analog input (J13). It needs only **5 V, VIO, GND, SDA, SCL** from the
 main board. VIO is the host's I2C logic voltage (3.3 V from Analog Redial,
@@ -37,12 +37,12 @@ main board. VIO is the host's I2C logic voltage (3.3 V from Analog Redial,
  SCL  --- J6.2 --+--> [U1 TCA9534A @0x39] P4 EN_HV                                          |
  GND  --- J6.1   |                        P5 POL  --> Q2 --> K1 (DPDT relay) <--------------+
                  |                        P6 FIRE --> Q4, Q5 --> Q3 (low side) --> R26 --> GND
-                 |                        P7 S2_OFF --> Q6 --> U3 COMP (stage 2 off)
                  |                        P0-P3 <-- D16-D19 <-- coin inputs <-- J3 / J12
                  +--> [U4 ADS1115 @0x48]  HV, 20V, firing current; AIN3 spare (J13)
 
  K1 poles --> J2 / J11 --> coin relay HD550002C (white, green wires).
- J10 shunt: J2 / J11 pin 2 to HV, for a relay with two coils and a common.
+ J10 shunt: J11 pin 2 to HV, for a relay with two coils and a common (J2 pin 2 isn't connected).
+ J14 shunt: 20V to U3's VCC. Without it stage 2 can't run and HV stays at about 19 V.
 ```
 
 ## 2. Connectors
@@ -55,13 +55,14 @@ green wire, and they aren't the same wires.
 |---|---|---|
 | **J6** | 5 x 2.54 mm pin header | **1 GND, 2 SCL, 3 SDA, 4 VIO, 5 +5 V**: the same pin numbers as the main board's v6 J11 (pin 4 there is +3.3 V), so a straight 1:1 cable, pin 1 to pin 1 |
 | **J1** | JST EH 5-pin (B5B-EH-A) | same five signals, same order, in parallel with J6: fit whichever suits the cable |
-| **J2** | Molex KK 396, 3-pin, 0026604030 | **coin relay cable.** 1 white = COIL_A, 2 red = COIL_C (not driven unless J10 is fitted), 3 green = COIL_B. **Check its voltage rating against 119 V** |
-| **J11** | Phoenix MKDS 1,5/3-5,08 screw terminal | the same three nets as J2, in parallel: for a relay without the KK 396 plug. Fit J2 or J11 |
-| **J10** | 1 x 2 pin header + shunt | **two-coil relays only:** ties COIL_C (J2/J11 pin 2) to HV (section 7). **Leave it off for the HD550002C**, whose red wire is its own switch |
+| **J2** | Molex KK 396, 3-pin, 0026604030 | **coin relay cable.** 1 white = COIL_A, 2 red = **not connected** (the HD550002C's own switch), 3 green = COIL_B. **Check its voltage rating against 119 V** |
+| **J11** | Phoenix MKDS 1,5/3-5,08 screw terminal | 1 COIL_A, 2 COIL_C, 3 COIL_B: for a relay without the KK 396 plug, and the only connector for a two-coil relay's common (pin 2). Fit J2 or J11 |
+| **J10** | 1 x 2 pin header + shunt | **two-coil relays only:** ties COIL_C (J11 pin 2) to HV (section 7). It can't reach J2, so a relay on J2 is unaffected either way |
+| **J14** | 1 x 2 pin header + shunt | **HV boost:** 20V to U3's VCC. **No shunt (the safe default): HV stays at about 19 V**, whatever the firmware does. Shunt fitted: HV goes to J7-J9's setting (section 6) |
 | **J3** | Molex KK 396, 4-pin, 0026604040 | **coin switch cable.** 4 green = common (GND), 3 white = quarter, 2 red = dime, 1 blue = nickel. On the plug with its tab at the bottom, green is the left pin and blue the right |
 | **J12** | Phoenix MKDS 1,5/5-5,08 screw terminal | 1 nickel, 2 dime, 3 quarter, 4 GND (J3's pins, in parallel), **5 coin 4** (U1 P3) |
 | **J13** | 1 x 3 pin header, 2.54 mm | spare analog input: 1 VIO, 2 AIN3 (through R52 10 k, C25 100 nF to GND), 3 GND (section 9) |
-| **J7-J9** | three 2-pin headers + shunts | HV setting: no shunt = 52 V; any combination is valid, up to 119 V with all three (section 6) |
+| **J7-J9** | three 2-pin headers + shunts | HV setting with J14 fitted: no shunt = 52 V; any combination is valid, up to 119 V with all three (section 6) |
 | **JP1** | solder jumper, **open** | **VIO = 5 V**: bridge it only for a host with no logic supply to give (a 5 V I2C host using four wires). Leave it open whenever pin 2 is wired |
 
 **Before ordering:** with each plug in its header, check the wires land on the
@@ -117,7 +118,7 @@ on.
 | 9 | P4 | **EN_HV** | out | low (R1 100 k) | turns on stage 1, and so stage 2: HV exists only while high |
 | 10 | P5 | **POL** | out | low (R2 100 k) | drives Q2 and K1: sets which way the coil is driven |
 | 11 | P6 | **FIRE** | out | low (R3 10 k) | drives Q3: current through the coil |
-| 12 | P7 | **S2_OFF** | out | low (R48 100 k) | high stops stage 2 through Q6, so HV sits at about 19 V (section 6) |
+| 12 | P7 | spare | | | not connected. Firmware should set it as an output so it doesn't float |
 | 13 | ~INT | | | | not connected |
 | 14 | SCL | SCL | | | |
 | 15 | SDA | SDA | | | |
@@ -126,7 +127,7 @@ on.
 At power-up the TCA9534A is all inputs (high impedance, no internal pull-ups),
 so the pulldowns hold EN_HV, POL and FIRE low: **nothing fires and the HV supply
 is off** until firmware says so. **Firmware order matters:** the output register
-powers up as all ones, so write 0 to it (0x01) *before* making P4-P7 outputs in
+powers up as all ones, so write 0 to it (0x01) *before* making P4-P6 outputs in
 the configuration register (0x03); the other order drives them high for a
 moment.
 
@@ -253,6 +254,7 @@ UCx844/5 are limited to 50 % and wouldn't work.
 | **Gate drive** | | | |
 | Rg1 | U3 OUT to Qa1 gate | **100 ohm** | damps ringing and limits the current into Dz1: OUT swings to about 18.5 V, so Dz1 sees about 35 mA each on-time; switches Qa1 in about 10 ns |
 | Dz1 | 15 V gate clamp (cathode to gate, anode to Qa1 source) | **SMAZ15** (1 W) | OUT is just under the STN4NF20L's 20 V Vgs maximum, so this is margin |
+| R53 | Qa1 gate to source | **10 k** (C17414, Basic) | holds Qa1 off while U3 has no supply (J14 open, or stage 1 off), when nothing else drives the gate |
 | **Current sense** | | | |
 | Rcs1 | Qa1 source to GND | **2.2 ohm**, 0805 (C17521, Basic) | Ipk = 1 V / Rcs1 = 0.45 A. About 0.15 A RMS, so 0.05 W, inside the 0805's 0.125 W |
 | Rf1 | Rcs1 to CS pin 3 | **1 k** | with Cf1, filters the leading-edge spike (the UC3843 has no blanking) |
@@ -278,13 +280,13 @@ UCx844/5 are limited to 50 % and wouldn't work.
 
 | Pin | Name | Net / connection |
 |---|---|---|
-| 1 | COMP | E/A output. Rz1 + Cz1 to pin 2. **Q6's drain:** S2_OFF high pulls COMP low and stops the switch (below) |
+| 1 | COMP | E/A output. Rz1 + Cz1 to pin 2 |
 | 2 | FB | Divider midpoint. Internal reference is **2.5 V**, so HV = 2.5 x (1 + Rfbt / Rfbb) |
 | 3 | CS | Rf1 from the top of Rcs1; Cf1 to GND. The cycle ends at **1 V** |
 | 4 | RT/CT | R18 from pin 8, Ct1 to GND |
 | 5 | GND | GND |
 | 6 | OUT | Qa1 gate through Rg1 |
-| 7 | VCC | 20V, Cvcc1 to GND. 30 V absolute maximum, about 11 to 17 mA running |
+| 7 | VCC | 20V **through J14** (net U3_VCC), Cvcc1 to GND on U3's side. 30 V absolute maximum, about 11 to 17 mA running |
 | 8 | VREF | **5 V** reference; it only feeds R18 here. Cvref1 to GND |
 
 **Voltage select.** Each shunt adds a resistor in parallel with Rfbb4, which
@@ -301,18 +303,16 @@ lowers Rfbb and raises HV. **Every combination is valid:**
 | J8 + J7 | 6.9 k | 112 V |
 | J9 + J8 + J7 | 6.4 k | **119 V**, the maximum |
 
-**Stage 2 off, for 12-24 V coils (S2_OFF, Q6).** U1 P7 drives Q6 (2N7002, R47 1 k gate
-resistor, R48 100 k pulldown), whose drain pulls COMP low. The UC3843 then gives no output
-pulses, and a boost converter that isn't switching passes its input straight through: HV is
-the 20 V rail less D2's drop, **about 19 V**, from stage 1 alone. Firmware sequence for a
-low-voltage coil: S2_OFF high, then EN_HV; if C1 was charged higher, wait until U4 reads HV
-below about 21 V (the bleed takes up to about 40 s from 119 V, section below) before firing.
-At 19 V the current is set by the coil, Q3 and R26 (10 ohm): a 50 ohm 24 V solenoid draws about
-0.3 A, so R26 takes about 0.9 W for the pulse; keep pulses short **[verify]**. D7 stays dark at
-19 V (it lights above about 24 V). S2_OFF is low at power-up (R48), so stage 2 runs normally
-unless firmware asks.
+**J14, the HV boost jumper.** U3 gets its supply only through J14. **With no shunt (the
+default), stage 2 can't run**, and a boost converter that isn't switching passes its input
+straight through: HV is the 20 V rail less D2's drop, **about 19 V**, from stage 1 alone. No
+firmware setting can raise it. That's the setting for 12-24 V coils. Fit the J14 shunt for
+the HD550002C and other high-voltage relays; J7-J9 then set the voltage. R53 holds Qa1's
+gate low while U3 is unpowered. At 19 V the current is set by the coil, Q3 and R26 (10 ohm):
+a 50 ohm 24 V solenoid draws about 0.3 A, so R26 takes about 0.9 W for the pulse; keep pulses
+short **[verify]**. D7 stays dark at 19 V (it lights above about 24 V).
 
-No shunt mistake can go above 119 V, below D3's 130 V standoff. A missing, lifted
+No shunt mistake can go above 119 V, below D3's 130 V standoff, and without J14 nothing goes above about 19 V. A missing, lifted
 or dirty shunt gives a lower voltage, never off or higher. An open Rfbb4 turns the
 converter off (FB then sits at HV). An open Rfbt would let the output run away:
 that's the failure D3 is there for.
@@ -399,15 +399,28 @@ should drop FIRE as soon as U4 shows it: the red-green contact can short the coi
 (0.1 ohm), and Q3 then limits the current to about 1 A with R26, which it can't
 stand for long at high HV.
 
-**Two-coil relays (J10).** Some coin relays have separate collect and return coils on a
-common wire **[verify which phones]**. With the common on J2/J11 pin 2 and the J10 shunt
-fitted, pin 2 is HV, and K1 picks the coil: K1 off puts RETURN on pin 3 (that coil fires),
-K1 on puts RETURN on pin 1. The other coil has HV on both ends, so no current. FIRE, POL and
-D14 work as before.
+**Two-coil relays (J10, J11).** Some coin relays have separate collect and return coils on
+a common wire **[verify which phones]**. Wire them to J11 with the common on pin 2 and fit J10:
+pin 2 is then HV, and K1 picks the coil. FIRE, POL and D14 work as before.
 
-**Leave J10 off for the HD550002C** (and any relay whose middle wire is its own contact):
-its red wire is one side of the relay's switch, and with J10 fitted that switch would connect
-HV straight to the coil's other wire, shorting HV through Q3 when it closes.
+| POL | K1 | COIL_A (J2/J11 pin 1, white) | COIL_B (J2/J11 pin 3, green) | COIL_C (J11 pin 2) |
+|---|---|---|---|---|
+| low (at power-up) | off | HV | RETURN | J10 on: HV · J10 off: not connected |
+| high | on | RETURN | HV | the same |
+
+What a relay sees when FIRE pulses (HV = 60 V here):
+
+| Relay | J10 | POL low | POL high |
+|---|---|---|---|
+| One coil, A-B (the HD550002C) | either (J2 pin 2 isn't connected) | +60 V on white: collect | +60 V on green: return |
+| Two coils, common on J11 pin 2 (coil 1 A-C, coil 2 C-B) | **on** | coil 2 fires (C at HV, B at RETURN); coil 1 has HV on both ends, 0 V | coil 1 fires (C at HV, A at RETURN); coil 2 has 0 V |
+| Two coils, common on J11 pin 2 | off | both coils in series, about 30 V each: both pull weakly, don't use | the same, reversed |
+
+In two-coil mode the common is always the positive end.
+
+**J2 pin 2 isn't connected**, so the HD550002C's red wire (one side of its own switch) can
+never reach HV, whatever J10 is set to. A relay whose common must be negative would need
+COIL_C tied to RETURN instead of HV, which this board doesn't offer.
 
 **D14** (ES2D, RETURN to HV) gives the coil's stored energy a path if Q3 turns off
 while current flows. K1 always puts HV on one coil wire and RETURN on the other, so
@@ -503,7 +516,7 @@ the relay.
    light load is harmless.
 8. **U2's switch-node waveform** (section 5), and whether charging pulls the 5 V rail below spec.
 9. **Pull-in charge** (current x time at the operating voltage), to size C1.
-10. **Stage 2 off:** that COMP pulled low by Q6 stops U3 cleanly, and HV settles near 19 V.
+10. **J14 off:** that U3 stays off with no supply (R53 holding Qa1), and HV settles near 19 V.
 11. **Coin inputs through D16-D19:** the low level U1 reads with a real switch (about
     0.3 V diode drop plus the 1 k), and a coin acceptor's output if one is to hand.
 

@@ -26,7 +26,7 @@ the BOM upload.
 | U2 | stage 1, 5 V to 20 V | MC34063ADR2G, SOIC-8 | 0.47 | C32078 | Preferred, no fee |
 | U3 | stage 2 controller | UC3843BD1R2G, SOIC-8 | 0.37 | C16414 | Extended |
 | Q3, Qa1 | fire switch, stage 2 switch, 200 V | STN4NF20L (TECH PUBLIC), SOT-223 | 0.33 | C7603336 | Extended (one fee for both). ST's own is C183261, $0.61 |
-| Q1, Q4, Q6 | small N-FETs | 2N7002, SOT-23 | 0.02 | C8545 | Basic |
+| Q1, Q4 | small N-FETs | 2N7002, SOT-23 | 0.02 | C8545 | Basic |
 | Q2 | relay driver NPN | MMBT3904, SOT-23 | 0.01 | C20526 | Basic |
 | Q5 | gate-drive PNP | MMBT3906, SOT-23 | 0.01 | C7420354 | Preferred, no fee |
 | D1 | stage 1 Schottky | SS34, 3 A 40 V, SMA | 0.04 | C8678 | Basic (as on the v6 board) |
@@ -75,7 +75,8 @@ capacitance at 20 V, and has too little ESR for C20.
 | J3 | coin switch cable | Molex 0026604040, KK 396, 4-pin (plug 09-50-3041 + terminals, verify) | 0.44 |
 | J1 or J6 | main board cable | JST B5B-EH-A, or a 1 x 5 pin header, 2.54 mm | |
 | J7-J9 | HV setting | 1 x 2 pin headers + shunts, 2.54 mm | |
-| J10 | two-coil relay option | 1 x 2 pin header + shunt, 2.54 mm (shunt off for the HD550002C) | |
+| J10 | two-coil relay option (J11 pin 2 to HV) | 1 x 2 pin header + shunt, 2.54 mm | |
+| J14 | HV boost: U3's supply | 1 x 2 pin header + shunt, 2.54 mm. **Shunt for the HD550002C**; leave it off for 12-24 V coils | |
 | J11 | relay screw terminal (instead of J2) | Phoenix MKDS 1,5/3-5,08 (1715734) **(verify price)** | |
 | J12 | coin input screw terminal (J3 + coin 4) | Phoenix MKDS 1,5/5-5,08 (1715750) **(verify price)** | |
 | J13 | spare analog input | 1 x 3 pin header, 2.54 mm | |
@@ -110,7 +111,7 @@ These come to about **$16.50** a board at DigiKey qty-1 prices, U4's module incl
 | R40, R41 | I2C series, 100 ohm 0805 | 0805W8F1000T5E (C17408) | Basic |
 | R44 | AIN2 series, 1 k 0805 | 0805W8F1001T5E (C17513) | Basic |
 | R52, C25 | AIN3 (J13) filter, 10 k and 100 nF 0805 | C17414, C28233 | Basic |
-| R47, R48 | Q6 gate, 1 k, and S2_OFF pulldown, 100 k | C17513, C149504 | Basic |
+| R53 | Qa1 gate to source, 10 k | C17414 | Basic |
 | R49-R51, C24 | coin 4: 10 k pull-up, 1 k series, 1.5 k LED, 100 nF | C17414, C17513, C4310, C28233 | Basic |
 | R42, R43 | I2C pull-ups, 4.7 k 0805, not fitted | 0805W8F4701T5E (C17673) | Basic |
 | C18, C19 | AIN0 and AIN1 filters, 100 nF 0805 | CC0805KRX7R9BB104 (C49678) | Basic |
@@ -165,9 +166,9 @@ them: $8 setup, $1.50 stencil, $0.0017 a joint, **$3 per unique Extended part pe
 | **Order total** | **~216** | **~323** | **~758** |
 | **Per board** | **~$43** | **~$32** | **~$25** |
 
-**Not in the table yet:** the universal-payphone parts (Q6, D15-D19, R47-R52, C24, C25)
+**Not in the table yet:** the universal-payphone parts (D15-D19, R49-R53, C24, C25)
 are all Basic, so no new fee, and add roughly $0.15 a board at JLCPCB. The screw terminals
-J11 and J12 and the J10/J13 headers add a few dollars a board at DigiKey **(verify)**, and
+J11 and J12 and the J10/J13/J14 headers add a few dollars a board at DigiKey **(verify)**, and
 they're optional: fit them only for phones that need them.
 
 The 8 parts with an Extended fee have no Basic or Preferred equivalent: C5/C7/C14/C20, L1, L2,
@@ -349,8 +350,9 @@ from the net (1 oz copper; the currents are peaks):
   **8, 3, 10, 9, 1, 2, 4, 5, 6, 7** (VDD, GND, SCL, SDA, ADDR, ALRT, A0, A1, A2, A3), then
   update the footprint on the board.
 - **Update PCB from Schematic** for D14, R44 and J1/J6's new pin order, which moves their nets,
-  and for the universal-payphone parts: it removes J5 and adds J10-J13, Q6, D15-D19, R47-R52,
-  C24 and C25. Place Q6, R47 and R48 by U3's COMP pin; D16-D19 right at J3/J12, so the
+  and for the universal-payphone parts: it removes J5 and adds J10-J14, D15-D19, R49-R53,
+  C24 and C25. Place J14 by U3, with Cvcc1 between J14 and U3 pin 7; R53 right at Qa1's
+  gate and source (beside Dz1); D16-D19 right at J3/J12, so the
   connector side of each line is short; J13 with R52/C25 by U4; J10 and J11 by J2 (HV class).
   J3's pins now connect through D16-D18 (the NICKEL_IN / DIME_IN / QUARTER_IN nets), so the
   ratsnest from J3 changes.

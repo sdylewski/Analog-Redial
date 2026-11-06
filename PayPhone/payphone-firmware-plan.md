@@ -67,8 +67,8 @@ is silent while waiting for a coin.
   polled every 2-5 ms and debounced, coin-board-schematic.md section 8) and U4, coins
   from its switches as a third source, and collect / return: collect when a call is
   answered, return when the caller hangs up first or the call fails, with test buttons,
-  the firing sequence and limits of coin-board-schematic.md section 7, and the 19 V
-  mode (S2_OFF) for low-voltage coils.
+  the firing sequence and limits of coin-board-schematic.md section 7. (Low-voltage
+  coils need no firmware: they use the board with its J14 jumper off.)
 - Timed calls ("please deposit 5 cents for the next 3 minutes").
 - A value for coin 4 (50 c, $1, or "coin present").
 - A refund of the credit when a call fails, instead of using it when the call is placed.
