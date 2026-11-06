@@ -289,19 +289,21 @@ UCx844/5 are limited to 50 % and wouldn't work.
 | 7 | VCC | 20V **through J14** (net U3_VCC), Cvcc1 to GND on U3's side. 30 V absolute maximum, about 11 to 17 mA running |
 | 8 | VREF | **5 V** reference; it only feeds R18 here. Cvref1 to GND |
 
-**Voltage select.** Each shunt adds a resistor in parallel with Rfbb4, which
-lowers Rfbb and raises HV. **Every combination is valid:**
+**Voltage select.** With J14 fitted, each J7-J9 shunt adds a resistor in parallel with Rfbb4,
+which lowers Rfbb and raises HV. **Every combination is valid** (the same table is on the
+silkscreen and the schematic):
 
 | Shunts fitted | Rfbb total | HV (about) |
 |---|---|---|
-| none | 15 k | **52 V**, the default |
-| J9 | 13.0 k | 60 V |
-| J8 | 10 k | 78 V |
-| J9 + J8 | 9.1 k | 85 V |
-| J7 | 8.9 k | 87 V |
-| J9 + J7 | 8.2 k | 94 V |
-| J8 + J7 | 6.9 k | 112 V |
-| J9 + J8 + J7 | 6.4 k | **119 V**, the maximum |
+| no J14 | | **19 V**, stage 2 off (the default) |
+| J14 alone | 15 k | **52 V** |
+| J14 + J9 | 13.0 k | 60 V |
+| J14 + J8 | 10 k | 78 V |
+| J14 + J9 + J8 | 9.1 k | 85 V |
+| J14 + J7 | 8.9 k | 87 V |
+| J14 + J9 + J7 | 8.2 k | 94 V |
+| J14 + J8 + J7 | 6.9 k | 112 V |
+| J14 + J9 + J8 + J7 | 6.4 k | **119 V**, the maximum |
 
 **J14, the HV boost jumper.** U3 gets its supply only through J14. **With no shunt (the
 default), stage 2 can't run**, and a boost converter that isn't switching passes its input
