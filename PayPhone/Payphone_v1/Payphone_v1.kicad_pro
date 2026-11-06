@@ -627,6 +627,10 @@
         "pattern": "/SW2"
       },
       {
+        "netclass": "HV",
+        "pattern": "/COIL_C"
+      },
+      {
         "netclass": "HighCurrent",
         "pattern": "/+5V_IN"
       },

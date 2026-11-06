@@ -2,12 +2,16 @@
 
 # HV pads inside one part: IPC-2221 B2 (external, uncoated) asks 0.6 mm for 101-150 V.
 # The HV net class keeps 1.0 mm for tracks, zones and pads of different parts; these
-# parts' own pin spacing (SOT-223, 1206, the relay, the KK 396 header) is set by the
+# parts' own pin spacing (SOT-223, 1206, the relay, the KK 396 and J10 headers) is set by the
 # part, so DRC checks them against 0.6 mm instead.
 
 (rule "HV pads within K1"
   (constraint clearance (min 0.6mm))
   (condition "A.memberOfFootprint('K1') && B.memberOfFootprint('K1')"))
+
+(rule "HV pads within J10"
+  (constraint clearance (min 0.6mm))
+  (condition "A.memberOfFootprint('J10') && B.memberOfFootprint('J10')"))
 
 (rule "HV pads within J2"
   (constraint clearance (min 0.6mm))

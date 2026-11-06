@@ -11,6 +11,7 @@ datasheet; check them before ordering. Reference designators match
 | This one | how the board works: connectors, logic, the two power stages, coin inputs, cable, open items |
 | [output-stage-wiring.md](output-stage-wiring.md) | relay driver, polarity relay and firing switch, pin by pin |
 | [coin-board-smt.md](coin-board-smt.md) | parts list, what JLCPCB places, PCB layout and routing |
+| [payphone-firmware-plan.md](payphone-firmware-plan.md) | plan for the web UI's Payphone tab: coin detection, messages, logging (not built) |
 
 The bench measurements of the coin relay and the patent notes are in
 `Scott/coin-return-board.md` (local only, not in git).
@@ -18,7 +19,10 @@ The bench measurements of the coin relay and the patent notes are in
 One board, surface-mount with a few through-hole parts, that (1) fires the
 HD550002C coin relay in either direction from a high voltage made on the
 board, (2) reads the phone's 5 / 10 / 25 cent coin switches, and (3) talks to
-Analog Redial over I2C. It needs only **5 V, VIO, GND, SDA, SCL** from the
+Analog Redial over I2C. Options for other payphones: a relay with two coils
+and a common wire (J10), 12-24 V coils (stage 2 off, section 6), a fourth coin
+input, inputs that take a coin acceptor's logic output up to 40 V (section 8),
+screw terminals beside the phone's own plugs, and a spare analog input (J13). It needs only **5 V, VIO, GND, SDA, SCL** from the
 main board. VIO is the host's I2C logic voltage (3.3 V from Analog Redial,
 3.0 to 5.5 V works; section 3).
 
@@ -33,10 +37,12 @@ main board. VIO is the host's I2C logic voltage (3.3 V from Analog Redial,
  SCL  --- J6.2 --+--> [U1 TCA9534A @0x39] P4 EN_HV                                          |
  GND  --- J6.1   |                        P5 POL  --> Q2 --> K1 (DPDT relay) <--------------+
                  |                        P6 FIRE --> Q4, Q5 --> Q3 (low side) --> R26 --> GND
-                 |                        P0-P2 <-- coin switches <-- J3
-                 +--> [U4 ADS1115 @0x48]  HV, 20V, firing current
+                 |                        P3 S2_OFF --> Q6 --> U3 COMP (stage 2 off)
+                 |                        P0-P2, P7 <-- D16-D19 <-- coin inputs <-- J3 / J12
+                 +--> [U4 ADS1115 @0x48]  HV, 20V, firing current; AIN3 spare (J13)
 
- K1 poles --> J2 --> coin relay HD550002C (white, green wires).
+ K1 poles --> J2 / J11 --> coin relay HD550002C (white, green wires).
+ J10 shunt: J2 / J11 pin 2 to HV, for a relay with two coils and a common.
 ```
 
 ## 2. Connectors
@@ -49,9 +55,12 @@ green wire, and they aren't the same wires.
 |---|---|---|
 | **J6** | 5 x 2.54 mm pin header | **1 GND, 2 SCL, 3 SDA, 4 VIO, 5 +5 V**: the same pin numbers as the main board's v6 J11 (pin 4 there is +3.3 V), so a straight 1:1 cable, pin 1 to pin 1 |
 | **J1** | JST EH 5-pin (B5B-EH-A) | same five signals, same order, in parallel with J6: fit whichever suits the cable |
-| **J5** | 1 x 4 pin header pads, not fitted | 1 VIO, 2 U1 P3, 3 U1 P7, 4 GND: spare I/O |
-| **J2** | Molex KK 396, 3-pin, 0026604030 | **coin relay cable.** 1 white = COIL_A, 2 red = not connected, 3 green = COIL_B. **Check its voltage rating against 119 V** |
+| **J2** | Molex KK 396, 3-pin, 0026604030 | **coin relay cable.** 1 white = COIL_A, 2 red = COIL_C (not driven unless J10 is fitted), 3 green = COIL_B. **Check its voltage rating against 119 V** |
+| **J11** | Phoenix MKDS 1,5/3-5,08 screw terminal | the same three nets as J2, in parallel: for a relay without the KK 396 plug. Fit J2 or J11 |
+| **J10** | 1 x 2 pin header + shunt | **two-coil relays only:** ties COIL_C (J2/J11 pin 2) to HV (section 7). **Leave it off for the HD550002C**, whose red wire is its own switch |
 | **J3** | Molex KK 396, 4-pin, 0026604040 | **coin switch cable.** 4 green = common (GND), 3 white = quarter, 2 red = dime, 1 blue = nickel. On the plug with its tab at the bottom, green is the left pin and blue the right |
+| **J12** | Phoenix MKDS 1,5/5-5,08 screw terminal | 1 nickel, 2 dime, 3 quarter, 4 GND (J3's pins, in parallel), **5 coin 4** (U1 P7) |
+| **J13** | 1 x 3 pin header, 2.54 mm | spare analog input: 1 VIO, 2 AIN3 (through R52 10 k, C25 100 nF to GND), 3 GND (section 9) |
 | **J7-J9** | three 2-pin headers + shunts | HV setting: no shunt = 52 V; any combination is valid, up to 119 V with all three (section 6) |
 | **JP1** | solder jumper, **open** | **VIO = 5 V**: bridge it only for a host with no logic supply to give (a 5 V I2C host using four wires). Leave it open whenever pin 2 is wired |
 
@@ -103,12 +112,12 @@ on.
 | 4 | P0 | Quarter | in | high | 10 k pull-up to VIO, 1 k series, 100 nF on the switch side |
 | 5 | P1 | Dime | in | high | same |
 | 6 | P2 | Nickel | in | high | same |
-| 7 | P3 | spare | | | J5 pin 2 |
+| 7 | P3 | **S2_OFF** | out | low (R48 100 k) | high stops stage 2 through Q6, so HV sits at about 19 V (section 6) |
 | 8 | GND | GND | | | |
 | 9 | P4 | **EN_HV** | out | low (R1 100 k) | turns on stage 1, and so stage 2: HV exists only while high |
 | 10 | P5 | **POL** | out | low (R2 100 k) | drives Q2 and K1: sets which way the coil is driven |
 | 11 | P6 | **FIRE** | out | low (R3 10 k) | drives Q3: current through the coil |
-| 12 | P7 | spare | | | J5 pin 3. Firmware should set P3 and P7 as outputs unless they're in use, so they don't float |
+| 12 | P7 | Coin 4 | in | high | wired like P0-P2 (R49 10 k pull-up, R50 1 k, C24 100 nF), from J12 pin 5 |
 | 13 | ~INT | | | | not connected |
 | 14 | SCL | SCL | | | |
 | 15 | SDA | SDA | | | |
@@ -125,7 +134,7 @@ moment.
 
 | LEDs | Wired | Lit while |
 |---|---|---|
-| D8 / D9 / D10 (R34-R36) | VIO -> 1.5 k -> LED -> NICKEL_SW / DIME_SW / QUARTER_SW (the J3 side of R7-R9) | that coin switch is closed |
+| D8 / D9 / D10 / D15 (R34-R36, R51) | VIO -> 1.5 k -> LED -> NICKEL_SW / DIME_SW / QUARTER_SW / COIN4_SW (the board side of D16-D19) | that coin input is low |
 | D11 / D12 / D13 (R37-R39) | EN_HV / POL / FIRE -> 1.5 k -> LED -> GND | that output is high |
 
 The coin LEDs take their current from VIO through the coin switch, not through
@@ -269,7 +278,7 @@ UCx844/5 are limited to 50 % and wouldn't work.
 
 | Pin | Name | Net / connection |
 |---|---|---|
-| 1 | COMP | E/A output. Rz1 + Cz1 to pin 2. No shutdown here: U3 has no VCC whenever stage 1 is disabled |
+| 1 | COMP | E/A output. Rz1 + Cz1 to pin 2. **Q6's drain:** S2_OFF high pulls COMP low and stops the switch (below) |
 | 2 | FB | Divider midpoint. Internal reference is **2.5 V**, so HV = 2.5 x (1 + Rfbt / Rfbb) |
 | 3 | CS | Rf1 from the top of Rcs1; Cf1 to GND. The cycle ends at **1 V** |
 | 4 | RT/CT | R18 from pin 8, Ct1 to GND |
@@ -291,6 +300,17 @@ lowers Rfbb and raises HV. **Every combination is valid:**
 | J9 + J7 | 8.2 k | 94 V |
 | J8 + J7 | 6.9 k | 112 V |
 | J9 + J8 + J7 | 6.4 k | **119 V**, the maximum |
+
+**Stage 2 off, for 12-24 V coils (S2_OFF, Q6).** U1 P3 drives Q6 (2N7002, R47 1 k gate
+resistor, R48 100 k pulldown), whose drain pulls COMP low. The UC3843 then gives no output
+pulses, and a boost converter that isn't switching passes its input straight through: HV is
+the 20 V rail less D2's drop, **about 19 V**, from stage 1 alone. Firmware sequence for a
+low-voltage coil: S2_OFF high, then EN_HV; if C1 was charged higher, wait until U4 reads HV
+below about 21 V (the bleed takes up to about 40 s from 119 V, section below) before firing.
+At 19 V the current is set by the coil, Q3 and R26 (10 ohm): a 50 ohm 24 V solenoid draws about
+0.3 A, so R26 takes about 0.9 W for the pulse; keep pulses short **[verify]**. D7 stays dark at
+19 V (it lights above about 24 V). S2_OFF is low at power-up (R48), so stage 2 runs normally
+unless firmware asks.
 
 No shunt mistake can go above 119 V, below D3's 130 V standoff. A missing, lifted
 or dirty shunt gives a lower voltage, never off or higher. An open Rfbb4 turns the
@@ -379,6 +399,16 @@ should drop FIRE as soon as U4 shows it: the red-green contact can short the coi
 (0.1 ohm), and Q3 then limits the current to about 1 A with R26, which it can't
 stand for long at high HV.
 
+**Two-coil relays (J10).** Some coin relays have separate collect and return coils on a
+common wire **[verify which phones]**. With the common on J2/J11 pin 2 and the J10 shunt
+fitted, pin 2 is HV, and K1 picks the coil: K1 off puts RETURN on pin 3 (that coil fires),
+K1 on puts RETURN on pin 1. The other coil has HV on both ends, so no current. FIRE, POL and
+D14 work as before.
+
+**Leave J10 off for the HD550002C** (and any relay whose middle wire is its own contact):
+its red wire is one side of the relay's switch, and with J10 fitted that switch would connect
+HV straight to the coil's other wire, shorting HV through Q3 when it closes.
+
 **D14** (ES2D, RETURN to HV) gives the coil's stored energy a path if Q3 turns off
 while current flows. K1 always puts HV on one coil wire and RETURN on the other, so
 one diode covers both directions. It can't clamp the relay's own contact opening,
@@ -390,7 +420,16 @@ which is in series with the coil.
   / blue closes briefly for a quarter / dime / nickel. There's no supply to them:
   green goes to GND, and each line is pulled up to VIO.
 - **Each line:** R4-R6 10 k pull-up to VIO, R7-R9 1 k series to U1, C2-C4 100 nF to
-  GND on the J3 side. D8-D10 show each line (section 4).
+  GND on the switch side. D8-D10 show each line (section 4). **Coin 4** (U1 P7, J12 pin 5)
+  is the same: R49, R50, C24, D15 with R51. It's for a 50c or $1 switch, a coin-present
+  switch, or a coin acceptor's pulse output.
+- **D16-D19 (B5819W Schottky, 40 V)** sit in series between each connector pin and its
+  line, cathode toward the connector. A closure or an output pulling low still pulls the line
+  low (about 0.3 V through the diode); a positive voltage on the pin, up to 40 V, just
+  reverse-biases the diode, so U1 and the LEDs never see it. So the inputs take **a switch to
+  GND, an open-collector output, or a push-pull logic output of any voltage up to 40 V**,
+  all active low. A coin acceptor that signals active high needs its own inverter. They
+  don't protect against a negative voltage.
 - Each closure pulls its line low (active low). The contacts carry about 0.3 mA from
   the pull-up plus about 0.5 mA through the line's debug LED, enough wetting current
   for old contacts.
@@ -407,6 +446,12 @@ target within N s", and see **C1 sag after a fire**: if the relay doesn't fire t
 voltage stays up; if it does, it sags by I x t / C (about 20 V for 100 mA x 50 ms).
 U4 can be left off: firmware then falls back on a fixed delay and knows nothing about
 whether the relay fired.
+
+**AIN3 (J13)** is a spare input for whatever a payphone needs measured: a sensor, a
+pickup on a three-slot phone's bells, a voltage. J13 gives VIO, the input and GND. R52 (10 k)
+and C25 (100 nF to GND) filter it (a 1.6 ms time constant, fine at the ADS1115's rates of up to
+860 samples a second) and limit a fault: 24 V on the pin puts about 2 mA into U4's protection
+diodes, inside its 10 mA limit. Readings are 0 to VIO.
 
 ## 10. Cable from the main board
 
@@ -458,11 +503,15 @@ the relay.
    light load is harmless.
 8. **U2's switch-node waveform** (section 5), and whether charging pulls the 5 V rail below spec.
 9. **Pull-in charge** (current x time at the operating voltage), to size C1.
+10. **Stage 2 off:** that COMP pulled low by Q6 stops U3 cleanly, and HV settles near 19 V.
+11. **Coin inputs through D16-D19:** the low level U1 reads with a real switch (about
+    0.3 V diode drop plus the 1 k), and a coin acceptor's output if one is to hand.
 
 **Firmware**
 
-10. U1 and U4 drivers, coin events, and a coin-relay output (return/collect) with a safety
-    timeout and a current check. **None of it exists yet.** The main board's own v6 expander has
+12. U1 and U4 drivers, coin events, and a coin-relay output (return/collect) with a safety
+    timeout and a current check. **None of it exists yet.** The plan for the web UI is in
+    [payphone-firmware-plan.md](payphone-firmware-plan.md). The main board's own v6 expander has
      a driver (`firmware/components/ag1170/line_expander.c`), which is specific to line 2.
 
 ## Sources

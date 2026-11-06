@@ -8,7 +8,7 @@ Companion to [coin-board-schematic.md](coin-board-schematic.md) and
 values match `Payphone_v1/Payphone_v1.kicad_sch`.
 
 The board is surface-mount, with through-hole only where it's the better part:
-C1, K1, U4's module and the connectors. None of them has an LCSC number, so
+C1, K1, U4's module and the connectors (headers and screw terminals included). None of them has an LCSC number, so
 none lands on the JLCPCB BOM and there's no hand-solder fee.
 
 ## Parts
@@ -26,7 +26,7 @@ the BOM upload.
 | U2 | stage 1, 5 V to 20 V | MC34063ADR2G, SOIC-8 | 0.47 | C32078 | Preferred, no fee |
 | U3 | stage 2 controller | UC3843BD1R2G, SOIC-8 | 0.37 | C16414 | Extended |
 | Q3, Qa1 | fire switch, stage 2 switch, 200 V | STN4NF20L (TECH PUBLIC), SOT-223 | 0.33 | C7603336 | Extended (one fee for both). ST's own is C183261, $0.61 |
-| Q1, Q4 | small N-FETs | 2N7002, SOT-23 | 0.02 | C8545 | Basic |
+| Q1, Q4, Q6 | small N-FETs | 2N7002, SOT-23 | 0.02 | C8545 | Basic |
 | Q2 | relay driver NPN | MMBT3904, SOT-23 | 0.01 | C20526 | Basic |
 | Q5 | gate-drive PNP | MMBT3906, SOT-23 | 0.01 | C7420354 | Preferred, no fee |
 | D1 | stage 1 Schottky | SS34, 3 A 40 V, SMA | 0.04 | C8678 | Basic (as on the v6 board) |
@@ -36,7 +36,8 @@ the BOM upload.
 | D5, D6 | zeners, 22 V, 12 V | BZT52C22, BZT52C12 (hongjiacheng), SOD-123 | 0.02 | C22375295, C19077410 | Preferred, no fee |
 | Dz1 | Qa1 gate zener, 15 V 1 W | 1SMA4744A, SMA | 0.06 | C19077482 | Preferred, no fee |
 | D7 | HV indicator | red LED, 0805 | 0.01 | C84256 | Basic |
-| D8-D13 | debug LEDs | green LED, 0805, KT-0805G | 0.02 | C2297 | Basic |
+| D8-D13, D15 | debug LEDs | green LED, 0805, KT-0805G | 0.02 | C2297 | Basic |
+| D16-D19 | coin input blocking diodes | B5819W SL, 40 V 1 A Schottky, SOD-123 | 0.01 | C8598 | Basic |
 
 The Basic LEDs were checked on JLCPCB's part pages on 2026-10-31. No 1206 red LED is
 Basic, so 0805 is the largest for D7; the 0603 greens (C72043, C12624) are Extended.
@@ -74,8 +75,12 @@ capacitance at 20 V, and has too little ESR for C20.
 | J3 | coin switch cable | Molex 0026604040, KK 396, 4-pin (plug 09-50-3041 + terminals, verify) | 0.44 |
 | J1 or J6 | main board cable | JST B5B-EH-A, or a 1 x 5 pin header, 2.54 mm | |
 | J7-J9 | HV setting | 1 x 2 pin headers + shunts, 2.54 mm | |
+| J10 | two-coil relay option | 1 x 2 pin header + shunt, 2.54 mm (shunt off for the HD550002C) | |
+| J11 | relay screw terminal (instead of J2) | Phoenix MKDS 1,5/3-5,08 (1715734) **(verify price)** | |
+| J12 | coin input screw terminal (J3 + coin 4) | Phoenix MKDS 1,5/5-5,08 (1715750) **(verify price)** | |
+| J13 | spare analog input | 1 x 3 pin header, 2.54 mm | |
 | U4 | ADC | ADS1115 module on a 1 x 10 header, 2.54 mm (VDD, GND, SCL, SDA, ADDR, ALRT, A0-A3) | under 2 |
-| J5, R42, R43, Rslope1, Cslope1 | spare I/O pads, I2C pull-ups, slope compensation | **not fitted** | |
+| R42, R43, Rslope1, Cslope1 | I2C pull-ups, slope compensation | **not fitted** | |
 
 These come to about **$16.50** a board at DigiKey qty-1 prices, U4's module included (section "What it costs").
 
@@ -104,6 +109,9 @@ These come to about **$16.50** a board at DigiKey qty-1 prices, U4's module incl
 |---|---|---|---|
 | R40, R41 | I2C series, 100 ohm 0805 | 0805W8F1000T5E (C17408) | Basic |
 | R44 | AIN2 series, 1 k 0805 | 0805W8F1001T5E (C17513) | Basic |
+| R52, C25 | AIN3 (J13) filter, 10 k and 100 nF 0805 | C17414, C28233 | Basic |
+| R47, R48 | Q6 gate, 1 k, and S2_OFF pulldown, 100 k | C17513, C149504 | Basic |
+| R49-R51, C24 | coin 4: 10 k pull-up, 1 k series, 1.5 k LED, 100 nF | C17414, C17513, C4310, C28233 | Basic |
 | R42, R43 | I2C pull-ups, 4.7 k 0805, not fitted | 0805W8F4701T5E (C17673) | Basic |
 | C18, C19 | AIN0 and AIN1 filters, 100 nF 0805 | CC0805KRX7R9BB104 (C49678) | Basic |
 | C21, C22, C23 | HV bypass, 3 in series, 100 nF 50 V X7R, 1206 | CL31B104KBCNNNC (C24497) | Basic |
@@ -156,6 +164,11 @@ them: $8 setup, $1.50 stencil, $0.0017 a joint, **$3 per unique Extended part pe
 | U4, ADS1115 module (AliExpress, about $2) | 10 | 20 | 60 |
 | **Order total** | **~216** | **~323** | **~758** |
 | **Per board** | **~$43** | **~$32** | **~$25** |
+
+**Not in the table yet:** the universal-payphone parts (Q6, D15-D19, R47-R52, C24, C25)
+are all Basic, so no new fee, and add roughly $0.15 a board at JLCPCB. The screw terminals
+J11 and J12 and the J10/J13 headers add a few dollars a board at DigiKey **(verify)**, and
+they're optional: fit them only for phones that need them.
 
 The 8 parts with an Extended fee have no Basic or Preferred equivalent: C5/C7/C14/C20, L1, L2,
 F1, U1, U3, Q3/Qa1 and D3. Hand-soldering one yourself saves its $3 per order.
@@ -218,11 +231,11 @@ On the board:
 |---|---|---|
 | LOGIC | U1, C16, U4, C17, R17, R19, R33 | top left, beside J6/J1 |
 | (not placed yet) | JP1; debug LEDs D8-D13 with R34-R39; HV LED R27, R28, D5, D7 | see "Still to do" |
-| COIN | R4-R9, C2-C4 | top right, at J3 |
+| COIN | R4-R9, C2-C4, D16-D19, and coin 4's R49-R51, C24, D15 | top right, at J3 and J12 |
 | STAGE1 (5 V -> 20 V) | U2, L1, D1, R11-R14, R45, R46, Q1, R1, C5-C8 | bottom left |
 | STAGE2 (20 V -> HV, with C1) | U3 and its small parts, Qa1, L2, C14, D2, Rcs1, Dz1, Rg1, J7-J9, Rfbb1-4, Rfbt1-3, C1, D3, R32, Rbl1-3 | bottom middle |
 | FIRE | R3, R21-R25, Q4, Q5, D6, Q3, R26 | right, above K1 |
-| POL | K1, Q2, D4, R2, R20 | right, beside J2 |
+| POL | K1, Q2, D4, R2, R20, J10, J11 | right, beside J2 |
 
 Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
 
@@ -235,7 +248,7 @@ from the net (1 oz copper; the currents are peaks):
 |---|---|---|---|---|---|
 | HighCurrent | +5V_IN, U2 Ipk node, SW1 (D1 anode) | 1.0 mm | 0.25 mm | 0.8 / 0.4 mm | stage 1's 1 A peaks |
 | Power | +5V, VIO, 20V, GND | 0.8 mm | 0.2 mm | 0.8 / 0.4 mm | up to about 0.5 A |
-| HV | HV, HV_*, SW2, COIL_A/B, RETURN | 0.5 mm | 1.0 mm | 0.8 / 0.4 mm | the coin relay pulse, 0.45 A peaks on SW2 |
+| HV | HV, HV_*, SW2, COIL_A/B/C, RETURN | 0.5 mm | 1.0 mm | 0.8 / 0.4 mm | the coin relay pulse, 0.45 A peaks on SW2 |
 | Default | everything else: I2C, FIRE/POL, gates, ADC, LEDs | 0.25 mm | 0.2 mm | 0.6 / 0.3 mm | a few mA |
 
 - 0.2 mm (in the width list) is fine for any signal line where space is tight; JLCPCB's
@@ -293,11 +306,11 @@ from the net (1 oz copper; the currents are peaks):
 
 ### HV
 
-- HV, HV_*, SW2, COIL_A/B and RETURN are in the **HV net class** (1.0 mm
-  clearance), so DRC enforces it.
+- HV, HV_*, SW2, COIL_A/B/C and RETURN are in the **HV net class** (1.0 mm
+  clearance), so DRC enforces it. J10 and J11 carry HV: keep them by J2 and K1.
 - **Pads inside one part** are checked against 0.6 mm instead (IPC-2221 B2,
   external uncoated copper, 101-150 V), by the rules in `Payphone_v1.kicad_dru`
-  for K1, J2, Q3, Qa1, R27 and R28: their pin spacing is fixed by the part
+  for K1, J2, J10, Q3, Qa1, R27 and R28: their pin spacing is fixed by the part
   (SOT-223 and 1206 pads are 0.8 mm apart). A new HV part with the same issue
   gets its own rule there.
 - **K1's switch pads (3, 4, 5, 8, 9, 10) are 1.7 mm**, not the library's
@@ -335,9 +348,14 @@ from the net (1 oz copper; the currents are peaks):
   gets GND and every other pin is wrong too. Renumber the pads, in header order, to
   **8, 3, 10, 9, 1, 2, 4, 5, 6, 7** (VDD, GND, SCL, SDA, ADDR, ALRT, A0, A1, A2, A3), then
   update the footprint on the board.
-- **Update PCB from Schematic** for D14, R44 and J1/J6's new pin order, which moves their nets.
+- **Update PCB from Schematic** for D14, R44 and J1/J6's new pin order, which moves their nets,
+  and for the universal-payphone parts: it removes J5 and adds J10-J13, Q6, D15-D19, R47-R52,
+  C24 and C25. Place Q6, R47 and R48 by U3's COMP pin; D16-D19 right at J3/J12, so the
+  connector side of each line is short; J13 with R52/C25 by U4; J10 and J11 by J2 (HV class).
+  J3's pins now connect through D16-D18 (the NICKEL_IN / DIME_IN / QUARTER_IN nets), so the
+  ratsnest from J3 changes.
 - **Place what's new:** F1, C20, R40-R43 by J1 and J6, with R40 and R41 closest to the
-  connectors; J5 near U1; D14 by K1; R44 at U4; C21-C23 per the stage 2 notes above; Cp1 at U3
+  connectors; D14 by K1; R44 at U4; C21-C23 per the stage 2 notes above; Cp1 at U3
   pins 1 and 2; and:
   - **HV LED** (R27, R28, D5, D7): beside C1, with D7 where it can be seen with the board
     installed. R27/R28 are HV class.
@@ -345,13 +363,8 @@ from the net (1 oz copper; the currents are peaks):
     silkscreen 5c / 10c / 25c / HV EN / POL / FIRE. D8-D10 and R34-R36 near
     J3, D11-D13 and R37-R39 near U1.
   - **JP1** (VIO = 5V) near J6, with its label on silkscreen.
-- **Pad-to-pad clearance inside footprints:** with the HV class's 1.0 mm,
-  DRC flags the pin spacing of K1 (0.54 mm between neighbouring pads), J2
-  (0.8 mm), and Q3 and Qa1 (0.8 mm, SOT-223). These are the parts' own pitches.
-  Either add a rule that relaxes clearance between pads of the same footprint,
-  or exclude them in DRC. K1's pad 3 (HV) to pad 4 (COIL_A) at 0.54 mm is under
-  IPC-2221's 0.6 mm for bare external copper at 101-150 V; smaller pads on
-  K1's contact pins would bring it over.
+- **K1's switch pads to 1.7 mm** (section HV above), if not done yet: until then DRC flags
+  four K1 pad pairs at 0.54 mm.
 - Silkscreen pin 1 and the signal names at J1 and J6. The v6 end is J11, wired pin for pin.
 - Board outline and mounting holes (M3, away from HV).
 - Test points: 20 V, VIO, HV (a probe pad behind a series resistor), GND.
