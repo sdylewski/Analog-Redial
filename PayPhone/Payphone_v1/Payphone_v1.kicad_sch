@@ -8061,16 +8061,6 @@
 	)
 	(wire
 		(pts
-			(xy 40.64 50.8) (xy 40.64 55.88)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2d30456d-433b-43aa-af6d-0d33519ad382")
-	)
-	(wire
-		(pts
 			(xy 146.05 124.46) (xy 153.67 124.46)
 		)
 		(stroke
@@ -10340,7 +10330,7 @@
 		(uuid "7d267ea5-a724-4399-86b1-133f10cbf2b7")
 	)
 	(label "SCL_IN"
-		(at 40.64 55.88 270)
+		(at 40.64 50.8 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -10753,7 +10743,7 @@
 			)
 		)
 		(property "Value" "1k"
-			(at 110.236 40.894 0)
+			(at 110.744 40.894 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12445,7 +12435,7 @@
 			)
 		)
 		(property "Value" "1k"
-			(at 126.746 51.054 0)
+			(at 127.254 51.054 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
