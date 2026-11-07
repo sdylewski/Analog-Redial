@@ -38,6 +38,8 @@ typedef struct {
     bool    ringing;
     bool    ring_intercom; /* short double ring instead of the normal cadence */
     bool    ring_steady;   /* no cadence: rings until stopped (frequency test) */
+    uint16_t ring_on_ms;   /* this ring's own cadence, 0 = the configured one */
+    uint16_t ring_off_ms;
     uint16_t ring_hz;      /* frequency for this ring, 0 = the line's own */
     uint16_t line_ring_hz; /* the line's saved frequency, 0 = the configured one */
     int64_t ring_phase_start_us;
@@ -145,6 +147,8 @@ void ag1170_ring_start(int line)
     s_ls[line].ring_intercom = false;
     s_ls[line].ring_steady = false;
     s_ls[line].ring_hz = 0;
+    s_ls[line].ring_on_ms = 0;
+    s_ls[line].ring_off_ms = 0;
     s_ls[line].ring_phase_start_us = now;
     s_ls[line].last_fr_toggle_us = now;
     ESP_LOGI(TAG, "line %d ring start", line);
@@ -155,6 +159,16 @@ void ag1170_ring_start_intercom(int line)
     if (line < 0 || line >= s_active_lines) return;
     ag1170_ring_start(line);
     s_ls[line].ring_intercom = true;
+}
+
+void ag1170_ring_start_cadence(int line, uint16_t on_ms, uint16_t off_ms)
+{
+    if (line < 0 || line >= s_active_lines) return;
+    ag1170_ring_start(line);
+    if (on_ms) {
+        s_ls[line].ring_on_ms = on_ms;
+        s_ls[line].ring_off_ms = off_ms;
+    }
 }
 
 void ag1170_ring_start_test(int line, uint16_t hz)
@@ -238,9 +252,10 @@ static void service_ring(int line, int64_t now)
         return;
     }
 
-    uint32_t period_ms = s_cfg.ring_on_ms + s_cfg.ring_off_ms;
+    uint32_t on_ms     = ls->ring_on_ms ? ls->ring_on_ms : s_cfg.ring_on_ms;
+    uint32_t period_ms = on_ms + (ls->ring_on_ms ? ls->ring_off_ms : s_cfg.ring_off_ms);
     int64_t  phase_ms  = ((now - ls->ring_phase_start_us) / 1000) % period_ms;
-    bool     on        = phase_ms < s_cfg.ring_on_ms;
+    bool     on        = phase_ms < on_ms;
     if (ls->ring_intercom) {
         /* Distinctive internal ring: two short bursts, then a pause
          * (0.4 s on, 0.2 s off, 0.4 s on, 2.0 s off). */

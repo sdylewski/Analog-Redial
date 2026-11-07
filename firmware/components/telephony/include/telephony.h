@@ -12,6 +12,7 @@
 
 #include "dtmf_test.h"
 #include "payphone.h"
+#include "board.h"
 #include "esp_err.h"
 #include <stdint.h>
 #include <time.h>
@@ -145,6 +146,10 @@ void telephony_set_monitor_suppress(bool on);
  * timer leaves the bell alone if a real call has started ringing meanwhile.
  * Lifting the handset stops the bell at once (the SLIC's ring trip). */
 esp_err_t telephony_bell(int line, int secs, bool respect_quiet);
+/* Rings a pattern once (count bursts of on_ms, off_ms apart), refused as
+ * telephony_bell() is. How long it rings in ms: telephony_ring_pattern_ms(). */
+esp_err_t telephony_bell_pattern(int line, board_ring_pattern_t p, bool respect_quiet);
+uint32_t  telephony_ring_pattern_ms(board_ring_pattern_t p);
 
 /* Ring frequency test, for finding a party-line ringer's tuning. hz 0 steps
  * through telephony_ring_test_freqs() (3 s ringing, 2 s pause each); any other

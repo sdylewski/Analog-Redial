@@ -64,6 +64,9 @@ esp_err_t ag1170_set_power(int line, bool run);
 void ag1170_ring_start(int line);
 /* Same, with the intercom cadence: two short bursts (0.4 s, 0.2 s gap, 0.4 s), 2 s pause. */
 void ag1170_ring_start_intercom(int line);
+/* Rings with its own cadence (on_ms 0 = the configured one) until stopped:
+ * the alarm's and the timer's ring patterns. */
+void ag1170_ring_start_cadence(int line, uint16_t on_ms, uint16_t off_ms);
 /* Rings without a cadence at `hz` until stopped, for the ring frequency test. */
 void ag1170_ring_start_test(int line, uint16_t hz);
 /* Sets the frequency every later ring on this line uses (not saved: see

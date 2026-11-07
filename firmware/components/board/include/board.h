@@ -202,6 +202,19 @@ esp_err_t board_voice_fx_enabled_set(bool enabled);
 bool      board_alarm_quiet_override_get(void);
 esp_err_t board_alarm_quiet_override_set(bool on);
 
+/* How the alarm (dial 256) and the timer (dial 846) ring: `count` bursts of
+ * `on_ms`, `off_ms` apart, repeated a few times until someone answers. Each
+ * has its own, saved; out-of-range values are clamped by the setter. */
+typedef enum { BOARD_RING_ALARM = 0, BOARD_RING_TIMER = 1 } board_ring_use_t;
+typedef struct { uint16_t on_ms, off_ms; uint8_t count; } board_ring_pattern_t;
+#define BOARD_RING_ON_MIN_MS   200
+#define BOARD_RING_ON_MAX_MS   10000
+#define BOARD_RING_OFF_MIN_MS  200
+#define BOARD_RING_OFF_MAX_MS  10000
+#define BOARD_RING_COUNT_MAX   10
+board_ring_pattern_t board_ring_pattern_get(board_ring_use_t use);
+esp_err_t            board_ring_pattern_set(board_ring_use_t use, board_ring_pattern_t p);
+
 /* ---- Off-hook ("receiver off-hook" / ROH) alert ----
  * A handset left off the hook sits on dial tone forever otherwise: the line
  * is unreachable (callers get busy) with nothing to draw attention to it.

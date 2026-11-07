@@ -4571,11 +4571,35 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
     return off;
 }
 
+/* The alarm's or the timer's ring pattern, as a small form, with a button
+ * that saves and rings it once on line 1. */
+static int append_ring_pattern_form(char *buf, size_t cap, int off, board_ring_use_t use)
+{
+    board_ring_pattern_t p = board_ring_pattern_get(use);
+    return appendf(buf, cap, off,
+        "<h3>How it rings</h3>"
+        "<form method=\"POST\" action=\"/ring_pattern\" class=\"settings-form\">"
+        "<input type=\"hidden\" name=\"use\" value=\"%s\">"
+        "<label>Ring for (seconds) <input type=\"number\" name=\"on\" value=\"%u.%u\" min=\"%u.%u\" max=\"%u\" step=\"0.1\" required></label>"
+        "<label>Then pause (seconds) <input type=\"number\" name=\"off\" value=\"%u.%u\" min=\"%u.%u\" max=\"%u\" step=\"0.1\" required></label>"
+        "<label>Rings each time <input type=\"number\" name=\"count\" value=\"%u\" min=\"1\" max=\"%d\" required></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\">Save</button>"
+        "<button type=\"submit\" name=\"test\" value=\"1\">Save &amp; ring line 1</button></div></form>",
+        use == BOARD_RING_TIMER ? "timer" : "alarm",
+        (unsigned)(p.on_ms / 1000), (unsigned)(p.on_ms % 1000 / 100),
+        (unsigned)(BOARD_RING_ON_MIN_MS / 1000), (unsigned)(BOARD_RING_ON_MIN_MS % 1000 / 100),
+        (unsigned)(BOARD_RING_ON_MAX_MS / 1000),
+        (unsigned)(p.off_ms / 1000), (unsigned)(p.off_ms % 1000 / 100),
+        (unsigned)(BOARD_RING_OFF_MIN_MS / 1000), (unsigned)(BOARD_RING_OFF_MIN_MS % 1000 / 100),
+        (unsigned)(BOARD_RING_OFF_MAX_MS / 1000),
+        (unsigned)p.count, BOARD_RING_COUNT_MAX);
+}
+
 /* Alarm (dial 256): what it asks, and what it says when it rings. */
 static int append_alarm_tab(char *buf, size_t cap, int off,
                              dialplan_entry_info_t *entries, size_t n)
 {
-    off = appendf(buf, cap, off, "<div class=\"card wide\"><h2>Alarm</h2><div class=\"threecols\"><div>");
+    off = appendf(buf, cap, off, "<div class=\"card wide\" id=\"alarm\"><h2>Alarm</h2><div class=\"threecols\"><div>");
     for (size_t i = 0; i < n; i++) {
         if (strcmp(entries[i].default_code, "256") != 0) continue;
         off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);
@@ -4584,8 +4608,8 @@ static int append_alarm_tab(char *buf, size_t cap, int off,
         "Dial the alarm code, then the time as four digits on a 24 hour clock: 0730 is 7:30 am, "
         "1815 is 6:15 pm. Dial 9 9 instead to cancel. It rings once, at the next time that "
         "matches; lift the handset to hear the message.",
-        "The phone rings longer and for longer than the timer does (12 seconds, up to 8 times "
-        "25 seconds apart). During quiet hours it stays silent unless the box below is ticked; "
+        "It rings in its own pattern, set below, so it isn't mistaken for a call: three 2 second "
+        "rings a second apart unless changed, repeated up to 8 times with a 17 second pause. During quiet hours it stays silent unless the box below is ticked; "
         "lifting the handset still plays the message. The time is the board's own clock, which comes "
         "from the internet through Wi-Fi and uses the time zone set on the General tab. An "
         "alarm is kept through a restart (one that came and went while the board was off for "
@@ -4606,6 +4630,7 @@ static int append_alarm_tab(char *buf, size_t cap, int off,
         "<label><input type=\"checkbox\" name=\"on\" value=\"1\"%s> Override quiet hours (alarms ring anyway)</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\">Save</button></div></form>",
         board_alarm_quiet_override_get() ? " checked" : "");
+    off = append_ring_pattern_form(buf, cap, off, BOARD_RING_ALARM);
     off = appendf(buf, cap, off, "</div><div><h3>The question</h3>");
     off = append_prompt_field_rows(buf, cap, off, ALARM_PROMPT_NAME, ALARM_PROMPT_TEXT, 3);
     off = appendf(buf, cap, off, "</div><div><h3>When the alarm rings</h3>");
@@ -4618,7 +4643,7 @@ static int append_timer_tab(char *buf, size_t cap, int off,
                              dialplan_entry_info_t *entries, size_t n)
 {
     /* One wide card in three columns: what it does, the question, the message. */
-    off = appendf(buf, cap, off, "<div class=\"card wide\"><h2>Timer</h2><div class=\"threecols\"><div>");
+    off = appendf(buf, cap, off, "<div class=\"card wide\" id=\"timer\"><h2>Timer</h2><div class=\"threecols\"><div>");
     for (size_t i = 0; i < n; i++) {
         if (strcmp(entries[i].default_code, "846") != 0) continue;
         off = append_guide_row(buf, cap, off, entries[i].code, entries[i].desc, 0);
@@ -4627,10 +4652,12 @@ static int append_timer_tab(char *buf, size_t cap, int off,
         "Dial the timer code, then 1 or 2 digits for the minutes (0 cancels). When time is up "
         "the phone rings; lift the handset to hear the message.",
         "The question plays after the code. The message plays when you pick up the ringing "
-        "phone, or at once if the handset is already up. Each line has its own timer, kept "
+        "phone, or at once if the handset is already up. It rings in the pattern set below, "
+        "up to 4 times with an 18 second pause. Each line has its own timer, kept "
         "until the board restarts. Edit either text and use \"Save &amp; generate on server\" "
         "(with a VoIP provisioner) or <code>gen_prompt.py --sync</code>; until then the "
         "built-in recording plays.");
+    off = append_ring_pattern_form(buf, cap, off, BOARD_RING_TIMER);
     off = appendf(buf, cap, off, "</div><div><h3>The question</h3>");
     off = append_prompt_field_rows(buf, cap, off, TIMER_PROMPT_NAME, "How many minutes for the timer?", 3);
     off = appendf(buf, cap, off, "</div><div><h3>When the timer is done</h3>");
@@ -7576,6 +7603,46 @@ static esp_err_t language_set_handler(httpd_req_t *req)
  * checkbox submits nothing at all, so a missing `enabled` field means "off"
  * -- it can't be treated as "leave unchanged" the way blank password fields
  * elsewhere in this file are. */
+static bool read_form_body(httpd_req_t *req, char *buf, size_t cap);
+
+/* POST /ring_pattern -- use=alarm|timer&on=S&off=S&count=N[&test=1], times in
+ * seconds (one decimal). test=1 also rings it once on line 1. */
+static esp_err_t ring_pattern_handler(httpd_req_t *req)
+{
+    char body[128], use[8] = "", on[12] = "", offs[12] = "", count[6] = "", test[4] = "";
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "use", use, sizeof(use));
+    form_field(body, "on", on, sizeof(on));
+    form_field(body, "off", offs, sizeof(offs));
+    form_field(body, "count", count, sizeof(count));
+    form_field(body, "test", test, sizeof(test));
+    board_ring_use_t u;
+    if (!strcmp(use, "alarm")) u = BOARD_RING_ALARM;
+    else if (!strcmp(use, "timer")) u = BOARD_RING_TIMER;
+    else { httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "use must be alarm or timer"); return ESP_OK; }
+    double on_s = strtod(on, NULL), off_s = strtod(offs, NULL);
+    int n = atoi(count);
+    if (!(on_s > 0 && on_s <= 60) || !(off_s >= 0 && off_s <= 60) || n < 1 || n > 255) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad ring pattern"); return ESP_OK;
+    }
+    board_ring_pattern_t p = { .on_ms = (uint16_t)(on_s * 1000 + 0.5), .off_ms = (uint16_t)(off_s * 1000 + 0.5),
+                               .count = (uint8_t)n };
+    if (board_ring_pattern_set(u, p) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "couldn't save"); return ESP_OK;
+    }
+    p = board_ring_pattern_get(u);   /* as clamped */
+    activity_log("%s ring: %u.%u s on, %u.%u s off, %u time%s", u == BOARD_RING_ALARM ? "Alarm" : "Timer",
+                 p.on_ms / 1000, p.on_ms % 1000 / 100, p.off_ms / 1000, p.off_ms % 1000 / 100,
+                 p.count, p.count == 1 ? "" : "s");
+    if (test[0] == '1') {
+        esp_err_t err = telephony_bell_pattern(0, p, false);
+        if (err != ESP_OK) ESP_LOGI(TAG, "ring pattern test refused: %s", esp_err_to_name(err));
+    }
+    return redirect_to(req, u == BOARD_RING_ALARM ? "/settings?tab=dialcodes#alarm" : "/settings?tab=dialcodes#timer");
+}
+
 /* POST /alarm_quiet -- form body [on=1]: alarms ring during quiet hours. */
 static esp_err_t alarm_quiet_handler(httpd_req_t *req)
 {
@@ -12032,7 +12099,8 @@ esp_err_t webui_start(void)
         { .uri = "/wifi_reprovision", .method = HTTP_POST, .handler = wifi_reprovision_handler },
         { .uri = "/factory_reset",   .method = HTTP_POST, .handler = factory_reset_handler },
         { .uri = "/voice_fx_enabled", .method = HTTP_POST, .handler = voice_fx_enabled_handler },
-        { .uri = "/alarm_quiet",      .method = HTTP_POST, .handler = alarm_quiet_handler },        { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
+        { .uri = "/alarm_quiet",      .method = HTTP_POST, .handler = alarm_quiet_handler },
+        { .uri = "/ring_pattern",     .method = HTTP_POST, .handler = ring_pattern_handler },        { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
         { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },
         { .uri = "/board_hw_set",    .method = HTTP_POST, .handler = board_hw_set_handler },
         { .uri = "/board_type_confirm", .method = HTTP_POST, .handler = board_type_confirm_handler },

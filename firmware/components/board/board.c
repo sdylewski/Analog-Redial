@@ -525,6 +525,52 @@ esp_err_t board_alarm_quiet_override_set(bool on)
     return err;
 }
 
+/* Alarm: 2 s on, 1 s off, three times, so it's told apart from a call.
+ * Timer: one 2 s ring, as it has always been. */
+static const board_ring_pattern_t RING_PATTERN_DEFAULT[2] = {
+    [BOARD_RING_ALARM] = { 2000, 1000, 3 },
+    [BOARD_RING_TIMER] = { 2000, 4000, 1 },
+};
+
+static board_ring_pattern_t ring_pattern_clamp(board_ring_pattern_t p)
+{
+    if (p.on_ms < BOARD_RING_ON_MIN_MS) p.on_ms = BOARD_RING_ON_MIN_MS;
+    if (p.on_ms > BOARD_RING_ON_MAX_MS) p.on_ms = BOARD_RING_ON_MAX_MS;
+    if (p.off_ms < BOARD_RING_OFF_MIN_MS) p.off_ms = BOARD_RING_OFF_MIN_MS;
+    if (p.off_ms > BOARD_RING_OFF_MAX_MS) p.off_ms = BOARD_RING_OFF_MAX_MS;
+    if (p.count < 1) p.count = 1;
+    if (p.count > BOARD_RING_COUNT_MAX) p.count = BOARD_RING_COUNT_MAX;
+    return p;
+}
+
+board_ring_pattern_t board_ring_pattern_get(board_ring_use_t use)
+{
+    if (use != BOARD_RING_TIMER) use = BOARD_RING_ALARM;
+    board_ring_pattern_t p = RING_PATTERN_DEFAULT[use];
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return p;
+    board_ring_pattern_t saved;
+    size_t len = sizeof(saved);
+    if (nvs_get_blob(h, use == BOARD_RING_TIMER ? "ringpat_t" : "ringpat_a", &saved, &len) == ESP_OK &&
+        len == sizeof(saved))
+        p = ring_pattern_clamp(saved);
+    nvs_close(h);
+    return p;
+}
+
+esp_err_t board_ring_pattern_set(board_ring_use_t use, board_ring_pattern_t p)
+{
+    if (use != BOARD_RING_TIMER && use != BOARD_RING_ALARM) return ESP_ERR_INVALID_ARG;
+    p = ring_pattern_clamp(p);
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_blob(h, use == BOARD_RING_TIMER ? "ringpat_t" : "ringpat_a", &p, sizeof(p));
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
+
 esp_err_t board_tone_follow_language_set(bool follow)
 {
     nvs_handle_t h;

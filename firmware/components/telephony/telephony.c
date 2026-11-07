@@ -1194,9 +1194,8 @@ void telephony_check_clip_files(void)
 #define TIMER_SECOND_DIGIT_WAIT_MS 4000              /* wait this long for a second digit (not the 15 s dial-plan timeout);
                                                         a rotary 0 takes about 3 s to wind and pulse back */
 #define TIMER_HANGUP_GRACE_MS      3000              /* after the minutes are accepted, before the line hangs up on the caller */
-#define TIMER_RING_SECS            6
 #define TIMER_RING_ROUNDS          4                 /* rings before it gives up */
-#define TIMER_RING_EVERY_US        (20LL * 1000000)
+#define TIMER_RING_PAUSE_US        (18LL * 1000000)  /* between the end of one ring pattern and the next */
 
 /* The minutes are in. 0 cancels a running timer at once. Anything else is held
  * until the call ends: the countdown starts when the caller hangs up, or when
@@ -1260,9 +1259,8 @@ static void timer_hung_up(int line)
  * wait for) and kept in flash, so it survives a restart. It rings once, at the
  * next hh:mm. The ring is longer and lasts longer than the timer's, and the
  * message that follows is the alarm's own. */
-#define ALARM_RING_SECS    12
 #define ALARM_RING_ROUNDS  8
-#define ALARM_RING_EVERY_US (25LL * 1000000)
+#define ALARM_RING_PAUSE_US (17LL * 1000000)   /* between the end of one ring pattern and the next */
 #define ALARM_LATE_S       600     /* rings if the board was off at the time, up to this late */
 #define ALARM_NVS_NS       "telalarm"
 
@@ -1377,8 +1375,9 @@ static void alarm_tick(int line, int64_t now)
             } else {
                 /* Silent in quiet hours unless the alarm is set to override them; the
                  * message still plays on pickup either way. */
-                telephony_bell(line, ALARM_RING_SECS, !board_alarm_quiet_override_get());
-                s_line[line].alarm_next_us = now + ALARM_RING_EVERY_US;
+                board_ring_pattern_t p = board_ring_pattern_get(BOARD_RING_ALARM);
+                telephony_bell_pattern(line, p, !board_alarm_quiet_override_get());
+                s_line[line].alarm_next_us = now + (int64_t)telephony_ring_pattern_ms(p) * 1000 + ALARM_RING_PAUSE_US;
                 s_line[line].alarm_rounds--;
             }
         }
@@ -1475,8 +1474,9 @@ static void timer_tick(int line, int64_t now)
                 s_line[line].timer_end_us = 0;   /* nobody answered: give up */
                 s_line[line].timer_ringing = false;
             } else {
-                telephony_bell(line, TIMER_RING_SECS, true);   /* silent in quiet hours: the message still plays on pickup */
-                s_line[line].timer_next_us = now + TIMER_RING_EVERY_US;
+                board_ring_pattern_t p = board_ring_pattern_get(BOARD_RING_TIMER);
+                telephony_bell_pattern(line, p, true);   /* silent in quiet hours: the message still plays on pickup */
+                s_line[line].timer_next_us = now + (int64_t)telephony_ring_pattern_ms(p) * 1000 + TIMER_RING_PAUSE_US;
                 s_line[line].timer_rounds--;
             }
         }
@@ -2308,12 +2308,11 @@ static void bell_stop_cb(void *arg)
     if (s_line[line].state != TEL_RINGING) ag1170_ring_stop(line);
 }
 
-esp_err_t telephony_bell(int line, int secs, bool respect_quiet)
+/* Rings for `ms` with the cadence given (on_ms 0 = the line's normal one). */
+static esp_err_t bell_ring(int line, uint32_t ms, uint16_t on_ms, uint16_t off_ms, bool respect_quiet)
 {
     if (line < 0 || line >= NLINES_ACTIVE || line >= board_hw_config_get().num_lines)
         return ESP_ERR_INVALID_ARG;
-    if (secs < 1) secs = 1;
-    if (secs > 15) secs = 15;
     if (respect_quiet && board_quiet_hours_active()) return ESP_ERR_NOT_ALLOWED;
     if (line_offhook(line) || s_line[line].state != TEL_IDLE) return ESP_ERR_INVALID_STATE;
     if (!s_bell_timer[line]) {
@@ -2323,8 +2322,28 @@ esp_err_t telephony_bell(int line, int secs, bool respect_quiet)
         if (err != ESP_OK) return err;
     }
     esp_timer_stop(s_bell_timer[line]);
-    ag1170_ring_start(line);
-    return esp_timer_start_once(s_bell_timer[line], (uint64_t)secs * 1000000);
+    ag1170_ring_start_cadence(line, on_ms, off_ms);
+    return esp_timer_start_once(s_bell_timer[line], (uint64_t)ms * 1000);
+}
+
+esp_err_t telephony_bell(int line, int secs, bool respect_quiet)
+{
+    if (secs < 1) secs = 1;
+    if (secs > 15) secs = 15;
+    return bell_ring(line, (uint32_t)secs * 1000, 0, 0, respect_quiet);
+}
+
+/* Ends with the last burst: no trailing pause. */
+uint32_t telephony_ring_pattern_ms(board_ring_pattern_t p)
+{
+    if (p.count < 1) p.count = 1;
+    return (uint32_t)p.count * p.on_ms + (uint32_t)(p.count - 1) * p.off_ms;
+}
+
+esp_err_t telephony_bell_pattern(int line, board_ring_pattern_t p, bool respect_quiet)
+{
+    if (p.on_ms == 0) return ESP_ERR_INVALID_ARG;
+    return bell_ring(line, telephony_ring_pattern_ms(p), p.on_ms, p.off_ms, respect_quiet);
 }
 
 /* ---- ring frequency test (telephony_ring_test_*) ---- */
