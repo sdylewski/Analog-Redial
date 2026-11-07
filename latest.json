@@ -1,0 +1,48 @@
+{
+  "version": "v1.2.0",
+  "released": "2026-11-06",
+  "notes": "Alarm and timer ring patterns, set on their cards (alarm: three 2 s rings; timer: three 1 s rings). Payphone tab (experimental, not yet tested with a real payphone). Echo canceller reworked; it starts off, turn it on from Diagnostics.",
+  "base": "https://raw.githubusercontent.com/sdylewski/Analog-Redial/firmware/",
+  "images": {
+    "smd4/16MB": {
+      "file": "v1.2.0/smd4-16MB.bin",
+      "size": 2073856,
+      "sha256": "518d04ddedc48fe8b504242316e9357aa8b4c11f58b76c32e0f0f0685b07aa02"
+    },
+    "smd5/16MB": {
+      "file": "v1.2.0/smd5-16MB.bin",
+      "size": 2073440,
+      "sha256": "99a299a5ed16a76dc72a4f92200881ab70c08ffe006dee6ab6e0fbc69844ac23"
+    },
+    "smd5_cheap/16MB": {
+      "file": "v1.2.0/smd5_cheap-16MB.bin",
+      "size": 2073680,
+      "sha256": "c911f5072cb684b1e9da0e9a464f9312ff11c7ad3207ff8c2eb51e801e58ee11"
+    },
+    "smd2/16MB": {
+      "file": "v1.2.0/smd2-16MB.bin",
+      "size": 2052816,
+      "sha256": "ac9b4075bc07a7025a1eb04c63bb65ce066e60c0400a0b9fb7d8141fbf789a87"
+    },
+    "smd4/8MB": {
+      "file": "v1.2.0/smd4-8MB.bin",
+      "size": 2073856,
+      "sha256": "d72f5b256456d90bebe3a3e9e5a36166e2fa8b166d020fa3bf70fe2f082d3350"
+    },
+    "smd5/8MB": {
+      "file": "v1.2.0/smd5-8MB.bin",
+      "size": 2073440,
+      "sha256": "92e1ca7f9a4df17517dd18e94e467c8857572a7480b96e87345da8a562d36e5c"
+    },
+    "smd5_cheap/8MB": {
+      "file": "v1.2.0/smd5_cheap-8MB.bin",
+      "size": 2073680,
+      "sha256": "3b0e014dc19ad60c67c9a142be8787e500c8f02113c16e2cad71f87b9213f394"
+    },
+    "smd2/8MB": {
+      "file": "v1.2.0/smd2-8MB.bin",
+      "size": 2052816,
+      "sha256": "f7c53c73ed1d159d642e2ccbf8c6195eb6882353f2acf04a764758086c4837e9"
+    }
+  }
+}
