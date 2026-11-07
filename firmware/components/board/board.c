@@ -526,10 +526,10 @@ esp_err_t board_alarm_quiet_override_set(bool on)
 }
 
 /* Alarm: 2 s on, 1 s off, three times, so it's told apart from a call.
- * Timer: one 2 s ring, as it has always been. */
+ * Timer: 1 s on, 1 s off, three times. */
 static const board_ring_pattern_t RING_PATTERN_DEFAULT[2] = {
     [BOARD_RING_ALARM] = { 2000, 1000, 3 },
-    [BOARD_RING_TIMER] = { 2000, 4000, 1 },
+    [BOARD_RING_TIMER] = { 1000, 1000, 3 },
 };
 
 static board_ring_pattern_t ring_pattern_clamp(board_ring_pattern_t p)

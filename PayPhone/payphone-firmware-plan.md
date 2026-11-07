@@ -4,7 +4,9 @@ Settings → **Payphone**, marked *Experimental*. Everything on it except the Co
 board card works on any Analog Redial board, without the coin board. Items marked
 **[verify]** are from memory and need checking against a real phone. The coin
 board's driver is written and passes its tests against simulated chips, but no
-coin board has been built, so none of it has run on real hardware.
+coin board has been built, so none of it has run on real hardware. None of the
+Payphone tab has been tried with a real payphone either. What each phone model needs
+is collected in [payphone-types.md](payphone-types.md).
 
 ## The tab
 

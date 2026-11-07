@@ -8732,7 +8732,7 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
 {
     payphone_cfg_t c = payphone_cfg();
     off = append_feature_bar(buf, cap, off, "Payphone", c.enabled, "/payphone_enable",
-        "<b>Experimental.</b> For a phone in a payphone: hears the coin tones a payphone "
+        "<b>Experimental, not yet tested with a real payphone.</b> For a phone in a payphone: hears the coin tones a payphone "
         "sends when a coin drops, can ask for a coin before a call, plays a message after "
         "a coin, and keeps a coin count. With the coin board (still in development) it "
         "also counts coins from the phone's coin switches and collects or returns them. "
@@ -8832,7 +8832,8 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
         coinboard_cfg_t b = coinboard_cfg();
         off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>Coin board</h2>"
-            "<p class=\"hint\"><b>In development:</b> the coin board isn't built or tested yet. "
+            "<p class=\"hint\"><b>In development, untested on real hardware:</b> no coin board has been "
+            "built yet, and this driver has only run against simulated chips. "
             "It reads the phone's coin switches and fires its coin relay to collect or return "
             "the coins, over I2C (0x39 and 0x48).</p>"
             "<form method=\"POST\" action=\"/coinboard_set\" class=\"settings-form\">"

@@ -12,6 +12,7 @@ datasheet; check them before ordering. Reference designators match
 | [output-stage-wiring.md](output-stage-wiring.md) | relay driver, polarity relay and firing switch, pin by pin |
 | [coin-board-smt.md](coin-board-smt.md) | parts list, what JLCPCB places, PCB layout and routing |
 | [payphone-firmware-plan.md](payphone-firmware-plan.md) | the firmware: the Payphone tab (coin tones, coin required, messages, log) and the coin board's driver |
+| [payphone-types.md](payphone-types.md) | payphone models: coin switches, coin relay, voltage and coin board settings for each |
 
 The bench measurements of the coin relay and the patent notes are in
 `Scott/coin-return-board.md` (local only, not in git).
