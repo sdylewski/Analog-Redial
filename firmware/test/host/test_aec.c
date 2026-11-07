@@ -152,6 +152,14 @@ int main(void)
     printf("  %-34s ERLE %.1f dB, worst block %+.1f dB\n", late.name, r.erle_end, r.worst_gain_db);
     CHECK(r.worst_gain_db <= 1.5, "late anchor: a block came out %.1f dB louder", r.worst_gain_db);
 
+    aec_status_t st;
+    aec_init(); aec_set_enabled(0, true);
+    { int16_t z[BLOCK]; for (int k = 0; k < BLOCK; k++) z[k] = (int16_t)(k * 97 % 2000 - 1000);
+      for (int i = 0; i < 300; i++) aec_process(0, z, z, z, BLOCK); }
+    aec_get_status(0, &st);
+    printf("  cost on this machine: %u us per 10 ms block (max %u)\n", (unsigned)st.avg_us, (unsigned)st.max_us);
+    aec_set_enabled(0, false);
+
     if (s_fail) { printf("test_aec: %d failure(s)\n", s_fail); return 1; }
     printf("test_aec: all passed\n");
     return 0;

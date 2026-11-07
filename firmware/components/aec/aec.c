@@ -2,6 +2,7 @@
 #include "board.h"
 #include "esp_log.h"
 #include "sdkconfig.h"
+#include "esp_timer.h"
 #if CONFIG_PM_ENABLE
 #include "esp_pm.h"
 #endif
@@ -27,7 +28,7 @@ static const char *TAG = "aec";
  *     w[i] += mu * e * x[i] / P      (P = energy in the tap window)
  * which as written needs a 64-bit multiply and divide PER TAP. Instead the
  * sample-dependent part is folded into one scalar computed once per sample:
- *     g = (e << STEP_SHIFT) / P            <- one 64-bit divide per sample
+ *     g = (e << STEP_SHIFT) / P            <- via a cached reciprocal of P
  *     w[i] += (g * x[i]) >> DELTA_SHIFT    <- pure 32-bit in the tap loop
  * g is clamped to int16 range so `g * x[i]` cannot overflow int32.
  *
@@ -73,12 +74,14 @@ static const char *TAG = "aec";
 /* Processed in chunks of at most this many samples (aec_process takes any n). */
 #define CHUNK_MAX    160
 
-/* The big per-line buffers (about 4.6 KB each), allocated the first time a
+/* The big per-line buffers (about 6.6 KB each), allocated the first time a
  * line's AEC is turned on and kept until reboot: aec_process() runs on the
  * audio task, so freeing them on "off" could pull them out from under it.
  * Most boards never turn AEC on and never pay for them. */
 typedef struct {
-    int16_t  ring[REF_RING];
+    /* Every sample is written twice, REF_RING apart, so any tap window is one
+     * contiguous run: the hot loops walk a pointer instead of masking each index. */
+    int16_t  ring[2 * REF_RING];
     int32_t  wts[AEC_TAPS];   /* Q15 adaptive weights */
     int32_t  good[AEC_TAPS];  /* last weights seen cancelling well: restored on divergence */
 } aec_bufs_t;
@@ -104,6 +107,9 @@ typedef struct {
     uint32_t blocks;
     uint32_t blocks_frozen;
     bool     converged;
+    int64_t  t_sum_us;       /* processing time, for aec_get_status */
+    uint32_t t_calls;
+    uint32_t t_max_us;
 } aec_line_t;
 
 static aec_line_t s_l[NLINES];
@@ -144,6 +150,8 @@ static void reset_locked(aec_line_t *a)
     a->e_near = a->e_out = 0;
     a->blocks = a->blocks_frozen = 0;
     a->converged = false;
+    a->t_sum_us = 0;
+    a->t_calls = a->t_max_us = 0;
 }
 
 esp_err_t aec_init(void)
@@ -236,9 +244,15 @@ static void process_chunk(aec_line_t *a, const int16_t *ref, const int16_t *near
     a->hang = a->hang > n ? a->hang - (uint32_t)n : 0;
 
     int64_t blk_out = 0, blk_y = 0;
+    /* 1/xpow, refreshed only when xpow has moved by more than about 1/8:
+     * a 64-bit divide per sample was a large share of the filter's cost. */
+    int64_t inv_for = -1, inv = 0;
+
     for (size_t k = 0; k < n; k++) {
-        /* Push this playout sample, then advance. */
-        ring[a->w_idx & REF_MASK] = ref[k];
+        /* Push this playout sample (twice, see aec_bufs_t), then advance. */
+        uint32_t wi = a->w_idx & REF_MASK;
+        ring[wi] = ref[k];
+        ring[wi + REF_RING] = ref[k];
         a->w_idx++;
 
         /* Sample aligned with near[k] sits D back from the newest. */
@@ -251,11 +265,13 @@ static void process_chunk(aec_line_t *a, const int16_t *ref, const int16_t *near
         a->xpow += (int64_t)x_in * x_in - (int64_t)x_out * x_out;
         if (a->xpow < 0) a->xpow = 0; /* guard against rounding drift */
 
+        /* The window, oldest first: x[AEC_TAPS-1] is the aligned sample, and
+         * wts[] is stored in the same order. */
+        const int16_t *x = &ring[(base - (AEC_TAPS - 1)) & REF_MASK];
+
         /* y = w . x  (Q15 weights) */
         int64_t acc = 0;
-        for (int i = 0; i < AEC_TAPS; i++) {
-            acc += (int64_t)wts[i] * ring[(base - i) & REF_MASK];
-        }
+        for (int i = 0; i < AEC_TAPS; i++) acc += (int64_t)wts[i] * x[i];
         int32_t y = (int32_t)(acc >> 15);
 
         int32_t e = (int32_t)in[k] - y;
@@ -267,18 +283,24 @@ static void process_chunk(aec_line_t *a, const int16_t *ref, const int16_t *near
         out[k] = (int16_t)e;
 
         if (adapt && a->xpow > XPOW_FLOOR) {
-            int64_t g64 = (((int64_t)e) << STEP_SHIFT) / a->xpow;
+            if (inv_for < 0 || a->xpow > inv_for + (inv_for >> 3) || a->xpow < inv_for - (inv_for >> 3)) {
+                inv_for = a->xpow;
+                inv = ((int64_t)1 << 62) / inv_for;       /* Q62 reciprocal */
+            }
+            /* g = (e << STEP_SHIFT) / xpow, as e * inv >> (62 - STEP_SHIFT).
+             * |e| < 2^15 and inv < 2^62 / XPOW_FLOOR < 2^48, so no overflow. */
+            int64_t g64 = ((int64_t)e * inv) >> (62 - STEP_SHIFT);
             if (g64 > 32767) g64 = 32767;
             else if (g64 < -32767) g64 = -32767;
             int32_t g = (int32_t)g64;
             if (g) {
                 for (int i = 0; i < AEC_TAPS; i++) {
-                    int32_t xi = ring[(base - i) & REF_MASK];
                     /* Rounded, not truncated: an arithmetic shift rounds toward
                      * minus infinity, which drifts every weight negative. */
-                    wts[i] += (g * xi + (1 << (DELTA_SHIFT - 1))) >> DELTA_SHIFT;
-                    if (wts[i] > W_LIMIT) wts[i] = W_LIMIT;
-                    else if (wts[i] < -W_LIMIT) wts[i] = -W_LIMIT;
+                    int32_t w = wts[i] + ((g * x[i] + (1 << (DELTA_SHIFT - 1))) >> DELTA_SHIFT);
+                    if (w > W_LIMIT) w = W_LIMIT;
+                    else if (w < -W_LIMIT) w = -W_LIMIT;
+                    wts[i] = w;
                 }
             }
         }
@@ -356,11 +378,16 @@ void aec_process(int line, const int16_t *ref, const int16_t *near,
         if (out != near) memcpy(out, near, n * sizeof(int16_t));
         return;
     }
+    int64_t t0 = esp_timer_get_time();
     while (n) {
         size_t c = n > CHUNK_MAX ? CHUNK_MAX : n;
         process_chunk(a, ref, near, out, c);
         ref += c; near += c; out += c; n -= c;
     }
+    uint32_t dt_us = (uint32_t)(esp_timer_get_time() - t0);
+    a->t_sum_us += dt_us;
+    a->t_calls++;
+    if (dt_us > a->t_max_us) a->t_max_us = dt_us;
 }
 
 void aec_get_status(int line, aec_status_t *st)
@@ -391,6 +418,10 @@ void aec_get_status(int line, aec_status_t *st)
     /* Stats are windowed, not lifetime: reset on read so a fresh `aec status`
      * reflects the last stretch of the call rather than being dominated by
      * whatever happened during initial convergence. */
+    st->avg_us = a->t_calls ? (uint32_t)(a->t_sum_us / a->t_calls) : 0;
+    st->max_us = a->t_max_us;
     a->e_near = a->e_out = 0;
     a->blocks = a->blocks_frozen = 0;
+    a->t_sum_us = 0;
+    a->t_calls = a->t_max_us = 0;
 }

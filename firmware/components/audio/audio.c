@@ -60,6 +60,7 @@ typedef struct {
      * (~2 ms of every 10 ms frame for pitch effects), so on a call between two
      * local phones, where nobody reads the uplink, it's skipped. */
     volatile int64_t uplink_read_us;
+    volatile int64_t aec_read_us;    /* last audio_aec_read(): a call is taking the cancelled uplink */
     /* Frames of external audio (VoIP, player) the engine had to fill with
      * silence because the source hadn't delivered in time; see audio_ext_underruns(). */
     volatile uint32_t ext_underruns;
@@ -481,10 +482,10 @@ size_t audio_rx_read(int line, int16_t *mono, size_t n, uint32_t timeout_ms)
 size_t audio_aec_read(int line, int16_t *mono, size_t n, uint32_t timeout_ms)
 {
     if (line < 0 || line >= AUDIO_NUM_LINES || !s_line[line].aec_out) return 0;
-    s_line[line].uplink_read_us = esp_timer_get_time();
+    s_line[line].uplink_read_us = s_line[line].aec_read_us = esp_timer_get_time();
     size_t got = xStreamBufferReceive(s_line[line].aec_out, mono, n * sizeof(int16_t),
                                       pdMS_TO_TICKS(timeout_ms)) / sizeof(int16_t);
-    s_line[line].uplink_read_us = esp_timer_get_time();
+    s_line[line].uplink_read_us = s_line[line].aec_read_us = esp_timer_get_time();
     return got;
 }
 
@@ -700,7 +701,11 @@ static void audio_task(void *arg)
              * the variable playout-buffer depth and no fixed delay could
              * align it. Decimated 6:1 to the canceller's 8 kHz (see aec.h for
              * why it doesn't run at 48 kHz). */
-            if (rxn && s_line[line].aec_out && aec_is_enabled(line)) {
+            /* Only while a call is reading the result: off-hook on dial tone
+             * there's nothing to send, and a loud steady reference keeps the
+             * filter adapting flat out on the same task that plays the earpiece. */
+            if (rxn && s_line[line].aec_out && aec_is_enabled(line) &&
+                esp_timer_get_time() - s_line[line].aec_read_us < 500000) {
                 const int16_t *tx = (line == 0) ? txL : txR;
                 int16_t ref8[AUDIO_AEC_BLOCK], near8[AUDIO_AEC_BLOCK];
                 size_t m = 0;

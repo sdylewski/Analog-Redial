@@ -82,6 +82,10 @@ typedef struct {
      * learn; sustained 0% during genuine double-talk risks divergence. */
     int      freeze_pct;
     bool     converged; /* has produced real cancellation at least once */
+    /* Time aec_process() took per call (one 10 ms block), average and worst,
+     * since the last read. Over a few ms starves the audio task. */
+    uint32_t avg_us;
+    uint32_t max_us;
 } aec_status_t;
 
 esp_err_t aec_init(void);

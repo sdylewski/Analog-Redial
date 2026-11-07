@@ -601,6 +601,18 @@ static cJSON *build_status_json(void)
         cJSON_AddStringToObject(jl, "caller_name", telephony_caller_name(l));
         cJSON_AddStringToObject(jl, "caller_number", telephony_caller_number(l));
         cJSON_AddNumberToObject(jl, "rx_level", audio_rx_level(l));
+        if (aec_is_enabled(l)) {
+            /* Stats since the last read (reading resets them). */
+            aec_status_t as;
+            aec_get_status(l, &as);
+            cJSON *ja = cJSON_AddObjectToObject(jl, "aec");
+            cJSON_AddNumberToObject(ja, "delay_ms", as.delay_ms);
+            cJSON_AddNumberToObject(ja, "erle_db", as.erle_db);
+            cJSON_AddNumberToObject(ja, "freeze_pct", as.freeze_pct);
+            cJSON_AddBoolToObject(ja, "converged", as.converged);
+            cJSON_AddNumberToObject(ja, "avg_us", as.avg_us);
+            cJSON_AddNumberToObject(ja, "max_us", as.max_us);
+        }
         cJSON_AddItemToArray(lines, jl);
     }
     return root;
