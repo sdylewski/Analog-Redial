@@ -1,6 +1,10 @@
 #include "aec.h"
 #include "board.h"
 #include "esp_log.h"
+#include "sdkconfig.h"
+#if CONFIG_PM_ENABLE
+#include "esp_pm.h"
+#endif
 #include <stdlib.h>
 #include <string.h>
 
@@ -104,6 +108,27 @@ typedef struct {
 
 static aec_line_t s_l[NLINES];
 
+#if CONFIG_PM_ENABLE
+/* Held while any line's canceller is on. The filter is about 5M multiply-adds
+ * a second on the audio task; with the CPU slowed to 80 MHz (Settings ->
+ * Hardware, idle power) the audio frame overran and the earpiece audio
+ * distorted, dial tone included. */
+static esp_pm_lock_handle_t s_pm_lock;
+#endif
+
+static void update_pm_lock(void)
+{
+#if CONFIG_PM_ENABLE
+    static bool held;
+    bool want = false;
+    for (int i = 0; i < NLINES; i++) want |= s_l[i].enabled;
+    if (!s_pm_lock || want == held) return;
+    if (want) esp_pm_lock_acquire(s_pm_lock);
+    else esp_pm_lock_release(s_pm_lock);
+    held = want;
+#endif
+}
+
 static inline bool line_ok(int line) { return line >= 0 && line < NLINES; }
 
 static void reset_locked(aec_line_t *a)
@@ -123,6 +148,10 @@ static void reset_locked(aec_line_t *a)
 
 esp_err_t aec_init(void)
 {
+#if CONFIG_PM_ENABLE
+    if (!s_pm_lock && esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "aec", &s_pm_lock) != ESP_OK)
+        ESP_LOGW(TAG, "no PM lock: the canceller may overrun with the CPU slowed");
+#endif
     for (int i = 0; i < NLINES; i++) {
         s_l[i].enabled = false;
         /* Bulk delay is a per-device property (each board's own I2S/codec/
@@ -161,6 +190,7 @@ void aec_set_enabled(int line, bool on)
      * (different handset position, different far end) is worse than nothing. */
     reset_locked(&s_l[line]);
     s_l[line].enabled = on;
+    update_pm_lock();
     ESP_LOGI(TAG, "line %d: AEC %s (delay %u ms, %d taps)",
              line, on ? "on" : "off", (unsigned)s_l[line].delay_ms, AEC_TAPS);
 }
