@@ -12,6 +12,7 @@ trap 'rm -rf "$OUT"' EXIT
 DT="$HERE/../../components/dtmf"
 cp "$BT/include/bt401_proto.h" "$BT/bt401_proto.c" "$HERE"/test_*.c "$OUT/"
 cp -r "$HERE/shim" "$OUT/"
+cp -r "$HERE/shim_aec" "$OUT/"
 cp "$DT/dtmf.c" "$DT/dtmf_test.c" "$DT/include/dtmf.h" "$DT/include/dtmf_test.h" "$HERE/../../components/tones/include/tones.h" "$OUT/"
 cd "$OUT"
 for t in test_bt401_proto; do
@@ -42,3 +43,7 @@ cc -std=gnu11 -Wall -Wextra -Werror -O1 -I. test_coin_fire.c coin_fire.c -o run_
 cc -std=gnu11 -Wall -Wextra -Werror -Wno-unused-function -Wno-unused-parameter -Wno-unused-variable -O1 \
    -Ishim_coinboard -I. test_coinboard.c coin_inputs.c coin_fire.c -o run_test_coinboard
 ./run_test_coinboard
+AE="$HERE/../../components/aec"
+cp "$AE/aec.c" "$AE/include/aec.h" "$OUT/"
+cc -std=gnu11 -Wall -Wextra -Werror -O2 -Ishim_aec -I. test_aec.c aec.c -lm -o run_test_aec
+./run_test_aec

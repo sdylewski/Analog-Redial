@@ -33,9 +33,17 @@
  * capped ERLE around 10-16 dB instead of cancelling both together. AEC_TAPS
  * and AEC_DEFAULT_DELAY_MS are sized so one anchor brackets both.
  *
- * NOT modelled: nonlinearity (speaker/SLIC distortion) and any path change
- * faster than the filter adapts. A moving handset re-converges in well under
- * a second; a genuinely nonlinear leak leaves a residual this can't remove.
+ * AEC_DEFAULT_DELAY_MS and any measured delay are where the window STARTS, so
+ * they must sit a little before the echo begins: the web UI's Measure step
+ * reports where the echo peaks and suggests a start 15 ms earlier.
+ *
+ * NOT modelled: nonlinearity (speaker/SLIC distortion, a carbon microphone)
+ * and any path change faster than the filter adapts. A moving handset
+ * re-converges in well under a second. What's left over while only the far
+ * end talks is turned down about 10 dB (residual echo suppression), and is
+ * let straight through again as soon as anyone on this end talks.
+ *
+ * Host test: firmware/test/host/test_aec.c (run.sh).
  */
 #pragma once
 

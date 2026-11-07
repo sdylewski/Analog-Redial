@@ -39,23 +39,44 @@ static const char *TAG = "aec";
  * from, and normalizing by a near-zero energy would make the step explode. */
 #define XPOW_FLOOR   ((int64_t)AEC_TAPS * 64)
 
-/* Weight magnitude ceiling (Q15). The true path is ~-20 dB, so coefficients
- * well past unity mean the filter is diverging, not modelling. */
+/* Weight magnitude ceiling (Q15). Coefficients well past unity mean the
+ * filter is diverging, not modelling. */
 #define W_LIMIT      (1 << 17)
 
-/* Double-talk: the measured coupling is about -20 dB, so echo power is
- * roughly ref/100. Near-end power beyond 4x that (ref/25) is energy the echo
- * cannot account for -- someone is talking on this end, and adapting on it
- * would drag the filter away from the real path. */
-#define DT_RATIO     25
+/*
+ * Double-talk (someone talking on this end while the far end talks too).
+ * Adapting on near-end speech drags the filter away from the real echo path,
+ * so adaptation stops while it lasts. The test: near-end power more than
+ * DT_MARGIN times the echo this line's path would make from the reference
+ * (ref power times the path gain, `erl`). The path gain isn't known up front
+ * and differs a lot between phones -- a poorly matched phone can leak only
+ * 6 dB down -- so it starts at 0 dB (permissive) and then follows the
+ * filter's own estimate once it is cancelling.
+ *
+ * erl is Q10 power gain: 1024 = 0 dB, ERL_MIN 4 = -24 dB.
+ */
+#define DT_MARGIN    4                     /* 6 dB above the expected echo */
+#define ERL_ONE      1024
+#define ERL_MIN      4
+#define DT_HANG_SAMP (AEC_RATE_HZ * 40 / 1000)  /* stay frozen 40 ms after it ends */
 
-/* The big per-line buffers (3.3 KB each), allocated the first time a line's
- * AEC is turned on and kept until reboot: aec_process() runs on the audio
- * task, so freeing them on "off" could pull them out from under it. Most
- * boards never turn AEC on and never pay for them. */
+/* Residual echo suppression: once the filter is cancelling and only the far
+ * end is talking, what's left is residual echo, so it is turned down this
+ * much (Q15, about -10 dB). Any near-end speech opens it again at once. */
+#define NLP_GAIN     10362
+#define NLP_ONE      32768
+
+/* Processed in chunks of at most this many samples (aec_process takes any n). */
+#define CHUNK_MAX    160
+
+/* The big per-line buffers (about 4.6 KB each), allocated the first time a
+ * line's AEC is turned on and kept until reboot: aec_process() runs on the
+ * audio task, so freeing them on "off" could pull them out from under it.
+ * Most boards never turn AEC on and never pay for them. */
 typedef struct {
     int16_t  ring[REF_RING];
-    int32_t  wts[AEC_TAPS];  /* Q15 adaptive weights */
+    int32_t  wts[AEC_TAPS];   /* Q15 adaptive weights */
+    int32_t  good[AEC_TAPS];  /* last weights seen cancelling well: restored on divergence */
 } aec_bufs_t;
 
 typedef struct {
@@ -66,6 +87,12 @@ typedef struct {
     aec_bufs_t *b;
     uint32_t w_idx;          /* next ring write position */
     int64_t  xpow;           /* running energy of the tap window */
+
+    int32_t  erl;            /* echo path power gain, Q10 (see DT_MARGIN) */
+    uint32_t hang;           /* samples left to stay frozen after double-talk */
+    int32_t  nlp;            /* current suppression gain, Q15 */
+    bool     good_valid;
+    uint8_t  bad_blocks;     /* consecutive chunks where the output was louder than the input */
 
     /* rolling stats, reset when read */
     int64_t  e_near;
@@ -84,6 +111,11 @@ static void reset_locked(aec_line_t *a)
     if (a->b) memset(a->b, 0, sizeof(*a->b));
     a->w_idx = 0;
     a->xpow = 0;
+    a->erl = ERL_ONE;
+    a->hang = 0;
+    a->nlp = NLP_ONE;
+    a->good_valid = false;
+    a->bad_blocks = 0;
     a->e_near = a->e_out = 0;
     a->blocks = a->blocks_frozen = 0;
     a->converged = false;
@@ -148,21 +180,32 @@ esp_err_t aec_set_delay_ms(int line, uint32_t ms)
     return ESP_OK;
 }
 
-void aec_process(int line, const int16_t *ref, const int16_t *near,
-                 int16_t *out, size_t n)
+static void process_chunk(aec_line_t *a, const int16_t *ref, const int16_t *near,
+                          int16_t *out, size_t n)
 {
-    if (!line_ok(line)) return;
-    aec_line_t *a = &s_l[line];
-    if (!a->enabled || !a->b) {
-        if (out != near) memcpy(out, near, n * sizeof(int16_t));
-        return;
-    }
     int16_t *ring = a->b->ring;
     int32_t *wts = a->b->wts;
-
     const uint32_t D = a->delay_samp;
-    int64_t blk_near = 0, blk_out = 0, blk_ref = 0;
 
+    /* Kept so a chunk the filter made worse can go out untouched (out may alias near). */
+    int16_t in[CHUNK_MAX];
+    memcpy(in, near, n * sizeof(int16_t));
+
+    /* Decide double-talk BEFORE adapting on this chunk, from its near-end
+     * power against the expected echo: ref power over the tap window times
+     * the path gain. Compared as per-sample averages:
+     *   near/n > DT_MARGIN * erl/ERL_ONE * xpow/TAPS              */
+    int64_t blk_near = 0;
+    for (size_t k = 0; k < n; k++) blk_near += (int64_t)in[k] * in[k];
+    const int64_t ref_win = a->xpow;
+    const bool far_active = ref_win > XPOW_FLOOR;
+    bool dt = far_active &&
+              blk_near * AEC_TAPS * ERL_ONE > (int64_t)DT_MARGIN * a->erl * ref_win * (int64_t)n;
+    if (dt) a->hang = DT_HANG_SAMP;
+    const bool adapt = far_active && !dt && a->hang == 0;
+    a->hang = a->hang > n ? a->hang - (uint32_t)n : 0;
+
+    int64_t blk_out = 0, blk_y = 0;
     for (size_t k = 0; k < n; k++) {
         /* Push this playout sample, then advance. */
         ring[a->w_idx & REF_MASK] = ref[k];
@@ -185,22 +228,15 @@ void aec_process(int line, const int16_t *ref, const int16_t *near,
         }
         int32_t y = (int32_t)(acc >> 15);
 
-        int32_t d = near[k];
-        int32_t e = d - y;
+        int32_t e = (int32_t)in[k] - y;
         if (e > 32767) e = 32767;
         else if (e < -32768) e = -32768;
 
-        blk_near += (int64_t)d * d;
-        blk_out  += (int64_t)e * e;
-        blk_ref  += (int64_t)x_in * x_in;
-
+        blk_out += (int64_t)e * e;
+        blk_y   += (int64_t)y * y;
         out[k] = (int16_t)e;
 
-        /* Adapt. Skipped when the far end is silent (nothing to learn) --
-         * double-talk freezing is decided per block, below, and applied via
-         * a->blocks_frozen on the NEXT block; within a block we only gate on
-         * reference energy, which is the cheap per-sample check. */
-        if (a->xpow > XPOW_FLOOR) {
+        if (adapt && a->xpow > XPOW_FLOOR) {
             int64_t g64 = (((int64_t)e) << STEP_SHIFT) / a->xpow;
             if (g64 > 32767) g64 = 32767;
             else if (g64 < -32767) g64 = -32767;
@@ -208,7 +244,9 @@ void aec_process(int line, const int16_t *ref, const int16_t *near,
             if (g) {
                 for (int i = 0; i < AEC_TAPS; i++) {
                     int32_t xi = ring[(base - i) & REF_MASK];
-                    wts[i] += (g * xi) >> DELTA_SHIFT;
+                    /* Rounded, not truncated: an arithmetic shift rounds toward
+                     * minus infinity, which drifts every weight negative. */
+                    wts[i] += (g * xi + (1 << (DELTA_SHIFT - 1))) >> DELTA_SHIFT;
                     if (wts[i] > W_LIMIT) wts[i] = W_LIMIT;
                     else if (wts[i] < -W_LIMIT) wts[i] = -W_LIMIT;
                 }
@@ -216,22 +254,83 @@ void aec_process(int line, const int16_t *ref, const int16_t *near,
         }
     }
 
-    /* Per-block bookkeeping: double-talk detection and the ERLE/freeze stats
-     * the console and web UI report. Doing this per block rather than per
-     * sample keeps it off the hot path. */
-    a->blocks++;
-    bool double_talk = (blk_near * DT_RATIO > blk_ref) && (blk_ref > 0);
-    if (double_talk) {
-        a->blocks_frozen++;
-        /* Roll the weights back toward where they were by damping the last
-         * block's worth of adaptation: cheaper and steadier than maintaining
-         * a full shadow copy, and enough to stop a burst of near-end speech
-         * from dragging the filter far off. */
-        for (int i = 0; i < AEC_TAPS; i++) wts[i] -= wts[i] >> 6;
+    /* Never make it worse: a chunk that came out louder than it went in goes
+     * out as it was. Three in a row with no near-end speech to blame means
+     * the filter has wandered off: back to the last weights that worked. */
+    bool worse = blk_near > (int64_t)n * 16 && blk_out > blk_near + blk_near / 4;
+    if (worse) {
+        memcpy(out, in, n * sizeof(int16_t));
+        if (!dt && ++a->bad_blocks >= 3) {
+            if (a->good_valid) memcpy(wts, a->b->good, sizeof(a->b->good));
+            else memset(wts, 0, sizeof(a->b->good));
+            a->bad_blocks = 0;
+            a->erl = ERL_ONE;
+        }
+        a->nlp = NLP_ONE;
+    } else {
+        a->bad_blocks = 0;
     }
-    a->e_near += blk_near;
-    a->e_out  += blk_out;
-    if (blk_near > 0 && blk_out * 2 < blk_near) a->converged = true;
+
+    bool cancelling = far_active && !dt && !worse && blk_near > 0 && blk_out * 2 < blk_near;
+    if (cancelling) {
+        a->converged = true;
+        if (blk_out * 4 < blk_near) {
+            memcpy(a->b->good, wts, sizeof(a->b->good));
+            a->good_valid = true;
+        }
+        /* Path gain from the filter's own echo estimate: y power against the
+         * ref power that produced it, smoothed over about 8 chunks. */
+        if (ref_win > 0) {
+            int64_t m = blk_y * AEC_TAPS * ERL_ONE / (ref_win * (int64_t)n);
+            if (m < ERL_MIN) m = ERL_MIN;
+            if (m > 4 * ERL_ONE) m = 4 * ERL_ONE;
+            a->erl += (int32_t)((m - a->erl) / 8);
+            if (a->erl < ERL_MIN) a->erl = ERL_MIN;
+        }
+    }
+
+    /* Residual echo suppression, ramped across the chunk so it never clicks:
+     * down while the residual is well under the echo it replaced and nobody
+     * here is talking, straight back up otherwise. */
+    if (!worse) {
+        int32_t target = (cancelling && a->hang == 0 && blk_out * 4 < blk_y) ? NLP_GAIN : NLP_ONE;
+        int32_t from = a->nlp;
+        int32_t to = target < from ? from + (target - from) / 4 : target;
+        if (from != NLP_ONE || to != NLP_ONE) {
+            for (size_t k = 0; k < n; k++) {
+                int32_t gk = from + (int32_t)(((int64_t)(to - from) * (int64_t)(k + 1)) / (int64_t)n);
+                out[k] = (int16_t)(((int32_t)out[k] * gk) >> 15);
+            }
+        }
+        a->nlp = to;
+    }
+
+    /* Stats the console and web UI report: only while the far end talks,
+     * since there's nothing to cancel otherwise. */
+    if (far_active) {
+        a->blocks++;
+        if (!adapt) a->blocks_frozen++;
+        if (!dt) {
+            a->e_near += blk_near;
+            a->e_out  += blk_out;
+        }
+    }
+}
+
+void aec_process(int line, const int16_t *ref, const int16_t *near,
+                 int16_t *out, size_t n)
+{
+    if (!line_ok(line)) return;
+    aec_line_t *a = &s_l[line];
+    if (!a->enabled || !a->b) {
+        if (out != near) memcpy(out, near, n * sizeof(int16_t));
+        return;
+    }
+    while (n) {
+        size_t c = n > CHUNK_MAX ? CHUNK_MAX : n;
+        process_chunk(a, ref, near, out, c);
+        ref += c; near += c; out += c; n -= c;
+    }
 }
 
 void aec_get_status(int line, aec_status_t *st)

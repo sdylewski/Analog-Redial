@@ -118,3 +118,33 @@ of these two very different implementations is actually needed.
   `cmd_echosweep`, `cmd_micamp`, `cmd_spkamp`
 - `firmware/bringup/README.md` — full console command reference
 - `hardware/smd2.md` — SLIC levels, SHK dividers, the DTMF-clipping rework
+
+## 2026-11-06: canceller fixes
+
+Echo heard at maxphone (touch-tone phone) on calls with dualphone2 (rotary
+phone), little the other way; dualphone2's Measure gave 21 ms, and applying
+it plus enabling the canceller made the audio more garbled. Found:
+
+- **Measure reported the echo's peak, Apply used it as the window start.**
+  The 10 ms burst's echo peaks up to ~10 ms after it starts, so 21 ms put the
+  40 ms window past the start of the echo. Measure now suggests peak − 15 ms
+  (`anchor_ms`, 6 ms for that reading) and reports the echo loss (`loss_db`).
+- **Weight updates truncated toward minus infinity**, so every weight drifted
+  negative. In `test_aec.c` the old code made a 20 dB-down echo 7.7 dB
+  *louder*. Now rounded.
+- **Double-talk didn't freeze adaptation** (the flag was only used to decay
+  weights 1/64 per block afterwards), and its fixed threshold assumed a
+  -20 dB path: a 6 dB-down path (a poorly matched phone) read as near-end
+  speech all the time. Now decided before adapting, against the filter's own
+  path-gain estimate, with 40 ms hangover.
+- Added: output never louder than input (restores the last good weights after
+  3 bad blocks), and ~10 dB residual echo suppression while only the far end talks.
+
+Host test results (old → new ERLE): 20 dB path −7.7 → 34 dB, 6 dB path
+8 → 45 dB; near-end voice through double-talk ±0.1 dB. Not yet tried on a call.
+
+Asymmetry: the echo maxphone hears is made at dualphone2's end (its SLIC's
+2-to-4-wire leak plus the handset). Untested theory: the rotary set's
+impedance (carbon transmitter, induction coil) matches the AG1171 worse than
+the touch-tone set does. Swapping the two phones between boards would show
+whether the echo follows the phone.

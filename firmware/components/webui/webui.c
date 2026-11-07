@@ -2795,7 +2795,7 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         "</div>"
         "<script>"
         "var AEC_I18N={measuring:'%s',noEcho:'%s',tries:'%s',delayFmt:'%s',consistent:'%s',"
-        "apply:'%s',failed:'%s',onhook:'%s',incall:'%s',noisy:'%s',failedrun:'%s'};"
+        "apply:'%s',failed:'%s',onhook:'%s',incall:'%s',noisy:'%s',failedrun:'%s',lossFmt:'%s'};"
         "function spkLive(line,vol){"
         "document.getElementById('spkpct'+line).textContent="
         "'Level '+vol+' ('+((vol-30)*1.5).toFixed(1)+' dB)';"
@@ -2814,10 +2814,11 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         "if(d.reason){out.textContent=d.reason=='onhook'?AEC_I18N.onhook:d.reason=='noisy'?AEC_I18N.noisy:d.reason=='failed'?AEC_I18N.failedrun:AEC_I18N.incall;return;}"
         "if(!d.ok){out.textContent=AEC_I18N.noEcho+' '+d.hits+'/'+d.attempts+"
         "' '+AEC_I18N.tries;return;}"
-        "var ms=Math.round(d.delay_ms);"
+        "var ms=d.anchor_ms;"
         "out.innerHTML=AEC_I18N.delayFmt.replace('%%1',d.delay_ms.toFixed(1))"
         ".replace('%%2',d.tail_ms.toFixed(1)).replace('%%3',d.span_ms.toFixed(0))"
         ".replace('%%4',Math.round(d.taps))+' '+d.hits+'/'+d.attempts+' '+AEC_I18N.consistent+' '+"
+        "AEC_I18N.lossFmt.replace('%%1',d.loss_db.toFixed(0)).replace('%%2',ms)+' '+"
         "'<form method=\"POST\" action=\"/aec_delay_apply\" style=\"display:inline\">'+"
         "'<input type=\"hidden\" name=\"line\" value=\"'+line+'\">'+"
         "'<input type=\"hidden\" name=\"ms\" value=\"'+ms+'\">'+"
@@ -2830,12 +2831,13 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         i18n_str("aec.js.tries", "tries -- off-hook and not in a call?"),
         i18n_str("aec.js.delay_fmt", "Delay %1ms, tail %2ms, span ~%3ms (%4 taps),"),
         i18n_str("aec.js.consistent", "consistent."),
-        i18n_str("aec.js.apply", "Apply %1ms as default"),
+        i18n_str("aec.js.apply", "Use %1 ms"),
         i18n_str("aec.js.failed", "Measurement failed."),
         i18n_str("aec.js.onhook", "Pick up the handset first (the test needs it off-hook), then click Measure again."),
         i18n_str("aec.js.incall", "This line is in a call or ringing. Finish or hang up, then pick up and measure again."),
         i18n_str("aec.js.noisy", "The background noise kept changing during the 1.5 s it listens first. Quiet the room, hold the handset still, and measure again."),
-        i18n_str("aec.js.failedrun", "The test could not run: no audio came back from this line, or the board is short of memory. Check the Diagnostics log, or run echoprobe from the console."));
+        i18n_str("aec.js.failedrun", "The test could not run: no audio came back from this line, or the board is short of memory. Check the Diagnostics log, or run echoprobe from the console."),
+        i18n_str("aec.js.loss", "The echo comes back %1 dB quieter than the earpiece signal. The canceller should start a little before the echo does: %2 ms."));
 
     bool fx_on = board_voice_fx_enabled_get();
     off = appendf(buf, cap, off,
@@ -9510,6 +9512,7 @@ static esp_err_t speaker_volume_handler(httpd_req_t *req)
                                    * noise inflating the noise floor and
                                    * hiding a real echo */
 #define AEC_CAL_SETTLE_MS  300
+#define AEC_CAL_BURST_MS    10
 
 /* POST /aec_measure -- body line=N. Runs a few probes back to back (see
  * AEC_CAL_REPEATS) and returns JSON with the averaged result. Read-only --
@@ -9543,15 +9546,16 @@ static esp_err_t aec_measure_handler(httpd_req_t *req)
     }
 
     int hits = 0, unsteady = 0, failed = 0;
-    double delay_sum = 0, tail_sum = 0;
+    double delay_sum = 0, tail_sum = 0, peak_sum = 0;
     for (int i = 0; i < AEC_CAL_REPEATS; i++) {
         audio_echo_probe_t res;
-        if (!audio_echo_probe(line, 1000, 10, 400, NULL, 0, &res)) { failed++; continue; }
+        if (!audio_echo_probe(line, 1000, AEC_CAL_BURST_MS, 400, NULL, 0, &res)) { failed++; continue; }
         if (!res.noise_steady) unsteady++;
         if (res.noise_steady && res.leak_detected) {
             hits++;
             delay_sum += res.delay_ms;
             tail_sum += res.tail_ms;
+            peak_sum += res.peak;
         }
         if (i + 1 < AEC_CAL_REPEATS) vTaskDelay(pdMS_TO_TICKS(AEC_CAL_SETTLE_MS));
     }
@@ -9570,6 +9574,17 @@ static esp_err_t aec_measure_handler(httpd_req_t *req)
         cJSON_AddNumberToObject(root, "tail_ms", tail_ms);
         cJSON_AddNumberToObject(root, "span_ms", span_ms);
         cJSON_AddNumberToObject(root, "taps", span_ms * 8.0);
+        /* delay_ms is where the echo PEAKS. The canceller's delay is where its
+         * window STARTS, so it has to sit before the echo begins: back by the
+         * burst's own length (the peak can fall anywhere in it) plus margin
+         * for the probe's start-of-capture slack. The window is 40 ms long,
+         * so starting early costs nothing. */
+        int anchor = (int)(delay_ms + 0.5) - AEC_CAL_BURST_MS - 5;
+        if (anchor < 0) anchor = 0;
+        cJSON_AddNumberToObject(root, "anchor_ms", anchor);
+        /* How far below the played burst (0.8 of full scale) the echo came back. */
+        double peak = peak_sum / hits;
+        cJSON_AddNumberToObject(root, "loss_db", peak > 0 ? 20.0 * log10(0.8 * 32767.0 / peak) : 99.0);
     } else {
         cJSON_AddBoolToObject(root, "ok", false);
     }
