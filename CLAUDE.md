@@ -37,7 +37,7 @@ currently used for the Bluetooth board; docs call it "Expansion header: currentl
 Bluetooth board" and give its general pinout in docs/hardware-smd5.md §9. MFB/WAKEUP on GPIO15, chosen in Settings → Hardware
 (`board_bt_module_t`). Firmware reuses SMD4's pin map for it. The BM64 carrier is
 the supported module; a BK3266 module was tried and its UART never answered (notes in
-`Bluetooth/BK3266/` and `archive/hardware/bk3266.md`; its firmware driver was removed after v1.0.1). The BK3266 option
+`Bluetooth/BK3266_do_not_use/` and `archive/hardware/bk3266.md`; its firmware driver was removed after v1.0.1). The BK3266 option
 is replaced by the DFRobot DFR0781 / BT401 (`Bluetooth/DFR0781_BT401/`, `archive/hardware/bt401.md`): driver
 (`firmware/components/bt_companion/bt401*.c`), **working on a v5 board since 2026-10-27** (hand-wired; its adapter board `Bluetooth/DFR0781_BT401/DFR0781_BT401_board_v1/` is
 released for fab 2026-10-28 but not built or tested: say so in docs until the user has built one): music, ringing, dial-out, call audio. The driver turns the module's DAC off when idle, since an idle DAC
@@ -54,19 +54,17 @@ On a v5 board that pin must be removed (not connected); the bottom-left 5V pin c
 v5.1 and v6 have the fix. The warning stays in README/docs (board.md, bom.md, building.md,
 hardware-smd5.md): keep it in any doc that describes fitting a clone.
 
-**v6 (SMD6, `hardware/kicad/Analog Redial v6/`) is in progress again (2026-10-31): unpublished.** Its KiCad
-and fab files are untracked (`.gitignore`, local only; they stay in git history); only its README is on
-GitHub, describing the planned features. New in progress: U6, a TCA9534APWR I²C expander (0x38, A0-A2 to GND)
+**v6 (SMD6, `hardware/kicad/Analog Redial v6/`) is released, not built or tested (published 2026-11-08 with v1.2.1):** its KiCad
+project, schematic PDF and JLCPCB fab files are in git (its old PCBWay export is still ignored). New on v6: U6, a TCA9534APWR I²C expander (0x38, A0-A2 to GND)
 driving line 2's SLIC on the `Line1_*` nets so line 2, microSD, payphone (coin board at 0x39) and spare I/O
-(J10, P4-P7) work together; v6 has no J5, so GPIO18-21 are microSD only. Firmware: `CONFIG_BOARD_TYPE_SMD6` (`build.smd6`; a clone module needs JP2/JP3 on the clone side, there is no `_cheap` build for v6), driver `firmware/components/ag1170/line_expander.c`, written before any board exists and untested on hardware. **No v6 OTA image or release until the user has boards back and says so**; `release.py` deliberately doesn't know `smd6`. Docs say
-"in progress" (README history table, docs/board.md). Previously released 2026-10-24 as: v5 with the
+(J10, P4-P7) work together; v6 has no J5, so GPIO18-21 are microSD only. Firmware: `CONFIG_BOARD_TYPE_SMD6` (`build.smd6`; a clone module needs JP2/JP3 on the clone side, there is no `_cheap` build for v6), driver `firmware/components/ag1170/line_expander.c`, written before any board exists and untested on hardware. **No v6 OTA firmware image until the user has boards back and says so**; `release.py` deliberately doesn't know `smd6`. Docs say
+"released, not built or tested yet" (README history table, docs/board.md, hardware-smd6.md, build-v6.md). Previously released 2026-10-24 as: v5 with the
 clone 5V-pin footprint fixed, D1 changed from SS14 (1 A) to SS34 (3 A, JLCPCB C8678: the schematic needs that edit, done by the user in KiCad), larger vias (0.8/0.4) on +5V/+3.3V where they fit, teardrops, silkscreen updates, U5 is the 3.3 V XC6206P332MR (JLCPCB C5446, Basic) as on v5; it was briefly the 3.6 V XC6206P362MR (C351446, Extended), changed back 2026-11-08 to save the fee (the BM64 and BT401 both work on 3.3 V on v5).
 It adds **J11**, a 5-pin I²C accessory header (1 GND, 2 SCL, 3 SDA, 4 +3.3 V, 5 +5 V, shared bus with the ES8388; the coin board's J1/J6 use the same pin numbers). The public docs say it should work but v5 is the tested board (README history table,
 docs/board.md version table and callout, the README in the v6 KiCad folder). Don't describe v6 as
-tested or working until the user has built one and says so. Its JLCPCB/PCBWay exports are local only
-while v6 is in progress; re-track the folder (drop the .gitignore rule) when the user publishes it.
+tested or working until the user has built one and says so.
 
-**Payphone coin board (`PayPhone/Payphone_coin_board_v1/`) is released for fab (2026-11-08), untested:** layout finished, nothing built. Its docs say so at the top; keep saying untested until the user has built one. Its JLCPCB exports (`jlcpcb/`) are gitignored.
+**Payphone coin board (`PayPhone/Payphone_coin_board_v1/`) is released for fab (2026-11-08), untested:** layout finished, nothing built. Its docs say so at the top; keep saying untested until the user has built one. Its JLCPCB exports (`jlcpcb/`) and schematic PDF are in git since v1.2.1; public reference: `docs/hardware-coin-board.md`. `HV_Relay.kicad_sch` in its folder is an unreferenced leftover, left untracked.
 
 ## Building/flashing for a specific board type (SMD2 vs SMD4 vs SMD5)
 
