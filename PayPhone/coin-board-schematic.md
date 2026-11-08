@@ -61,7 +61,7 @@ green wire, and they aren't the same wires.
 | **J10** | 1 x 2 pin header + shunt | **two-coil relays only:** ties COIL_C (J11 pin 2) to HV (section 7). It can't reach J2, so a relay on J2 is unaffected either way |
 | **J14** | 1 x 2 pin header + shunt | **HV boost:** 20V to U3's VCC. **No shunt (the safe default): HV stays at about 19 V**, whatever the firmware does. Shunt fitted: HV goes to J7-J9's setting (section 6) |
 | **J3** | Molex KK 396, 4-pin, 0026604040 | **coin switch cable.** 4 green = common (GND), 3 white = quarter, 2 red = dime, 1 blue = nickel. On the plug with its tab at the bottom, green is the left pin and blue the right |
-| **J12** | KF128 screw terminal, 5 pins, 2.54 mm pitch (coin inputs are low voltage) | 1 nickel, 2 dime, 3 quarter, 4 GND (J3's pins, in parallel), **5 coin 4** (U1 P0) |
+| **J12** | KF128 screw terminal, 5 pins, 2.54 mm pitch (coin inputs are low voltage) | 1 GND, **2 coin 4**, 3 quarter, 4 dime, 5 nickel (left to right on the board: nickel, dime, quarter, coin 4, GND; nickel, dime, quarter and GND are J3's pins, in parallel). Coin 4 goes to U1 P0 |
 | **J13** | 1 x 3 pin header, 2.54 mm | spare analog input: 1 VIO, 2 AIN3 (through R52 10 k, C25 100 nF to GND), 3 GND (section 9) |
 | **J7-J9** | three 2-pin headers + shunts | HV setting with J14 fitted: no shunt = 52 V; any combination is valid, up to 119 V with all three (section 6) |
 | **JP1** | solder jumper, **open** | **VIO = 5 V**: bridge it only for a host with no logic supply to give (a 5 V I2C host using four wires). Leave it open whenever pin 2 is wired |
@@ -111,7 +111,7 @@ on.
 |---|---|---|---|---|---|
 | 1 | A0 | VIO | | | address 0x39 |
 | 2, 3 | A1, A2 | GND | | | |
-| 4 | P0 | Coin 4 | in | high | wired like P1-P3 (R49 10 k pull-up, R50 1 k, C24 100 nF), from J12 pin 5. Next to P1-P3, so the four coin inputs are together |
+| 4 | P0 | Coin 4 | in | high | wired like P1-P3 (R49 10 k pull-up, R50 1 k, C24 100 nF), from J12 pin 2. Next to P1-P3, so the four coin inputs are together |
 | 5 | P1 | Quarter | in | high | R4 10 k pull-up to VIO, R7 1 k series, C2 100 nF on the switch side |
 | 6 | P2 | Dime | in | high | the same with R5, R8, C3 |
 | 7 | P3 | Nickel | in | high | the same with R6, R9, C4 |
@@ -436,7 +436,7 @@ which is in series with the coil.
   / blue closes briefly for a quarter / dime / nickel. There's no supply to them:
   green goes to GND, and each line is pulled up to VIO.
 - **Each line:** R4-R6 10 k pull-up to VIO, R7-R9 1 k series to U1, C2-C4 100 nF to
-  GND on the switch side. D8-D10 show each line (section 4). **Coin 4** (U1 P0, J12 pin 5)
+  GND on the switch side. D8-D10 show each line (section 4). **Coin 4** (U1 P0, J12 pin 2)
   is the same: R49, R50, C24, D15 with R51. It's for a 50c or $1 switch, a coin-present
   switch, or a coin acceptor's pulse output.
 - **D16-D19 (B5819W Schottky, 40 V)** sit in series between each connector pin and its

@@ -10390,16 +10390,6 @@
 		)
 		(uuid "00acd932-8e44-420a-b942-e1df96a5b9f7")
 	)
-	(label "COIN4_IN"
-		(at 208.28 77.47 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "09588f95-3cfc-4883-859a-499191014862")
-	)
 	(label "20V"
 		(at 346.71 58.42 0)
 		(effects
@@ -10750,16 +10740,6 @@
 		)
 		(uuid "6c5c7e22-1655-478d-a3b5-53c0f2b88698")
 	)
-	(label "NICKEL_IN"
-		(at 208.28 67.31 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "6c72a5b0-0b59-4449-ae06-25b47bfb188f")
-	)
 	(label "LED_HV_A"
 		(at 196.85 175.26 180)
 		(effects
@@ -10860,6 +10840,16 @@
 		)
 		(uuid "8c9dabb2-b642-4210-9370-3b3f095d7cbe")
 	)
+	(label "COIN4_IN"
+		(at 208.28 69.85 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "8d89c604-0450-4bc1-b8bb-c933289c2f89")
+	)
 	(label "COMP"
 		(at 109.22 177.8 180)
 		(effects
@@ -10950,16 +10940,6 @@
 		)
 		(uuid "afaf45d4-062c-43bc-b2e6-7c1bc431344a")
 	)
-	(label "DIME_IN"
-		(at 208.28 69.85 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "b23b86a1-2d8e-4ec7-8898-deec90092c9b")
-	)
 	(label "20V"
 		(at 44.45 138.43 180)
 		(effects
@@ -11010,6 +10990,16 @@
 		)
 		(uuid "bf8ce20f-1241-4cbd-b3b7-a7ed928aa6f6")
 	)
+	(label "DIME_IN"
+		(at 208.28 74.93 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "c7286cb0-aba6-406f-9a81-79e02dd7022d")
+	)
 	(label "QUARTER_IN"
 		(at 207.01 53.34 180)
 		(effects
@@ -11039,6 +11029,16 @@
 			(justify left bottom)
 		)
 		(uuid "d0c2f4aa-5de2-40ad-9a6d-d67b0b9fe493")
+	)
+	(label "NICKEL_IN"
+		(at 208.28 77.47 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "d9976f20-0c94-4650-8ca8-503de614ef80")
 	)
 	(label "+5V_IN"
 		(at 35.56 72.39 180)
@@ -19810,6 +19810,83 @@
 		)
 	)
 	(symbol
+		(lib_id "power:GND")
+		(at 208.28 67.31 270)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "75aff76e-b286-4dbd-a9a6-6be573386e1f")
+		(property "Reference" "#PWR0201"
+			(at 208.28 71.12 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 203.2 66.802 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at -1.27 -29.21 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at -1.27 -29.21 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at -1.27 -29.21 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "af93bd15-6dee-4140-96f9-cffd39293618")
+		)
+		(instances
+			(project "Payphone_coin_board_v1"
+				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
+					(reference "#PWR0201")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "PCM_SparkFun-Capacitor:1.0uF_0402_16V_10%")
 		(at 161.29 62.23 0)
 		(unit 1)
@@ -27077,84 +27154,6 @@
 			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R38")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 208.28 74.93 270)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "de183325-1faf-443f-bcfd-e4d305338daa")
-		(property "Reference" "#PWR0201"
-			(at 208.28 78.74 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 208.28 78.74 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at -1.27 -21.59 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at -1.27 -21.59 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at -1.27 -21.59 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "723c2f6a-b619-49f2-b09b-712f717188f4")
-		)
-		(instances
-			(project "Payphone_coin_board_v1"
-				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "#PWR0201")
 					(unit 1)
 				)
 			)
