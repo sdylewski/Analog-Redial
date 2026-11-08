@@ -60,15 +60,13 @@ green wire, and they aren't the same wires.
 | **J11** | Phoenix MKDS 1,5/3-5,08 screw terminal | 1 COIL_A, 2 COIL_C, 3 COIL_B: for a relay without the KK 396 plug, and the only connector for a two-coil relay's common (pin 2). Fit J2 or J11 |
 | **J10** | 1 x 2 pin header + shunt | **two-coil relays only:** ties COIL_C (J11 pin 2) to HV (section 7). It can't reach J2, so a relay on J2 is unaffected either way |
 | **J14** | 1 x 2 pin header + shunt | **HV boost:** 20V to U3's VCC. **No shunt (the safe default): HV stays at about 19 V**, whatever the firmware does. Shunt fitted: HV goes to J7-J9's setting (section 6) |
-| **J3** | Molex KK 396, 4-pin, 0026604040 | **coin switch cable.** 4 green = common (GND), 3 white = quarter, 2 red = dime, 1 blue = nickel. On the plug with its tab at the bottom, green is the left pin and blue the right |
+| **J3** | Molex KK 396, 4-pin, 0026604040 | **coin switch cable.** 4 green = common (GND), 3 white = quarter, 2 red = dime, 1 blue = nickel (checked on the phone's plug). On the plug with its tab at the bottom, green is the left pin and blue the right |
 | **J12** | KF128 screw terminal, 5 pins, 2.54 mm pitch (coin inputs are low voltage) | 1 GND, **2 coin 4**, 3 quarter, 4 dime, 5 nickel (left to right on the board: nickel, dime, quarter, coin 4, GND; nickel, dime, quarter and GND are J3's pins, in parallel). Coin 4 goes to U1 P0 |
 | **J13** | 1 x 3 pin header, 2.54 mm | spare analog input: 1 VIO, 2 AIN3 (through R52 10 k, C25 100 nF to GND), 3 GND (section 9) |
 | **J7-J9** | three 2-pin headers + shunts | HV setting with J14 fitted: no shunt = 52 V; any combination is valid, up to 119 V with all three (section 6) |
 | **JP1** | solder jumper, **open** | **VIO = 5 V**: bridge it only for a host with no logic supply to give (a 5 V I2C host using four wires). Leave it open whenever pin 2 is wired |
 
-**Before ordering:** with each plug in its header, check the wires land on the
-pin numbers above (green on J3 pin 4, white on J2 pin 3). If one is reversed,
-only that connector's pin numbers change in the schematic.
+**Checked:** both plugs match the pin numbers above (green on J3 pin 4, white on J2 pin 3).
 
 ## 3. I2C and VIO
 
