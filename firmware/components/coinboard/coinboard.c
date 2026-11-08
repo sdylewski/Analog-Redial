@@ -92,7 +92,7 @@ static inline void wake_task(void) { if (s_task) xTaskNotifyGive(s_task); }
 /* +-4.096 V over 16 bits: 125 uV a count. Noise below zero reads 0. */
 static int64_t ain_uv(int raw) { return raw > 0 ? (int64_t)raw * 125 : 0; }
 int coinboard_ain_mv(int raw)    { return (int)(ain_uv(raw) / 1000); }
-int coinboard_rail_mv(int raw)   { return (int)(ain_uv(raw) * 66 / 10 / 1000); }      /* (56k + 10k) / 10k */
+int coinboard_rail_mv(int raw)   { return (int)(ain_uv(raw) * 177 / 27 / 1000); }     /* (150k + 27k) / 27k */
 int coinboard_hv_mv(int raw)     { return (int)(ain_uv(raw) * 1027 / 27 / 1000); }    /* (1M + 27k) / 27k */
 int coinboard_isense_ma(int raw) { return (int)(ain_uv(raw) / 10 / 1000); }           /* 10 ohm */
 

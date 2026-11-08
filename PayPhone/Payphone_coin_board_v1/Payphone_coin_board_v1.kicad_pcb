@@ -144,7 +144,7 @@
 		(property ki_fp_filters "TSSOP*3x3mm*P0.5mm*")
 		(path "/b17d19e8-a9d1-415c-8121-1b7d217372e4")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -509,7 +509,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/73790793-f8d6-4f1b-ba7d-fb773677d281")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -630,7 +630,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -641,7 +641,7 @@
 				)
 			)
 		)
-		(property "Description" "I2C pull-up, not fitted: the main board has its own (JLCPCB Basic)"
+		(property "Description" "Resistor"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -665,10 +665,23 @@
 				)
 			)
 		)
+		(property "Note" "I2C pull-up, not fitted: the main board has its own (JLCPCB Basic)"
+			(at 0 0 270)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "8d6f98ff-77e3-400a-917c-cd4d21f56a4f")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "R_*")
 		(path "/d17373d8-fbab-49d2-b390-e1ecf98c9057")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -840,7 +853,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/158af2e2-767f-4d23-b949-1b131fa1491f")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -999,7 +1012,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/2a785ad1-12c5-4050-aa3c-8630cdbe5652")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1171,7 +1184,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/1e9c498d-28aa-45dc-896c-afd4dece207d")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1330,7 +1343,7 @@
 		(property ki_fp_filters "Choke_* *Coil* Inductor_* L_*")
 		(path "/75532bd3-4dc7-4fc4-8814-defe2d4dda95")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1653,7 +1666,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/3eaac8d5-4192-476c-8378-35a0d96f8b01")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -1812,7 +1825,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/e77eeeac-87ee-4bb9-9d24-c46543b217d6")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2035,7 +2048,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/cea4326b-a593-47b3-91de-e05072cc3d02")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2194,7 +2207,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/70893a59-5310-4b48-ac4b-d3aa9f14f0b6")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2391,7 +2404,7 @@
 		)
 		(path "/9dd679e5-a206-44b1-bcca-078de14a2394")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2521,7 +2534,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/82efe7ee-e96a-4f28-8e76-ef51cbe3e8e7")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2693,7 +2706,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/359bb8ad-2baf-4d59-a451-5b19ad0dc671")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -2839,14 +2852,14 @@
 		(property ki_fp_filters "PinHeader_1x02_P2.54mm*")
 		(path "/8568b218-6956-486c-848c-86f0a6b70e53")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
 				(pins "1" "2")
 			)
 		)
-		(attr through_hole exclude_from_pos_files)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start 1.38 1.27)
@@ -3041,7 +3054,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 0 0 180)
 			(layer "F.Fab")
 			(hide yes)
@@ -3052,7 +3065,7 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Unpolarized capacitor"
 			(at 0 0 180)
 			(layer "F.Fab")
 			(hide yes)
@@ -3079,7 +3092,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/c1b2fdbf-fd51-49e5-8da0-95f7141b3ec5")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3200,7 +3213,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -3211,7 +3224,7 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Unpolarized capacitor"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -3238,7 +3251,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/2690f144-69b4-4533-b5c2-804bd07970f3")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3385,7 +3398,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C5353290"
+		(property "LCSC" ""
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -3398,10 +3411,23 @@
 				)
 			)
 		)
+		(property "Note" "Hand solder (LCSC C5353290)"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "5969574f-28a5-49b4-ba4f-ba3298e7c69f")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "D?DO?201AE*")
 		(path "/f73ccc7f-67a3-4cd6-9e3c-5aa4b74a7113")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3703,7 +3729,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/66179860-bb9d-4b0e-bec6-4f93d257667f")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -3813,7 +3839,7 @@
 				)
 			)
 		)
-		(property "Value" "1M"
+		(property "Value" "1M 1206"
 			(at 0 1.83 90)
 			(layer "F.Fab")
 			(uuid "9f48836a-a745-4739-8dd1-3779c3028000")
@@ -3875,7 +3901,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/ef557589-80a9-4785-8bc8-0d8b5e3ab2b4")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -4038,7 +4064,7 @@
 		(property ki_fp_filters "D*DO?35*")
 		(path "/5c625f62-f0ce-44e1-bbad-b9dbc84a8b46")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -4341,7 +4367,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/7d527f87-2ce9-49fb-9a1c-acfec8b53f6c")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -4630,7 +4656,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/5acddb16-9da5-4e2d-be7b-888ba63bd9e4")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -4853,7 +4879,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/9f7a54d5-61ae-4043-9dfd-9bb5ff8e6976")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -4985,7 +5011,7 @@
 				)
 			)
 		)
-		(property "Description" "Electrolytic on +5V, through-hole: damps the cable (Aishi ERZ1HM101E12OT, or any 100 uF 10 V or more)"
+		(property "Description" "Polarized capacitor"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -4996,7 +5022,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C487360"
+		(property "LCSC" ""
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -5009,10 +5035,23 @@
 				)
 			)
 		)
+		(property "Note" "Electrolytic on +5V: damps the cable; Hand solder (LCSC C487360)"
+			(at 0 0 0)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "45da085a-b9dc-4fad-84dd-e9c64305a864")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "CP_*")
 		(path "/eb355593-76a4-4259-8f90-303b3508ce9c")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -5422,7 +5461,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -5433,7 +5472,7 @@
 				)
 			)
 		)
-		(property "Description" "Series resistor in the I2C line, 0805 (JLCPCB Basic)"
+		(property "Description" "Resistor"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -5457,10 +5496,23 @@
 				)
 			)
 		)
+		(property "Note" "Series resistor in the I2C line, 0805 (JLCPCB Basic)"
+			(at 0 0 0)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "adb02a1d-8b8d-4c5b-92dd-8517024c3e41")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "R_*")
 		(path "/c743e83a-ee00-4bbd-8efa-85ee017459d0")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -5853,7 +5905,7 @@
 		(property ki_fp_filters "SOT?23*")
 		(path "/cd322722-94c3-4485-8f2b-7eb992472746")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -6249,7 +6301,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/1639be3b-befb-4687-aa75-83eeab6659c3")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -6395,7 +6447,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/8c573f92-40d2-42e0-a3e2-1e8d670d941b")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -6871,7 +6923,7 @@
 				)
 			)
 		)
-		(property "Value" "10k"
+		(property "Value" "27k"
 			(at 0 1.65 0)
 			(layer "F.Fab")
 			(uuid "26e720e6-bed3-492a-b5b9-2498dffd2522")
@@ -6917,7 +6969,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17414"
+		(property "LCSC" "C17593"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -6933,7 +6985,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/15a66725-eff8-48d1-b727-b12d6a52ea8b")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -7079,7 +7131,7 @@
 		)
 		(path "/ce3503ac-cddd-4745-adf8-7ac905147742")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -7183,7 +7235,7 @@
 		(property ki_fp_filters "PinHeader_1x02_P2.54mm*")
 		(path "/462164e6-3b1d-4cd4-a60b-578ea1ca1c9b")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -7410,7 +7462,7 @@
 		(property ki_fp_filters "PinHeader_1x05_P2.54mm*")
 		(path "/8f358632-5671-41e9-9283-574d648db4cb")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -7871,7 +7923,7 @@
 				)
 			)
 		)
-		(property "Description" "Qa1 gate to source: holds Qa1 off while U3 is unpowered (J14 open)"
+		(property "Description" "Resistor"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -7908,10 +7960,23 @@
 				)
 			)
 		)
+		(property "Note" "Qa1 gate to source: holds Qa1 off while U3 is unpowered (J14 open)"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "bc894fdb-eb4b-4a87-811d-9738669d1348")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "R_*")
 		(path "/5aee09cf-7ca3-4251-babd-f6bd91fef5b9")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -8109,7 +8174,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/49be952a-7772-4153-8a6b-72b85ea730fa")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -8219,7 +8284,7 @@
 				)
 			)
 		)
-		(property "Value" "1M"
+		(property "Value" "1M 1206"
 			(at 0 1.83 90)
 			(layer "F.Fab")
 			(uuid "eea0f97a-7ec6-4ac5-8dd9-dcbb20d4ae3e")
@@ -8281,7 +8346,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/eaf40747-8443-49ea-978e-8d01dd04ce6f")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -8444,7 +8509,7 @@
 		(property ki_fp_filters "D*DO?41*")
 		(path "/65941d34-a8ae-4eaf-8561-4fd398159c17")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -8746,7 +8811,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/adf6b40c-2f45-4543-8a39-119d54173a77")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -8918,7 +8983,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/612d3b5c-42d3-42dc-b42f-c4f6d9aef5db")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -9077,7 +9142,7 @@
 		(property ki_fp_filters "Choke_* *Coil* Inductor_* L_*")
 		(path "/88ab2a7a-6c6a-40bb-8e9a-2c357be0c01e")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -9413,7 +9478,7 @@
 		(property ki_fp_filters "SOT?23*")
 		(path "/bcca28a7-7125-43eb-9f73-0fca78273bc7")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -9758,7 +9823,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -9769,7 +9834,7 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Unpolarized capacitor"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -9796,7 +9861,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/f8621445-e6b3-44c6-a916-3fef592e0120")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -9955,7 +10020,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/c2783930-3572-46e6-87a8-2594fde218a6")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -10055,7 +10120,7 @@
 		(descr "Capacitor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 76, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf, https://docs.google.com/spreadsheets/d/1BsfQQcO9C6DZCsRaXUlFlo91Tg2WpOkGARC1WS5S8t0/edit?usp=sharing)")
 		(tags "capacitor")
 		(property "Reference" "Cvcc1"
-			(at 0 1.75 0)
+			(at 0.75 1.75 0)
 			(layer "F.SilkS")
 			(uuid "53ae73b0-bd80-49ac-a6d0-c75aa510cc79")
 			(effects
@@ -10065,7 +10130,7 @@
 				)
 			)
 		)
-		(property "Value" "100nF 50V"
+		(property "Value" "100nF"
 			(at 0 1.68 0)
 			(layer "F.Fab")
 			(uuid "01aac432-77be-4e3c-b2ba-d38850a2827a")
@@ -10076,7 +10141,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -10087,7 +10152,7 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Unpolarized capacitor"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -10098,7 +10163,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C49678"
+		(property "LCSC" "C28233"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -10114,7 +10179,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/e2e88947-2ff1-454f-bf35-3f5064864f99")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -10260,7 +10325,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/74bb2414-e5bd-44c9-ad54-12ec9402b2f1")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -10620,7 +10685,7 @@
 				)
 			)
 		)
-		(property "Value" "100k"
+		(property "Value" "100k 1206"
 			(at 0 1.83 90)
 			(layer "F.Fab")
 			(uuid "efe7dd52-795d-4831-bee5-4d4b91785d1f")
@@ -10682,7 +10747,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/b29ae563-6707-414e-acc7-b48f38bfbde6")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -10841,7 +10906,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/c2a54e0c-a3c7-48d5-a4ef-a76577c9bc44")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -10992,7 +11057,7 @@
 		(descr "Through hole straight pin header, 1x02, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x02 2.54mm single row")
 		(property "Reference" "J14"
-			(at 0 -2.38 90)
+			(at 0 -2.225 270)
 			(layer "F.SilkS")
 			(uuid "92e3094b-6c02-4b2a-9763-06acf121b0d9")
 			(effects
@@ -11038,7 +11103,7 @@
 		(property ki_fp_filters "PinHeader_1x02_P2.54mm*")
 		(path "/2716c123-2f9d-4cbf-8899-820eb69d0f3c")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11282,7 +11347,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/4f0a4c50-5c78-4053-ab71-b54153e169bc")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11620,7 +11685,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/265dce1d-0476-4424-9a24-5357ea922b94")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11783,7 +11848,7 @@
 		(property ki_fp_filters "D*DO?41*")
 		(path "/53e38e1b-7354-44ef-bcf9-4fa8d95ef022")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -12085,7 +12150,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/28448f96-e64a-4696-b1b4-1b2a3a70466b")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -12283,7 +12348,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/a8d14830-5b45-46cd-aa88-bd605ffa7eb6")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -12455,7 +12520,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/2c67b069-de77-4d5d-b350-594a14859d64")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -12565,7 +12630,7 @@
 				)
 			)
 		)
-		(property "Value" "100k"
+		(property "Value" "100k 1206"
 			(at 0 1.83 90)
 			(layer "F.Fab")
 			(uuid "3ff0d459-995b-442f-834f-c7dd66ed4ec7")
@@ -12627,7 +12692,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/1d589787-d7b8-45a2-98a5-17e4d0efdae3")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -12748,7 +12813,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -12759,7 +12824,7 @@
 				)
 			)
 		)
-		(property "Description" "Limits current into AIN2 if R26 sees a fault (0805W8F1001T5E)"
+		(property "Description" "Resistor"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -12783,10 +12848,23 @@
 				)
 			)
 		)
+		(property "Note" "Limits current into AIN2 if R26 sees a fault (0805W8F1001T5E)"
+			(at 0 0 0)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "348411f6-b231-4512-b71c-297351b1fc93")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "R_*")
 		(path "/fb0ab6b2-b1d1-4246-8d11-b50589eb6d57")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -12949,7 +13027,7 @@
 		(property ki_fp_filters "D*DO?35*")
 		(path "/cd38e945-afd6-4785-a8b8-b8c9901c3a44")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -13261,7 +13339,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/09376f0e-26ca-4d4c-9984-9c7b4d5159cb")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -13433,7 +13511,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/f6c41639-d546-451c-a895-f06f8e82668e")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -13596,7 +13674,7 @@
 		(property ki_fp_filters "D*DO?41*")
 		(path "/40db2785-1546-4fb9-9e89-52422add1e04")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -13898,7 +13976,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/6629594e-9eb4-44ef-889f-3d90e4d57f26")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -14057,7 +14135,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/848f30e8-1d27-4744-a1f7-36d66597db57")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -14229,7 +14307,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/308f0260-a3db-4b1e-8db9-724936a9dd3f")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -14339,7 +14417,7 @@
 				)
 			)
 		)
-		(property "Value" "1M"
+		(property "Value" "1M 1206"
 			(at 0 1.83 90)
 			(layer "F.Fab")
 			(uuid "6ea905cc-b31d-425a-9e0e-9e5cd56a24e8")
@@ -14401,7 +14479,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/65b03904-3c1b-4f1b-9315-4cc8b27826c2")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -14522,7 +14600,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -14533,7 +14611,7 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Unpolarized capacitor"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -14560,7 +14638,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/4d1851fd-8103-4567-b33c-a0444ce986f4")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -14670,7 +14748,7 @@
 				)
 			)
 		)
-		(property "Value" "100k"
+		(property "Value" "100k 1206"
 			(at 0 1.83 90)
 			(layer "F.Fab")
 			(uuid "0c78767c-f630-485b-b5f8-787f31b0b99f")
@@ -14732,7 +14810,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/86085062-f91a-4c7a-9ff5-a96104cd0251")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -14891,7 +14969,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/b81b170e-f57d-437e-8754-564b91bcdc55")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -15037,7 +15115,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/0f98aaae-2877-4ac6-ba65-46fe440d240e")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -15281,7 +15359,7 @@
 		(property ki_fp_filters "Relay*DPDT*Omron*G6S?2*")
 		(path "/a7314f22-3c4e-4f30-9b98-5a75500788b8")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -15713,7 +15791,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/e32e08b4-028d-4b05-a529-f3e398bc8130")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -15834,7 +15912,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -15845,7 +15923,7 @@
 				)
 			)
 		)
-		(property "Description" "AIN0 filter, 0805 (JLCPCB Basic)"
+		(property "Description" "Unpolarized capacitor"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -15869,10 +15947,23 @@
 				)
 			)
 		)
+		(property "Note" "AIN0 filter, 0805 (JLCPCB Basic)"
+			(at 0 0 180)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "8332d02a-36dd-4f14-9fb4-6ecb428326ed")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "C_*")
 		(path "/034c0528-ee25-42cb-b2e2-70e66f801328")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -15993,7 +16084,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -16004,7 +16095,7 @@
 				)
 			)
 		)
-		(property "Description" "AIN1 filter, 0805 (JLCPCB Basic)"
+		(property "Description" "Unpolarized capacitor"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -16028,10 +16119,23 @@
 				)
 			)
 		)
+		(property "Note" "AIN1 filter, 0805 (JLCPCB Basic)"
+			(at 0 0 180)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "e152e03c-cc31-434c-b2dc-695326f4451c")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "C_*")
 		(path "/dd744295-2bdb-42d4-bac2-37f291a86baa")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -16203,7 +16307,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/ebee7b10-c532-4c41-92f3-8ecf13a3bb75")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -16375,7 +16479,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/a18adbe2-b58e-4bd0-a91e-3680ed27e62f")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -16496,7 +16600,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -16507,7 +16611,7 @@
 				)
 			)
 		)
-		(property "Description" "I2C pull-up, not fitted: the main board has its own (JLCPCB Basic)"
+		(property "Description" "Resistor"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -16531,10 +16635,23 @@
 				)
 			)
 		)
+		(property "Note" "I2C pull-up, not fitted: the main board has its own (JLCPCB Basic)"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "17648cf6-d8ba-4d21-b0bc-db5049bf2bfa")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "R_*")
 		(path "/5cda063a-c443-43a5-b6f7-4a7db0b27b82")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -16644,7 +16761,7 @@
 				)
 			)
 		)
-		(property "Value" "1M"
+		(property "Value" "1M 1206"
 			(at 0 1.83 270)
 			(layer "F.Fab")
 			(uuid "bb08e128-8a46-45fe-91b0-8bf4f1afbeec")
@@ -16706,7 +16823,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/5af52ec4-3c81-43a7-8849-d0301cf2b4f2")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -16865,7 +16982,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/ad858157-3808-4b11-ac44-277ecd27c022")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -17011,7 +17128,7 @@
 		)
 		(path "/415c0dd7-82eb-42da-9637-a55c74cba449")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -17132,7 +17249,7 @@
 		(property ki_fp_filters "TO?220*")
 		(path "/de8390d0-9b07-4ada-b0b3-5888af6e1bcf")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -17413,7 +17530,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/10cde106-cadb-492c-83a9-fb2e844f020f")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -17585,7 +17702,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/53853c37-c861-416f-8ef0-24837efc4802")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -17695,7 +17812,7 @@
 				)
 			)
 		)
-		(property "Value" "100nF 50V"
+		(property "Value" "100nF 50V 1206"
 			(at 0 1.85 90)
 			(layer "F.Fab")
 			(uuid "29fcd9cb-b4c6-4256-910a-30cbd06b56dc")
@@ -17744,7 +17861,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/d7e4ddc5-b6b6-4999-9e35-e781600e55d5")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -17890,14 +18007,14 @@
 		(property ki_fp_filters "PinHeader_1x02_P2.54mm*")
 		(path "/dc0b7851-0f80-448e-87a2-d86842120b13")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
 				(pins "1" "2")
 			)
 		)
-		(attr through_hole exclude_from_pos_files)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start 1.38 1.27)
@@ -18169,7 +18286,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/139c0dcc-df69-4e05-8236-d1e4261c21ec")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -18341,7 +18458,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/a31c98f1-d9f9-40b2-9d2e-978d3ef9b83f")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -18500,7 +18617,7 @@
 		(property ki_fp_filters "SOT?23*")
 		(path "/f25d9f7b-7e1f-467a-99b0-ad438ae1f45f")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -18896,7 +19013,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/c5036fcd-d440-4a04-90f5-8bed0c2325b2")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -19055,7 +19172,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/980d8c27-42ce-43b6-8791-f6809d56ae33")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -19227,7 +19344,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/0657bdc1-018d-45c5-9bab-9b72f9a56e1b")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -19399,7 +19516,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/77fe5244-0b5d-4955-8bf4-10ed0b17a935")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -19558,7 +19675,7 @@
 		(property ki_fp_filters "DIP*W7.62mm*")
 		(path "/6e72102d-2ba9-42d8-be19-3c5300a06eae")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -19928,7 +20045,7 @@
 		)
 		(path "/3def2f60-58f8-4135-852d-4608bb7942ec")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -20045,7 +20162,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/252b6af4-a9c0-425e-9ff0-d5fda835674c")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -20228,7 +20345,7 @@
 				)
 			)
 		)
-		(property "Description" "Polarized capacitor, small symbol"
+		(property "Description" "Polarized capacitor"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -20239,7 +20356,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C487360"
+		(property "LCSC" ""
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -20252,10 +20369,23 @@
 				)
 			)
 		)
+		(property "Note" "Hand solder (LCSC C487360)"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "67b74deb-29ba-47c7-8e13-67c693ab053c")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "CP_*")
 		(path "/0ed11167-2f72-46a9-8d85-2ea9e4da3dc4")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -20703,7 +20833,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/d014c292-5411-4649-8411-f43aa87ea2e3")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -20917,7 +21047,7 @@
 		(property ki_fp_filters "D*DO?35*")
 		(path "/a032e2ed-15c2-4040-b38b-8772f9760c9b")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21229,7 +21359,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/a487a483-e143-4d4c-9a41-d619723a53e0")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21401,7 +21531,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/0d79e4d8-6f68-4335-b2c0-2b967b55f38f")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21511,7 +21641,7 @@
 				)
 			)
 		)
-		(property "Value" "100R"
+		(property "Value" "100R 1206"
 			(at 0 1.83 90)
 			(layer "F.Fab")
 			(uuid "c5692f99-e6ce-4dc4-bade-9d33050cacaa")
@@ -21573,7 +21703,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/3777529e-969d-4d40-9068-f42898055550")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21745,7 +21875,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/9c2e2161-72fd-43a6-bd94-24c6a309d65e")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -21908,7 +22038,7 @@
 		(property ki_fp_filters "D*DO?35*")
 		(path "/93638315-7145-4b12-8c80-488ba6596b1d")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -22207,7 +22337,7 @@
 		(property ki_fp_filters "SOT?23*")
 		(path "/b34b3832-5b02-447d-a5bd-39c5c6d9f604")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -22577,7 +22707,7 @@
 		(property ki_fp_filters "PinHeader_1x05_P2.54mm*")
 		(path "/27141fad-ab29-4a86-9af3-a2aef8eca4cf")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -22860,7 +22990,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/98ec88cf-42d5-486b-9a63-cd7079db5c2a")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -23032,7 +23162,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/3659aed2-23f1-4ee8-a023-8aaf604d3a6e")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -23178,7 +23308,7 @@
 		(property ki_fp_filters "Connector_JST:JST_EH_S5B-EH_1x05_P2.50mm_Horizontal")
 		(path "/6600ef80-913f-4434-8401-4af2e89f1ee9")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -23478,14 +23608,14 @@
 		(property ki_fp_filters "PinHeader_1x02_P2.54mm*")
 		(path "/6642d193-b357-47d4-8fc7-f16802173add")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
 				(pins "1" "2")
 			)
 		)
-		(attr through_hole exclude_from_pos_files)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start 1.38 1.27)
@@ -23731,7 +23861,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/113b50e4-2173-4de7-a239-b3224d32fada")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -23877,7 +24007,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/dfa0fac7-cc70-4fed-9794-428f3f1aa216")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -24365,7 +24495,7 @@
 		(property ki_fp_filters "TO?220*")
 		(path "/df002619-138c-4d28-a69a-72ac5a319934")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -24646,7 +24776,7 @@
 		(property ki_fp_filters "TSSOP*4.4x5mm?P0.65mm* *SOIC*7.5x10.3mm?P1.27mm*")
 		(path "/73f3a273-7d20-4105-aafd-c95e00b9a63c")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -25058,7 +25188,7 @@
 		(property ki_fp_filters "CP_*")
 		(path "/d0b18a41-52e4-4af2-9528-87fb5a91d4fa")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -28223,7 +28353,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -28234,7 +28364,7 @@
 				)
 			)
 		)
-		(property "Description" "Series resistor in the I2C line, 0805 (JLCPCB Basic)"
+		(property "Description" "Resistor"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -28258,10 +28388,23 @@
 				)
 			)
 		)
+		(property "Note" "Series resistor in the I2C line, 0805 (JLCPCB Basic)"
+			(at 0 0 0)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "bcb8fecd-37eb-42dc-bd52-0bdd7a68519b")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "R_*")
 		(path "/e88ece5d-ec94-4cc5-a2bc-134f190d2c09")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -28433,7 +28576,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/8eea507f-0dc5-4151-a182-e54df4c2e7c5")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -28605,7 +28748,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/cc6cc9d3-6edb-4f72-b36f-56a7feb4eb52")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -28764,7 +28907,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/c3a4c789-7a28-4eec-b13e-ee64a66b7fc7")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -28936,7 +29079,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/c257c957-65c5-433f-ba53-2619c9a87c58")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -29068,7 +29211,7 @@
 				)
 			)
 		)
-		(property "Description" "Polarized capacitor, small symbol"
+		(property "Description" "Polarized capacitor"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -29079,7 +29222,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C487360"
+		(property "LCSC" ""
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -29092,10 +29235,23 @@
 				)
 			)
 		)
+		(property "Note" "Hand solder (LCSC C487360)"
+			(at 0 0 0)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "3d4c5e3d-330c-42f5-92f4-9f001384fb65")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "CP_*")
 		(path "/b36f20b0-3676-4ade-b07a-9ca4192f0c35")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -29516,7 +29672,7 @@
 				)
 			)
 		)
-		(property "Description" "Polarized capacitor, small symbol"
+		(property "Description" "Polarized capacitor"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -29527,7 +29683,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C487360"
+		(property "LCSC" ""
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -29540,10 +29696,23 @@
 				)
 			)
 		)
+		(property "Note" "Hand solder (LCSC C487360)"
+			(at 0 0 90)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "bcd49920-bd38-4f14-acf4-d5c31ec68c1d")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "CP_*")
 		(path "/7849f30e-cdd3-4361-821a-f965315dcb2d")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -30004,7 +30173,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/18e014dd-e084-44af-aef0-c300ce4b7045")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -30163,7 +30332,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/bf4be0aa-7ce3-4a47-a114-902dc96450d3")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -30377,7 +30546,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/a7f67ec2-2d42-4e6f-8ba0-365f928a7799")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -30689,7 +30858,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/dd9da614-e7ad-48f1-89a7-39cdf35afcfb")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -30861,7 +31030,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/bb879098-5160-49fe-be03-ffa6a6cb09c6")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -31059,7 +31228,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/77169c25-e197-4a69-b981-c59b9358bf41")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -31180,7 +31349,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -31191,7 +31360,7 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Unpolarized capacitor"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -31218,7 +31387,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/e7a0b5bc-6261-414b-8dc4-aeb34d38de54")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -31381,7 +31550,7 @@
 		(property ki_fp_filters "D*DO?35*")
 		(path "/3bf70638-472a-42ea-9b76-cd5eaa48e846")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -31693,7 +31862,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/32aaa9f4-0024-4d8e-9de4-d9e1dee77bdb")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -31803,7 +31972,7 @@
 				)
 			)
 		)
-		(property "Value" "56k"
+		(property "Value" "150k"
 			(at 0 1.65 270)
 			(layer "F.Fab")
 			(uuid "7345938d-104a-49ac-93ad-48e47113521e")
@@ -31849,7 +32018,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17756"
+		(property "LCSC" "C17470"
 			(at 0 0 270)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -31865,7 +32034,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/0c3f0320-510a-4a66-b9b0-660788f498ad")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -32008,7 +32177,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C16414"
+		(property "LCSC" ""
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -32021,10 +32190,23 @@
 				)
 			)
 		)
+		(property "Note" "Hand solder (LCSC C16414)"
+			(at 0 0 0)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "ab9f2ea4-9ac2-466f-a54f-9c9831421ff3")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "DIP*W7.62mm*")
 		(path "/08ebd119-b13d-40da-982f-7edbc80ff32a")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -32420,7 +32602,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/632fb815-b817-48c4-847b-4338e03a89b7")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -32530,7 +32712,7 @@
 				)
 			)
 		)
-		(property "Value" "100nF 50V"
+		(property "Value" "100nF 50V 1206"
 			(at 0 1.85 90)
 			(layer "F.Fab")
 			(uuid "ed1d050d-402f-4a04-bd50-f1a6914c0c0f")
@@ -32579,7 +32761,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/42056fff-f501-4694-8af5-77e5ea8be04a")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -32751,7 +32933,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/a648b5d5-f6a0-41a7-9eab-4b3b321cb714")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -32894,7 +33076,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C163516"
+		(property "LCSC" ""
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -32907,10 +33089,23 @@
 				)
 			)
 		)
+		(property "Note" "Hand solder (LCSC C163516)"
+			(at 0 0 0)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "b2139047-ff13-4597-b45f-7f023c539aed")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "*polyfuse* *PTC*")
 		(path "/cd77b14e-f2b4-4dd3-a48c-7ca3e8696335")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -33020,7 +33215,7 @@
 				)
 			)
 		)
-		(property "Value" "100nF 50V"
+		(property "Value" "100nF 50V 1206"
 			(at 0 1.85 90)
 			(layer "F.Fab")
 			(uuid "84b372f1-4655-47b3-a05f-1e3e1911e42a")
@@ -33069,7 +33264,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/9c974fad-d766-47f3-900b-8e82d51b94e4")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -33228,7 +33423,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/bf5a378d-514c-4b3c-bead-06394c217923")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -33447,7 +33642,7 @@
 		(property ki_fp_filters "SolderJumper*Open*")
 		(path "/aa1b83d1-b1c4-407e-9a6b-342371e1e20f")
 		(sheetname "/")
-		(sheetfile "Payphone_v1.kicad_sch")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -33666,6 +33861,66 @@
 		)
 		(embedded_fonts no)
 	)
+	(gr_line
+		(start 117.5 134.75)
+		(end 133.75 135.25)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "35e6631a-a709-4eab-8caf-8d23e537d1ed")
+	)
+	(gr_line
+		(start 129.5 135)
+		(end 131 113.75)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "a81f7dee-8003-49c9-a7b7-27bd40d791ab")
+	)
+	(gr_line
+		(start 132.75 134.25)
+		(end 132.75 136.25)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "0e1b2985-54cf-4dad-94b0-5db04529aeb0")
+	)
+	(gr_line
+		(start 133.75 135.25)
+		(end 132.75 134.25)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "1ccfb2b5-27a8-4f25-bb29-c87ef8730f35")
+	)
+	(gr_line
+		(start 133.75 135.25)
+		(end 132.75 136.25)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "41a3ff11-8e5e-4f96-9cb7-79cc94387656")
+	)
+	(gr_line
+		(start 173.75 137.25)
+		(end 178.25 132.75)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "24bc68c8-163f-4d15-bc63-337a6cf8b21c")
+	)
 	(gr_rect
 		(start 66 70.5)
 		(end 221 140.5)
@@ -33679,7 +33934,7 @@
 		(uuid "7df7c905-7c96-438b-8c06-f0ea6e319578")
 	)
 	(gr_text "HV SET (fit jumpers)\nno J14         19 V\nJ14            52 V\nJ14 J9         60 V\nJ14 J8         78 V\nJ14 J8 J9      85 V\nJ14 J7         87 V\nJ14 J7 J9      94 V\nJ14 J7 J8     112 V\nJ14 J7 J8 J9  119 V"
-		(at 99 125.5 0)
+		(at 101.75 125.25 0)
 		(layer "F.SilkS")
 		(uuid "e966ae51-5ee8-4001-9327-a060307169f5")
 		(effects
@@ -33691,7 +33946,7 @@
 		)
 	)
 	(gr_text "for 2 coils. \nShort J10\nCoil 1 A-C\nCoil 2 B-C"
-		(at 182.75 131.6725 0)
+		(at 183 131 0)
 		(layer "F.SilkS")
 		(uuid "a0c4c4e6-b7c7-4aec-8a3a-425231eb9bc1")
 		(effects
@@ -33721,6 +33976,50 @@
 				(size 1 1)
 			)
 			(justify left top)
+		)
+	)
+	(gr_text "Optional ADS1115 module\nfor monitoring voltages"
+		(at 187.75 93 0)
+		(layer "F.SilkS")
+		(uuid "0bc730ef-8da0-4096-a12b-317166d8ecbd")
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify left bottom)
+		)
+	)
+	(gr_text "Gnd"
+		(at 216.25 82 0)
+		(layer "F.SilkS")
+		(uuid "dcbc14fc-149f-433e-9300-3fc22fca0907")
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify left bottom)
+		)
+	)
+	(gr_text "Ain3"
+		(at 216.25 84.75 0)
+		(layer "F.SilkS")
+		(uuid "24abe576-1c5f-4ee0-a45c-380630b53af5")
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify left bottom)
+		)
+	)
+	(gr_text "Vio"
+		(at 216.5 87.5 0)
+		(layer "F.SilkS")
+		(uuid "e1d94609-fb10-4610-9692-61cedce4c09f")
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify left bottom)
 		)
 	)
 	(gr_text "JST"
@@ -33807,6 +34106,61 @@
 			(justify left bottom)
 		)
 	)
+	(gr_text "Nickel"
+		(at 158.25 82.75 270)
+		(layer "F.SilkS")
+		(uuid "30dfed34-e325-4d41-a9c8-d60cc80dfcee")
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify left bottom)
+		)
+	)
+	(gr_text "Dime"
+		(at 163.25 82.75 270)
+		(layer "F.SilkS")
+		(uuid "b488a1d9-9fa3-491a-9afc-0b041fb1d729")
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify left bottom)
+		)
+	)
+	(gr_text "Quarter"
+		(at 168.5 82.25 270)
+		(layer "F.SilkS")
+		(uuid "7a0c5f5b-d080-40e2-ad90-6b17c3fe43c4")
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify left bottom)
+		)
+	)
+	(gr_text "Gnd"
+		(at 173.75 82.25 270)
+		(layer "F.SilkS")
+		(uuid "d08c89d6-e9c7-4bd6-83d9-c8e6cc3b5732")
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify left bottom)
+		)
+	)
+	(gr_text "Coin4"
+		(at 178.75 82 270)
+		(layer "F.SilkS")
+		(uuid "b36697ae-1ee8-4055-8e60-e3d3ebb6ab55")
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify left bottom)
+		)
+	)
 	(gr_text "DANGER: UP TO 120 V DC\nC1 STAYS CHARGED UNTIL\nTHE HV LED (D7) IS OUT"
 		(at 154.25 134 0)
 		(layer "F.SilkS")
@@ -33831,18 +34185,6 @@
 			(justify left top)
 		)
 	)
-	(gr_text "STAGE 2: 20 V -> HV"
-		(at 134.25 94.75 0)
-		(layer "F.SilkS")
-		(uuid "a62d4783-987a-4923-a112-e4f2cc15af3d")
-		(effects
-			(font
-				(size 1.2 1.2)
-				(thickness 0.24)
-			)
-			(justify left top)
-		)
-	)
 	(gr_text "COIN SWITCH INPUTS"
 		(at 156.75 89 0)
 		(layer "F.SilkS")
@@ -33855,10 +34197,10 @@
 			(justify left top)
 		)
 	)
-	(gr_text "FIRE DRIVER"
-		(at 175.560393 102.25 0)
+	(gr_text "STAGE 2: 20 V -> up to 120V "
+		(at 162.5 99.25 0)
 		(layer "F.SilkS")
-		(uuid "47bb3e03-f22e-44b5-a89a-4ba08d05ced7")
+		(uuid "a62d4783-987a-4923-a112-e4f2cc15af3d")
 		(effects
 			(font
 				(size 1.2 1.2)
@@ -33868,7 +34210,7 @@
 		)
 	)
 	(gr_text "Danger\nup to 120V out!"
-		(at 203.75 102.75 0)
+		(at 196 97.75 0)
 		(layer "F.SilkS")
 		(uuid "217850a0-991d-4a18-a1bb-64ccfcfbbe36")
 		(effects
@@ -34035,165 +34377,6 @@
 				(size 1.5 1.5)
 				(thickness 0.3)
 				(bold yes)
-			)
-			(justify left bottom)
-		)
-	)
-	(gr_text "STAGE 1 ROUTING\n- Hot loop: U2 pin 1 (SwC) -> D1 -> C7/C9 -> GND -> U2 pin 2.\n  Smallest possible, all on top.\n- Input: J6 +5V -> C5/C6 -> R11 -> U2 pin 7 / L1. Wide traces\n  (1 mm+): ~1 A peaks.\n- SW1 (L1 / D1 anode / U2 pin 1): short, small copper.\n- C8 at pin 3; R13/R14 at the FB pin (pin 5).\n- Join C5-C15 and U2 pins 2/4 GND on top, then several vias.\n- 20V leaves from C9/C15 to stage 2 (L2, U3) and Q5/R23."
-		(at 19.107509 154.996234 0)
-		(layer "Cmts.User")
-		(uuid "a99b5c20-522b-4737-9d55-a68cd55a3d4a")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.12)
-			)
-			(justify left top)
-		)
-	)
-	(gr_text "STAGE 2 ROUTING\n- Hot loop: Qa1 drain -> D2 -> C1+ ... C1- -> Rcs1 -> Qa1 source.\n  Smallest possible. Consider a 100 nF 250 V ceramic from D2\n  cathode to Rcs1 GND (not in the schematic yet).\n- SW2 (Qa1 drain / L2 / D2 anode) swings 0-120 V: short,\n  nothing parallel to it.\n- Gate: U3 OUT -> Rg1 -> Qa1 gate; Dz1 right at gate/source.\n- CS: separate (Kelvin) trace from Rcs1 top pad to Rf1;\n  Cf1 at the U3 CS pin.\n- Quiet GND: Ct1, Cvref1, Cf1, Rfbb4, J7-J9 to U3 pin 5 (GND),\n  then one via to the plane.\n- FB node short: Rfbb1-4, Rz1, Rfbt3 at U3 pin 2."
-		(at 101.08 149.175 0)
-		(layer "Cmts.User")
-		(uuid "e0ba4473-337d-4991-8516-ef9451a20b68")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.12)
-			)
-			(justify left top)
-		)
-	)
-	(gr_text "HV ROUTING\n- HV, HV_*, SW2, COIL_A/B, RETURN: HV net class,\n  1.0 mm clearance. Check the GND pour honours it.\n- R32 stays at HV: only its 3 V tap (AIN0) goes to U4.\n- D3 straight across C1. Rbl1-3 near C1.\n- Rfbt1-3 are HV class too: HV comes to Rfbt1,\n  the FB end (Rfbt3) sits at U3."
-		(at 153.079999 149.175 0)
-		(layer "Cmts.User")
-		(uuid "b2b51bd6-a8b6-425d-86c9-ea02a512ac12")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.12)
-			)
-			(justify left top)
-		)
-	)
-	(gr_text "FIRE ROUTING\n- FIRE arrives as VIO logic (long is\n  fine); the level shift is here, by Q3.\n- GATE3 (R24 / R25 / D6 -> Q3 gate):\n  a few mm only.\n- Pulse loop: C1+ -> K1 -> J2 -> coin\n  relay -> K1 -> Q3 -> R26 -> GND -> C1-.\n  Keep compact; R26 GND via toward C1-.\n- ISENSE (R26 top) -> U4 AIN2 as a\n  signal; add 100 nF at AIN2."
-		(at 250.5 78 0)
-		(layer "Cmts.User")
-		(uuid "5d6647eb-ea71-4d0c-bdef-cd23abb0669f")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.12)
-			)
-			(justify left top)
-		)
-	)
-	(gr_text "POL ROUTING\n- Q2, D4 at K1 coil pins 1/12.\n- K1 contacts are HV: HV (3, 8) and\n  RETURN (5, 10) cross, so route one\n  pair on the bottom layer."
-		(at 253.25 119.75 0)
-		(layer "Cmts.User")
-		(uuid "4551a890-3544-4e89-aafb-d24ad5963141")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.12)
-			)
-			(justify left top)
-		)
-	)
-	(gr_text "ADS1115 module\nfor monitoring voltages"
-		(at 189.5 78.5 0)
-		(layer "Edge.Cuts")
-		(uuid "0bc730ef-8da0-4096-a12b-317166d8ecbd")
-		(effects
-			(font
-				(size 1 1)
-			)
-			(justify left bottom)
-		)
-	)
-	(gr_text "Gnd"
-		(at 216.25 82 0)
-		(layer "Edge.Cuts")
-		(uuid "dcbc14fc-149f-433e-9300-3fc22fca0907")
-		(effects
-			(font
-				(size 1 1)
-			)
-			(justify left bottom)
-		)
-	)
-	(gr_text "Ain3"
-		(at 216.25 84.75 0)
-		(layer "Edge.Cuts")
-		(uuid "24abe576-1c5f-4ee0-a45c-380630b53af5")
-		(effects
-			(font
-				(size 1 1)
-			)
-			(justify left bottom)
-		)
-	)
-	(gr_text "Vio"
-		(at 216.5 87.5 0)
-		(layer "Edge.Cuts")
-		(uuid "e1d94609-fb10-4610-9692-61cedce4c09f")
-		(effects
-			(font
-				(size 1 1)
-			)
-			(justify left bottom)
-		)
-	)
-	(gr_text "Nickel"
-		(at 158.25 82.75 270)
-		(layer "Edge.Cuts")
-		(uuid "30dfed34-e325-4d41-a9c8-d60cc80dfcee")
-		(effects
-			(font
-				(size 1 1)
-			)
-			(justify left bottom)
-		)
-	)
-	(gr_text "Dime"
-		(at 163.25 82.75 270)
-		(layer "Edge.Cuts")
-		(uuid "b488a1d9-9fa3-491a-9afc-0b041fb1d729")
-		(effects
-			(font
-				(size 1 1)
-			)
-			(justify left bottom)
-		)
-	)
-	(gr_text "Quarter"
-		(at 168.5 82.25 270)
-		(layer "Edge.Cuts")
-		(uuid "7a0c5f5b-d080-40e2-ad90-6b17c3fe43c4")
-		(effects
-			(font
-				(size 1 1)
-			)
-			(justify left bottom)
-		)
-	)
-	(gr_text "Gnd"
-		(at 173.75 82.25 270)
-		(layer "Edge.Cuts")
-		(uuid "d08c89d6-e9c7-4bd6-83d9-c8e6cc3b5732")
-		(effects
-			(font
-				(size 1 1)
-			)
-			(justify left bottom)
-		)
-	)
-	(gr_text "Coin4"
-		(at 178.75 82 270)
-		(layer "Edge.Cuts")
-		(uuid "b36697ae-1ee8-4055-8e60-e3d3ebb6ab55")
-		(effects
-			(font
-				(size 1 1)
 			)
 			(justify left bottom)
 		)
@@ -44489,6 +44672,36 @@
 				(xy 67.182214 71.24385) (xy 67.197083 71.234294) (xy 67.36931 71.140251) (xy 67.385382 71.132911)
 				(xy 67.569242 71.064335) (xy 67.5862 71.059356) (xy 67.777938 71.017646) (xy 67.795436 71.01513)
 				(xy 67.995582 71.000816) (xy 68.004428 71.0005) (xy 68.065892 71.0005) (xy 218.934108 71.0005) (xy 218.995572 71.0005)
+			)
+		)
+	)
+	(zone
+		(layers "*.SilkS" "Edge.Cuts")
+		(uuid "4189e071-3dec-44d6-8e34-de74ecc5af8f")
+		(hatch edge 0.5)
+		(connect_pads
+			(clearance 0)
+		)
+		(min_thickness 0.25)
+		(keepout
+			(tracks allowed)
+			(vias allowed)
+			(pads allowed)
+			(copperpour allowed)
+			(footprints allowed)
+		)
+		(placement
+			(enabled no)
+			(sheetname "/")
+		)
+		(fill
+			(thermal_gap 0.5)
+			(thermal_bridge_width 0.5)
+			(island_removal_mode 0)
+		)
+		(polygon
+			(pts
+				(xy 221 101.75) (xy 119.25 101.75) (xy 100.5 120.5) (xy 100.5 140.25) (xy 100.75 140.5) (xy 221 140.5)
 			)
 		)
 	)

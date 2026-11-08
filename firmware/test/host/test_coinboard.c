@@ -55,7 +55,7 @@ static int16_t raw_for(double ain_mv)
 static int16_t adc_value(int ch)
 {
     switch (ch) {
-        case 0: return raw_for(rail * 10 / 66);
+        case 0: return raw_for(rail * 27 / 177);
         case 1: return raw_for(hv * 27 / 1027);
         case 2: return raw_for(i_ma * 10);
         default: return raw_for(1234);
@@ -389,7 +389,7 @@ int main(void)
 
     /* Conversions. */
     assert(coinboard_hv_mv(raw_for(119000.0 * 27 / 1027)) / 1000 == 118);   /* rounding down */
-    assert(coinboard_rail_mv(raw_for(3030)) / 100 == 199);
+    { int mv = coinboard_rail_mv(raw_for(20000.0 * 27 / 177)); assert(mv >= 19990 && mv <= 20000); }
     assert(coinboard_isense_ma(raw_for(1000)) == 100);
     assert(coinboard_hv_mv(-5) == 0);
 

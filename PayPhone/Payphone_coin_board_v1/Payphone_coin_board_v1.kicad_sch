@@ -11214,7 +11214,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 86.36 226.06 0)
 			(hide yes)
 			(show_name no)
@@ -11225,7 +11225,18 @@
 				)
 			)
 		)
-		(property "Description" "AIN0 filter, 0805 (JLCPCB Basic)"
+		(property "Description" "Unpolarized capacitor"
+			(at 86.36 226.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "AIN0 filter, 0805 (JLCPCB Basic)"
 			(at 86.36 226.06 0)
 			(hide yes)
 			(show_name no)
@@ -11254,7 +11265,7 @@
 			(uuid "0f902ace-f7d3-4494-acd4-02f19a2c2b7b")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C18")
 					(unit 1)
@@ -11355,7 +11366,7 @@
 			(uuid "4eb9c6e5-f7df-47b9-95f8-0ed482a3c636")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R8")
 					(unit 1)
@@ -11428,7 +11439,18 @@
 				)
 			)
 		)
-		(property "LCSC" "C16414"
+		(property "Note" "Hand solder (LCSC C16414)"
+			(at 104.902 180.848 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" ""
 			(at 105.41 165.1 0)
 			(hide yes)
 			(show_name no)
@@ -11464,7 +11486,7 @@
 			(uuid "d581989a-0a42-45b5-a977-d0c31b713649")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "U3")
 					(unit 1)
@@ -11565,7 +11587,7 @@
 			(uuid "933deedc-1e6b-45db-91db-e29a2101a9f9")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R1")
 					(unit 1)
@@ -11594,7 +11616,7 @@
 				)
 			)
 		)
-		(property "Value" "56k"
+		(property "Value" "150k"
 			(at 98.044 231.902 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11648,7 +11670,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17756"
+		(property "LCSC" "C17470"
 			(at 97.79 233.68 0)
 			(hide yes)
 			(show_name no)
@@ -11666,7 +11688,7 @@
 			(uuid "65104a6f-3f1e-43dc-80da-6e8afd055a59")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R17")
 					(unit 1)
@@ -11744,7 +11766,7 @@
 			(uuid "f3a7a053-aee9-4e23-afbf-ae59c6bb5149")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR030")
 					(unit 1)
@@ -11845,7 +11867,7 @@
 			(uuid "e4605cc5-a5ab-45cf-a8fb-7ba47dc0b09e")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R22")
 					(unit 1)
@@ -11908,7 +11930,7 @@
 				)
 			)
 		)
-		(property "Description" "Polarized capacitor, small symbol"
+		(property "Description" "Polarized capacitor"
 			(at 54.61 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -11919,7 +11941,18 @@
 				)
 			)
 		)
-		(property "LCSC" "C487360"
+		(property "Note" "Hand solder (LCSC C487360)"
+			(at 54.61 153.67 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" ""
 			(at 54.61 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -11937,7 +11970,7 @@
 			(uuid "8435ed34-d931-4ce6-8e64-e6fdfd08ada1")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C14")
 					(unit 1)
@@ -12014,7 +12047,7 @@
 			(uuid "d66ca9f0-bef9-49e8-9e3a-3fea589eddd2")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0102")
 					(unit 1)
@@ -12098,7 +12131,7 @@
 			(uuid "c410f7fb-3bf4-483d-8ea8-92308624b4d8")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "J13")
 					(unit 1)
@@ -12189,7 +12222,7 @@
 			(uuid "4a8098aa-32e3-4f49-8c52-986428edb4d8")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R46")
 					(unit 1)
@@ -12290,7 +12323,7 @@
 			(uuid "80c62af8-063a-40a9-8119-52e4da4cec0c")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R18")
 					(unit 1)
@@ -12415,7 +12448,7 @@
 			(uuid "00a4812b-9741-4fb9-a514-b2ec913e4d44")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C4")
 					(unit 1)
@@ -12492,7 +12525,7 @@
 			(uuid "3532df67-b65a-42cf-84e1-e64116b976e2")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0105")
 					(unit 1)
@@ -12569,7 +12602,7 @@
 			(uuid "72a5c309-e246-44f6-8dd8-8edb2811cd66")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR08")
 					(unit 1)
@@ -12647,7 +12680,7 @@
 			(uuid "555b7417-654e-427d-89e7-d7c512096122")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR035")
 					(unit 1)
@@ -12748,7 +12781,7 @@
 			(uuid "c8884b23-742f-4939-a7c0-6008617d198b")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R35")
 					(unit 1)
@@ -12777,7 +12810,7 @@
 				)
 			)
 		)
-		(property "Value" "10k"
+		(property "Value" "27k"
 			(at 99.06 236.474 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12831,7 +12864,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C17414"
+		(property "LCSC" "C17593"
 			(at 101.6 236.22 0)
 			(hide yes)
 			(show_name no)
@@ -12849,7 +12882,7 @@
 			(uuid "95eef5a6-5310-459a-a331-4030d4532d4e")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R19")
 					(unit 1)
@@ -12950,7 +12983,7 @@
 			(uuid "c46e2e32-5500-40c2-800f-5ee27ca7ab2e")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R6")
 					(unit 1)
@@ -13028,7 +13061,7 @@
 			(uuid "4f349884-6fcb-4377-ac19-9d052d0e343a")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0109")
 					(unit 1)
@@ -13129,7 +13162,7 @@
 			(uuid "ad54ef9f-49c4-41aa-a9ba-b44d7e48202b")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R9")
 					(unit 1)
@@ -13207,7 +13240,7 @@
 			(uuid "3db57099-6a5e-4edc-896d-9ed2807b2475")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0202")
 					(unit 1)
@@ -13236,7 +13269,7 @@
 				)
 			)
 		)
-		(property "Value" "100k"
+		(property "Value" "100k 1206"
 			(at 154.94 152.4 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13308,7 +13341,7 @@
 			(uuid "0cff99fa-6b54-4240-ba09-bf3e832a7097")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rfbt2")
 					(unit 1)
@@ -13409,7 +13442,7 @@
 			(uuid "08c1fc76-5a4b-4f7d-9df3-f52c2e6e00c4")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R34")
 					(unit 1)
@@ -13486,7 +13519,7 @@
 			(uuid "444c74d4-d94f-4ca6-8879-c9136384a087")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0101")
 					(unit 1)
@@ -13563,7 +13596,7 @@
 			(uuid "9720be2e-743a-45e2-867f-1d8cbd84a308")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#FLG02")
 					(unit 1)
@@ -13653,7 +13686,7 @@
 			(uuid "8f40d462-81dc-4650-8a15-f4f421c9b26f")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D15")
 					(unit 1)
@@ -13778,7 +13811,7 @@
 			(uuid "31ba178b-c643-4305-85a4-ea8335b20240")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C2")
 					(unit 1)
@@ -13830,7 +13863,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 72.39 170.18 0)
 			(hide yes)
 			(show_name no)
@@ -13841,7 +13874,7 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Unpolarized capacitor"
 			(at 72.39 160.02 0)
 			(hide yes)
 			(show_name no)
@@ -13870,7 +13903,7 @@
 			(uuid "7ce820bc-11a6-430b-a4d2-6eaa16631f33")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Cvref1")
 					(unit 1)
@@ -13958,7 +13991,7 @@
 			(uuid "c4cb24b1-7eac-4474-8c38-0853e26998ea")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "J6")
 					(unit 1)
@@ -14039,7 +14072,7 @@
 			(uuid "58a9c89c-0d03-4e08-b05a-a9ff7fd8851e")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "J14")
 					(unit 1)
@@ -14140,7 +14173,7 @@
 			(uuid "6f053a42-88d0-4396-91cc-90b7508fb7cb")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R20")
 					(unit 1)
@@ -14218,7 +14251,7 @@
 			(uuid "8b098ab0-76dd-459d-8e58-df486fb88519")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR09")
 					(unit 1)
@@ -14310,7 +14343,7 @@
 			(uuid "4785d2e0-b27c-4f41-9288-3fcb92ac3e98")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C8")
 					(unit 1)
@@ -14387,7 +14420,7 @@
 			(uuid "00764c26-a414-48f7-bce0-ba0a9b0dab5e")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR010")
 					(unit 1)
@@ -14465,7 +14498,7 @@
 			(uuid "64b66fa9-d6f4-4bbb-be80-84b6e92efa03")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR05")
 					(unit 1)
@@ -14566,7 +14599,7 @@
 			(uuid "f2fb4794-e0fb-4c4b-9f61-f70900042a8b")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R3")
 					(unit 1)
@@ -14644,7 +14677,7 @@
 			(uuid "45e2407d-1b6e-4a50-a2b8-49a5aaa1e39d")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0103")
 					(unit 1)
@@ -14745,7 +14778,7 @@
 			(uuid "71f81807-00e6-443a-be88-4607acf4a96a")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R51")
 					(unit 1)
@@ -14823,7 +14856,7 @@
 			(uuid "88bee826-7e4d-4eb0-8a33-3aad0d0e2f34")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR022")
 					(unit 1)
@@ -14901,7 +14934,7 @@
 			(uuid "e35558e9-9122-4d58-b9d7-e773f9872aca")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR029")
 					(unit 1)
@@ -15002,7 +15035,7 @@
 			(uuid "23cdd249-d1f8-45ea-90a0-106712a61702")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R7")
 					(unit 1)
@@ -15080,7 +15113,7 @@
 			(uuid "c9a9021a-68c6-4c9b-bdd7-19d981e58906")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR025")
 					(unit 1)
@@ -15181,7 +15214,7 @@
 			(uuid "e396f041-4abf-4530-965d-c04259191509")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R50")
 					(unit 1)
@@ -15282,7 +15315,7 @@
 			(uuid "a12f2254-f231-4bb3-89cd-752a6f146f6c")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R21")
 					(unit 1)
@@ -15311,7 +15344,7 @@
 				)
 			)
 		)
-		(property "Value" "100R"
+		(property "Value" "100R 1206"
 			(at 312.166 56.896 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15383,7 +15416,7 @@
 			(uuid "afaabe04-6887-4f28-a3b1-aae7aa0de939")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R12")
 					(unit 1)
@@ -15475,7 +15508,7 @@
 			(uuid "e3ffa029-ccd9-4dad-9a2a-738d08e2be20")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D4")
 					(unit 1)
@@ -15551,7 +15584,7 @@
 			)
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "H3")
 					(unit 1)
@@ -15652,7 +15685,7 @@
 			(uuid "a5e4ddd4-00a4-4dcf-a39f-22754670a976")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R28")
 					(unit 1)
@@ -15744,7 +15777,7 @@
 			(uuid "9413da7b-8759-481b-a187-9a5897b98d98")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D1")
 					(unit 1)
@@ -15820,7 +15853,7 @@
 			)
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "H4")
 					(unit 1)
@@ -15897,7 +15930,7 @@
 			(uuid "d272b345-1dc7-475e-8777-cfc66bfbf5a4")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0116")
 					(unit 1)
@@ -15927,7 +15960,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "100nF 50V"
+		(property "Value" "100nF 50V 1206"
 			(at 160.528 163.322 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15988,7 +16021,7 @@
 			(uuid "59113c46-94b1-46e6-ab8f-e8acba1426a0")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C23")
 					(unit 1)
@@ -16069,7 +16102,7 @@
 			(uuid "cd232dcc-3e82-44d9-95d9-0281414e2060")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "J10")
 					(unit 1)
@@ -16146,7 +16179,7 @@
 			(uuid "6beeee5f-d27b-4bc5-9f21-7c62b935857d")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR013")
 					(unit 1)
@@ -16271,7 +16304,7 @@
 			(uuid "c0d1f256-22dc-4203-9755-ebbbe30571d2")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C25")
 					(unit 1)
@@ -16350,7 +16383,7 @@
 			(uuid "b273372a-f33b-437d-8370-b1c6049fdeba")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR01")
 					(unit 1)
@@ -16427,7 +16460,7 @@
 			(uuid "6a7c0722-9cfe-42a1-8c46-5c0310c3e060")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR031")
 					(unit 1)
@@ -16479,7 +16512,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 151.13 222.25 0)
 			(hide yes)
 			(show_name no)
@@ -16490,7 +16523,7 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Unpolarized capacitor"
 			(at 151.13 212.09 0)
 			(hide yes)
 			(show_name no)
@@ -16519,7 +16552,7 @@
 			(uuid "560da316-427f-44eb-9743-1e717662f86b")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C17")
 					(unit 1)
@@ -16611,7 +16644,7 @@
 			(uuid "2980ddff-7927-49dc-b278-2a74c47f98d4")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D6")
 					(unit 1)
@@ -16688,7 +16721,7 @@
 			(uuid "c809496d-62e3-4fbe-afe8-9f284a62064f")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR012")
 					(unit 1)
@@ -16766,7 +16799,7 @@
 			(uuid "d3ae5b6c-46b7-4603-8cb5-afeffaaec286")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR02")
 					(unit 1)
@@ -16843,7 +16876,7 @@
 			(uuid "743ba959-1dbd-4309-b6c3-5ec3fe2b3e31")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0112")
 					(unit 1)
@@ -16944,7 +16977,7 @@
 			(uuid "7602e611-c659-4963-b826-3c0da2de4b86")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R33")
 					(unit 1)
@@ -17035,7 +17068,7 @@
 			(uuid "1c3ca1e0-2fd5-44d4-8786-b3a5112a46fe")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D2")
 					(unit 1)
@@ -17113,7 +17146,7 @@
 			(uuid "d7b5b7bd-78fa-4165-b1ca-00f792bdbb40")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR019")
 					(unit 1)
@@ -17190,7 +17223,7 @@
 			(uuid "8f7eb3df-cf80-499f-8293-1cbbd61a0fe0")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0107")
 					(unit 1)
@@ -17280,7 +17313,7 @@
 			(uuid "ab18eda5-247e-452c-9d9a-ae30d3bd6bb5")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D9")
 					(unit 1)
@@ -17341,7 +17374,18 @@
 				)
 			)
 		)
-		(property "Description" "Qa1 gate to source: holds Qa1 off while U3 is unpowered (J14 open)"
+		(property "Description" "Resistor"
+			(at 77.47 109.22 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "Qa1 gate to source: holds Qa1 off while U3 is unpowered (J14 open)"
 			(at 77.47 109.22 0)
 			(hide yes)
 			(show_name no)
@@ -17381,7 +17425,7 @@
 			(uuid "fed47d82-244a-4fd2-9509-0968d7dd415d")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R53")
 					(unit 1)
@@ -17410,7 +17454,7 @@
 				)
 			)
 		)
-		(property "Value" "1M"
+		(property "Value" "1M 1206"
 			(at 78.994 221.234 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17482,7 +17526,7 @@
 			(uuid "1cde14c9-67a4-4da0-8dc7-fb28db9d770d")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R32")
 					(unit 1)
@@ -17561,7 +17605,7 @@
 			(uuid "b111794f-74f3-4f3c-ae9f-da3a66d0b277")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR027")
 					(unit 1)
@@ -17654,7 +17698,7 @@
 			(uuid "d4d65d07-acb9-4b49-ad27-85b062482adc")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D17")
 					(unit 1)
@@ -17706,7 +17750,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
 			(at 41.91 48.26 0)
 			(hide yes)
 			(show_name no)
@@ -17717,7 +17761,18 @@
 				)
 			)
 		)
-		(property "Description" "I2C pull-up, not fitted: the main board has its own (JLCPCB Basic)"
+		(property "Description" "Resistor"
+			(at 41.91 48.26 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "I2C pull-up, not fitted: the main board has its own (JLCPCB Basic)"
 			(at 41.91 48.26 0)
 			(hide yes)
 			(show_name no)
@@ -17746,7 +17801,7 @@
 			(uuid "e0d2499a-7c25-4dee-97bf-839a81939975")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R42")
 					(unit 1)
@@ -17824,7 +17879,7 @@
 			(uuid "4795f6e3-8d3e-45bb-b69f-6892d1a9fbe0")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0110")
 					(unit 1)
@@ -17925,7 +17980,7 @@
 			(uuid "53831291-13a1-4f97-a22d-edcbc09743a1")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R37")
 					(unit 1)
@@ -18003,7 +18058,7 @@
 			(uuid "ad2277fa-0bd6-4914-95bc-68bb8c345b0b")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR024")
 					(unit 1)
@@ -18104,7 +18159,7 @@
 			(uuid "101320c7-f75c-426e-90f8-d188174b9fec")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R14")
 					(unit 1)
@@ -18182,7 +18237,7 @@
 			(uuid "7b2a50dd-68cf-4125-bc30-17773105ada5")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0200")
 					(unit 1)
@@ -18259,7 +18314,7 @@
 			(uuid "9839db66-bdd9-4840-9db7-5776de8d7957")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#FLG04")
 					(unit 1)
@@ -18349,7 +18404,7 @@
 			(uuid "8a6607c7-8e47-488f-8b55-65840ccd29f1")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D14")
 					(unit 1)
@@ -18427,7 +18482,7 @@
 			(uuid "e9854d30-06ff-4c15-a3db-cbf09f0c2075")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR023")
 					(unit 1)
@@ -18456,7 +18511,7 @@
 				)
 			)
 		)
-		(property "Value" "1M"
+		(property "Value" "1M 1206"
 			(at 190.5 153.67 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18528,7 +18583,7 @@
 			(uuid "702a4793-2bc9-439e-8299-9ede261032bb")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rbl1")
 					(unit 1)
@@ -18617,7 +18672,7 @@
 			(uuid "f347f0cb-e019-4e70-b3cd-148b41ae064f")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "J1")
 					(unit 1)
@@ -18718,7 +18773,7 @@
 			(uuid "89231f06-7ec9-4915-8e84-30f3a0c48b0d")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rf1")
 					(unit 1)
@@ -18819,7 +18874,7 @@
 			(uuid "b5cdb688-4c4c-45f3-a845-152aa5fdd3b5")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R5")
 					(unit 1)
@@ -18900,7 +18955,7 @@
 			(uuid "fe8f3462-107b-49fa-ba32-7b6d7cfdf8a1")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "J8")
 					(unit 1)
@@ -18978,7 +19033,7 @@
 			(uuid "b77abc49-4dbc-4da8-9b20-db63b0a6031b")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR020")
 					(unit 1)
@@ -19056,7 +19111,7 @@
 			(uuid "676faecb-781b-4c4c-abdb-d375cc0dd5be")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR018")
 					(unit 1)
@@ -19134,7 +19189,7 @@
 			(uuid "276260ba-4867-4c5a-92d6-68dd1666b480")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0203")
 					(unit 1)
@@ -19243,7 +19298,7 @@
 			(uuid "7591ba34-c8a7-42f0-aa2b-1ed279779a5e")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "U2")
 					(unit 1)
@@ -19335,7 +19390,7 @@
 			(uuid "abcedb18-a2ac-4d31-9a81-533b94133306")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D7")
 					(unit 1)
@@ -19436,7 +19491,7 @@
 			(uuid "021a857b-bcbd-4b8a-ba0b-05cddd063ec2")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R4")
 					(unit 1)
@@ -19570,7 +19625,7 @@
 			(uuid "80286d06-daf0-4fff-b858-fdffd8b69495")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "U1")
 					(unit 1)
@@ -19654,7 +19709,7 @@
 			(uuid "c78a46d8-c397-4f66-b05c-88f0c3283d90")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "J11")
 					(unit 1)
@@ -19746,7 +19801,7 @@
 			(uuid "910de47c-adea-4e24-8b66-0286b87e08bc")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "L2")
 					(unit 1)
@@ -19871,7 +19926,7 @@
 			(uuid "ea09dcfc-8fa6-40e2-afa0-4899632d635b")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C3")
 					(unit 1)
@@ -19972,7 +20027,7 @@
 			(uuid "752a284b-975e-4329-835b-4b870ff6b42a")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rz1")
 					(unit 1)
@@ -20035,7 +20090,7 @@
 				)
 			)
 		)
-		(property "Description" "Polarized capacitor, small symbol"
+		(property "Description" "Polarized capacitor"
 			(at 326.39 78.74 0)
 			(hide yes)
 			(show_name no)
@@ -20046,7 +20101,18 @@
 				)
 			)
 		)
-		(property "LCSC" "C487360"
+		(property "Note" "Hand solder (LCSC C487360)"
+			(at 326.39 78.74 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" ""
 			(at 326.39 78.74 0)
 			(hide yes)
 			(show_name no)
@@ -20064,7 +20130,7 @@
 			(uuid "49966281-b940-4b76-853d-cb30a8d99719")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C7")
 					(unit 1)
@@ -20142,7 +20208,7 @@
 			(uuid "c459ed7a-c7bc-4ac4-af7d-69e8f4794004")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0209")
 					(unit 1)
@@ -20219,7 +20285,7 @@
 			(uuid "c5439f00-c875-4d7d-8bcc-f1ca31bc8096")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR033")
 					(unit 1)
@@ -20311,7 +20377,7 @@
 			(uuid "360b782d-12cc-44f6-b17f-68c6b8bcbee4")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Dz1")
 					(unit 1)
@@ -20412,7 +20478,7 @@
 			(uuid "fcad04d2-e499-48c7-b72e-921b12e9c11f")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R39")
 					(unit 1)
@@ -20503,7 +20569,7 @@
 			(uuid "a882402f-697d-402d-b6e7-f2a1b9ab1800")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R11")
 					(unit 1)
@@ -20584,7 +20650,7 @@
 			(uuid "68a79e6e-ff4b-47ef-ab1d-347f959c99dd")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "J7")
 					(unit 1)
@@ -20613,7 +20679,7 @@
 				)
 			)
 		)
-		(property "Value" "100k"
+		(property "Value" "100k 1206"
 			(at 154.94 160.02 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20685,7 +20751,7 @@
 			(uuid "2ad48894-98a2-4150-94b1-7a8910821af9")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rfbt3")
 					(unit 1)
@@ -20775,7 +20841,7 @@
 			(uuid "e2614664-b8fe-4094-a99d-bef3151ced0a")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "L1")
 					(unit 1)
@@ -20853,7 +20919,7 @@
 			(uuid "5cfedc50-e6c4-4cc0-aadc-6338bd18b91d")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR038")
 					(unit 1)
@@ -20940,7 +21006,7 @@
 			(uuid "5a7ff3fa-800b-46ed-a6ea-9a07b43c42b5")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "J3")
 					(unit 1)
@@ -21017,7 +21083,7 @@
 			(uuid "5b12b431-4a0e-438a-8ee6-9ac006292e8e")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#FLG03")
 					(unit 1)
@@ -21118,7 +21184,7 @@
 			(uuid "9625a922-a705-405e-966b-ce992f05772d")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rfbb3")
 					(unit 1)
@@ -21197,7 +21263,7 @@
 			(uuid "22a8aca2-004d-4c24-a5f5-6fa5e796b060")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0111")
 					(unit 1)
@@ -21285,7 +21351,7 @@
 			(uuid "f1d8fe24-14ae-4556-8dd2-dfa4a9fa164f")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "J12")
 					(unit 1)
@@ -21378,7 +21444,7 @@
 			(uuid "9aaa98b5-0839-427c-a037-7d1bde72a572")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D19")
 					(unit 1)
@@ -21456,7 +21522,7 @@
 			(uuid "386dbb40-a794-4ae0-81d0-384061197bff")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0113")
 					(unit 1)
@@ -21547,7 +21613,7 @@
 			(uuid "33bd8039-3174-4a11-86dc-5b31430732a6")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R45")
 					(unit 1)
@@ -21648,7 +21714,7 @@
 			(uuid "aa33a205-62c4-45b0-8e28-6eef32b02757")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R26")
 					(unit 1)
@@ -21749,7 +21815,7 @@
 			(uuid "ac67459e-c0d7-49b8-94cd-5c3042c91dcd")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R25")
 					(unit 1)
@@ -21779,7 +21845,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "100nF 50V"
+		(property "Value" "100nF 50V 1206"
 			(at 160.274 155.702 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21840,7 +21906,7 @@
 			(uuid "b742da10-817c-410b-a069-9f2b855a6d0f")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C22")
 					(unit 1)
@@ -21917,7 +21983,7 @@
 			(uuid "e4c1c8a2-4ba0-4e8c-805c-acee2076fc16")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#FLG01")
 					(unit 1)
@@ -21993,7 +22059,7 @@
 			)
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "H1")
 					(unit 1)
@@ -22094,7 +22160,7 @@
 			(uuid "39a39a99-e73c-4680-bec6-ab33f206a508")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rfbb4")
 					(unit 1)
@@ -22187,7 +22253,7 @@
 			(uuid "d63620c1-7928-4097-a861-ae758411b646")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D18")
 					(unit 1)
@@ -22264,7 +22330,7 @@
 			(uuid "ab035c62-87c8-4aa3-8056-7155dded68a8")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR011")
 					(unit 1)
@@ -22365,7 +22431,7 @@
 			(uuid "8abd75a5-46e3-488c-90d9-be9dd27857db")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rslope1")
 					(unit 1)
@@ -22466,7 +22532,7 @@
 			(uuid "ca104592-65b5-4214-822a-3a45760b1c41")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R23")
 					(unit 1)
@@ -22567,7 +22633,7 @@
 			(uuid "aaa14fcf-9bc4-4468-9fde-8ebb98ed2005")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R36")
 					(unit 1)
@@ -22668,7 +22734,7 @@
 			(uuid "e9f368ec-7429-43eb-a56f-9404f1b3f3fc")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rcs1")
 					(unit 1)
@@ -22766,7 +22832,7 @@
 			(uuid "63e425e7-5c7e-4cdb-bd8b-d02f91900ab2")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "K1")
 					(unit 1)
@@ -22858,7 +22924,7 @@
 			(uuid "72589edc-7701-4633-8351-4bb5855a6f34")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D5")
 					(unit 1)
@@ -22935,7 +23001,7 @@
 			(uuid "bc6c66fb-144e-4dfc-86e8-adb0a017b917")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#FLG05")
 					(unit 1)
@@ -23062,7 +23128,7 @@
 			(uuid "e61fb141-440a-4c30-9915-b8a7bd9981d3")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C24")
 					(unit 1)
@@ -23140,7 +23206,7 @@
 			(uuid "305f8ad6-eff7-4935-9471-7f5a0b8d499e")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0108")
 					(unit 1)
@@ -23230,7 +23296,7 @@
 			(uuid "7e26efa0-8db7-481f-9695-3de28acd74ee")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "JP1")
 					(unit 1)
@@ -23307,7 +23373,7 @@
 			(uuid "986771d0-cbf7-4d44-a633-cbd2f5169f72")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR014")
 					(unit 1)
@@ -23386,7 +23452,7 @@
 			(uuid "b487fab9-830b-4302-a821-094ce11bde27")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR021")
 					(unit 1)
@@ -23478,7 +23544,7 @@
 			(uuid "b881d26c-98f1-464c-b945-4cfc2b3368bc")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Cp1")
 					(unit 1)
@@ -23579,7 +23645,7 @@
 			(uuid "bdb0e955-7aba-43f2-a2f6-b80ae9c81eda")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R52")
 					(unit 1)
@@ -23684,7 +23750,7 @@
 			(uuid "f90cb9e6-3e51-4cba-8d07-cf6bfac9b749")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "U4")
 					(unit 1)
@@ -23713,7 +23779,7 @@
 				)
 			)
 		)
-		(property "Value" "100k"
+		(property "Value" "100k 1206"
 			(at 154.94 144.78 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23785,7 +23851,7 @@
 			(uuid "d881a223-8291-481e-9a5e-774f65a7b3af")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rfbt1")
 					(unit 1)
@@ -23884,7 +23950,7 @@
 			(uuid "e0a5f63d-c929-4bf7-9dd9-254a24284812")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Q4")
 					(unit 1)
@@ -23948,7 +24014,7 @@
 				)
 			)
 		)
-		(property "Description" "Polarized capacitor, small symbol"
+		(property "Description" "Polarized capacitor"
 			(at 278.13 58.42 0)
 			(hide yes)
 			(show_name no)
@@ -23959,7 +24025,18 @@
 				)
 			)
 		)
-		(property "LCSC" "C487360"
+		(property "Note" "Hand solder (LCSC C487360)"
+			(at 278.13 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" ""
 			(at 278.13 58.42 0)
 			(hide yes)
 			(show_name no)
@@ -23977,7 +24054,7 @@
 			(uuid "e0202eea-ba8a-47be-83fe-cb6ea0fcd4df")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C5")
 					(unit 1)
@@ -24069,7 +24146,7 @@
 			(uuid "11f096d8-c25d-48fe-9b20-6ba3be25962f")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Cf1")
 					(unit 1)
@@ -24146,7 +24223,7 @@
 			(uuid "a39a741a-fb30-4336-a30d-7b64eb24acdc")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR07")
 					(unit 1)
@@ -24247,7 +24324,7 @@
 			(uuid "a291ba2e-30b8-40e5-9e01-06ff4c2acd67")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R24")
 					(unit 1)
@@ -24366,7 +24443,7 @@
 			(uuid "afe1920c-50f7-43f8-9396-49157909a154")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Q2")
 					(unit 1)
@@ -24456,7 +24533,7 @@
 			(uuid "d40d027c-5495-4c9c-8e85-be2f478f8b0d")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D11")
 					(unit 1)
@@ -24546,7 +24623,7 @@
 			(uuid "5d91e6db-a50d-419a-a430-e389d137dddc")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D10")
 					(unit 1)
@@ -24624,7 +24701,7 @@
 			(uuid "ad6dea6a-e4bc-485d-a369-92a13e9286a5")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR016")
 					(unit 1)
@@ -24702,7 +24779,7 @@
 			(uuid "481301a4-493a-4730-99b4-097fa822bbc9")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR04")
 					(unit 1)
@@ -24779,7 +24856,7 @@
 			(uuid "3876a829-01d5-4eb0-9bbd-9ddbe45e5daf")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0117")
 					(unit 1)
@@ -24831,7 +24908,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 116.84 177.8 0)
 			(hide yes)
 			(show_name no)
@@ -24842,7 +24919,7 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Unpolarized capacitor"
 			(at 127 177.8 0)
 			(hide yes)
 			(show_name no)
@@ -24853,7 +24930,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C49678"
+		(property "LCSC" "C28233"
 			(at 127 177.8 0)
 			(hide yes)
 			(show_name no)
@@ -24871,7 +24948,7 @@
 			(uuid "c3d99904-512d-4704-8f9a-4a363cab8b69")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Cz1")
 					(unit 1)
@@ -24972,7 +25049,7 @@
 			(uuid "01f20f4d-0856-47e2-b4f6-49d54a95fc92")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R49")
 					(unit 1)
@@ -25064,7 +25141,7 @@
 			(uuid "b00b7679-0c9e-4948-a7c9-9accaa738b7f")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Cslope1")
 					(unit 1)
@@ -25154,7 +25231,7 @@
 			(uuid "80944dee-c6a4-4480-8ea9-d98783287794")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D12")
 					(unit 1)
@@ -25246,7 +25323,7 @@
 			(uuid "a9a73258-6719-4626-a65e-81817d9cd0d1")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Ct1")
 					(unit 1)
@@ -25347,7 +25424,7 @@
 			(uuid "7c2eeb2c-0ad1-44d8-8a6e-5ba88c6ce9ed")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rfbb2")
 					(unit 1)
@@ -25397,7 +25474,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
 			(at 49.53 58.42 0)
 			(hide yes)
 			(show_name no)
@@ -25408,7 +25485,18 @@
 				)
 			)
 		)
-		(property "Description" "Series resistor in the I2C line, 0805 (JLCPCB Basic)"
+		(property "Description" "Resistor"
+			(at 49.53 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "Series resistor in the I2C line, 0805 (JLCPCB Basic)"
 			(at 49.53 58.42 0)
 			(hide yes)
 			(show_name no)
@@ -25437,7 +25525,7 @@
 			(uuid "83a2c2a0-eaa8-4116-969c-0ca4431ec8ea")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R41")
 					(unit 1)
@@ -25538,7 +25626,7 @@
 			(uuid "974d2bf9-7cf3-4556-814d-705077c5ffd9")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R13")
 					(unit 1)
@@ -25832,7 +25920,7 @@
 			(uuid "bf85867e-2c68-481f-934d-d3166118e528")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Q5")
 					(unit 1)
@@ -25925,7 +26013,7 @@
 			(uuid "c79e2b61-5526-45b2-a23d-0b49c5195b9a")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D16")
 					(unit 1)
@@ -25997,7 +26085,18 @@
 				)
 			)
 		)
-		(property "LCSC" "C163516"
+		(property "Note" "Hand solder (LCSC C163516)"
+			(at 38.1 72.39 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" ""
 			(at 38.1 72.39 0)
 			(hide yes)
 			(show_name no)
@@ -26015,7 +26114,7 @@
 			(uuid "49463165-6c28-4f84-8b23-3154a92bb876")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "F1")
 					(unit 1)
@@ -26091,7 +26190,7 @@
 			)
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "H2")
 					(unit 1)
@@ -26192,7 +26291,7 @@
 			(uuid "a855f215-f4b7-4800-882e-baebb07b3ba1")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R27")
 					(unit 1)
@@ -26282,7 +26381,7 @@
 			(uuid "6bde311b-5dd5-4b49-b8e9-5bbe8d9fe04e")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D8")
 					(unit 1)
@@ -26363,7 +26462,7 @@
 			(uuid "34fb5d20-54e8-46b3-afcf-a5fc81dcc3f0")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C1")
 					(unit 1)
@@ -26415,7 +26514,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
 			(at 44.45 60.96 0)
 			(hide yes)
 			(show_name no)
@@ -26426,7 +26525,18 @@
 				)
 			)
 		)
-		(property "Description" "I2C pull-up, not fitted: the main board has its own (JLCPCB Basic)"
+		(property "Description" "Resistor"
+			(at 44.45 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "I2C pull-up, not fitted: the main board has its own (JLCPCB Basic)"
 			(at 44.45 60.96 0)
 			(hide yes)
 			(show_name no)
@@ -26455,7 +26565,7 @@
 			(uuid "a80ddb94-5ff7-47bd-b6e7-7e466beeb419")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R43")
 					(unit 1)
@@ -26485,7 +26595,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "100nF 50V"
+		(property "Value" "100nF 50V 1206"
 			(at 160.528 146.812 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -26546,7 +26656,7 @@
 			(uuid "3ca4ac2e-14c5-44bb-90a9-510af89213b2")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C21")
 					(unit 1)
@@ -26624,7 +26734,7 @@
 			(uuid "42bb7a3f-92be-4977-8e5a-142d149283c4")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR036")
 					(unit 1)
@@ -26705,7 +26815,7 @@
 			(uuid "fe44f1d4-0c3c-4406-9b89-cef168d09603")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "J9")
 					(unit 1)
@@ -26757,7 +26867,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 105.41 237.49 0)
 			(hide yes)
 			(show_name no)
@@ -26768,7 +26878,18 @@
 				)
 			)
 		)
-		(property "Description" "AIN1 filter, 0805 (JLCPCB Basic)"
+		(property "Description" "Unpolarized capacitor"
+			(at 105.41 237.49 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "AIN1 filter, 0805 (JLCPCB Basic)"
 			(at 105.41 237.49 0)
 			(hide yes)
 			(show_name no)
@@ -26797,7 +26918,7 @@
 			(uuid "addad58d-4a63-4c11-9ff8-2833bcc0e8e9")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C19")
 					(unit 1)
@@ -26898,7 +27019,7 @@
 			(uuid "79b5d962-a03e-4c8e-a2d7-7c3ee0fc2c8d")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R38")
 					(unit 1)
@@ -26976,7 +27097,7 @@
 			(uuid "723c2f6a-b619-49f2-b09b-712f717188f4")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0201")
 					(unit 1)
@@ -27071,7 +27192,7 @@
 			(uuid "0bd07c52-6589-4479-805a-445032257c22")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Q3")
 					(unit 1)
@@ -27166,7 +27287,7 @@
 			(uuid "0a1649d4-df82-4f89-afb4-bf74a2d94149")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Qa1")
 					(unit 1)
@@ -27250,7 +27371,7 @@
 			(uuid "c214f140-6946-49cb-955c-184d378c2c8b")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "J2")
 					(unit 1)
@@ -27280,7 +27401,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "100nF 50V"
+		(property "Value" "100nF"
 			(at 66.294 159.512 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27302,7 +27423,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 64.77 157.48 0)
 			(hide yes)
 			(show_name no)
@@ -27313,7 +27434,7 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Unpolarized capacitor"
 			(at 64.77 147.32 0)
 			(hide yes)
 			(show_name no)
@@ -27324,7 +27445,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C49678"
+		(property "LCSC" "C28233"
 			(at 64.77 157.48 0)
 			(hide yes)
 			(show_name no)
@@ -27342,7 +27463,7 @@
 			(uuid "42609ed0-2514-415b-8ab6-d7a015b914bc")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Cvcc1")
 					(unit 1)
@@ -27443,7 +27564,7 @@
 			(uuid "d43c0401-39d2-45d1-bc84-7501efb06317")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R2")
 					(unit 1)
@@ -27521,7 +27642,7 @@
 			(uuid "222b2874-c882-4786-94e0-32b6270c8637")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR017")
 					(unit 1)
@@ -27611,7 +27732,7 @@
 			(uuid "bbce0e4d-9e28-4e31-8481-d0a94a02cdb2")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D13")
 					(unit 1)
@@ -27663,7 +27784,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 74.93 35.56 0)
 			(hide yes)
 			(show_name no)
@@ -27674,7 +27795,7 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Unpolarized capacitor"
 			(at 74.93 25.4 0)
 			(hide yes)
 			(show_name no)
@@ -27703,7 +27824,7 @@
 			(uuid "9b1c902f-b632-474f-9e7b-b550e71844f9")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C16")
 					(unit 1)
@@ -27781,7 +27902,7 @@
 			(uuid "8ba8db8b-54f4-4670-9811-35c615ec2cbf")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0114")
 					(unit 1)
@@ -27831,7 +27952,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
 			(at 49.53 50.8 0)
 			(hide yes)
 			(show_name no)
@@ -27842,7 +27963,18 @@
 				)
 			)
 		)
-		(property "Description" "Series resistor in the I2C line, 0805 (JLCPCB Basic)"
+		(property "Description" "Resistor"
+			(at 49.53 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "Series resistor in the I2C line, 0805 (JLCPCB Basic)"
 			(at 49.53 50.8 0)
 			(hide yes)
 			(show_name no)
@@ -27871,7 +28003,7 @@
 			(uuid "1b090fd7-7631-4747-9788-be7dfeb92c8c")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R40")
 					(unit 1)
@@ -27948,7 +28080,7 @@
 			(uuid "3f2a49e4-4a15-4e65-b47a-a0e5747e099a")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR015")
 					(unit 1)
@@ -27977,7 +28109,7 @@
 				)
 			)
 		)
-		(property "Value" "1M"
+		(property "Value" "1M 1206"
 			(at 190.5 161.29 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -28049,7 +28181,7 @@
 			(uuid "b9bc1af6-f560-4d38-b87f-7a356e22acba")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rbl2")
 					(unit 1)
@@ -28113,7 +28245,7 @@
 				)
 			)
 		)
-		(property "Description" "Electrolytic on +5V, through-hole: damps the cable (Aishi ERZ1HM101E12OT, or any 100 uF 10 V or more)"
+		(property "Description" "Polarized capacitor"
 			(at 43.18 74.93 0)
 			(hide yes)
 			(show_name no)
@@ -28124,7 +28256,18 @@
 				)
 			)
 		)
-		(property "LCSC" "C487360"
+		(property "Note" "Electrolytic on +5V: damps the cable; Hand solder (LCSC C487360)"
+			(at 43.18 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" ""
 			(at 43.18 74.93 0)
 			(hide yes)
 			(show_name no)
@@ -28142,7 +28285,7 @@
 			(uuid "077d034f-193e-4aa6-a03b-025027ad6e40")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C20")
 					(unit 1)
@@ -28243,7 +28386,7 @@
 			(uuid "967a804d-a33e-45e5-be57-d30d1f70565e")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rfbb1")
 					(unit 1)
@@ -28321,7 +28464,7 @@
 			(uuid "cc34b6e9-99fa-42c9-b329-eeaff4ca420b")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0208")
 					(unit 1)
@@ -28350,7 +28493,7 @@
 				)
 			)
 		)
-		(property "Value" "1M"
+		(property "Value" "1M 1206"
 			(at 190.5 168.91 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -28422,7 +28565,7 @@
 			(uuid "5310c4c1-fc5e-4e3b-8fd6-263dec7c68ee")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rbl3")
 					(unit 1)
@@ -28500,7 +28643,7 @@
 			(uuid "a5fbeb1f-4d19-4120-8feb-f66358a757a0")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0207")
 					(unit 1)
@@ -28599,7 +28742,7 @@
 			(uuid "d5c0d5f3-a42c-4a52-a11e-f5d29f4cc2a8")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Q1")
 					(unit 1)
@@ -28676,7 +28819,7 @@
 			(uuid "0ed2f3a8-d6f4-4f98-87ad-82552359990f")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0106")
 					(unit 1)
@@ -28777,7 +28920,7 @@
 			(uuid "29115102-b371-44df-930c-00b1853a9290")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "Rg1")
 					(unit 1)
@@ -28851,7 +28994,18 @@
 				)
 			)
 		)
-		(property "LCSC" "C5353290"
+		(property "Note" "Hand solder (LCSC C5353290)"
+			(at 181.61 154.94 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" ""
 			(at 181.61 154.94 0)
 			(hide yes)
 			(show_name no)
@@ -28869,7 +29023,7 @@
 			(uuid "e67e0caa-e304-4a36-85f3-b069e659f7a5")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "D3")
 					(unit 1)
@@ -28921,7 +29075,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
 			(at 273.05 58.42 0)
 			(hide yes)
 			(show_name no)
@@ -28932,7 +29086,7 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "Unpolarized capacitor"
 			(at 273.05 48.26 0)
 			(hide yes)
 			(show_name no)
@@ -28961,7 +29115,7 @@
 			(uuid "227ece98-6c17-4cbc-9f28-30b8200b7960")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "C6")
 					(unit 1)
@@ -29038,7 +29192,7 @@
 			(uuid "4b9f7e5e-bcee-4ce7-86eb-c951fb03411a")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR032")
 					(unit 1)
@@ -29088,7 +29242,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.vishay.com/docs/20035/dcrcwe3.pdf"
 			(at 121.92 236.22 0)
 			(hide yes)
 			(show_name no)
@@ -29099,7 +29253,18 @@
 				)
 			)
 		)
-		(property "Description" "Limits current into AIN2 if R26 sees a fault (0805W8F1001T5E)"
+		(property "Description" "Resistor"
+			(at 121.92 236.22 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "Limits current into AIN2 if R26 sees a fault (0805W8F1001T5E)"
 			(at 121.92 236.22 0)
 			(hide yes)
 			(show_name no)
@@ -29128,7 +29293,7 @@
 			(uuid "af400758-406a-42d7-a145-44be6c1cb9ff")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "R44")
 					(unit 1)
@@ -29206,7 +29371,7 @@
 			(uuid "2bfbd705-c3a8-463b-bb7e-bad4155432b5")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR0204")
 					(unit 1)
@@ -29284,7 +29449,7 @@
 			(uuid "50a0927b-057b-4e70-a6b2-5dce1e278a36")
 		)
 		(instances
-			(project "Payphone_v1"
+			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
 					(reference "#PWR026")
 					(unit 1)

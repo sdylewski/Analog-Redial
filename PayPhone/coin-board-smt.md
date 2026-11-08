@@ -1,15 +1,16 @@
 # Coin board: parts and PCB layout
 
-**In progress: not for use or fab.** The PCB layout isn't finished, and nothing here is
-built or tested. The cost estimate below is for planning, not a sign the design is ready.
+**Released for fab, untested.** The PCB layout is finished (2026-11-08), but no board has been
+built or tested yet. The cost estimate below is for planning.
 
 Companion to [coin-board-schematic.md](coin-board-schematic.md) and
 [output-stage-wiring.md](output-stage-wiring.md). Reference designators and
-values match `Payphone_v1/Payphone_v1.kicad_sch`.
+values match `Payphone_coin_board_v1/Payphone_coin_board_v1.kicad_sch`.
 
 The board is surface-mount, with through-hole only where it's the better part:
-C1, K1, U4's module and the connectors (headers and screw terminals included). None of them has an LCSC number, so
-none lands on the JLCPCB BOM and there's no hand-solder fee.
+C1, K1, U4's module and the connectors (headers and screw terminals included). Seven surface-mount
+parts are hand-soldered too, to save JLCPCB's Extended-part fees: **C5, C7, C14, C20, U3, F1 and D3** (their LCSC number is kept in the schematic's Note field). None of the hand-solder parts
+has an LCSC number in the LCSC field, so none lands on the JLCPCB BOM or CPL (see "The JLCPCB plugin").
 
 ## Parts
 
@@ -24,14 +25,14 @@ the BOM upload.
 |---|---|---|---:|---|---|
 | U1 | I2C I/O expander | TCA9534APWR, TSSOP-16 | 1.26 | C206010 | Extended |
 | U2 | stage 1, 5 V to 20 V | MC34063ADR2G, SOIC-8 | 0.47 | C32078 | Preferred, no fee |
-| U3 | stage 2 controller | UC3843BD1R2G, SOIC-8 | 0.37 | C16414 | Extended |
+| U3 | stage 2 controller | UC3843BD1R2G, SOIC-8 | 0.37 | C16414 | Extended: **hand-soldered** |
 | Q3, Qa1 | fire switch, stage 2 switch, 200 V | STN4NF20L (TECH PUBLIC), SOT-223 | 0.33 | C7603336 | Extended (one fee for both). ST's own is C183261, $0.61 |
 | Q1, Q4 | small N-FETs | 2N7002, SOT-23 | 0.02 | C8545 | Basic |
 | Q2 | relay driver NPN | MMBT3904, SOT-23 | 0.01 | C20526 | Basic |
 | Q5 | gate-drive PNP | MMBT3906, SOT-23 | 0.01 | C7420354 | Preferred, no fee |
 | D1 | stage 1 Schottky | SS34, 3 A 40 V, SMA | 0.04 | C8678 | Basic (as on the v6 board) |
 | D2, D14 | stage 2 ultrafast, coil freewheel | ES2D, SMA | 0.03 | C18199161 | Preferred, no fee |
-| D3 | HV clamp | SMBJ130A (FOSAN), 600 W unidirectional, SMB | 0.04 | C5353290 | Extended |
+| D3 | HV clamp | SMBJ130A (FOSAN), 600 W unidirectional, SMB | 0.04 | C5353290 | Extended: **hand-soldered** (Littelfuse SMBJ130A from DigiKey) |
 | D4 | relay flyback | 1N4148W, SOD-123 | 0.01 | C81598 | Basic |
 | D5, D6 | zeners, 22 V, 12 V | BZT52C22, BZT52C12 (hongjiacheng), SOD-123 | 0.02 | C22375295, C19077410 | Preferred, no fee |
 | Dz1 | Qa1 gate zener, 15 V 1 W | 1SMA4744A, SMA | 0.06 | C19077482 | Preferred, no fee |
@@ -50,16 +51,16 @@ SXN rates saturation at a 25 % drop in inductance.
 
 | Ref | Value | Part | Isat | Heating (40 C rise) | DCR max | Peak here | $ (JLCPCB, qty 1) | LCSC / JLCPCB | Fit |
 |---|---|---|---|---|---|---|---:|---|---|
-| L1 | 100 uH | SMDRI127-101MT | 3.5 A | 1.7 A | 0.22 ohm | about 1 A (R11/R45/R46) | 0.23 | C10150, Extended, 64,000 in stock | **JLCPCB** |
-| L2 | 220 uH | SMDRI127-221MT | 2.0 A | 1.16 A | 0.39 ohm | 0.45 A (Rcs1) | 0.23 | C10151, Extended, 17,000 in stock | **JLCPCB** |
+| L1 | 100 uH | SMDRI127-101MT | 3.5 A | 1.7 A | 0.22 ohm | about 1 A (R11/R45/R46) | 0.23 | C10150, Extended, 64,000 in stock | **JLCPCB** (DigiKey doesn't stock it) |
+| L2 | 220 uH | SMDRI127-221MT | 2.0 A | 1.16 A | 0.39 ohm | 0.45 A (Rcs1) | 0.23 | C10151, Extended, 17,000 in stock | **JLCPCB** (DigiKey doesn't stock it) |
 
 Each is an Extended part, so JLCPCB adds its per-part fee (about $3 per order) on top.
 
-**Surface-mount electrolytic and fuse** (JLCPCB, Extended, checked 2026-11-04)
+**Surface-mount electrolytic and fuse** (Extended at JLCPCB, so **hand-soldered**; checked 2026-11-04)
 
 | Ref | Function | Part | $ | LCSC | Why this one |
 |---|---|---|---:|---|---|
-| C5, C7, C14, C20 | 100 uF / 50 V on +5V and 20V | Ymin VKMD1001H101MV, 8 x 10 mm, footprint `CP_Elec_8x10` | 0.24 | C487360 | 724 mA ripple at 100 kHz against about 0.25 A in C7 and 0.15 A in C14; 10,000 h at 105 C. Aluminium, not polymer: C20 needs some ESR to damp the cable. One part for all four |
+| C5, C7, C14, C20 | 100 uF / 50 V on +5V and 20V | Ymin VKMD1001H101MV (from DigiKey: Nichicon UCD1H101MNL1GS, see "DigiKey order"), 8 x 10 mm, footprint `CP_Elec_8x10` | 0.24 | C487360 | 724 mA ripple at 100 kHz against about 0.25 A in C7 and 0.15 A in C14; 10,000 h at 105 C. Aluminium, not polymer: C20 needs some ESR to damp the cable. One part for all four |
 | F1 | resettable fuse on +5V | Littelfuse 1812L110PR, 1812 | 0.05 | C163516 | 1.1 A hold, 2.2 A trip, 8 V (the same hold and trip as the MF-R110 it replaces) |
 
 Ceramics don't suit the 100 uF positions: a 22 uF 35 V X5R keeps only about a third of its
@@ -85,11 +86,44 @@ capacitance at 20 V, and has too little ESR for C20.
 
 These come to about **$16.50** a board at DigiKey qty-1 prices, U4's module included (section "What it costs").
 
+### DigiKey order (hand-solder parts)
+
+Everything JLCPCB doesn't place, one board's worth. Links checked 2026-11-08; check stock and
+price on the page before ordering. The C5/C7/C14/C20 part in the table above (Ymin, LCSC
+C487360) isn't sold at DigiKey: the Nichicon below fits the same `CP_Elec_8x10` footprint, with
+350 mA ripple at 100 kHz against about 0.25 A in C7.
+
+| Ref | Qty | Part | DigiKey |
+|---|---:|---|---|
+| U3 | 1 | onsemi UC3843BD1R2G, SOIC-8 | [UC3843BD1R2G](https://www.digikey.com/en/products/detail/onsemi/UC3843BD1R2G/921714) |
+| D3 | 1 | Littelfuse SMBJ130A, SMB | [SMBJ130A](https://www.digikey.com/en/products/detail/littelfuse-inc/SMBJ130A/688304) |
+| F1 | 1 | Littelfuse 1812L110PR, 1812 | [1812L110PR](https://www.digikey.com/en/products/detail/littelfuse-inc/1812L110PR/267851) |
+| C5, C7, C14, C20 | 4 | Nichicon UCD1H101MNL1GS, 100 uF 50 V, 8 x 10.5 mm, 5000 h at 105 C | [UCD1H101MNL1GS](https://www.digikey.com/en/products/detail/nichicon/UCD1H101MNL1GS/2549678) |
+| C1 | 1 | Nichicon UCS2D221MHD, 220 uF 200 V, 18 mm, 7.5 mm leads | [UCS2D221MHD](https://www.digikey.com/en/products/detail/nichicon/UCS2D221MHD/4991877) |
+| K1 | 1 | Omron (Aratas) G6S-2 DC5, 5 V coil | [G6S-2 DC5](https://www.digikey.com/en/products/detail/omron-electronics-inc-emc-div/G6S-2-DC5/333982) |
+| J2 | 1 | Molex 0026604030, KK 396 header, 3-pin | [0026604030](https://www.digikey.com/en/products/detail/molex/0026604030/96502) |
+| J2 plug | 1 | Molex 0009503031, KK 396 housing, 3-pin | [0009503031](https://www.digikey.com/en/products/detail/molex/0009503031/26455) |
+| J3 | 1 | Molex 0026604040, KK 396 header, 4-pin | [0026604040](https://www.digikey.com/en/products/detail/molex/0026604040/197447) |
+| J3 plug | 1 | Molex 0009503041, KK 396 housing, 4-pin | [0009503041](https://www.digikey.com/en/products/detail/molex/0009503041/26457) |
+| J2/J3 plug terminals | 7 + spares | Molex 0008500106, KK 396 crimp, 18-24 AWG | [0008500106](https://www.digikey.com/en/products/detail/molex/0008500106/26477) |
+| J1 | 1 | JST B5B-EH-A, 5-pin (or fit J6 instead) | [B5B-EH-A](https://www.digikey.com/en/products/detail/jst-sales-america-inc/B5B-EH-A-LF-SN/926522) |
+| J1 plug | 1 | JST EHR-5 housing | [EHR-5](https://www.digikey.com/en/products/detail/jst-sales-america-inc/EHR-5/527227) |
+| J1 plug terminals | 5 + spares | JST SEH-001T-P0.6 crimp | [SEH-001T-P0.6](https://www.digikey.com/product-detail/en/SEH-001T-P0.6/455-1042-1-ND/527266) |
+| J6, J7-J9, J10, J13, J14 | 1 strip | Sullins PRPC040SAAN-RC, 1 x 40 male, 2.54 mm: break off 5 + 3 x 2 + 2 + 3 + 2 = 18 pins | [PRPC040SAAN-RC](https://www.digikey.com/en/products/detail/sullins-connector-solutions/PRPC040SAAN-RC/2775214) |
+| shunts | 2 + spare | Sullins QPC02SXGN-RC: J14, and one of J7-J9 (J10 too for a two-coil relay) | [QPC02SXGN-RC](https://www.digikey.com/en/products/detail/sullins-connector-solutions/QPC02SXGN-RC/2618262) |
+| U4 socket | 1 | Sullins PPTC101LFBN-RC, 1 x 10 female, 2.54 mm | [PPTC101LFBN-RC](https://www.digikey.com/en/products/detail/sullins-connector-solutions/PPTC101LFBN-RC/810149) |
+| U4 | 1 | ADS1115 module, pins VDD, GND, SCL, SDA, ADDR, ALRT, A0-A3. Adafruit's is $14.95; generic modules with the same pinout are about $2 elsewhere | [Adafruit 1085](https://www.digikey.com/en/products/detail/adafruit-industries-llc/1085/5761229) |
+| J11 (optional) | 1 | Phoenix 1715734, MKDS 1,5/3-5,08: relay screw terminal instead of J2 | [1715734](https://www.digikey.com/en/products/detail/phoenix-contact/1715734/260632) |
+| J12 (optional) | 1 | Phoenix 1715750, MKDS 1,5/5-5,08: coin input screw terminal instead of J3 | [1715750](https://www.digikey.com/product-detail/en/phoenix-contact/1715750/277-13762-ND/3606242) |
+
+JP1 is a solder jumper (no part), and R42, R43, Rslope1 and Cslope1 aren't fitted.
+
 **Resistors and small capacitors: 0805, JLCPCB places them**, except:
 
 | Ref | Value | Size | Why |
 |---|---|---|---|
-| Rfbt1-3, Rbl1-3, R27, R28, R32 | 100 k, 1 M, 33 k, 1 M | **1206** | on HV (below). R32 1 M is C17927, Basic |
+| Rfbt1-3, Rbl1-3, R32 | 100 k, 1 M, 1 M | **1206** | on HV (below). R32 1 M is C17927, Basic |
+| R27, R28 | 33 k | 0805 | HV LED, two in series: about 47 V and 67 mW each, inside an 0805's 150 V and 0.125 W. C17633, Basic |
 | R26 | 10 ohm | 1206 | firing current sense |
 | Rcs1 | 2.2 ohm | 0805 | C17521, Basic. About 0.05 W against the 0.125 W rating |
 | R12 | 100 ohm | **1206** | C17901, Basic. U2's driver resistor: about 4 V across it for 80 % of each cycle, 0.13 W, too much for an 0805 |
@@ -101,8 +135,8 @@ These come to about **$16.50** a board at DigiKey qty-1 prices, U4's module incl
 | C8 | 1 nF | X7R (C46653, Basic). It sets U2's clock; X7R's 10-15 % drift moves that a little, which U2's own current limit makes harmless. C0G at 1 nF is Extended only |
 | Cp1 | 100 pF | **C0G** (C1790, Basic): compensation pole |
 | Cf1 | 470 pF | X7R (C1743, Basic): current-sense filter, where 10-15 % doesn't matter. C0G at 470 pF is Extended only |
-| Cvcc1 | 0.1 uF | **50 V**: on the 20 V rail, where a 16 or 25 V 0805 loses most of its capacitance |
-| Cz1 | 100 nF | X7R, 0805 50 V: C49678, Basic (the same part as Cvcc1). Sets the compensation zero (1.6 Hz) |
+| Cvcc1 | 0.1 uF | **50 V or more**: on the 20 V rail, where a 16 or 25 V 0805 loses most of its capacitance. C28233 (100 V, Basic), the board's other 100 nF |
+| Cz1 | 100 nF | X7R, 0805: C28233 (100 V, Basic), the board's other 100 nF. Sets the compensation zero (1.6 Hz) |
 
 **Cable-entry and filter parts**
 
@@ -114,7 +148,7 @@ These come to about **$16.50** a board at DigiKey qty-1 prices, U4's module incl
 | R53 | Qa1 gate to source, 10 k | C17414 | Basic |
 | R49-R51, C24 | coin 4: 10 k pull-up, 1 k series, 1.5 k LED, 100 nF | C17414, C17513, C4310, C28233 | Basic |
 | R42, R43 | I2C pull-ups, 4.7 k 0805, not fitted | 0805W8F4701T5E (C17673) | Basic |
-| C18, C19 | AIN1 (HV) and AIN0 (20 V) filters, 100 nF 0805 | CC0805KRX7R9BB104 (C49678) | Basic |
+| C18, C19 | AIN1 (HV) and AIN0 (20 V) filters, 100 nF 0805 | CL21B104KCFNNNE (C28233) | Basic |
 | C21, C22, C23 | HV bypass, 3 in series, 100 nF 50 V X7R, 1206 | CL31B104KBCNNNC (C24497) | Basic |
 
 No Basic part fits C5/C7/C14/C20 or F1, so both are Extended (above). The only Basic 100 uF
@@ -172,7 +206,40 @@ J11 and J12 and the J10/J13/J14 headers add a few dollars a board at DigiKey **(
 they're optional: fit them only for phones that need them.
 
 The 8 parts with an Extended fee have no Basic or Preferred equivalent: C5/C7/C14/C20, L1, L2,
-F1, U1, U3, Q3/Qa1 and D3. Hand-soldering one yourself saves its $3 per order.
+F1, U1, U3, Q3/Qa1 and D3. Hand-soldering one yourself saves its $3 per order. **Now hand-soldered:**
+C5/C7/C14/C20, F1, U3 and D3. L1 and L2 stay with JLCPCB, since DigiKey doesn't stock them, which
+leaves four fees: U1, Q3/Qa1, L1 and L2 ($12). R17 was 56 k, an
+Extended part; it's now 150 k with R19 27 k (the AIN0 divider, 6.56:1), both values already Basic
+parts on the board. The table above still has the earlier 8-fee figures.
+
+**The first real quote (2026-11-07, 5 boards, Standard PCBA): $155.94 before shipping and
+tariff.** PCB $10, setup $25.75, stencil $8.27, parts $31.72 (49 lines), **feeder loading
+$75.95** (49 x $1.55: Standard PCBA charges every unique part, Basic ones too), placement
+$3.74, packaging $0.51. The same board as **Economic PCBA** would be about $10 + $8 setup +
+$1.50 stencil + $31.72 parts + $27 (9 parts with the $3 Extended fee: the four 100 uF, D3, F1,
+L1, L2, Q3/Qa1, R17, U1, U3; Preferred parts have none) + $4 = **about $82**. Use Economic
+unless JLCPCB won't offer it for the board; on Standard, hand-soldering a part saves only its
+$1.55 line fee and its price.
+
+**Hand-soldering an Extended part instead** (5 boards, Economic PCBA). What JLCPCB charges for it, delivered,
+is its $3 fee plus the parts, times about 1.56 for tariff and tax. Bought from DigiKey with the
+through-hole parts, it adds the parts and 8.6 % tax, and no extra shipping. DigiKey prices
+below are **estimates (verify)**, at the quantity one order needs.
+
+| Ref | Part | JLCPCB, delivered | DigiKey instead | Saves an order | Hand soldering |
+|---|---|---:|---|---:|---|
+| U1 | TCA9534APWR, TSSOP-16 | 14.50 | TI TCA9534APWR, about $1.40: 7.60 | **~7** | hardest on the board: 0.65 mm pitch, needs flux and a fine tip |
+| C5, C7, C14, C20 | 100 uF 50 V, 8 x 10 mm | 12.20 | Panasonic EEE-FK1H101P (8 x 10.2, same footprint), about $0.40 at 20: 8.70 | **~4** | easy: two big pads |
+| U3 | UC3843BD1R2G, SOIC-8 | 7.60 | the same part, $0.71: 3.90 | **~4** | easy |
+| F1 | 1812L110PR, 1812 | 5.10 | the same part, about $0.40: 2.20 | **~3** | easy |
+| D3 | SMBJ130A, SMB | 5.00 | Littelfuse SMBJ130A, about $0.40: 2.20 | **~3** | easy |
+| L1, L2 | SMDRI127, 12 x 12 mm | 6.50 each | Bourns SRR1260-101M / -221M, about $1.00: 5.40 each | ~1 each | easy, but check the Bourns footprint against `L_SXN_SMDRI127` |
+| Q3, Qa1 | STN4NF20L, SOT-223 | 9.80 | ST STN4NF20L, about $0.90 at 10: 9.80 | ~0 | easy |
+
+All eight come to about **$22 an order of 5, about $4.50 a board**. U1, the capacitors, U3, F1
+and D3 are most of it (about $21); L1, L2 and Q3/Qa1 aren't worth it. U2 is Preferred, so it has
+no fee and nothing to save. To move a part to hand soldering, clear its LCSC field (and mark it
+"exclude from position files"), then add it to the DigiKey order.
 
 The biggest single items are the hand-solder parts: K1 ($3.84-4.52) and C1 ($3.08). The
 DigiKey figures for C1, the JST parts and the pin strip had no quantity
@@ -180,13 +247,17 @@ breaks on the page, so they're qty-1 prices and a little high at 30.
 
 ### The JLCPCB plugin
 
-`Payphone_v1/jlcpcb/` (kicad-jlcpcb-tools: its database and exports, not tracked in git)
+`Payphone_coin_board_v1/jlcpcb/` (kicad-jlcpcb-tools: its database and exports, not tracked in git)
 should match the schematic's LCSC fields. Check before each upload:
 
 - Every surface-mount part is in the CPL file, not just the BOM. A symbol marked "exclude from
   position files" carries that to its footprint on Update PCB, and JLCPCB then buys the part but
   doesn't place it.
-- No through-hole part has an LCSC number, or it lands on the BOM with the hand-solder fee.
+- No hand-solder part has an LCSC number, and in the plugin's Settings **"Add parts without LCSC
+  numbers to BOM/CPL" is off**: then hand-solder parts are left out of both files. With it on, they
+  land on the BOM without a CPL entry, and JLCPCB warns that they "don't exist in the CPL file".
+- When ordering: **lead-free HASL (or HASL)**. JLCPCB offers Economic PCBA only with HASL; with OSP
+  or ENIG it's Standard PCBA, about twice the price.
 
 ## Will small resistors and capacitors stand the voltage?
 
@@ -216,7 +287,7 @@ the working voltage, and mind DC bias.
 
 ## PCB layout and routing
 
-The parts in `Payphone_v1.kicad_pcb` start out roughly in the blocks below, ungrouped,
+The parts in `Payphone_coin_board_v1.kicad_pcb` start out roughly in the blocks below, ungrouped,
 with room left for routing. J1, J2, J3 and J6 are locked. There is no board outline
 yet: draw Edge.Cuts once the mounting is decided.
 
@@ -242,7 +313,7 @@ Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
 
 ### Track widths and vias
 
-The net classes in `Payphone_v1.kicad_pro` set these, so the router picks the width
+The net classes in `Payphone_coin_board_v1.kicad_pro` set these, so the router picks the width
 from the net (1 oz copper; the currents are peaks):
 
 | Net class | Nets | Track | Clearance | Via | Carries |
@@ -310,7 +381,7 @@ from the net (1 oz copper; the currents are peaks):
 - HV, HV_*, SW2, COIL_A/B/C and RETURN are in the **HV net class** (1.0 mm
   clearance), so DRC enforces it. J10 and J11 carry HV: keep them by J2 and K1.
 - **Pads inside one part** are checked against 0.6 mm instead (IPC-2221 B2,
-  external uncoated copper, 101-150 V), by the rules in `Payphone_v1.kicad_dru`
+  external uncoated copper, 101-150 V), by the rules in `Payphone_coin_board_v1.kicad_dru`
   for K1, J2, J10, Q3, Qa1, R27 and R28: their pin spacing is fixed by the part
   (SOT-223 and 1206 pads are 0.8 mm apart). A new HV part with the same issue
   gets its own rule there.

@@ -88,8 +88,11 @@ the price is fixed set-up and shipping.
 2. **Pick your build** before generating the CPL: dual-line, or single-line
    with microSD. See [Build options](bom.md#build-options). 2nd line's support
    parts and the microSD socket are mutually exclusive.
-3. **Upload the Gerbers** at jlcpcb.com: 2 layers, 1.6 mm, lead-free HASL,
-   any colour. Turn on **PCB Assembly**, top side, **Economic**.
+3. **Upload the Gerbers** at jlcpcb.com: 2 layers, 1.6 mm, any colour, and
+   surface finish **lead-free HASL** (or HASL). Turn on **PCB Assembly**, top
+   side, **Economic**. JLCPCB only offers Economic assembly with a HASL
+   finish: pick OSP or ENIG and it switches to Standard assembly, which costs
+   about twice as much.
 4. **Upload the BOM and CPL** and work through the checklist:
 
 | | Check |

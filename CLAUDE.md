@@ -66,7 +66,7 @@ docs/board.md version table and callout, the README in the v6 KiCad folder). Don
 tested or working until the user has built one and says so. Its JLCPCB/PCBWay exports are local only
 while v6 is in progress; re-track the folder (drop the .gitignore rule) when the user publishes it.
 
-**Payphone coin board (`PayPhone/Payphone_v1/`) is in progress, not finished:** PCB not routed, nothing built. Its docs say so at the top; keep saying so until the user has built one.
+**Payphone coin board (`PayPhone/Payphone_coin_board_v1/`) is released for fab (2026-11-08), untested:** layout finished, nothing built. Its docs say so at the top; keep saying untested until the user has built one. Its JLCPCB exports (`jlcpcb/`) are gitignored.
 
 ## Building/flashing for a specific board type (SMD2 vs SMD4 vs SMD5)
 

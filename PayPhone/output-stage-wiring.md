@@ -1,10 +1,10 @@
 # Coin relay output stage: what connects where
 
-**In progress: not for use or fab.** The PCB layout isn't finished, and nothing here is built
-or tested.
+**Released for fab, untested.** The PCB layout is finished (2026-11-08), but nothing here has
+been built or tested.
 
 Reference designators and pin numbers match
-`Payphone_v1/Payphone_v1.kicad_sch`.
+`Payphone_coin_board_v1/Payphone_coin_board_v1.kicad_sch`.
 
 The output stage takes the high voltage on net **HV** (C1, 52-119 V, set by
 J7-J9) and sends it through the payphone's coin relay one way or the other.
@@ -193,7 +193,7 @@ down (D7 out). Firmware must keep FIRE low unless it means to fire.
 
 ## Net labels
 
-The HV net class in `Payphone_v1.kicad_pro` matches `/HV*`, `HV*`, `/COIL_A`,
+The HV net class in `Payphone_coin_board_v1.kicad_pro` matches `/HV*`, `HV*`, `/COIL_A`,
 `/COIL_B`, `/COIL_C`, `/RETURN` and `/SW2`, so keep these names: the 1.0 mm clearance then
 applies automatically. (A logic net whose name starts with HV would pick up the HV class too,
 so don't name one that way.)
@@ -241,7 +241,7 @@ so don't name one that way.)
 | 1 ADDR | GND: address 0x48 |
 | 10 SCL, 9 SDA | SCL, SDA (R40 and R41 from the cable) |
 | 2 ALERT/RDY | not connected |
-| 4 AIN0 | 20V through R17 56 k / R19 10 k: 20 V reads 3.0 V. C19 100 nF to GND |
+| 4 AIN0 | 20V through R17 150 k / R19 27 k: 20 V reads 3.05 V (full scale 26.8 V). C19 100 nF to GND |
 | 5 AIN1 | HV through R32 1 M / R33 27 k: 119 V reads 3.13 V. C18 100 nF to GND |
 | 6 AIN2 | ISENSE (R26) through R44 1 k: 100 mA reads 1 V |
 | 7 AIN3 | J13 pin 2 through R52 10 k, C25 100 nF to GND: spare analog input |

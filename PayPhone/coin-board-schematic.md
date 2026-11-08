@@ -1,10 +1,10 @@
 # Payphone coin board: design
 
-**In progress: not for use or fab.** The PCB layout isn't finished, and nothing here is
+**Released for fab, untested.** The PCB layout is finished (2026-11-08), but nothing here has been
 built, tested or simulated. Values marked **[verify]** come from
 distributor listings or my memory of a datasheet, not from the manufacturer's
 datasheet; check them before ordering. Reference designators match
-`Payphone_v1/Payphone_v1.kicad_sch`.
+`Payphone_coin_board_v1/Payphone_coin_board_v1.kicad_sch`.
 
 | Doc | Covers |
 |---|---|
@@ -269,7 +269,7 @@ UCx844/5 are limited to 50 % and wouldn't work.
 | Rfbt1-3 | HV to FB pin 2 | **3 x 100 k in series** (1206) | about 40 V each |
 | Rfbb1-4 | FB pin 2 to GND | **Rfbb4 15 k always fitted**; Rfbb3 100 k, Rfbb2 30 k, Rfbb1 22 k added in parallel by J9 / J8 / J7 | table below |
 | Rz1 | COMP pin 1 to FB pin 2, in series with Cz1 | **1 M** | mid-band gain Rz / Rfbt = 3.3 |
-| Cz1 | In series with Rz1 | **100 nF**, X7R, 0805 50 V (C49678, Basic, the same part as C17) | zero at 1.6 Hz |
+| Cz1 | In series with Rz1 | **100 nF**, X7R, 0805 100 V (C28233, Basic, the same part as C17) | zero at 1.6 Hz |
 | Cp1 | COMP pin 1 to FB pin 2, across Rz1 + Cz1 | **100 pF, C0G** | pole at 1.6 kHz, keeps switching noise out of the error amplifier |
 | **Decoupling** | | | |
 | Cvcc1 | VCC pin 7 to GND | **0.1 uF, 50 V** | on the 20 V rail, so not a 16 or 25 V part |

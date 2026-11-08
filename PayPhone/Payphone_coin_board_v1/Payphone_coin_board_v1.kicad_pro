@@ -50,7 +50,7 @@
         "silk_text_thickness": 0.1,
         "silk_text_upright": false,
         "zones": {
-          "border_display_style": 1,
+          "border_display_style": 2,
           "border_hatch_pitch": 0.5,
           "corner_radius": 0.0,
           "corner_smoothing": 0,
@@ -514,7 +514,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "Payphone_v1.kicad_pro",
+    "filename": "Payphone_coin_board_v1.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -937,7 +937,7 @@
     "subpart_id_separator": 0,
     "top_level_sheets": [
       {
-        "filename": "Payphone_v1.kicad_sch",
+        "filename": "Payphone_coin_board_v1.kicad_sch",
         "name": "Root",
         "uuid": "65d67a88-28a0-4b0c-a749-df348fda1ee9"
       }
