@@ -21347,7 +21347,7 @@
 				)
 			)
 		)
-		(property "Value" "MKDS 1,5/5-5,08"
+		(property "Value" "KF128-2.54-5P"
 			(at 214.884 72.898 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21357,7 +21357,7 @@
 				)
 			)
 		)
-		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-5-5.08_1x05_P5.08mm_Horizontal"
+		(property "Footprint" "TerminalBlock:TerminalBlock_Xinya_XY308-2.54-5P_1x05_P2.54mm_Horizontal"
 			(at 213.36 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -21379,7 +21379,7 @@
 				)
 			)
 		)
-		(property "Description" "Coin switch screw terminal: J3 pins 1-4 plus coin 4 on pin 5 (Phoenix 1715750, hand-solder)"
+		(property "Description" "Screw terminal, 5 pins, 2.54 mm pitch (KF128-2.54-5P / DG128 style; footprint Xinya XY308-2.54-5P)"
 			(at 212.09 72.39 0)
 			(hide yes)
 			(show_name no)

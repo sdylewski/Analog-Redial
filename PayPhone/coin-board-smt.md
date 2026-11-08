@@ -79,7 +79,7 @@ capacitance at 20 V, and has too little ESR for C20.
 | J10 | two-coil relay option (J11 pin 2 to HV) | 1 x 2 pin header + shunt, 2.54 mm | |
 | J14 | HV boost: U3's supply | 1 x 2 pin header + shunt, 2.54 mm. **Shunt for the HD550002C**; leave it off for 12-24 V coils | |
 | J11 | relay screw terminal (instead of J2) | Phoenix MKDS 1,5/3-5,08 (1715734) **(verify price)** | |
-| J12 | coin input screw terminal (J3 + coin 4) | Phoenix MKDS 1,5/5-5,08 (1715750) **(verify price)** | |
+| J12 | coin input screw terminal (J3 + coin 4) | KF128-2.54-5P, 2.54 mm pitch, 26-18 AWG (footprint `TerminalBlock_Xinya_XY308-2.54-5P`) | |
 | J13 | spare analog input | 1 x 3 pin header, 2.54 mm | |
 | U4 | ADC | ADS1115 module on a 1 x 10 header, 2.54 mm (VDD, GND, SCL, SDA, ADDR, ALRT, A0-A3) | under 2 |
 | R42, R43, Rslope1, Cslope1 | I2C pull-ups, slope compensation | **not fitted** | |
@@ -105,11 +105,12 @@ C487360) isn't sold at DigiKey: the Nichicon below fits the same `CP_Elec_8x10` 
 | J3 | 1 | Molex 0026604040, KK 396 header, 4-pin | [0026604040](https://www.digikey.com/en/products/detail/molex/0026604040/197447) |
 | J1 | 1 | JST B5B-XH-A, 5-pin XH (or fit J6 instead) | [B5B-XH-A](https://www.digikey.com/en/products/detail/jst-sales-america-inc/B5B-XH-A-LF-SN/1530483) |
 | U4 socket | 1 | Sullins PPTC101LFBN-RC, 1 x 10 female, 2.54 mm | [PPTC101LFBN-RC](https://www.digikey.com/en/products/detail/sullins-connector-solutions/PPTC101LFBN-RC/810149) |
+| J12 (optional) | 1 | KF128-2.54-5P screw terminal, 5 pins, 2.54 mm (not from DigiKey) | [AliExpress](https://www.aliexpress.us/item/3256801737987839.html) |
 | U4 | 1 | ADS1115 module, pins VDD, GND, SCL, SDA, ADDR, ALRT, A0-A3 (not from DigiKey) | [AliExpress](https://www.aliexpress.us/item/3256806547330256.html) |
 
 Not on the list: plugs for J2 and J3 (reuse the phone's own KK 396 plugs on the relay and coin
 switch cables), the pin headers and shunts for J6-J10, J13 and J14, and the optional screw
-terminals J11 (Phoenix 1715734) and J12 (Phoenix 1715750). JP1 is a solder jumper (no part), and
+terminal J11 (Phoenix 1715734). JP1 is a solder jumper (no part), and
 R42, R43, Rslope1 and Cslope1 aren't fitted.
 
 **Resistors and small capacitors: 0805, JLCPCB places them**, except:
