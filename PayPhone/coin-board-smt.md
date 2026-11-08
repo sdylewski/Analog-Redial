@@ -72,8 +72,8 @@ capacitance at 20 V, and has too little ESR for C20.
 |---|---|---|---:|
 | C1 | 220 uF / 200 V | Nichicon UCS2D221MHD, 18 x 26.5 mm, 7.5 mm leads | 3.08 |
 | K1 | DPDT relay, 5 V coil | Omron (Aratas) G6S-2-DC5: 250 VAC / 220 VDC switching per the listing **(check the datasheet)** | 4.52 |
-| J2 | relay cable | Molex 0026604030, KK 396, 3-pin (plug 09-50-3031 + terminals, verify) | 0.35 |
-| J3 | coin switch cable | Molex 0026604040, KK 396, 4-pin (plug 09-50-3041 + terminals, verify) | 0.44 |
+| J2 | relay cable | Molex 0026604030, KK 396, 3-pin (plug: housing 0009503031 + 3 x 0008500106 terminals) | 0.35 |
+| J3 | coin switch cable | Molex 0026604040, KK 396, 4-pin (plug: housing 0009503041 + 4 x 0008500106 terminals) | 0.44 |
 | J1 or J6 | main board cable | JST B5B-EH-A, or a 1 x 5 pin header, 2.54 mm | |
 | J7-J9 | HV setting | 1 x 2 pin headers + shunts, 2.54 mm | |
 | J10 | two-coil relay option (J11 pin 2 to HV) | 1 x 2 pin header + shunt, 2.54 mm | |
