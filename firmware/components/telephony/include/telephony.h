@@ -169,24 +169,6 @@ typedef struct {
 telephony_ring_test_status_t telephony_ring_test_status(void);
 int telephony_ring_test_freqs(const uint8_t **list);
 
-/* Custom ring test: rings a line at its own frequency for on_ms, pauses for
- * off_ms, and repeats for `rings` rings. ESP_ERR_INVALID_ARG outside the limits
- * below, ESP_ERR_INVALID_STATE if the line isn't idle and on-hook; lifting the
- * handset or an incoming call ends it. */
-#define RING_CUSTOM_MIN_MS     100
-#define RING_CUSTOM_MAX_ON_MS  30000
-#define RING_CUSTOM_MAX_OFF_MS 60000
-#define RING_CUSTOM_MAX_RINGS  20
-esp_err_t telephony_ring_custom_start(int line, uint32_t on_ms, uint32_t off_ms, int rings);
-void telephony_ring_custom_stop(void);
-typedef struct {
-    bool active;
-    bool ringing; /* false during the pause between rings */
-    int  ring;    /* 1-based */
-    int  rings;
-} telephony_ring_custom_status_t;
-telephony_ring_custom_status_t telephony_ring_custom_status(void);
-
 /* Touch-tone test: one at a time, on a line sitting on dial tone. Silences the
  * dial tone and keeps that line's digits from the dial plan while it guides the
  * user through each key (see dtmf_test.h). Hanging up or dialing ends it. When

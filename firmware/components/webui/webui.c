@@ -6481,48 +6481,6 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         off = append_log_panel(buf, cap, off, log_snapshot);
         free(log_snapshot);
     }
-
-    /* Custom ring test: keep this last on the page. */
-    off = appendf(buf, cap, off,
-        "<div class=\"card wide\"><h2>%s</h2>"
-        "<p class=\"hint\">%s</p>"
-        "<div class=\"toolbar sub\">"
-        "<label>%s <select id=\"rcline\">%s</select></label>"
-        "<label>%s <input id=\"rcon\" type=\"number\" min=\"0.1\" max=\"%d\" step=\"0.1\" value=\"2\" style=\"width:5em\"></label>"
-        "<label>%s <input id=\"rcoff\" type=\"number\" min=\"0.1\" max=\"%d\" step=\"0.1\" value=\"4\" style=\"width:5em\"></label>"
-        "<label>%s <input id=\"rcn\" type=\"number\" min=\"1\" max=\"%d\" step=\"1\" value=\"3\" style=\"width:4em\"></label>"
-        "<button type=\"button\" onclick=\"rcGo()\">%s</button>"
-        "<button type=\"button\" onclick=\"rcPost('stop=1').then(rcPoll)\">%s</button></div>"
-        "<p class=\"hint\" id=\"rcstat\" aria-live=\"polite\"></p></div>"
-        "<script>"
-        "var RC={ring:'%s',gap:'%s',done:'%s',bad:'%s'},rcT=0;"
-        "function rcEl(i){return document.getElementById(i);}"
-        "function rcShow(d){clearTimeout(rcT);if(!d.active){if(rcT)rcEl('rcstat').textContent=RC.done;rcT=0;return;}"
-        "rcEl('rcstat').textContent=(d.ringing?RC.ring:RC.gap).replace('%%1',d.ring).replace('%%2',d.rings);"
-        "rcT=setTimeout(rcPoll,250);}"
-        "function rcPoll(){fetch('/api/ring_custom').then(function(r){return r.json();}).then(rcShow)"
-        ".catch(function(){rcT=setTimeout(rcPoll,2000);});}"
-        "function rcPost(b){return fetch('/test/ring_custom',{method:'POST',headers:"
-        "{'Content-Type':'application/x-www-form-urlencoded'},body:b}).then(function(r){return r.json();});}"
-        "function rcGo(){rcPost('line='+rcEl('rcline').value+'&on_ms='+Math.round(rcEl('rcon').value*1000)"
-        "+'&off_ms='+Math.round(rcEl('rcoff').value*1000)+'&rings='+rcEl('rcn').value)"
-        ".then(function(d){if(d.ok){rcT=1;rcPoll();}else{rcEl('rcstat').textContent=RC.bad;}});}"
-        "rcPoll();"
-        "</script>",
-        i18n_str("diag.ringcustom.title", "Custom ring test"),
-        i18n_str("diag.ringcustom.hint",
-                 "Rings a phone with your own timing. It won't ring a line that's in use, and lifting "
-                 "the handset stops it. &#9888; Don't touch tip/ring while it rings."),
-        i18n_str("diag.test.line", "Line"), tl_opts,
-        i18n_str("diag.ringcustom.on", "Ring (s)"), RING_CUSTOM_MAX_ON_MS / 1000,
-        i18n_str("diag.ringcustom.off", "Delay (s)"), RING_CUSTOM_MAX_OFF_MS / 1000,
-        i18n_str("diag.ringcustom.rings", "Rings"), RING_CUSTOM_MAX_RINGS,
-        i18n_str("diag.ringcustom.go", "Ring"),
-        i18n_str("diag.ringcustom.stop", "Stop"),
-        i18n_str("diag.ringcustom.ringing", "Ringing: %1 of %2"),
-        i18n_str("diag.ringcustom.gap", "Delay after ring %1 of %2"),
-        i18n_str("diag.ringcustom.done", "Finished."),
-        i18n_str("diag.ringcustom.bad", "Could not ring: hang up that line, and check the numbers are in range."));
     return off;
 }
 
@@ -8730,37 +8688,6 @@ static esp_err_t ring_test_json_handler(httpd_req_t *req)
     snprintf(json, sizeof(json), "{\"active\":%s,\"ringing\":%s,\"sweep\":%s,\"hz\":%d,\"step\":%d,\"steps\":%d}",
              s.active ? "true" : "false", s.ringing ? "true" : "false", s.sweep ? "true" : "false",
              s.hz, s.step, s.steps);
-    httpd_resp_set_type(req, "application/json");
-    return httpd_resp_sendstr(req, json);
-}
-
-/* POST /test/ring_custom -- line=N&on_ms=A&off_ms=B&rings=C, or stop=1. */
-static esp_err_t test_ring_custom_handler(httpd_req_t *req)
-{
-    char body[96], lbuf[8] = {0}, onbuf[12] = {0}, offbuf[12] = {0}, nbuf[8] = {0}, sbuf[8] = {0};
-    if (!read_form_body(req, body, sizeof(body))) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
-    }
-    form_field(body, "line", lbuf, sizeof(lbuf));
-    form_field(body, "on_ms", onbuf, sizeof(onbuf));
-    form_field(body, "off_ms", offbuf, sizeof(offbuf));
-    form_field(body, "rings", nbuf, sizeof(nbuf));
-    form_field(body, "stop", sbuf, sizeof(sbuf));
-    esp_err_t err = ESP_OK;
-    if (sbuf[0]) telephony_ring_custom_stop();
-    else         err = telephony_ring_custom_start(atoi(lbuf), (uint32_t)strtoul(onbuf, NULL, 10),
-                                                   (uint32_t)strtoul(offbuf, NULL, 10), atoi(nbuf));
-    if (err != ESP_OK) ESP_LOGI(TAG, "custom ring refused: %s", esp_err_to_name(err));
-    httpd_resp_set_type(req, "application/json");
-    return httpd_resp_sendstr(req, err == ESP_OK ? "{\"ok\":true}" : "{\"ok\":false}");
-}
-
-static esp_err_t ring_custom_json_handler(httpd_req_t *req)
-{
-    telephony_ring_custom_status_t s = telephony_ring_custom_status();
-    char json[64];
-    snprintf(json, sizeof(json), "{\"active\":%s,\"ringing\":%s,\"ring\":%d,\"rings\":%d}",
-             s.active ? "true" : "false", s.ringing ? "true" : "false", s.ring, s.rings);
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_sendstr(req, json);
 }
@@ -12218,8 +12145,6 @@ esp_err_t webui_start(void)
         { .uri = "/test/sd",                .method = HTTP_POST, .handler = test_sd_handler },
         { .uri = "/test/ring",              .method = HTTP_POST, .handler = test_ring_handler },
         { .uri = "/test/ring_freq",         .method = HTTP_POST, .handler = test_ring_freq_handler },
-        { .uri = "/test/ring_custom",       .method = HTTP_POST, .handler = test_ring_custom_handler },
-        { .uri = "/api/ring_custom",        .method = HTTP_GET,  .handler = ring_custom_json_handler },
         { .uri = "/payphone_enable",        .method = HTTP_POST, .handler = payphone_enable_handler },
         { .uri = "/payphone_set",           .method = HTTP_POST, .handler = payphone_set_handler },
         { .uri = "/payphone_coin",          .method = HTTP_POST, .handler = payphone_coin_handler },
