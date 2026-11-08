@@ -49,8 +49,8 @@ The parts v5 and v6 share are in the [parts list](bom.md), with links.
 | **U3** | AG1171 SLIC | 1 | two lines | line 1 |
 | **C17** | 470 µF 16 V radial | 1 | two lines | line 1, polarized |
 | **J8** | RJ12 jack | 1 | two lines | line 1 |
-| **J10** | JST EH 7-pin, vertical, **B7B-EH-A** | 1 | extra I/O | mates with an EHR-7 housing and SEH-001T-P0.6 crimps |
-| **J11** | JST EH 5-pin, vertical, **B5B-EH-A** | 1 | payphone / I²C add-ons | mates with EHR-5; the coin board has the same header |
+| **J10** | JST XH 7-pin, vertical, **B7B-XH-A** | 1 | extra I/O | mates with an XHP-7 housing and SXH-001T-P0.6 crimps |
+| **J11** | JST XH 5-pin, vertical, **B5B-XH-A** | 1 | payphone / I²C add-ons | mates with XHP-5; the coin board has the same header |
 | **J1** | DC barrel jack, 5.5 × 2.1 mm | 1 | optional | recommended with the clone module |
 | **D12** | P6KE82**A** TVS diode | 1 | optional, recommended | line protection, polarized |
 | **J2** | 1×8 pin header, 2.54 mm | 1 | optional | for the Bluetooth board; pin 1 is 3.6 V on v6 |
@@ -168,7 +168,7 @@ As U4. On v6 it's driven by U6 rather than ESP32 pins, so there's no jumper to s
 
 ### Step 10: J10, extra I/O (optional)
 
-JST EH, 7 pins. It's shaped so a plug goes in only one way: match the header to its
+JST XH, 7 pins. It's shaped so a plug goes in only one way: match the header to its
 silkscreen outline before soldering, or every cable will be reversed. Pin 1 is +5 V and
 pin 7 GND.
 
@@ -177,7 +177,7 @@ pin 7 GND.
 
 ### Step 11: J11, I²C accessory header (optional)
 
-JST EH, 5 pins, the same way as J10. Pin 1 is GND and pin 5 +5 V, the same numbering as the
+JST XH, 5 pins, the same way as J10. Pin 1 is GND and pin 5 +5 V, the same numbering as the
 coin board's header, so the cable runs pin 1 to pin 1.
 
 <table>

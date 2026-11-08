@@ -185,6 +185,13 @@ working unchanged (the whole subtree moved together, same relative
 structure) — only links from live files (this one included) need the
 `archive/` prefix.
 
+## Photos: no GPS
+
+Photos in this public repo must carry no GPS location. `.githooks/pre-commit` strips it with
+exiftool from staged images (enable per clone: `git config core.hooksPath .githooks`; needs
+`brew install exiftool`). Check any photo added by other means with
+`exiftool -GPSPosition <file>`. Past commits are left as they are.
+
 ## Markdown tables
 
 Always use at least three dashes in each table header separator cell (`|---|---|`, not `|--|--|`): the user previews .md files in MacDown, which won't render tables with shorter separators. (Existing `|--|` tables elsewhere in the repo are valid on GitHub; fix them when touching those files.)

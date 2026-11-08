@@ -1,0 +1,23 @@
+#!/bin/sh
+# Strip GPS location from photos before they're committed.
+# Enable once per clone:  git config core.hooksPath .githooks
+# Needs exiftool (brew install exiftool).
+
+files=$(git diff --cached --name-only --diff-filter=ACM -z |
+        tr '\0' '\n' | grep -i -E '\.(jpe?g|heic|heif|png|tiff?|webp|dng|mov|mp4)$')
+[ -z "$files" ] && exit 0
+
+if ! command -v exiftool >/dev/null 2>&1; then
+    echo "pre-commit: exiftool not found; can't strip GPS from staged photos." >&2
+    echo "Install it (brew install exiftool) or commit with --no-verify." >&2
+    exit 1
+fi
+
+echo "$files" | while IFS= read -r f; do
+    [ -f "$f" ] || continue
+    if exiftool -q -q -if '$GPSLatitude or $GPSPosition' -p '1' "$f" | grep -q 1; then
+        exiftool -q -overwrite_original -gps:all= '-XMP:GPS*=' "$f" &&
+            git add -- "$f" &&
+            echo "pre-commit: removed GPS location from $f"
+    fi
+done

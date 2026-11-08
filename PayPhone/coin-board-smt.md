@@ -105,7 +105,7 @@ C487360) isn't sold at DigiKey: the Nichicon below fits the same `CP_Elec_8x10` 
 | J3 | 1 | Molex 0026604040, KK 396 header, 4-pin | [0026604040](https://www.digikey.com/en/products/detail/molex/0026604040/197447) |
 | J1 | 1 | JST B5B-XH-A, 5-pin XH (or fit J6 instead) | [B5B-XH-A](https://www.digikey.com/en/products/detail/jst-sales-america-inc/B5B-XH-A-LF-SN/1530483) |
 | U4 socket | 1 | Sullins PPTC101LFBN-RC, 1 x 10 female, 2.54 mm | [PPTC101LFBN-RC](https://www.digikey.com/en/products/detail/sullins-connector-solutions/PPTC101LFBN-RC/810149) |
-| U4 | 1 | ADS1115 module, pins VDD, GND, SCL, SDA, ADDR, ALRT, A0-A3. Adafruit's is $14.95; generic modules with the same pinout are about $2 elsewhere | [Adafruit 1085](https://www.digikey.com/en/products/detail/adafruit-industries-llc/1085/5761229) |
+| U4 | 1 | ADS1115 module, pins VDD, GND, SCL, SDA, ADDR, ALRT, A0-A3 (not from DigiKey) | [AliExpress](https://www.aliexpress.us/item/3256806547330256.html) |
 
 Not on the list: plugs for J2 and J3 (reuse the phone's own KK 396 plugs on the relay and coin
 switch cables), the pin headers and shunts for J6-J10, J13 and J14, and the optional screw

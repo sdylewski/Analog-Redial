@@ -21,8 +21,8 @@ Build instructions: [Build a v6 board](build-v6.md).
 | Change | Why |
 |--------|-----|
 | **U6, a TCA9534A I/O expander** (I²C 0x38) drives line 1's SLIC | Frees GPIO18-21 for the microSD card: two lines and microSD on one board, no J5 |
-| **J10, a 7-pin JST EH header** with the expander's four spare pins (P4-P7) | Extra I/O that works whatever the lines and card are set to (§6) |
-| **J11, a 5-pin JST EH I²C accessory header** | Add-on boards on the shared I²C bus, such as the payphone coin board (§7) |
+| **J10, a 7-pin JST XH header** with the expander's four spare pins (P4-P7) | Extra I/O that works whatever the lines and card are set to (§6) |
+| **J11, a 5-pin JST XH I²C accessory header** | Add-on boards on the shared I²C bus, such as the payphone coin board (§7) |
 | **Clone-module footprint fixed** | A 30-pin clone needs no pin removed; only JP2/JP3 to set (§8) |
 | **D1 is an SS34 (3 A)** instead of v5's SS14 (1 A) | Headroom on the DC-jack input |
 | **U5 is the 3.6 V XC6206P362MR** | J2 pin 1 is 3.6 V on v6 (3.3 V on v5) |
@@ -104,7 +104,7 @@ except:
 
 ## 6. J10: extra I/O
 
-JST EH, 7 pins, 2.5 mm pitch (B7B-EH-A; mates with an EHR-7 housing and SEH-001T-P0.6
+JST XH, 7 pins, 2.5 mm pitch (B7B-XH-A; mates with an XHP-7 housing and SXH-001T-P0.6
 crimps).
 
 | J10 pin | Signal |
@@ -125,7 +125,7 @@ Unlike J5 on v4 and v5, they work with two lines and a card fitted.
 
 ## 7. J11: I²C accessory header
 
-JST EH, 5 pins, 2.5 mm pitch (B5B-EH-A; mates with EHR-5).
+JST XH, 5 pins, 2.5 mm pitch (B5B-XH-A; mates with XHP-5).
 
 | J11 pin | Signal |
 |---------|--------|
