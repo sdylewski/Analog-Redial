@@ -34,7 +34,7 @@ and note in the last column where the numbers came from.
 
 | Phone | Relay connector | J10 (two-coil) | HV (J14, J7-J9) | Pulse | Swap | Coin 4 | Tested |
 |---|---|---|---|---|---|---|---|
-| GTE / Quadrum 120B style | J2 | off | fit J14; start at 60 V (J14 + J9), up to 78 V (J14 + J8) if it doesn't move reliably | 100 ms (default); the relay cuts its own current | off, until a Collect test moves the lever the wrong way | 0 (not fitted) | **no** |
+| GTE / Quadrum 120B style | J2 | off | fit J14; start at 60 V (J14 + J9), up to 78 V (J14 + J8) if it doesn't move reliably | 100 ms (default); the relay cuts its own current | **on**: the plug has white on J2 pin 3, so POL high is collect; confirm with a Collect test | 0 (not fitted) | **no** |
 
 Notes on the columns:
 

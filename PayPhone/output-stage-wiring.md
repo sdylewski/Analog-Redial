@@ -31,8 +31,8 @@ Three small blocks, each driven by one TCA9534A pin:
         |            |                    |            |
         |            +----------+---------+------------+
         |                       |
-   J2 pin 1 (white)          RETURN
-   J2 pin 3 (green)             |
+   J2 pin 1 (green)          RETURN
+   J2 pin 3 (white)             |
    J2 pin 2 (red): no connect   Q3 pin 2 (D)              STN4NF20L
                                 Q3 pin 3 (S)
                                 |
@@ -48,10 +48,13 @@ Three small blocks, each driven by one TCA9534A pin:
 **Which way the coin goes** (from the bench tests: + on white moved the lever
 left = collect; + on red or green moved it right = return):
 
-| POL (P5) | K1 | J2 pin 1, white | J2 pin 3, green | Coin relay does |
+| POL (P5) | K1 | J2 pin 1, green | J2 pin 3, white | Coin relay does |
 |---|---|---|---|---|
-| low (default at power-up) | off | HV | RETURN | **collect** (lever left) |
-| high | on | RETURN | HV | **return to caller** (lever right) |
+| low (default at power-up) | off | HV | RETURN | **return to caller** (lever right) |
+| high | on | RETURN | HV | **collect** (lever left) |
+
+The phone's plug has green on pin 1 and white on pin 3, so turn on **Swap** on the
+Payphone tab: Collect then drives POL high. Confirm with a Collect test in the phone.
 
 Nothing flows until FIRE goes high. **Change POL only while FIRE is low**, so
 K1's contacts never switch a live current.
@@ -108,18 +111,17 @@ J2 takes the coin relay's own 3-wire cable. The coin switches are a separate
 
 | J2 (Molex KK 396, 3 pin) or J11 (screw terminal) | Wire from the coin relay | Net |
 |---|---|---|
-| 1 | white | COIL_A |
+| 1 | green | COIL_A |
 | 2 | red (the relay switch's other side) | not connected |
-| 3 | green | COIL_B |
+| 3 | white | COIL_B |
 
 **J11** (screw terminal) has COIL_A on pin 1 and COIL_B on pin 3, like J2, and **COIL_C on
 pin 2**, which only J10 connects: its shunt ties COIL_C to HV, for a relay with two coils
 and a common wire. J2 pin 2 isn't connected, so the HD550002C's red wire never sees HV.
 Which coil fires for each POL setting: coin-board-schematic.md, section 7.
 
-**Check the original plug before routing:** look at which position white, red
-and green sit in on the phone's 3-pin plug, and number J2 to match. If the order
-differs, only J2's pin numbers change, not the rest.
+Checked on the phone's own plug: green on pin 1, white on pin 3. The coil doesn't care
+which way round it is; only the Swap setting changes.
 
 The coin relay's own switch (red-green) cuts the current once the lever has
 moved, which is why the green wire is used: each fire is a single shot.

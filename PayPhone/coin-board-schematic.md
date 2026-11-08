@@ -56,7 +56,7 @@ green wire, and they aren't the same wires.
 |---|---|---|
 | **J6** | 5 x 2.54 mm pin header | **1 GND, 2 SCL, 3 SDA, 4 VIO, 5 +5 V**: the same pin numbers as the main board's v6 J11 (pin 4 there is +3.3 V), so a straight 1:1 cable, pin 1 to pin 1 |
 | **J1** | JST XH 5-pin (B5B-XH-A, mates with XHP-5) | same five signals, same order, in parallel with J6: fit whichever suits the cable |
-| **J2** | Molex KK 396, 3-pin, 0026604030 | **coin relay cable.** 1 white = COIL_A, 2 red = **not connected** (the HD550002C's own switch), 3 green = COIL_B. **Check its voltage rating against 119 V** |
+| **J2** | Molex KK 396, 3-pin, 0026604030 | **coin relay cable.** 1 green = COIL_A, 2 red = **not connected** (the HD550002C's own switch), 3 white = COIL_B (checked on the phone's plug; turn on Swap, section 7). **Check its voltage rating against 119 V** |
 | **J11** | Phoenix MKDS 1,5/3-5,08 screw terminal | 1 COIL_A, 2 COIL_C, 3 COIL_B: for a relay without the KK 396 plug, and the only connector for a two-coil relay's common (pin 2). Fit J2 or J11 |
 | **J10** | 1 x 2 pin header + shunt | **two-coil relays only:** ties COIL_C (J11 pin 2) to HV (section 7). It can't reach J2, so a relay on J2 is unaffected either way |
 | **J14** | 1 x 2 pin header + shunt | **HV boost:** 20V to U3's VCC. **No shunt (the safe default): HV stays at about 19 V**, whatever the firmware does. Shunt fitted: HV goes to J7-J9's setting (section 6) |
@@ -67,7 +67,7 @@ green wire, and they aren't the same wires.
 | **JP1** | solder jumper, **open** | **VIO = 5 V**: bridge it only for a host with no logic supply to give (a 5 V I2C host using four wires). Leave it open whenever pin 2 is wired |
 
 **Before ordering:** with each plug in its header, check the wires land on the
-pin numbers above (green on J3 pin 4, white on J2 pin 1). If one is reversed,
+pin numbers above (green on J3 pin 4, white on J2 pin 3). If one is reversed,
 only that connector's pin numbers change in the schematic.
 
 ## 3. I2C and VIO
@@ -406,7 +406,7 @@ stand for long at high HV.
 a common wire **[verify which phones]**. Wire them to J11 with the common on pin 2 and fit J10:
 pin 2 is then HV, and K1 picks the coil. FIRE, POL and D14 work as before.
 
-| POL | K1 | COIL_A (J2/J11 pin 1, white) | COIL_B (J2/J11 pin 3, green) | COIL_C (J11 pin 2) |
+| POL | K1 | COIL_A (J2/J11 pin 1, green) | COIL_B (J2/J11 pin 3, white) | COIL_C (J11 pin 2) |
 |---|---|---|---|---|
 | low (at power-up) | off | HV | RETURN | J10 on: HV · J10 off: not connected |
 | high | on | RETURN | HV | the same |
@@ -415,7 +415,7 @@ What a relay sees when FIRE pulses (HV = 60 V here):
 
 | Relay | J10 | POL low | POL high |
 |---|---|---|---|
-| One coil, A-B (the HD550002C) | either (J2 pin 2 isn't connected) | +60 V on white: collect | +60 V on green: return |
+| One coil, A-B (the HD550002C) | either (J2 pin 2 isn't connected) | +60 V on green: return | +60 V on white: collect (so turn on Swap) |
 | Two coils, common on J11 pin 2 (coil 1 A-C, coil 2 C-B) | **on** | coil 2 fires (C at HV, B at RETURN); coil 1 has HV on both ends, 0 V | coil 1 fires (C at HV, A at RETURN); coil 2 has 0 V |
 | Two coils, common on J11 pin 2 | off | both coils in series, about 30 V each: both pull weakly, don't use | the same, reversed |
 
