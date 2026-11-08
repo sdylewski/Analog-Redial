@@ -1194,6 +1194,8 @@ void telephony_check_clip_files(void)
 #define TIMER_SECOND_DIGIT_WAIT_MS 4000              /* wait this long for a second digit (not the 15 s dial-plan timeout);
                                                         a rotary 0 takes about 3 s to wind and pulse back */
 #define TIMER_HANGUP_GRACE_MS      3000              /* after the minutes are accepted, before the line hangs up on the caller */
+#define TIMER_QUIET_MS             30000             /* then silence (fast busy right after the beep sounded like a reject);
+                                                        fast busy only if the handset is still up after this */
 #define TIMER_RING_ROUNDS          4                 /* rings before it gives up */
 #define TIMER_RING_PAUSE_US        (18LL * 1000000)  /* between the end of one ring pattern and the next */
 
@@ -1431,10 +1433,10 @@ static void timer_tick(int line, int64_t now)
         if (s_line[line].timer_accepted) {
             if (now >= s_line[line].timer_hangup_us) {
                 /* The minutes are in and nobody hung up: the line hangs up on the caller
-                 * (fast busy until the handset goes down) and the countdown starts. */
+                 * (quiet, then fast busy if the handset is left up) and the countdown starts. */
                 if (!s_line[line].entry_alarm) timer_start(line);
                 else s_line[line].timer_accepted = false;
-                play_persistent(line, TONE_REORDER, TEL_REORDER);
+                play_transient(line, TONE_NONE, TIMER_QUIET_MS, TEL_REORDER, TEL_REORDER);
             }
         } else if (s_line[line].entry_alarm) {
             if (s_line[line].timer_wait_until_us && now >= s_line[line].timer_wait_until_us) {
@@ -2192,6 +2194,10 @@ static void fsm_task(void *arg)
                          line, telephony_state_name(ret));
                 if (ret == TEL_DIALTONE) enter_dialtone(line);
                 else if (ret == TEL_IDLE) enter_idle(line);
+                else if (ret == TEL_REORDER) {
+                    /* The quiet after the timer or alarm was set: still off-hook. */
+                    if (s_line[line].state == TEL_REORDER) play_persistent(line, TONE_REORDER, TEL_REORDER);
+                }
                 else if (ret == TEL_TIMER_ENTRY) {
                     /* The stand-in beep for a missing timer prompt: stop it
                      * (it's a continuous tone) and keep waiting for digits. */

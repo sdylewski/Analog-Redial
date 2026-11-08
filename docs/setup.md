@@ -69,7 +69,7 @@ defaults:
 | **321** | Ring the other phone (two-line boards) |
 | **256** | Alarm ("ALM" on the keypad): asks "What time should the alarm ring?", then dial the time as four digits on a 24 hour clock (0730 is 7:30 am, 1815 is 6:15 pm); dial 9 9 instead to cancel. At that time the phone rings in its own pattern (three 2-second rings, repeated up to 8 times; change it on the Alarm card in Settings → Dial Codes) until you pick up, then says "This is your alarm." Rings once, at the next matching time, kept through a restart; needs the board's clock, which it gets over Wi-Fi |
 | **412** | A dial-up modem sound, for old times' sake |
-| **846** | Timer ("TIM" on the keypad): asks "How many minutes for the timer?", then dial 1 or 2 digits (1-99; a single 0 cancels). A beep confirms it; hang up (or wait 3 seconds and the line hangs up for you) and the countdown starts. When it's up the phone rings, up to four times, until you pick up (the ring pattern is on the Timer card), then says "Your timer is done." (change the words in Settings → Dial Codes, Timer card). One timer per line, forgotten if the board restarts |
+| **846** | Timer ("TIM" on the keypad): asks "How many minutes for the timer?", then dial 1 or 2 digits (1-99; a single 0 cancels). A beep confirms it and the line goes quiet; hang up (or wait 3 seconds) and the countdown starts. When it's up the phone rings, up to four times, until you pick up (the ring pattern is on the Timer card), then says "Your timer is done." (change the words in Settings → Dial Codes, Timer card). One timer per line, forgotten if the board restarts |
 | **8675309** | A short spoken message: "If you're trying to reach Jenny, she's not home right now." |
 | A board's 4-digit number | A VoIP call straight to another Analog Redial board on your network, no server. Each board's number is on its Settings → VOIP page ([VoIP setup](voip-setup.md)) |
 | **555** + 4 digits | A VoIP call to that extension on your SIP server ([VoIP setup](voip-setup.md)) |
@@ -105,7 +105,8 @@ Click any picture for the full page.
 <table>
   <tr>
     <td width="40%"><a href="pics/status.png"><img src="pics/thumbs/status.png" alt="Status page"></a></td>
-    <td valign="top"><b>Status.</b> Each line's state and last caller, Wi-Fi
+    <td valign="top"><b>Status.</b> Each line's state and last caller, this
+    phone's number and the other phones on your network it can call, Wi-Fi
     and storage, recent activity (calls, recordings, misdials) and the dial
     guide. On a new board it also shows a one-time setup card for the board
     name and hardware type.</td>

@@ -1481,6 +1481,36 @@ static int append_first_boot_banner(char *buf, size_t cap, int off)
     return off;
 }
 
+static int append_home_peers_table(char *buf, size_t cap, int off);
+
+/* Status page: this board's own numbers and the phones it can call. */
+static int append_status_calls_card(char *buf, size_t cap, int off)
+{
+    int lines = board_hw_config_get().num_lines > 1 ? 2 : 1;
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\"><h2>%s</h2><p class=\"hint\">%s</p>",
+        i18n_str("status.calls.title", "Call another phone"),
+        i18n_str("status.calls.hint",
+                 "Phones on other Analog Redial boards on this Wi-Fi network: pick up and dial "
+                 "the number. No server or internet needed."));
+    for (int l = 0; l < lines; l++) {
+        const char *num = homecall_number(l);
+        char label[48];
+        snprintf(label, sizeof(label),
+                 lines > 1 ? i18n_str("status.calls.line_number", "Line %d's number")
+                           : i18n_str("status.calls.number", "This phone's number"), l + 1);
+        off = appendf(buf, cap, off,
+            "<div class=\"statusrow\"><span class=\"label\">%s</span><span>%s%s%s</span></div>",
+            label, num[0] ? "<code>" : "",
+            num[0] ? num : i18n_str("status.calls.none", "none: other phones can't call it"),
+            num[0] ? "</code>" : "");
+    }
+    off = append_home_peers_table(buf, cap, off);
+    return appendf(buf, cap, off,
+        "<p class=\"hint\"><a href=\"/settings?tab=voip#homeline0\">%s</a></p></div>",
+        i18n_str("status.calls.settings", "Choose this board's numbers in Settings \xe2\x86\x92 VOIP"));
+}
+
 static esp_err_t index_handler(httpd_req_t *req)
 {
     s_viewer_signed_in = request_signed_in(req);
@@ -1584,6 +1614,9 @@ static esp_err_t index_handler(httpd_req_t *req)
             st == TEL_RINGING ? i18n_str("status.line.incoming_call", "Incoming call")
                               : i18n_str("status.line.last_caller", "Last caller"),
             caller);
+    }
+    if (off > 0 && (size_t)off < cap) {
+        off = append_status_calls_card(buf, cap, off);
     }
     if (off > 0 && (size_t)off < cap) {
         off = appendf(buf, cap, off, "</div>" /* .cards */);
@@ -3736,6 +3769,56 @@ static bool form_field(const char *body, const char *key, char *out, size_t out_
 static char s_home_msg[2][VOIP_PROV_MSG_LEN];
 static bool s_home_ok[2];
 
+/* The other boards homecall has found, one row per numbered line, for the
+ * Status page and the Voice over IP tab. */
+static int append_home_peers_table(char *buf, size_t cap, int off)
+{
+    homecall_peer_t peers[HOMECALL_PEERS_MAX];
+    size_t n = homecall_peers(peers, HOMECALL_PEERS_MAX);
+    if (n == 0) {
+        off = appendf(buf, cap, off,
+            "<p class=\"hint\">None yet. Other Analog Redial phones on this network show up here; "
+            "phones look for each other every minute.</p>");
+    } else {
+        off = appendf(buf, cap, off, "<table><tr><th>Phone</th><th>Number</th><th>Address</th><th></th></tr>");
+        for (size_t i = 0; i < n; i++) {
+            if (!peers[i].number[0][0] && !peers[i].number[1][0]) {
+                char ename[32 * 6];
+                html_escape(peers[i].name, ename, sizeof(ename));
+                off = appendf(buf, cap, off,
+                    "<tr><td>%s</td><td><span class=\"pill off\">not set up</span></td>"
+                    "<td><a href=\"http://%s/\">%s</a></td><td>%s</td></tr>",
+                    ename, peers[i].ip, peers[i].ip,
+                    "<span class=\"hint\">Online, but no number yet. Give one of its lines a number on its "
+                    "Voice over IP tab.</span>");
+                continue;
+            }
+            for (int l = 0; l < 2; l++) {
+                const char *num = peers[i].number[l];
+                if (!num[0]) continue;
+                const char *note = "";
+                char prob_note[192];
+                if (!strcmp(num, homecall_number(0)) || !strcmp(num, homecall_number(1))) {
+                    note = "<span class=\"pill off\">same number as this board</span>";
+                } else if (dialplan_home_number_problem(num)) {
+                    snprintf(prob_note, sizeof(prob_note),
+                             "<span class=\"pill off\">can't be dialled from here: %s</span>",
+                             dialplan_home_number_problem(num));
+                    note = prob_note;
+                }
+                char ename[32 * 6];
+                html_escape(peers[i].name, ename, sizeof(ename));
+                bool two = peers[i].number[0][0] && peers[i].number[1][0];   /* a two-line board: label both */
+                off = appendf(buf, cap, off,
+                    "<tr><td>%s%s</td><td><code>%s</code></td><td><a href=\"http://%s/\">%s</a></td><td>%s</td></tr>",
+                    ename, l ? " (line 2)" : (two ? " (line 1)" : ""), num, peers[i].ip, peers[i].ip, note);
+            }
+        }
+        off = appendf(buf, cap, off, "</table>");
+    }
+    return off;
+}
+
 static int append_home_calls_card(char *buf, size_t cap, int off)
 {
     int lines = board_hw_config_get().num_lines > 1 ? 2 : 1;
@@ -3776,50 +3859,8 @@ static int append_home_calls_card(char *buf, size_t cap, int off)
         off = appendf(buf, cap, off, "</form>");
     }
 
-    homecall_peer_t peers[HOMECALL_PEERS_MAX];
-    size_t n = homecall_peers(peers, HOMECALL_PEERS_MAX);
     off = appendf(buf, cap, off, "<h3 id=\"homepeers\">Phones found on this network</h3>");
-    if (n == 0) {
-        off = appendf(buf, cap, off,
-            "<p class=\"hint\">None yet. Other Analog Redial phones on this network show up here; "
-            "phones look for each other every minute.</p>");
-    } else {
-        off = appendf(buf, cap, off, "<table><tr><th>Phone</th><th>Number</th><th>Address</th><th></th></tr>");
-        for (size_t i = 0; i < n; i++) {
-            if (!peers[i].number[0][0] && !peers[i].number[1][0]) {
-                char ename[32 * 6];
-                html_escape(peers[i].name, ename, sizeof(ename));
-                off = appendf(buf, cap, off,
-                    "<tr><td>%s</td><td><span class=\"pill off\">not set up</span></td>"
-                    "<td><a href=\"http://%s/\">%s</a></td><td>%s</td></tr>",
-                    ename, peers[i].ip, peers[i].ip,
-                    "<span class=\"hint\">Online, but no number yet. Give one of its lines a number on its "
-                    "Voice over IP tab.</span>");
-                continue;
-            }
-            for (int l = 0; l < 2; l++) {
-                const char *num = peers[i].number[l];
-                if (!num[0]) continue;
-                const char *note = "";
-                char prob_note[192];
-                if (!strcmp(num, homecall_number(0)) || !strcmp(num, homecall_number(1))) {
-                    note = "<span class=\"pill off\">same number as this board</span>";
-                } else if (dialplan_home_number_problem(num)) {
-                    snprintf(prob_note, sizeof(prob_note),
-                             "<span class=\"pill off\">can't be dialled from here: %s</span>",
-                             dialplan_home_number_problem(num));
-                    note = prob_note;
-                }
-                char ename[32 * 6];
-                html_escape(peers[i].name, ename, sizeof(ename));
-                bool two = peers[i].number[0][0] && peers[i].number[1][0];   /* a two-line board: label both */
-                off = appendf(buf, cap, off,
-                    "<tr><td>%s%s</td><td><code>%s</code></td><td>%s</td><td>%s</td></tr>",
-                    ename, l ? " (line 2)" : (two ? " (line 1)" : ""), num, peers[i].ip, note);
-            }
-        }
-        off = appendf(buf, cap, off, "</table>");
-    }
+    off = append_home_peers_table(buf, cap, off);
     return appendf(buf, cap, off,
         "<form method=\"POST\" action=\"/home_refresh\" class=\"settings-form\">"
         "<div class=\"toolbar sub\"><button type=\"submit\">Look again now</button></div>"
