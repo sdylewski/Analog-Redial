@@ -71,10 +71,10 @@ capacitance at 20 V, and has too little ESR for C20.
 | Ref | Function | Part | $ |
 |---|---|---|---:|
 | C1 | 220 uF / 200 V | Nichicon UCS2D221MHD, 18 x 26.5 mm, 7.5 mm leads | 3.08 |
-| K1 | DPDT relay, 5 V coil | Omron (Aratas) G6S-2-DC5: 250 VAC / 220 VDC switching per the listing **(check the datasheet)** | 4.52 |
+| K1 | DPDT relay, 5 V coil | Panasonic TX2-5V: 2 A, 220 VDC max switching, 140 mW coil. Same pins and coil polarity as the Omron G6S-2 DC5 (footprint `Relay_DPDT_Omron_G6S-2`), which also fits | 1.95 |
 | J2 | relay cable | Molex 0026604030, KK 396, 3-pin (plug: housing 0009503031 + 3 x 0008500106 terminals) | 0.35 |
 | J3 | coin switch cable | Molex 0026604040, KK 396, 4-pin (plug: housing 0009503041 + 4 x 0008500106 terminals) | 0.44 |
-| J1 or J6 | main board cable | JST B5B-EH-A, or a 1 x 5 pin header, 2.54 mm | |
+| J1 or J6 | main board cable | JST B5B-XH-A (mates with XHP-5), or a 1 x 5 pin header, 2.54 mm | |
 | J7-J9 | HV setting | 1 x 2 pin headers + shunts, 2.54 mm | |
 | J10 | two-coil relay option (J11 pin 2 to HV) | 1 x 2 pin header + shunt, 2.54 mm | |
 | J14 | HV boost: U3's supply | 1 x 2 pin header + shunt, 2.54 mm. **Shunt for the HD550002C**; leave it off for 12-24 V coils | |
@@ -100,23 +100,17 @@ C487360) isn't sold at DigiKey: the Nichicon below fits the same `CP_Elec_8x10` 
 | F1 | 1 | Littelfuse 1812L110PR, 1812 | [1812L110PR](https://www.digikey.com/en/products/detail/littelfuse-inc/1812L110PR/267851) |
 | C5, C7, C14, C20 | 4 | Nichicon UCD1H101MNL1GS, 100 uF 50 V, 8 x 10.5 mm, 5000 h at 105 C | [UCD1H101MNL1GS](https://www.digikey.com/en/products/detail/nichicon/UCD1H101MNL1GS/2549678) |
 | C1 | 1 | Nichicon UCS2D221MHD, 220 uF 200 V, 18 mm, 7.5 mm leads | [UCS2D221MHD](https://www.digikey.com/en/products/detail/nichicon/UCS2D221MHD/4991877) |
-| K1 | 1 | Omron (Aratas) G6S-2 DC5, 5 V coil | [G6S-2 DC5](https://www.digikey.com/en/products/detail/omron-electronics-inc-emc-div/G6S-2-DC5/333982) |
+| K1 | 1 | Panasonic TX2-5V, 5 V coil | [TX2-5V](https://www.digikey.com/en/products/detail/panasonic-industry/TX2-5V/251803) |
 | J2 | 1 | Molex 0026604030, KK 396 header, 3-pin | [0026604030](https://www.digikey.com/en/products/detail/molex/0026604030/96502) |
-| J2 plug | 1 | Molex 0009503031, KK 396 housing, 3-pin | [0009503031](https://www.digikey.com/en/products/detail/molex/0009503031/26455) |
 | J3 | 1 | Molex 0026604040, KK 396 header, 4-pin | [0026604040](https://www.digikey.com/en/products/detail/molex/0026604040/197447) |
-| J3 plug | 1 | Molex 0009503041, KK 396 housing, 4-pin | [0009503041](https://www.digikey.com/en/products/detail/molex/0009503041/26457) |
-| J2/J3 plug terminals | 7 + spares | Molex 0008500106, KK 396 crimp, 18-24 AWG | [0008500106](https://www.digikey.com/en/products/detail/molex/0008500106/26477) |
-| J1 | 1 | JST B5B-EH-A, 5-pin (or fit J6 instead) | [B5B-EH-A](https://www.digikey.com/en/products/detail/jst-sales-america-inc/B5B-EH-A-LF-SN/926522) |
-| J1 plug | 1 | JST EHR-5 housing | [EHR-5](https://www.digikey.com/en/products/detail/jst-sales-america-inc/EHR-5/527227) |
-| J1 plug terminals | 5 + spares | JST SEH-001T-P0.6 crimp | [SEH-001T-P0.6](https://www.digikey.com/product-detail/en/SEH-001T-P0.6/455-1042-1-ND/527266) |
-| J6, J7-J9, J10, J13, J14 | 1 strip | Sullins PRPC040SAAN-RC, 1 x 40 male, 2.54 mm: break off 5 + 3 x 2 + 2 + 3 + 2 = 18 pins | [PRPC040SAAN-RC](https://www.digikey.com/en/products/detail/sullins-connector-solutions/PRPC040SAAN-RC/2775214) |
-| shunts | 2 + spare | Sullins QPC02SXGN-RC: J14, and one of J7-J9 (J10 too for a two-coil relay) | [QPC02SXGN-RC](https://www.digikey.com/en/products/detail/sullins-connector-solutions/QPC02SXGN-RC/2618262) |
+| J1 | 1 | JST B5B-XH-A, 5-pin XH (or fit J6 instead) | [B5B-XH-A](https://www.digikey.com/en/products/detail/jst-sales-america-inc/B5B-XH-A-LF-SN/1530483) |
 | U4 socket | 1 | Sullins PPTC101LFBN-RC, 1 x 10 female, 2.54 mm | [PPTC101LFBN-RC](https://www.digikey.com/en/products/detail/sullins-connector-solutions/PPTC101LFBN-RC/810149) |
 | U4 | 1 | ADS1115 module, pins VDD, GND, SCL, SDA, ADDR, ALRT, A0-A3. Adafruit's is $14.95; generic modules with the same pinout are about $2 elsewhere | [Adafruit 1085](https://www.digikey.com/en/products/detail/adafruit-industries-llc/1085/5761229) |
-| J11 (optional) | 1 | Phoenix 1715734, MKDS 1,5/3-5,08: relay screw terminal instead of J2 | [1715734](https://www.digikey.com/en/products/detail/phoenix-contact/1715734/260632) |
-| J12 (optional) | 1 | Phoenix 1715750, MKDS 1,5/5-5,08: coin input screw terminal instead of J3 | [1715750](https://www.digikey.com/product-detail/en/phoenix-contact/1715750/277-13762-ND/3606242) |
 
-JP1 is a solder jumper (no part), and R42, R43, Rslope1 and Cslope1 aren't fitted.
+Not on the list: plugs for J2 and J3 (reuse the phone's own KK 396 plugs on the relay and coin
+switch cables), the pin headers and shunts for J6-J10, J13 and J14, and the optional screw
+terminals J11 (Phoenix 1715734) and J12 (Phoenix 1715750). JP1 is a solder jumper (no part), and
+R42, R43, Rslope1 and Cslope1 aren't fitted.
 
 **Resistors and small capacitors: 0805, JLCPCB places them**, except:
 
@@ -241,7 +235,8 @@ and D3 are most of it (about $21); L1, L2 and Q3/Qa1 aren't worth it. U2 is Pref
 no fee and nothing to save. To move a part to hand soldering, clear its LCSC field (and mark it
 "exclude from position files"), then add it to the DigiKey order.
 
-The biggest single items are the hand-solder parts: K1 ($3.84-4.52) and C1 ($3.08). The
+The biggest single items are the hand-solder parts: C1 ($3.08) and K1 ($1.95 for the TX2-5V; the
+Omron G6S-2 it replaced was $3.84-4.52). The
 DigiKey figures for C1, the JST parts and the pin strip had no quantity
 breaks on the page, so they're qty-1 prices and a little high at 30.
 

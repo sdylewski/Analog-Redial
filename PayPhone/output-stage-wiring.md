@@ -77,7 +77,7 @@ K1's contacts never switch a live current.
 
 | Part | Pin | Connects to |
 |---|---|---|
-| K1 G6S-2 | 1 (coil) | +5 V |
+| K1 TX2-5V | 1 (coil) | +5 V |
 | K1 | 12 (coil) | Q2 pin 3 (C), D4 pin 2 (A) |
 | D4 1N4148W | 1 (K, the band) | +5 V |
 | D4 | 2 (A) | K1 pin 12 / Q2 collector |
@@ -89,7 +89,7 @@ K1's contacts never switch a live current.
 
 ## Block B: polarity relay and the coin-relay connector
 
-K1 pins, from KiCad's G6S-2 symbol (the arm of each switch rests on pins 3
+K1 pins, from KiCad's G6S-2 symbol, the same on the TX2-5V (the arm of each switch rests on pins 3
 and 10 when the coil is off):
 
 | K1 pin | What it is | Connects to (net) |

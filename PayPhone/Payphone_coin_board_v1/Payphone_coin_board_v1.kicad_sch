@@ -18613,7 +18613,7 @@
 				)
 			)
 		)
-		(property "Value" "JST_05"
+		(property "Value" "JST XH 5"
 			(at 26.67 49.53 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18623,7 +18623,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_JST:JST_EH_B5B-EH-A_1x05_P2.50mm_Vertical"
+		(property "Footprint" "Connector_JST:JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical"
 			(at 26.67 68.58 0)
 			(hide yes)
 			(show_name no)
@@ -18645,7 +18645,7 @@
 				)
 			)
 		)
-		(property "Description" "JST Connector  5 pins"
+		(property "Description" "JST XH connector, 5 pins, 2.50 mm (B5B-XH-A; mates with XHP-5)"
 			(at 26.67 58.42 0)
 			(hide yes)
 			(show_name no)
@@ -22818,7 +22818,7 @@
 				)
 			)
 		)
-		(property "Value" "G6S-2"
+		(property "Value" "TX2-5V"
 			(at 305.816 146.304 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22840,7 +22840,7 @@
 				(justify left)
 			)
 		)
-		(property "Datasheet" "http://omronfs.omron.com/en_US/ecb/products/pdf/en-g6s.pdf"
+		(property "Datasheet" "https://industry.panasonic.com/ac/cdn/e/control/relay/signal/catalog/mech_eng_tx.pdf"
 			(at 304.8 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -22851,7 +22851,7 @@
 				)
 			)
 		)
-		(property "Description" "Compact, Industry-Standard 2-pole relay, designed to switch 2A Signal Loads, Single-side Stable"
+		(property "Description" "Panasonic TX2-5V, 2 Form C, 5 V 140 mW coil, 220 VDC max switching. Same pins and coil polarity as the Omron G6S-2 DC5, which also fits"
 			(at 304.8 163.83 0)
 			(hide yes)
 			(show_name no)

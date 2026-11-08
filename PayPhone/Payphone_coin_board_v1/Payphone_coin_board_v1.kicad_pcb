@@ -6433,11 +6433,66 @@
 				)
 			)
 		)
-		(property "Description" "Generic connector, single row, 01x04, script generated"
+		(property "Description" "Molex KK 396 header, 4-pin, 3.96 mm. Mates with housing 0009503041 and 4 x 0008500106 crimp terminals (18-24 AWG)"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
 			(uuid "04ebe1f7-2d2c-454e-a1b6-8719d1b01dd0")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Molex"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "d4a5ac12-4268-49ad-aa2b-2279a22c3767")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "0026604040"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "0f4eddab-9d86-4306-b76d-9549cdf3306c")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "DigiKey" "WM4622-ND"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "ff08e2ba-d432-4c1c-99d1-484cbed2ffd8")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "DigiKey URL" "https://www.digikey.com/en/products/detail/molex/0026604040/197447"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "f428a93c-ccaf-42c6-b224-a27e7f468911")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Mating parts" "Housing Molex 0009503041; terminals Molex 0008500106 x 4"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "7e4785b3-eb1b-4ca0-8a57-4e8afcbe906d")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -15319,7 +15374,7 @@
 				)
 			)
 		)
-		(property "Value" "G6S-2"
+		(property "Value" "TX2-5V"
 			(at 2.5 14.9 90)
 			(layer "F.Fab")
 			(uuid "6c608ee7-5b19-4eab-b1cb-59b90837da48")
@@ -15330,7 +15385,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "http://omronfs.omron.com/en_US/ecb/products/pdf/en-g6s.pdf"
+		(property "Datasheet" "https://industry.panasonic.com/ac/cdn/e/control/relay/signal/catalog/mech_eng_tx.pdf"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -15343,7 +15398,7 @@
 				)
 			)
 		)
-		(property "Description" "Compact, Industry-Standard 2-pole relay, designed to switch 2A Signal Loads, Single-side Stable"
+		(property "Description" "Panasonic TX2-5V, 2 Form C, 5 V 140 mW coil, 220 VDC max switching. Same pins and coil polarity as the Omron G6S-2 DC5, which also fits"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -19992,6 +20047,309 @@
 			)
 		)
 	)
+	(footprint "Connector_JST:JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical"
+		(layer "F.Cu")
+		(uuid "ab23302e-0626-4429-9aaa-6164098d1b06")
+		(at 69.3 84 -90)
+		(descr "JST XH series connector, B5B-XH-A (http://www.jst-mfg.com/product/pdf/eng/eXH.pdf)")
+		(tags "connector JST XH vertical")
+		(property "Reference" "J1"
+			(at 14.2 0.4 180)
+			(layer "F.SilkS")
+			(uuid "79cc5a7e-d6b7-469c-9008-7590f5c749bc")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Value" "JST XH 5"
+			(at 4.9 3.7 90)
+			(layer "F.Fab")
+			(uuid "3433b0cb-2702-427e-82a1-9329ac996367")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 270)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "f00c8087-f17e-4b2c-931a-95924f616ba3")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "JST XH connector, 5 pins, 2.50 mm (B5B-XH-A; mates with XHP-5)"
+			(at 0 0 270)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "4a4fc72b-6b89-43ef-8f9a-9d249d8ed01f")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "KiLib_Generator" "connector/JST"
+			(at 0 0 270)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "3ca687bd-5494-460d-a197-a0d7f0ddd8c9")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(path "/6600ef80-913f-4434-8401-4af2e89f1ee9")
+		(sheetname "/")
+		(sheetfile "Payphone_coin_board_v1.kicad_sch")
+		(attr through_hole exclude_from_pos_files)
+		(duplicate_pad_numbers_are_jumpers no)
+		(fp_line
+			(start -1.8 2.75)
+			(end 5 2.75)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "eeed08e2-5bad-49ee-8019-0ed90c5247f8")
+		)
+		(fp_line
+			(start 11.8 2.75)
+			(end 5 2.75)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "0875245d-33a2-4268-9998-9ae6d3d11336")
+		)
+		(fp_line
+			(start -2.55 -0.2)
+			(end -1.8 -0.2)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "591ad7b4-5df3-43e8-a168-5291b9208451")
+		)
+		(fp_line
+			(start -1.8 -0.2)
+			(end -1.8 2.75)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "332aec1a-3f85-4719-90ac-6e458c365092")
+		)
+		(fp_line
+			(start 11.8 -0.2)
+			(end 11.8 2.75)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "b6ad8cbe-6259-4555-ab3d-878db08d23ba")
+		)
+		(fp_line
+			(start 12.55 -0.2)
+			(end 11.8 -0.2)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "78f9e340-7071-4e25-bf19-2141da135a9d")
+		)
+		(fp_line
+			(start -2.85 -2.75)
+			(end -2.85 -1.5)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "f35b1788-e9c2-4eb7-b224-ba7f58e16306")
+		)
+		(fp_line
+			(start -1.6 -2.75)
+			(end -2.85 -2.75)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "5bfed802-fbba-4851-ae87-e399032b6275")
+		)
+		(fp_rect
+			(start -2.55 -2.45)
+			(end -0.75 -1.7)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.SilkS")
+			(uuid "8286058d-1135-4f43-9228-0560dec39de4")
+		)
+		(fp_rect
+			(start 0.75 -2.45)
+			(end 9.25 -1.7)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.SilkS")
+			(uuid "28cad602-1340-4d49-8d98-9f3ac42bd344")
+		)
+		(fp_rect
+			(start 10.75 -2.45)
+			(end 12.55 -1.7)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.SilkS")
+			(uuid "14d759d6-2ded-4d78-8c76-9157fc49e6e7")
+		)
+		(fp_rect
+			(start -2.56 -2.46)
+			(end 12.56 3.51)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.SilkS")
+			(uuid "c3f14edc-ce29-4283-9e16-1797308a61a9")
+		)
+		(fp_rect
+			(start -2.95 -2.85)
+			(end 12.95 3.9)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.CrtYd")
+			(uuid "5bd0e5fb-5717-464d-aebf-bb0dfcf89cbb")
+		)
+		(fp_line
+			(start 0 -1.35)
+			(end 0.625 -2.35)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(layer "F.Fab")
+			(uuid "cc5e5855-7c64-4e5c-8fe1-f1785298bb70")
+		)
+		(fp_line
+			(start -0.625 -2.35)
+			(end 0 -1.35)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(layer "F.Fab")
+			(uuid "51faaf0b-fbf6-4822-a49d-d53c0a5a6846")
+		)
+		(fp_rect
+			(start -2.45 -2.35)
+			(end 12.45 3.4)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.Fab")
+			(uuid "eb89d972-49f7-48c9-b5a3-1df654dec6d5")
+		)
+		(fp_text user "${REFERENCE}"
+			(at 5 2.7 270)
+			(layer "F.Fab")
+			(uuid "08b9e260-5fa9-4e2b-a49b-11252c5ebec7")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(pad "1" thru_hole roundrect
+			(at 0 0 270)
+			(size 1.7 1.95)
+			(drill 0.95)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(roundrect_rratio 0.147059)
+			(net "GND")
+			(uuid "86dcb350-3af4-4b3b-872e-67f6353a9723")
+		)
+		(pad "2" thru_hole oval
+			(at 2.5 0 270)
+			(size 1.7 1.95)
+			(drill 0.95)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/SCL_IN")
+			(uuid "a644b9b1-7c64-4746-9be4-607ccbec1f84")
+		)
+		(pad "3" thru_hole oval
+			(at 5 0 270)
+			(size 1.7 1.95)
+			(drill 0.95)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/SDA_IN")
+			(uuid "3f73b636-bc8f-4292-a71f-dda2647fbac4")
+		)
+		(pad "4" thru_hole oval
+			(at 7.5 0 270)
+			(size 1.7 1.95)
+			(drill 0.95)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "VIO")
+			(uuid "21f32e52-6139-42a7-b502-bc57032391be")
+		)
+		(pad "5" thru_hole oval
+			(at 10 0 270)
+			(size 1.7 1.95)
+			(drill 0.95)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/+5V_IN")
+			(uuid "10cff574-6a28-4d92-8807-d1cb7a815e64")
+		)
+		(embedded_fonts no)
+		(model "${KICAD10_3DMODEL_DIR}/Connector_JST.3dshapes/JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical.step"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
+	)
 	(footprint "MountingHole:MountingHole_3.2mm_M3"
 		(layer "F.Cu")
 		(uuid "ada8a479-30f8-4eb1-bdbe-91dfb0b2759f")
@@ -22661,7 +23019,7 @@
 		(descr "Through hole straight pin header, 1x05, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x05 2.54mm single row")
 		(property "Reference" "J6"
-			(at 0 -2.38 0)
+			(at -0.3 12.88 0)
 			(layer "F.SilkS")
 			(uuid "577826ca-c9c3-430e-ba6d-6038a06c8513")
 			(effects
@@ -23255,306 +23613,6 @@
 			)
 		)
 	)
-	(footprint "Connector_JST:JST_EH_B5B-EH-A_1x05_P2.50mm_Vertical"
-		(layer "F.Cu")
-		(uuid "cd319658-87e1-40f3-b32c-2066e86fe762")
-		(at 69.3 84 -90)
-		(descr "JST EH series connector, B5B-EH-A (http://www.jst-mfg.com/product/pdf/eng/eEH.pdf)")
-		(tags "connector JST EH vertical")
-		(property "Reference" "J1"
-			(at -3.75 0.45 180)
-			(layer "F.SilkS")
-			(uuid "fb77f854-0268-4a03-8bc8-c492136b223d")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Value" "JST_05"
-			(at 5 3.4 90)
-			(layer "F.Fab")
-			(uuid "a76d4e8e-c410-4f8d-9ce4-4a0188eb06a0")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 90)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "7167a5f6-87ec-4532-a8bf-ca49b8bbcf6c")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "JST Connector  5 pins"
-			(at 0 0 90)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "7a7df18d-0cf0-4893-b5cf-fb80e507fc3a")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property ki_fp_filters "Connector_JST:JST_EH_S5B-EH_1x05_P2.50mm_Horizontal")
-		(path "/6600ef80-913f-4434-8401-4af2e89f1ee9")
-		(sheetname "/")
-		(sheetfile "Payphone_coin_board_v1.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2" "3" "4" "5")
-			)
-		)
-		(attr through_hole exclude_from_pos_files)
-		(duplicate_pad_numbers_are_jumpers no)
-		(fp_line
-			(start -2.91 2.61)
-			(end -0.41 2.61)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "9c36358c-c189-4c37-ac99-c890d5be9c55")
-		)
-		(fp_line
-			(start -2.61 0.81)
-			(end -1.61 0.81)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "59e9e2b5-0e45-46c1-8e89-b77128694bd7")
-		)
-		(fp_line
-			(start -1.61 0.81)
-			(end -1.61 2.31)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "2595b187-b55b-44f3-a35e-84af18361a4b")
-		)
-		(fp_line
-			(start 11.61 0.81)
-			(end 11.61 2.31)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "f27cffe8-a91e-4855-a591-035f60fdfefd")
-		)
-		(fp_line
-			(start 12.61 0.81)
-			(end 11.61 0.81)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "b5d96b61-778d-4405-8595-aee0dff162a6")
-		)
-		(fp_line
-			(start -2.91 0.11)
-			(end -2.91 2.61)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "d3e17796-dc07-48e0-9db5-4c177851f995")
-		)
-		(fp_line
-			(start -2.61 0)
-			(end -2.11 0)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "5219bf80-6a9a-496b-818d-12d1a6ba7a28")
-		)
-		(fp_line
-			(start -2.11 0)
-			(end -2.11 -1.21)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "1412568d-6a46-475d-968c-17180d739ac6")
-		)
-		(fp_line
-			(start 12.11 0)
-			(end 12.61 0)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "3d0ba240-325b-4e4e-a634-bd19884073ed")
-		)
-		(fp_line
-			(start -2.11 -1.21)
-			(end 12.11 -1.21)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "f2d4d60f-d2c5-447b-a4c7-187df335e8c9")
-		)
-		(fp_line
-			(start 12.11 -1.21)
-			(end 12.11 0)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "0dd3fced-1d6f-46d6-a08d-1c9830f04986")
-		)
-		(fp_rect
-			(start -2.61 -1.71)
-			(end 12.61 2.31)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.SilkS")
-			(uuid "74a86d0f-0585-4e6b-886a-36c8059ccf26")
-		)
-		(fp_rect
-			(start -3 -2.1)
-			(end 13 2.7)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.CrtYd")
-			(uuid "b1cb45b6-ed00-4514-b563-824358ee1fb5")
-		)
-		(fp_line
-			(start -2.91 2.61)
-			(end -0.41 2.61)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "130acacc-1a34-4b36-98d4-e8ff153450e4")
-		)
-		(fp_line
-			(start -2.91 0.11)
-			(end -2.91 2.61)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "ec13b6c8-5294-4e97-bbd0-2b1d52e457cb")
-		)
-		(fp_rect
-			(start -2.5 -1.6)
-			(end 12.5 2.2)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.Fab")
-			(uuid "12ce6a71-57c1-416f-a8fe-50a65d62ef9e")
-		)
-		(fp_text user "${REFERENCE}"
-			(at 5 1.5 90)
-			(layer "F.Fab")
-			(uuid "7a67af0e-e2d7-473b-9c9d-3d43b3984057")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(pad "1" thru_hole roundrect
-			(at 0 0 270)
-			(size 1.7 1.95)
-			(drill 0.95)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(roundrect_rratio 0.147059)
-			(net "GND")
-			(pintype "passive")
-			(uuid "2fc311ed-adf2-411b-8f7f-f6e25640e13a")
-		)
-		(pad "2" thru_hole oval
-			(at 2.5 0 270)
-			(size 1.7 1.95)
-			(drill 0.95)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "/SCL_IN")
-			(pintype "passive")
-			(uuid "61e4d361-35fc-4115-a64f-3a31089b603f")
-		)
-		(pad "3" thru_hole oval
-			(at 5 0 270)
-			(size 1.7 1.95)
-			(drill 0.95)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "/SDA_IN")
-			(pintype "passive")
-			(uuid "2022b1ee-fd82-4c20-9952-f64a10f423e4")
-		)
-		(pad "4" thru_hole oval
-			(at 7.5 0 270)
-			(size 1.7 1.95)
-			(drill 0.95)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "VIO")
-			(pintype "passive")
-			(uuid "d599dcb5-2bd1-4352-ba0a-ced50cd63feb")
-		)
-		(pad "5" thru_hole oval
-			(at 10 0 270)
-			(size 1.7 1.95)
-			(drill 0.95)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "/+5V_IN")
-			(pintype "passive")
-			(uuid "77aa1777-765c-4d7f-87a6-8b71917b11c3")
-		)
-		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Connector_JST.3dshapes/JST_EH_B5B-EH-A_1x05_P2.50mm_Vertical.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
-	)
 	(footprint "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "cf0d3f14-fcf2-49ff-8525-f4e85767b0b6")
@@ -23993,11 +24051,66 @@
 				)
 			)
 		)
-		(property "Description" "Generic connector, single row, 01x03, script generated"
+		(property "Description" "Molex KK 396 header, 3-pin, 3.96 mm. Mates with housing 0009503031 and 3 x 0008500106 crimp terminals (18-24 AWG)"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
 			(uuid "f5d9b0f7-0649-480b-89e2-9a473e38f088")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Molex"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "c77f7880-f235-46ab-a2e3-c4278cc5a4fd")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "0026604030"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "4c7d5906-a2d1-425d-b590-c71faff7be58")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "DigiKey" "WM4621-ND"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "5387d5f1-9f9c-46b2-aa85-a4b752437c3d")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "DigiKey URL" "https://www.digikey.com/en/products/detail/molex/0026604030/96502"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "5230ddad-22f1-4f20-8a80-3317d2c347c5")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Mating parts" "Housing Molex 0009503031; terminals Molex 0008500106 x 3"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "8c2158fb-7e54-4bcf-a3bb-9ffc0496f2f2")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -33933,18 +34046,6 @@
 		(layer "Edge.Cuts")
 		(uuid "7df7c905-7c96-438b-8c06-f0ea6e319578")
 	)
-	(gr_text "Analog Redial\nPayphone Coin Board v1"
-		(at 155.9 100.2 0)
-		(layer "B.Cu")
-		(uuid "eb3b974a-8f87-435b-950d-63f9f2b51ab8")
-		(effects
-			(font
-				(size 1.5 1.5)
-				(bold yes)
-			)
-			(justify left bottom mirror)
-		)
-	)
 	(gr_text "HV SET (fit jumpers)\nno J14         19 V\nJ14            52 V\nJ14 J9         60 V\nJ14 J8         78 V\nJ14 J8 J9      85 V\nJ14 J7         87 V\nJ14 J7 J9      94 V\nJ14 J7 J8     112 V\nJ14 J7 J8 J9  119 V"
 		(at 101.75 125.25 0)
 		(layer "F.SilkS")
@@ -34034,8 +34135,8 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "JST"
-		(at 67.75 98.75 0)
+	(gr_text "JST-XH"
+		(at 66.6 80.6 0)
 		(layer "F.SilkS")
 		(uuid "c0c67a5c-15b1-41f9-bba6-f5712a029039")
 		(effects
@@ -34047,7 +34148,7 @@
 		)
 	)
 	(gr_text "2.54 mm \nheader"
-		(at 74.5 80.5 0)
+		(at 74.7 81 0)
 		(layer "F.SilkS")
 		(uuid "d2936cbc-b3ca-4674-a1ca-42d02e288f58")
 		(effects
@@ -34353,6 +34454,18 @@
 			(justify left bottom)
 		)
 	)
+	(gr_text "In from uC"
+		(at 73.9 95.4 90)
+		(layer "F.SilkS")
+		(uuid "8786cbeb-9f73-4ba4-891f-47b39cdd1038")
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+	)
 	(gr_text "Quarter"
 		(at 128.5 84 0)
 		(layer "F.SilkS")
@@ -34427,6 +34540,18 @@
 				(bold yes)
 			)
 			(justify left top mirror)
+		)
+	)
+	(gr_text "Analog Redial\nPayphone Coin Board v1"
+		(at 155.9 100.2 0)
+		(layer "B.SilkS")
+		(uuid "eb3b974a-8f87-435b-950d-63f9f2b51ab8")
+		(effects
+			(font
+				(size 1.5 1.5)
+				(bold yes)
+			)
+			(justify left bottom mirror)
 		)
 	)
 	(dimension
@@ -39448,6 +39573,38 @@
 		(uuid "4f807fe6-a9b7-4764-9bbf-d1559c84b64f")
 	)
 	(segment
+		(start 76.42 94)
+		(end 76.5 94.08)
+		(width 1)
+		(layer "F.Cu")
+		(net "/+5V_IN")
+		(uuid "089cac0e-b602-4b60-a557-9020b6fd2dc5")
+	)
+	(segment
+		(start 76.5 94.08)
+		(end 77.4425 94.08)
+		(width 1)
+		(layer "F.Cu")
+		(net "/+5V_IN")
+		(uuid "12c8b6db-524b-456b-9366-857d24e7e887")
+	)
+	(segment
+		(start 69.3 94)
+		(end 76.42 94)
+		(width 1)
+		(layer "F.Cu")
+		(net "/+5V_IN")
+		(uuid "297820f8-8425-47e6-9bf1-3447e936d38e")
+	)
+	(segment
+		(start 77.4425 94.08)
+		(end 80.8625 97.5)
+		(width 1)
+		(layer "F.Cu")
+		(net "/+5V_IN")
+		(uuid "cf3c58e5-4510-41a1-ba1d-c2c8e581a3e1")
+	)
+	(segment
 		(start 125.85 83.9375)
 		(end 123.95 83.9375)
 		(width 0.25)
@@ -39494,38 +39651,6 @@
 		(layer "F.Cu")
 		(net "/Q4_G")
 		(uuid "9da64deb-8a06-4ca9-bd9e-29ca4e0dd7aa")
-	)
-	(segment
-		(start 76.42 94)
-		(end 76.5 94.08)
-		(width 1)
-		(layer "F.Cu")
-		(net "/+5V_IN")
-		(uuid "089cac0e-b602-4b60-a557-9020b6fd2dc5")
-	)
-	(segment
-		(start 76.5 94.08)
-		(end 77.4425 94.08)
-		(width 1)
-		(layer "F.Cu")
-		(net "/+5V_IN")
-		(uuid "12c8b6db-524b-456b-9366-857d24e7e887")
-	)
-	(segment
-		(start 69.3 94)
-		(end 76.42 94)
-		(width 1)
-		(layer "F.Cu")
-		(net "/+5V_IN")
-		(uuid "297820f8-8425-47e6-9bf1-3447e936d38e")
-	)
-	(segment
-		(start 77.4425 94.08)
-		(end 80.8625 97.5)
-		(width 1)
-		(layer "F.Cu")
-		(net "/+5V_IN")
-		(uuid "cf3c58e5-4510-41a1-ba1d-c2c8e581a3e1")
 	)
 	(zone
 		(net "GND")
@@ -44149,30 +44274,28 @@
 				(xy 165.980264 103.266498) (xy 165.980261 103.26651) (xy 165.958141 103.377714) (xy 165.949376 103.39447)
 				(xy 165.945356 103.41295) (xy 165.926609 103.437992) (xy 165.925756 103.439625) (xy 165.924252 103.441156)
 				(xy 165.777227 103.588182) (xy 165.715907 103.621666) (xy 165.689548 103.6245) (xy 115.310452 103.6245)
-				(xy 115.243413 103.604815) (xy 115.222771 103.588181) (xy 112.808243 101.173653) (xy 127.387356 101.173653)
-				(xy 156.414367 101.173653) (xy 156.414367 95.444287) (xy 127.387356 95.444287) (xy 127.387356 101.173653)
-				(xy 112.808243 101.173653) (xy 103.575793 91.941203) (xy 103.542308 91.87988) (xy 103.541887 91.877864)
-				(xy 103.519737 91.766503) (xy 103.495599 91.70823) (xy 103.459397 91.620827) (xy 103.45939 91.620814)
-				(xy 103.424362 91.568391) (xy 103.403484 91.501713) (xy 103.421969 91.434333) (xy 103.473947 91.387643)
-				(xy 103.527464 91.3755) (xy 193.31924 91.3755) (xy 193.327415 91.377126) (xy 193.332492 91.37621)
-				(xy 193.36669 91.384938) (xy 193.371215 91.386812) (xy 193.412521 91.403921) (xy 193.412522 91.403922)
-				(xy 193.412523 91.403922) (xy 193.485048 91.433963) (xy 193.505097 91.437951) (xy 193.538696 91.444634)
-				(xy 193.605892 91.458001) (xy 193.605894 91.458001) (xy 193.729108 91.458001) (xy 193.744794 91.45488)
-				(xy 193.832755 91.437383) (xy 193.849952 91.433963) (xy 193.883292 91.420152) (xy 193.963786 91.386812)
-				(xy 194.066234 91.318358) (xy 194.153358 91.231234) (xy 194.221812 91.128786) (xy 194.259446 91.037927)
-				(xy 194.268963 91.014952) (xy 194.275599 90.981588) (xy 194.293001 90.894107) (xy 194.293001 90.770894)
-				(xy 194.293001 90.765784) (xy 194.293 90.765758) (xy 194.293 88.98811) (xy 194.312685 88.921071)
-				(xy 194.365489 88.875316) (xy 194.380094 88.86973) (xy 194.397678 88.864251) (xy 194.514162 88.793834)
-				(xy 194.541277 88.777443) (xy 194.541278 88.777441) (xy 194.541283 88.777439) (xy 194.659939 88.658783)
-				(xy 194.746751 88.515178) (xy 194.796673 88.354971) (xy 194.803 88.285347) (xy 194.802999 87.13326)
-				(xy 194.802999 86.014701) (xy 195.0725 86.014701) (xy 195.0725 86.9) (xy 195.891814 86.9) (xy 195.88742 86.904394)
-				(xy 195.834759 86.995606) (xy 195.8075 87.097339) (xy 195.8075 87.202661) (xy 195.834759 87.304394)
-				(xy 195.88742 87.395606) (xy 195.891814 87.4) (xy 195.072501 87.4) (xy 195.072501 88.285308) (xy 195.078821 88.354875)
-				(xy 195.078823 88.354883) (xy 195.128708 88.51497) (xy 195.128709 88.514972) (xy 195.215454 88.658467)
-				(xy 195.215457 88.658471) (xy 195.334028 88.777042) (xy 195.334032 88.777045) (xy 195.477526 88.863789)
-				(xy 195.637623 88.913677) (xy 195.707201 88.919999) (xy 195.957499 88.919999) (xy 195.9575 88.919998)
-				(xy 195.9575 87.465686) (xy 195.961894 87.47008) (xy 196.053106 87.522741) (xy 196.154839 87.55)
-				(xy 196.260161 87.55) (xy 196.361894 87.522741) (xy 196.453106 87.47008) (xy 196.4575 87.465686)
+				(xy 115.243413 103.604815) (xy 115.222771 103.588181) (xy 103.575793 91.941203) (xy 103.542308 91.87988)
+				(xy 103.541887 91.877864) (xy 103.519737 91.766503) (xy 103.495599 91.70823) (xy 103.459397 91.620827)
+				(xy 103.45939 91.620814) (xy 103.424362 91.568391) (xy 103.403484 91.501713) (xy 103.421969 91.434333)
+				(xy 103.473947 91.387643) (xy 103.527464 91.3755) (xy 193.31924 91.3755) (xy 193.327415 91.377126)
+				(xy 193.332492 91.37621) (xy 193.36669 91.384938) (xy 193.371215 91.386812) (xy 193.412521 91.403921)
+				(xy 193.412522 91.403922) (xy 193.412523 91.403922) (xy 193.485048 91.433963) (xy 193.505097 91.437951)
+				(xy 193.538696 91.444634) (xy 193.605892 91.458001) (xy 193.605894 91.458001) (xy 193.729108 91.458001)
+				(xy 193.744794 91.45488) (xy 193.832755 91.437383) (xy 193.849952 91.433963) (xy 193.883292 91.420152)
+				(xy 193.963786 91.386812) (xy 194.066234 91.318358) (xy 194.153358 91.231234) (xy 194.221812 91.128786)
+				(xy 194.259446 91.037927) (xy 194.268963 91.014952) (xy 194.275599 90.981588) (xy 194.293001 90.894107)
+				(xy 194.293001 90.770894) (xy 194.293001 90.765784) (xy 194.293 90.765758) (xy 194.293 88.98811)
+				(xy 194.312685 88.921071) (xy 194.365489 88.875316) (xy 194.380094 88.86973) (xy 194.397678 88.864251)
+				(xy 194.514162 88.793834) (xy 194.541277 88.777443) (xy 194.541278 88.777441) (xy 194.541283 88.777439)
+				(xy 194.659939 88.658783) (xy 194.746751 88.515178) (xy 194.796673 88.354971) (xy 194.803 88.285347)
+				(xy 194.802999 87.13326) (xy 194.802999 86.014701) (xy 195.0725 86.014701) (xy 195.0725 86.9) (xy 195.891814 86.9)
+				(xy 195.88742 86.904394) (xy 195.834759 86.995606) (xy 195.8075 87.097339) (xy 195.8075 87.202661)
+				(xy 195.834759 87.304394) (xy 195.88742 87.395606) (xy 195.891814 87.4) (xy 195.072501 87.4) (xy 195.072501 88.285308)
+				(xy 195.078821 88.354875) (xy 195.078823 88.354883) (xy 195.128708 88.51497) (xy 195.128709 88.514972)
+				(xy 195.215454 88.658467) (xy 195.215457 88.658471) (xy 195.334028 88.777042) (xy 195.334032 88.777045)
+				(xy 195.477526 88.863789) (xy 195.637623 88.913677) (xy 195.707201 88.919999) (xy 195.957499 88.919999)
+				(xy 195.9575 88.919998) (xy 195.9575 87.465686) (xy 195.961894 87.47008) (xy 196.053106 87.522741)
+				(xy 196.154839 87.55) (xy 196.260161 87.55) (xy 196.361894 87.522741) (xy 196.453106 87.47008) (xy 196.4575 87.465686)
 				(xy 196.4575 88.919999) (xy 196.707807 88.919999) (xy 196.777375 88.913678) (xy 196.777383 88.913676)
 				(xy 196.93747 88.863791) (xy 196.937472 88.86379) (xy 197.080967 88.777045) (xy 197.080971 88.777042)
 				(xy 197.199542 88.658471) (xy 197.199545 88.658467) (xy 197.286289 88.514973) (xy 197.336177 88.354876)

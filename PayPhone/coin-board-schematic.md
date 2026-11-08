@@ -55,7 +55,7 @@ green wire, and they aren't the same wires.
 | Ref | Part | Pins |
 |---|---|---|
 | **J6** | 5 x 2.54 mm pin header | **1 GND, 2 SCL, 3 SDA, 4 VIO, 5 +5 V**: the same pin numbers as the main board's v6 J11 (pin 4 there is +3.3 V), so a straight 1:1 cable, pin 1 to pin 1 |
-| **J1** | JST EH 5-pin (B5B-EH-A) | same five signals, same order, in parallel with J6: fit whichever suits the cable |
+| **J1** | JST XH 5-pin (B5B-XH-A, mates with XHP-5) | same five signals, same order, in parallel with J6: fit whichever suits the cable |
 | **J2** | Molex KK 396, 3-pin, 0026604030 | **coin relay cable.** 1 white = COIL_A, 2 red = **not connected** (the HD550002C's own switch), 3 green = COIL_B. **Check its voltage rating against 119 V** |
 | **J11** | Phoenix MKDS 1,5/3-5,08 screw terminal | 1 COIL_A, 2 COIL_C, 3 COIL_B: for a relay without the KK 396 plug, and the only connector for a two-coil relay's common (pin 2). Fit J2 or J11 |
 | **J10** | 1 x 2 pin header + shunt | **two-coil relays only:** ties COIL_C (J11 pin 2) to HV (section 7). It can't reach J2, so a relay on J2 is unaffected either way |
@@ -534,7 +534,7 @@ the relay.
 ## Sources
 
 - [TCA9534A datasheet](https://www.ti.com/lit/ds/symlink/tca9534a.pdf)
-- [Omron G6S-2 5 VDC (Conrad)](https://www.conrad.com/en/p/omron-g6s-2-5-vdc-pcb-relay-5-v-dc-2-a-2-change-overs-1-pc-s-503840.html)
+- [Panasonic TX2-5V (DigiKey)](https://www.digikey.com/en/products/detail/panasonic-industry/TX2-5V/251803); the Omron G6S-2 DC5 fits the same footprint
 - [ES2D (DigiKey)](https://www.digikey.com/en/products/detail/smc-diode-solutions/ES2D/6022516)
 - [STN4NF20L (ST)](https://www.st.com/en/power-transistors/stn4nf20l.html)
 - [STN4NF20L (DigiKey)](https://www.digikey.com/en/products/detail/stmicroelectronics/STN4NF20L/2440279)
