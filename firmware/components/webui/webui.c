@@ -61,6 +61,7 @@
 #include "payphone.h"
 #include "coinboard.h"
 #include "callcap.h"
+#include "livestream.h"
 #include "auxpins.h"
 #include "esp_attr.h"
 #include "esp_rom_sys.h"
@@ -6086,6 +6087,61 @@ static int append_callcap_card(char *buf, size_t cap, int off)
         cs[st & 3], callcap_last_name());
 }
 
+/* Diagnostics: a line's call audio, live, for OBS (livestream.h). The link
+ * carries the key, so only a signed-in viewer sees it. */
+static int append_livestream_card(char *buf, size_t cap, int off)
+{
+    bool on = livestream_enabled();
+    livestream_status_t st = livestream_status();
+    char status[160];
+    if (!on) snprintf(status, sizeof(status), "off");
+    else if (st.streaming)
+        snprintf(status, sizeof(status), "streaming line %d (%s) to %s for %lu:%02lu%s", st.line,
+                 st.stereo ? "stereo" : "mono", st.client, (unsigned long)(st.secs / 60),
+                 (unsigned long)(st.secs % 60), st.dropped_ms ? ", some audio lost to a slow network" : "");
+    else snprintf(status, sizeof(status), "on, waiting for a listener");
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\" id=\"livestream\"><h2>Live call audio</h2>"
+        "<div class=\"statusrow\"><span class=\"label\">Status</span><span>%s</span></div>", status);
+    if (!s_viewer_signed_in) {
+        return appendf(buf, cap, off, "<p class=\"muted\">Sign in to turn it on or see its link.</p></div>");
+    }
+    if (on) {
+        char ip[16], key[LIVESTREAM_KEY_LEN + 1];
+        wifi_get_ip_str(ip, sizeof(ip));
+        livestream_key(key, sizeof(key));
+        int lines = board_hw_config_get().num_lines;
+        for (int l = 0; l < lines && l < 2; l++) {
+            off = appendf(buf, cap, off,
+                "<div class=\"statusrow\"><span class=\"label\">%s</span>"
+                "<input type=\"text\" readonly onclick=\"this.select()\" style=\"flex:1;min-width:0\" "
+                "value=\"http://%s:%d/live.wav?key=%s%s\"></div>",
+                lines > 1 ? (l ? "Line 1 link" : "Line 0 link") : "Link",
+                ip, LIVESTREAM_PORT, key, l ? "&amp;line=1" : "");
+        }
+    }
+    off = appendf(buf, cap, off,
+        "<form method=\"POST\" action=\"/livestream\" class=\"settings-form\">"
+        "<div class=\"toolbar sub\">"
+        "<button type=\"submit\" name=\"action\" value=\"%s\" class=\"primary\">%s</button>%s"
+        "</div></form>",
+        on ? "off" : "on", on ? "Turn off" : "Turn on",
+        on ? "<button type=\"submit\" name=\"action\" value=\"newkey\">New link</button>" : "");
+    off = append_hint(buf, cap, off,
+        "Sends a line's audio, live, to OBS or another player on your network: your voice and the "
+        "other person's, mixed, whoever is at the other end (the other line, VoIP, another board). In "
+        "OBS, add a Media Source, untick \"Local File\", paste the link into Input, and tick \"Restart "
+        "playback when source becomes active\". It's a few hundred milliseconds behind: set the Sync "
+        "Offset in OBS's Advanced Audio Properties, or delay the video, to line them up.",
+        "16 kHz, 16-bit mono WAV, silence between calls. Add <code>&amp;stereo=1</code> for the two "
+        "sides on separate channels (left: what the phone sends; right: what the earpiece hears), as "
+        "in a call recording. One listener at a time: a new one replaces the old. Anyone with the link "
+        "can listen while it's on, so it's off after a restart, and New link stops the old one working. "
+        "While a call recording is running on the same line, the stream is silent. Also works in VLC "
+        "(Open Network) and with <code>ffplay</code>.");
+    return appendf(buf, cap, off, "</div>");
+}
+
 static int append_diag_tab(char *buf, size_t cap, int off)
 {
     static const char *LEVELS[] = { "none", "error", "warn", "info", "debug", "verbose" };
@@ -6093,6 +6149,7 @@ static int append_diag_tab(char *buf, size_t cap, int off)
 
     off = append_selftest_card(buf, cap, off);
     off = append_callcap_card(buf, cap, off);
+    off = append_livestream_card(buf, cap, off);
 
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
@@ -10060,6 +10117,21 @@ static esp_err_t callcap_cancel_handler(httpd_req_t *req)
     return redirect_to(req, "/settings?tab=diag");
 }
 
+/* POST /livestream, action=on|off|newkey -- see livestream.h. */
+static esp_err_t livestream_handler(httpd_req_t *req)
+{
+    char body[64] = "", action[8] = "";
+    int len = httpd_req_recv(req, body, sizeof(body) - 1);
+    if (len > 0) { body[len] = '\0'; form_field(body, "action", action, sizeof(action)); }
+    if (strcmp(action, "newkey") == 0) {
+        livestream_new_key();
+    } else if (livestream_set_enabled(strcmp(action, "on") == 0) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Not enough free memory to start the live audio.");
+        return ESP_OK;
+    }
+    return redirect_to(req, "/settings?tab=diag#livestream");
+}
+
 /* POST /messages_seen -- clears the new-message count (Home Assistant's
  * "Mark messages heard"; opening the Recordings page does the same). */
 static esp_err_t messages_seen_handler(httpd_req_t *req)
@@ -12112,6 +12184,7 @@ esp_err_t webui_start(void)
         { .uri = "/messages_seen",          .method = HTTP_POST, .handler = messages_seen_handler },
         { .uri = "/callcap_arm",            .method = HTTP_POST, .handler = callcap_arm_handler },
         { .uri = "/callcap_cancel",         .method = HTTP_POST, .handler = callcap_cancel_handler },
+        { .uri = "/livestream",             .method = HTTP_POST, .handler = livestream_handler },
         { .uri = "/dialcode_upload",        .method = HTTP_POST, .handler = dialcode_upload_handler },
         { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },
         { .uri = "/prompt_text_set",        .method = HTTP_POST, .handler = prompt_text_set_handler },
