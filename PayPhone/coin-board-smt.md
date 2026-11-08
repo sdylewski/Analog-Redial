@@ -26,7 +26,7 @@ the BOM upload.
 | U1 | I2C I/O expander | TCA9534APWR, TSSOP-16 | 1.26 | C206010 | Extended |
 | U2 | stage 1, 5 V to 20 V | MC34063ADR2G, SOIC-8 | 0.47 | C32078 | Preferred, no fee |
 | U3 | stage 2 controller | UC3843BD1R2G, SOIC-8 | 0.37 | C16414 | Extended: **hand-soldered** |
-| Q3, Qa1 | fire switch, stage 2 switch, 200 V | STN4NF20L (TECH PUBLIC), SOT-223 | 0.33 | C7603336 | Extended (one fee for both). ST's own is C183261, $0.61 |
+| Q3, Q6 | fire switch, stage 2 switch, 200 V | STN4NF20L (TECH PUBLIC), SOT-223 | 0.33 | C7603336 | Extended (one fee for both). ST's own is C183261, $0.61 |
 | Q1, Q4 | small N-FETs | 2N7002, SOT-23 | 0.02 | C8545 | Basic |
 | Q2 | relay driver NPN | MMBT3904, SOT-23 | 0.01 | C20526 | Basic |
 | Q5 | gate-drive PNP | MMBT3906, SOT-23 | 0.01 | C7420354 | Preferred, no fee |
@@ -35,7 +35,7 @@ the BOM upload.
 | D3 | HV clamp | SMBJ130A (FOSAN), 600 W unidirectional, SMB | 0.04 | C5353290 | Extended: **hand-soldered** (Littelfuse SMBJ130A from DigiKey) |
 | D4 | relay flyback | 1N4148W, SOD-123 | 0.01 | C81598 | Basic |
 | D5, D6 | zeners, 22 V, 12 V | BZT52C22, BZT52C12 (hongjiacheng), SOD-123 | 0.02 | C22375295, C19077410 | Preferred, no fee |
-| Dz1 | Qa1 gate zener, 15 V 1 W | 1SMA4744A, SMA | 0.06 | C19077482 | Preferred, no fee |
+| Dz1 | Q6 gate zener, 15 V 1 W | 1SMA4744A, SMA | 0.06 | C19077482 | Preferred, no fee |
 | D7 | HV indicator | red LED, 0805 | 0.01 | C84256 | Basic |
 | D8-D13, D15 | debug LEDs | green LED, 0805, KT-0805G | 0.02 | C2297 | Basic |
 | D16-D19 | coin input blocking diodes | B5819W SL, 40 V 1 A Schottky, SOD-123 | 0.01 | C8598 | Basic |
@@ -117,7 +117,7 @@ R42, R43, Rslope1 and Cslope1 aren't fitted.
 
 | Ref | Value | Size | Why |
 |---|---|---|---|
-| Rfbt1-3, Rbl1-3, R32 | 100 k, 1 M, 1 M | **1206** | on HV (below). R32 1 M is C17927, Basic |
+| Rfbt1-3, R57-R59, R32 | 100 k, 1 M, 1 M | **1206** | on HV (below). R32 1 M is C17927, Basic |
 | R27, R28 | 33 k | 0805 | HV LED, two in series: about 47 V and 67 mW each, inside an 0805's 150 V and 0.125 W. C17633, Basic |
 | R26 | 10 ohm | 1206 | firing current sense |
 | Rcs1 | 2.2 ohm | 0805 | C17521, Basic. About 0.05 W against the 0.125 W rating |
@@ -130,8 +130,8 @@ R42, R43, Rslope1 and Cslope1 aren't fitted.
 | C8 | 1 nF | X7R (C46653, Basic). It sets U2's clock; X7R's 10-15 % drift moves that a little, which U2's own current limit makes harmless. C0G at 1 nF is Extended only |
 | Cp1 | 100 pF | **C0G** (C1790, Basic): compensation pole |
 | Cf1 | 470 pF | X7R (C1743, Basic): current-sense filter, where 10-15 % doesn't matter. C0G at 470 pF is Extended only |
-| Cvcc1 | 0.1 uF | **50 V or more**: on the 20 V rail, where a 16 or 25 V 0805 loses most of its capacitance. C28233 (100 V, Basic), the board's other 100 nF |
-| Cz1 | 100 nF | X7R, 0805: C28233 (100 V, Basic), the board's other 100 nF. Sets the compensation zero (1.6 Hz) |
+| C26 | 0.1 uF | **50 V or more**: on the 20 V rail, where a 16 or 25 V 0805 loses most of its capacitance. C28233 (100 V, Basic), the board's other 100 nF |
+| C28 | 100 nF | X7R, 0805: C28233 (100 V, Basic), the board's other 100 nF. Sets the compensation zero (1.6 Hz) |
 
 **Cable-entry and filter parts**
 
@@ -140,7 +140,7 @@ R42, R43, Rslope1 and Cslope1 aren't fitted.
 | R40, R41 | I2C series, 100 ohm 0805 | 0805W8F1000T5E (C17408) | Basic |
 | R44 | AIN2 series, 1 k 0805 | 0805W8F1001T5E (C17513) | Basic |
 | R52, C25 | AIN3 (J13) filter, 10 k and 100 nF 0805 | C17414, C28233 | Basic |
-| R53 | Qa1 gate to source, 10 k | C17414 | Basic |
+| R53 | Q6 gate to source, 10 k | C17414 | Basic |
 | R49-R51, C24 | coin 4: 10 k pull-up, 1 k series, 1.5 k LED, 100 nF | C17414, C17513, C4310, C28233 | Basic |
 | R42, R43 | I2C pull-ups, 4.7 k 0805, not fitted | 0805W8F4701T5E (C17673) | Basic |
 | C18, C19 | AIN1 (HV) and AIN0 (20 V) filters, 100 nF 0805 | CL21B104KCFNNNE (C28233) | Basic |
@@ -201,9 +201,9 @@ J11 and J12 and the J10/J13/J14 headers add a few dollars a board at DigiKey **(
 they're optional: fit them only for phones that need them.
 
 The 8 parts with an Extended fee have no Basic or Preferred equivalent: C5/C7/C14/C20, L1, L2,
-F1, U1, U3, Q3/Qa1 and D3. Hand-soldering one yourself saves its $3 per order. **Now hand-soldered:**
+F1, U1, U3, Q3/Q6 and D3. Hand-soldering one yourself saves its $3 per order. **Now hand-soldered:**
 C5/C7/C14/C20, F1, U3 and D3. L1 and L2 stay with JLCPCB, since DigiKey doesn't stock them, which
-leaves four fees: U1, Q3/Qa1, L1 and L2 ($12). R17 was 56 k, an
+leaves four fees: U1, Q3/Q6, L1 and L2 ($12). R17 was 56 k, an
 Extended part; it's now 150 k with R19 27 k (the AIN0 divider, 6.56:1), both values already Basic
 parts on the board. The table above still has the earlier 8-fee figures.
 
@@ -212,7 +212,7 @@ tariff.** PCB $10, setup $25.75, stencil $8.27, parts $31.72 (49 lines), **feede
 $75.95** (49 x $1.55: Standard PCBA charges every unique part, Basic ones too), placement
 $3.74, packaging $0.51. The same board as **Economic PCBA** would be about $10 + $8 setup +
 $1.50 stencil + $31.72 parts + $27 (9 parts with the $3 Extended fee: the four 100 uF, D3, F1,
-L1, L2, Q3/Qa1, R17, U1, U3; Preferred parts have none) + $4 = **about $82**. Use Economic
+L1, L2, Q3/Q6, R17, U1, U3; Preferred parts have none) + $4 = **about $82**. Use Economic
 unless JLCPCB won't offer it for the board; on Standard, hand-soldering a part saves only its
 $1.55 line fee and its price.
 
@@ -229,10 +229,10 @@ below are **estimates (verify)**, at the quantity one order needs.
 | F1 | 1812L110PR, 1812 | 5.10 | the same part, about $0.40: 2.20 | **~3** | easy |
 | D3 | SMBJ130A, SMB | 5.00 | Littelfuse SMBJ130A, about $0.40: 2.20 | **~3** | easy |
 | L1, L2 | SMDRI127, 12 x 12 mm | 6.50 each | Bourns SRR1260-101M / -221M, about $1.00: 5.40 each | ~1 each | easy, but check the Bourns footprint against `L_SXN_SMDRI127` |
-| Q3, Qa1 | STN4NF20L, SOT-223 | 9.80 | ST STN4NF20L, about $0.90 at 10: 9.80 | ~0 | easy |
+| Q3, Q6 | STN4NF20L, SOT-223 | 9.80 | ST STN4NF20L, about $0.90 at 10: 9.80 | ~0 | easy |
 
 All eight come to about **$22 an order of 5, about $4.50 a board**. U1, the capacitors, U3, F1
-and D3 are most of it (about $21); L1, L2 and Q3/Qa1 aren't worth it. U2 is Preferred, so it has
+and D3 are most of it (about $21); L1, L2 and Q3/Q6 aren't worth it. U2 is Preferred, so it has
 no fee and nothing to save. To move a part to hand soldering, clear its LCSC field (and mark it
 "exclude from position files"), then add it to the DigiKey order.
 
@@ -270,7 +270,7 @@ part):
 
 Where it matters on this board, at 119 V:
 
-- **Rfbt1-3, Rbl1-3:** 3 in series, about 40 V each.
+- **Rfbt1-3, R57-R59:** 3 in series, about 40 V each.
 - **R27, R28:** 2 in series, about 47 V each.
 - **R32:** a single resistor, about 115 V, inside a 1206's 200 V.
 
@@ -301,7 +301,7 @@ On the board:
 | (not placed yet) | JP1; debug LEDs D8-D13 with R34-R39; HV LED R27, R28, D5, D7 | see "Still to do" |
 | COIN | R4-R9, C2-C4, D16-D19, and coin 4's R49-R51, C24, D15 | top right, at J3 and J12 |
 | STAGE1 (5 V -> 20 V) | U2, L1, D1, R11-R14, R45, R46, Q1, R3, C5-C8 | bottom left |
-| STAGE2 (20 V -> HV, with C1) | U3 and its small parts, Qa1, L2, C14, D2, Rcs1, Dz1, Rg1, J7-J9, Rfbb1-4, Rfbt1-3, C1, D3, R32, Rbl1-3 | bottom middle |
+| STAGE2 (20 V -> HV, with C1) | U3 and its small parts, Q6, L2, C14, D2, Rcs1, Dz1, R54, J7-J9, Rfbb1, Rfbb2, R55, Rfbb4, Rfbt1-3, C1, D3, R32, R57-R59 | bottom middle |
 | FIRE | R1, R21-R25, Q4, Q5, D6, Q3, R26 | right, above K1 |
 | POL | K1, Q2, D4, R2, R20, J10, J11 | right, beside J2 |
 
@@ -352,24 +352,24 @@ from the net (1 oz copper; the currents are peaks):
 - **SW1** (L1, D1 anode, U2 pin 1): short, with little copper.
 - C8 at pin 3; R13/R14 at the FB pin (pin 5).
 - 20V leaves from C7 to stage 2 (L2, U3 pin 7), and up to Q5/R23 in the
-  FIRE block. C14 sits at L2 and Qa1's source return, not back at stage 1.
+  FIRE block. C14 sits at L2 and Q6's source return, not back at stage 1.
 
 ### Stage 2 (UC3843)
 
-- **Hot loop:** Qa1 drain -> D2 -> C1+ ... C1- -> Rcs1 -> Qa1 source.
+- **Hot loop:** Q6 drain -> D2 -> C1+ ... C1- -> Rcs1 -> Q6 source.
   C1 is large, so this loop is too. **C21-C23** (3 x 100 nF 50 V in series) close the
   fast part of it: run them from D2's cathode to Rcs1's GND end. Their middle nodes tie to
-  HV_B1 and HV_B2, so Rbl1-3 share the voltage, about 40 V each at 119 V.
-- **SW2** (Qa1 drain, L2, D2 anode) swings 0-120 V at the switching
-  frequency: short, and nothing parallel to it. Qa1's SOT-223 tab is SW2 too, so give
+  HV_B1 and HV_B2, so R57-R59 share the voltage, about 40 V each at 119 V.
+- **SW2** (Q6 drain, L2, D2 anode) swings 0-120 V at the switching
+  frequency: short, and nothing parallel to it. Q6's SOT-223 tab is SW2 too, so give
   it only the copper the footprint has: it dissipates about 0.05 W and needs no heatsink area.
-- **Gate:** U3 OUT -> Rg1 -> Qa1 gate, returning through Qa1 source / Rcs1 to
+- **Gate:** U3 OUT -> R54 -> Q6 gate, returning through Q6 source / Rcs1 to
   U3's GND. Dz1 right at the gate and source.
-- **Current sense:** a separate (Kelvin) trace from Rcs1's top pad to Rf1;
+- **Current sense:** a separate (Kelvin) trace from Rcs1's top pad to R56;
   Cf1 at U3's CS pin.
-- **Quiet ground:** Ct1, Cvref1, Cf1, Rfbb4 and J7-J9 go to U3 pin 5 (GND),
+- **Quiet ground:** Ct1, C27, Cf1, Rfbb4 and J7-J9 go to U3 pin 5 (GND),
   then one via to the plane. RT/CT noise is what upsets UC384x designs.
-- **Feedback:** the FB node is short, with Rfbb1-4, Rz1 and Rfbt3 at U3 pin 2.
+- **Feedback:** the FB node is short, with Rfbb1, Rfbb2, R55, Rfbb4, Rz1 and Rfbt3 at U3 pin 2.
   HV runs out to Rfbt1; the high-impedance FB node doesn't run out to HV.
 
 ### HV
@@ -378,13 +378,13 @@ from the net (1 oz copper; the currents are peaks):
   clearance), so DRC enforces it. J10 and J11 carry HV: keep them by J2 and K1.
 - **Pads inside one part** are checked against 0.6 mm instead (IPC-2221 B2,
   external uncoated copper, 101-150 V), by the rules in `Payphone_coin_board_v1.kicad_dru`
-  for K1, J2, J10, Q3, Qa1, R27 and R28: their pin spacing is fixed by the part
+  for K1, J2, J10, Q3, Q6, R27 and R28: their pin spacing is fixed by the part
   (SOT-223 and 1206 pads are 0.8 mm apart). A new HV part with the same issue
   gets its own rule there.
 - **K1's switch pads (3, 4, 5, 8, 9, 10) are 1.7 mm**, not the library's
   2.0 mm, for 0.84 mm between them instead of 0.54 mm (1.0 mm holes, as Omron
   specifies). DRC lists K1 as differing from the library; that's this change.
-- D3 straight across C1; Rbl1-3 beside it.
+- D3 straight across C1; R57-R59 beside it.
 - **R32 sits at C1:** only its 3 V tap (AIN1) runs to U4, so no HV enters the
   logic block.
 - Silkscreen: the HV warning (C1 stays charged until D7, the HV LED, is out)
@@ -418,7 +418,7 @@ from the net (1 oz copper; the currents are peaks):
   update the footprint on the board.
 - **Update PCB from Schematic** for D14, R44 and J1/J6's new pin order, which moves their nets,
   and for the universal-payphone parts: it removes J5 and adds J10-J14, D15-D19, R49-R53,
-  C24 and C25. Place J14 by U3, with Cvcc1 between J14 and U3 pin 7; R53 right at Qa1's
+  C24 and C25. Place J14 by U3, with C26 between J14 and U3 pin 7; R53 right at Q6's
   gate and source (beside Dz1); D16-D19 right at J3/J12, so the
   connector side of each line is short; J13 with R52/C25 by U4; J10 and J11 by J2 (HV class).
   J3's pins now connect through D16-D18 (the NICKEL_IN / DIME_IN / QUARTER_IN nets), so the
@@ -437,5 +437,5 @@ from the net (1 oz copper; the currents are peaks):
 - Silkscreen pin 1 and the signal names at J1 and J6. The v6 end is J11, wired pin for pin.
 - Board outline and mounting holes (M3, away from HV).
 - Test points: 20 V, VIO, HV (a probe pad behind a series resistor), GND.
-- Two reference designators overlap (Cz1/Rz1, Ct1/R18): nudge them when
+- Two reference designators overlap (C28/Rz1, Ct1/R18): nudge them when
   tidying silkscreen.

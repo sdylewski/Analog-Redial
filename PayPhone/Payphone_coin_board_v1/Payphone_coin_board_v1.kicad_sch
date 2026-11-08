@@ -7084,7 +7084,7 @@
 		)
 		(uuid "0b3feb55-d011-45b1-ab1b-5b3829329cd7")
 	)
-	(text "J14 HV boost: no shunt = U3 unpowered, HV about 19 V;\nshunt fitted = the J7-J9 voltage. R53 holds Qa1 off\nwhile U3 has no power"
+	(text "J14 HV boost: no shunt = U3 unpowered, HV about 19 V;\nshunt fitted = the J7-J9 voltage. R53 holds Q6 off\nwhile U3 has no power"
 		(exclude_from_sim no)
 		(at 28.194 128.524 0)
 		(effects
@@ -13830,7 +13830,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "2690f144-69b4-4533-b5c2-804bd07970f3")
-		(property "Reference" "Cvref1"
+		(property "Reference" "C27"
 			(at 67.056 168.91 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13905,7 +13905,7 @@
 		(instances
 			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "Cvref1")
+					(reference "C27")
 					(unit 1)
 				)
 			)
@@ -15992,7 +15992,7 @@
 				)
 			)
 		)
-		(property "Description" "High-frequency bypass across C1, one of three in series; Rbl1-3 share the voltage (Samsung CL31B104KBCNNNC)"
+		(property "Description" "High-frequency bypass across C1, one of three in series; R57-R59 share the voltage (Samsung CL31B104KBCNNNC)"
 			(at 166.37 161.29 0)
 			(hide yes)
 			(show_name no)
@@ -17385,7 +17385,7 @@
 				)
 			)
 		)
-		(property "Note" "Qa1 gate to source: holds Qa1 off while U3 is unpowered (J14 open)"
+		(property "Note" "Q6 gate to source: holds Q6 off while U3 is unpowered (J14 open)"
 			(at 77.47 109.22 0)
 			(hide yes)
 			(show_name no)
@@ -18501,7 +18501,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "65b03904-3c1b-4f1b-9315-4cc8b27826c2")
-		(property "Reference" "Rbl1"
+		(property "Reference" "R57"
 			(at 184.15 153.67 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18585,7 +18585,7 @@
 		(instances
 			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "Rbl1")
+					(reference "R57")
 					(unit 1)
 				)
 			)
@@ -18691,7 +18691,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "66179860-bb9d-4b0e-bec6-4f93d257667f")
-		(property "Reference" "Rf1"
+		(property "Reference" "R56"
 			(at 122.682 159.004 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18775,7 +18775,7 @@
 		(instances
 			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "Rf1")
+					(reference "R56")
 					(unit 1)
 				)
 			)
@@ -21234,7 +21234,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "8eea507f-0dc5-4151-a182-e54df4c2e7c5")
-		(property "Reference" "Rfbb3"
+		(property "Reference" "R55"
 			(at 161.544 172.212 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21318,7 +21318,7 @@
 		(instances
 			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "Rfbb3")
+					(reference "R55")
 					(unit 1)
 				)
 			)
@@ -22009,7 +22009,7 @@
 				)
 			)
 		)
-		(property "Description" "High-frequency bypass across C1, one of three in series; Rbl1-3 share the voltage (Samsung CL31B104KBCNNNC)"
+		(property "Description" "High-frequency bypass across C1, one of three in series; R57-R59 share the voltage (Samsung CL31B104KBCNNNC)"
 			(at 166.37 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -25007,7 +25007,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "c1b2fdbf-fd51-49e5-8da0-95f7141b3ec5")
-		(property "Reference" "Cz1"
+		(property "Reference" "C28"
 			(at 112.268 176.784 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25082,7 +25082,7 @@
 		(instances
 			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "Cz1")
+					(reference "C28")
 					(unit 1)
 				)
 			)
@@ -26759,7 +26759,7 @@
 				)
 			)
 		)
-		(property "Description" "High-frequency bypass across C1, one of three in series; Rbl1-3 share the voltage (Samsung CL31B104KBCNNNC)"
+		(property "Description" "High-frequency bypass across C1, one of three in series; R57-R59 share the voltage (Samsung CL31B104KBCNNNC)"
 			(at 166.37 148.59 0)
 			(hide yes)
 			(show_name no)
@@ -27265,7 +27265,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "df002619-138c-4d28-a69a-72ac5a319934")
-		(property "Reference" "Qa1"
+		(property "Reference" "Q6"
 			(at 143.256 149.86 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27343,7 +27343,7 @@
 		(instances
 			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "Qa1")
+					(reference "Q6")
 					(unit 1)
 				)
 			)
@@ -27499,7 +27499,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "e2e88947-2ff1-454f-bf35-3f5064864f99")
-		(property "Reference" "Cvcc1"
+		(property "Reference" "C26"
 			(at 67.056 155.956 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27574,7 +27574,7 @@
 		(instances
 			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "Cvcc1")
+					(reference "C26")
 					(unit 1)
 				)
 			)
@@ -28208,7 +28208,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "eaf40747-8443-49ea-978e-8d01dd04ce6f")
-		(property "Reference" "Rbl2"
+		(property "Reference" "R58"
 			(at 184.15 161.29 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -28292,7 +28292,7 @@
 		(instances
 			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "Rbl2")
+					(reference "R58")
 					(unit 1)
 				)
 			)
@@ -28592,7 +28592,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "ef557589-80a9-4785-8bc8-0d8b5e3ab2b4")
-		(property "Reference" "Rbl3"
+		(property "Reference" "R59"
 			(at 184.15 168.91 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -28676,7 +28676,7 @@
 		(instances
 			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "Rbl3")
+					(reference "R59")
 					(unit 1)
 				)
 			)
@@ -28947,7 +28947,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "f6c41639-d546-451c-a895-f06f8e82668e")
-		(property "Reference" "Rg1"
+		(property "Reference" "R54"
 			(at 122.174 151.384 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -29031,7 +29031,7 @@
 		(instances
 			(project "Payphone_coin_board_v1"
 				(path "/65d67a88-28a0-4b0c-a749-df348fda1ee9"
-					(reference "Rg1")
+					(reference "R54")
 					(unit 1)
 				)
 			)

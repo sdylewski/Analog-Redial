@@ -32,7 +32,7 @@ main board. VIO is the host's I2C logic voltage (3.3 V from Analog Redial,
 ```
  Analog Redial                         COIN BOARD
  (v6 J11)                                                      HV zone (up to 119 V)
- +5V  --- J6.5 ---------> [U2 MC34063 5V->20V] --> 20V --> [U3 UC3843 + Qa1 + L2 + D2] --> HV (C1)
+ +5V  --- J6.5 ---------> [U2 MC34063 5V->20V] --> 20V --> [U3 UC3843 + Q6 + L2 + D2] --> HV (C1)
  VIO  --- J6.4                  ^ Q1                                                        |
  SDA  --- J6.3 --+              |                                                           |
  SCL  --- J6.2 --+--> [U1 TCA9534A @0x39] P6 EN_HV                                          |
@@ -237,7 +237,7 @@ asks for it. The wait is small: stage 1 starts in tens of ms and stage 2 reaches
 when a call ends, so this doesn't show. Firmware can also raise EN_HV early and
 drop it after about 10 s.
 
-## 6. Stage 2: 20 V to 52-119 V (U3, UC3843BD1R2G + Qa1, STN4NF20L)
+## 6. Stage 2: 20 V to 52-119 V (U3, UC3843BD1R2G + Q6, STN4NF20L)
 
 Current-mode PWM controller, non-synchronous boost, driving an external N-FET.
 It starts at about 8.4 V (7.8 to 9 V) and stops at 7.6 V, so it runs from the
@@ -248,17 +248,17 @@ UCx844/5 are limited to 50 % and wouldn't work.
 |---|---|---|---|
 | **Power stage** | | | |
 | L2 | Boost inductor (20V to SW2) | **220 uH**, SXN SMDRI127-221MT | shielded, 2.0 A Isat, 0.39 ohm |
-| Qa1 | Switch (drain SW2, source to Rcs1) | **STN4NF20L** (SOT-223, 200 V, 1 A, 1.35 ohm; C7603336, the same part as Q3) | 0.45 A peak, about 0.15 A RMS: 30 mW on, and 3.2 nC of gate charge switches it in about 10 ns, so switching loss is a few mW. Turn-on is at zero current (DCM) |
+| Q6 | Switch (drain SW2, source to Rcs1) | **STN4NF20L** (SOT-223, 200 V, 1 A, 1.35 ohm; C7603336, the same part as Q3) | 0.45 A peak, about 0.15 A RMS: 30 mW on, and 3.2 nC of gate charge switches it in about 10 ns, so switching loss is a few mW. Turn-on is at zero current (DCM) |
 | D2 | Output diode (SW2 to HV) | **ES2D** (SMA, 200 V, 2 A ultrafast) | cathode toward C1. Average current is only tens of mA |
 | C1 | HV output capacitor | **220 uF / 200 V** | Nichicon UCS2D221MHD, 18 x 26.5 mm, 7.5 mm leads |
-| C14 | Input decoupling on 20V | **100 uF / 50 V** | at L2 and Qa1's source return: it carries stage 2's switching current, so it can't share C7 at stage 1 |
+| C14 | Input decoupling on 20V | **100 uF / 50 V** | at L2 and Q6's source return: it carries stage 2's switching current, so it can't share C7 at stage 1 |
 | **Gate drive** | | | |
-| Rg1 | U3 OUT to Qa1 gate | **100 ohm** | damps ringing and limits the current into Dz1: OUT swings to about 18.5 V, so Dz1 sees about 35 mA each on-time; switches Qa1 in about 10 ns |
-| Dz1 | 15 V gate clamp (cathode to gate, anode to Qa1 source) | **SMAZ15** (1 W) | OUT is just under the STN4NF20L's 20 V Vgs maximum, so this is margin |
-| R53 | Qa1 gate to source | **10 k** (C17414, Basic) | holds Qa1 off while U3 has no supply (J14 open, or stage 1 off), when nothing else drives the gate |
+| R54 | U3 OUT to Q6 gate | **100 ohm** | damps ringing and limits the current into Dz1: OUT swings to about 18.5 V, so Dz1 sees about 35 mA each on-time; switches Q6 in about 10 ns |
+| Dz1 | 15 V gate clamp (cathode to gate, anode to Q6 source) | **SMAZ15** (1 W) | OUT is just under the STN4NF20L's 20 V Vgs maximum, so this is margin |
+| R53 | Q6 gate to source | **10 k** (C17414, Basic) | holds Q6 off while U3 has no supply (J14 open, or stage 1 off), when nothing else drives the gate |
 | **Current sense** | | | |
-| Rcs1 | Qa1 source to GND | **2.2 ohm**, 0805 (C17521, Basic) | Ipk = 1 V / Rcs1 = 0.45 A. About 0.15 A RMS, so 0.05 W, inside the 0805's 0.125 W |
-| Rf1 | Rcs1 to CS pin 3 | **1 k** | with Cf1, filters the leading-edge spike (the UC3843 has no blanking) |
+| Rcs1 | Q6 source to GND | **2.2 ohm**, 0805 (C17521, Basic) | Ipk = 1 V / Rcs1 = 0.45 A. About 0.15 A RMS, so 0.05 W, inside the 0805's 0.125 W |
+| R56 | Rcs1 to CS pin 3 | **1 k** | with Cf1, filters the leading-edge spike (the UC3843 has no blanking) |
 | Cf1 | CS pin 3 to GND | **470 pF**, X7R | 0.47 us, well under the 15 us period |
 | Rslope1 | RT/CT ramp to CS, in series with Cslope1 | **27 k, fit only if needed** | The converter runs in discontinuous mode (below), where subharmonic oscillation can't happen. Fit it if the switch node shows alternating long and short pulses |
 | Cslope1 | DC block in the same path | **1 nF** | passes only the ramp |
@@ -267,28 +267,28 @@ UCx844/5 are limited to 50 % and wouldn't work.
 | Ct1 | RT/CT pin 4 to GND | **2.2 nF, C0G** | sets the clock, so no X7R. Never below about 1000 pF |
 | **Feedback** | | | |
 | Rfbt1-3 | HV to FB pin 2 | **3 x 100 k in series** (1206) | about 40 V each |
-| Rfbb1-4 | FB pin 2 to GND | **Rfbb4 15 k always fitted**; Rfbb3 100 k, Rfbb2 30 k, Rfbb1 22 k added in parallel by J9 / J8 / J7 | table below |
-| Rz1 | COMP pin 1 to FB pin 2, in series with Cz1 | **1 M** | mid-band gain Rz / Rfbt = 3.3 |
-| Cz1 | In series with Rz1 | **100 nF**, X7R, 0805 100 V (C28233, Basic, the same part as C17) | zero at 1.6 Hz |
-| Cp1 | COMP pin 1 to FB pin 2, across Rz1 + Cz1 | **100 pF, C0G** | pole at 1.6 kHz, keeps switching noise out of the error amplifier |
+| Rfbb1, Rfbb2, R55, Rfbb4 | FB pin 2 to GND | **Rfbb4 15 k always fitted**; R55 100 k, Rfbb2 30 k, Rfbb1 22 k added in parallel by J9 / J8 / J7 | table below |
+| Rz1 | COMP pin 1 to FB pin 2, in series with C28 | **1 M** | mid-band gain Rz / Rfbt = 3.3 |
+| C28 | In series with Rz1 | **100 nF**, X7R, 0805 100 V (C28233, Basic, the same part as C17) | zero at 1.6 Hz |
+| Cp1 | COMP pin 1 to FB pin 2, across Rz1 + C28 | **100 pF, C0G** | pole at 1.6 kHz, keeps switching noise out of the error amplifier |
 | **Decoupling** | | | |
-| Cvcc1 | VCC pin 7 to GND | **0.1 uF, 50 V** | on the 20 V rail, so not a 16 or 25 V part |
-| Cvref1 | VREF pin 8 to GND | **0.1 uF** | required by the datasheet |
+| C26 | VCC pin 7 to GND | **0.1 uF, 50 V** | on the 20 V rail, so not a 16 or 25 V part |
+| C27 | VREF pin 8 to GND | **0.1 uF** | required by the datasheet |
 | **Protection** | | | |
 | D3 | Clamp across C1 | **SMBJ130A** (SMB) | 130 V standoff; cathode to HV |
-| Rbl1-3 | Bleed across C1 | **3 x 1 M in series** (1206) | section below. 4.7 mW at 119 V, about 40 V each |
-| C21-C23 | Bypass across C1 | **3 x 100 nF 50 V in series** (1206, X7R), middle nodes on HV_B1 and HV_B2 | C1 is slow at high frequency; about 33 nF, less at 119 V. Rbl1-3 share the voltage, about 40 V each at 119 V |
+| R57-R59 | Bleed across C1 | **3 x 1 M in series** (1206) | section below. 4.7 mW at 119 V, about 40 V each |
+| C21-C23 | Bypass across C1 | **3 x 100 nF 50 V in series** (1206, X7R), middle nodes on HV_B1 and HV_B2 | C1 is slow at high frequency; about 33 nF, less at 119 V. R57-R59 share the voltage, about 40 V each at 119 V |
 
 | Pin | Name | Net / connection |
 |---|---|---|
-| 1 | COMP | E/A output. Rz1 + Cz1 to pin 2 |
+| 1 | COMP | E/A output. Rz1 + C28 to pin 2 |
 | 2 | FB | Divider midpoint. Internal reference is **2.5 V**, so HV = 2.5 x (1 + Rfbt / Rfbb) |
-| 3 | CS | Rf1 from the top of Rcs1; Cf1 to GND. The cycle ends at **1 V** |
+| 3 | CS | R56 from the top of Rcs1; Cf1 to GND. The cycle ends at **1 V** |
 | 4 | RT/CT | R18 from pin 8, Ct1 to GND |
 | 5 | GND | GND |
-| 6 | OUT | Qa1 gate through Rg1 |
-| 7 | VCC | 20V **through J14** (net U3_VCC), Cvcc1 to GND on U3's side. 30 V absolute maximum, about 11 to 17 mA running |
-| 8 | VREF | **5 V** reference; it only feeds R18 here. Cvref1 to GND |
+| 6 | OUT | Q6 gate through R54 |
+| 7 | VCC | 20V **through J14** (net U3_VCC), C26 to GND on U3's side. 30 V absolute maximum, about 11 to 17 mA running |
+| 8 | VREF | **5 V** reference; it only feeds R18 here. C27 to GND |
 
 **Voltage select.** With J14 fitted, each J7-J9 shunt adds a resistor in parallel with Rfbb4,
 which lowers Rfbb and raises HV. **Every combination is valid** (the same table is on the
@@ -310,7 +310,7 @@ silkscreen and the schematic):
 default), stage 2 can't run**, and a boost converter that isn't switching passes its input
 straight through: HV is the 20 V rail less D2's drop, **about 19 V**, from stage 1 alone. No
 firmware setting can raise it. That's the setting for 12-24 V coils. Fit the J14 shunt for
-the HD550002C and other high-voltage relays; J7-J9 then set the voltage. R53 holds Qa1's
+the HD550002C and other high-voltage relays; J7-J9 then set the voltage. R53 holds Q6's
 gate low while U3 is unpowered. At 19 V the current is set by the coil, Q3 and R26 (10 ohm):
 a 50 ohm 24 V solenoid draws about 0.3 A, so R26 takes about 0.9 W for the pulse; keep pulses
 short **[verify]**. D7 stays dark at 19 V (it lights above about 24 V).
@@ -343,7 +343,7 @@ bench):
 
   G(s) = L2 x f x Ipk / (3 x Rcs1 x HV x C1 x s)
 
-  Rz1 + Cz1 from COMP to FB make a Type II compensator, flat at Rz / Rfbt above
+  Rz1 + C28 from COMP to FB make a Type II compensator, flat at Rz / Rfbt above
   its zero. So the crossover is
 
   fc = (Rz / 300 k) x L2 x f x Ipk / (2 pi x 3 x Rcs1 x HV x C1)
@@ -367,7 +367,7 @@ bench):
 ```
   HV ----+-------+-------+-----------+-----------+-----------+
          |       |       |           |           |           |
-        C1      D3     Rfbt1-3     Rbl1-3       R32        R27, R28
+        C1      D3     Rfbt1-3     R57-R59       R32        R27, R28
       220uF   SMBJ130A  3x 100k     3x 1M       1M         D5, D7
       /200V              |           |           |         (HV LED)
          |       |       +-- FB      |         +-- AIN1      |
@@ -385,7 +385,7 @@ bench):
   50 V in about 13 s, below 24 V (D7 goes out) in about 33 s and below 20 V in about
   42 s; 60 V falls below 20 V in about 32 s.
 - **If a path fails.** Without the LED string it's about 89 s to 20 V. The divider
-  only drains C1 while Rfbb4 is connected; if that opens, R32, Rbl1-3 and the LED
+  only drains C1 while Rfbb4 is connected; if that opens, R32, R57-R59 and the LED
   string still reach 20 V in about 88 s. (A failed-open Rfbt runs the output up to
   D3, so that case is covered by the clamp, not the bleed.)
 
@@ -513,13 +513,13 @@ the relay.
 6. **Stage 1 against stage 2:** while charging, stage 2 can ask for more than stage 1's 2 W
    (section 6). The rail may sag, and if it reaches U3's 7.6 V stop, the converter hiccups.
    If it does, raise Rcs1 for a lower peak current, or add a soft start on COMP.
-7. **Overshoot at the end of a charge:** Cz1 winds up while the error amplifier is saturated;
-   watch that HV stays below D3's standoff at 119 V. A smaller Cz1 (47 nF, zero at 3.4 Hz) cuts
+7. **Overshoot at the end of a charge:** C28 winds up while the error amplifier is saturated;
+   watch that HV stays below D3's standoff at 119 V. A smaller C28 (47 nF, zero at 3.4 Hz) cuts
    overshoot at the cost of light-load phase margin. Audible chirping from skipped cycles at
    light load is harmless.
 8. **U2's switch-node waveform** (section 5), and whether charging pulls the 5 V rail below spec.
 9. **Pull-in charge** (current x time at the operating voltage), to size C1.
-10. **J14 off:** that U3 stays off with no supply (R53 holding Qa1), and HV settles near 19 V.
+10. **J14 off:** that U3 stays off with no supply (R53 holding Q6), and HV settles near 19 V.
 11. **Coin inputs through D16-D19:** the low level U1 reads with a real switch (about
     0.3 V diode drop plus the 1 k), and a coin acceptor's output if one is to hand.
 

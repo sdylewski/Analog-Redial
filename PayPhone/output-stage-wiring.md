@@ -200,11 +200,11 @@ so don't name one that way.)
 
 | Label | Where |
 |---|---|
-| HV | C1+, C21 pin 1, D2, D3, D14 cathode, K1 pins 3 and 8, R27, R32, Rbl1, Rfbt1 |
-| HV_B1, HV_B2 | between Rbl1-3 (bleed) and between C21-C23 |
+| HV | C1+, C21 pin 1, D2, D3, D14 cathode, K1 pins 3 and 8, R27, R32, R57, Rfbt1 |
+| HV_B1, HV_B2 | between R57-R59 (bleed) and between C21-C23 |
 | HV_F1, HV_F2 | between Rfbt1-3 (feedback) |
 | HV_LED1, HV_LED2 | R27, R28, D5 (HV indicator) |
-| SW2 | Qa1 drain, L2, D2 anode: swings up to HV |
+| SW2 | Q6 drain, L2, D2 anode: swings up to HV |
 | COIL_A | K1 pin 4, J2 pin 1, J11 pin 1 |
 | COIL_B | K1 pin 9, J2 pin 3, J11 pin 3 |
 | COIL_C | J11 pin 2, J10 pin 2 (J10 pin 1 is HV) |
@@ -216,7 +216,7 @@ so don't name one that way.)
 
 ## HV safety
 
-- **Bleed time.** The feedback divider (about 310 k), R32 + R33 (about 1 M), Rbl1-3
+- **Bleed time.** The feedback divider (about 310 k), R32 + R33 (about 1 M), R57-R59
   (3 x 1 M) and the HV LED's string (below) drain C1: 119 V falls below 24 V (D7 out)
   in about 33 s and below 20 V in about 42 s. Without the LED string it's about 86 s
   to 20 V; if the divider opens, about 88 s. Still treat C1 as live until D7 is out,

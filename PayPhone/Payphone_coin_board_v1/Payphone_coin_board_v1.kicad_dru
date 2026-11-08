@@ -21,9 +21,9 @@
   (constraint clearance (min 0.6mm))
   (condition "A.memberOfFootprint('Q3') && B.memberOfFootprint('Q3')"))
 
-(rule "HV pads within Qa1"
+(rule "HV pads within Q6"
   (constraint clearance (min 0.6mm))
-  (condition "A.memberOfFootprint('Qa1') && B.memberOfFootprint('Qa1')"))
+  (condition "A.memberOfFootprint('Q6') && B.memberOfFootprint('Q6')"))
 
 (rule "HV pads within R27"
   (constraint clearance (min 0.6mm))
