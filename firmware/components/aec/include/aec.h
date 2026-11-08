@@ -57,15 +57,15 @@ extern "C" {
 #endif
 
 #define AEC_RATE_HZ   8000
-/* 320 taps = 40 ms at 8 kHz. Anchored at AEC_DEFAULT_DELAY_MS=12, the window
- * spans 12-52 ms -- comfortably bracketing both observed ERLE peaks (~20 ms
- * and ~36 ms, see above) with margin on either side for a different board
- * or handset landing a bit differently. Cost: 320 taps * 8000 Hz * 2 MACs
+/* 320 taps = 40 ms at 8 kHz. Anchored at AEC_DEFAULT_DELAY_MS=6 (what Measure
+ * suggests on SMD4 boards with both a rotary and a touch-tone set: echo peak
+ * ~21 ms), the window spans 6-46 ms -- bracketing both observed ERLE peaks
+ * (~20 ms and ~36 ms, see above) with margin for a different board or handset. Cost: 320 taps * 8000 Hz * 2 MACs
  * = 5.1M MAC/s, ~32% of a 160 MHz core with no FPU -- more than the original
  * 192-tap estimate (~19%) but still far under the ~half-a-core cost 48 kHz
  * cancellation would have been for the same time span. */
 #define AEC_TAPS      320
-#define AEC_DEFAULT_DELAY_MS 12
+#define AEC_DEFAULT_DELAY_MS 6
 #define AEC_MAX_DELAY_MS     60
 
 typedef struct {
