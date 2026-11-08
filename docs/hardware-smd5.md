@@ -399,7 +399,8 @@ symptoms of getting it wrong, is in
 | [`hardware-smd4.md`](hardware-smd4.md) | The v4 board, the one with the longest track record |
 | [`build-v5.md`](build-v5.md) | Building a v5 board, step by step |
 | [`building.md`](building.md) | Hand-solder order, pre-power checks, first power-on |
-| [`hardware-smd6.md`](hardware-smd6.md) | v6, in progress: two lines and microSD together, J10, J11 |
+| [`hardware-smd6.md`](hardware-smd6.md) | v6, released but not built yet: two lines and microSD together, J10, J11 |
+| [`hardware-coin-board.md`](hardware-coin-board.md) | The payphone coin board, sent to fab but not built yet: coin switches and the coin relay, on v6's J11 |
 | [`bom.md`](bom.md) | Parts list / shopping checklist |
 | [`archive/hardware/smd5.md`](https://github.com/sdylewski/Analog-Redial/blob/main/archive/hardware/smd5.md) | Dev notes: jumper plan, MCU footprint details, open questions |
 | [KiCad project](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5) | The real source of truth for anything not covered above |

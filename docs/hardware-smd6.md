@@ -2,10 +2,10 @@
 
 # Board reference: v6 (SMD6)
 
-> **In progress: not for use or fab.** No v6 board has been built or tested, and its
-> firmware support has only run against simulated chips. Its design files aren't
-> published yet. **v5** is the tested board: see the [v5 board reference](hardware-smd5.md).
-> This page describes the design as it stands and will change after the first build.
+> **Released, not built or tested yet.** The design and fab files are published
+> ([KiCad project](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v6)), but no v6 board has been built, and its firmware support has
+> only run against simulated chips. **v5** is the tested board: see the
+> [v5 board reference](hardware-smd5.md). This page may change after the first build.
 
 v6 is v5 with everything at once: **two phone lines and the microSD card together**,
 payphone support and four extra I/O pins. An I²C I/O expander (U6) drives the second
@@ -139,8 +139,8 @@ JST XH, 5 pins, 2.5 mm pitch (B5B-XH-A; mates with XHP-5).
 The payphone coin board's J1 and J6 use the same pin numbers, so its cable is wired pin 1
 to pin 1. Its 3.3 V is the coin board's logic supply; its 5 V powers the coin board's
 converter, which draws about 1 A peaks while charging, so use 24 AWG or thicker for 5 V and
-GND. The coin board itself is in progress: see
-[its design notes](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/coin-board-schematic.md).
+GND. The coin board is sent to fab but not built or tested yet: see
+[the coin board reference](hardware-coin-board.md).
 
 ## 8. MCU module variants
 

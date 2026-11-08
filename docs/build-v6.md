@@ -2,8 +2,8 @@
 
 # Build a v6 board, step by step
 
-> **In progress: not for use or fab.** No v6 board has been built yet. These steps are
-> written from the design and will change after the first build. **v5** is the tested
+> **Not built or tested yet.** v6's design and fab files are released, but no v6 board
+> has been built. These steps are written from the design and may change after the first build. **v5** is the tested
 > board: [Build a v5 board](build-v5.md).
 
 From a board that arrives from the fab with its surface-mount parts on (including U6, the

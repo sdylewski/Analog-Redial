@@ -1,0 +1,7 @@
+(version 1)
+
+# U6 (TSSOP, about 1.2 mm tall) sits under the overhang of U3, line 2's AG1171,
+# whose inductor stands clear of the board there. Allow the two courtyards to overlap.
+(rule "U6 under U3 overhang"
+  (constraint courtyard_clearance (min -10mm))
+  (condition "A.Reference == 'U6' && B.Reference == 'U3'"))
