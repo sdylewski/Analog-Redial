@@ -25,7 +25,7 @@ Build instructions: [Build a v6 board](build-v6.md).
 | **J11, a 5-pin JST XH I²C accessory header** | Add-on boards on the shared I²C bus, such as the payphone coin board (§7) |
 | **Clone-module footprint fixed** | A 30-pin clone needs no pin removed; only JP2/JP3 to set (§8) |
 | **D1 is an SS34 (3 A)** instead of v5's SS14 (1 A) | Headroom on the DC-jack input |
-| **U5 is the 3.6 V XC6206P362MR** | J2 pin 1 is 3.6 V on v6 (3.3 V on v5) |
+| **U7, a WS3222D over-voltage switch**, plus D13 (SMAJ22A) on the DC-jack input | A wrong adapter (9 V, 12 V, up to about 28 V) cuts +5 V off instead of damaging the board |
 | Larger vias on +5 V / +3.3 V, teardrops, silkscreen updates | |
 
 Same outline as v5 (115 × 52 mm) and the same mounting holes.
@@ -94,10 +94,10 @@ As on v5 ([§3](hardware-smd5.md#3-power-tree), [§5](hardware-smd5.md#5-es8388-
 except:
 
 - **D1** is an SS34 (3 A).
-- **J2 pin 1 is 3.6 V** from U5, an XC6206P362MR. That suits the BM64's `BAT_IN`; check
-  anything else you plug in takes 3.6 V.
-- The **DC jack takes a regulated 5-6 V only**, as on v5: nothing on the board reduces a
-  higher voltage.
+- The **DC jack takes a regulated 5-6 V**, as on v5. Unlike v5, a higher voltage doesn't
+  reach the board: U7 (WS3222D) disconnects +5 V once the input rises above about 6 V (R20/R21
+  set the threshold), up to its 28 V limit, and D13 (SMAJ22A) clamps fast spikes. It protects;
+  it doesn't regulate, so a 9 V or 12 V adapter still won't run the board.
 
 > **Never connect the RJ12 jacks to a wall jack or a telephone-company line.** They supply
 > about 48 V DC off-hook and about 60 V AC while ringing, for phones only.

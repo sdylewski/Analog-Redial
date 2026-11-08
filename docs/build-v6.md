@@ -53,7 +53,7 @@ The parts v5 and v6 share are in the [parts list](bom.md), with links.
 | **J11** | JST XH 5-pin, vertical, **B5B-XH-A** | 1 | payphone / I²C add-ons | mates with XHP-5; the coin board has the same header |
 | **J1** | DC barrel jack, 5.5 × 2.1 mm | 1 | optional | recommended with the clone module |
 | **D12** | P6KE82**A** TVS diode | 1 | optional, recommended | line protection, polarized |
-| **J2** | 1×8 pin header, 2.54 mm | 1 | optional | for the Bluetooth board; pin 1 is 3.6 V on v6 |
+| **J2** | 1×8 pin header, 2.54 mm | 1 | optional | for the Bluetooth board; pin 1 is 3.3 V |
 | **J7** | 1×3 pin header | 1 | optional | audio monitor; needs C10, C11 |
 | **C10**, **C11** | 1 µF film or ceramic, 5 mm pitch | 2 | optional | only with J7 |
 | **J3**, **J4** | 1×2 pin header | 2 | optional | rarely useful: see the [v6 reference](hardware-smd6.md#8-mcu-module-variants) |
@@ -200,7 +200,7 @@ Recommended with the clone module. Use a hot iron; give the solder time to fill 
 
 ### Step 13: J2, expansion header (optional)
 
-For the Bluetooth board. Pin 1 matches the silkscreen; on v6 it carries **3.6 V**.
+For the Bluetooth board. Pin 1 matches the silkscreen; it carries **3.3 V**, as on v5.
 
 ![Photo to take: J2 fitted, pin 1 visible](assets/photo-placeholder.svg)
 *J2 (`pics/build-v6/13-j2.jpg`)*
