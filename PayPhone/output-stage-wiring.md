@@ -228,11 +228,9 @@ so don't name one that way.)
   and C1 drained, HV idles at about 4 V, so D7 is dark; it lights whenever C1 is charged.
   It runs from C1 itself, so it stays lit while C1 drains, even with the board unpowered.
   Current: 0.4 mA at 52 V (dim but visible indoors), 1.4 mA at 119 V. R27/R28 share the
-  voltage (about 70 mW each at 119 V, so 1206). For a brighter LED at 52 V, use 2 x 22 k
-  (0.6 mA at 52 V, 2.2 mA and about 100 mW each at 119 V); that also speeds up the bleed.
-- **D3 orientation.** D3 (SMBJ130A) is wired pin 1 to HV and pin 2 to GND. It's
-  unidirectional, so the **cathode (band) must be on HV**; check the footprint's pad 1 is
-  the cathode before ordering.
+  voltage (about 67 mW and 47 V each at 119 V, inside an 0805's rating).
+- **D3 orientation.** D3 (SMBJ130A) is unidirectional: pin 1, the cathode (band), is on HV
+  and pin 2 on GND. Check the band when hand-soldering it.
 
 ## The ADS1115 (U4)
 

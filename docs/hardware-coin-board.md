@@ -202,8 +202,8 @@ JLCPCB fabricates the board and places the surface-mount parts from the files in
 Fit **J2 or J11** for the relay and **J3 or J12** for the coin switches, not both. Leave
 **J14 off** for the first power-up.
 
-Estimated cost for 5 boards: about **$43 a board**, delivered to the US with the hand-solder
-parts (about $32 a board for 10). These are estimates, not a quote.
+Estimated cost for 5 boards: about **$40 a board**, delivered to the US with the hand-solder
+parts. An estimate, not a quote.
 
 ## 9. Firmware and first power-up
 
@@ -228,9 +228,9 @@ Suggested first power-up, one step at a time:
 ## See also
 
 - [Design notes](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/coin-board-schematic.md):
-  every part value and the reasoning behind it
+  every part value and how each stage works
 - [Output stage, pin by pin](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/output-stage-wiring.md)
-- [Parts, layout and cost](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/coin-board-smt.md)
+- [Parts, ordering and layout](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/coin-board-smt.md)
 - [Payphone types](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/payphone-types.md):
   what each known payphone needs
 - [Schematic (PDF)](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/Payphone_coin_board_v1/Payphone_coin_board_v1_schematic.pdf)
