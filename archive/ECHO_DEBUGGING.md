@@ -148,3 +148,7 @@ Asymmetry: the echo maxphone hears is made at dualphone2's end (its SLIC's
 impedance (carbon transmitter, induction coil) matches the AG1171 worse than
 the touch-tone set does. Swapping the two phones between boards would show
 whether the echo follows the phone.
+
+**2026-11-07: works on a real call.** dualphone2 (rotary set) with the 6 ms
+anchor and the canceller on, called from maxphone: the user reports echo
+cancellation "works great". Enable is still not saved across restarts.
