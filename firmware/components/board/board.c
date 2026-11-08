@@ -870,6 +870,27 @@ esp_err_t board_aec_delay_set(int line, uint32_t ms)
     return err;
 }
 
+uint8_t board_aec_on_get(int line)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return 0;
+    uint8_t v = 0;
+    if (nvs_get_u8(h, line == 1 ? "aec_on1" : "aec_on0", &v) != ESP_OK) v = 0;
+    nvs_close(h);
+    return v;
+}
+
+esp_err_t board_aec_on_set(int line, uint8_t version)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, line == 1 ? "aec_on1" : "aec_on0", version);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
+
 bool board_dtmf_tuning_get(int line, void *out, size_t len)
 {
     nvs_handle_t h;

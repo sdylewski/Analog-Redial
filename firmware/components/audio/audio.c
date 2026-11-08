@@ -704,8 +704,10 @@ static void audio_task(void *arg)
             /* Only while a call is reading the result: off-hook on dial tone
              * there's nothing to send, and a loud steady reference keeps the
              * filter adapting flat out on the same task that plays the earpiece. */
-            if (rxn && s_line[line].aec_out && aec_is_enabled(line) &&
-                esp_timer_get_time() - s_line[line].aec_read_us < 500000) {
+            bool aec_run = rxn && s_line[line].aec_out && aec_is_enabled(line) &&
+                           esp_timer_get_time() - s_line[line].aec_read_us < 500000;
+            aec_set_in_use(line, aec_run);
+            if (aec_run) {
                 const int16_t *tx = (line == 0) ? txL : txR;
                 int16_t ref8[AUDIO_AEC_BLOCK], near8[AUDIO_AEC_BLOCK];
                 size_t m = 0;

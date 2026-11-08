@@ -88,12 +88,25 @@ typedef struct {
     uint32_t max_us;
 } aec_status_t;
 
+/* Saved with the web page's Enable switch (board_aec_on_set). At boot a line
+ * is switched back on only if its saved value equals this, so a setting saved
+ * by an older canceller is ignored. Bump it when a canceller change means the
+ * saved delay should be measured again before the switch is trusted.
+ * 1 = the v1.2 canceller, whose Measure suggests the echo's onset. */
+#define AEC_SAVE_VERSION 1
+
+/* Also restores each line's saved Enable switch (see AEC_SAVE_VERSION). */
 esp_err_t aec_init(void);
 
 /* Runtime toggle. Disabling resets the filter, so re-enabling starts clean
  * rather than resuming from weights adapted to a since-ended call. */
 void aec_set_enabled(int line, bool on);
 bool aec_is_enabled(int line);
+
+/* audio.c says when the canceller is actually running (a call is reading its
+ * output). The CPU is held at full speed only then, so a line left enabled
+ * doesn't keep an idle board out of its low-power mode. */
+void aec_set_in_use(int line, bool in_use);
 
 esp_err_t aec_set_delay_ms(int line, uint32_t ms);
 

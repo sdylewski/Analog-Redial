@@ -334,6 +334,10 @@ bool board_quiet_hours_active(void);
  * component doesn't need to know AEC's tuning constants. */
 uint32_t board_aec_delay_get(int line, uint32_t fallback_ms);
 esp_err_t board_aec_delay_set(int line, uint32_t ms);
+/* The web page's Enable switch, per line: 0 = off, otherwise the
+ * AEC_SAVE_VERSION it was saved with (aec_init compares). 0 if never saved. */
+uint8_t board_aec_on_get(int line);
+esp_err_t board_aec_on_set(int line, uint8_t version);
 
 /* ---- 211 "record a message" max duration ----
  * Board-wide (not per-line): recording is a local feature, not something

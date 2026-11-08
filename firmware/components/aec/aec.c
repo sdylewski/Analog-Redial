@@ -88,6 +88,7 @@ typedef struct {
 
 typedef struct {
     bool     enabled;        /* only ever true once b is allocated */
+    bool     in_use;         /* audio.c is running it: a call reads the output */
     uint32_t delay_ms;
     uint32_t delay_samp;
 
@@ -127,7 +128,7 @@ static void update_pm_lock(void)
 #if CONFIG_PM_ENABLE
     static bool held;
     bool want = false;
-    for (int i = 0; i < NLINES; i++) want |= s_l[i].enabled;
+    for (int i = 0; i < NLINES; i++) want |= s_l[i].enabled && s_l[i].in_use;
     if (!s_pm_lock || want == held) return;
     if (want) esp_pm_lock_acquire(s_pm_lock);
     else esp_pm_lock_release(s_pm_lock);
@@ -174,6 +175,8 @@ esp_err_t aec_init(void)
         s_l[i].delay_samp = ms * AEC_RATE_HZ / 1000;
         reset_locked(&s_l[i]);
     }
+    for (int i = 0; i < NLINES; i++)
+        if (board_aec_on_get(i) == AEC_SAVE_VERSION) aec_set_enabled(i, true);
     return ESP_OK;
 }
 
@@ -204,6 +207,13 @@ void aec_set_enabled(int line, bool on)
 }
 
 bool aec_is_enabled(int line) { return line_ok(line) && s_l[line].enabled; }
+
+void aec_set_in_use(int line, bool in_use)
+{
+    if (!line_ok(line) || s_l[line].in_use == in_use) return;
+    s_l[line].in_use = in_use;
+    update_pm_lock();
+}
 
 esp_err_t aec_set_delay_ms(int line, uint32_t ms)
 {

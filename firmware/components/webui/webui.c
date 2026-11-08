@@ -2791,8 +2791,8 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "is not in a call. With the phone hung up the test can't hear the earpiece."));
     off = append_hint(buf, cap, off,
         i18n_str("aec.hint_lead",
-                 "Enable/Disable is for testing -- leave off for normal use unless echo "
-                 "has been measured and calibrated below."),
+                 "Measure the echo below before you press Enable. Enable is kept after "
+                 "a restart."),
         i18n_str("aec.hint_detail",
                  "An uncalibrated or wrongly-delayed canceller can make echo worse, not "
                  "better. To calibrate: pick up the handset (off-hook), make sure it's not "
@@ -9702,9 +9702,8 @@ static esp_err_t aec_delay_apply_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* POST /aec_enable -- body line=N&on=0|1. Testing toggle -- see the
- * calibration card's hint text for why this isn't meant to be left on
- * without also calibrating the delay below it. */
+/* POST /aec_enable -- body line=N&on=0|1. Saved: the line comes back on
+ * after a restart, but only under the same canceller (AEC_SAVE_VERSION). */
 static esp_err_t aec_enable_handler(httpd_req_t *req)
 {
     char body[64], line_s[8] = {0}, on_s[8] = {0};
@@ -9717,7 +9716,9 @@ static esp_err_t aec_enable_handler(httpd_req_t *req)
     if (line < 0 || line > 1) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad line"); return ESP_OK;
     }
-    aec_set_enabled(line, on_s[0] == '1');
+    bool on = on_s[0] == '1';
+    aec_set_enabled(line, on);
+    board_aec_on_set(line, on ? AEC_SAVE_VERSION : 0);
 
     redirect_to_referer_or(req, "/settings?tab=diag");
     return ESP_OK;
