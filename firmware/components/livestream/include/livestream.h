@@ -8,7 +8,7 @@
  *   GET /live.wav?key=<key>[&line=1][&stereo=1]
  *
  * and answers with an endless 16 kHz, 16-bit WAV: by default mono, the
- * line's own mic mixed with what its earpiece hears (so both voices of a
+ * line's own mic mixed at half level with what its earpiece hears (both voices of a
  * call, whatever the other end is: the other line, VoIP, another board);
  * with stereo=1, left = what the phone sends, right = what the earpiece
  * hears, as in a call recording (callcap.h). Between calls it's silence,

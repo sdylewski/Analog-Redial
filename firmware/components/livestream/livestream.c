@@ -22,8 +22,10 @@ static const char *TAG = "livestream";
 
 #define OUT_RATE    16000
 #define MAX_OUT     480                 /* output frames per audio pass, upper bound */
-#define SB_BYTES    (16 * 1024)         /* 0.5 s mono, 0.25 s stereo */
-#define MAX_BACKLOG_MS 250              /* more than this queued: drop the excess, so the delay can't grow */
+#define SB_BYTES    (8 * 1024)          /* 256 ms mono, 128 ms stereo: sent in chunks, the backlog stays small */
+#define MAX_BACKLOG_MS 200              /* more than this queued: drop the excess, so the delay can't grow */
+#define CHUNK_MS    40                  /* send this much at a time: 10 ms segments ran into lwIP's
+                                         * per-connection segment limit and fell behind */
 #define NVS_NS      "livestream"
 
 /* ---- shared with the audio task ----------------------------------------- */
@@ -31,7 +33,7 @@ static const char *TAG = "livestream";
 static StreamBufferHandle_t s_sb;       /* allocated once, never freed: a tap may still be running when removed */
 static uint32_t s_decim = 3, s_rate = OUT_RATE;
 static volatile bool s_stereo;
-static volatile uint32_t s_dropped_frames;
+static volatile uint32_t s_dropped_frames, s_full_frames, s_in_frames;
 static int16_t s_dl[MAX_OUT];
 static size_t  s_dl_n;
 static int16_t s_out[MAX_OUT * 2];
@@ -68,12 +70,14 @@ static void ul_tap(int line, const int16_t *mono, size_t n, void *ctx)
             s_out[2 * i] = up;
             s_out[2 * i + 1] = dn;
         } else {
-            int32_t v = (int32_t)up + dn;
-            s_out[i] = v > 32767 ? 32767 : v < -32768 ? -32768 : (int16_t)v;
+            /* Half each: dial tone alone peaks near full scale, and the
+             * mic also hears the earpiece back, so a plain sum clipped. */
+            s_out[i] = (int16_t)(((int32_t)up + dn) / 2);
         }
     }
     size_t bytes = m * (st ? 4 : 2);
-    if (xStreamBufferSpacesAvailable(s_sb) < bytes) { s_dropped_frames += m; return; }
+    s_in_frames += m;
+    if (xStreamBufferSpacesAvailable(s_sb) < bytes) { s_dropped_frames += m; s_full_frames += m; return; }
     xStreamBufferSend(s_sb, s_out, bytes, 0);
 }
 
@@ -307,7 +311,7 @@ static void task(void *arg)
 
     int cfd = -1, cline = 0;
     char cip[16] = "";
-    static uint8_t buf[1280];
+    static uint8_t buf[CHUNK_MS * OUT_RATE / 1000 * 4];   /* one chunk, stereo */
     int64_t last_note = 0;
 
     for (;;) {
@@ -342,8 +346,9 @@ static void task(void *arg)
                 s_decim = sr >= OUT_RATE ? sr / OUT_RATE : 1;
                 s_rate = sr / s_decim;
                 s_stereo = stereo;
-                s_dropped_frames = 0;
+                s_dropped_frames = s_full_frames = s_in_frames = 0;
                 xStreamBufferReset(s_sb);
+                xStreamBufferSetTriggerLevel(s_sb, (s_rate * CHUNK_MS / 1000) * (stereo ? 4 : 2));
                 if (!send_headers(cfd, stereo)) {
                     close(cfd);
                     cfd = -1;
@@ -362,7 +367,8 @@ static void task(void *arg)
         bool drop = !s_enabled || s_key_changed;
         size_t bpf = s_stereo ? 4 : 2;
         if (!drop) {
-            size_t got = xStreamBufferReceive(s_sb, buf, sizeof(buf), pdMS_TO_TICKS(100));
+            size_t chunk = (s_rate * CHUNK_MS / 1000) * bpf;
+            size_t got = xStreamBufferReceive(s_sb, buf, chunk, pdMS_TO_TICKS(150));
             if (got == 0) {
                 /* No audio for 100 ms: the taps were taken over (a call
                  * recording on this line) and maybe given back. Send 100 ms
@@ -381,6 +387,7 @@ static void task(void *arg)
                 drop = !send_all(cfd, buf, got);
                 size_t backlog = xStreamBufferBytesAvailable(s_sb);
                 size_t limit = (s_rate * MAX_BACKLOG_MS / 1000) * bpf;
+                if (limit > SB_BYTES * 3 / 4) limit = SB_BYTES * 3 / 4;
                 while (backlog > limit) {      /* the network fell behind: catch up */
                     size_t k = backlog - limit;
                     k -= k % bpf;
@@ -401,7 +408,10 @@ static void task(void *arg)
             cfd = -1;
             s_key_changed = false;
             set_status(false, NULL, 0, false);
-            ESP_LOGI(TAG, "stopped streaming to %s", cip);
+            ESP_LOGI(TAG, "stopped streaming to %s after %lu s: %lu frames in, %lu ms lost (%lu ms buffer full)",
+                     cip, (unsigned long)((esp_timer_get_time() - s_t0_us) / 1000000),
+                     (unsigned long)s_in_frames, (unsigned long)((uint64_t)s_dropped_frames * 1000 / s_rate),
+                     (unsigned long)((uint64_t)s_full_frames * 1000 / s_rate));
             activity_log("Live call audio: stopped streaming to %s", cip);
         }
     }

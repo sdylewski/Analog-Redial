@@ -6096,9 +6096,13 @@ static int append_livestream_card(char *buf, size_t cap, int off)
     char status[160];
     if (!on) snprintf(status, sizeof(status), "off");
     else if (st.streaming)
+    {
+        char lost[48] = "";
+        if (st.dropped_ms) snprintf(lost, sizeof(lost), ", %lu ms of audio lost", (unsigned long)st.dropped_ms);
         snprintf(status, sizeof(status), "streaming line %d (%s) to %s for %lu:%02lu%s", st.line,
                  st.stereo ? "stereo" : "mono", st.client, (unsigned long)(st.secs / 60),
-                 (unsigned long)(st.secs % 60), st.dropped_ms ? ", some audio lost to a slow network" : "");
+                 (unsigned long)(st.secs % 60), lost);
+    }
     else snprintf(status, sizeof(status), "on, waiting for a listener");
     off = appendf(buf, cap, off,
         "<div class=\"card wide\" id=\"livestream\"><h2>Live call audio</h2>"
@@ -6131,8 +6135,9 @@ static int append_livestream_card(char *buf, size_t cap, int off)
         "Sends a line's audio, live, to OBS or another player on your network: your voice and the "
         "other person's, mixed, whoever is at the other end (the other line, VoIP, another board). In "
         "OBS, add a Media Source, untick \"Local File\", paste the link into Input, and tick \"Restart "
-        "playback when source becomes active\". It's a few hundred milliseconds behind: set the Sync "
-        "Offset in OBS's Advanced Audio Properties, or delay the video, to line them up.",
+        "playback when source becomes active\". The board sends it about 0.1 s behind; to keep OBS "
+        "from adding more, set the source's Network Buffering to 0 MB, then line up what's left with "
+        "the Sync Offset in OBS's Advanced Audio Properties.",
         "16 kHz, 16-bit mono WAV, silence between calls. Add <code>&amp;stereo=1</code> for the two "
         "sides on separate channels (left: what the phone sends; right: what the earpiece hears), as "
         "in a call recording. One listener at a time: a new one replaces the old. Anyone with the link "
