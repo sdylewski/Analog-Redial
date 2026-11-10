@@ -166,13 +166,17 @@ and resistors that are already on the board.
   time it runs. That needs two thin wires from the companion's 2-pin programming pads to the main
   board's J5 header (the firmware looks for them on GPIO19/20; `bm64_diagpins` in the console tells it
   if they're elsewhere), and the board configured as one line with no microSD. After that the wires come off.
-- **Cheaper option:** the DFRobot **DFR0781** (BT401 module), about $3.50, with call control over a
+- **Cheaper option:** the DFRobot **DFR0781** (BT401 module), about $3.50 on
+  [DigiKey](https://www.digikey.com/en/products/result?keywords=DFR0781) (DigiKey part `1738-DFR0781-ND`)
+  or from [AliExpress](https://www.aliexpress.us/item/3256807742050408.html), with call control over a
   simple text command set, wired to the same header. Choose it in Settings → General → Board hardware;
   it needs no setup step. Music, incoming calls and dialing out work on a v5 board, with the module
   hand-wired to the header. An [adapter board](https://github.com/sdylewski/Analog-Redial/tree/main/Bluetooth/DFR0781_BT401/DFR0781_BT401_board_v1) that plugs into the
   header like the BM64 carrier is designed and ready to order, but not yet built or tested. Its parts are
   through-hole: the module, an 8-pin female header, a 1 uF ceramic capacitor, an optional status LED with
   a 1 kohm resistor, and an optional 6-pin header (USB, reset and the right audio channel).
+  On AliExpress, choose the **"DAC output"** version: this board takes the module's analog audio output,
+  so another version won't work.
 
 ---
 

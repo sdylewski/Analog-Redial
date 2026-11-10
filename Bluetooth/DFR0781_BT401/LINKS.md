@@ -3,6 +3,7 @@
 - **DFRobot Arduino library (MIT): https://github.com/DFRobot/DFRobot_BT401** (a copy is in `DFRobot_BT401/`; it is the
   only place the text commands are shown in code: `AT+BA0<n>` call control, `AT+BT<number>` dial, `AT+TS`, `AT+TT`)
 - Product page: https://www.dfrobot.com/product-2177.html (SKU DFR0781, about $3.50; also on Digikey as DFR0781)
+- AliExpress: https://www.aliexpress.us/item/3256807742050408.html (order the "DAC output" version)
 - Wiki: https://wiki.dfrobot.com/dfr0781/
   - Schematic (vendor reference design): https://dfimg.dfrobot.com/wiki/21085/DFR0781_bt401-module_schematics_V1.0.pdf
   - Datasheet (Chinese original, 46 pages, not kept in the repo): https://dfimg.dfrobot.com/wiki/21085/DFR0781_bt401-module_datasheet_V1.0.pdf
