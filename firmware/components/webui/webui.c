@@ -3595,21 +3595,28 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
             sd_ok ? "" : " disabled", sd_ok ? "" : " (no card inserted)", CLIP_UPLOAD_JS);
     }
 
+    /* "Add a code": the same three lines as an existing entry, left blank. */
     off = appendf(buf, cap, off,
-        "<form method=\"POST\" action=\"/dialcode_upload\" enctype=\"multipart/form-data\" class=\"settings-form\">"
-        "<h3>%s</h3>"
-        "<div class=\"grid2\">"
-        "<label>%s <input name=\"new_code\" pattern=\"[0-9*# \\(\\)\\-]{2,16}\" "
-        "maxlength=\"16\" required></label>"
-        "<label>%s <input name=\"desc\" maxlength=\"63\"></label></div>"
-        "<label>%s <input type=\"file\" name=\"file\" accept=\"audio/wav\" required></label>"
-        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-        "</form></div>",
-        i18n_str("dialcodes.add_title", "Add a code"),
+        "<div class=\"dialcode-list\"><div class=\"dialcode-item\">"
+        "<form method=\"POST\" action=\"/dialcode_upload\" enctype=\"multipart/form-data\">"
+        "<div class=\"dc-line dc-line-code\">"
+        "<input name=\"new_code\" placeholder=\"%s\" title=\"%s\" pattern=\"[0-9*# \\(\\)\\-]{2,16}\" "
+        "maxlength=\"16\" size=\"12\" required>"
+        "<button type=\"submit\" class=\"primary\">%s</button></div>"
+        "<div class=\"dc-line\"><input name=\"desc\" maxlength=\"63\" class=\"dc-desc-input\" "
+        "placeholder=\"%s\"></div>"
+        "<div class=\"dc-line\"><input type=\"file\" name=\"file\" accept=\"audio/wav\" required "
+        "title=\"%s\"></div>"
+        "<div class=\"dc-line\"><span class=\"hint\">%s</span></div>"
+        "</form></div></div></div>",
+        i18n_str("dialcodes.new_code_short", "New code"),
         i18n_str("dialcodes.new_code_label", "New code (2-10 digits, * or #; spaces and dashes are ignored)"),
+        i18n_str("dialcodes.upload_button", "Add dial code"),
         i18n_str("dialcodes.desc_label", "Description (optional)"),
         i18n_str("dialcodes.audio_label", "Audio file (WAV)"),
-        i18n_str("dialcodes.upload_button", "Upload + add dial code"));
+        i18n_str("dialcodes.add_hint", "Add a new code: its number, a description and a WAV file "
+                 "(converted to 8 kHz mono). Use \"upload new\" on a code to switch to an MP3 or "
+                 "the microSD card."));
     return off;
 }
 
