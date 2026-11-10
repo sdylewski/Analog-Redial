@@ -3435,44 +3435,70 @@ static clip_file_state_t clip_file_check(const char *name, char *actual, size_t 
     return st;
 }
 
-/* Dial codes -> "upload new": the pop-up that replaces a code's audio file. */
-static const char CLIP_UPLOAD_JS[] =
-    "var clipCur;"
-    "function clipOpen(b){clipCur={code:b.dataset.code,file:b.dataset.file};"
-    "document.getElementById('clipname').textContent=b.dataset.file;"
-    "document.getElementById('clipmsg').textContent='';document.getElementById('clipdlg').showModal();}"
-    "function clipGo(){var f=document.getElementById('clipf').files[0],m=document.getElementById('clipmsg');"
-    "if(!f){m.textContent='Pick a file first.';return;}"
-    "var x=f.name.match(/\\.(wav|mp3)$/i);if(!x){m.textContent='The file must be .wav or .mp3.';return;}"
+/* Settings -> Dial Codes: every code on one full-width table, one short row
+ * each (clips you added first, then the built-in ones), so a long list stays
+ * readable. Editing happens in one pop-up (DC_JS): code, description, the file
+ * a clip plays, uploading a new one to internal flash or the microSD card, and
+ * removing. The last row adds a code. */
+static const char DC_JS[] =
+    "var dcCur,dcA;"
+    "function dcG(i){return document.getElementById(i);}"
+    "function dcPlay(b){if(!dcA)dcA=new Audio();var on=b.classList.contains('playing');"
+    "document.querySelectorAll('.dcplay.playing').forEach(function(x){x.classList.remove('playing');x.innerHTML='&#9654;';});"
+    "dcA.pause();if(on)return;dcA.src=b.dataset.src;dcA.play();b.classList.add('playing');b.innerHTML='&#9632;';"
+    "dcA.onended=function(){b.classList.remove('playing');b.innerHTML='&#9654;';};}"
+    "function dcEdit(b){var d=b.dataset,clip=d.kind=='clip';dcCur=d;"
+    "dcG('dct').textContent=clip?'Dial code '+d.code:'Built-in: '+d.desc;"
+    "dcG('dccode').value=d.code;dcG('dcclip').style.display=clip?'':'none';"
+    "dcG('dcfixnote').style.display=clip?'none':'';"
+    "dcG('dcrm').style.display=clip&&d.builtin!='1'?'':'none';"
+    "if(clip){dcG('dcdesc').value=d.desc;dcG('dcfile').value=d.file;dcG('dcup').value='';}"
+    "dcG('dcmsg').textContent='';dcG('dcdlg').showModal();}"
+    "function dcChk(r){if(!r.ok)return r.text().then(function(t){throw new Error(t||r.status);});}"
+    "function dcPost(u,o){return fetch(u,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},"
+    "body:new URLSearchParams(o).toString()}).then(dcChk);}"
+    "function dcSave(){var d=dcCur,m=dcG('dcmsg'),code=dcG('dccode').value.trim(),p=Promise.resolve();"
+    "if(d.kind!='clip'){p=dcPost('/fixed_code_set',{def:d.def,new_code:code});}"
+    "else{var desc=dcG('dcdesc').value,file=dcG('dcfile').value.trim(),f=dcG('dcup').files[0];"
+    "if(f){var x=f.name.match(/\\.(wav|mp3)$/i);if(!x){m.textContent='The file must be .wav or .mp3.';return;}"
     "if(f.size>2097152){m.textContent='Too large: 2 MB at most.';return;}"
-    "var name=clipCur.file.replace(/\\.[^.]*$/,'')+'.'+x[1].toLowerCase();"
-    "var dest=document.querySelector('input[name=clipdest]:checked').value;m.textContent='Uploading...';"
-    "fetch('/media/'+encodeURIComponent(name)+'?dest='+dest,{method:'POST',body:f})"
-    ".then(function(r){return r.text().then(function(t){if(!r.ok)throw new Error(t||r.status);});})"
-    ".then(function(){if(name===clipCur.file)return;"
-    "return fetch('/dialcode_set_file',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},"
-    "body:'code='+encodeURIComponent(clipCur.code)+'&file='+encodeURIComponent(name)});})"
-    ".then(function(){location.reload();}).catch(function(e){m.textContent='Failed: '+e.message;});}";
+    "file=(file||d.file).replace(/\\.[^.]*$/,'')+'.'+x[1].toLowerCase();"
+    "var dest=document.querySelector('input[name=clipdest]:checked').value;"
+    "p=p.then(function(){return fetch('/media/'+encodeURIComponent(file)+'?dest='+dest,{method:'POST',body:f}).then(dcChk);});}"
+    "if(desc!=d.desc)p=p.then(function(){return dcPost('/dialcode_set_desc',{code:d.code,desc:desc});});"
+    "if(file!=d.file)p=p.then(function(){return dcPost('/dialcode_set_file',{code:d.code,file:file});});"
+    "if(code!=d.code)p=p.then(function(){return dcPost('/dialcode_set_code',{old_code:d.code,new_code:code});});}"
+    "m.textContent=f?'Uploading...':'Saving...';"
+    "p.then(function(){location.reload();}).catch(function(e){m.textContent='Failed: '+e.message;});}"
+    "function dcRemove(){if(!confirm('Remove dial code '+dcCur.code+'?'))return;"
+    "dcPost('/dialcode_delete/'+encodeURIComponent(dcCur.code),{}).then(function(){location.reload();})"
+    ".catch(function(e){dcG('dcmsg').textContent='Failed: '+e.message;});}";
 
 static int append_dialcodes_tab(char *buf, size_t cap, int off)
 {
-    dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
+    dialplan_clip_entry_t *clips = malloc(DIALPLAN_MAX_CLIP_ENTRIES * sizeof(*clips));
+    dialplan_fixed_info_t *fx = malloc(32 * sizeof(*fx));
+    if (!clips || !fx) {
+        free(clips);
+        free(fx);
+        return appendf(buf, cap, off, "<div class=\"card wide\"><h2>Dial codes</h2>"
+                                      "<p>Not enough memory to list them.</p></div>");
+    }
     size_t nclips = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
+    size_t nfx = dialplan_list_fixed(fx, 32);
+    int lines = board_hw_config_get().num_lines;
 
-    char dialcodes_h2[48];
-    snprintf(dialcodes_h2, sizeof(dialcodes_h2), i18n_str("dialcodes.title", "Dial codes (%u)"),
-             (unsigned)nclips);
     off = appendf(buf, cap, off,
-        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"card wide\" id=\"builtin\"><h2>%s</h2><script>%s</script>"
         "<p class=\"hint\">%s</p>",
-        dialcodes_h2,
-        i18n_str("dialcodes.hint",
-                 "Recode which number plays a clip, edit its description, change the audio "
-                 "file it plays, or remove it. A code is kept even if its file is missing or "
-                 "can't be read; the line under it says so. Removed codes that came with the "
-                 "board come back after a factory reset."));
+        i18n_str("dialcodes.title_all", "Dial codes"), DC_JS,
+        i18n_str("dialcodes.hint_table",
+                 "Everything the phone answers to. &#9654; plays a clip here; <b>edit</b> changes "
+                 "a code, its description or its audio. A code is kept even if its file is missing "
+                 "or can't be read. Removed codes that came with the board come back after a "
+                 "factory reset."));
 
-    /* Names of the audio files on the board, to pick from in each row's file box. */
+    /* Names of the audio files on the board, to pick from in the edit box. */
     {
         storage_entry_t *names = malloc(STORAGE_LIST_MAX * sizeof(storage_entry_t));
         off = appendf(buf, cap, off, "<datalist id=\"audiofiles\">");
@@ -3494,146 +3520,65 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         off = appendf(buf, cap, off, "</datalist>");
     }
 
-    if (nclips == 0) {
+    off = appendf(buf, cap, off,
+        "<table class=\"dctable\"><thead><tr><th>Code</th><th>What it does</th><th>Audio</th>"
+        "<th></th></tr></thead><tbody>"
+        "<tr class=\"grp\"><td colspan=\"4\">%s (%u)</td></tr>",
+        i18n_str("dialcodes.group_clips", "Audio clips"), (unsigned)nclips);
+
+    for (size_t i = 0; i < nclips && (size_t)off < cap; i++) {
+        char edesc[64 * 6], fname_h[sizeof(clips[i].filename) * 6];
+        html_escape(clips[i].desc, edesc, sizeof(edesc));
+        html_escape(clips[i].filename, fname_h, sizeof(fname_h));
+        char actual[STORAGE_MAX_NAME], info[96], actual_h[STORAGE_MAX_NAME * 6], info_h[96 * 6];
+        clip_file_state_t fs = clip_file_check(clips[i].filename, actual, sizeof(actual),
+                                               info, sizeof(info));
+        html_escape(actual, actual_h, sizeof(actual_h));
+        html_escape(info, info_h, sizeof(info_h));
         off = appendf(buf, cap, off,
-            "<div class=\"empty\">%s</div>", i18n_str("dialcodes.none_yet", "none yet"));
-    } else {
-        /* Three stacked lines per entry, not a <table> row -- this card
-         * lives in a .cards grid alongside Operator/Record (narrow, as
-         * little as 240px), and a 5-column table has no good way to fit
-         * code/filename/play/description/remove side by side at that
-         * width without either truncating everything or forcing the table
-         * wider than the card (see style.css's .dialcode-item comment for
-         * the fixed-layout attempt this replaced). Stacking reads fine at
-         * any width instead: recode+builtin-or-remove, then description,
-         * then filename+play. */
-        off = appendf(buf, cap, off,
-            "<div class=\"dialcode-list\">");
-        for (size_t i = 0; i < nclips && (size_t)off < cap; i++) {
-            char edesc[64 * 6];
-            html_escape(clips[i].desc, edesc, sizeof(edesc));
-            char fname_h[sizeof(clips[i].filename) * 6];
-            html_escape(clips[i].filename, fname_h, sizeof(fname_h));
+            "<tr><td class=\"code\">%s</td><td class=\"desc\">%s</td><td class=\"audio\">",
+            clips[i].code, edesc[0] ? edesc : "&mdash;");
+        if (fs == CLIP_FILE_OK) {
+            char actual_u[STORAGE_MAX_NAME * 3];
+            url_encode_path(actual, actual_u, sizeof(actual_u));
             off = appendf(buf, cap, off,
-                "<div class=\"dialcode-item\">"
-                "<div class=\"dc-line dc-line-code\">"
-                "<form method=\"POST\" action=\"/dialcode_set_code\" class=\"dc-inline\">"
-                "<input type=\"hidden\" name=\"old_code\" value=\"%s\">"
-                "<input name=\"new_code\" value=\"%s\" pattern=\"[0-9*# \\(\\)\\-]{2,16}\" maxlength=\"16\" "
-                "size=\"12\" required>"
-                "<button type=\"submit\">%s</button></form>",
-                clips[i].code, clips[i].code, i18n_str("dialcodes.save", "save"));
-            {
-                char remove_confirm[64];
-                snprintf(remove_confirm, sizeof(remove_confirm),
-                         i18n_str("dialcodes.remove_confirm", "Remove dial code %s?"), clips[i].code);
-                off = appendf(buf, cap, off,
-                    "<form method=\"POST\" action=\"/dialcode_delete/%s\" "
-                    "onsubmit=\"return confirm('%s')\">"
-                    "<button type=\"submit\">%s</button></form>",
-                    clips[i].code, remove_confirm, i18n_str("dialcodes.remove", "remove"));
-            }
+                "<button type=\"button\" class=\"dcplay\" title=\"Play\" data-src=\"/media/%s?inline=1\" "
+                "onclick=\"dcPlay(this)\">&#9654;</button> "
+                "<span class=\"fn\" title=\"%s\">%s</span>",
+                actual_u, info_h, actual_h);
+        } else {
             off = appendf(buf, cap, off,
-                "</div>"
-                "<div class=\"dc-line\">"
-                "<form method=\"POST\" action=\"/dialcode_set_desc\" class=\"dc-inline dc-grow\">"
-                "<input type=\"hidden\" name=\"code\" value=\"%s\">"
-                "<input name=\"desc\" value=\"%s\" maxlength=\"63\" class=\"dc-desc-input\">"
-                "<button type=\"submit\">%s</button></form>"
-                "</div>"
-                "<div class=\"dc-line\">"
-                "<form method=\"POST\" action=\"/dialcode_set_file\" class=\"dc-inline dc-grow\">"
-                "<input type=\"hidden\" name=\"code\" value=\"%s\">"
-                "<input name=\"file\" value=\"%s\" maxlength=\"%d\" class=\"dc-desc-input\" list=\"audiofiles\" "
-                "pattern=\"[A-Za-z0-9_.\\-]+\\.(wav|mp3|WAV|MP3)\" title=\"A .wav or .mp3 file in storage\">"
-                "<button type=\"submit\">%s</button>"
-                "<button type=\"button\" onclick=\"clipOpen(this)\" data-code=\"%s\" data-file=\"%s\">%s</button></form>"
-                "</div>"
-                "<div class=\"dc-line\">",
-                clips[i].code, edesc, i18n_str("dialcodes.save", "save"),
-                clips[i].code, fname_h, STORAGE_MAX_NAME - 1, i18n_str("dialcodes.save", "save"),
-                clips[i].code, fname_h, i18n_str("dialcodes.upload_new", "upload new\xe2\x80\xa6"));
-            {
-                char actual[STORAGE_MAX_NAME], info[96], actual_h[STORAGE_MAX_NAME * 6], info_h[96 * 6];
-                clip_file_state_t fs = clip_file_check(clips[i].filename, actual, sizeof(actual),
-                                                       info, sizeof(info));
-                html_escape(actual, actual_h, sizeof(actual_h));
-                html_escape(info, info_h, sizeof(info_h));
-                if (fs == CLIP_FILE_OK) {
-                    char actual_u[STORAGE_MAX_NAME * 3];
-                    url_encode_path(actual, actual_u, sizeof(actual_u));
-                    off = appendf(buf, cap, off,
-                        "<span class=\"pill on\">ready</span> <span class=\"hint\">%s%s%s</span></div>"
-                        "<div class=\"dc-line\">"
-                        "<audio controls preload=\"none\" src=\"/media/%s?inline=1\"></audio>"
-                        "</div></div>",
-                        info_h, strcmp(actual, clips[i].filename) ? ", plays " : "",
-                        strcmp(actual, clips[i].filename) ? actual_h : "", actual_u);
-                } else {
-                    off = appendf(buf, cap, off,
-                        "<span class=\"pill off\">%s</span> <span class=\"hint\">%s: %s. The code is "
-                        "kept. Upload the file under Storage, or pick another one above.</span>"
-                        "</div></div>",
-                        fs == CLIP_FILE_MISSING ? "file missing" : "can't be played", fname_h, info_h);
-                }
-            }
+                "<span class=\"pill off\">%s</span> <span class=\"fn\" title=\"%s\">%s</span>",
+                fs == CLIP_FILE_MISSING ? "file missing" : "can't be played", info_h, fname_h);
         }
-        off = appendf(buf, cap, off, "</div>" /* .dialcode-list */);
-        bool sd_ok = storage_sd_present();
         off = appendf(buf, cap, off,
-            "<dialog id=\"clipdlg\" style=\"max-width:26em;border-radius:8px\"><h3>Upload new audio</h3>"
-            "<p class=\"hint\">Replaces <b id=\"clipname\"></b>. A .wav or .mp3 file, up to 2&nbsp;MB "
-            "(8&nbsp;kHz mono is plenty for a phone).</p>"
-            "<p><input type=\"file\" id=\"clipf\" accept=\".wav,.mp3,audio/wav,audio/mpeg\"></p>"
-            "<p><label><input type=\"radio\" name=\"clipdest\" value=\"flash\" checked> Internal flash "
-            "(stays with the board)</label><br>"
-            "<label><input type=\"radio\" name=\"clipdest\" value=\"sd\"%s> microSD card%s</label></p>"
-            "<p id=\"clipmsg\" class=\"hint\"></p>"
-            "<div class=\"toolbar sub\"><button type=\"button\" class=\"primary\" onclick=\"clipGo()\">Upload</button> "
-            "<button type=\"button\" onclick=\"document.getElementById('clipdlg').close()\">Cancel</button></div>"
-            "</dialog><script>%s</script>",
-            sd_ok ? "" : " disabled", sd_ok ? "" : " (no card inserted)", CLIP_UPLOAD_JS);
+            "</td><td class=\"act\"><button type=\"button\" onclick=\"dcEdit(this)\" data-kind=\"clip\" "
+            "data-code=\"%s\" data-desc=\"%s\" data-file=\"%s\" data-builtin=\"%d\">%s</button></td></tr>",
+            clips[i].code, edesc, fname_h, clips[i].builtin ? 1 : 0,
+            i18n_str("dialcodes.edit", "edit"));
     }
 
-    /* "Add a code": the same three lines as an existing entry, left blank. */
+    /* The add row: the same columns, blank. The inputs belong to the form in
+     * the last cell (form="dcadd"), since a form can't wrap table cells. */
     off = appendf(buf, cap, off,
-        "<div class=\"dialcode-list\"><div class=\"dialcode-item\">"
-        "<form method=\"POST\" action=\"/dialcode_upload\" enctype=\"multipart/form-data\">"
-        "<div class=\"dc-line dc-line-code\">"
-        "<input name=\"new_code\" placeholder=\"%s\" title=\"%s\" pattern=\"[0-9*# \\(\\)\\-]{2,16}\" "
-        "maxlength=\"16\" size=\"12\" required>"
-        "<button type=\"submit\" class=\"primary\">%s</button></div>"
-        "<div class=\"dc-line\"><input name=\"desc\" maxlength=\"63\" class=\"dc-desc-input\" "
-        "placeholder=\"%s\"></div>"
-        "<div class=\"dc-line\"><input type=\"file\" name=\"file\" accept=\"audio/wav\" required "
-        "title=\"%s\"></div>"
-        "<div class=\"dc-line\"><span class=\"hint\">%s</span></div>"
-        "</form></div></div></div>",
+        "<tr class=\"addrow\">"
+        "<td class=\"code\"><input name=\"new_code\" form=\"dcadd\" placeholder=\"%s\" title=\"%s\" "
+        "pattern=\"[0-9*# \\(\\)\\-]{2,16}\" maxlength=\"16\" size=\"10\" required></td>"
+        "<td class=\"desc\"><input name=\"desc\" form=\"dcadd\" maxlength=\"63\" placeholder=\"%s\"></td>"
+        "<td class=\"audio\"><input type=\"file\" name=\"file\" form=\"dcadd\" accept=\"audio/wav\" "
+        "required title=\"%s\"></td>"
+        "<td class=\"act\"><form id=\"dcadd\" method=\"POST\" action=\"/dialcode_upload\" "
+        "enctype=\"multipart/form-data\"><button type=\"submit\" class=\"primary\">%s</button></form></td>"
+        "</tr>",
         i18n_str("dialcodes.new_code_short", "New code"),
         i18n_str("dialcodes.new_code_label", "New code (2-10 digits, * or #; spaces and dashes are ignored)"),
-        i18n_str("dialcodes.upload_button", "Add dial code"),
-        i18n_str("dialcodes.desc_label", "Description (optional)"),
-        i18n_str("dialcodes.audio_label", "Audio file (WAV)"),
-        i18n_str("dialcodes.add_hint", "Add a new code: its number, a description and a WAV file "
-                 "(converted to 8 kHz mono). Use \"upload new\" on a code to switch to an MP3 or "
-                 "the microSD card."));
-    return off;
-}
+        i18n_str("dialcodes.desc_short", "Description"),
+        i18n_str("dialcodes.audio_label", "Audio file (WAV, converted to 8 kHz mono)"),
+        i18n_str("dialcodes.add", "Add"));
 
-/* Settings -> Dial Codes: the codes for what the phone does by itself (call
- * the other phone, record a message, pi...). Each can be given another code;
- * ones this board can't use right now are shown, greyed out. */
-static int append_fixed_codes_card(char *buf, size_t cap, int off)
-{
-    dialplan_fixed_info_t fx[32];
-    size_t n = dialplan_list_fixed(fx, 32);
-    int lines = board_hw_config_get().num_lines;
-    off = appendf(buf, cap, off,
-        "<div class=\"card wide\" id=\"builtin\"><h2>Built-in codes</h2>"
-        "<p class=\"hint\">What the phone does by itself. Change a code to anything free "
-        "(2&ndash;10 digits, * or #); clear the box and save to put the original back.</p>"
-        "<table class=\"table\"><tr><th>Code</th><th>What it does</th><th></th></tr>");
-    for (size_t i = 0; i < n; i++) {
+    off = appendf(buf, cap, off, "<tr class=\"grp\"><td colspan=\"4\">%s</td></tr>",
+                  i18n_str("dialcodes.group_builtin", "Built-in"));
+    for (size_t i = 0; i < nfx && (size_t)off < cap; i++) {
         const char *note = "";
         bool usable = fx[i].available;
         if (!fx[i].available && lines < 2) note = "needs a two-line board";
@@ -3642,21 +3587,50 @@ static int append_fixed_codes_card(char *buf, size_t cap, int off)
         bool changed = strcmp(fx[i].info.code, fx[i].info.default_code) != 0;
         char was[48] = "";
         if (changed) snprintf(was, sizeof(was), " (was %s)", fx[i].info.default_code);
+        char edesc[64 * 6];
+        html_escape(fx[i].info.desc, edesc, sizeof(edesc));
         off = appendf(buf, cap, off,
-            "<tr%s><td>"
-            "<form method=\"POST\" action=\"/fixed_code_set\" class=\"dc-inline\">"
-            "<input type=\"hidden\" name=\"def\" value=\"%s\">"
-            "<input name=\"new_code\" value=\"%s\" pattern=\"[0-9*# \\(\\)\\-]{0,16}\" maxlength=\"16\" "
-            "size=\"12\"%s>"
-            "<button type=\"submit\"%s>save</button></form></td>"
-            "<td>%s%s</td><td>%s</td></tr>",
+            "<tr%s><td class=\"code\">%s<span class=\"fn\">%s</span></td><td class=\"desc\">%s</td>"
+            "<td class=\"audio\">%s%s%s</td>"
+            "<td class=\"act\"><button type=\"button\" onclick=\"dcEdit(this)\" data-kind=\"fix\" "
+            "data-def=\"%s\" data-code=\"%s\" data-desc=\"%s\"%s>%s</button></td></tr>",
             usable ? "" : " class=\"muted\"",
-            fx[i].info.default_code, fx[i].info.code, usable ? "" : " disabled",
-            usable ? "" : " disabled",
-            fx[i].info.desc, was,
-            note[0] ? note : "");
+            fx[i].info.code, was, edesc,
+            note[0] ? "<span class=\"fn\">" : "", note, note[0] ? "</span>" : "",
+            fx[i].info.default_code, fx[i].info.code, edesc, usable ? "" : " disabled",
+            i18n_str("dialcodes.edit", "edit"));
     }
-    return appendf(buf, cap, off, "</table></div>");
+    off = appendf(buf, cap, off, "</tbody></table>");
+
+    /* The edit pop-up, shared by every row. */
+    bool sd_ok = storage_sd_present();
+    off = appendf(buf, cap, off,
+        "<dialog id=\"dcdlg\" class=\"dcdlg\"><h3 id=\"dct\"></h3>"
+        "<form onsubmit=\"dcSave();return false\" class=\"settings-form\">"
+        "<label>Code <input id=\"dccode\" pattern=\"[0-9*# \\(\\)\\-]{0,16}\" maxlength=\"16\"></label>"
+        "<p id=\"dcfixnote\" class=\"hint\">2&ndash;10 digits, * or #. Clear the box to put the "
+        "original code back.</p>"
+        "<div id=\"dcclip\">"
+        "<label>Description <input id=\"dcdesc\" maxlength=\"63\"></label>"
+        "<label>Plays <input id=\"dcfile\" list=\"audiofiles\" maxlength=\"%d\" "
+        "pattern=\"[A-Za-z0-9_.\\-]+\\.(wav|mp3|WAV|MP3)\" title=\"A .wav or .mp3 file on the board\"></label>"
+        "<label>Or upload a new file <input type=\"file\" id=\"dcup\" accept=\".wav,.mp3,audio/wav,audio/mpeg\"></label>"
+        "<p class=\"hint\">.wav or .mp3, up to 2&nbsp;MB (8&nbsp;kHz mono is plenty for a phone). It "
+        "replaces the file named above.</p>"
+        "<p><label class=\"inline\"><input type=\"radio\" name=\"clipdest\" value=\"flash\" checked> "
+        "Internal flash (stays with the board)</label><br>"
+        "<label class=\"inline\"><input type=\"radio\" name=\"clipdest\" value=\"sd\"%s> microSD card%s</label></p>"
+        "</div>"
+        "<p id=\"dcmsg\" class=\"hint\"></p>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button> "
+        "<button type=\"button\" onclick=\"dcG('dcdlg').close()\">Cancel</button> "
+        "<button type=\"button\" id=\"dcrm\" onclick=\"dcRemove()\">Remove code</button></div>"
+        "</form></dialog></div>",
+        STORAGE_MAX_NAME - 1, sd_ok ? "" : " disabled", sd_ok ? "" : " (no card inserted)");
+
+    free(clips);
+    free(fx);
+    return off;
 }
 
 static int append_operator_tab(char *buf, size_t cap, int off,
@@ -7438,7 +7412,6 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         off = append_timer_tab(buf, cap, off, entries, n);
         off = append_alarm_tab(buf, cap, off, entries, n);
         off = append_weather_card(buf, cap, off);
-        off = append_fixed_codes_card(buf, cap, off);
         off = append_pin_actions_card(buf, cap, off);
     }
     else if (strcmp(tab, "home") == 0) {
@@ -10419,7 +10392,11 @@ static esp_err_t dialcode_delete_handler(httpd_req_t *req)
         httpd_resp_send_404(req);
         return ESP_OK;
     }
-    const char *code = req->uri + strlen(prefix);
+    char code[24];
+    if (!media_name_from_uri(req->uri, prefix, code, sizeof(code))) {
+        httpd_resp_send_404(req);
+        return ESP_OK;
+    }
     esp_err_t err = dialplan_clip_remove(code);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "dialcode_delete '%s' failed: %s", code, esp_err_to_name(err));

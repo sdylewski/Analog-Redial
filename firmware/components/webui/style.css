@@ -236,6 +236,36 @@ audio { height: 34px; vertical-align: middle; max-width: 100%; }
   text-overflow: ellipsis; white-space: nowrap;
 }
 .dc-line audio { width: 100%; }
+/* Settings -> Dial Codes: every code on one table, one short row each
+   (append_dialcodes_tab()); editing is in a pop-up, so rows stay narrow. */
+.dctable { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+.dctable th, .dctable td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+.dctable th { color: var(--muted); font-weight: 600; font-size: 12px; }
+.dctable tr.grp td { font-weight: 600; font-size: 13px; color: var(--muted); padding-top: 16px; }
+.dctable td.code { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+.dctable td.audio { white-space: nowrap; max-width: 16em; overflow: hidden; text-overflow: ellipsis; }
+.dctable td.act { text-align: right; white-space: nowrap; width: 1%; }
+.dctable .fn { color: var(--muted); font-size: 12px; font-weight: normal; }
+.dctable tr.muted td { opacity: .55; }
+.dctable tr.addrow input { width: 100%; min-width: 0; }
+.dctable tr.addrow td.code input { width: 8em; }
+.dctable tr.addrow form { margin: 0; }
+.dcplay { padding: 2px 8px; min-width: 2.2em; }
+.dcdlg { max-width: 28em; width: calc(100% - 32px); border: 1px solid var(--border); border-radius: 10px;
+         background: var(--panel); color: var(--text); }
+.dcdlg::backdrop { background: rgba(0,0,0,.4); }
+@media (max-width: 640px) {
+  .dctable thead { display: none; }
+  .dctable tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
+                padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .dctable td { border: 0; padding: 0; }
+  .dctable td.desc { flex: 1 1 50%; min-width: 0; }
+  .dctable td.audio { flex: 1 1 60%; max-width: none; }
+  .dctable td.audio:empty { display: none; }
+  .dctable tr.addrow input { box-sizing: border-box; }
+  .dctable td.act { margin-left: auto; width: auto; }
+  .dctable tr.addrow td { flex: 1 1 100%; }
+}
 
 button {
   background: var(--panel2);
