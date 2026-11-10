@@ -81,6 +81,9 @@ static const entry_t TABLE[] = {
     { "846", ACT_TIMER, 0, 0, "Timer: say how many minutes (1-99, a single 0 cancels); the phone rings when it's up", true },
     /* 256 spells ALM. */
     { "256", ACT_ALARM, 0, 0, "Alarm: dial the time as four digits on a 24 hour clock (0730 = 7:30 am; 99 cancels); the phone rings then", true },
+    /* 1212, the end of the old weather lines' numbers (WE6-1212). Not 932
+     * (W-E-A): every code starting with 9 is kept for Bluetooth dial-out. */
+    { "1212", ACT_WEATHER, 0, 0, "Weather report", true },
     { "321", ACT_CALL_LINE, -1, FX_NORMAL, "Call other phone (normal voice)", true },
     { "322", ACT_CALL_LINE, -1, FX_HIGH,   "Call other phone (chipmunk)", true },
     { "323", ACT_CALL_LINE, -1, FX_LOW,    "Call other phone (Vader)", true },
@@ -432,9 +435,13 @@ void dialplan_apply_mode(int line, dialplan_mode_change_t change)
  * custom clip codes even while hidden, so switching a board from 1 to 2
  * lines at runtime (no rebuild needed now) can't have silently let a custom
  * code claim them in the meantime. */
+static bool s_weather;
+void dialplan_set_weather(bool on) { s_weather = on; }
+
 static bool entry_available(const entry_t *e)
 {
     if (e->kind == ACT_CALL_LINE) return board_hw_config_get().num_lines > 1;
+    if (e->kind == ACT_WEATHER) return s_weather;
     return true;
 }
 
@@ -767,7 +774,8 @@ static dialplan_group_t group_for(dialplan_action_kind_t k)
     case ACT_CALL_LINE:       return DIALPLAN_GROUP_CALLS;
     case ACT_PI_DIGITS:
     case ACT_TIMER:
-    case ACT_ALARM:           return DIALPLAN_GROUP_CLIPS;
+    case ACT_ALARM:
+    case ACT_WEATHER:         return DIALPLAN_GROUP_CLIPS;
     case ACT_SET_MODE:        return DIALPLAN_GROUP_SETTINGS;
     default:                  return DIALPLAN_GROUP_MESSAGES;   /* operator, record, greeting */
     }

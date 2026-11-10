@@ -1,3 +1,4 @@
+#include "weather.h"
 #include "telephony.h"
 #include "dialplan.h"
 #include "ag1170.h"
@@ -1565,6 +1566,17 @@ static void handle_action(int line, const dialplan_action_t *a)
                 /* No prompt clip on this board: a short beep, then wait for the minutes. */
                 s_line[line].timer_wait_until_us = esp_timer_get_time() + TIMER_FIRST_DIGIT_WAIT_US;
                 play_transient(line, TONE_ANSWERING_BEEP, 300, TEL_TIMER_ENTRY, TEL_TIMER_ENTRY);
+            }
+            break;
+
+        case ACT_WEATHER:
+            audio_tx_silence(line);
+            if (weather_play(line, clip_done_cb, NULL) == ESP_OK) {
+                s_line[line].state = TEL_PLAYING;
+                activity_log("Line %d: weather report", line);
+            } else {
+                ESP_LOGW(TAG, "line %d: weather report: no voice pack", line);
+                play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
             }
             break;
 

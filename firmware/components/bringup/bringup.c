@@ -1,3 +1,4 @@
+#include "weather.h"
 #include "bringup.h"
 #include "board.h"
 #include "board_pins.h"
@@ -1783,6 +1784,47 @@ static int cmd_status(int argc, char **argv)
 }
 
 /* ---------- btcall: HF call control / state, for testing ring-and-answer ---------- */
+/* weather [fetch | install [base_url] | remove | play <line>] -- weather.h. A base URL
+ * (ending in /) installs the voice pack from somewhere other than GitHub, e.g.
+ * a laptop's `python3 -m http.server` while testing a new pack. */
+static int cmd_weather(int argc, char **argv)
+{
+    if (argc >= 2 && !strcmp(argv[1], "fetch")) { weather_refresh(); printf("fetching in the background\n"); return 0; }
+    if (argc >= 2 && !strcmp(argv[1], "install")) {
+        esp_err_t e = weather_install(argc >= 3 ? argv[2] : NULL);
+        printf("%s\n", e == ESP_OK ? "downloading in the background: run 'weather' for progress" : "already installing");
+        return e == ESP_OK ? 0 : 1;
+    }
+    if (argc >= 2 && !strcmp(argv[1], "remove")) { weather_remove_pack(); printf("removed\n"); return 0; }
+    if (argc >= 3 && !strcmp(argv[1], "play")) {
+        esp_err_t e = weather_play(atoi(argv[2]), NULL, NULL);
+        printf("play: %s\n", esp_err_to_name(e));
+        return e == ESP_OK ? 0 : 1;
+    }
+    weather_cfg_t c = weather_cfg();
+    weather_status_t st = weather_status();
+    static const char *PS[] = { "not installed", "installed", "installing" };
+    printf("enabled: %s\nplace: %s (%.4f, %.4f), %s\n", c.enabled ? "yes" : "no", c.place[0] ? c.place : "-",
+           c.lat, c.lon, c.celsius ? "Celsius" : "Fahrenheit");
+    printf("parts: %s%s%s\n", c.parts & WEATHER_PART_NOW ? "now " : "", c.parts & WEATHER_PART_TODAY ? "today " : "",
+           c.parts & WEATHER_PART_TOMORROW ? "tomorrow" : "");
+    printf("voice pack: %s, %u of %u bytes%s %s\n", PS[st.pack], (unsigned)st.pack_done, (unsigned)st.pack_bytes,
+           st.pack_on_sd ? " (microSD)" : "", st.pack_msg);
+    if (st.fetched) {
+        struct tm lt;
+        char when[32];
+        localtime_r(&st.fetched, &lt);
+        strftime(when, sizeof(when), "%a %H:%M", &lt);
+        printf("forecast from %s %s\n", when, st.fetch_msg);
+    } else {
+        printf("no forecast %s\n", st.fetch_msg);
+    }
+    char text[512];
+    weather_report_text(text, sizeof(text));
+    printf("says: %s\n", text);
+    return 0;
+}
+
 static int cmd_btcall(int argc, char **argv)
 {
     static const char *names[] = { "idle", "voice dial", "incoming", "outgoing",
@@ -3136,6 +3178,7 @@ void bringup_console_start(void)
     register_cmd("audiostat", "Underruns in clip/VoIP playback since boot (dropouts)", cmd_audiostat);
     register_cmd("dtmfbench", "Time the DTMF detector per 10 ms audio frame", cmd_dtmfbench);
     register_cmd("tonemon", "Watch DTMF (touch-tone) digits + timing: tonemon [secs] [line]", cmd_tonemon);
+    register_cmd("weather", "Weather report: weather [fetch | install [base_url] | remove | play <line>] -- no arg shows the settings, voice pack and forecast", cmd_weather);
     register_cmd("btcall", "Bluetooth phone call: btcall [accept|reject|end] -- no arg shows call state and caller ID", cmd_btcall);
     register_cmd("power", "Low-power idle state (the console, unlike the web UI, doesn't wake the board)", cmd_power);
     register_cmd("selftest", "Guided hardware bring-up check: selftest | action <id> | stimulus <id> | answer <id> <0|1> | save | history -- results stored on this board", cmd_selftest);

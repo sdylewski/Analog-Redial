@@ -35,6 +35,7 @@ typedef enum {
     ACT_HOME_CALL,      /* number[] is another phone's home-network number (homecall) */
     ACT_TIMER,          /* dial 846: ask how many minutes (1-99), then ring when it's up */
     ACT_ALARM,          /* dial 256 (ALM): ask for a 24-hour time, then ring at that time */
+    ACT_WEATHER,        /* dial 1212: read the weather forecast (weather.h) */
 } dialplan_action_kind_t;
 
 typedef enum {
@@ -121,6 +122,8 @@ dialplan_action_t dialplan_timeout(dialplan_collector_t *c, int line);
 #define DIALPLAN_BT_PREFIX     '9'
 #define DIALPLAN_BT_DIGITS     11
 void dialplan_set_bt_dialout(bool on);
+/* The weather report is set up and turned on (weather.h): its code answers. */
+void dialplan_set_weather(bool on);
 
 /* ---- Home-network numbers (homecall component) ----
  * Numbers other Analog Redial phones on the same network answer to, dialled

@@ -24,6 +24,7 @@
 #include "sdcard.h"
 #include "idle_power.h"
 #include "homecall.h"
+#include "weather.h"
 #include "autoupdate.h"
 #include "bt_companion.h"
 #include "esp_ota_ops.h"
@@ -287,6 +288,7 @@ void app_main(void)
 
     /* Optional nightly check for a newer release (off by default): autoupdate.h. */
     autoupdate_init();
+    weather_init();   /* after storage and the SD card: it looks for its voice pack */
 
     /* Optional Bluetooth Classic audio companion board (disabled by
      * default -- no hardware exists on any board yet). See

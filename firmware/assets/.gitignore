@@ -32,3 +32,8 @@
 !8.wav
 !9.wav
 !point.wav
+# The weather report's voice pack (synthesized speech, gen_weather_pack.py): boards
+# download these two from GitHub, so they ship.
+!weather/
+!weather/weather_en.pak
+!weather/weather_en.json

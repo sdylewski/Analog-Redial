@@ -161,6 +161,30 @@ that require a human to listen or lift a handset say so explicitly and print
 `Manual check required` at the end — these can't be fully automated without
 an audio analyzer on the line.
 
+## gen_weather_pack.py — the weather report's voice pack
+
+The weather report (dial 1212) strings recorded words together: every number from
+0 to 110, each kind of weather, and the joining phrases. This script speaks them all
+once with Kokoro and writes one file, `firmware/assets/weather/weather_en.pak` (a WAV
+with an index chunk), plus `weather_en.json` (its size and SHA-256).
+
+```bash
+./gen_weather_pack.py
+./gen_weather_pack.py --kokoro-voice bf_emma
+```
+
+Commit both files: boards download them from the main branch on GitHub when you press
+"Download voice pack" on the Weather report card. To try a new pack before pushing it,
+serve the folder from your computer and point a board at it on the console:
+
+```bash
+cd firmware/assets/weather && python3 -m http.server 8000
+# board console:
+weather install http://<your computer's IP>:8000/
+weather            # settings, pack, forecast and what it would say
+weather play 0     # play the report on line 0 (handset off-hook)
+```
+
 ## Web UI screenshots for the docs
 
 `screenshot_webui.py <board-ip>` (macOS, needs Google Chrome) saves every

@@ -62,6 +62,7 @@
 #include "coinboard.h"
 #include "callcap.h"
 #include "livestream.h"
+#include "weather.h"
 #include "auxpins.h"
 #include "esp_attr.h"
 #include "esp_rom_sys.h"
@@ -4692,6 +4693,173 @@ static int append_alarm_tab(char *buf, size_t cap, int off,
     return appendf(buf, cap, off, "</div></div></div>");
 }
 
+/* Weather report (dial 1212, weather.h): the place, what it says, and its voice pack. */
+static const char WEATHER_JS[] =
+    "function wxSearch(){var q=document.getElementById('wxq').value.trim(),r=document.getElementById('wxres');"
+    "if(!q)return;r.textContent='Searching...';"
+    "fetch('https://geocoding-api.open-meteo.com/v1/search?count=6&language=en&format=json&name='+encodeURIComponent(q))"
+    ".then(function(x){return x.json()}).then(function(j){r.textContent='';"
+    "if(!j.results||!j.results.length){r.textContent='No place found by that name.';return;}"
+    "j.results.forEach(function(p){var n=[p.name,p.admin1,p.country].filter(Boolean).join(', ');"
+    "var b=document.createElement('button');b.type='button';b.textContent=n;b.style.display='block';b.style.margin='4px 0';"
+    "b.onclick=function(){document.getElementById('wxplace').value=n.slice(0,63);"
+    "document.getElementById('wxlat').value=p.latitude;document.getElementById('wxlon').value=p.longitude;"
+    "document.getElementById('wxshow').textContent=n+' (save to keep it)';r.textContent='';};r.appendChild(b);});})"
+    ".catch(function(){r.textContent='The search runs in this browser: it needs internet access.';});}"
+    "function wxPoll(){fetch('/api/weather').then(function(x){return x.json()}).then(function(j){"
+    "var e=document.getElementById('wxprog');if(e)e.textContent=Math.round(j.done/1024)+' of '+Math.round(j.size/1024)+' KB';"
+    "if(j.pack!=2)location.reload();else setTimeout(wxPoll,1500);}).catch(function(){setTimeout(wxPoll,3000);});}";
+
+static int append_weather_card(char *buf, size_t cap, int off)
+{
+    weather_cfg_t c = weather_cfg();
+    weather_status_t st = weather_status();
+    const char *code = "1212";
+    dialplan_fixed_info_t fx[32];
+    size_t nfx = dialplan_list_fixed(fx, 32);
+    for (size_t i = 0; i < nfx; i++)
+        if (!strcmp(fx[i].info.default_code, "1212")) code = fx[i].info.code;
+
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\" id=\"weather\"><h2>Weather report</h2><script>%s</script><div class=\"threecols\"><div>",
+        WEATHER_JS);
+    off = append_guide_row(buf, cap, off, code, "Weather report", c.enabled && st.pack == WEATHER_PACK_READY ? 1 : 2);
+    off = append_hint(buf, cap, off,
+        "Dial it to hear the forecast for the place set here, read out like the old weather lines: "
+        "right now, today and tomorrow.",
+        "The forecast is Open-Meteo's (open-meteo.com, free, no account), fetched every 30 minutes while "
+        "the report is on. The voice is a pack of recorded words and numbers (about 0.9 MB, English), "
+        "downloaded once from the project's GitHub; it's kept in internal storage on a 16 MB board and "
+        "needs a microSD card on an 8 MB one. Change the code under Built-in codes below.");
+
+    /* The voice pack. */
+    char size_kb[24] = "";
+    if (st.pack_bytes) snprintf(size_kb, sizeof(size_kb), ", %u KB", (unsigned)((st.pack_bytes + 512) / 1024));
+    if (st.pack == WEATHER_PACK_INSTALLING) {
+        off = appendf(buf, cap, off,
+            "<div class=\"statusrow\"><span class=\"label\">Voice pack</span><span>downloading: "
+            "<span id=\"wxprog\">starting</span></span></div><script>setTimeout(wxPoll,1000);</script>");
+    } else {
+        off = appendf(buf, cap, off,
+            "<div class=\"statusrow\"><span class=\"label\">Voice pack</span><span>%s%s%s</span></div>",
+            st.pack == WEATHER_PACK_READY ? "installed" : "not installed", size_kb,
+            st.pack == WEATHER_PACK_READY ? (st.pack_on_sd ? ", on the microSD card" : ", internal storage") : "");
+        if (st.pack_msg[0] && strncmp(st.pack_msg, "Failed", 6) == 0) {
+            char em[sizeof(st.pack_msg) * 6];
+            html_escape(st.pack_msg, em, sizeof(em));
+            off = appendf(buf, cap, off, "<p class=\"hint\"><b>%s</b></p>", em);
+        }
+        const char *block = weather_pack_blocker();
+        if (block && st.pack != WEATHER_PACK_READY) {
+            off = appendf(buf, cap, off, "<p class=\"hint\"><b>%s</b></p>", block);
+        } else if (s_viewer_signed_in) {
+            off = appendf(buf, cap, off,
+                "<form method=\"POST\" action=\"/weather\" class=\"settings-form\"><div class=\"toolbar sub\">"
+                "<button type=\"submit\" name=\"action\" value=\"install\"%s>%s</button>%s</div></form>",
+                st.pack == WEATHER_PACK_READY ? "" : " class=\"primary\"",
+                st.pack == WEATHER_PACK_READY ? "Download again" : "Download voice pack",
+                st.pack == WEATHER_PACK_READY
+                    ? "<button type=\"submit\" name=\"action\" value=\"remove\" "
+                      "onclick=\"return confirm('Remove the weather voice pack?')\">Remove</button>" : "");
+        }
+    }
+
+    /* Settings. */
+    char eplace[WEATHER_PLACE_MAX * 6];
+    html_escape(c.place, eplace, sizeof(eplace));
+    bool placed = c.lat != 0.0 || c.lon != 0.0;
+    off = appendf(buf, cap, off,
+        "</div><div><h3>Settings</h3>"
+        "<form method=\"POST\" action=\"/weather\" class=\"settings-form\">"
+        "<input type=\"hidden\" name=\"action\" value=\"save\">"
+        "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> Weather report on</label>"
+        "<div class=\"statusrow\"><span class=\"label\">Place</span><span id=\"wxshow\">%s</span></div>"
+        "<input type=\"hidden\" name=\"place\" id=\"wxplace\" value=\"%s\">"
+        "<input type=\"hidden\" name=\"lat\" id=\"wxlat\" value=\"%.4f\">"
+        "<input type=\"hidden\" name=\"lon\" id=\"wxlon\" value=\"%.4f\">"
+        "<label>Find a place <input type=\"text\" id=\"wxq\" placeholder=\"a city or town\" "
+        "onkeydown=\"if(event.key==='Enter'){event.preventDefault();wxSearch();}\"></label>"
+        "<div class=\"toolbar sub\"><button type=\"button\" onclick=\"wxSearch()\">Search</button></div>"
+        "<div id=\"wxres\" class=\"hint\"></div>",
+        c.enabled ? " checked" : "", placed ? eplace : "none yet: search for one below", eplace, c.lat, c.lon);
+    off = appendf(buf, cap, off,
+        "<label>Temperatures <select name=\"units\">"
+        "<option value=\"f\"%s>Fahrenheit</option><option value=\"c\"%s>Celsius</option></select></label>"
+        "<p class=\"hint\" style=\"margin-bottom:0\">It reads out:</p>"
+        "<label><input type=\"checkbox\" name=\"p_now\" value=\"1\"%s> Right now</label>"
+        "<label><input type=\"checkbox\" name=\"p_today\" value=\"1\"%s> Today (in the evening: tonight's low)</label>"
+        "<label><input type=\"checkbox\" name=\"p_tomorrow\" value=\"1\"%s> Tomorrow</label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div></form>",
+        c.celsius ? "" : " selected", c.celsius ? " selected" : "",
+        c.parts & WEATHER_PART_NOW ? " checked" : "", c.parts & WEATHER_PART_TODAY ? " checked" : "",
+        c.parts & WEATHER_PART_TOMORROW ? " checked" : "");
+
+    /* What it says now. */
+    char text[512], etext[sizeof(text) * 2], when[48] = "";
+    weather_report_text(text, sizeof(text));
+    html_escape(text, etext, sizeof(etext));
+    if (st.fetched) {
+        struct tm lt;
+        localtime_r(&st.fetched, &lt);
+        strftime(when, sizeof(when), "forecast from %a %H:%M", &lt);
+    }
+    char emsg[sizeof(st.fetch_msg) * 6];
+    html_escape(st.fetch_msg, emsg, sizeof(emsg));
+    off = appendf(buf, cap, off,
+        "</div><div><h3>What it says now</h3><p>%s</p><p class=\"hint\">%s%s%s</p>",
+        c.enabled ? etext : "(the report is off)", when, st.fetch_msg[0] ? (when[0] ? "; last try: " : "Last try: ") : "",
+        emsg);
+    if (c.enabled && placed && s_viewer_signed_in)
+        off = appendf(buf, cap, off,
+            "<form method=\"POST\" action=\"/weather\"><div class=\"toolbar sub\">"
+            "<button type=\"submit\" name=\"action\" value=\"fetch\">Fetch now</button></div></form>");
+    return appendf(buf, cap, off, "</div></div></div>");
+}
+
+/* POST /weather, action=save|install|remove|fetch. */
+static esp_err_t weather_handler(httpd_req_t *req)
+{
+    char body[512] = "", action[12] = "";
+    int len = httpd_req_recv(req, body, sizeof(body) - 1);
+    if (len > 0) { body[len] = '\0'; form_field(body, "action", action, sizeof(action)); }
+    if (!strcmp(action, "install")) {
+        weather_install(NULL);
+    } else if (!strcmp(action, "remove")) {
+        weather_remove_pack();
+    } else if (!strcmp(action, "fetch")) {
+        weather_refresh();
+    } else if (!strcmp(action, "save")) {
+        weather_cfg_t c = weather_cfg();
+        char v[WEATHER_PLACE_MAX * 3];
+        c.enabled = form_field(body, "enabled", v, sizeof(v));
+        if (form_field(body, "place", v, sizeof(v))) { strncpy(c.place, v, sizeof(c.place) - 1); c.place[sizeof(c.place) - 1] = 0; }
+        if (form_field(body, "lat", v, sizeof(v))) c.lat = strtod(v, NULL);
+        if (form_field(body, "lon", v, sizeof(v))) c.lon = strtod(v, NULL);
+        if (form_field(body, "units", v, sizeof(v))) c.celsius = v[0] == 'c';
+        c.parts = (form_field(body, "p_now", v, sizeof(v)) ? WEATHER_PART_NOW : 0) |
+                  (form_field(body, "p_today", v, sizeof(v)) ? WEATHER_PART_TODAY : 0) |
+                  (form_field(body, "p_tomorrow", v, sizeof(v)) ? WEATHER_PART_TOMORROW : 0);
+        if (weather_set_cfg(&c) != ESP_OK) {
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Couldn't save the weather settings.");
+            return ESP_OK;
+        }
+    }
+    /* Give a quick fetch a moment, so the page shows its result. */
+    if (!strcmp(action, "fetch") || !strcmp(action, "save")) vTaskDelay(pdMS_TO_TICKS(2500));
+    return redirect_to(req, "/settings?tab=dialcodes#weather");
+}
+
+/* GET /api/weather -- the voice pack's download progress, for the card's poll. */
+static esp_err_t weather_json_handler(httpd_req_t *req)
+{
+    weather_status_t st = weather_status();
+    char json[96];
+    snprintf(json, sizeof(json), "{\"pack\":%d,\"done\":%u,\"size\":%u}", (int)st.pack,
+             (unsigned)st.pack_done, (unsigned)st.pack_bytes);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_sendstr(req, json);
+}
+
 /* Timer (dial 846): what it asks, and what it says when it's up. */
 static int append_timer_tab(char *buf, size_t cap, int off,
                              dialplan_entry_info_t *entries, size_t n)
@@ -7227,6 +7395,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         off = append_record_tab(buf, cap, off, entries, n);
         off = append_timer_tab(buf, cap, off, entries, n);
         off = append_alarm_tab(buf, cap, off, entries, n);
+        off = append_weather_card(buf, cap, off);
         off = append_fixed_codes_card(buf, cap, off);
         off = append_pin_actions_card(buf, cap, off);
     }
@@ -12190,6 +12359,7 @@ esp_err_t webui_start(void)
         { .uri = "/callcap_arm",            .method = HTTP_POST, .handler = callcap_arm_handler },
         { .uri = "/callcap_cancel",         .method = HTTP_POST, .handler = callcap_cancel_handler },
         { .uri = "/livestream",             .method = HTTP_POST, .handler = livestream_handler },
+        { .uri = "/weather",                .method = HTTP_POST, .handler = weather_handler },
         { .uri = "/dialcode_upload",        .method = HTTP_POST, .handler = dialcode_upload_handler },
         { .uri = "/operator_upload",        .method = HTTP_POST, .handler = operator_upload_handler },
         { .uri = "/prompt_text_set",        .method = HTTP_POST, .handler = prompt_text_set_handler },
@@ -12234,6 +12404,7 @@ esp_err_t webui_start(void)
         { .uri = "/api/dtmf_test",          .method = HTTP_GET,  .handler = dtmf_test_json_handler },
         { .uri = "/dtmf_report.txt",        .method = HTTP_GET,  .handler = dtmf_report_handler },
         { .uri = "/ring_freq",              .method = HTTP_POST, .handler = ring_freq_handler },
+        { .uri = "/api/weather",            .method = HTTP_GET,  .handler = weather_json_handler },
         { .uri = "/api/ring_test",          .method = HTTP_GET,  .handler = ring_test_json_handler },
         { .uri = "/test/progress",          .method = HTTP_POST, .handler = test_progress_handler },
         { .uri = "/sd_selftest_ui",         .method = HTTP_POST, .handler = sd_selftest_ui_handler },

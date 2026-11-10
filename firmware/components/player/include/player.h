@@ -11,6 +11,7 @@
 
 #include "esp_err.h"
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -52,6 +53,21 @@ esp_err_t player_play_chained(int line, const char *storage_name, player_done_cb
  * clip that continues something already playing (the last digit of a
  * sequence), where the pause would sound like a hiccup. */
 esp_err_t player_play_now(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx);
+
+/* One piece of a WAV's audio: `len` bytes starting `off` bytes into its data
+ * chunk, then `gap_ms` of silence. */
+typedef struct {
+    uint32_t off;
+    uint32_t len;
+    uint16_t gap_ms;
+} player_seg_t;
+
+/* Like player_play(), but plays only the listed pieces of the file, in order,
+ * as one playback: one lead-in, one done_cb at the end, and player_stop()
+ * stops all of it. For a voice pack that keeps many short clips in one WAV
+ * (weather.h). WAV only (ESP_ERR_NOT_SUPPORTED for an MP3); `segs` is copied. */
+esp_err_t player_play_segments(int line, const char *storage_name, const player_seg_t *segs, size_t nsegs,
+                               player_done_cb_t done_cb, void *ctx);
 
 /* Stops playback on `line` if active (e.g. on hangup mid-clip). done_cb is
  * NOT invoked. Safe to call even if nothing is playing. */

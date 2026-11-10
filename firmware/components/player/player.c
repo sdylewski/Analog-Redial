@@ -33,6 +33,8 @@ typedef struct {
     bool   chained;  /* another clip follows at once: don't wait out the tail or silence the line */
     player_done_cb_t done_cb;
     void  *ctx;
+    player_seg_t *segs;   /* player_play_segments(): pieces of the data chunk to play, in order (NULL = all of it) */
+    size_t nsegs;
 } play_args_t;
 
 static void finish(int line, bool call_cb, player_done_cb_t cb, void *ctx)
@@ -212,6 +214,20 @@ static bool wav_walk(storage_reader_t *rd, audio_wav_info_t *out)
     return false;
 }
 
+/* A pause between the pieces of player_play_segments(), as silence at the
+ * device rate, so the next piece starts on time rather than early. */
+static void write_silence(int line, uint32_t ms)
+{
+    static const int16_t zeros[128];
+    size_t left = (size_t)((uint64_t)ms * audio_sample_rate() / 1000);
+    while (left > 0 && !s_line[line].stop_requested) {
+        size_t n = left < 128 ? left : 128;
+        size_t wrote = audio_ext_write(line, zeros, n);
+        if (wrote == 0) { vTaskDelay(pdMS_TO_TICKS(5)); continue; }
+        left -= wrote;
+    }
+}
+
 static void play_task(void *arg)
 {
     play_args_t *a = (play_args_t *)arg;
@@ -277,43 +293,52 @@ static void play_task(void *arg)
             goto out;
         }
         audio_tx_external(line, true);
-        size_t remaining = wav.data_bytes;
-        while (remaining > 0 && !s_line[line].stop_requested) {
-            /* u-law: read bytes into the top half, expand to 16-bit in place
-             * (writing sample i never reaches a byte not yet read). */
-            size_t cap = ulaw ? PLAYBACK_CHUNK_BYTES / 2 : PLAYBACK_CHUNK_BYTES;
-            size_t want = (remaining < cap) ? remaining : cap;
-            uint8_t *dst = ulaw ? buf + PLAYBACK_CHUNK_BYTES / 2 : buf;
-            size_t got = storage_read_chunk(&rd, dst, want);
-            if (got == 0) break; /* short file vs. its own data_bytes header field */
-            remaining -= got;
+        player_seg_t whole = { 0, wav.data_bytes, 0 };
+        const player_seg_t *segs = a->segs ? a->segs : &whole;
+        size_t nsegs = a->segs ? a->nsegs : 1;
+        for (size_t si = 0; si < nsegs && !s_line[line].stop_requested; si++) {
+            if (segs[si].off >= wav.data_bytes) continue;
+            if (a->segs && storage_read_seek(&rd, wav.data_offset + segs[si].off) != ESP_OK) break;
+            size_t remaining = segs[si].len;
+            if (remaining > wav.data_bytes - segs[si].off) remaining = wav.data_bytes - segs[si].off;
+            while (remaining > 0 && !s_line[line].stop_requested) {
+                /* u-law: read bytes into the top half, expand to 16-bit in place
+                 * (writing sample i never reaches a byte not yet read). */
+                size_t cap = ulaw ? PLAYBACK_CHUNK_BYTES / 2 : PLAYBACK_CHUNK_BYTES;
+                size_t want = (remaining < cap) ? remaining : cap;
+                uint8_t *dst = ulaw ? buf + PLAYBACK_CHUNK_BYTES / 2 : buf;
+                size_t got = storage_read_chunk(&rd, dst, want);
+                if (got == 0) break; /* short file vs. its own data_bytes header field */
+                remaining -= got;
 
-            size_t in_total;
-            if (ulaw) {
-                int16_t *pcm16 = (int16_t *)buf;
-                for (size_t i = 0; i < got; i++) pcm16[i] = ulaw_decode(dst[i]);
-                in_total = got;
-            } else {
-                in_total = got / sizeof(int16_t); /* drops a possible odd trailing byte */
-            }
-            const int16_t *in = (const int16_t *)buf;
-            for (size_t in_off = 0; in_off < in_total && !s_line[line].stop_requested; ) {
-                size_t in_n = in_total - in_off;
-                const int16_t *pcm = in + in_off;
-                size_t n_samples = in_n;
-                if (need_resample) {
-                    if (in_n > RESAMPLE_IN_SAMPLES) in_n = RESAMPLE_IN_SAMPLES;
-                    n_samples = audio_resampler_push(&rs, pcm, in_n, resampled, resampled_cap);
-                    pcm = resampled;
+                size_t in_total;
+                if (ulaw) {
+                    int16_t *pcm16 = (int16_t *)buf;
+                    for (size_t i = 0; i < got; i++) pcm16[i] = ulaw_decode(dst[i]);
+                    in_total = got;
+                } else {
+                    in_total = got / sizeof(int16_t); /* drops a possible odd trailing byte */
                 }
-                in_off += in_n;
-                size_t sent = 0;
-                while (sent < n_samples && !s_line[line].stop_requested) {
-                    size_t wrote = audio_ext_write(line, pcm + sent, n_samples - sent);
-                    if (wrote == 0) { vTaskDelay(pdMS_TO_TICKS(5)); continue; }
-                    sent += wrote;
+                const int16_t *in = (const int16_t *)buf;
+                for (size_t in_off = 0; in_off < in_total && !s_line[line].stop_requested; ) {
+                    size_t in_n = in_total - in_off;
+                    const int16_t *pcm = in + in_off;
+                    size_t n_samples = in_n;
+                    if (need_resample) {
+                        if (in_n > RESAMPLE_IN_SAMPLES) in_n = RESAMPLE_IN_SAMPLES;
+                        n_samples = audio_resampler_push(&rs, pcm, in_n, resampled, resampled_cap);
+                        pcm = resampled;
+                    }
+                    in_off += in_n;
+                    size_t sent = 0;
+                    while (sent < n_samples && !s_line[line].stop_requested) {
+                        size_t wrote = audio_ext_write(line, pcm + sent, n_samples - sent);
+                        if (wrote == 0) { vTaskDelay(pdMS_TO_TICKS(5)); continue; }
+                        sent += wrote;
+                    }
                 }
             }
+            write_silence(line, segs[si].gap_ms);
         }
         free(resampled);
         bool stopped = s_line[line].stop_requested;
@@ -339,30 +364,38 @@ out:
      * the callback the phone sits in "playing" forever. Only a deliberate
      * stop stays silent -- whoever stopped it has moved the line on. */
     finish(line, ok || !s_line[line].stop_requested, a->done_cb, a->ctx);
+    free(a->segs);
     free(a);
     vTaskDelete(NULL);
 }
 
 static esp_err_t play_start(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx,
-                            bool chained, bool lead_in);
+                            bool chained, bool lead_in, const player_seg_t *segs, size_t nsegs);
 
 esp_err_t player_play(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx)
 {
-    return play_start(line, storage_name, done_cb, ctx, false, done_cb != NULL);
+    return play_start(line, storage_name, done_cb, ctx, false, done_cb != NULL, NULL, 0);
 }
 
 esp_err_t player_play_now(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx)
 {
-    return play_start(line, storage_name, done_cb, ctx, false, false);
+    return play_start(line, storage_name, done_cb, ctx, false, false, NULL, 0);
 }
 
 esp_err_t player_play_chained(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx)
 {
-    return play_start(line, storage_name, done_cb, ctx, true, false);
+    return play_start(line, storage_name, done_cb, ctx, true, false, NULL, 0);
+}
+
+esp_err_t player_play_segments(int line, const char *storage_name, const player_seg_t *segs, size_t nsegs,
+                               player_done_cb_t done_cb, void *ctx)
+{
+    if (!segs || nsegs == 0) return ESP_ERR_INVALID_ARG;
+    return play_start(line, storage_name, done_cb, ctx, false, done_cb != NULL, segs, nsegs);
 }
 
 static esp_err_t play_start(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx,
-                            bool chained, bool lead_in)
+                            bool chained, bool lead_in, const player_seg_t *segs, size_t nsegs)
 {
     if (line < 0 || line >= AUDIO_NUM_LINES) return ESP_ERR_INVALID_ARG;
     if (s_line[line].active) return ESP_ERR_INVALID_STATE;
@@ -408,6 +441,15 @@ static esp_err_t play_start(int line, const char *storage_name, player_done_cb_t
     a->is_mp3 = is_mp3;
     a->chained = chained && !is_mp3;
     a->lead_in = lead_in;
+    a->segs = NULL;
+    a->nsegs = 0;
+    if (segs) {
+        if (is_mp3) { free(a); return ESP_ERR_NOT_SUPPORTED; }
+        a->segs = malloc(nsegs * sizeof(*segs));
+        if (!a->segs) { free(a); return ESP_ERR_NO_MEM; }
+        memcpy(a->segs, segs, nsegs * sizeof(*segs));
+        a->nsegs = nsegs;
+    }
 
     s_line[line].active = true;
     s_line[line].stop_requested = false;
@@ -419,6 +461,7 @@ static esp_err_t play_start(int line, const char *storage_name, player_done_cb_t
     const uint32_t stack_bytes = is_mp3 ? STACK_MP3 : STACK_WAV;
     if (xTaskCreate(play_task, "player", stack_bytes, a, tskIDLE_PRIORITY + 3, NULL) != pdPASS) {
         s_line[line].active = false;
+        free(a->segs);
         free(a);
         return ESP_FAIL;
     }
