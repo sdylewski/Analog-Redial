@@ -25,7 +25,7 @@ Public version of the board reference: [docs/hardware-coin-board.md](../docs/har
   either direction, reads the 5 / 10 / 25 cent switches, and talks I²C. Released for fab,
   untested.
 - **Instruction cards** (`instruction_cards/`): the printed cards for the phone's
-  upper and lower panels.
+  upper and lower panels, and their standard sizes (see its README).
 - **Firmware** (`firmware/components/payphone/`, `coinboard/`): see
   [payphone-firmware.md](payphone-firmware.md).
 
