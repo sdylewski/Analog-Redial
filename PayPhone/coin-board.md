@@ -1,19 +1,23 @@
-# Payphone coin board: design
+# Payphone coin board: design, wiring and parts
 
-**Released for fab, untested.** Nothing here has been built, tested or simulated yet. Items
-marked **[verify]** are to be checked on the first board. Reference designators match
-`Payphone_coin_board_v1/Payphone_coin_board_v1.kicad_sch`.
+**Released for fab, untested.** The PCB layout is finished (2026-11-08), but nothing here has
+been built, tested or simulated yet. Items marked **[verify]** are to be checked on the first
+board. Reference designators and pin numbers match
+`Payphone_coin_board_v1/Payphone_coin_board_v1.kicad_sch`. For the short public version, see
+[docs/hardware-coin-board.md](../docs/hardware-coin-board.md); for the phone and its firmware,
+[README.md](README.md) and [payphone-firmware.md](payphone-firmware.md).
 
-| Doc | Covers |
+| Part | Covers |
 |---|---|
-| This one | how the board works: connectors, logic, the two power stages, coin inputs, cable, bench checks |
-| [output-stage-wiring.md](output-stage-wiring.md) | relay driver, polarity relay and firing switch, pin by pin |
-| [coin-board-smt.md](coin-board-smt.md) | parts list, what JLCPCB places, PCB layout and routing |
-| [payphone-firmware-plan.md](payphone-firmware-plan.md) | the firmware: the Payphone tab (coin tones, coin required, messages, log) and the coin board's driver |
-| [payphone-types.md](payphone-types.md) | payphone models: coin switches, coin relay, voltage and coin board settings for each |
+| [1. Design](#part-1-design) | how the board works: connectors, logic, the two power stages, coin inputs, cable, bench checks |
+| [2. Output stage wiring](#part-2-coin-relay-output-stage-what-connects-where) | relay driver, polarity relay and firing switch, pin by pin |
+| [3. Parts and PCB layout](#part-3-parts-and-pcb-layout) | parts list, what JLCPCB places, layout and routing |
 
 The bench measurements of the coin relay and the patent notes are in
 `Scott/coin-return-board.md` (local only, not in git).
+
+
+## Part 1: Design
 
 One board, surface-mount with a few through-hole parts, that (1) fires the
 HD550002C coin relay in either direction from a high voltage made on the
@@ -25,7 +29,7 @@ screw terminals beside the phone's own plugs, and a spare analog input (J13). It
 main board. VIO is the host's I2C logic voltage (3.3 V from Analog Redial,
 3.0 to 5.5 V works; section 3).
 
-## 1. Block diagram
+### 1. Block diagram
 
 ```
  Analog Redial                         COIN BOARD
@@ -44,7 +48,7 @@ main board. VIO is the host's I2C logic voltage (3.3 V from Analog Redial,
  J14 shunt: 20V to U3's VCC. Without it stage 2 can't run and HV stays at about 19 V.
 ```
 
-## 2. Connectors
+### 2. Connectors
 
 The phone has **two separate cables** for this board: a 4-wire one from the
 coin switches and a 3-wire one from the coin relay. Both have a red and a
@@ -66,7 +70,7 @@ green wire, and they aren't the same wires.
 
 **Checked:** both plugs match the pin numbers above (green on J3 pin 4, white on J2 pin 3).
 
-## 3. I2C and VIO
+### 3. I2C and VIO
 
 | Device | Address | Notes |
 |---|---|---|
@@ -101,7 +105,7 @@ POL and FIRE low; VIO without 5 V has nothing to drive.
 and the debug LEDs need about 3 V. Below that the HV supply simply won't turn
 on.
 
-## 4. U1 pins (TCA9534APWR, TSSOP-16, VCC = VIO)
+### 4. U1 pins (TCA9534APWR, TSSOP-16, VCC = VIO)
 
 | Pin | Name | Net | Dir | Idle | Notes |
 |---|---|---|---|---|---|
@@ -139,9 +143,9 @@ The coin LEDs take their current from VIO through the coin switch, not through
 R4-R6, so they don't change what U1 reads. Current: about 0.3-0.5 mA at
 VIO = 3.3 V (the LED's forward voltage is 2.6-3.1 V), about 1.5 mA at 5 V. A coin
 pulse is short, so D8-D10 only blink. The HV indicator (D7, red) is in
-[output-stage-wiring.md](output-stage-wiring.md).
+Part 2.
 
-## 5. Stage 1: 5 V to 20 V (U2, MC34063ADR2G)
+### 5. Stage 1: 5 V to 20 V (U2, MC34063ADR2G)
 
 1.25 V reference, internal 1.5 A switch, boost topology per the datasheet
 application circuit. The switch collector's absolute maximum is **40 V**, so
@@ -209,7 +213,7 @@ leg of the feedback divider**:
 With EN_HV low the board draws a few mA and holds no high voltage. Stage 1 starts in
 tens of ms and stage 2 reaches 52-60 V in well under 1 s (119 V in about 1 s).
 
-## 6. Stage 2: 20 V to 52-119 V (U3, UC3843BD1R2G + Q6, STN4NF20L)
+### 6. Stage 2: 20 V to 52-119 V (U3, UC3843BD1R2G + Q6, STN4NF20L)
 
 Current-mode PWM controller, non-synchronous boost, driving an external N-FET.
 It starts at about 8.4 V (7.8 to 9 V) and stops at 7.6 V, so it runs from the
@@ -333,9 +337,9 @@ that's the failure D3 is there for.
   string still reach 20 V in about 88 s. (A failed-open Rfbt runs the output up to
   D3, so that case is covered by the clamp, not the bleed.)
 
-## 7. Firing and polarity
+### 7. Firing and polarity
 
-See [output-stage-wiring.md](output-stage-wiring.md) for the wiring.
+See Part 2 for the wiring.
 
 **Sequence** (firmware): set POL, raise EN_HV, wait until HV is up (U4 reads it,
 or a fixed delay of about 3 s), pulse FIRE, drop FIRE, drop EN_HV. **Never change
@@ -374,7 +378,7 @@ while current flows. K1 always puts HV on one coil wire and RETURN on the other,
 one diode covers both directions. It can't clamp the relay's own contact opening,
 which is in series with the coil.
 
-## 8. Coin inputs
+### 8. Coin inputs
 
 - **The coin switches are passive:** green is the common, and green to white / red
   / blue closes briefly for a quarter / dime / nickel. There's no supply to them:
@@ -397,10 +401,10 @@ which is in series with the coil.
   spikes; firmware polls U1 about every 2-5 ms, debounces for a few ms and counts
   edges.
 
-## 9. Measuring HV, 20 V and firing current (U4, ADS1115)
+### 9. Measuring HV, 20 V and firing current (U4, ADS1115)
 
 U1 has no ADC, so U4 does the measuring (16-bit, 4 channels; its wiring table is in
-[output-stage-wiring.md](output-stage-wiring.md)). R44 (1 k) sits between R26 and AIN2,
+Part 2). R44 (1 k) sits between R26 and AIN2,
 because R26 can reach about 10 V in a coil-short fault, far above what AIN2 can take. Firmware can check "reached the
 target within N s", and see **C1 sag after a fire**: if the relay doesn't fire the
 voltage stays up; if it does, it sags by I x t / C (about 20 V for 100 mA x 50 ms).
@@ -413,7 +417,7 @@ and C25 (100 nF to GND) filter it (a 1.6 ms time constant, fine at the ADS1115's
 860 samples a second) and limit a fault: 24 V on the pin puts about 2 mA into U4's protection
 diodes, inside its 10 mA limit. Readings are 0 to VIO.
 
-## 10. Cable from the main board
+### 10. Cable from the main board
 
 The board mounts in the phone, next to the relay, on a cable from the main board's
 I2C header. The high voltage never leaves this board: the cable carries only 5 V,
@@ -437,7 +441,7 @@ the relay.
   so the cable can't load the codec's bus, or a differential extender such as the PCA9615
   for longer runs. **Probably not needed under 1 m.**
 
-## 11. Bench checks for the first board
+### 11. Bench checks for the first board
 
 1. **Which voltage the phone needs:** the HD550002C works at about 60 V; J14 alone gives
    52 V and J14 + J9 gives 60 V. The higher settings are for other phones.
@@ -454,10 +458,10 @@ the relay.
    0.3 V diode drop plus the 1 k), and a coin acceptor's output if one is to hand.
 8. **Firmware** (`firmware/components/coinboard/`, tested only against simulated chips): the
    coin inputs' timing, U4's readings against a meter, the pulse length the relay needs, and
-   the overcurrent limit. [payphone-firmware-plan.md](payphone-firmware-plan.md) has the
+   the overcurrent limit. [payphone-firmware.md](payphone-firmware.md) has the
    bring-up steps.
 
-## Sources
+### Sources
 
 - [TCA9534A datasheet](https://www.ti.com/lit/ds/symlink/tca9534a.pdf)
 - [Panasonic TX2-5V (DigiKey)](https://www.digikey.com/en/products/detail/panasonic-industry/TX2-5V/251803); the Omron G6S-2 DC5 fits the same footprint
@@ -466,3 +470,474 @@ the relay.
 - [STN4NF20L (DigiKey)](https://www.digikey.com/en/products/detail/stmicroelectronics/STN4NF20L/2440279)
 - [Molex 0026604040 (DigiKey)](https://www.digikey.com/en/products/detail/molex/0026604040/197447)
 - [Molex 0026604030 (DigiKey)](https://www.digikey.com/en/products/detail/molex/0026604030/96502)
+
+## Part 2: Coin relay output stage, what connects where
+
+Reference designators and pin numbers match
+`Payphone_coin_board_v1/Payphone_coin_board_v1.kicad_sch`.
+
+The output stage takes the high voltage on net **HV** (C1, 52-119 V, set by
+J7-J9) and sends it through the payphone's coin relay one way or the other.
+Three small blocks, each driven by one TCA9534A pin:
+
+| Block | Driven by | Does |
+|---|---|---|
+| A. Relay driver | **POL** (U1 P5, pin 10) | energizes K1's 5 V coil |
+| B. Polarity relay + coil connector | K1's contacts | picks which coin-relay wire gets HV |
+| C. Firing switch | **FIRE** (U1 P4, pin 9) | lets current flow through the coin relay |
+
+### The whole stage at a glance
+
+```
+                                   HV  (C1 +, 52-119 V)
+                                    |
+                     +--------------+--------------+
+                     |                             |
+                K1 pin 3 (NC1)                K1 pin 8 (NO2)
+                     \                             \
+      COIL_A <--- K1 pin 4 (COM1)       COIL_B <--- K1 pin 9 (COM2)
+        |            /                    |            /
+        |       K1 pin 5 (NO1)            |       K1 pin 10 (NC2)
+        |            |                    |            |
+        |            +----------+---------+------------+
+        |                       |
+   J2 pin 1 (green)          RETURN
+   J2 pin 3 (white)             |
+   J2 pin 2 (red): no connect   Q3 pin 2 (D)              STN4NF20L
+                                Q3 pin 3 (S)
+                                |
+                               R26 10 ohm  (current sense)
+                                |
+                               GND
+
+   RETURN --- D14 anode, D14 cathode --- HV                  (ES2D: the coil's freewheel path)
+   +5 V --- K1 pin 1 (coil) ... K1 pin 12 --- Q2 collector   (block A)
+   FIRE --- Q4 --- Q5 (from 20V) --- Q3 gate, clamped to 12 V by D6   (block C)
+```
+
+**Which way the coin goes** (from the bench tests: + on white moved the lever
+left = collect; + on red or green moved it right = return):
+
+| POL (P5) | K1 | J2 pin 1, green | J2 pin 3, white | Coin relay does |
+|---|---|---|---|---|
+| low (default at power-up) | off | HV | RETURN | **return to caller** (lever right) |
+| high | on | RETURN | HV | **collect** (lever left) |
+
+The phone's plug has green on pin 1 and white on pin 3, so turn on **Swap** on the
+Payphone tab: Collect then drives POL high. Confirm with a Collect test in the phone.
+
+Nothing flows until FIRE goes high. **Change POL only while FIRE is low**, so
+K1's contacts never switch a live current.
+
+### Block A: relay driver (POL -> K1 coil)
+
+```
+            +5V
+             |
+      +------+------+
+      |             |
+  K1 pin 1          D4 pin 1 (K, band)     1N4148W
+  [K1 coil]         |
+  K1 pin 12 --------+-- D4 pin 2 (A)
+      |
+  Q2 pin 3 (C)                        MMBT3904
+  Q2 pin 1 (B) --- R20 1k --- POL --- U1 pin 10 (P5)
+  Q2 pin 2 (E)                 |
+      |                        R2 100k
+     GND                       |
+                              GND
+```
+
+| Part | Pin | Connects to |
+|---|---|---|
+| K1 TX2-5V | 1 (coil) | +5 V |
+| K1 | 12 (coil) | Q2 pin 3 (C), D4 pin 2 (A) |
+| D4 1N4148W | 1 (K, the band) | +5 V |
+| D4 | 2 (A) | K1 pin 12 / Q2 collector |
+| Q2 MMBT3904 | 3 (C) | K1 pin 12 |
+| Q2 | 1 (B) | R20 to POL |
+| Q2 | 2 (E) | GND |
+| R20 1k | | Q2 base to POL: about 2.6 mA at VIO = 3.3 V, plenty for the coil's 30-40 mA |
+| R2 100k | | POL to GND: keeps K1 off while U1 powers up |
+
+### Block B: polarity relay and the coin-relay connector
+
+K1 pins, from KiCad's G6S-2 symbol, the same on the TX2-5V (the arm of each switch rests on pins 3
+and 10 when the coil is off):
+
+| K1 pin | What it is | Connects to (net) |
+|---|---|---|
+| 1 | coil | +5 V (block A) |
+| 12 | coil | Q2 collector (block A) |
+| **4** | COM1 | **COIL_A** -> J2 pin 1 |
+| **3** | NC1 (closed when off) | **HV** |
+| **5** | NO1 (closed when on) | **RETURN** |
+| **9** | COM2 | **COIL_B** -> J2 pin 3 |
+| **10** | NC2 (closed when off) | **RETURN** |
+| **8** | NO2 (closed when on) | **HV** |
+
+J2 takes the coin relay's own 3-wire cable. The coin switches are a separate
+4-wire cable on J3, with their own red and green wires.
+
+| J2 (Molex KK 396, 3 pin) or J11 (screw terminal) | Wire from the coin relay | Net |
+|---|---|---|
+| 1 | green | COIL_A |
+| 2 | red (the relay switch's other side) | not connected |
+| 3 | white | COIL_B |
+
+**J11** (screw terminal) has COIL_A on pin 1 and COIL_B on pin 3, like J2, and **COIL_C on
+pin 2**, which only J10 connects: its shunt ties COIL_C to HV, for a relay with two coils
+and a common wire. J2 pin 2 isn't connected, so the HD550002C's red wire never sees HV.
+Which coil fires for each POL setting: Part 1, section 7.
+
+Checked on the phone's own plug: green on pin 1, white on pin 3. The coil doesn't care
+which way round it is; only the Swap setting changes.
+
+The coin relay's own switch (red-green) cuts the current once the lever has
+moved, which is why the green wire is used: each fire is a single shot.
+
+### Block C: firing switch (FIRE -> Q3)
+
+Q3 is an STN4NF20L (200 V, SOT-223). Q4 and a PNP (Q5) lift FIRE to the 20 V rail,
+and D6 clamps the gate at 12 V, so Q3 gets the same full gate drive whatever VIO is.
+
+```
+   20V ----+------------------+
+           |                  |
+          R23 10k          Q5 pin 2 (E)            MMBT3906
+           |                  |
+           +---- Q5 pin 1 (B) |
+           |                  |
+          R22 4.7k         Q5 pin 3 (C)
+           |                  |
+     Q4 pin 3 (D)            R24 1k
+     Q4 pin 1 (G) --- R21 1k --- FIRE --- U1 pin 9 (P4)
+     Q4 pin 2 (S)             |     |
+           |                  |     R1 10k
+          GND                 |     |
+                              |    GND
+                  GATE3 ------+------+---------------+
+                              |      |               |
+                    Q3 pin 1 (G)   D6 pin 1 (K)    R25 10k
+                                   D6 pin 2 (A)      |
+                                     |              GND
+                                    GND
+
+   Q3 pin 2 (D) = RETURN (block B)
+   Q3 pin 3 (S) --- R26 10 ohm --- GND      (net ISENSE between them)
+```
+
+| Part | Pin | Connects to |
+|---|---|---|
+| Q4 2N7002 | 1 (G) | R21 to FIRE |
+| Q4 | 2 (S) | GND |
+| Q4 | 3 (D) | R22 to Q5 base |
+| Q5 MMBT3906 | 2 (E) | 20V |
+| Q5 | 1 (B) | R22 (to Q4 drain) and R23 (to 20V) |
+| Q5 | 3 (C) | R24 to GATE3 |
+| Q3 STN4NF20L | 1 (G) | GATE3 |
+| Q3 | 2 (D) | RETURN |
+| Q3 | 3 (S) | R26 to GND |
+| D6 BZT52C12 | 1 (K, band) | GATE3 |
+| D6 | 2 (A) | GND |
+| R21 1k | | FIRE to Q4 gate |
+| R1 10k | | FIRE to GND: Q3 stays off while U1 powers up |
+| R22 4.7k | | Q4 drain to Q5 base (about 4 mA base current) |
+| R23 10k | | Q5 base to 20V: turns Q5 off |
+| R24 1k | | Q5 collector to GATE3: limits zener current to about 8 mA |
+| R25 10k | | GATE3 to GND: turns Q3 off |
+| R26 10 ohm (1206) | | Q3 source to GND: current sense (about 1 V at 100 mA) |
+| R44 1 k | | ISENSE to U4 AIN2: limits the current into U4 in a coil-short fault |
+| D14 ES2D | 1 (K, band) | HV |
+| D14 | 2 (A) | RETURN: freewheel path if Q3 turns off while current flows |
+
+How it behaves:
+
+| FIRE | Q4 | Q5 | Q3 gate | Coin relay |
+|---|---|---|---|---|
+| low, or U1 powering up (R1 holds it low) | off | off | 0 V (R25) | no current |
+| high | on | on | 12 V (D6) | current flows HV -> K1 -> coin relay -> K1 -> Q3 -> GND |
+
+**FIRE with EN_HV low.** The 20V rail then sits at about 4.6 V (5 V coming through
+L1 and D1) and U3 stays off. That's enough to turn on Q3 **[verify its threshold]**,
+so FIRE high would still fire the relay from whatever C1 holds, until C1 has bled
+down (D7 out). Firmware must keep FIRE low unless it means to fire.
+
+### Net labels
+
+The HV net class in `Payphone_coin_board_v1.kicad_pro` matches `/HV*`, `HV*`, `/COIL_A`,
+`/COIL_B`, `/COIL_C`, `/RETURN` and `/SW2`, so keep these names: the 1.0 mm clearance then
+applies automatically. (A logic net whose name starts with HV would pick up the HV class too,
+so don't name one that way.)
+
+| Label | Where |
+|---|---|
+| HV | C1+, C21 pin 1, D2, D3, D14 cathode, K1 pins 3 and 8, R27, R32, R57, Rfbt1 |
+| HV_B1, HV_B2 | between R57-R59 (bleed) and between C21-C23 |
+| HV_F1, HV_F2 | between Rfbt1-3 (feedback) |
+| HV_LED1, HV_LED2 | R27, R28, D5 (HV indicator) |
+| SW2 | Q6 drain, L2, D2 anode: swings up to HV |
+| COIL_A | K1 pin 4, J2 pin 1, J11 pin 1 |
+| COIL_B | K1 pin 9, J2 pin 3, J11 pin 3 |
+| COIL_C | J11 pin 2, J10 pin 2 (J10 pin 1 is HV) |
+| RETURN | K1 pins 5 and 10, Q3 pin 2, D14 anode |
+| GATE3 | Q3 pin 1, D6 pin 1, R24, R25 |
+| RLY_COIL, Q2_B, Q4_G, Q4_D, Q5_B, Q5_C | the small nodes in blocks A and C |
+| ISENSE | Q3 pin 3, R26, R44 |
+| ISENSE_ADC | R44, U4 AIN2 |
+
+### HV safety
+
+- **Bleed time.** The feedback divider (about 310 k), R32 + R33 (about 1 M), R57-R59
+  (3 x 1 M) and the HV LED's string (below) drain C1: 119 V falls below 24 V (D7 out)
+  in about 33 s and below 20 V in about 42 s. Without the LED string it's about 86 s
+  to 20 V; if the divider opens, about 88 s. Still treat C1 as live until D7 is out,
+  or short it through a resistor before touching.
+- **HV indicator (D7).** HV -> R27 33 k -> R28 33 k -> D5 (BZT52C22, cathode to R28) ->
+  D7 red 0805 LED -> GND. It lights above about 24 V (22 V zener + LED). With EN_HV low
+  and C1 drained, HV idles at about 4 V, so D7 is dark; it lights whenever C1 is charged.
+  It runs from C1 itself, so it stays lit while C1 drains, even with the board unpowered.
+  Current: 0.4 mA at 52 V (dim but visible indoors), 1.4 mA at 119 V. R27/R28 share the
+  voltage (about 67 mW and 47 V each at 119 V, inside an 0805's rating).
+- **D3 orientation.** D3 (SMBJ130A) is unidirectional: pin 1, the cathode (band), is on HV
+  and pin 2 on GND. Check the band when hand-soldering it.
+
+### The ADS1115 (U4)
+
+| U4 pin | Connects to |
+|---|---|
+| 8 VDD | **VIO**, with C17 100 nF (not +5 V: at 5 V the chip wants I2C highs above 3.5 V, more than a 3.3 V bus gives) |
+| 3 GND | GND |
+| 1 ADDR | GND: address 0x48 |
+| 10 SCL, 9 SDA | SCL, SDA (R40 and R41 from the cable) |
+| 2 ALERT/RDY | not connected |
+| 4 AIN0 | 20V through R17 150 k / R19 27 k: 20 V reads 3.05 V (full scale 26.8 V). C19 100 nF to GND |
+| 5 AIN1 | HV through R32 1 M / R33 27 k: 119 V reads 3.13 V. C18 100 nF to GND |
+| 6 AIN2 | ISENSE (R26) through R44 1 k: 100 mA reads 1 V |
+| 7 AIN3 | J13 pin 2 through R52 10 k, C25 100 nF to GND: spare analog input |
+
+## Part 3: Parts and PCB layout
+
+Reference designators and
+values match `Payphone_coin_board_v1/Payphone_coin_board_v1.kicad_sch`.
+
+The board is surface-mount, with through-hole only for C1, K1, U4's module and the
+connectors. JLCPCB places every surface-mount part except seven that are hand-soldered:
+**C5, C7, C14, C20, U3, F1 and D3**. Those have no LCSC number in the LCSC field (their
+LCSC number is in the Note field), so they're left off the JLCPCB BOM and CPL.
+
+### Parts
+
+**Surface-mount semiconductors**
+
+| Ref | Function | Part | LCSC | JLCPCB |
+|---|---|---|---|---|
+| U1 | I2C I/O expander | TCA9534APWR, TSSOP-16 | C206010 | Extended |
+| U2 | stage 1, 5 V to 20 V | MC34063ADR2G, SOIC-8 | C32078 | Preferred |
+| U3 | stage 2 controller | UC3843BD1R2G, SOIC-8 | C16414 | **hand-soldered** |
+| Q3, Q6 | fire switch, stage 2 switch, 200 V | STN4NF20L (TECH PUBLIC), SOT-223 | C7603336 | Extended |
+| Q1, Q4 | small N-FETs | 2N7002, SOT-23 | C8545 | Basic |
+| Q2 | relay driver NPN | MMBT3904, SOT-23 | C20526 | Basic |
+| Q5 | gate-drive PNP | MMBT3906, SOT-23 | C7420354 | Preferred |
+| D1 | stage 1 Schottky | SS34, 3 A 40 V, SMA | C8678 | Basic |
+| D2, D14 | stage 2 ultrafast, coil freewheel | ES2D, SMA | C18199161 | Preferred |
+| D3 | HV clamp | SMBJ130A, 600 W unidirectional, SMB | C5353290 | **hand-soldered** |
+| D4 | relay flyback | 1N4148W, SOD-123 | C81598 | Basic |
+| D5, D6 | zeners, 22 V, 12 V | BZT52C22, BZT52C12, SOD-123 | C22375295, C19077410 | Preferred |
+| Dz1 | Q6 gate zener, 15 V 1 W | 1SMA4744A, SMA | C19077482 | Preferred |
+| D7 | HV indicator | red LED, 0805 | C84256 | Basic |
+| D8-D13, D15 | debug LEDs | green LED, 0805 | C2297 | Basic |
+| D16-D19 | coin input blocking diodes | B5819W, 40 V 1 A Schottky, SOD-123 | C8598 | Basic |
+
+**Inductors** (SXN SMDRI127, 12.3 x 12.3 x 8 mm, shielded, footprint
+`Inductor_SMD:L_SXN_SMDRI127`; JLCPCB places both)
+
+| Ref | Value | Part | Isat | Heating (40 C rise) | DCR max | Peak here | LCSC |
+|---|---|---|---|---|---|---|---|
+| L1 | 100 uH | SMDRI127-101MT | 3.5 A | 1.7 A | 0.22 ohm | about 1 A | C10150, Extended |
+| L2 | 220 uH | SMDRI127-221MT | 2.0 A | 1.16 A | 0.39 ohm | 0.45 A | C10151, Extended |
+
+**Electrolytics and fuse** (hand-soldered)
+
+| Ref | Function | Part | Notes |
+|---|---|---|---|
+| C5, C7, C14, C20 | 100 uF / 50 V on +5V and 20V | Nichicon UCD1H101MNL1GS (DigiKey) or Ymin VKMD1001H101MV (LCSC C487360), 8 x 10 mm, footprint `CP_Elec_8x10` | aluminium, not polymer or ceramic: C20 needs some ESR to damp the cable |
+| F1 | resettable fuse on +5V | Littelfuse 1812L110PR, 1812 | 1.1 A hold, 2.2 A trip |
+
+**Through-hole** (hand-soldered)
+
+| Ref | Function | Part |
+|---|---|---|
+| C1 | 220 uF / 200 V | Nichicon UCS2D221MHD, 18 x 26.5 mm, 7.5 mm leads |
+| K1 | DPDT relay, 5 V coil | Panasonic TX2-5V (2 A, 220 VDC switching, 140 mW coil). The Omron G6S-2 DC5 fits the same footprint (`Relay_DPDT_Omron_G6S-2`) |
+| J2 | relay cable | Molex 0026604030, KK 396, 3-pin |
+| J3 | coin switch cable | Molex 0026604040, KK 396, 4-pin |
+| J1 or J6 | main board cable | JST B5B-XH-A (mates with XHP-5), or a 1 x 5 pin header, 2.54 mm |
+| J7-J9 | HV setting | 1 x 2 pin headers + shunts, 2.54 mm |
+| J10 | two-coil relay option (J11 pin 2 to HV) | 1 x 2 pin header + shunt |
+| J14 | HV boost: U3's supply | 1 x 2 pin header + shunt. **Shunt for the HD550002C**; leave it off for 12-24 V coils |
+| J11 | relay screw terminal (instead of J2) | Phoenix MKDS 1,5/3-5,08 (1715734) |
+| J12 | coin input screw terminal (J3 + coin 4) | KF128-2.54-5P, 26-18 AWG (footprint `TerminalBlock_Xinya_XY308-2.54-5P`) |
+| J13 | spare analog input | 1 x 3 pin header, 2.54 mm |
+| U4 | ADC | ADS1115 module on a 1 x 10 header (VDD, GND, SCL, SDA, ADDR, ALRT, A0-A3), in a socket |
+
+**Not fitted:** R42, R43 (I2C pull-ups, for testing the board alone), Rslope1 and Cslope1
+(slope compensation, only if stage 2 shows subharmonic oscillation). JP1 is a solder jumper.
+
+**U4 is optional.** It only adds readings (Part 1,
+section 9). It's one of the common ADS1115 modules, not the bare chip; these carry their own
+I2C pull-ups and decoupling, which is fine at VIO.
+
+#### Resistors and small capacitors
+
+0805, placed by JLCPCB, except:
+
+| Ref | Value | Size | Why |
+|---|---|---|---|
+| Rfbt1-3, R57-R59, R32 | 100 k, 1 M, 1 M | **1206** | on HV: about 40 V each in the strings, about 115 V across R32 |
+| R27, R28 | 33 k | 0805 | HV LED, two in series: about 47 V and 67 mW each, inside an 0805's 150 V and 0.125 W |
+| R26 | 10 ohm | 1206 | firing current sense |
+| R12 | 100 ohm | **1206** | U2's driver resistor, 0.13 W |
+| R11, R45, R46 | 1 ohm, in parallel (0.33 ohm) | 1206 | U2's current sense |
+| C21-C23 | 100 nF 50 V X7R, in series | 1206 | HV bypass |
+
+| Capacitor | Value | Requirement |
+|---|---|---|
+| Ct1 | 2.2 nF | **C0G**: it sets U3's 65 kHz clock |
+| Cp1 | 100 pF | **C0G**: compensation pole |
+| C8 | 1 nF | X7R: U2's clock, which U2's own current limit makes tolerant of drift |
+| Cf1 | 470 pF | X7R: current-sense filter |
+| C26 | 100 nF | **50 V or more**: on the 20 V rail (C28233, 100 V, the board's 100 nF part) |
+| C28 | 100 nF | X7R: compensation zero (1.6 Hz) |
+
+The full list, with LCSC numbers, is
+[`jlcpcb/production_files/BOM-Payphone_coin_board_v1.csv`](Payphone_coin_board_v1/jlcpcb/production_files/BOM-Payphone_coin_board_v1.csv).
+
+#### Hand-solder parts from DigiKey
+
+One board's worth. Check stock and price on the page before ordering.
+
+| Ref | Qty | Part | DigiKey |
+|---|---:|---|---|
+| U3 | 1 | onsemi UC3843BD1R2G, SOIC-8 | [UC3843BD1R2G](https://www.digikey.com/en/products/detail/onsemi/UC3843BD1R2G/921714) |
+| D3 | 1 | Littelfuse SMBJ130A, SMB | [SMBJ130A](https://www.digikey.com/en/products/detail/littelfuse-inc/SMBJ130A/688304) |
+| F1 | 1 | Littelfuse 1812L110PR, 1812 | [1812L110PR](https://www.digikey.com/en/products/detail/littelfuse-inc/1812L110PR/267851) |
+| C5, C7, C14, C20 | 4 | Nichicon UCD1H101MNL1GS, 100 uF 50 V, 8 x 10.5 mm | [UCD1H101MNL1GS](https://www.digikey.com/en/products/detail/nichicon/UCD1H101MNL1GS/2549678) |
+| C1 | 1 | Nichicon UCS2D221MHD, 220 uF 200 V | [UCS2D221MHD](https://www.digikey.com/en/products/detail/nichicon/UCS2D221MHD/4991877) |
+| K1 | 1 | Panasonic TX2-5V | [TX2-5V](https://www.digikey.com/en/products/detail/panasonic-industry/TX2-5V/251803) |
+| J2 | 1 | Molex 0026604030, KK 396 header, 3-pin | [0026604030](https://www.digikey.com/en/products/detail/molex/0026604030/96502) |
+| J3 | 1 | Molex 0026604040, KK 396 header, 4-pin | [0026604040](https://www.digikey.com/en/products/detail/molex/0026604040/197447) |
+| J1 | 1 | JST B5B-XH-A (or fit J6 instead) | [B5B-XH-A](https://www.digikey.com/en/products/detail/jst-sales-america-inc/B5B-XH-A-LF-SN/1530483) |
+| U4 socket | 1 | Sullins PPTC101LFBN-RC, 1 x 10 female | [PPTC101LFBN-RC](https://www.digikey.com/en/products/detail/sullins-connector-solutions/PPTC101LFBN-RC/810149) |
+| J12 (optional) | 1 | KF128-2.54-5P screw terminal (not at DigiKey) | [AliExpress](https://www.aliexpress.us/item/3256801737987839.html) |
+| U4 | 1 | ADS1115 module (not at DigiKey) | [AliExpress](https://www.aliexpress.us/item/3256806547330256.html) |
+
+Also needed: pin headers and shunts for J6-J10, J13 and J14, and the optional screw terminal
+J11 (Phoenix 1715734). J2 and J3 take the phone's own KK 396 plugs.
+
+**U3 substitutes:** ST's UC3843BD1 is the same part. Not substitutes: TI's UCC28C43/UCC38C43
+(20 V absolute maximum VDD, and U3 runs from the 20 V rail), TI's UC3843AD (14-pin), the
+UC3842 (16 V start) and the UC3844/5 (50 % duty limit).
+
+#### Ordering
+
+Upload the files in `Payphone_coin_board_v1/jlcpcb/production_files/` (gerbers, BOM, CPL):
+
+- 2 layers, **lead-free HASL**, top-side assembly, **Economic PCBA** (JLCPCB offers Economic
+  only with HASL).
+- Four parts carry JLCPCB's Extended-part fee (about $3 each per order): U1, Q3/Q6, L1 and L2.
+- Estimated cost for 5 boards, delivered to the US with tariff and tax: about $130 from
+  JLCPCB, about $70 for the DigiKey parts and $10 for five ADS1115 modules, so **about $40 a
+  board**. An estimate, not a quote.
+
+#### The JLCPCB plugin
+
+`Payphone_coin_board_v1/jlcpcb/` is kicad-jlcpcb-tools' output (its `project.db` isn't
+tracked). Before each export:
+
+- Every surface-mount part JLCPCB places is in the CPL file, not just the BOM. A symbol marked
+  "exclude from position files" carries that to its footprint on Update PCB.
+- No hand-solder part has an LCSC number, and the plugin's **"Add parts without LCSC numbers to
+  BOM/CPL" is off**, so hand-solder parts are left out of both files.
+
+### Voltage ratings of small parts
+
+Thick-film chip resistors have a maximum working voltage separate from their power rating
+(typical general-purpose parts; check the exact part's datasheet):
+
+| Size | Max working voltage (typ.) | Power (typ.) |
+|---|---|---|
+| 0603 | 50-75 V | 1/10 W |
+| 0805 | 150 V | 1/8 W |
+| 1206 | 200 V | 1/4 W |
+
+On HV (up to 119 V): Rfbt1-3 and R57-R59 are three in series, about 40 V each; R27 and R28
+two in series, about 47 V each; R32 alone, about 115 V. C1 is rated 200 V, and C21-C23 share
+the voltage in series (about 40 V each). Everything else (logic, 20 V, gate drive) is well
+inside an 0805's rating.
+
+### PCB layout
+
+Two layers, 1 oz copper. Power flows left to right: J6 -> stage 1 -> stage 2 -> C1 -> K1 -> J2.
+
+| Block | Parts | Where |
+|---|---|---|
+| LOGIC | U1, U4, JP1, F1, C20, R40-R43, debug LEDs D11-D13 | top left, beside J6/J1 |
+| COIN | R4-R9, C2-C4, D16-D19, debug LEDs D8-D10, coin 4's R49-R51, C24, D15 | top right, at J3 and J12 |
+| STAGE1 (5 V -> 20 V) | U2, L1, D1, R11-R14, R45, R46, Q1, R3, C5-C8 | bottom left |
+| STAGE2 (20 V -> HV) | U3 and its small parts, Q6, L2, C14, D2, Rcs1, Dz1, J7-J9, J14, the feedback string, C1, D3, R32, R57-R59, the HV LED | bottom middle |
+| FIRE | R1, R21-R25, Q4, Q5, D6, Q3, R26 | right, above K1 |
+| POL | K1, Q2, D4, D14, R2, R20, J10, J11 | right, beside J2 |
+
+On the silkscreen: each block's name, the HV warning by C1 ("stays charged until the HV LED
+is out"), the J7-J9 voltage table and the debug LED labels. User.Comments (not fabricated)
+carries routing notes beside each block.
+
+#### Net classes
+
+Set in `Payphone_coin_board_v1.kicad_pro`:
+
+| Net class | Nets | Track | Clearance | Via | Carries |
+|---|---|---|---|---|---|
+| HighCurrent | +5V_IN, U2 Ipk node, SW1 (D1 anode) | 1.0 mm | 0.25 mm | 0.8 / 0.4 mm | stage 1's 1 A peaks |
+| Power | +5V, VIO, 20V, GND | 0.8 mm | 0.2 mm | 0.8 / 0.4 mm | up to about 0.5 A |
+| HV | HV, HV_*, SW2, COIL_A/B/C, RETURN | 0.5 mm | 1.0 mm | 0.8 / 0.4 mm | the coin relay pulse, 0.45 A peaks on SW2 |
+| Default | everything else | 0.25 mm | 0.2 mm | 0.6 / 0.3 mm | a few mA |
+
+The HighCurrent patterns use KiCad's auto net names (`Net-(U2-Ipk)`, `Net-(D1-A)`): update
+them if a re-annotation renames those nets. A logic net whose name starts with HV would pick
+up the HV class, so don't name one that way.
+
+**Pads inside one HV part** are checked against 0.6 mm (IPC-2221 B2, external uncoated copper,
+101-150 V) by the rules in `Payphone_coin_board_v1.kicad_dru`, for K1, J2, J10, Q3, Q6, R27
+and R28, whose pin spacing is fixed by the part. **K1's switch pads (3, 4, 5, 8, 9, 10) are
+1.7 mm**, not the library's 2.0 mm, for 0.84 mm between them; DRC lists K1 as differing from
+the library for that reason.
+
+#### Ground
+
+One ground, no splits: there's no transformer, and FIRE, POL, I2C and the ADC lines all cross
+between blocks. The bottom layer is one solid GND pour with only short jumpers. Each power loop
+closes on the top layer and stitches to the pour with several vias at its capacitors.
+
+#### Stage 1 and stage 2
+
+- **Stage 1 hot loop:** U2 pin 1 -> D1 -> C7 -> GND -> U2 pin 2, all on top. R11/R45/R46 sit
+  side by side with equal paths, so they share the current.
+- **Stage 2 hot loop:** Q6 drain -> D2 -> C1 ... Rcs1 -> Q6 source. C21-C23 close its fast
+  part, from D2's cathode to Rcs1's GND end.
+- **SW2** (Q6 drain, L2, D2 anode) swings 0-120 V: short, with nothing running parallel to it.
+- **Current sense:** a Kelvin trace from Rcs1's top pad to R56; Cf1 at U3's CS pin.
+- **Quiet ground:** Ct1, C27, Cf1, Rfbb4 and J7-J9 return to U3 pin 5, then one via to the
+  pour. The FB node is short, at U3 pin 2; HV runs out to Rfbt1, not the other way.
+- **R32 sits at C1:** only its 3 V tap (AIN1) runs to U4, so no HV enters the logic block.
+
+#### FIRE, POL and the ADC
+
+- FIRE and POL leave U1 as VIO logic lines; the level shift is at Q3, so GATE3 is only a few
+  millimetres long.
+- **Firing loop:** C1+ -> K1 -> J2 -> coin relay -> K1 -> Q3 -> R26 -> GND -> C1-, compact,
+  with R26's GND via toward C1-. K1's HV (3, 8) and RETURN (5, 10) pads cross over, so one pair
+  runs on the bottom layer.
+- Each ADC divider's low end and filter cap (C18, C19) sits at U4, so the long runs are the 3 V
+  taps.

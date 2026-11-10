@@ -227,11 +227,10 @@ Suggested first power-up, one step at a time:
 
 ## See also
 
-- [Design notes](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/coin-board-schematic.md):
-  every part value and how each stage works
-- [Output stage, pin by pin](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/output-stage-wiring.md)
-- [Parts, ordering and layout](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/coin-board-smt.md)
-- [Payphone types](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/payphone-types.md):
-  what each known payphone needs
+- [Coin board: design, wiring and parts](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/coin-board.md): every part value, how each stage works,
+  the output stage pin by pin, the parts list and the layout
+- [Payphone project overview](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/README.md): the pieces, status, what each known payphone needs,
+  and other payphone projects (PhilTel, Futel and more)
+- [Payphone firmware](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/payphone-firmware.md): the Payphone tab and the coin board's driver
 - [Schematic (PDF)](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/Payphone_coin_board_v1/Payphone_coin_board_v1_schematic.pdf)
 - [Board reference: v6](hardware-smd6.md), whose J11 header the coin board plugs into

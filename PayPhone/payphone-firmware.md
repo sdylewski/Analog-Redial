@@ -6,7 +6,7 @@ board card works on any Analog Redial board, without the coin board. Items marke
 board's driver is written and passes its tests against simulated chips, but no
 coin board has been built, so none of it has run on real hardware. None of the
 Payphone tab has been tried with a real payphone either. What each phone model needs
-is collected in [payphone-types.md](payphone-types.md).
+is collected in [the payphone types](README.md#payphone-types).
 
 ## The tab
 

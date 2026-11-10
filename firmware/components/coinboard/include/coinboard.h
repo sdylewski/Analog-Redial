@@ -29,7 +29,7 @@ extern "C" {
 #define COINBOARD_ADC_ADDR  0x48    /* U4: ADDR to GND */
 #define COINBOARD_POLL_MS   3
 
-/* U1's pins (coin-board-schematic.md section 4). Inputs read low while closed. */
+/* U1's pins (coin-board.md Part 1, section 4). Inputs read low while closed. */
 #define COINBOARD_BIT_COIN4   0
 #define COINBOARD_BIT_QUARTER 1
 #define COINBOARD_BIT_DIME    2
@@ -41,7 +41,7 @@ extern "C" {
 #define COINBOARD_INPUTS      0x0F  /* P0-P3 */
 #define COINBOARD_CONFIG      COINBOARD_INPUTS   /* configuration register: 1 = input */
 
-/* U4's channels (output-stage-wiring.md, "The ADS1115"). */
+/* U4's channels (coin-board.md, Part 2, "The ADS1115"). */
 #define COINBOARD_AIN_RAIL   0      /* 20V through R17 150 k / R19 27 k */
 #define COINBOARD_AIN_HV     1      /* HV through R32 1 M / R33 27 k */
 #define COINBOARD_AIN_ISENSE 2      /* R26 (10 ohm) through R44 1 k */

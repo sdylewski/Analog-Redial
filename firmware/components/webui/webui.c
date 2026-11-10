@@ -5288,32 +5288,7 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
                  "Status</a> page."));
     off = appendf(buf, cap, off, "</div>");
 
-    /* Ring frequency, per line */
-    {
-        const uint8_t *rf_hz;
-        int rf_n = telephony_ring_test_freqs(&rf_hz);
-        off = appendf(buf, cap, off, "<div class=\"card\"><h2>%s</h2>",
-                      i18n_str("hardware.ring_hz.title", "Ring frequency"));
-        for (int l = 0; l < board_hw_config_get().num_lines; l++) {
-            uint8_t cur = board_ring_hz_get(l);
-            off = appendf(buf, cap, off,
-                "<form method=\"POST\" action=\"/ring_freq\" class=\"settings-form\">"
-                "<input type=\"hidden\" name=\"line\" value=\"%d\">"
-                "<label>%s %d</label><div class=\"toolbar sub\"><select name=\"hz\">",
-                l, i18n_str("diag.test.line", "Line"), l);
-            for (int i = 0; i < rf_n; i++)
-                off = appendf(buf, cap, off, "<option value=\"%d\"%s>%d Hz</option>",
-                              rf_hz[i], rf_hz[i] == cur ? " selected" : "", rf_hz[i]);
-            off = appendf(buf, cap, off, "</select><button type=\"submit\">%s</button></div></form>",
-                          i18n_str("hardware.ring_hz.save", "Save"));
-        }
-        off = appendf(buf, cap, off, "<p class=\"hint\">%s</p></div>",
-            i18n_str("hardware.ring_hz.hint",
-                     "Most phones ring at 20 Hz. If a phone rings weakly or not at all, run the "
-                     "Ring frequency test on the <a href=\"/settings?tab=diag\">Diagnostics</a> "
-                     "tab, then save the frequency where its bell is loudest. Every ring on that "
-                     "line uses it, right away and after a reboot."));
-    }
+    off = append_firmware_card(buf, cap, off);
 
     idle_power_cfg_t ip = idle_power_get();
     char ip_status[64];
@@ -5470,7 +5445,32 @@ static int append_hardware_tab(char *buf, size_t cap, int off)
         "<details class=\"hint-detail\"><summary>%s</summary><p class=\"hint\">%s</p></details></div>",
         idlepower_hint, i18n_str("idlepower.details", "Details"), idlepower_more);
 
-    off = append_firmware_card(buf, cap, off);
+    /* Ring frequency, per line */
+    {
+        const uint8_t *rf_hz;
+        int rf_n = telephony_ring_test_freqs(&rf_hz);
+        off = appendf(buf, cap, off, "<div class=\"card\"><h2>%s</h2>",
+                      i18n_str("hardware.ring_hz.title", "Ring frequency"));
+        for (int l = 0; l < board_hw_config_get().num_lines; l++) {
+            uint8_t cur = board_ring_hz_get(l);
+            off = appendf(buf, cap, off,
+                "<form method=\"POST\" action=\"/ring_freq\" class=\"settings-form\">"
+                "<input type=\"hidden\" name=\"line\" value=\"%d\">"
+                "<label>%s %d</label><div class=\"toolbar sub\"><select name=\"hz\">",
+                l, i18n_str("diag.test.line", "Line"), l);
+            for (int i = 0; i < rf_n; i++)
+                off = appendf(buf, cap, off, "<option value=\"%d\"%s>%d Hz</option>",
+                              rf_hz[i], rf_hz[i] == cur ? " selected" : "", rf_hz[i]);
+            off = appendf(buf, cap, off, "</select><button type=\"submit\">%s</button></div></form>",
+                          i18n_str("hardware.ring_hz.save", "Save"));
+        }
+        off = appendf(buf, cap, off, "<p class=\"hint\">%s</p></div>",
+            i18n_str("hardware.ring_hz.hint",
+                     "Most phones ring at 20 Hz. If a phone rings weakly or not at all, run the "
+                     "Ring frequency test on the <a href=\"/settings?tab=diag\">Diagnostics</a> "
+                     "tab, then save the frequency where its bell is loudest. Every ring on that "
+                     "line uses it, right away and after a reboot."));
+    }
 
     return off;
 }

@@ -1,6 +1,6 @@
 /* Host test of the coin relay's firing sequence (coin_fire.c) against a model
  * of the coin board's power stages and a coin relay. Checks the rules of
- * coin-board-schematic.md section 7 at every millisecond, on top of each
+ * coin-board.md Part 1, section 7 at every millisecond, on top of each
  * scenario's own result. */
 #include "coin_fire.h"
 #include <stdio.h>

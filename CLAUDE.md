@@ -64,7 +64,7 @@ It adds **J11**, a 5-pin I²C accessory header (1 GND, 2 SCL, 3 SDA, 4 +3.3 V, 5
 docs/board.md version table and callout, the README in the v6 KiCad folder). Don't describe v6 as
 tested or working until the user has built one and says so.
 
-**Payphone coin board (`PayPhone/Payphone_coin_board_v1/`) is released for fab (2026-11-08), untested:** layout finished, nothing built. Its docs say so at the top; keep saying untested until the user has built one. Its JLCPCB exports (`jlcpcb/`) and schematic PDF are in git since v1.2.1; public reference: `docs/hardware-coin-board.md`. `HV_Relay.kicad_sch` in its folder is an unreferenced leftover, left untracked.
+**Payphone coin board (`PayPhone/Payphone_coin_board_v1/`) is released for fab (2026-11-08), untested:** layout finished, nothing built. Its docs say so at the top; keep saying untested until the user has built one. Its JLCPCB exports (`jlcpcb/`) and schematic PDF are in git since v1.2.1; public reference: `docs/hardware-coin-board.md`; internal docs are three files in `PayPhone/`: `README.md` (overview, phone types, links), `coin-board.md` (design, wiring, parts), `payphone-firmware.md`. `HV_Relay.kicad_sch` in its folder is an unreferenced leftover, left untracked.
 
 ## Building/flashing for a specific board type (SMD2 vs SMD4 vs SMD5)
 
