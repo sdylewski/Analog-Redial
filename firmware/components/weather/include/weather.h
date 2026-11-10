@@ -3,7 +3,7 @@
  *
  * The forecast comes from Open-Meteo (free, no key) for one saved place, picked
  * on the Dial Codes tab by name. While the report is on, the board fetches it
- * every 30 minutes, so a call plays at once.
+ * once an hour, so a call plays at once.
  *
  * The speech is a voice pack: every number and phrase the report uses, spoken
  * once (firmware/bringup/gen_weather_pack.py), in one WAV the board downloads

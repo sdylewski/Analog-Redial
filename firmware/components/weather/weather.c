@@ -25,7 +25,7 @@ static const char *TAG = "weather";
 
 #define NVS_NS           "weather"
 #define CFG_VERSION      1
-#define REFRESH_US       (30LL * 60 * 1000000)    /* fetch the forecast this often */
+#define REFRESH_US       (60LL * 60 * 1000000)    /* fetch the forecast this often */
 #define RETRY_US         (5LL * 60 * 1000000)     /* after a failed fetch */
 #define STALE_US         (3LL * 3600 * 1000000)   /* older than this isn't read out */
 #define TICK_US          (60LL * 1000000)
@@ -500,6 +500,8 @@ static bool kick(void)
 static void tick(void *arg)
 {
     (void)arg;
+    /* A pack copied on by hand, or on a card inserted since: notice it. */
+    if (s_st.pack == WEATHER_PACK_MISSING && !s_task_running) pack_check();
     weather_cfg_t c = weather_cfg();
     if (!c.enabled || !have_place(&c) || !wifi_is_connected()) return;
     int64_t now = esp_timer_get_time();
@@ -690,7 +692,9 @@ size_t weather_report_text(char *buf, size_t cap)
         }
         for (size_t k = 0; !t && k < sizeof(WORDS) / sizeof(WORDS[0]); k++)
             if (!strcmp(WORDS[k].name, p->name[i])) t = WORDS[k].text;
-        int w = snprintf(buf + off, cap - off, "%s%s", off ? " " : "", t ? t : p->name[i]);
+        const char *txt = t ? t : p->name[i];
+        bool stop = p->gap[i] >= GAP_SENTENCE && txt[strlen(txt) - 1] != '.';
+        int w = snprintf(buf + off, cap - off, "%s%s%s", off ? " " : "", txt, stop ? "." : "");
         if (w > 0) off += (size_t)w < cap - off ? (size_t)w : cap - off - 1;
     }
     free(p);

@@ -4727,7 +4727,7 @@ static int append_weather_card(char *buf, size_t cap, int off)
     off = append_hint(buf, cap, off,
         "Dial it to hear the forecast for the place set here, read out like the old weather lines: "
         "right now, today and tomorrow.",
-        "The forecast is Open-Meteo's (open-meteo.com, free, no account), fetched every 30 minutes while "
+        "The forecast is Open-Meteo's (open-meteo.com, free, no account), fetched once an hour while "
         "the report is on. The voice is a pack of recorded words and numbers (about 0.9 MB, English), "
         "downloaded once from the project's GitHub; it's kept in internal storage on a 16 MB board and "
         "needs a microSD card on an 8 MB one. Change the code under Built-in codes below.");
