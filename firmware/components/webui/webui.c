@@ -3467,6 +3467,13 @@ static const char DC_JS[] =
     "p=p.then(function(){return fetch('/media/'+encodeURIComponent(file)+'?dest='+dest,{method:'POST',body:f}).then(dcChk);});}"
     "if(desc!=d.desc)p=p.then(function(){return dcPost('/dialcode_set_desc',{code:d.code,desc:desc});});"
     "if(file!=d.file)p=p.then(function(){return dcPost('/dialcode_set_file',{code:d.code,file:file});});"
+    /* An upload that changed the name (jenny.wav -> jenny.mp3) leaves the old
+     * file unused: delete it, unless another code still plays it. Files built
+     * into the firmware can't be deleted, so they stay (the request just fails). */
+    "if(f&&file!=d.file&&!Array.prototype.some.call(document.querySelectorAll('[data-kind=clip]'),"
+    "function(b){return b.dataset.code!=d.code&&b.dataset.file==d.file;}))"
+    "p=p.then(function(){return fetch('/media_delete/'+encodeURIComponent(d.file),{method:'POST'})"
+    ".catch(function(){});});"
     "if(code!=d.code)p=p.then(function(){return dcPost('/dialcode_set_code',{old_code:d.code,new_code:code});});}"
     "m.textContent=f?'Uploading...':'Saving...';"
     "p.then(function(){location.reload();}).catch(function(e){m.textContent='Failed: '+e.message;});}"
