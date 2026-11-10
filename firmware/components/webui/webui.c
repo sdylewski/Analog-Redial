@@ -3440,9 +3440,15 @@ static clip_file_state_t clip_file_check(const char *name, char *actual, size_t 
  * each (clips you added first, then the built-in ones), so a long list stays
  * readable. Editing happens in one pop-up (DC_JS): code, description, the file
  * a clip plays, uploading a new one to internal flash or the microSD card, and
- * removing. The last row adds a code. */
+ * removing. The last row adds a code.
+ *
+ * Uploads are made small in the browser first (dcShrink): it decodes whatever
+ * it's given, mixes to mono, resamples to 8 kHz and encodes a 24 kbps MP3 with
+ * lamejs from a CDN. The board can't encode MP3 itself (no encoder, no FPU, and
+ * not the RAM). Offline, or for audio the browser can't decode, the file goes up
+ * as it is (.wav or .mp3). "Shrink" does the same for a file already on the board. */
 static const char DC_JS[] =
-    "var dcCur,dcA;"
+    "var dcCur,dcA,dcLameP;"
     "function dcG(i){return document.getElementById(i);}"
     "function dcPlay(b){if(!dcA)dcA=new Audio();var on=b.classList.contains('playing');"
     "document.querySelectorAll('.dcplay.playing').forEach(function(x){x.classList.remove('playing');x.innerHTML='&#9654;';});"
@@ -3453,31 +3459,69 @@ static const char DC_JS[] =
     "dcG('dccode').value=d.code;dcG('dcclip').style.display=clip?'':'none';"
     "dcG('dcfixnote').style.display=clip?'none':'';"
     "dcG('dcrm').style.display=clip&&d.builtin!='1'?'':'none';"
+    "dcG('dcshr').style.display=clip&&(d.where=='flash'||d.where=='sd')?'':'none';"
     "if(clip){dcG('dcdesc').value=d.desc;dcG('dcfile').value=d.file;dcG('dcup').value='';}"
     "dcG('dcmsg').textContent='';dcG('dcdlg').showModal();}"
     "function dcChk(r){if(!r.ok)return r.text().then(function(t){throw new Error(t||r.status);});}"
     "function dcPost(u,o){return fetch(u,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},"
     "body:new URLSearchParams(o).toString()}).then(dcChk);}"
-    "function dcSave(){var d=dcCur,m=dcG('dcmsg'),code=dcG('dccode').value.trim(),p=Promise.resolve();"
-    "if(d.kind!='clip'){p=dcPost('/fixed_code_set',{def:d.def,new_code:code});}"
-    "else{var desc=dcG('dcdesc').value,file=dcG('dcfile').value.trim(),f=dcG('dcup').files[0];"
-    "if(f){var x=f.name.match(/\\.(wav|mp3)$/i);if(!x){m.textContent='The file must be .wav or .mp3.';return;}"
-    "if(f.size>2097152){m.textContent='Too large: 2 MB at most.';return;}"
-    "file=(file||d.file).replace(/\\.[^.]*$/,'')+'.'+x[1].toLowerCase();"
-    "var dest=document.querySelector('input[name=clipdest]:checked').value;"
-    "p=p.then(function(){return fetch('/media/'+encodeURIComponent(file)+'?dest='+dest,{method:'POST',body:f}).then(dcChk);});}"
-    "if(desc!=d.desc)p=p.then(function(){return dcPost('/dialcode_set_desc',{code:d.code,desc:desc});});"
-    "if(file!=d.file)p=p.then(function(){return dcPost('/dialcode_set_file',{code:d.code,file:file});});"
-    /* An upload that changed the name (jenny.wav -> jenny.mp3) leaves the old
-     * file unused: delete it, unless another code still plays it. Files built
-     * into the firmware can't be deleted, so they stay (the request just fails). */
-    "if(f&&file!=d.file&&!Array.prototype.some.call(document.querySelectorAll('[data-kind=clip]'),"
-    "function(b){return b.dataset.code!=d.code&&b.dataset.file==d.file;}))"
-    "p=p.then(function(){return fetch('/media_delete/'+encodeURIComponent(d.file),{method:'POST'})"
-    ".catch(function(){});});"
-    "if(code!=d.code)p=p.then(function(){return dcPost('/dialcode_set_code',{old_code:d.code,new_code:code});});}"
-    "m.textContent=f?'Uploading...':'Saving...';"
+    "function dcUp(bl,name,dest){return fetch('/media/'+encodeURIComponent(name)+'?dest='+dest,{method:'POST',body:bl}).then(dcChk);}"
+    "function dcLame(){if(window.lamejs)return Promise.resolve();"
+    "if(!dcLameP)dcLameP=new Promise(function(ok,no){var s=document.createElement('script');"
+    "s.src='https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js';s.onload=ok;s.onerror=no;"
+    "document.head.appendChild(s);setTimeout(no,10000);}).catch(function(e){dcLameP=null;throw e;});return dcLameP;}"
+    "function dcRender(buf,rate){var C=window.OfflineAudioContext||window.webkitOfflineAudioContext;"
+    "var c=new C(1,Math.max(1,Math.ceil(buf.duration*rate)),rate),s=c.createBufferSource();"
+    "s.buffer=buf;s.connect(c.destination);s.start();return c.startRendering();}"
+    "function dcShrink(f){var ac;"
+    "return Promise.all([dcLame(),f.arrayBuffer()]).then(function(r){var C=window.AudioContext||window.webkitAudioContext;ac=new C();"
+    "return new Promise(function(ok,no){ac.decodeAudioData(r[1],ok,no);});})"
+    ".then(function(buf){if(ac.close)ac.close();try{return dcRender(buf,8000).then(function(o){return o.getChannelData(0);});}"
+    "catch(e){return dcRender(buf,16000).then(function(o){var a=o.getChannelData(0),b=new Float32Array(a.length>>1);"
+    "for(var i=0;i<b.length;i++)b[i]=(a[2*i]+a[2*i+1])/2;return b;});}})"
+    ".then(function(x){var pk=0,i;for(i=0;i<x.length;i++){var v=Math.abs(x[i]);if(v>pk)pk=v;}"
+    "var g=pk>0?0.9/pk:1,pcm=new Int16Array(x.length);"
+    "for(i=0;i<x.length;i++)pcm[i]=Math.max(-32768,Math.min(32767,Math.round(x[i]*g*32767)));"
+    "var e=new lamejs.Mp3Encoder(1,8000,24),out=[];"
+    "for(i=0;i<pcm.length;i+=1152){var b=e.encodeBuffer(pcm.subarray(i,i+1152));if(b.length)out.push(new Uint8Array(b));}"
+    "var t=e.flush();if(t.length)out.push(new Uint8Array(t));var bl=new Blob(out,{type:'audio/mpeg'});"
+    "return bl.size<f.size*0.9?bl:null;})"
+    ".catch(function(e){if(window.console)console.log('convert failed',e);return null;});}"
+    "function dcPrep(f,base,m){m.textContent='Converting...';"
+    "return dcShrink(f).then(function(r){var x=f.name.match(/\\.(wav|mp3)$/i),ext=r?'mp3':(x?x[1].toLowerCase():'');"
+    "if(!ext)throw new Error('This browser could not convert it: pick a .wav or .mp3 file');"
+    "var bl=r||f;if(bl.size>2097152)throw new Error('Too large: 2 MB at most');"
+    "m.textContent='Uploading '+Math.round(bl.size/1024)+' KB'+(r?' (converted to a 24 kbps MP3)':'')+'...';"
+    "return {blob:bl,name:base+'.'+ext};});}"
+    "function dcShared(d){return Array.prototype.some.call(document.querySelectorAll('[data-kind=clip]'),"
+    "function(b){return b.dataset.code!=d.code&&b.dataset.file==d.file;});}"
+    "function dcAfter(d,code,desc,file,up){var q=Promise.resolve();"
+    "if(desc!=d.desc)q=q.then(function(){return dcPost('/dialcode_set_desc',{code:d.code,desc:desc});});"
+    "if(file!=d.file){q=q.then(function(){return dcPost('/dialcode_set_file',{code:d.code,file:file});});"
+    "if(up&&!dcShared(d))q=q.then(function(){return fetch('/media_delete/'+encodeURIComponent(d.file),{method:'POST'}).catch(function(){});});}"
+    "if(code!=d.code)q=q.then(function(){return dcPost('/dialcode_set_code',{old_code:d.code,new_code:code});});"
+    "return q;}"
+    "function dcBase(n){return n.replace(/\\.[^.]*$/,'');}"
+    "function dcSave(){var d=dcCur,m=dcG('dcmsg'),code=dcG('dccode').value.trim(),p;"
+    "if(d.kind!='clip'){m.textContent='Saving...';p=dcPost('/fixed_code_set',{def:d.def,new_code:code});}"
+    "else{var desc=dcG('dcdesc').value,file=dcG('dcfile').value.trim(),f=dcG('dcup').files[0],"
+    "dest=document.querySelector('input[name=clipdest]:checked').value;"
+    "if(f)p=dcPrep(f,dcBase(file||d.file),m).then(function(u){file=u.name;return dcUp(u.blob,u.name,dest);});"
+    "else{m.textContent='Saving...';p=Promise.resolve();}"
+    "p=p.then(function(){return dcAfter(d,code,desc,file,!!f);});}"
     "p.then(function(){location.reload();}).catch(function(e){m.textContent='Failed: '+e.message;});}"
+    "function dcShrinkNow(){var d=dcCur,m=dcG('dcmsg');m.textContent='Converting...';"
+    "fetch('/media/'+encodeURIComponent(d.file)+'?inline=1').then(function(r){if(!r.ok)throw new Error('could not read the file');return r.blob();})"
+    ".then(function(b){return dcShrink(new File([b],d.file));})"
+    ".then(function(r){if(!r)throw new Error('no smaller version was possible (or this browser could not convert it)');"
+    "var name=dcBase(d.file)+'.mp3';m.textContent='Uploading '+Math.round(r.size/1024)+' KB...';"
+    "return dcUp(r,name,d.where=='sd'?'sd':'flash').then(function(){return dcAfter(d,d.code,d.desc,name,true);});})"
+    ".then(function(){location.reload();}).catch(function(e){m.textContent='Failed: '+e.message;});}"
+    "function dcAdd(fm){var f=fm.elements.file.files[0],m=dcG('dcaddmsg');if(!f)return false;"
+    "dcPrep(f,dcBase(f.name),m).then(function(u){var fd=new FormData();"
+    "fd.append('new_code',fm.elements.new_code.value);fd.append('desc',fm.elements.desc.value);fd.append('file',u.blob,u.name);"
+    "return fetch('/dialcode_upload',{method:'POST',body:fd}).then(dcChk);})"
+    ".then(function(){location.reload();}).catch(function(e){m.textContent='Failed: '+e.message;});return false;}"
     "function dcRemove(){if(!confirm('Remove dial code '+dcCur.code+'?'))return;"
     "dcPost('/dialcode_delete/'+encodeURIComponent(dcCur.code),{}).then(function(){location.reload();})"
     ".catch(function(e){dcG('dcmsg').textContent='Failed: '+e.message;});}";
@@ -3561,9 +3605,10 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 fs == CLIP_FILE_MISSING ? "file missing" : "can't be played", info_h, fname_h);
         }
         /* Size and where it lives; a file two codes share counts once. */
+        storage_where_t wh;
         {
             size_t fsz = 0;
-            storage_where_t wh = fs == CLIP_FILE_MISSING ? STORAGE_WHERE_NONE : storage_where(actual, &fsz);
+            wh = fs == CLIP_FILE_MISSING ? STORAGE_WHERE_NONE : storage_where(actual, &fsz);
             bool counted = false;
             for (size_t k = 0; k < i && !counted; k++) counted = !strcmp(clips[k].filename, clips[i].filename);
             if (!counted && wh == STORAGE_WHERE_INTERNAL) used_int += fsz;
@@ -3579,8 +3624,10 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         }
         off = appendf(buf, cap, off,
             "</td><td class=\"act\"><button type=\"button\" onclick=\"dcEdit(this)\" data-kind=\"clip\" "
-            "data-code=\"%s\" data-desc=\"%s\" data-file=\"%s\" data-builtin=\"%d\">%s</button></td></tr>",
+            "data-code=\"%s\" data-desc=\"%s\" data-file=\"%s\" data-builtin=\"%d\" data-where=\"%s\">%s</button></td></tr>",
             clips[i].code, edesc, fname_h, clips[i].builtin ? 1 : 0,
+            wh == STORAGE_WHERE_SD ? "sd" : wh == STORAGE_WHERE_INTERNAL ? "flash" :
+            wh == STORAGE_WHERE_BUNDLED ? "builtin" : "",
             i18n_str("dialcodes.edit", "edit"));
     }
 
@@ -3592,15 +3639,16 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         "pattern=\"[0-9*# \\(\\)\\-]{2,16}\" maxlength=\"16\" size=\"10\" required></td>"
         "<td class=\"desc\"><input name=\"desc\" form=\"dcadd\" maxlength=\"63\" placeholder=\"%s\"></td>"
         "<td class=\"audio\"><input type=\"file\" name=\"file\" form=\"dcadd\" "
-        "accept=\".wav,.mp3,audio/wav,audio/mpeg\" "
-        "required title=\"%s\"></td><td class=\"size\"></td>"
+        "accept=\"audio/*,video/*,.wav,.mp3\" "
+        "required title=\"%s\"><div id=\"dcaddmsg\" class=\"fn\"></div></td><td class=\"size\"></td>"
         "<td class=\"act\"><form id=\"dcadd\" method=\"POST\" action=\"/dialcode_upload\" "
-        "enctype=\"multipart/form-data\"><button type=\"submit\" class=\"primary\">%s</button></form></td>"
+        "enctype=\"multipart/form-data\" onsubmit=\"return dcAdd(this)\"><button type=\"submit\" class=\"primary\">%s</button></form></td>"
         "</tr>",
         i18n_str("dialcodes.new_code_short", "New code"),
         i18n_str("dialcodes.new_code_label", "New code (2-10 digits, * or #; spaces and dashes are ignored)"),
         i18n_str("dialcodes.desc_short", "Description"),
-        i18n_str("dialcodes.audio_label", "Audio file: an MP3 is kept as it is; a WAV is converted to 8 kHz mono"),
+        i18n_str("dialcodes.audio_label", "Any audio file: this browser turns it into a small MP3 "
+                 "(8 kHz mono, 24 kbps) before uploading"),
         i18n_str("dialcodes.add", "Add"));
 
     /* What the clips take up, and what's left, on each place they can live. */
@@ -3616,8 +3664,9 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                           fmt_bytes(cap_sd > u_sd ? cap_sd - u_sd : 0, d, sizeof(d)));
         }
         off = appendf(buf, cap, off,
-            ". Built-in clips are part of the firmware and use none. A 40&nbsp;kbps MP3 is about a "
-            "third the size of the same clip as an 8&nbsp;kHz WAV.</td></tr>");
+            ". Built-in clips are part of the firmware and use none. New uploads become 24&nbsp;kbps "
+            "MP3s (about 3&nbsp;kB a second); <b>edit</b> &rarr; <b>Shrink file</b> does the same "
+            "for one already here.</td></tr>");
     }
     off = appendf(buf, cap, off, "<tr class=\"grp\"><td colspan=\"5\">%s</td></tr>",
                   i18n_str("dialcodes.group_builtin", "Built-in"));
@@ -3657,9 +3706,10 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         "<label>Description <input id=\"dcdesc\" maxlength=\"63\"></label>"
         "<label>Plays <input id=\"dcfile\" list=\"audiofiles\" maxlength=\"%d\" "
         "pattern=\"[A-Za-z0-9_.\\-]+\\.(wav|mp3|WAV|MP3)\" title=\"A .wav or .mp3 file on the board\"></label>"
-        "<label>Or upload a new file <input type=\"file\" id=\"dcup\" accept=\".wav,.mp3,audio/wav,audio/mpeg\"></label>"
-        "<p class=\"hint\">.wav or .mp3, up to 2&nbsp;MB (8&nbsp;kHz mono is plenty for a phone). It "
-        "replaces the file named above.</p>"
+        "<label>Or upload a new file <input type=\"file\" id=\"dcup\" accept=\"audio/*,video/*,.wav,.mp3\"></label>"
+        "<p class=\"hint\">Any audio file (even a video's sound): this browser turns it into a small MP3 "
+        "(8&nbsp;kHz mono, 24&nbsp;kbps) first. It needs internet for that; without it, a .wav or "
+        ".mp3 of up to 2&nbsp;MB goes up as it is. It replaces the file named above.</p>"
         "<p><label class=\"inline\"><input type=\"radio\" name=\"clipdest\" value=\"flash\" checked> "
         "Internal flash (stays with the board)</label><br>"
         "<label class=\"inline\"><input type=\"radio\" name=\"clipdest\" value=\"sd\"%s> microSD card%s</label></p>"
@@ -3667,6 +3717,8 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         "<p id=\"dcmsg\" class=\"hint\"></p>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button> "
         "<button type=\"button\" onclick=\"dcG('dcdlg').close()\">Cancel</button> "
+        "<button type=\"button\" id=\"dcshr\" onclick=\"dcShrinkNow()\" title=\"Re-encode the file on the "
+        "board as a 24 kbps 8 kHz mono MP3, in this browser\">Shrink file</button> "
         "<button type=\"button\" id=\"dcrm\" onclick=\"dcRemove()\">Remove code</button></div>"
         "</form></dialog></div>",
         STORAGE_MAX_NAME - 1, sd_ok ? "" : " disabled", sd_ok ? "" : " (no card inserted)");
