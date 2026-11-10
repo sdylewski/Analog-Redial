@@ -3435,6 +3435,25 @@ static clip_file_state_t clip_file_check(const char *name, char *actual, size_t 
     return st;
 }
 
+/* Dial codes -> "upload new": the pop-up that replaces a code's audio file. */
+static const char CLIP_UPLOAD_JS[] =
+    "var clipCur;"
+    "function clipOpen(b){clipCur={code:b.dataset.code,file:b.dataset.file};"
+    "document.getElementById('clipname').textContent=b.dataset.file;"
+    "document.getElementById('clipmsg').textContent='';document.getElementById('clipdlg').showModal();}"
+    "function clipGo(){var f=document.getElementById('clipf').files[0],m=document.getElementById('clipmsg');"
+    "if(!f){m.textContent='Pick a file first.';return;}"
+    "var x=f.name.match(/\\.(wav|mp3)$/i);if(!x){m.textContent='The file must be .wav or .mp3.';return;}"
+    "if(f.size>2097152){m.textContent='Too large: 2 MB at most.';return;}"
+    "var name=clipCur.file.replace(/\\.[^.]*$/,'')+'.'+x[1].toLowerCase();"
+    "var dest=document.querySelector('input[name=clipdest]:checked').value;m.textContent='Uploading...';"
+    "fetch('/media/'+encodeURIComponent(name)+'?dest='+dest,{method:'POST',body:f})"
+    ".then(function(r){return r.text().then(function(t){if(!r.ok)throw new Error(t||r.status);});})"
+    ".then(function(){if(name===clipCur.file)return;"
+    "return fetch('/dialcode_set_file',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},"
+    "body:'code='+encodeURIComponent(clipCur.code)+'&file='+encodeURIComponent(name)});})"
+    ".then(function(){location.reload();}).catch(function(e){m.textContent='Failed: '+e.message;});}";
+
 static int append_dialcodes_tab(char *buf, size_t cap, int off)
 {
     dialplan_clip_entry_t clips[DIALPLAN_MAX_CLIP_ENTRIES];
@@ -3527,11 +3546,13 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 "<input type=\"hidden\" name=\"code\" value=\"%s\">"
                 "<input name=\"file\" value=\"%s\" maxlength=\"%d\" class=\"dc-desc-input\" list=\"audiofiles\" "
                 "pattern=\"[A-Za-z0-9_.\\-]+\\.(wav|mp3|WAV|MP3)\" title=\"A .wav or .mp3 file in storage\">"
-                "<button type=\"submit\">%s</button></form>"
+                "<button type=\"submit\">%s</button>"
+                "<button type=\"button\" onclick=\"clipOpen(this)\" data-code=\"%s\" data-file=\"%s\">%s</button></form>"
                 "</div>"
                 "<div class=\"dc-line\">",
                 clips[i].code, edesc, i18n_str("dialcodes.save", "save"),
-                clips[i].code, fname_h, STORAGE_MAX_NAME - 1, i18n_str("dialcodes.save", "save"));
+                clips[i].code, fname_h, STORAGE_MAX_NAME - 1, i18n_str("dialcodes.save", "save"),
+                clips[i].code, fname_h, i18n_str("dialcodes.upload_new", "upload new\xe2\x80\xa6"));
             {
                 char actual[STORAGE_MAX_NAME], info[96], actual_h[STORAGE_MAX_NAME * 6], info_h[96 * 6];
                 clip_file_state_t fs = clip_file_check(clips[i].filename, actual, sizeof(actual),
@@ -3558,6 +3579,20 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
             }
         }
         off = appendf(buf, cap, off, "</div>" /* .dialcode-list */);
+        bool sd_ok = storage_sd_present();
+        off = appendf(buf, cap, off,
+            "<dialog id=\"clipdlg\" style=\"max-width:26em;border-radius:8px\"><h3>Upload new audio</h3>"
+            "<p class=\"hint\">Replaces <b id=\"clipname\"></b>. A .wav or .mp3 file, up to 2&nbsp;MB "
+            "(8&nbsp;kHz mono is plenty for a phone).</p>"
+            "<p><input type=\"file\" id=\"clipf\" accept=\".wav,.mp3,audio/wav,audio/mpeg\"></p>"
+            "<p><label><input type=\"radio\" name=\"clipdest\" value=\"flash\" checked> Internal flash "
+            "(stays with the board)</label><br>"
+            "<label><input type=\"radio\" name=\"clipdest\" value=\"sd\"%s> microSD card%s</label></p>"
+            "<p id=\"clipmsg\" class=\"hint\"></p>"
+            "<div class=\"toolbar sub\"><button type=\"button\" class=\"primary\" onclick=\"clipGo()\">Upload</button> "
+            "<button type=\"button\" onclick=\"document.getElementById('clipdlg').close()\">Cancel</button></div>"
+            "</dialog><script>%s</script>",
+            sd_ok ? "" : " disabled", sd_ok ? "" : " (no card inserted)", CLIP_UPLOAD_JS);
     }
 
     off = appendf(buf, cap, off,
@@ -11519,10 +11554,28 @@ static esp_err_t media_upload_handler(httpd_req_t *req)
      * here doesn't work for real prompt clips (a few seconds of 48kHz 16-bit
      * mono is already a few hundred KB, more than fits alongside WiFi/httpd
      * in free heap). */
+    /* ?dest=sd (the dial code's "upload new" box) puts it on the microSD card
+     * instead of internal flash. */
+    bool want_sd = false;
+    {
+        char q[48], dv[8];
+        if (httpd_req_get_url_query_str(req, q, sizeof(q)) == ESP_OK &&
+            httpd_query_key_value(q, "dest", dv, sizeof(dv)) == ESP_OK && !strcmp(dv, "sd"))
+            want_sd = true;
+    }
+    if (want_sd && !storage_sd_present()) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "no microSD card in this board");
+        return ESP_OK;
+    }
     storage_writer_t w;
-    esp_err_t err = storage_write_begin_local(name, total, &w);
+    esp_err_t err = want_sd ? storage_write_begin(name, total, &w)
+                            : storage_write_begin_local(name, total, &w);
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "upload '%s': storage_write_begin_local failed: %s", name, esp_err_to_name(err));
+        ESP_LOGW(TAG, "upload '%s': write_begin failed: %s", name, esp_err_to_name(err));
+        if (err == ESP_ERR_NO_MEM || err == ESP_ERR_INVALID_SIZE) {
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "not enough free space there");
+            return ESP_OK;
+        }
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
