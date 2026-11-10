@@ -160,6 +160,16 @@ size_t storage_list_bundled(storage_entry_t *out, size_t max_entries);
  * here), i.e. it isn't just the bundled default. */
 bool storage_has_own(const char *name);
 
+/* Where the file storage_read_open() would open for `name` lives, and its
+ * size (0 if none). */
+typedef enum {
+    STORAGE_WHERE_NONE = 0,
+    STORAGE_WHERE_INTERNAL,
+    STORAGE_WHERE_SD,
+    STORAGE_WHERE_BUNDLED,   /* built into the firmware: uses no storage space */
+} storage_where_t;
+storage_where_t storage_where(const char *name, size_t *size);
+
 /* PRIMARY backend: SD if mounted, else internal. See the file header. */
 size_t storage_used_bytes(void);
 size_t storage_cap_bytes(void);

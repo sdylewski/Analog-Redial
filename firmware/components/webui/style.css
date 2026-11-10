@@ -245,6 +245,8 @@ audio { height: 34px; vertical-align: middle; max-width: 100%; }
 .dctable td.code { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
 .dctable td.audio { white-space: nowrap; max-width: 16em; overflow: hidden; text-overflow: ellipsis; }
 .dctable td.act { text-align: right; white-space: nowrap; width: 1%; }
+.dctable .size { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.dctable tr.sum td { font-size: 12px; color: var(--muted); }
 .dctable .fn { color: var(--muted); font-size: 12px; font-weight: normal; }
 .dctable tr.muted td { opacity: .55; }
 .dctable tr.addrow input { width: 100%; min-width: 0; }
@@ -261,7 +263,7 @@ audio { height: 34px; vertical-align: middle; max-width: 100%; }
   .dctable td { border: 0; padding: 0; }
   .dctable td.desc { flex: 1 1 50%; min-width: 0; }
   .dctable td.audio { flex: 1 1 60%; max-width: none; }
-  .dctable td.audio:empty { display: none; }
+  .dctable td.audio:empty, .dctable td.size:empty { display: none; }
   .dctable tr.addrow input { box-sizing: border-box; }
   .dctable td.act { margin-left: auto; width: auto; }
   .dctable tr.addrow td { flex: 1 1 100%; }

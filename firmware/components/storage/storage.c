@@ -476,6 +476,23 @@ bool storage_has_own(const char *name)
     return found;
 }
 
+storage_where_t storage_where(const char *name, size_t *size)
+{
+    char path[288];
+    struct stat st;
+    storage_where_t where = STORAGE_WHERE_NONE;
+    bool sd = sdcard_acquire();
+    if (resolve_existing_path(name, path, sizeof(path), sd)) {
+        where = on_sd(path) ? STORAGE_WHERE_SD : STORAGE_WHERE_INTERNAL;
+    } else if (s_bundled_mounted) {
+        bundled_path(path, sizeof(path), name);
+        if (path_exists(path)) where = STORAGE_WHERE_BUNDLED;
+    }
+    if (size) *size = (where != STORAGE_WHERE_NONE && stat(path, &st) == 0) ? (size_t)st.st_size : 0;
+    if (sd) sdcard_release();
+    return where;
+}
+
 esp_err_t storage_read_open(const char *name, storage_reader_t *r)
 {
     /* Writable storage first (primary backend, then the other one -- see

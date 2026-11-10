@@ -80,6 +80,7 @@ static const char *TAG = "webui";
  * project hit building the multipart reader), and every caller here already
  * has other locals plus a caller frame on top of it. */
 #define UPLOAD_HEADER_SCAN_BYTES 8192
+#define MEDIA_UPLOAD_MAX_BYTES (2 * 1024 * 1024) /* generous for short prompt/clip audio */
 
 /* Small first-try read size for wav_duration_str()'s duration scan
  * specifically (a different, much smaller job than the conversion-time
@@ -3529,10 +3530,11 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
 
     off = appendf(buf, cap, off,
         "<table class=\"dctable\"><thead><tr><th>Code</th><th>What it does</th><th>Audio</th>"
-        "<th></th></tr></thead><tbody>"
-        "<tr class=\"grp\"><td colspan=\"4\">%s (%u)</td></tr>",
+        "<th class=\"size\">Size</th><th></th></tr></thead><tbody>"
+        "<tr class=\"grp\"><td colspan=\"5\">%s (%u)</td></tr>",
         i18n_str("dialcodes.group_clips", "Audio clips"), (unsigned)nclips);
 
+    uint64_t used_int = 0, used_sd = 0;
     for (size_t i = 0; i < nclips && (size_t)off < cap; i++) {
         char edesc[64 * 6], fname_h[sizeof(clips[i].filename) * 6];
         html_escape(clips[i].desc, edesc, sizeof(edesc));
@@ -3558,6 +3560,23 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                 "<span class=\"pill off\">%s</span> <span class=\"fn\" title=\"%s\">%s</span>",
                 fs == CLIP_FILE_MISSING ? "file missing" : "can't be played", info_h, fname_h);
         }
+        /* Size and where it lives; a file two codes share counts once. */
+        {
+            size_t fsz = 0;
+            storage_where_t wh = fs == CLIP_FILE_MISSING ? STORAGE_WHERE_NONE : storage_where(actual, &fsz);
+            bool counted = false;
+            for (size_t k = 0; k < i && !counted; k++) counted = !strcmp(clips[k].filename, clips[i].filename);
+            if (!counted && wh == STORAGE_WHERE_INTERNAL) used_int += fsz;
+            if (!counted && wh == STORAGE_WHERE_SD) used_sd += fsz;
+            char sz[16];
+            off = appendf(buf, cap, off, "</td><td class=\"size\">");
+            if (wh == STORAGE_WHERE_INTERNAL || wh == STORAGE_WHERE_SD)
+                off = appendf(buf, cap, off, "%s <span class=\"fn\">%s</span>",
+                              fmt_bytes(fsz, sz, sizeof(sz)), wh == STORAGE_WHERE_SD ? "microSD" : "flash");
+            else if (wh == STORAGE_WHERE_BUNDLED)
+                off = appendf(buf, cap, off, "<span class=\"fn\" title=\"Part of the firmware: uses no "
+                              "storage space\">built in</span>");
+        }
         off = appendf(buf, cap, off,
             "</td><td class=\"act\"><button type=\"button\" onclick=\"dcEdit(this)\" data-kind=\"clip\" "
             "data-code=\"%s\" data-desc=\"%s\" data-file=\"%s\" data-builtin=\"%d\">%s</button></td></tr>",
@@ -3572,18 +3591,35 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         "<td class=\"code\"><input name=\"new_code\" form=\"dcadd\" placeholder=\"%s\" title=\"%s\" "
         "pattern=\"[0-9*# \\(\\)\\-]{2,16}\" maxlength=\"16\" size=\"10\" required></td>"
         "<td class=\"desc\"><input name=\"desc\" form=\"dcadd\" maxlength=\"63\" placeholder=\"%s\"></td>"
-        "<td class=\"audio\"><input type=\"file\" name=\"file\" form=\"dcadd\" accept=\"audio/wav\" "
-        "required title=\"%s\"></td>"
+        "<td class=\"audio\"><input type=\"file\" name=\"file\" form=\"dcadd\" "
+        "accept=\".wav,.mp3,audio/wav,audio/mpeg\" "
+        "required title=\"%s\"></td><td class=\"size\"></td>"
         "<td class=\"act\"><form id=\"dcadd\" method=\"POST\" action=\"/dialcode_upload\" "
         "enctype=\"multipart/form-data\"><button type=\"submit\" class=\"primary\">%s</button></form></td>"
         "</tr>",
         i18n_str("dialcodes.new_code_short", "New code"),
         i18n_str("dialcodes.new_code_label", "New code (2-10 digits, * or #; spaces and dashes are ignored)"),
         i18n_str("dialcodes.desc_short", "Description"),
-        i18n_str("dialcodes.audio_label", "Audio file (WAV, converted to 8 kHz mono)"),
+        i18n_str("dialcodes.audio_label", "Audio file: an MP3 is kept as it is; a WAV is converted to 8 kHz mono"),
         i18n_str("dialcodes.add", "Add"));
 
-    off = appendf(buf, cap, off, "<tr class=\"grp\"><td colspan=\"4\">%s</td></tr>",
+    /* What the clips take up, and what's left, on each place they can live. */
+    {
+        char a[16], b[16], c[16], d[16];
+        off = appendf(buf, cap, off,
+            "<tr class=\"sum\"><td colspan=\"5\">Clips use <b>%s</b> of internal flash (%s free)",
+            fmt_bytes(used_int, a, sizeof(a)), fmt_bytes(storage_free_bytes_internal(), b, sizeof(b)));
+        if (storage_sd_present()) {
+            uint64_t cap_sd = storage_cap_bytes_sd(), u_sd = storage_used_bytes_sd();
+            off = appendf(buf, cap, off, " and <b>%s</b> of the microSD card (%s free)",
+                          fmt_bytes(used_sd, c, sizeof(c)),
+                          fmt_bytes(cap_sd > u_sd ? cap_sd - u_sd : 0, d, sizeof(d)));
+        }
+        off = appendf(buf, cap, off,
+            ". Built-in clips are part of the firmware and use none. A 40&nbsp;kbps MP3 is about a "
+            "third the size of the same clip as an 8&nbsp;kHz WAV.</td></tr>");
+    }
+    off = appendf(buf, cap, off, "<tr class=\"grp\"><td colspan=\"5\">%s</td></tr>",
                   i18n_str("dialcodes.group_builtin", "Built-in"));
     for (size_t i = 0; i < nfx && (size_t)off < cap; i++) {
         const char *note = "";
@@ -3598,7 +3634,7 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         html_escape(fx[i].info.desc, edesc, sizeof(edesc));
         off = appendf(buf, cap, off,
             "<tr%s><td class=\"code\">%s<span class=\"fn\">%s</span></td><td class=\"desc\">%s</td>"
-            "<td class=\"audio\">%s%s%s</td>"
+            "<td class=\"audio\">%s%s%s</td><td class=\"size\"></td>"
             "<td class=\"act\"><button type=\"button\" onclick=\"dcEdit(this)\" data-kind=\"fix\" "
             "data-def=\"%s\" data-code=\"%s\" data-desc=\"%s\"%s>%s</button></td></tr>",
             usable ? "" : " class=\"muted\"",
@@ -11015,7 +11051,7 @@ static void sanitize_upload_name(const char *in, const char *fallback, char *out
     }
     out[o] = '\0';
     if (!out[0]) { strncpy(out, fallback, cap - 1); out[cap - 1] = '\0'; return; }
-    if (!is_wav_name(out)) {
+    if (!is_wav_name(out) && !is_mp3_name(out)) {
         size_t len = strlen(out);
         if (len + 4 >= cap) len = (cap > 4) ? cap - 5 : 0;
         memcpy(out + len, ".wav", 5);
@@ -11112,6 +11148,46 @@ static const char *convert_mp3_upload(multipart_reader_t *mp, const char *dest_n
     return NULL;
 }
 #endif /* CONFIG_AUDIO_CONVERT_MP3 */
+
+/* Stores the CURRENT part (an MP3) as it is: no conversion, since the player
+ * decodes MP3 itself and a 40 kbps MP3 is about a third the size of the 8 kHz
+ * WAV a conversion would make. Internal flash, like converted clips. */
+static const char *store_mp3_part(multipart_reader_t *mp, const char *dest_name)
+{
+    uint8_t *chunk = malloc(2048);
+    if (!chunk) return "out of memory";
+    size_t n = multipart_read_body(mp, chunk, 2048);
+    bool ok = n >= 3 && ((chunk[0] == 'I' && chunk[1] == 'D' && chunk[2] == '3') ||
+                         (chunk[0] == 0xFF && (chunk[1] & 0xE0) == 0xE0));
+    if (!ok) {
+        free(chunk);
+        return "not a valid MP3 file";
+    }
+    storage_writer_t w;
+    if (storage_write_begin_local(dest_name, 0, &w) != ESP_OK) {
+        free(chunk);
+        return "couldn't open storage for writing";
+    }
+    size_t total = 0;
+    while (n > 0) {
+        if (storage_write_chunk(&w, chunk, n) != ESP_OK) {
+            free(chunk);
+            storage_write_abort(&w);
+            return "storage full";
+        }
+        total += n;
+        if (total > MEDIA_UPLOAD_MAX_BYTES) {
+            free(chunk);
+            storage_write_abort(&w);
+            return "too large: 2 MB at most";
+        }
+        g_webui_progress++;
+        n = multipart_read_body(mp, chunk, 2048);
+    }
+    free(chunk);
+    storage_write_end(&w);
+    return NULL;
+}
 
 static const char *convert_upload_part(multipart_reader_t *mp, const char *dest_name)
 {
@@ -11489,7 +11565,42 @@ static esp_err_t dialcode_upload_handler(httpd_req_t *req)
                 break;
             }
 
-            const char *err = convert_upload_part(&mp, dest);
+            const char *err;
+#ifdef CONFIG_PLAYER_MP3
+            if (is_mp3_name(filename)) {
+                /* An MP3 stays an MP3 (store_mp3_part()), under a .mp3 name. */
+                size_t dl = strlen(dest);
+                char old[STORAGE_MAX_NAME];
+                strlcpy(old, dest, sizeof(old));
+                if (dl > 4) memcpy(dest + dl - 4, ".mp3", 4);
+                if (new_code[0] && strcmp(old, dest)) {
+                    storage_reader_t probe = {0};
+                    if (storage_read_open(dest, &probe) == ESP_OK) {
+                        storage_read_close(&probe);
+                        strlcpy(dest, "clip_", sizeof(dest));
+                        strlcat(dest, new_code, sizeof(dest));
+                        strlcat(dest, ".mp3", sizeof(dest));
+                        for (char *p = dest; *p; p++) {
+                            if (*p == '*') *p = 's';
+                            if (*p == '#') *p = 'p';
+                        }
+                    }
+                }
+                err = store_mp3_part(&mp, dest);
+                if (!err && code[0] && strcmp(old, dest))
+                    dialplan_clip_set_filename(code, dest);
+            } else
+#endif
+            {
+                bool renamed = false;
+                if (is_mp3_name(dest)) { /* a WAV replacing an MP3: store it as .wav */
+                    size_t dl = strlen(dest);
+                    memcpy(dest + dl - 4, ".wav", 4);
+                    renamed = true;
+                }
+                err = convert_upload_part(&mp, dest);
+                if (!err && renamed && code[0]) dialplan_clip_set_filename(code, dest);
+            }
             if (err) { err_msg = err; break; }
 
             if (new_code[0]) {
@@ -11525,7 +11636,6 @@ static esp_err_t dialcode_upload_handler(httpd_req_t *req)
  * PUT/POST the file body to /media/<name> and it lands directly in the
  * storage layer, same place `record`-produced clips live. No auth -- this
  * is a LAN bring-up tool, not a public deployment. */
-#define MEDIA_UPLOAD_MAX_BYTES (2 * 1024 * 1024) /* generous for short prompt/clip WAVs */
 
 static esp_err_t media_upload_handler(httpd_req_t *req)
 {
