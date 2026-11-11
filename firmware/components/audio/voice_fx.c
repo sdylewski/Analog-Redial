@@ -4,18 +4,46 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+ * All effects run on 8 kHz audio (audio.c decimates the 48 kHz streams to
+ * 8 kHz around them; a phone call carries nothing above 4 kHz anyway). Other
+ * rates still work, with times scaled, but the FFT robot is sized for 8 kHz.
+ *
+ * Pitch (chipmunk, Vader): a delay line read faster (or slower) than it's
+ * written. When the read point runs out of room it jumps back (or forward)
+ * by about a whole number of voice periods, the jump picked by
+ * cross-correlation so the old and new read points are in step, then
+ * crossfades. The earlier version jumped blindly every 15-30 ms, and the
+ * out-of-phase crossfades were the "garbled" warble.
+ *
+ * Robot: short-time Fourier transform, every frame's phases set to zero,
+ * resynthesized 8 ms apart: every frame becomes the same-phase pulse, so the
+ * voice turns into a monotone 125 Hz buzz with its own vowels and consonants.
+ */
+
 #define DALEK_HZ          30
-#define PITCH_WINDOW_MS   30
 #define PITCH_UP_Q16      98304   /* 1.5 */
 #define VADER_PITCH_Q16   52429   /* 0.8 */
 #define VADER_MASK_US     1500    /* short comb: the mask's boxy resonance */
 #define VADER_MASK_FB_Q15 9830    /* 0.3 */
-#define ROBOT_HZ          110     /* comb delay = one period of this */
-#define ROBOT_FB_Q15      19661   /* 0.6 */
 #define TREMOLO_HZ        6
 #define TREMOLO_DEPTH_Q15 22938   /* 0.7: dips to 30% volume */
 #define CRUSH_RATE_HZ     4000
 #define CRUSH_MASK        0xF800  /* keep the top 5 bits */
+
+/* Pitch shifter timing, in ms. */
+#define PS_BUF_MS   64    /* delay line: the read point and its correlation look-back reach ~41 ms */
+#define PS_DMIN_MS  4     /* pitch up: splice when the read point gets this close */
+#define PS_DMAX_MS  40    /* pitch down: splice when it falls this far behind */
+#define PS_JMIN_MS  10    /* splice jump search range: a few voice periods */
+#define PS_JMAX_MS  22
+#define PS_CORR_MS  10    /* correlation length */
+#define PS_XF_MS    6     /* crossfade */
+
+/* Robot: 256-point FFT, hop 64 (8 ms at 8 kHz -> a 125 Hz buzz). */
+#define RB_N      256
+#define RB_LOG2N  8
+#define RB_HOP    64
 
 struct voice_fx_state {
     uint32_t   sr;
@@ -24,12 +52,14 @@ struct voice_fx_state {
     uint32_t ring_phase, ring_step;      /* Q32 turns; ring_phase also drives tremolo */
     uint32_t trem_step;
 
-    /* Pitch shifter: a short delay line read by two taps half a window
-     * apart, swept at (1 - ratio) samples per sample and crossfaded with
-     * triangular gains, so whichever tap is about to wrap is silent. */
+    /* Pitch shifter. d_q16 is how far the read point is behind the newest
+     * sample; during a crossfade d_old_q16 is the outgoing read point. */
     int16_t *buf;
     uint32_t mask, w;
-    int32_t  win_q16, half_q16, d_q16;
+    int32_t  d_q16, d_old_q16;
+    uint32_t xf_left;
+    uint32_t dmin, dmax, jmin, jmax, corr_n, xf_n;
+    int16_t *xf_tab;                     /* fade-in gains, Q15 */
 
     uint32_t hold_n, hold_left;
     int16_t  held;
@@ -39,38 +69,79 @@ struct voice_fx_state {
     int32_t  st_in_peak, st_out_peak;
     uint64_t st_in_sq, st_out_sq;
 
-    /* Feedback comb (robot, Vader's mask): y[n] = x[n] + g * y[n - D]. */
+    /* Feedback comb (Vader's mask): y[n] = x[n] + g * y[n - D]. */
     int16_t *comb;
-    uint32_t comb_mask, cw, robot_d, mask_d;
+    uint32_t comb_mask, cw, mask_d;
+
+    /* Robot: last RB_N inputs, the overlap-add accumulator, position in the hop. */
+    int16_t *rb_in;
+    int32_t *rb_out;
+    uint32_t rb_h;
 };
 
 static int16_t s_sine[256];
-static bool s_sine_ready;
+static bool s_tables_ready;
+
+/* Robot tables and FFT work area, shared: every stream is processed on the
+ * audio task, one after another (fxtest runs only with no call up). */
+static int16_t s_hann[RB_N];             /* periodic Hann, Q15 */
+static int16_t s_cos[RB_N / 2], s_sin[RB_N / 2];
+static uint8_t s_rev[RB_N];
+static int32_t s_re[RB_N], s_im[RB_N];
+
+static void init_tables(void)
+{
+    if (s_tables_ready) return;
+    for (int i = 0; i < 256; i++) s_sine[i] = (int16_t)lrintf(32767.0f * sinf(i * 6.2831853f / 256));
+    for (int i = 0; i < RB_N; i++) {
+        s_hann[i] = (int16_t)lrintf(32767.0f * 0.5f * (1.0f - cosf(6.2831853f * i / RB_N)));
+        unsigned r = 0;
+        for (int b = 0; b < RB_LOG2N; b++) if (i & (1 << b)) r |= 1u << (RB_LOG2N - 1 - b);
+        s_rev[i] = (uint8_t)r;
+    }
+    for (int i = 0; i < RB_N / 2; i++) {
+        s_cos[i] = (int16_t)lrintf(32767.0f * cosf(6.2831853f * i / RB_N));
+        s_sin[i] = (int16_t)lrintf(32767.0f * sinf(6.2831853f * i / RB_N));
+    }
+    s_tables_ready = true;
+}
+
+static uint32_t pow2_at_least(uint32_t n)
+{
+    uint32_t s = 1;
+    while (s < n) s <<= 1;
+    return s;
+}
 
 voice_fx_state_t *voice_fx_create(uint32_t sample_rate)
 {
-    if (!s_sine_ready) {
-        for (int i = 0; i < 256; i++) s_sine[i] = (int16_t)lrintf(32767.0f * sinf(i * 6.2831853f / 256));
-        s_sine_ready = true;
-    }
+    init_tables();
     voice_fx_state_t *s = calloc(1, sizeof(*s));
     if (!s) return NULL;
     s->sr = sample_rate;
-    uint32_t win = sample_rate * PITCH_WINDOW_MS / 1000;
-    uint32_t size = 1;
-    while (size < win + 4) size <<= 1;
+    uint32_t ms = sample_rate / 1000;
+    uint32_t size = pow2_at_least(sample_rate * PS_BUF_MS / 1000);
+    uint32_t csize = pow2_at_least(sample_rate / 100 + 4);   /* >= 10 ms */
+    s->dmin = PS_DMIN_MS * ms;
+    s->dmax = PS_DMAX_MS * ms;
+    s->jmin = PS_JMIN_MS * ms;
+    s->jmax = PS_JMAX_MS * ms;
+    s->corr_n = PS_CORR_MS * ms;
+    s->xf_n = PS_XF_MS * ms;
     s->buf = calloc(size, sizeof(int16_t));
-    if (!s->buf) { free(s); return NULL; }
-    s->mask = size - 1;
-    uint32_t csize = 1;
-    while (csize < sample_rate / 100 + 4) csize <<= 1;   /* >= 10 ms */
     s->comb = calloc(csize, sizeof(int16_t));
-    if (!s->comb) { free(s->buf); free(s); return NULL; }
+    s->xf_tab = calloc(s->xf_n, sizeof(int16_t));
+    s->rb_in = calloc(RB_N, sizeof(int16_t));
+    s->rb_out = calloc(RB_N, sizeof(int32_t));
+    if (!s->buf || !s->comb || !s->xf_tab || !s->rb_in || !s->rb_out) {
+        voice_fx_destroy(s);
+        return NULL;
+    }
+    s->mask = size - 1;
     s->comb_mask = csize - 1;
-    s->robot_d = sample_rate / ROBOT_HZ;
+    for (uint32_t i = 0; i < s->xf_n; i++)
+        s->xf_tab[i] = (int16_t)((32767u * (i + 1)) / (s->xf_n + 1));
     s->mask_d = sample_rate * VADER_MASK_US / 1000000;
-    s->win_q16 = (int32_t)(win << 16);
-    s->half_q16 = s->win_q16 / 2;
     s->ring_step = (uint32_t)(((uint64_t)DALEK_HZ << 32) / sample_rate);
     s->trem_step = (uint32_t)(((uint64_t)TREMOLO_HZ << 32) / sample_rate);
     s->hold_n = sample_rate / CRUSH_RATE_HZ ? sample_rate / CRUSH_RATE_HZ : 1;
@@ -82,6 +153,9 @@ void voice_fx_destroy(voice_fx_state_t *s)
     if (!s) return;
     free(s->buf);
     free(s->comb);
+    free(s->xf_tab);
+    free(s->rb_in);
+    free(s->rb_out);
     free(s);
 }
 
@@ -89,9 +163,13 @@ static void reset(voice_fx_state_t *s)
 {
     memset(s->buf, 0, (s->mask + 1) * sizeof(int16_t));
     memset(s->comb, 0, (s->comb_mask + 1) * sizeof(int16_t));
+    memset(s->rb_in, 0, RB_N * sizeof(int16_t));
+    memset(s->rb_out, 0, RB_N * sizeof(int32_t));
+    s->rb_h = 0;
     s->w = 0;
     s->cw = 0;
-    s->d_q16 = 0;
+    s->d_q16 = (int32_t)(((s->dmin + s->dmax) / 2) << 16);
+    s->xf_left = 0;
     s->ring_phase = 0;
     s->hold_left = 0;
 }
@@ -101,40 +179,167 @@ static inline int16_t sat16(int32_t v)
     return v > 32767 ? 32767 : v < -32768 ? -32768 : (int16_t)v;
 }
 
-/* Reads the delay line `d` (Q16 samples) behind the newest sample, linearly
- * interpolated. +2 samples keeps the newer interpolation point written. */
+/* ---- pitch ------------------------------------------------------------- */
+
+/* Reads the delay line `d` (Q16 samples) behind the newest sample (the one at
+ * w - 1), linearly interpolated. */
 static inline int32_t tap(const voice_fx_state_t *s, int32_t d)
 {
-    int64_t pos = ((int64_t)s->w << 16) - d - (2 << 16);
+    int64_t pos = ((int64_t)(s->w - 1) << 16) - d;
     uint32_t i = (uint32_t)(pos >> 16);
     int32_t frac = (int32_t)(pos & 0xFFFF);
     int32_t a = s->buf[i & s->mask], b = s->buf[(i + 1) & s->mask];
     return a + (int32_t)(((int64_t)(b - a) * frac) >> 16);
 }
 
-static inline int32_t tri_gain_q15(const voice_fx_state_t *s, int32_t d)
+/* How far to jump: the offset in [jmin, jmax] whose recent past best matches
+ * the recent past at the current read point (normalized cross-correlation),
+ * so the crossfade joins two waveforms that are in step. */
+static uint32_t best_jump(const voice_fx_state_t *s, bool back)
 {
-    int32_t dist = d > s->half_q16 ? d - s->half_q16 : s->half_q16 - d;
-    return 32768 - (int32_t)(((int64_t)dist << 15) / s->half_q16);
+    uint32_t p = s->w - 1 - (uint32_t)(s->d_q16 >> 16);   /* current read sample */
+    uint32_t L = s->corr_n, m = s->mask;
+    const int16_t *b = s->buf;
+    float best = -1e30f;
+    uint32_t best_j = (s->jmin + s->jmax) / 2;
+    for (uint32_t j = s->jmin; j <= s->jmax; j++) {
+        uint32_t q = back ? p - j : p + j;
+        int64_t xy = 0, yy = 0;
+        for (uint32_t i = 1; i <= L; i++) {
+            int32_t x = b[(p - i) & m] >> 2, y = b[(q - i) & m] >> 2;
+            xy += x * y;
+            yy += y * y;
+        }
+        float score = (float)xy / sqrtf((float)yy + 1.0f);
+        if (score > best) { best = score; best_j = j; }
+    }
+    return best_j;
 }
 
 static void pitch(voice_fx_state_t *s, int32_t ratio_q16, int16_t *x, size_t n)
 {
-    int32_t step = 65536 - ratio_q16;
+    int32_t step = 65536 - ratio_q16;            /* < 0: pitch up */
     for (size_t k = 0; k < n; k++) {
         s->buf[s->w & s->mask] = x[k];
-        int32_t d1 = s->d_q16;
-        int32_t d2 = d1 + s->half_q16;
-        if (d2 >= s->win_q16) d2 -= s->win_q16;
-        int32_t y = (int32_t)(((int64_t)tap(s, d1) * tri_gain_q15(s, d1) +
-                               (int64_t)tap(s, d2) * tri_gain_q15(s, d2)) >> 15);
+        s->w++;
+        int32_t y;
+        if (s->xf_left) {
+            int32_t g = s->xf_tab[s->xf_n - s->xf_left];
+            y = (int32_t)(((int64_t)tap(s, s->d_q16) * g +
+                           (int64_t)tap(s, s->d_old_q16) * (32768 - g)) >> 15);
+            s->d_old_q16 += step;
+            s->xf_left--;
+        } else {
+            y = tap(s, s->d_q16);
+        }
         x[k] = sat16(y);
         s->d_q16 += step;
-        if (s->d_q16 < 0) s->d_q16 += s->win_q16;
-        else if (s->d_q16 >= s->win_q16) s->d_q16 -= s->win_q16;
-        s->w++;
+        if (!s->xf_left) {
+            uint32_t d = (uint32_t)(s->d_q16 >> 16);
+            if (step < 0 && d <= s->dmin) {
+                uint32_t j = best_jump(s, true);
+                s->d_old_q16 = s->d_q16;
+                s->d_q16 += (int32_t)(j << 16);
+                s->xf_left = s->xf_n;
+            } else if (step > 0 && d >= s->dmax) {
+                uint32_t j = best_jump(s, false);
+                s->d_old_q16 = s->d_q16;
+                s->d_q16 -= (int32_t)(j << 16);
+                s->xf_left = s->xf_n;
+            }
+        }
     }
 }
+
+/* ---- robot ------------------------------------------------------------- */
+
+/* In-place radix-2 FFT on s_re/s_im. The forward one halves at every stage
+ * (output scaled by 1/N) so Q15 input can't overflow; the inverse doesn't
+ * (its input is that 1/N spectrum, so it comes back at the input's scale,
+ * at most 2^24). inverse also flips the twiddles' sign. */
+static void fft(bool inverse)
+{
+    for (int i = 0; i < RB_N; i++) {
+        int r = s_rev[i];
+        if (r > i) {
+            int32_t t = s_re[i]; s_re[i] = s_re[r]; s_re[r] = t;
+            t = s_im[i]; s_im[i] = s_im[r]; s_im[r] = t;
+        }
+    }
+    for (int len = 2; len <= RB_N; len <<= 1) {
+        int half = len >> 1, tstep = RB_N / len;
+        for (int i = 0; i < RB_N; i += len) {
+            for (int j = 0; j < half; j++) {
+                int32_t c = s_cos[j * tstep], sn = inverse ? s_sin[j * tstep] : -s_sin[j * tstep];
+                int a = i + j, b = a + half;
+                int32_t tr = (int32_t)(((int64_t)s_re[b] * c - (int64_t)s_im[b] * sn) >> 15);
+                int32_t ti = (int32_t)(((int64_t)s_re[b] * sn + (int64_t)s_im[b] * c) >> 15);
+                int32_t ur = s_re[a], ui = s_im[a];
+                int sh = inverse ? 0 : 1;
+                s_re[a] = (ur + tr) >> sh; s_im[a] = (ui + ti) >> sh;
+                s_re[b] = (ur - tr) >> sh; s_im[b] = (ui - ti) >> sh;
+            }
+        }
+    }
+}
+
+static uint32_t isqrt32(uint32_t v)
+{
+    uint32_t r = 0, bit = 1u << 30;
+    while (bit > v) bit >>= 2;
+    while (bit) {
+        if (v >= r + bit) { v -= r + bit; r = (r >> 1) + bit; }
+        else r >>= 1;
+        bit >>= 2;
+    }
+    return r;
+}
+
+/* Output level, Q8: Hann^2 overlap at hop N/4 sums to 1.5, and a
+ * zero-phase frame is peakier than the voice it came from. Matched on
+ * speech (RMS in ~ RMS out); the limiter keeps the pulse peaks in check. */
+#define RB_GAIN_Q8 240
+
+static void robot_frame(voice_fx_state_t *s)
+{
+    for (int i = 0; i < RB_N; i++) {
+        s_re[i] = ((int32_t)s->rb_in[i] * s_hann[i]) >> 15;
+        s_im[i] = 0;
+    }
+    fft(false);
+    /* Magnitudes only: a real, even spectrum. */
+    for (int k = 0; k <= RB_N / 2; k++) {
+        int32_t re = s_re[k], im = s_im[k];
+        uint32_t m = isqrt32((uint32_t)(re * re) + (uint32_t)(im * im));
+        s_re[k] = (int32_t)m;
+        s_im[k] = 0;
+        if (k && k < RB_N / 2) { s_re[RB_N - k] = (int32_t)m; s_im[RB_N - k] = 0; }
+    }
+    fft(true);
+    /* A zero-phase frame peaks at index 0; rotate it to the middle, window
+     * it again and overlap-add. */
+    for (int i = 0; i < RB_N; i++) {
+        int32_t v = s_re[(i + RB_N / 2) & (RB_N - 1)];
+        s->rb_out[i] += (int32_t)((((int64_t)v * s_hann[i]) >> 15) * RB_GAIN_Q8 >> 8);
+    }
+}
+
+static void robot(voice_fx_state_t *s, int16_t *x, size_t n)
+{
+    for (size_t k = 0; k < n; k++) {
+        s->rb_in[RB_N - RB_HOP + s->rb_h] = x[k];
+        x[k] = sat16(s->rb_out[s->rb_h]);
+        if (++s->rb_h == RB_HOP) {
+            s->rb_h = 0;
+            memmove(s->rb_out, s->rb_out + RB_HOP, (RB_N - RB_HOP) * sizeof(int32_t));
+            memset(s->rb_out + RB_N - RB_HOP, 0, RB_HOP * sizeof(int32_t));
+            robot_frame(s);
+            memmove(s->rb_in, s->rb_in + RB_HOP, (RB_N - RB_HOP) * sizeof(int16_t));
+        }
+    }
+}
+
+/* ---- simple effects ---------------------------------------------------- */
 
 /* Feedback comb. Output at 0.7x: speech mostly falls between the comb's
  * resonant peaks, so this keeps it about as loud as the dry voice. */
@@ -215,11 +420,11 @@ void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *x, size_t n)
         break;
     case VOICE_FX_VADER:
         pitch(s, VADER_PITCH_Q16, x, n);
-        overdrive(x, n, 2, 22300);   /* 0.68: its drive raises RMS ~3.4 dB over the input */
+        overdrive(x, n, 2, 18300);   /* 0.56: its drive and the pitch shift raise RMS ~5 dB over the input */
         comb(s, s->mask_d, VADER_MASK_FB_Q15, x, n);
         break;
     case VOICE_FX_ROBOT:
-        comb(s, s->robot_d, ROBOT_FB_Q15, x, n);
+        robot(s, x, n);
         break;
     case VOICE_FX_TREMOLO:
         for (size_t k = 0; k < n; k++) {

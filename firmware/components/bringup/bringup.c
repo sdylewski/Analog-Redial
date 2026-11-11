@@ -632,6 +632,9 @@ static const char *fx_expect(voice_fx_t fx, float hz, const fx_tone_result_t *r)
     }
     case VOICE_FX_CHIPMUNK: want = hz * 1.5f; tol = fmaxf(12.0f, want * 0.03f); break;
     case VOICE_FX_VADER:    want = hz * 0.8f; tol = fmaxf(12.0f, want * 0.03f); break;
+    /* Every frame resynthesized 8 ms apart: the output is harmonics of 125 Hz,
+     * strongest at the one nearest the tone. */
+    case VOICE_FX_ROBOT:    want = 125.0f * roundf(hz / 125.0f); tol = 12.0f; break;
     default: break;
     }
     if (fabsf(r->peak_hz - want) > tol) return "main line is at the wrong pitch";

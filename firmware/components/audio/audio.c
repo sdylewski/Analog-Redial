@@ -54,7 +54,8 @@ typedef struct {
      * earpiece hears from a bridge/VoIP peer; fx_up/fx_up8 shape the uplink
      * VoIP reads (48 kHz raw or 8 kHz echo-cancelled). Allocated on first use. */
     voice_fx_t        fx;
-    voice_fx_state_t *fx_down, *fx_up, *fx_up8;
+    voice_fx_state_t *fx_down, *fx_up, *fx_up8;   /* all run at 8 kHz, see fx_at_8k() */
+    int16_t           fx_down_prev, fx_up_prev;   /* fx_at_8k()'s upsampler, per stream */
     /* When something (the VoIP RTP task, the recorder) last asked for this
      * line's uplink. The uplink effect costs as much as the downlink one
      * (~2 ms of every 10 ms frame for pitch effects), so on a call between two
@@ -71,6 +72,36 @@ static int16_t *s_rx_mono[AUDIO_NUM_LINES]; /* last RX frame, for bridge */
 static int16_t *s_fx_tmp[AUDIO_NUM_LINES];  /* uplink copy for the voice effect */
 
 static i2s_chan_handle_t s_tx, s_rx;
+
+/* Runs a voice effect on a 48 kHz frame at 8 kHz: averages each group of 6
+ * samples down, runs the effect, interpolates back up. A call carries nothing
+ * above 4 kHz, the effects (robot's FFT, the pitch splicer's correlation
+ * search) are sized for 8 kHz, and it's a sixth of the work: at 48 kHz the
+ * pitch effects took ~2 ms of each 10 ms frame per stream, and a VoIP call with
+ * echo cancellation could run out of time and drop audio. */
+static void fx_at_8k(voice_fx_state_t *st, voice_fx_t fx, int16_t *x, size_t n, int16_t *prev,
+                     uint32_t sr)
+{
+    if (!st || fx == VOICE_FX_NONE) return;
+    uint32_t dec = sr >= 8000 ? sr / 8000 : 1;
+    if (dec <= 1) { voice_fx_process(st, fx, x, n); return; }
+    int16_t y[160];
+    size_t m = n / dec;
+    if (m > 160) m = 160;
+    for (size_t i = 0; i < m; i++) {
+        int32_t acc = 0;
+        for (uint32_t k = 0; k < dec; k++) acc += x[i * dec + k];
+        y[i] = (int16_t)(acc / (int32_t)dec);
+    }
+    voice_fx_process(st, fx, y, m);
+    int32_t p = *prev;
+    for (size_t i = 0; i < m; i++) {
+        for (uint32_t k = 0; k < dec; k++)
+            x[i * dec + k] = (int16_t)(p + (int32_t)(y[i] - p) * (int32_t)(k + 1) / (int32_t)dec);
+        p = y[i];
+    }
+    *prev = (int16_t)p;
+}
 static uint32_t s_sr = 48000;
 static size_t   s_frame = 480;
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
@@ -175,8 +206,8 @@ esp_err_t audio_set_voice_fx(int line, voice_fx_t fx)
     if (line < 0 || line >= AUDIO_NUM_LINES) return ESP_ERR_INVALID_ARG;
     line_t *l = &s_line[line];
     if (fx != VOICE_FX_NONE && !l->fx_down) {
-        voice_fx_state_t *down = voice_fx_create(s_sr);
-        voice_fx_state_t *up   = voice_fx_create(s_sr);
+        voice_fx_state_t *down = voice_fx_create(8000);
+        voice_fx_state_t *up   = voice_fx_create(8000);
         voice_fx_state_t *up8  = voice_fx_create(8000);
         if (!down || !up || !up8) {
             /* voice_fx states are never freed once in use, so a partial
@@ -540,7 +571,7 @@ static void fill_tx_line(int line, int16_t *out, size_t n)
             int from = snap.bridge_from;
             if (from >= 0 && from < AUDIO_NUM_LINES && s_rx_mono[from]) {
                 memcpy(out, s_rx_mono[from], n * sizeof(int16_t));
-                voice_fx_process(snap.fx_down, snap.fx, out, n);
+                fx_at_8k(snap.fx_down, snap.fx, out, n, &s_line[line].fx_down_prev, s_sr);
             } else {
                 memset(out, 0, n * sizeof(int16_t));
             }
@@ -554,7 +585,7 @@ static void fill_tx_line(int line, int16_t *out, size_t n)
             }
             if (got < n) s_line[line].ext_underruns++;
             for (size_t i = got; i < n; i++) out[i] = 0; /* underrun -> silence */
-            voice_fx_process(snap.fx_down, snap.fx, out, n);
+            fx_at_8k(snap.fx_down, snap.fx, out, n, &s_line[line].fx_down_prev, s_sr);
             break;
         }
         case SRC_SILENCE:
@@ -684,10 +715,15 @@ static void audio_task(void *arg)
                  * hear the '0' that turns an effect off); only the uplink
                  * VoIP reads gets the effect. */
                 const int16_t *up = src;
-                bool wanted = esp_timer_get_time() - s_line[line].uplink_read_us < 500000;
+                /* Not while a call takes the echo-cancelled stream instead:
+                 * that one gets the effect below, and nobody reads this one. */
+                int64_t now = esp_timer_get_time();
+                bool wanted = now - s_line[line].uplink_read_us < 500000 &&
+                              now - s_line[line].aec_read_us >= 500000;
                 if (wanted && s_line[line].fx != VOICE_FX_NONE && s_line[line].fx_up && s_fx_tmp[line]) {
                     memcpy(s_fx_tmp[line], src, rxn * sizeof(int16_t));
-                    voice_fx_process(s_line[line].fx_up, s_line[line].fx, s_fx_tmp[line], rxn);
+                    fx_at_8k(s_line[line].fx_up, s_line[line].fx, s_fx_tmp[line], rxn,
+                             &s_line[line].fx_up_prev, s_sr);
                     up = s_fx_tmp[line];
                 }
                 xStreamBufferSend(s_line[line].rx, up, rxn * sizeof(int16_t), 0);

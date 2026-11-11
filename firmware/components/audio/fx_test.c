@@ -137,7 +137,7 @@ esp_err_t audio_fx_tone_test(voice_fx_t fx, float hz, float amp, fx_tone_result_
 {
     if (!out) return ESP_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
-    uint32_t fs = audio_sample_rate();
+    uint32_t fs = 8000;                  /* the rate audio.c runs every effect at */
     size_t n = fs / 100;
     int16_t *frame = malloc(n * sizeof(int16_t));
     int16_t *y = malloc(NDEC * sizeof(int16_t));

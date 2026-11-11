@@ -1,9 +1,10 @@
 /*
  * voice_fx.h -- in-call voice effects, applied per line by audio.c.
  *
- * All fixed-point (the C6 has no FPU). Only the pitch effects (chipmunk,
- * Vader) add delay: about half their 30 ms window, ~15 ms. The rest are
- * sample-by-sample.
+ * Fixed-point (the C6 has no FPU), run at 8 kHz (audio.c resamples the
+ * 48 kHz streams around them). Chipmunk and Vader (a correlation-spliced
+ * delay line) add 5-40 ms; robot (FFT, phases zeroed) adds 32 ms. The rest
+ * are sample-by-sample.
  */
 #pragma once
 
@@ -20,7 +21,7 @@ typedef enum {
     VOICE_FX_CHIPMUNK,   /* pitch up 1.5x */
     VOICE_FX_VADER,      /* pitch down 0.8x, overdrive, short "mask" resonance */
     VOICE_FX_8BIT,       /* bit-crush + 4 kHz sample-and-hold */
-    VOICE_FX_ROBOT,      /* metallic comb resonance at ~110 Hz, no delay */
+    VOICE_FX_ROBOT,      /* monotone 125 Hz buzz: STFT with the phases zeroed */
     VOICE_FX_TREMOLO,    /* 6 Hz amplitude wobble, no delay */
     VOICE_FX_DISTORTION, /* heavy soft-clipped overdrive, no delay */
 } voice_fx_t;
