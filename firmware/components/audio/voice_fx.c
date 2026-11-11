@@ -17,12 +17,13 @@
  * out-of-phase crossfades were the "garbled" warble.
  *
  * Robot: short-time Fourier transform, every frame's phases set to zero,
- * resynthesized 8 ms apart: every frame becomes the same-phase pulse, so the
- * voice turns into a monotone 125 Hz buzz with its own vowels and consonants.
+ * resynthesized one hop apart (8 ms at the default 125 Hz): every frame becomes
+ * the same short chirp, so the voice turns into a monotone buzz with its own
+ * vowels and consonants. Chipmunk's pitch and the robot's pitch and amount are
+ * settings (voice_fx_set_tuning()).
  */
 
 #define DALEK_HZ          30
-#define PITCH_UP_Q16      98304   /* 1.5 */
 #define VADER_PITCH_Q16   52429   /* 0.8 */
 #define VADER_MASK_US     1500    /* short comb: the mask's boxy resonance */
 #define VADER_MASK_FB_Q15 9830    /* 0.3 */
@@ -39,14 +40,13 @@
 #define PS_JMAX_MS  22
 #define PS_CORR_MS  10    /* correlation length */
 #define PS_XF_MS    8     /* crossfade */
-#define PS_AA_FRAC  0.29f  /* pitch-up low-pass corner, x the sample rate (2.3 kHz at 8 kHz):
-                            * 1.5x puts it at 3.5 kHz, under the 4 kHz limit */
+#define PS_AA_K     0.435f  /* pitch-up low-pass corner = this / ratio x the sample rate
+                             * (2.3 kHz at 8 kHz for 1.5x): the shift puts it at 3.5 kHz,
+                             * under the 4 kHz limit */
 
-/* Robot: 256-point FFT, hop 64 (8 ms at 8 kHz -> a 125 Hz buzz). */
+/* Robot: 256-point FFT; the hop (sample rate / buzz pitch) is set at run time. */
 #define RB_N      256
 #define RB_LOG2N  8
-#define RB_HOP    64
-#define RB_SPREAD 64      /* chirp length in samples: the whole 8 ms hop, a continuous buzz */
 
 struct voice_fx_state {
     uint32_t   sr;
@@ -68,6 +68,7 @@ struct voice_fx_state {
      * biquads, Q28 coefficients b0 b1 b2 a1 a2, direct form I. */
     int32_t  aa_c[3][5];
     int32_t  aa_z[3][4];                 /* x1 x2 y1 y2 */
+    int      aa_pct;                     /* chipmunk pitch the filter is designed for */
 
     uint32_t hold_n, hold_left;
     int16_t  held;
@@ -84,7 +85,8 @@ struct voice_fx_state {
     /* Robot: last RB_N inputs, the overlap-add accumulator, position in the hop. */
     int16_t *rb_in;
     int32_t *rb_out;
-    uint32_t rb_h;
+    uint32_t rb_h, rb_hop;
+    int32_t  rb_gain_q8;
 };
 
 static int16_t s_sine[256];
@@ -112,22 +114,70 @@ static void init_tables(void)
         s_cos[i] = (int16_t)lrintf(32767.0f * cosf(6.2831853f * i / RB_N));
         s_sin[i] = (int16_t)lrintf(32767.0f * sinf(6.2831853f * i / RB_N));
     }
-    /* Quadratic phase: bin k is delayed RB_SPREAD * k / (N/2) samples, so
-     * each frame is a short upward chirp instead of a click. Same phase every
-     * frame, so the output still repeats every hop: the 125 Hz monotone. */
+    s_tables_ready = true;
+}
+
+/* Robot's fixed phase. Quadratic: bin k is delayed spread * k / (N/2)
+ * samples, so each frame is a short upward chirp instead of a click. With
+ * the spread equal to the hop, one chirp runs into the next: a continuous
+ * buzz at sample_rate / hop. Shared by every stream; rebuilt when the
+ * robot's pitch setting changes. */
+static uint32_t s_ph_spread;
+
+static void robot_phase_table(uint32_t spread)
+{
+    if (spread == s_ph_spread) return;
     for (int k = 0; k <= RB_N / 2; k++) {
-        float ph = -3.14159265f * RB_SPREAD * (float)k * (float)k / (float)(RB_N / 2) / (float)RB_N;
+        float ph = -3.14159265f * (float)spread * (float)k * (float)k / (float)(RB_N / 2) / (float)RB_N;
         s_ph_c[k] = (int16_t)lrintf(32767.0f * cosf(ph));
         s_ph_s[k] = (int16_t)lrintf(32767.0f * sinf(ph));
     }
-    s_tables_ready = true;
+    s_ph_spread = spread;
 }
+
+/* ---- tuning (Settings -> Phone -> Voice effects) ------------------------ */
+
+static volatile int s_chip_pct = VOICE_FX_CHIPMUNK_PCT_DEFAULT;
+static volatile int s_rb_mix = VOICE_FX_ROBOT_MIX_DEFAULT;
+static volatile int s_rb_hz = VOICE_FX_ROBOT_HZ_DEFAULT;
+
+static int clampi(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+void voice_fx_set_tuning(int chipmunk_pct, int robot_mix_pct, int robot_hz)
+{
+    s_chip_pct = clampi(chipmunk_pct, VOICE_FX_CHIPMUNK_PCT_MIN, VOICE_FX_CHIPMUNK_PCT_MAX);
+    s_rb_mix = clampi(robot_mix_pct, 0, 100);
+    s_rb_hz = clampi(robot_hz, VOICE_FX_ROBOT_HZ_MIN, VOICE_FX_ROBOT_HZ_MAX);
+}
+
+int voice_fx_chipmunk_pct(void) { return s_chip_pct; }
+int voice_fx_robot_mix(void) { return s_rb_mix; }
+int voice_fx_robot_hz(void) { return s_rb_hz; }
 
 static uint32_t pow2_at_least(uint32_t n)
 {
     uint32_t s = 1;
     while (s < n) s <<= 1;
     return s;
+}
+
+/* Pitch-up low-pass, for a shift of pct/100: corner at PS_AA_K / ratio x the
+ * sample rate, so what lands under the Nyquist frequency after the shift is
+ * kept (0.29 x fs, 2.3 kHz at 8 kHz, for 1.5x). Butterworth sections (6th
+ * order: Q 0.5176, 0.7071, 1.9319), bilinear transform. */
+static void antialias_design(voice_fx_state_t *s, int pct)
+{
+    float frac = PS_AA_K * 100.0f / (float)pct;
+    if (frac > 0.45f) frac = 0.45f;
+    static const float q[3] = { 0.5176f, 0.7071f, 1.9319f };
+    float wc = tanf(3.14159265f * frac);
+    for (int k = 0; k < 3; k++) {
+        float K = wc, norm = 1.0f / (1.0f + K / q[k] + K * K);
+        float b0 = K * K * norm, a1 = 2.0f * (K * K - 1.0f) * norm, a2 = (1.0f - K / q[k] + K * K) * norm;
+        const float c[5] = { b0, 2.0f * b0, b0, a1, a2 };
+        for (int i = 0; i < 5; i++) s->aa_c[k][i] = (int32_t)lrintf(c[i] * 268435456.0f);
+    }
+    s->aa_pct = pct;
 }
 
 voice_fx_state_t *voice_fx_create(uint32_t sample_rate)
@@ -158,15 +208,7 @@ voice_fx_state_t *voice_fx_create(uint32_t sample_rate)
     s->comb_mask = csize - 1;
     for (uint32_t i = 0; i < s->xf_n; i++)
         s->xf_tab[i] = (int16_t)((32767u * (i + 1)) / (s->xf_n + 1));
-    /* Butterworth sections (6th order: Q 0.5176, 0.7071, 1.9319), bilinear transform. */
-    static const float q[3] = { 0.5176f, 0.7071f, 1.9319f };
-    float wc = tanf(3.14159265f * PS_AA_FRAC);
-    for (int k = 0; k < 3; k++) {
-        float K = wc, norm = 1.0f / (1.0f + K / q[k] + K * K);
-        float b0 = K * K * norm, a1 = 2.0f * (K * K - 1.0f) * norm, a2 = (1.0f - K / q[k] + K * K) * norm;
-        const float c[5] = { b0, 2.0f * b0, b0, a1, a2 };
-        for (int i = 0; i < 5; i++) s->aa_c[k][i] = (int32_t)lrintf(c[i] * 268435456.0f);
-    }
+    antialias_design(s, s_chip_pct);
     s->mask_d = sample_rate * VADER_MASK_US / 1000000;
     s->ring_step = (uint32_t)(((uint64_t)DALEK_HZ << 32) / sample_rate);
     s->trem_step = (uint32_t)(((uint64_t)TREMOLO_HZ << 32) / sample_rate);
@@ -192,6 +234,7 @@ static void reset(voice_fx_state_t *s)
     memset(s->rb_in, 0, RB_N * sizeof(int16_t));
     memset(s->rb_out, 0, RB_N * sizeof(int32_t));
     s->rb_h = 0;
+    s->rb_hop = 0;
     s->w = 0;
     s->cw = 0;
     s->d_q16 = (int32_t)(((s->dmin + s->dmax) / 2) << 16);
@@ -340,7 +383,7 @@ static uint32_t isqrt32(uint32_t v)
 /* Output level, Q8: Hann^2 overlap at hop N/4 sums to 1.5, and a
  * zero-phase frame is peakier than the voice it came from. Matched on
  * speech (RMS in ~ RMS out); the limiter keeps the pulse peaks in check. */
-#define RB_GAIN_Q8 190    /* ~2 dB under the voice it replaces */
+#define RB_GAIN_Q8 190    /* at hop 64 (scaled by hop / 64): ~2 dB under the voice it replaces */
 
 static void robot_frame(voice_fx_state_t *s)
 {
@@ -373,24 +416,46 @@ static void robot_frame(voice_fx_state_t *s)
     fft(true);
     /* The chirp starts at index 0 and runs RB_SPREAD samples: put its middle
      * at the middle of the window, window again and overlap-add. */
-    const int rot = RB_N / 2 - RB_SPREAD / 2;
+    const int rot = RB_N / 2 - (int)s->rb_hop / 2;
     for (int i = 0; i < RB_N; i++) {
         int32_t v = s_re[(i - rot) & (RB_N - 1)] >> sh;
-        s->rb_out[i] += (int32_t)((((int64_t)v * s_hann[i]) >> 15) * RB_GAIN_Q8 >> 8);
+        s->rb_out[i] += (int32_t)((((int64_t)v * s_hann[i]) >> 15) * s->rb_gain_q8 >> 8);
     }
 }
 
+/* The buzz is sample_rate / hop; `mix` percent robot, the rest the plain
+ * voice delayed by the robot's own latency (RB_N + hop / 4, measured) so the
+ * two line up. */
 static void robot(voice_fx_state_t *s, int16_t *x, size_t n)
 {
+    uint32_t hop = (s->sr + (uint32_t)s_rb_hz / 2) / (uint32_t)s_rb_hz;
+    if (hop < 16) hop = 16;
+    if (hop > RB_N / 2) hop = RB_N / 2;
+    if (hop != s->rb_hop) {
+        memset(s->rb_in, 0, RB_N * sizeof(int16_t));
+        memset(s->rb_out, 0, RB_N * sizeof(int32_t));
+        s->rb_h = 0;
+        s->rb_hop = hop;
+        s->rb_gain_q8 = (int32_t)((RB_GAIN_Q8 * hop + 32) / 64);
+    }
+    robot_phase_table(hop);
+    /* Equal-power blend: the robot and the plain voice don't add in phase. */
+    const int32_t mix = s_rb_mix;
+    const int32_t wq = (int32_t)lrintf(32767.0f * sinf(1.5707963f * (float)mix / 100.0f));
+    const int32_t dq = (int32_t)lrintf(32767.0f * cosf(1.5707963f * (float)mix / 100.0f));
     for (size_t k = 0; k < n; k++) {
-        s->rb_in[RB_N - RB_HOP + s->rb_h] = x[k];
-        x[k] = sat16(s->rb_out[s->rb_h]);
-        if (++s->rb_h == RB_HOP) {
+        s->buf[s->w & s->mask] = x[k];
+        int32_t dry = s->buf[(s->w - RB_N - hop / 4) & s->mask];
+        s->w++;
+        s->rb_in[RB_N - hop + s->rb_h] = x[k];
+        int32_t wet = s->rb_out[s->rb_h];
+        x[k] = sat16(mix >= 100 ? wet : (int32_t)(((int64_t)wet * wq + (int64_t)dry * dq) >> 15));
+        if (++s->rb_h == hop) {
             s->rb_h = 0;
-            memmove(s->rb_out, s->rb_out + RB_HOP, (RB_N - RB_HOP) * sizeof(int32_t));
-            memset(s->rb_out + RB_N - RB_HOP, 0, RB_HOP * sizeof(int32_t));
+            memmove(s->rb_out, s->rb_out + hop, (RB_N - hop) * sizeof(int32_t));
+            memset(s->rb_out + RB_N - hop, 0, hop * sizeof(int32_t));
             robot_frame(s);
-            memmove(s->rb_in, s->rb_in + RB_HOP, (RB_N - RB_HOP) * sizeof(int16_t));
+            memmove(s->rb_in, s->rb_in + hop, (RB_N - hop) * sizeof(int16_t));
         }
     }
 }
@@ -471,10 +536,13 @@ void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *x, size_t n)
             s->ring_phase += s->ring_step;
         }
         break;
-    case VOICE_FX_CHIPMUNK:
-        pitch(s, PITCH_UP_Q16, x, n);
+    case VOICE_FX_CHIPMUNK: {
+        int pct = s_chip_pct;
+        if (pct != s->aa_pct) antialias_design(s, pct);
+        pitch(s, (int32_t)((pct * 65536 + 50) / 100), x, n);
         for (size_t k = 0; k < n; k++) x[k] = (int16_t)((x[k] * 26028) >> 15);   /* -2 dB */
         break;
+    }
     case VOICE_FX_VADER:
         pitch(s, VADER_PITCH_Q16, x, n);
         overdrive(x, n, 2, 18300);   /* 0.56: its drive and the pitch shift raise RMS ~5 dB over the input */
