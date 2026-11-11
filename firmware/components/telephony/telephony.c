@@ -731,6 +731,7 @@ static void on_coin(int line, int cents, payphone_src_t src)
  * 8000ms gives real room to think without sitting through the full max_ms on
  * every short message that just ends with a quiet hangup. */
 #define RECORD_SILENCE_MS 8000
+#define REC_MIN_MS        2000   /* 211 and answering machine messages shorter than this are deleted (8 kHz 16-bit = 16 bytes/ms) */
 
 void telephony_am_greeting_name(char *out, size_t len, int line)
 {
@@ -2246,6 +2247,15 @@ static void fsm_task(void *arg)
                     int l = e.line;
                     /* Tell Home Assistant what was recorded; diagnostics mic
                      * tests don't come through here. */
+                    /* A message shorter than REC_MIN_MS (a hang-up, a click) is not kept. */
+                    if (e.digit && (e.kind == REC_VOICEMAIL || e.kind == REC_ARCHIVE)) {
+                        size_t sz = 0;
+                        if (storage_where(s_line[l].rec_name, &sz) != STORAGE_WHERE_NONE && sz < 44 + REC_MIN_MS * 16) {
+                            storage_delete(s_line[l].rec_name);
+                            activity_log("Line %d: message under %d s discarded", l, REC_MIN_MS / 1000);
+                            e.digit = 0;
+                        }
+                    }
                     if (e.digit && e.kind != REC_NONE) {
                         const char *kind = e.kind == REC_GREETING  ? "greeting"
                                          : e.kind == REC_VOICEMAIL ? "voicemail"
