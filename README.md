@@ -53,7 +53,7 @@ You can do a lot with VoIP adapters and an Asterisk server, but this system can 
 ## System overview
 
 <p align="center">
-  <img src="docs/assets/setup-overview-top-web.png" alt="Everything the Analog Redial board can connect to: one phone always, then a second phone line or a microSD card or your own gadgets on four spare pins chosen with the J5 jumpers; Wi-Fi to the web interface, a VoIP server and Home Assistant; and Bluetooth to a cell phone through an extra adapter board">
+  <img src="docs/assets/setup-overview-top-web.png" alt="Everything the Analog Redial board can connect to: one phone always, then a second phone line or a microSD card or your own gadgets on four spare pins chosen with the J5 jumpers; Wi-Fi to the web interface, other Analog Redial boards, a VoIP server and Home Assistant; and Bluetooth to a cell phone through an extra adapter board">
 </p>
 
 Every network option runs on the board's own Wi-Fi, with nothing to add.
@@ -112,7 +112,7 @@ Full feature list and firmware architecture: [Features](docs/features.md).
 The board serves its own web page at **`http://phone.local`**, reachable
 from any phone or laptop on your Wi-Fi. No app, no account, no cloud. On
 first boot it makes its own Wi-Fi network with a setup page that gets it
-onto yours.
+onto yours. Firmware is updating frequently, so these are just examples.
 
 <table>
   <tr>
@@ -147,7 +147,7 @@ US prices from October 2026, including shipping and import tariff:
 | Second phone line (optional) | +$10 | +$50 |
 | Bluetooth board (optional, v5) | +$15 | +$80 |
 
-**Five boards cost about $186 in all, about $37 each.** Want just one?
+**Five boards cost about $186 in all, about $37 each.**
 JLCPCB's minimum is five, so it's about $110 up front, with four spare PCBs.
 The five-board Bluetooth figure is $15 a board plus about $5 shipping. Buying
 the hand-solder parts from AliExpress saves $7 per board.
@@ -212,7 +212,7 @@ Going further: [Troubleshooting](docs/troubleshooting.md) ·
 | Sep 2026 | **v4** <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | 2-layer, built around a cheaper 32-pin ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. |
 | Oct 2026 | **v5** <br><img src="docs/pics/V5_board.jpg" width="220" alt="Analog Redial v5 board">| Working: takes a genuine or clone ESP32-C6 module, and adds the expansion header (used for the Bluetooth board). <br>**With a clone module, remove the clone's bottom-right 5V pin** (see [Get a board](docs/board.md)). |
 | Oct 2026 | **v5.1** | **RECOMMENDED VERSION** v5 with the clone-module 5V pin fixed (nothing to remove) and small silkscreen and fab-file updates. |
-| Nov 2026 | **v6** | **Released, not built or tested yet.** Two phone lines, the microSD card, payphone support and extra I/O all working at once (an I²C I/O expander drives the second line), plus the clone-module 5V pin fix and a 3 A diode (SS34) for the DC jack. |
+| Nov 2026 | **v6** <br><img src="docs/pics/V6_board_top.png" width="220" alt="Analog Redial v6 board"> | **Released, not built or tested yet.** Two phone lines, the microSD card, payphone support and extra I/O all working at once (an I²C I/O expander drives the second line), plus the clone-module 5V pin fix and a 3 A diode (SS34) for the DC jack. |
 
 ### Related projects
 

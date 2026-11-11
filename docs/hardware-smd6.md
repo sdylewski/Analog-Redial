@@ -30,6 +30,19 @@ Build instructions: [Build a v6 board](build-v6.md).
 
 Same outline as v5 (115 × 52 mm) and the same mounting holes.
 
+## Schematic and layout
+
+The full schematic is a one-page PDF: **[v6 schematic (PDF)](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/kicad/Analog%20Redial%20v6/Analog_Redial_v6_schematic.pdf)**. It's also below
+as an image; open the KiCad project (above) for the bottom layer, the 3D view, or to edit.
+
+**Schematic:**
+
+![v6 schematic](pics/smd6_schematic.png)
+
+**PCB layout, top copper/silkscreen** (from KiCad: no v6 board has been built yet):
+
+![v6 PCB layout, top](pics/V6_board_top.png)
+
 ## 1. Board overview
 
 | Item | Detail |
@@ -173,4 +186,5 @@ firmware-update releases yet.
 | [`build-v6.md`](build-v6.md) | Building a v6 board, step by step |
 | [`hardware-smd5.md`](hardware-smd5.md) | The v5 board: everything v6 carries over |
 | [`bom.md`](bom.md) | Where to buy the parts v5 and v6 share |
+| [v6 schematic (PDF)](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/kicad/Analog%20Redial%20v6/Analog_Redial_v6_schematic.pdf) | The full schematic, one page |
 | [v6 README](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v6) | The design's status |

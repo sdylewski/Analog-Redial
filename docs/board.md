@@ -30,6 +30,7 @@ capacitors and diodes). You add the larger through-hole parts with a soldering i
 | Reference | [Board reference (v4)](hardware-smd4.md) | [Board reference (v5)](hardware-smd5.md) | same as v5 | [Board reference (v6)](hardware-smd6.md), untested |
 | Build guide | [Assembly](building.md) | [Build a v5 board](build-v5.md) | same as v5 | [Build a v6 board](build-v6.md), untested |
 | KiCad project | [`Analog Redial v4`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v4) | [`Analog Redial v5`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5) (as fabbed) | [`Analog Redial v5.1`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v5.1) | [`Analog Redial v6`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v6) (not built yet) |
+| Schematic | [Image](hardware-smd4.md#2-schematic-and-layout) | [Image](hardware-smd5.md#2-schematic-and-layout) | same as v5 | [PDF](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/kicad/Analog%20Redial%20v6/Analog_Redial_v6_schematic.pdf) · [image](hardware-smd6.md#schematic-and-layout) |
 
 **v4** has the longest track record; **v5** adds the Bluetooth header and takes a cheaper clone ESP32 module. Both take the same parts, so the parts list and
 assembly guide cover either one.
