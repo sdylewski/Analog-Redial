@@ -9,7 +9,7 @@
  * 8 kHz around them; a phone call carries nothing above 4 kHz anyway). Other
  * rates still work, with times scaled, but the FFT robot is sized for 8 kHz.
  *
- * Pitch (chipmunk, Vader): a delay line read faster (or slower) than it's
+ * Pitch (chipmunk): a delay line read faster (or slower) than it's
  * written. When the read point runs out of room it jumps back (or forward)
  * by about a whole number of voice periods, the jump picked by
  * cross-correlation so the old and new read points are in step, then
@@ -19,18 +19,13 @@
  * Robot: short-time Fourier transform, every frame's phases set to zero,
  * resynthesized one hop apart (8 ms at the default 125 Hz): every frame becomes
  * the same short chirp, so the voice turns into a monotone buzz with its own
- * vowels and consonants. Chipmunk's pitch and the robot's pitch and amount are
- * settings (voice_fx_set_tuning()).
+ * vowels and consonants.
+ *
+ * Dalek: ring modulation, the voice times a low sine. Tremolo: the voice's
+ * volume swung by a sine. Both level-matched so the effect isn't quieter.
+ *
+ * Every effect's strength is a setting (VOICE_FX_PARAMS).
  */
-
-#define DALEK_HZ          30
-#define VADER_PITCH_Q16   52429   /* 0.8 */
-#define VADER_MASK_US     1500    /* short comb: the mask's boxy resonance */
-#define VADER_MASK_FB_Q15 9830    /* 0.3 */
-#define TREMOLO_HZ        6
-#define TREMOLO_DEPTH_Q15 22938   /* 0.7: dips to 30% volume */
-#define CRUSH_RATE_HZ     4000
-#define CRUSH_MASK        0xF800  /* keep the top 5 bits */
 
 /* Pitch shifter timing, in ms. */
 #define PS_BUF_MS   64    /* delay line: the read point and its correlation look-back reach ~41 ms */
@@ -52,8 +47,7 @@ struct voice_fx_state {
     uint32_t   sr;
     voice_fx_t last;
 
-    uint32_t ring_phase, ring_step;      /* Q32 turns; ring_phase also drives tremolo */
-    uint32_t trem_step;
+    uint32_t ring_phase;                 /* Q32 turns: Dalek's and tremolo's sine */
 
     /* Pitch shifter. d_q16 is how far the read point is behind the newest
      * sample; during a crossfade d_old_q16 is the outgoing read point. */
@@ -70,17 +64,10 @@ struct voice_fx_state {
     int32_t  aa_z[3][4];                 /* x1 x2 y1 y2 */
     int      aa_pct;                     /* chipmunk pitch the filter is designed for */
 
-    uint32_t hold_n, hold_left;
-    int16_t  held;
-
     /* Diagnostics: window since the last voice_fx_take_stats(). */
     uint32_t st_n, st_limited;
     int32_t  st_in_peak, st_out_peak;
     uint64_t st_in_sq, st_out_sq;
-
-    /* Feedback comb (Vader's mask): y[n] = x[n] + g * y[n - D]. */
-    int16_t *comb;
-    uint32_t comb_mask, cw, mask_d;
 
     /* Robot: last RB_N inputs, the overlap-add accumulator, position in the hop. */
     int16_t *rb_in;
@@ -137,22 +124,35 @@ static void robot_phase_table(uint32_t spread)
 
 /* ---- tuning (Settings -> Phone -> Voice effects) ------------------------ */
 
-static volatile int s_chip_pct = VOICE_FX_CHIPMUNK_PCT_DEFAULT;
-static volatile int s_rb_mix = VOICE_FX_ROBOT_MIX_DEFAULT;
-static volatile int s_rb_hz = VOICE_FX_ROBOT_HZ_DEFAULT;
+const voice_fx_param_info_t VOICE_FX_PARAMS[VFX_NPARAMS] = {
+    [VFX_CHIP_PCT]   = { VOICE_FX_CHIPMUNK, "chip",    "Pitch (100% is your own voice, below it deeper)", "%", 70, 200, 5, 130 },
+    [VFX_ROBOT_MIX]  = { VOICE_FX_ROBOT,    "rbmix",   "Amount (the rest is your own voice)", "%", 0, 100, 5, 100 },
+    [VFX_ROBOT_HZ]   = { VOICE_FX_ROBOT,    "rbhz",    "Buzz pitch", " Hz", 70, 200, 5, 125 },
+    [VFX_DALEK_HZ]   = { VOICE_FX_DALEK,    "dkhz",    "Buzz speed", " Hz", 15, 100, 5, 30 },
+    [VFX_DALEK_MIX]  = { VOICE_FX_DALEK,    "dkmix",   "Amount (the rest is your own voice)", "%", 0, 100, 5, 100 },
+    [VFX_TREM_HZ]    = { VOICE_FX_TREMOLO,  "trhz",    "Speed", " Hz", 2, 15, 1, 6 },
+    [VFX_TREM_DEPTH] = { VOICE_FX_TREMOLO,  "trdepth", "Depth", "%", 10, 100, 5, 70 },
+};
 
-static int clampi(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
+static volatile int16_t s_param[VFX_NPARAMS] = { 130, 100, 125, 30, 100, 6, 70 };
 
-void voice_fx_set_tuning(int chipmunk_pct, int robot_mix_pct, int robot_hz)
+void voice_fx_set_param(voice_fx_param_t p, int v)
 {
-    s_chip_pct = clampi(chipmunk_pct, VOICE_FX_CHIPMUNK_PCT_MIN, VOICE_FX_CHIPMUNK_PCT_MAX);
-    s_rb_mix = clampi(robot_mix_pct, 0, 100);
-    s_rb_hz = clampi(robot_hz, VOICE_FX_ROBOT_HZ_MIN, VOICE_FX_ROBOT_HZ_MAX);
+    if ((unsigned)p >= VFX_NPARAMS) return;
+    const voice_fx_param_info_t *i = &VOICE_FX_PARAMS[p];
+    s_param[p] = (int16_t)(v < i->min ? i->min : (v > i->max ? i->max : v));
 }
 
-int voice_fx_chipmunk_pct(void) { return s_chip_pct; }
-int voice_fx_robot_mix(void) { return s_rb_mix; }
-int voice_fx_robot_hz(void) { return s_rb_hz; }
+int voice_fx_param(voice_fx_param_t p)
+{
+    return (unsigned)p < VFX_NPARAMS ? s_param[p] : 0;
+}
+
+bool voice_fx_valid(int fx)
+{
+    return fx == VOICE_FX_NONE || fx == VOICE_FX_DALEK || fx == VOICE_FX_CHIPMUNK ||
+           fx == VOICE_FX_ROBOT || fx == VOICE_FX_TREMOLO;
+}
 
 static uint32_t pow2_at_least(uint32_t n)
 {
@@ -188,7 +188,6 @@ voice_fx_state_t *voice_fx_create(uint32_t sample_rate)
     s->sr = sample_rate;
     uint32_t ms = sample_rate / 1000;
     uint32_t size = pow2_at_least(sample_rate * PS_BUF_MS / 1000);
-    uint32_t csize = pow2_at_least(sample_rate / 100 + 4);   /* >= 10 ms */
     s->dmin = PS_DMIN_MS * ms;
     s->dmax = PS_DMAX_MS * ms;
     s->jmin = PS_JMIN_MS * ms;
@@ -196,23 +195,17 @@ voice_fx_state_t *voice_fx_create(uint32_t sample_rate)
     s->corr_n = PS_CORR_MS * ms;
     s->xf_n = PS_XF_MS * ms;
     s->buf = calloc(size, sizeof(int16_t));
-    s->comb = calloc(csize, sizeof(int16_t));
     s->xf_tab = calloc(s->xf_n, sizeof(int16_t));
     s->rb_in = calloc(RB_N, sizeof(int16_t));
     s->rb_out = calloc(RB_N, sizeof(int32_t));
-    if (!s->buf || !s->comb || !s->xf_tab || !s->rb_in || !s->rb_out) {
+    if (!s->buf || !s->xf_tab || !s->rb_in || !s->rb_out) {
         voice_fx_destroy(s);
         return NULL;
     }
     s->mask = size - 1;
-    s->comb_mask = csize - 1;
     for (uint32_t i = 0; i < s->xf_n; i++)
         s->xf_tab[i] = (int16_t)((32767u * (i + 1)) / (s->xf_n + 1));
-    antialias_design(s, s_chip_pct);
-    s->mask_d = sample_rate * VADER_MASK_US / 1000000;
-    s->ring_step = (uint32_t)(((uint64_t)DALEK_HZ << 32) / sample_rate);
-    s->trem_step = (uint32_t)(((uint64_t)TREMOLO_HZ << 32) / sample_rate);
-    s->hold_n = sample_rate / CRUSH_RATE_HZ ? sample_rate / CRUSH_RATE_HZ : 1;
+    antialias_design(s, s_param[VFX_CHIP_PCT]);
     return s;
 }
 
@@ -220,7 +213,6 @@ void voice_fx_destroy(voice_fx_state_t *s)
 {
     if (!s) return;
     free(s->buf);
-    free(s->comb);
     free(s->xf_tab);
     free(s->rb_in);
     free(s->rb_out);
@@ -230,18 +222,15 @@ void voice_fx_destroy(voice_fx_state_t *s)
 static void reset(voice_fx_state_t *s)
 {
     memset(s->buf, 0, (s->mask + 1) * sizeof(int16_t));
-    memset(s->comb, 0, (s->comb_mask + 1) * sizeof(int16_t));
     memset(s->rb_in, 0, RB_N * sizeof(int16_t));
     memset(s->rb_out, 0, RB_N * sizeof(int32_t));
     s->rb_h = 0;
     s->rb_hop = 0;
     s->w = 0;
-    s->cw = 0;
     s->d_q16 = (int32_t)(((s->dmin + s->dmax) / 2) << 16);
     s->xf_left = 0;
     memset(s->aa_z, 0, sizeof(s->aa_z));
     s->ring_phase = 0;
-    s->hold_left = 0;
 }
 
 static inline int16_t sat16(int32_t v)
@@ -428,7 +417,8 @@ static void robot_frame(voice_fx_state_t *s)
  * two line up. */
 static void robot(voice_fx_state_t *s, int16_t *x, size_t n)
 {
-    uint32_t hop = (s->sr + (uint32_t)s_rb_hz / 2) / (uint32_t)s_rb_hz;
+    uint32_t hz = (uint32_t)s_param[VFX_ROBOT_HZ];
+    uint32_t hop = (s->sr + hz / 2) / hz;
     if (hop < 16) hop = 16;
     if (hop > RB_N / 2) hop = RB_N / 2;
     if (hop != s->rb_hop) {
@@ -440,7 +430,7 @@ static void robot(voice_fx_state_t *s, int16_t *x, size_t n)
     }
     robot_phase_table(hop);
     /* Equal-power blend: the robot and the plain voice don't add in phase. */
-    const int32_t mix = s_rb_mix;
+    const int32_t mix = s_param[VFX_ROBOT_MIX];
     const int32_t wq = (int32_t)lrintf(32767.0f * sinf(1.5707963f * (float)mix / 100.0f));
     const int32_t dq = (int32_t)lrintf(32767.0f * cosf(1.5707963f * (float)mix / 100.0f));
     for (size_t k = 0; k < n; k++) {
@@ -462,27 +452,36 @@ static void robot(voice_fx_state_t *s, int16_t *x, size_t n)
 
 /* ---- simple effects ---------------------------------------------------- */
 
-/* Feedback comb. Output at 0.7x: speech mostly falls between the comb's
- * resonant peaks, so this keeps it about as loud as the dry voice. */
-static void comb(voice_fx_state_t *s, uint32_t d, int32_t g_q15, int16_t *x, size_t n)
+/* Ring modulation: the voice times a sine at `hz`, blended `mix`% with the
+ * plain voice: gain = dry + wet sin. Scaled to the same average power at
+ * every mix, 1 dB under the plain voice (fully wet: a sine at 1.25x, where
+ * multiplying by a sine alone would halve the power). */
+static void dalek(voice_fx_state_t *s, int16_t *x, size_t n)
 {
-    const int32_t out_q15 = 22938;
+    uint32_t step = (uint32_t)(((uint64_t)(uint32_t)s_param[VFX_DALEK_HZ] << 32) / s->sr);
+    float m = (float)s_param[VFX_DALEK_MIX] / 100.0f, wet = m, dry = 1.0f - m;
+    float r = 0.884f / sqrtf(dry * dry + wet * wet / 2.0f);
+    int32_t wet_q15 = (int32_t)lrintf(32768.0f * wet * r), dry_q15 = (int32_t)lrintf(32768.0f * dry * r);
     for (size_t k = 0; k < n; k++) {
-        int32_t back = s->comb[(s->cw - d) & s->comb_mask];
-        int32_t y = x[k] + ((back * g_q15) >> 15);
-        s->comb[s->cw & s->comb_mask] = sat16(y);
-        s->cw++;
-        x[k] = sat16((y * out_q15) >> 15);
+        int32_t g = dry_q15 + ((wet_q15 * s_sine[s->ring_phase >> 24]) >> 15);   /* Q15 */
+        x[k] = sat16((int32_t)(((int64_t)x[k] * g) >> 15));
+        s->ring_phase += step;
     }
 }
 
-/* Soft clip 1.5v - 0.5v^3 on a `drive`-times signal, then `out_q15` level. */
-static void overdrive(int16_t *x, size_t n, int32_t drive, int32_t out_q15)
+/* Volume swung between 1 and 1 - depth, `hz` times a second, then scaled so
+ * the average power matches the plain voice: gain = (a - b sin) / rms with
+ * a = 1 - depth / 2, b = depth / 2, rms = sqrt(a^2 + b^2 / 2). */
+static void tremolo(voice_fx_state_t *s, int16_t *x, size_t n)
 {
+    uint32_t step = (uint32_t)(((uint64_t)(uint32_t)s_param[VFX_TREM_HZ] << 32) / s->sr);
+    float d = (float)s_param[VFX_TREM_DEPTH] / 100.0f, a = 1.0f - d / 2.0f, b = d / 2.0f;
+    float r = 1.0f / sqrtf(a * a + b * b / 2.0f);
+    int32_t a_q15 = (int32_t)lrintf(32768.0f * a * r), b_q15 = (int32_t)lrintf(32768.0f * b * r);
     for (size_t k = 0; k < n; k++) {
-        int64_t v = sat16((int32_t)x[k] * drive);
-        int64_t y = (3 * v) / 2 - (v * v * v) / (2LL * 32768 * 32768);
-        x[k] = sat16((int32_t)((sat16((int32_t)y) * out_q15) >> 15));
+        int32_t g = a_q15 - ((b_q15 * s_sine[s->ring_phase >> 24]) >> 15);
+        x[k] = sat16((int32_t)(((int64_t)x[k] * g) >> 15));
+        s->ring_phase += step;
     }
 }
 
@@ -528,52 +527,20 @@ void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *x, size_t n)
     measure(x, n, &s->st_in_peak, &s->st_in_sq);
     switch (fx) {
     case VOICE_FX_DALEK:
-        for (size_t k = 0; k < n; k++) {
-            /* Multiplying by a sine halves the average power; 1.25x wins
-             * back some loudness without clipping full-scale speech. */
-            int32_t m = s_sine[s->ring_phase >> 24];
-            x[k] = sat16((int32_t)(((int64_t)x[k] * m * 5) >> 17));
-            s->ring_phase += s->ring_step;
-        }
+        dalek(s, x, n);
         break;
     case VOICE_FX_CHIPMUNK: {
-        int pct = s_chip_pct;
+        int pct = s_param[VFX_CHIP_PCT];
         if (pct != s->aa_pct) antialias_design(s, pct);
         pitch(s, (int32_t)((pct * 65536 + 50) / 100), x, n);
         for (size_t k = 0; k < n; k++) x[k] = (int16_t)((x[k] * 26028) >> 15);   /* -2 dB */
         break;
     }
-    case VOICE_FX_VADER:
-        pitch(s, VADER_PITCH_Q16, x, n);
-        overdrive(x, n, 2, 18300);   /* 0.56: its drive and the pitch shift raise RMS ~5 dB over the input */
-        comb(s, s->mask_d, VADER_MASK_FB_Q15, x, n);
-        break;
     case VOICE_FX_ROBOT:
         robot(s, x, n);
         break;
     case VOICE_FX_TREMOLO:
-        for (size_t k = 0; k < n; k++) {
-            /* gain = 1 - depth * (1 + sin) / 2 */
-            int32_t lfo = 32768 + s_sine[s->ring_phase >> 24];          /* 0..65535 */
-            int32_t g = 32768 - (int32_t)(((int64_t)TREMOLO_DEPTH_Q15 * lfo) >> 16);
-            x[k] = sat16((x[k] * g) >> 15);
-            s->ring_phase += s->trem_step;
-        }
-        break;
-    case VOICE_FX_DISTORTION:
-        /* 8x into the clipper flattens almost every peak; the output level
-         * below brings the square-ish result back to about the voice's RMS. */
-        overdrive(x, n, 8, 7500);    /* 0.23: an 8x-clipped voice is ~2.6x the input RMS otherwise */
-        break;
-    case VOICE_FX_8BIT:
-        for (size_t k = 0; k < n; k++) {
-            if (s->hold_left == 0) {
-                s->held = (int16_t)(x[k] & CRUSH_MASK);
-                s->hold_left = s->hold_n;
-            }
-            s->hold_left--;
-            x[k] = s->held;
-        }
+        tremolo(s, x, n);
         break;
     default:
         break;
@@ -610,11 +577,8 @@ const char *voice_fx_name(voice_fx_t fx)
     switch (fx) {
     case VOICE_FX_DALEK:    return "Dalek";
     case VOICE_FX_CHIPMUNK: return "chipmunk";
-    case VOICE_FX_VADER:    return "Vader";
-    case VOICE_FX_8BIT:     return "8-bit";
     case VOICE_FX_ROBOT:    return "robot";
     case VOICE_FX_TREMOLO:  return "tremolo";
-    case VOICE_FX_DISTORTION: return "distortion";
     default:                return "normal";
     }
 }

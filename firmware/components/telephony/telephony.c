@@ -911,31 +911,21 @@ static voice_fx_t voice_fx_for(voice_effect_t e)
 {
     switch (e) {
     case FX_HIGH:  return VOICE_FX_CHIPMUNK;
-    case FX_LOW:   return VOICE_FX_VADER;
     case FX_DALEK: return VOICE_FX_DALEK;
     default:       return VOICE_FX_NONE;
     }
 }
 
-/* A key pressed (or dialled, on a rotary phone) during a call: 1-7 pick an
- * effect, 0 turns it off. Set, not toggle: the tone also reaches the other
+/* A key pressed (or dialled, on a rotary phone) during a call: 1, 2, 5 and 6
+ * pick an effect (voice_fx_t's numbers), 0 turns it off, the rest do
+ * nothing. Set, not toggle: the tone also reaches the other
  * phone and can echo back into its own detector, and a second "set Dalek" is
  * harmless where a toggle would flip it straight back off. */
 static void in_call_key(int line, char ch)
 {
-    static const voice_fx_t KEYS[] = {
-        ['0' - '0'] = VOICE_FX_NONE,
-        ['1' - '0'] = VOICE_FX_DALEK,
-        ['2' - '0'] = VOICE_FX_CHIPMUNK,
-        ['3' - '0'] = VOICE_FX_VADER,
-        ['4' - '0'] = VOICE_FX_8BIT,
-        ['5' - '0'] = VOICE_FX_ROBOT,
-        ['6' - '0'] = VOICE_FX_TREMOLO,
-        ['7' - '0'] = VOICE_FX_DISTORTION,
-    };
     if (!board_voice_fx_enabled_get()) return;
-    if (ch < '0' || ch > '7') return;
-    voice_fx_t fx = KEYS[ch - '0'];
+    if (ch < '0' || ch > '9' || !voice_fx_valid(ch - '0')) return;
+    voice_fx_t fx = (voice_fx_t)(ch - '0');
     ESP_LOGI(TAG, "line %d: in-call key '%c' -> %s", line, ch, voice_fx_name(fx));
     if (audio_voice_fx(line) == fx) return;
     set_call_voice_fx(line, fx);
@@ -950,7 +940,7 @@ static void connect_bridge(int a, int b)
     s_line[a].peer = b;
     s_line[b].peer = a;
     ESP_LOGI(TAG, "bridge %d <-> %d", a, b);
-    /* 322-324 picked an effect when dialling; whichever side dialled holds it. */
+    /* 322 or 324 picked an effect when dialling; whichever side dialled holds it. */
     voice_effect_t fx = s_line[a].call_fx != FX_NORMAL ? s_line[a].call_fx : s_line[b].call_fx;
     ESP_LOGI(TAG, "bridge %d <-> %d: dialled effect %d, effects %s", a, b, (int)fx,
              board_voice_fx_enabled_get() ? "enabled" : "disabled");

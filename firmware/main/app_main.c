@@ -189,9 +189,10 @@ void app_main(void)
         had_soft_failure = true;
     }
     {
-        int chip = VOICE_FX_CHIPMUNK_PCT_DEFAULT, mix = VOICE_FX_ROBOT_MIX_DEFAULT, hz = VOICE_FX_ROBOT_HZ_DEFAULT;
-        board_voice_fx_tuning_get(&chip, &mix, &hz);
-        voice_fx_set_tuning(chip, mix, hz);
+        int16_t v[VFX_NPARAMS];
+        for (int i = 0; i < VFX_NPARAMS; i++) v[i] = (int16_t)voice_fx_param((voice_fx_param_t)i);
+        board_voice_fx_tuning_get(v, VFX_NPARAMS);
+        for (int i = 0; i < VFX_NPARAMS; i++) voice_fx_set_param((voice_fx_param_t)i, v[i]);
     }
 
     /* 3. Codec config over I2C. Non-fatal if the PCB/codec isn't present yet. */

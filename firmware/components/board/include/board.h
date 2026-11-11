@@ -190,18 +190,18 @@ esp_err_t board_tone_region_set(const char *code);
 bool      board_tone_follow_language_get(void); /* defaults to true */
 esp_err_t board_tone_follow_language_set(bool follow);
 
-/* In-call voice effects (keys 1-7 during a call, 322-324). On by default. */
+/* In-call voice effects (keys 1, 2, 5, 6 during a call; dial 322 or 324). */
 /* Optional features that get their own Settings tab (Settings -> General ->
  * Features). 1 on, 0 off, -1 never set (callers pick the default). */
 int       board_feature_get(const char *key);
 esp_err_t board_feature_set(const char *key, bool on);
 bool      board_voice_fx_enabled_get(void);
 esp_err_t board_voice_fx_enabled_set(bool enabled);
-/* Voice effect tuning (voice_fx_set_tuning(), voice_fx.h): chipmunk pitch %,
- * robot amount %, robot buzz Hz. get fills in only what has been saved and
- * leaves the rest as the caller set it (the defaults). */
-void      board_voice_fx_tuning_get(int *chipmunk_pct, int *robot_mix_pct, int *robot_hz);
-esp_err_t board_voice_fx_tuning_set(int chipmunk_pct, int robot_mix_pct, int robot_hz);
+/* Voice effect settings (VOICE_FX_PARAMS, voice_fx.h), saved as an array.
+ * get fills in only the entries that were saved and leaves the rest as the
+ * caller set them (the defaults); returns how many it filled. */
+size_t    board_voice_fx_tuning_get(int16_t *v, size_t n);
+esp_err_t board_voice_fx_tuning_set(const int16_t *v, size_t n);
 /* Alarms (dial 256) ring even during quiet hours. Off by default: quiet
  * hours silence alarms too, like every other ring. */
 bool      board_alarm_quiet_override_get(void);

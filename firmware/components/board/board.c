@@ -504,26 +504,34 @@ esp_err_t board_voice_fx_enabled_set(bool enabled)
     return err;
 }
 
-void board_voice_fx_tuning_get(int *chipmunk_pct, int *robot_mix_pct, int *robot_hz)
+size_t board_voice_fx_tuning_get(int16_t *v, size_t n)
 {
     nvs_handle_t h;
-    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return;
-    uint16_t v;
-    if (nvs_get_u16(h, "fx_chip_pct", &v) == ESP_OK) *chipmunk_pct = v;
-    if (nvs_get_u16(h, "fx_rb_mix", &v) == ESP_OK) *robot_mix_pct = v;
-    if (nvs_get_u16(h, "fx_rb_hz", &v) == ESP_OK) *robot_hz = v;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return 0;
+    int16_t tmp[32];
+    size_t len = sizeof(tmp), got = 0;
+    if (nvs_get_blob(h, "fx_tune", tmp, &len) == ESP_OK) {
+        got = len / sizeof(int16_t);
+        if (got > n) got = n;
+        memcpy(v, tmp, got * sizeof(int16_t));
+    }
     nvs_close(h);
+    return got;
 }
 
-esp_err_t board_voice_fx_tuning_set(int chipmunk_pct, int robot_mix_pct, int robot_hz)
+esp_err_t board_voice_fx_tuning_set(const int16_t *v, size_t n)
 {
+    if (n > 32) return ESP_ERR_INVALID_ARG;
     nvs_handle_t h;
     esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
     if (err != ESP_OK) return err;
-    err = nvs_set_u16(h, "fx_chip_pct", (uint16_t)chipmunk_pct);
-    if (err == ESP_OK) err = nvs_set_u16(h, "fx_rb_mix", (uint16_t)robot_mix_pct);
-    if (err == ESP_OK) err = nvs_set_u16(h, "fx_rb_hz", (uint16_t)robot_hz);
+    err = nvs_set_blob(h, "fx_tune", v, n * sizeof(int16_t));
     if (err == ESP_OK) err = nvs_commit(h);
+    /* The earlier single-value keys, from before this was an array. */
+    nvs_erase_key(h, "fx_chip_pct");
+    nvs_erase_key(h, "fx_rb_mix");
+    nvs_erase_key(h, "fx_rb_hz");
+    nvs_commit(h);
     nvs_close(h);
     return err;
 }

@@ -587,22 +587,20 @@ static int cmd_loopback(int argc, char **argv)
  * hand and `fxstat` shows the levels going in and out of it, so "too loud" or
  * "distorted" can be seen in numbers. To hear yourself through an effect with
  * no call: `fx 0 1` then `loopback 0 1`, lift the handset and talk. */
-static const char *FX_NAMES[8] = { "off", "Dalek", "chipmunk", "Vader", "8-bit", "robot",
-                                   "tremolo", "distortion" };
 
 static int cmd_fx(int argc, char **argv)
 {
     if (argc < 3) {
-        printf("usage: fx <line> <effect> [both]\n  effect: 0 off, 1 Dalek, 2 chipmunk, 3 Vader, "
-               "4 8-bit, 5 robot, 6 tremolo, 7 distortion\n  both = also the other line (a two-phone call)\n"
+        printf("usage: fx <line> <effect> [both]\n  effect: 0 off, 1 Dalek, 2 chipmunk, 5 robot, "
+               "6 tremolo\n  both = also the other line (a two-phone call)\n"
                "  hear yourself with no call: fx 0 1 ; loopback 0 1   (hang up or `fx 0 0` to end)\n");
         return 1;
     }
     int line = atoi(argv[1]), fx = atoi(argv[2]);
-    if (line < 0 || line >= AUDIO_NUM_LINES || fx < 0 || fx > 7) { printf("line 0-1, effect 0-7\n"); return 1; }
+    if (line < 0 || line >= AUDIO_NUM_LINES || !voice_fx_valid(fx)) { printf("line 0-1, effect 0, 1, 2, 5 or 6\n"); return 1; }
     audio_set_voice_fx(line, (voice_fx_t)fx);
     if (argc > 3 && strcmp(argv[3], "both") == 0) audio_set_voice_fx(1 - line, (voice_fx_t)fx);
-    printf("line %d: effect %s\n", line, FX_NAMES[fx]);
+    printf("line %d: effect %s\n", line, voice_fx_name((voice_fx_t)fx));
     return 0;
 }
 
@@ -625,17 +623,16 @@ static const char *fx_expect(voice_fx_t fx, float hz, const fx_tone_result_t *r)
     switch (fx) {
     case VOICE_FX_DALEK: {
         /* 30 Hz ring modulation: two lines at hz-30 and hz+30, nothing at hz. */
-        float m = r->peak_hz, o = r->second_hz;
-        bool ok = (fabsf(m - (hz - 30)) < 12 && fabsf(o - (hz + 30)) < 12) ||
-                  (fabsf(m - (hz + 30)) < 12 && fabsf(o - (hz - 30)) < 12);
-        return ok ? NULL : "expected lines at tone +/- 30 Hz";
+        float m = r->peak_hz, o = r->second_hz, f = (float)voice_fx_param(VFX_DALEK_HZ);
+        bool ok = (fabsf(m - (hz - f)) < 12 && fabsf(o - (hz + f)) < 12) ||
+                  (fabsf(m - (hz + f)) < 12 && fabsf(o - (hz - f)) < 12);
+        return ok ? NULL : "expected lines at the tone +/- the Dalek speed";
     }
-    case VOICE_FX_CHIPMUNK: want = hz * voice_fx_chipmunk_pct() / 100.0f; tol = fmaxf(12.0f, want * 0.03f); break;
-    case VOICE_FX_VADER:    want = hz * 0.8f; tol = fmaxf(12.0f, want * 0.03f); break;
-    /* Every frame resynthesized 8 ms apart: the output is harmonics of 125 Hz,
-     * strongest at the one nearest the tone. */
+    case VOICE_FX_CHIPMUNK: want = hz * voice_fx_param(VFX_CHIP_PCT) / 100.0f; tol = fmaxf(12.0f, want * 0.03f); break;
+    /* Every frame resynthesized one hop apart: the output is harmonics of the
+     * buzz pitch, strongest at the one nearest the tone. */
     case VOICE_FX_ROBOT: {
-        float f0 = 8000.0f / roundf(8000.0f / voice_fx_robot_hz());
+        float f0 = 8000.0f / roundf(8000.0f / voice_fx_param(VFX_ROBOT_HZ));
         want = f0 * roundf(hz / f0); tol = 12.0f; break;
     }
     default: break;
@@ -673,6 +670,7 @@ static int cmd_fxtest(int argc, char **argv)
     float hz = argc > 1 ? (float)atof(argv[1]) : 1000.0f;
     int line = argc > 2 ? atoi(argv[2]) : -1;
     int only = argc > 3 ? atoi(argv[3]) : -1;       /* one effect, repeated 3 times */
+    if (only >= 0 && !voice_fx_valid(only)) { printf("effect 0, 1, 2, 5 or 6\n"); return 1; }
     bool both = argc > 4 && strcmp(argv[4], "both") == 0;   /* line 1 plays the same effect meanwhile */
     float amp = 0.3f;
     if (hz < 200 || hz > 2500 || line >= AUDIO_NUM_LINES) {
@@ -687,15 +685,17 @@ static int cmd_fxtest(int argc, char **argv)
            "time per 10 ms frame avg/max\n",
            hz, 20 * log10f(amp), 20 * log10f(amp / 1.4142f));
     printf("software:\n");
-    for (int fx = (only >= 0 ? only : 0); fx <= (only >= 0 ? only : 7); fx++) {
+    for (int fx = (only >= 0 ? only : 0); fx <= (only >= 0 ? only : VOICE_FX_MAX); fx++) {
+        if (!voice_fx_valid(fx)) continue;
         fx_tone_result_t r;
         esp_err_t e = audio_fx_tone_test((voice_fx_t)fx, hz, amp, &r);
-        if (e != ESP_OK) { printf("  %-10s failed: %s\n", FX_NAMES[fx], esp_err_to_name(e)); continue; }
+        if (e != ESP_OK) { printf("  %-10s failed: %s\n", voice_fx_name((voice_fx_t)fx), esp_err_to_name(e)); continue; }
         fxtest_row((voice_fx_t)fx, hz, &r, true);
     }
     if (line >= 0) {
         printf("line %d round trip (earpiece level as set; the normal row is the line's own response):\n", line);
-        for (int i = 0, fx = (only >= 0 ? only : 0); i < (only >= 0 ? 3 : 8); i++, fx += (only >= 0 ? 0 : 1)) {
+        for (int i = 0, fx = (only >= 0 ? only : 0); i < (only >= 0 ? 3 : VOICE_FX_MAX + 1); i++, fx += (only >= 0 ? 0 : 1)) {
+            if (!voice_fx_valid(fx)) continue;
             fx_tone_result_t r;
             fx_other_t *other = both ? calloc(1, sizeof(*other)) : NULL;
             if (other) {
@@ -703,7 +703,7 @@ static int cmd_fxtest(int argc, char **argv)
                 xTaskCreate(fx_other_task, "fxother", 4096, other, 5, NULL);
             }
             esp_err_t e = audio_fx_roundtrip(line, (voice_fx_t)fx, hz, amp, &r);
-            if (e != ESP_OK) { printf("  %-10s failed: %s\n", FX_NAMES[fx], esp_err_to_name(e)); }
+            if (e != ESP_OK) { printf("  %-10s failed: %s\n", voice_fx_name((voice_fx_t)fx), esp_err_to_name(e)); }
             else fxtest_row((voice_fx_t)fx, hz, &r, false);
             if (other) {
                 for (int w = 0; w < 100 && !other->done; w++) vTaskDelay(pdMS_TO_TICKS(100));

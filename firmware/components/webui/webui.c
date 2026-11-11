@@ -2901,49 +2901,52 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         i18n_str("general.button.save", "Save"));
     off = append_hint(buf, cap, off,
         i18n_str("voicefx.hint_lead",
-                 "During a call, press or dial 2 for a chipmunk voice or 5 for a robot voice, "
-                 "and 0 to go back to normal. Both phones hear it. Also: 1 Dalek, 3 Darth Vader, "
-                 "4 8-bit, 6 tremolo, 7 distortion."),
+                 "During a call, press or dial 2 for a chipmunk voice, 5 robot, 1 Dalek or "
+                 "6 tremolo, and 0 to go back to normal. Both phones hear it."),
         i18n_str("voicefx.hint_detail",
                  "Works on calls between this board's two phones and on VoIP calls: the board "
                  "where the key is pressed changes both voices, so the far end needs nothing "
                  "special. The key's tone also reaches the other phone as a short beep. On a "
                  "VoIP call to an automated phone menu, turn this off so menu choices don't "
-                 "change your voice. Also applies to dialling 322-324."));
+                 "change your voice. Also applies to dialling 322 (chipmunk) and 324 (Dalek)."));
+    /* One slider per VOICE_FX_PARAMS entry, grouped by effect in key order. */
+    static const struct { voice_fx_t fx; const char *i18n, *title; } FX_GROUPS[] = {
+        { VOICE_FX_CHIPMUNK, "voicefx.g.chip",  "2 · Chipmunk" },
+        { VOICE_FX_ROBOT,    "voicefx.g.robot", "5 · Robot" },
+        { VOICE_FX_DALEK,    "voicefx.g.dalek", "1 · Dalek" },
+        { VOICE_FX_TREMOLO,  "voicefx.g.trem",  "6 · Tremolo" },
+    };
     off = appendf(buf, cap, off,
-        "<form method=\"POST\" action=\"/voice_fx_tune\" class=\"settings-form\">"
-        "<label>%s <input type=\"range\" id=\"fxchip\" name=\"chip\" min=\"%d\" max=\"%d\" step=\"5\" "
-        "value=\"%d\" oninput=\"fxTune()\"> <span id=\"fxchipv\">%d%%</span></label>"
-        "<label>%s <input type=\"range\" id=\"fxmix\" name=\"mix\" min=\"0\" max=\"100\" step=\"5\" "
-        "value=\"%d\" oninput=\"fxTune()\"> <span id=\"fxmixv\">%d%%</span></label>"
-        "<label>%s <input type=\"range\" id=\"fxhz\" name=\"hz\" min=\"%d\" max=\"%d\" step=\"5\" "
-        "value=\"%d\" oninput=\"fxTune()\"> <span id=\"fxhzv\">%d Hz</span></label>"
+        "<form method=\"POST\" action=\"/voice_fx_tune\" class=\"settings-form\">");
+    for (size_t g = 0; g < sizeof(FX_GROUPS) / sizeof(FX_GROUPS[0]); g++) {
+        off = appendf(buf, cap, off, "<h3 class=\"sub\">%s</h3>",
+                      i18n_str(FX_GROUPS[g].i18n, FX_GROUPS[g].title));
+        for (int i = 0; i < VFX_NPARAMS; i++) {
+            const voice_fx_param_info_t *p = &VOICE_FX_PARAMS[i];
+            if (p->fx != FX_GROUPS[g].fx) continue;
+            char key[32];
+            snprintf(key, sizeof(key), "voicefx.p.%s", p->key);
+            int v = voice_fx_param((voice_fx_param_t)i);
+            off = appendf(buf, cap, off,
+                "<label>%s <input type=\"range\" name=\"p%d\" min=\"%d\" max=\"%d\" step=\"%d\" "
+                "value=\"%d\" oninput=\"fxTune(this,%d,'%s')\"> <span>%d%s</span></label>",
+                i18n_str(key, p->label), i, p->min, p->max, p->step, v, i, p->unit, v, p->unit);
+        }
+    }
+    off = appendf(buf, cap, off,
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button>"
         "<button type=\"submit\" name=\"defaults\" value=\"1\">%s</button></div>"
         "</form>"
-        "<script>function fxTune(){"
-        "var c=document.getElementById('fxchip').value,m=document.getElementById('fxmix').value,"
-        "h=document.getElementById('fxhz').value;"
-        "document.getElementById('fxchipv').textContent=c+'%%';"
-        "document.getElementById('fxmixv').textContent=m+'%%';"
-        "document.getElementById('fxhzv').textContent=h+' Hz';"
+        "<script>function fxTune(el,i,u){el.nextElementSibling.textContent=el.value+u;"
         "fetch('/voice_fx_tune',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},"
-        "body:'live=1&chip='+c+'&mix='+m+'&hz='+h});}</script>",
-        i18n_str("voicefx.chip", "Chipmunk pitch (100% is your own voice)"),
-        VOICE_FX_CHIPMUNK_PCT_MIN, VOICE_FX_CHIPMUNK_PCT_MAX, voice_fx_chipmunk_pct(), voice_fx_chipmunk_pct(),
-        i18n_str("voicefx.mix", "Robot amount (the rest is your own voice)"),
-        voice_fx_robot_mix(), voice_fx_robot_mix(),
-        i18n_str("voicefx.hz", "Robot pitch"),
-        VOICE_FX_ROBOT_HZ_MIN, VOICE_FX_ROBOT_HZ_MAX, voice_fx_robot_hz(), voice_fx_robot_hz(),
+        "body:'live=1&p'+i+'='+el.value});}</script>"
+        "<p class=\"hint\">%s</p></div>",
         i18n_str("general.button.save", "Save"),
-        i18n_str("voicefx.defaults", "Defaults"));
-    char tune_hint[200];
-    snprintf(tune_hint, sizeof(tune_hint), i18n_str("voicefx.tune_hint",
-             "Drag during a call to hear it change (not saved yet), then click Save. "
-             "Defaults: chipmunk %d%%, robot %d%% at %d Hz. On a VoIP call, the settings of "
-             "the board where the key was pressed are the ones heard."),
-             VOICE_FX_CHIPMUNK_PCT_DEFAULT, VOICE_FX_ROBOT_MIX_DEFAULT, VOICE_FX_ROBOT_HZ_DEFAULT);
-    off = appendf(buf, cap, off, "<p class=\"hint\">%s</p></div>", tune_hint);
+        i18n_str("voicefx.defaults", "Defaults"),
+        i18n_str("voicefx.tune_hint",
+                 "Drag during a call to hear it change (not saved yet), then click Save. "
+                 "On a VoIP call, the settings of the board where the key was pressed are the "
+                 "ones heard."));
 
 
     return off;
@@ -6307,9 +6310,8 @@ static int append_fx_diag_card(char *buf, size_t cap, int off)
             "<div class=\"statusrow\"><span class=\"label\">Line %d</span><span>"
             "<select id=\"fxsel%d\" onchange=\"fxSet(%d,this.value)\">"
             "<option value=\"0\">off</option><option value=\"1\">1 Dalek</option>"
-            "<option value=\"2\">2 chipmunk</option><option value=\"3\">3 Vader</option>"
-            "<option value=\"4\">4 8-bit</option><option value=\"5\">5 robot</option>"
-            "<option value=\"6\">6 tremolo</option><option value=\"7\">7 distortion</option>"
+            "<option value=\"2\">2 chipmunk</option><option value=\"5\">5 robot</option>"
+            "<option value=\"6\">6 tremolo</option>"
             "</select></span></div>"
             "<pre class=\"cmd\" id=\"fxout%d\">waiting for audio...</pre>", l, l, l, l);
     }
@@ -8055,28 +8057,28 @@ static esp_err_t voice_fx_enabled_handler(httpd_req_t *req)
     return redirect_to(req, "/settings?tab=phone");
 }
 
-/* POST /voice_fx_tune -- chip=N&mix=N&hz=N, plus live=1 (the sliders while
- * dragging: apply, don't save, plain-text reply) or defaults=1 (save the
- * defaults). */
+/* POST /voice_fx_tune -- p<N>=value for any of VOICE_FX_PARAMS, plus live=1
+ * (a slider while dragging: apply, don't save, plain-text reply) or
+ * defaults=1 (save the defaults). */
 static esp_err_t voice_fx_tune_handler(httpd_req_t *req)
 {
-    char body[128] = "", v[12];
+    char body[256] = "", v[12], k[8];
     if (!read_form_body(req, body, sizeof(body))) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
     }
-    int chip = voice_fx_chipmunk_pct(), mix = voice_fx_robot_mix(), hz = voice_fx_robot_hz();
-    if (form_field(body, "chip", v, sizeof(v)) && v[0]) chip = atoi(v);
-    if (form_field(body, "mix", v, sizeof(v)) && v[0]) mix = atoi(v);
-    if (form_field(body, "hz", v, sizeof(v)) && v[0]) hz = atoi(v);
-    if (form_field(body, "defaults", v, sizeof(v)) && v[0] == '1') {
-        chip = VOICE_FX_CHIPMUNK_PCT_DEFAULT; mix = VOICE_FX_ROBOT_MIX_DEFAULT; hz = VOICE_FX_ROBOT_HZ_DEFAULT;
+    bool defaults = form_field(body, "defaults", v, sizeof(v)) && v[0] == '1';
+    for (int i = 0; i < VFX_NPARAMS; i++) {
+        snprintf(k, sizeof(k), "p%d", i);
+        if (defaults) voice_fx_set_param((voice_fx_param_t)i, VOICE_FX_PARAMS[i].def);
+        else if (form_field(body, k, v, sizeof(v)) && v[0]) voice_fx_set_param((voice_fx_param_t)i, atoi(v));
     }
-    voice_fx_set_tuning(chip, mix, hz);
     if (form_field(body, "live", v, sizeof(v)) && v[0] == '1') {
         httpd_resp_sendstr(req, "ok\n");
         return ESP_OK;
     }
-    board_voice_fx_tuning_set(voice_fx_chipmunk_pct(), voice_fx_robot_mix(), voice_fx_robot_hz());
+    int16_t all[VFX_NPARAMS];
+    for (int i = 0; i < VFX_NPARAMS; i++) all[i] = (int16_t)voice_fx_param((voice_fx_param_t)i);
+    board_voice_fx_tuning_set(all, VFX_NPARAMS);
     return redirect_to(req, "/settings?tab=phone");
 }
 
@@ -9892,8 +9894,8 @@ static esp_err_t voice_fx_test_handler(httpd_req_t *req)
     form_field(body, "line", line_s, sizeof(line_s));
     form_field(body, "fx", fx_s, sizeof(fx_s));
     int line = atoi(line_s), fx = atoi(fx_s);
-    if (line < 0 || line >= AUDIO_NUM_LINES || fx < 0 || fx > VOICE_FX_DISTORTION) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "line 0-1, fx 0-7"); return ESP_OK;
+    if (line < 0 || line >= AUDIO_NUM_LINES || !voice_fx_valid(fx)) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "line 0-1, fx 0, 1, 2, 5 or 6"); return ESP_OK;
     }
     audio_set_voice_fx(line, (voice_fx_t)fx);
     httpd_resp_sendstr(req, "ok\n");
@@ -10903,9 +10905,8 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
     /* Not dial-plan codes: in_call_key() in telephony.c. */
     if (off > 0 && (size_t)off < cap && board_voice_fx_enabled_get()) {
         static const struct { const char *key, *desc; } IN_CALL[] = {
-            { "1", "Dalek voice" }, { "2", "Chipmunk voice" }, { "3", "Darth Vader voice" },
-            { "4", "8-bit voice" }, { "5", "Robot voice" }, { "6", "Tremolo voice" },
-            { "7", "Distorted voice" }, { "0", "Normal voice" },
+            { "1", "Dalek voice" }, { "2", "Chipmunk voice" }, { "5", "Robot voice" },
+            { "6", "Tremolo voice" }, { "0", "Normal voice" },
         };
         off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>During a call</h2>");

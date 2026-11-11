@@ -42,7 +42,6 @@ typedef enum {
 typedef enum {
     FX_NORMAL = 0,
     FX_HIGH,
-    FX_LOW,
     FX_DALEK,
 } voice_effect_t;
 
