@@ -38,12 +38,15 @@
 #define PS_JMIN_MS  10    /* splice jump search range: a few voice periods */
 #define PS_JMAX_MS  22
 #define PS_CORR_MS  10    /* correlation length */
-#define PS_XF_MS    6     /* crossfade */
+#define PS_XF_MS    8     /* crossfade */
+#define PS_AA_FRAC  0.29f  /* pitch-up low-pass corner, x the sample rate (2.3 kHz at 8 kHz):
+                            * 1.5x puts it at 3.5 kHz, under the 4 kHz limit */
 
 /* Robot: 256-point FFT, hop 64 (8 ms at 8 kHz -> a 125 Hz buzz). */
 #define RB_N      256
 #define RB_LOG2N  8
 #define RB_HOP    64
+#define RB_SPREAD 64      /* chirp length in samples: the whole 8 ms hop, a continuous buzz */
 
 struct voice_fx_state {
     uint32_t   sr;
@@ -60,6 +63,11 @@ struct voice_fx_state {
     uint32_t xf_left;
     uint32_t dmin, dmax, jmin, jmax, corr_n, xf_n;
     int16_t *xf_tab;                     /* fade-in gains, Q15 */
+    /* Pitch up: 6th-order low-pass ahead of the delay line, so what the shift
+     * pushes past the Nyquist frequency is gone instead of folding back. Three
+     * biquads, Q28 coefficients b0 b1 b2 a1 a2, direct form I. */
+    int32_t  aa_c[3][5];
+    int32_t  aa_z[3][4];                 /* x1 x2 y1 y2 */
 
     uint32_t hold_n, hold_left;
     int16_t  held;
@@ -86,6 +94,7 @@ static bool s_tables_ready;
  * audio task, one after another (fxtest runs only with no call up). */
 static int16_t s_hann[RB_N];             /* periodic Hann, Q15 */
 static int16_t s_cos[RB_N / 2], s_sin[RB_N / 2];
+static int16_t s_ph_c[RB_N / 2 + 1], s_ph_s[RB_N / 2 + 1];   /* robot's fixed phase, Q15 */
 static uint8_t s_rev[RB_N];
 static int32_t s_re[RB_N], s_im[RB_N];
 
@@ -102,6 +111,14 @@ static void init_tables(void)
     for (int i = 0; i < RB_N / 2; i++) {
         s_cos[i] = (int16_t)lrintf(32767.0f * cosf(6.2831853f * i / RB_N));
         s_sin[i] = (int16_t)lrintf(32767.0f * sinf(6.2831853f * i / RB_N));
+    }
+    /* Quadratic phase: bin k is delayed RB_SPREAD * k / (N/2) samples, so
+     * each frame is a short upward chirp instead of a click. Same phase every
+     * frame, so the output still repeats every hop: the 125 Hz monotone. */
+    for (int k = 0; k <= RB_N / 2; k++) {
+        float ph = -3.14159265f * RB_SPREAD * (float)k * (float)k / (float)(RB_N / 2) / (float)RB_N;
+        s_ph_c[k] = (int16_t)lrintf(32767.0f * cosf(ph));
+        s_ph_s[k] = (int16_t)lrintf(32767.0f * sinf(ph));
     }
     s_tables_ready = true;
 }
@@ -141,6 +158,15 @@ voice_fx_state_t *voice_fx_create(uint32_t sample_rate)
     s->comb_mask = csize - 1;
     for (uint32_t i = 0; i < s->xf_n; i++)
         s->xf_tab[i] = (int16_t)((32767u * (i + 1)) / (s->xf_n + 1));
+    /* Butterworth sections (6th order: Q 0.5176, 0.7071, 1.9319), bilinear transform. */
+    static const float q[3] = { 0.5176f, 0.7071f, 1.9319f };
+    float wc = tanf(3.14159265f * PS_AA_FRAC);
+    for (int k = 0; k < 3; k++) {
+        float K = wc, norm = 1.0f / (1.0f + K / q[k] + K * K);
+        float b0 = K * K * norm, a1 = 2.0f * (K * K - 1.0f) * norm, a2 = (1.0f - K / q[k] + K * K) * norm;
+        const float c[5] = { b0, 2.0f * b0, b0, a1, a2 };
+        for (int i = 0; i < 5; i++) s->aa_c[k][i] = (int32_t)lrintf(c[i] * 268435456.0f);
+    }
     s->mask_d = sample_rate * VADER_MASK_US / 1000000;
     s->ring_step = (uint32_t)(((uint64_t)DALEK_HZ << 32) / sample_rate);
     s->trem_step = (uint32_t)(((uint64_t)TREMOLO_HZ << 32) / sample_rate);
@@ -170,6 +196,7 @@ static void reset(voice_fx_state_t *s)
     s->cw = 0;
     s->d_q16 = (int32_t)(((s->dmin + s->dmax) / 2) << 16);
     s->xf_left = 0;
+    memset(s->aa_z, 0, sizeof(s->aa_z));
     s->ring_phase = 0;
     s->hold_left = 0;
 }
@@ -216,11 +243,26 @@ static uint32_t best_jump(const voice_fx_state_t *s, bool back)
     return best_j;
 }
 
+static inline int32_t antialias(voice_fx_state_t *s, int32_t v)
+{
+    for (int k = 0; k < 3; k++) {
+        const int32_t *c = s->aa_c[k];
+        int32_t *z = s->aa_z[k];
+        int64_t acc = (int64_t)c[0] * v + (int64_t)c[1] * z[0] + (int64_t)c[2] * z[1]
+                    - (int64_t)c[3] * z[2] - (int64_t)c[4] * z[3];
+        int32_t y = (int32_t)(acc >> 28);
+        z[1] = z[0]; z[0] = v;
+        z[3] = z[2]; z[2] = y;
+        v = y;
+    }
+    return v;
+}
+
 static void pitch(voice_fx_state_t *s, int32_t ratio_q16, int16_t *x, size_t n)
 {
     int32_t step = 65536 - ratio_q16;            /* < 0: pitch up */
     for (size_t k = 0; k < n; k++) {
-        s->buf[s->w & s->mask] = x[k];
+        s->buf[s->w & s->mask] = step < 0 ? sat16(antialias(s, x[k])) : x[k];
         s->w++;
         int32_t y;
         if (s->xf_left) {
@@ -298,28 +340,42 @@ static uint32_t isqrt32(uint32_t v)
 /* Output level, Q8: Hann^2 overlap at hop N/4 sums to 1.5, and a
  * zero-phase frame is peakier than the voice it came from. Matched on
  * speech (RMS in ~ RMS out); the limiter keeps the pulse peaks in check. */
-#define RB_GAIN_Q8 240
+#define RB_GAIN_Q8 190    /* ~2 dB under the voice it replaces */
 
 static void robot_frame(voice_fx_state_t *s)
 {
+    /* Block floating point: scale the frame up to use the FFT's full 16 bits
+     * (it halves at every stage), and back down after. A voice at -30 dBFS
+     * otherwise comes out of the transform as a few bits of grain. */
+    int32_t peak = 0;
     for (int i = 0; i < RB_N; i++) {
-        s_re[i] = ((int32_t)s->rb_in[i] * s_hann[i]) >> 15;
+        int32_t v = ((int32_t)s->rb_in[i] * s_hann[i]) >> 15;
+        s_re[i] = v;
         s_im[i] = 0;
+        if (v < 0) v = -v;
+        if (v > peak) peak = v;
     }
+    if (!peak) return;
+    int sh = 0;
+    while (sh < 10 && (peak << (sh + 1)) <= 16383) sh++;
+    for (int i = 0; i < RB_N; i++) s_re[i] <<= sh;
     fft(false);
-    /* Magnitudes only: a real, even spectrum. */
+    /* Keep each bin's magnitude, give it the fixed phase; conjugate-symmetric
+     * so the inverse is real. */
     for (int k = 0; k <= RB_N / 2; k++) {
         int32_t re = s_re[k], im = s_im[k];
-        uint32_t m = isqrt32((uint32_t)(re * re) + (uint32_t)(im * im));
-        s_re[k] = (int32_t)m;
-        s_im[k] = 0;
-        if (k && k < RB_N / 2) { s_re[RB_N - k] = (int32_t)m; s_im[RB_N - k] = 0; }
+        int32_t m = (int32_t)isqrt32((uint32_t)(re * re) + (uint32_t)(im * im));
+        int32_t yr = (m * s_ph_c[k]) >> 15, yi = (m * s_ph_s[k]) >> 15;
+        s_re[k] = yr;
+        s_im[k] = (k && k < RB_N / 2) ? yi : 0;
+        if (k && k < RB_N / 2) { s_re[RB_N - k] = yr; s_im[RB_N - k] = -yi; }
     }
     fft(true);
-    /* A zero-phase frame peaks at index 0; rotate it to the middle, window
-     * it again and overlap-add. */
+    /* The chirp starts at index 0 and runs RB_SPREAD samples: put its middle
+     * at the middle of the window, window again and overlap-add. */
+    const int rot = RB_N / 2 - RB_SPREAD / 2;
     for (int i = 0; i < RB_N; i++) {
-        int32_t v = s_re[(i + RB_N / 2) & (RB_N - 1)];
+        int32_t v = s_re[(i - rot) & (RB_N - 1)] >> sh;
         s->rb_out[i] += (int32_t)((((int64_t)v * s_hann[i]) >> 15) * RB_GAIN_Q8 >> 8);
     }
 }
@@ -417,6 +473,7 @@ void voice_fx_process(voice_fx_state_t *s, voice_fx_t fx, int16_t *x, size_t n)
         break;
     case VOICE_FX_CHIPMUNK:
         pitch(s, PITCH_UP_Q16, x, n);
+        for (size_t k = 0; k < n; k++) x[k] = (int16_t)((x[k] * 26028) >> 15);   /* -2 dB */
         break;
     case VOICE_FX_VADER:
         pitch(s, VADER_PITCH_Q16, x, n);

@@ -230,8 +230,16 @@ void audio_voice_fx_stats(int line, bool downlink, voice_fx_stats_t *out)
 {
     memset(out, 0, sizeof(*out));
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
-    voice_fx_state_t *s = downlink ? s_line[line].fx_down : s_line[line].fx_up;
-    voice_fx_take_stats(s, out);
+    if (downlink) {
+        voice_fx_take_stats(s_line[line].fx_down, out);
+    } else {
+        /* The uplink effect runs on the echo-cancelled 8 kHz stream when a
+         * call reads that, otherwise on the plain one: report whichever ran. */
+        voice_fx_stats_t a, b;
+        voice_fx_take_stats(s_line[line].fx_up, &a);
+        voice_fx_take_stats(s_line[line].fx_up8, &b);
+        *out = b.samples >= a.samples ? b : a;
+    }
     out->fx = s_line[line].fx;
 }
 
