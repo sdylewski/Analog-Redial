@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Regenerates the spoken clips baked into every build (firmware/assets/): operator.wav, operator_2line.wav,
-record_prompt.wav, timer_prompt.wav, msg_none.wav, msg_menu.wav, msg_menu_last.wav, am_greeting.wav, jenny.wav and the digit clips 0-9 and point.
+record_prompt.wav, timer_prompt.wav, msg_none.wav, msg_next.wav, msg_menu.wav, msg_menu_last.wav, am_greeting.wav, jenny.wav and the digit clips 0-9 and point.
 
   ./gen_bundled_audio.py                 # all of them, in the default voice (Kokoro af_sarah)
   ./gen_bundled_audio.py --only operator.wav 3.wav
@@ -39,8 +39,9 @@ PROMPTS = {  # name -> (text, format)
     "alarm_prompt.wav": ("What time should the alarm ring? Dial four digits: the hour, then the minutes, on a 24 hour clock.", "ulaw"),
     "alarm_done.wav": ("This is your alarm.", "ulaw"),
     "msg_none.wav": ("You have no new messages.", "ulaw"),
-    "msg_menu.wav": ("To delete this message, dial 0. To hear it again, dial 2. For the next message, dial 1.", "ulaw"),
-    "msg_menu_last.wav": ("To delete this message, dial 0. To hear it again, dial 2.", "ulaw"),
+    "msg_menu.wav": ("To repeat this message, dial 1. To delete it, dial 3. For the next message, dial 5.", "ulaw"),
+    "msg_next.wav": ("Next message.", "ulaw"),
+    "msg_menu_last.wav": ("To repeat this message, dial 1. To delete it, dial 3.", "ulaw"),
     "jenny.wav": ("If you're trying to reach Jenny, she's not home right now. Please call back later.", "ulaw"),
 }
 DIGITS = {f"{i}.wav": w for i, w in enumerate(

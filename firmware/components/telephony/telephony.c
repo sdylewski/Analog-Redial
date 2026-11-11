@@ -1265,10 +1265,11 @@ static void timer_hung_up(int line)
 
 /* ---- messages (dial 674) -------------------------------------------------
  * Plays the stored voicemail_* files oldest first (their names carry the time).
- * After each, a menu clip says: 0 deletes it, 2 plays it again, 1 goes on to the
- * next. Keys also work over the audio. Nothing left: "You have no new messages." */
+ * After each, a menu clip says: 1 plays it again, 3 deletes it, 5 goes on to the
+ * next. The keys also work while a message plays. Deleting or skipping says
+ * "Next message." and plays the next one. Nothing left: "You have no new messages." */
 #define MSG_KEY_WAIT_US (15LL * 1000000)   /* after the menu, before dial tone returns */
-enum { MSG_STAGE_MSG, MSG_STAGE_MENU, MSG_STAGE_END };
+enum { MSG_STAGE_MSG, MSG_STAGE_MENU, MSG_STAGE_NEXT, MSG_STAGE_END };
 
 /* The oldest message after `after` ("" = from the start). `more` says another follows it. */
 static bool msg_find(const char *after, char *best, size_t cap, bool *more)
@@ -1321,16 +1322,26 @@ static void msg_play_cur(int line)
     }
 }
 
-/* Plays the message after msg_cur, or says there are no more. */
-static void msg_next(int line)
+/* Moves on to the message after msg_cur: "Next message." first when `announce`,
+ * or says there are no more. */
+static void msg_next(int line, bool announce)
 {
     char nxt[STORAGE_MAX_NAME];
-    if (msg_find(s_line[line].msg_cur, nxt, sizeof(nxt), NULL)) {
-        strlcpy(s_line[line].msg_cur, nxt, sizeof(s_line[line].msg_cur));
-        msg_play_cur(line);
-    } else {
+    if (!msg_find(s_line[line].msg_cur, nxt, sizeof(nxt), NULL)) {
         msg_say_none(line);
+        return;
     }
+    strlcpy(s_line[line].msg_cur, nxt, sizeof(s_line[line].msg_cur));
+    if (announce) {
+        s_line[line].msg_stage = MSG_STAGE_NEXT;
+        s_line[line].tone_return_us = 0;
+        audio_tx_silence(line);
+        if (player_play_now(line, MSG_NEXT_NAME, clip_done_cb, NULL) == ESP_OK) {
+            s_line[line].state = TEL_PLAYING;
+            return;
+        }
+    }
+    msg_play_cur(line);
 }
 
 static void msg_start(int line)
@@ -1339,12 +1350,16 @@ static void msg_start(int line)
     s_line[line].msg_cur[0] = '\0';
     telephony_messages_seen();
     activity_log("Line %d: answering machine messages", line);
-    msg_next(line);
+    msg_next(line, false);
 }
 
 /* The message ended: say what the keys do, then wait for one. */
 static void msg_clip_done(int line)
 {
+    if (s_line[line].msg_stage == MSG_STAGE_NEXT) {   /* "Next message." is over: the message itself */
+        msg_play_cur(line);
+        return;
+    }
     if (s_line[line].msg_stage == MSG_STAGE_MSG) {
         char nxt[STORAGE_MAX_NAME];
         bool has_next = msg_find(s_line[line].msg_cur, nxt, sizeof(nxt), NULL);
@@ -1358,18 +1373,18 @@ static void msg_clip_done(int line)
 
 static void msg_key(int line, char ch)
 {
-    if (s_line[line].msg_stage == MSG_STAGE_END) return;
-    if (ch != '0' && ch != '1' && ch != '2') return;
+    if (s_line[line].msg_stage == MSG_STAGE_END || s_line[line].msg_stage == MSG_STAGE_NEXT) return;
+    if (ch != '1' && ch != '3' && ch != '5') return;
     player_stop_and_wait(line, 300);
     s_line[line].tone_return_us = 0;
-    if (ch == '0') {
-        storage_delete(s_line[line].msg_cur);
-        activity_log("Line %d: deleted message %s", line, s_line[line].msg_cur);
-        msg_next(line);
-    } else if (ch == '1') {
-        msg_next(line);
-    } else {
+    if (ch == '1') {
         msg_play_cur(line);
+    } else {
+        if (ch == '3') {
+            storage_delete(s_line[line].msg_cur);
+            activity_log("Line %d: deleted message %s", line, s_line[line].msg_cur);
+        }
+        msg_next(line, true);
     }
 }
 

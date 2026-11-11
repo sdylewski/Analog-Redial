@@ -75,8 +75,10 @@ typedef enum {
 #define TIMER_PROMPT_NAME "timer_prompt.wav"
 
 /* Dial 674 plays the answering machine's messages, oldest first. After each one
- * the menu clip says what the keys do (0 delete, 2 again, 1 next); the "last"
- * menu leaves out "next". With no message left the board says MSG_NONE_NAME. */
+ * the menu clip says what the keys do (1 again, 3 delete, 5 next); the "last"
+ * menu leaves out "next". Moving on (3 or 5) says MSG_NEXT_NAME first. With no
+ * message left the board says MSG_NONE_NAME. */
+#define MSG_NEXT_NAME      "msg_next.wav"        /* "Next message." */
 #define MSG_NONE_NAME      "msg_none.wav"        /* "You have no new messages." */
 #define MSG_MENU_NAME      "msg_menu.wav"
 #define MSG_MENU_LAST_NAME "msg_menu_last.wav"
