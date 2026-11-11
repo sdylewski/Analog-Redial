@@ -1200,8 +1200,7 @@ void telephony_check_clip_files(void)
 #define TIMER_FIRST_DIGIT_WAIT_US  (10LL * 1000000)  /* after the prompt, for the first digit */
 #define TIMER_SECOND_DIGIT_WAIT_MS 4000              /* wait this long for a second digit (not the 15 s dial-plan timeout);
                                                         a rotary 0 takes about 3 s to wind and pulse back */
-#define TIMER_HANGUP_GRACE_MS      3000              /* alarm: after the time is accepted, before the line hangs up on the caller */
-#define TIMER_LAST_DIGIT_WAIT_MS   1000              /* timer: after the second digit, before the timer is set and dial tone returns */
+#define TIMER_LAST_DIGIT_WAIT_MS   1000              /* timer and alarm: after the second digit, before the timer is set and dial tone returns */
 #define TIMER_QUIET_MS             30000             /* then silence (fast busy right after the beep sounded like a reject);
                                                         fast busy only if the handset is still up after this */
 #define TIMER_RING_ROUNDS          4                 /* rings before it gives up */
@@ -1444,9 +1443,9 @@ static void alarm_accept(int line)
         alarm_save(line);
         activity_log("Line %d: alarm set for %02d:%02d %s", line, hh, mm, tomorrow ? "tomorrow" : "today");
     }
+    /* Like the timer: dial tone returns 1 s after the last digit (timer_tick()). */
     s_line[line].timer_accepted = true;
-    s_line[line].timer_hangup_us = esp_timer_get_time() + (int64_t)TIMER_HANGUP_GRACE_MS * 1000;
-    play_transient(line, TONE_CONFIRM, 700, TEL_TIMER_ENTRY, TEL_TIMER_ENTRY);
+    s_line[line].timer_hangup_us = esp_timer_get_time() + (int64_t)TIMER_LAST_DIGIT_WAIT_MS * 1000;
 }
 
 static void alarm_digit(int line, char ch)
@@ -1564,9 +1563,10 @@ static void timer_tick(int line, int64_t now)
                     /* Timer: the minutes are in and nobody hung up: set it, back to dial tone. */
                     timer_finish(line);
                 } else {
-                    /* Alarm: the line hangs up on the caller (quiet, then fast busy if the handset is left up). */
+                    /* Alarm: already set; back to dial tone. */
                     s_line[line].timer_accepted = false;
-                    play_transient(line, TONE_NONE, TIMER_QUIET_MS, TEL_REORDER, TEL_REORDER);
+                    audio_tx_silence(line);
+                    enter_dialtone(line);
                 }
             }
         } else if (s_line[line].entry_alarm) {
