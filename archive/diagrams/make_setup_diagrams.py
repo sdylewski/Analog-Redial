@@ -110,6 +110,19 @@ part("server", 76, 62, "VoIP server (Asterisk / PBX)", f'''
   <circle cx="14" cy="48" r="3.5" fill="{OLIVE}"/><circle cx="26" cy="48" r="3.5" fill="{OLIVE}"/>
   <rect x="42" y="45" width="26" height="6" rx="3" fill="{BROWN}"/>''')
 
+part("redial-board", 100, 62, "Another Analog Redial board with its own phone", f'''
+  <g id="other-phone" transform="translate(0,22) scale(0.44)">
+    <line x1="14" y1="16" x2="76" y2="16" stroke="{OLIVE_D}" stroke-width="20" stroke-linecap="round"/>
+    <circle cx="14" cy="16" r="13" fill="{OLIVE}"/><circle cx="76" cy="16" r="13" fill="{OLIVE}"/>
+    <rect x="4" y="32" width="82" height="44" rx="8" fill="{INK}"/>
+    <circle cx="45" cy="54" r="14" fill="none" stroke="{OLIVE}" stroke-width="3"/>
+    <circle cx="45" cy="54" r="3.5" fill="{OLIVE}"/></g>
+  <path d="M 40 48 q 3 -5 6 0 q 3 5 6 0" fill="none" stroke="{TAN}" stroke-width="2.5" stroke-linecap="round"/>
+  <g id="other-board"><rect x="54" y="10" width="46" height="52" rx="6" fill="{INK}"/>
+    <rect x="50" y="42" width="6" height="12" rx="1.5" fill="{BROWN}"/>
+    <circle cx="63" cy="18" r="2.6" fill="{AMBER}"/><circle cx="72" cy="18" r="2.6" fill="{OLIVE}"/>
+    <text x="77" y="40" text-anchor="middle" font-size="8" font-weight="700" fill="{CREAM}">REDIAL</text></g>''')
+
 part("home", 76, 62, "Home automation (a generic house, not a product logo)", f'''
   <path d="M 4 30 L 38 3 L 72 30" fill="none" stroke="{OLIVE_D}" stroke-width="7"
         stroke-linecap="round" stroke-linejoin="round"/>
@@ -338,18 +351,19 @@ def pill_markup(cx: float, cy: float, label: str, color: str) -> str:
             f'letter-spacing="0.6" fill="{CREAM}">{label}</text>'), w
 
 
-# Wi-Fi and its three services sit across the top of both layouts; the wired
+# Wi-Fi and its four services sit across the top of both layouts; the wired
 # options are below the board (top layout) or beside it (side layout).
 SVC_LABEL_Y, SVC_ICON_TOP, SVC_ICON_H, SVC_BAR_Y = 86, 138, 62, 246
 
 
-def services_row(s: Scene, dw: float, xs: tuple[float, float, float]) -> float:
+def services_row(s: Scene, dw: float, xs: tuple[float, float, float, float]) -> float:
     """Label, icon, protocol pill and link down to the Wi-Fi bar. Returns the
     y of the bar's bottom edge."""
     services = [
-        ("web", "browser", xs[0], "Web interface", ["Settings, recordings, dial codes,", "and firmware updates"], "HTTP"),
-        ("voip", "server", xs[1], "VoIP server", ["Call other extensions"], "SIP + RTP"),
-        ("home", "home", xs[2], "Home Assistant", ["Events, buttons and sensors"], "MQTT"),
+        ("web", "browser", xs[0], "Web interface", ["Settings, recordings,", "dial codes, updates"], "HTTP"),
+        ("board-2", "redial-board", xs[1], "Another board", ["Call its phone directly,", "no server needed"], "SIP + RTP"),
+        ("voip", "server", xs[2], "VoIP server", ["Call other extensions"], "SIP + RTP"),
+        ("home", "home", xs[3], "Home Assistant", ["Events, buttons", "and sensors"], "MQTT"),
     ]
     for key, partname, cx, name, desc, proto in services:
         w, h, _, _ = PARTS_DEF[partname]
@@ -378,7 +392,7 @@ def compose_overview_content() -> Scene:
     s.text("title", "Everything the board can connect to", 360, 24, 21, 700, INK)
     s.text("subtitle", "Every network option works on the same board. Only Bluetooth needs an extra board.",
            360, 48, 14, 400, TEXT)
-    bar_bottom = services_row(s, DW, (120, 360, 600))
+    bar_bottom = services_row(s, DW, (90, 270, 450, 630))
 
     bx, by = 190, bar_bottom + 68
     cx_board = bx + 115
@@ -445,7 +459,7 @@ def compose_overview_top_content() -> Scene:
     s.text("title", "Everything the board can connect to", DW2 / 2, 24, 21, 700, INK)
     s.text("subtitle", "Every network option works on the same board. Only Bluetooth needs an extra board.",
            DW2 / 2, 48, 14, 400, TEXT)
-    bar_bottom = services_row(s, DW2, (130, 390, 650))
+    bar_bottom = services_row(s, DW2, (100, 293, 487, 680))
 
     bx, by = 190, bar_bottom + 66
     cx_board = bx + 115
@@ -509,8 +523,9 @@ LEGEND = [
     ("PICK ONE", "The board has four spare pins that do one job at a time, and the J5 jumpers pick which. "
                  "Jumpers on: a second phone line. Jumpers off: a microSD card if one is in the slot, or your "
                  "own wires to a relay, light or buzzer if not."),
-    ("BUILT-IN WI-FI", "The web interface (with firmware updates), VoIP calls to a SIP server and Home Assistant "
-                       "over MQTT all run over the board's own Wi-Fi. Nothing to add: set them up in the web interface."),
+    ("BUILT-IN WI-FI", "The web interface (with firmware updates), calls to other Analog Redial boards on your network "
+                       "(no server needed), VoIP calls to a SIP server and Home Assistant over MQTT all run over the "
+                       "board's own Wi-Fi. Nothing to add: set them up in the web interface."),
     ("EXTRA BOARD", "Bluetooth is the only option that needs more hardware: a BM64 adapter board that plugs "
                     "into the header. Your analog phone then rings and answers your cell phone's calls."),
 ]
@@ -631,8 +646,8 @@ def build_overview(kind: str, layout: str = "side", with_legend: bool = True) ->
         diagram += f'\n<g id="legend" inkscape:label="Legend">\n{legend}\n</g>'
     doc = svg_doc(W, H, diagram,
                   "Everything the Analog Redial board can connect to: one phone always, then a second line or a "
-                  "microSD card or your own gadgets on four spare pins, chosen with the J5 jumpers; Wi-Fi to the web interface, a VoIP server and Home "
-                  "Assistant; and Bluetooth through an extra adapter board", bg=True)
+                  "microSD card or your own gadgets on four spare pins, chosen with the J5 jumpers; Wi-Fi to the web interface, other Analog Redial boards, a VoIP "
+                  "server and Home Assistant; and Bluetooth through an extra adapter board", bg=True)
     return doc, W, H
 
 
