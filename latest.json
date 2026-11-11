@@ -1,0 +1,48 @@
+{
+  "version": "v1.3.1",
+  "released": "2026-11-10",
+  "notes": "Timer and alarm return to dial tone 1 s after the last digit. Dial 674 plays answering machine messages (0 delete, 1 next, 2 again). Messages under 2 s are discarded. Gentler gain on VoIP recordings. Dial codes: one table with clip sizes, upload pop-up, 24 kbps MP3 uploads. New voice effects with sliders (Vader, 8-bit and distortion removed).",
+  "base": "https://raw.githubusercontent.com/sdylewski/Analog-Redial/firmware/",
+  "images": {
+    "smd4/16MB": {
+      "file": "v1.3.1/smd4-16MB.bin",
+      "size": 2120224,
+      "sha256": "8aee95dc6b375154c8a9d0581865f6df520ece83affea1b59fd9f9276e7e99fe"
+    },
+    "smd5/16MB": {
+      "file": "v1.3.1/smd5-16MB.bin",
+      "size": 2119808,
+      "sha256": "a3d34453e9463d77de8da6da04239cffcbf9c123a7fea8bb8d542f2aa04e80b9"
+    },
+    "smd5_cheap/16MB": {
+      "file": "v1.3.1/smd5_cheap-16MB.bin",
+      "size": 2120048,
+      "sha256": "9a49568fd2fdb8d6652624237f2298289b6579c610663b0904e0ff6121fc2dc3"
+    },
+    "smd2/16MB": {
+      "file": "v1.3.1/smd2-16MB.bin",
+      "size": 2099136,
+      "sha256": "1ad708da9b938be207639f64e8a8533eff0ce93853dcca40866a663015eaeadf"
+    },
+    "smd4/8MB": {
+      "file": "v1.3.1/smd4-8MB.bin",
+      "size": 2120224,
+      "sha256": "877ff7bc30df2a9bbe4c67a5723b20de7f223a3a4c087f14f3f9e2059cc12eeb"
+    },
+    "smd5/8MB": {
+      "file": "v1.3.1/smd5-8MB.bin",
+      "size": 2119808,
+      "sha256": "f30b27ee984401e6c9eb52fede9ba9cb24b1b319a990de89ee448235542b9623"
+    },
+    "smd5_cheap/8MB": {
+      "file": "v1.3.1/smd5_cheap-8MB.bin",
+      "size": 2120048,
+      "sha256": "722e94eb82e127ae886f493ef610840713af86f7737d53171fa47cdb9e8d3ec5"
+    },
+    "smd2/8MB": {
+      "file": "v1.3.1/smd2-8MB.bin",
+      "size": 2099120,
+      "sha256": "daa1ba59dced6fe4d20ad70739076cb6623c3cd5d4209d484a378b0d9279bfdf"
+    }
+  }
+}
