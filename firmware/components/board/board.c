@@ -536,6 +536,32 @@ esp_err_t board_voice_fx_tuning_set(const int16_t *v, size_t n)
     return err;
 }
 
+size_t board_voice_fx_keys_get(char *keys, size_t n)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return 0;
+    char tmp[16];
+    size_t len = sizeof(tmp), got = 0;
+    if (nvs_get_blob(h, "fx_keys", tmp, &len) == ESP_OK) {
+        got = len < n ? len : n;
+        memcpy(keys, tmp, got);
+    }
+    nvs_close(h);
+    return got;
+}
+
+esp_err_t board_voice_fx_keys_set(const char *keys, size_t n)
+{
+    if (n > 16) return ESP_ERR_INVALID_ARG;
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_blob(h, "fx_keys", keys, n);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
+
 bool board_alarm_quiet_override_get(void)
 {
     nvs_handle_t h;

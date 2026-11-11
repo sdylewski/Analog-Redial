@@ -105,6 +105,22 @@ typedef enum {
 void telephony_am_greeting_name(char *out, size_t len, int line);
 
 esp_err_t telephony_start(void);
+
+/* In-call voice effect keys: during any call (two phones on this board or a
+ * VoIP call), pressing or dialling an effect's key switches to it. Defaults
+ * are the effect's own number (voice_fx_t): 0 normal, 1 Dalek, 2 chipmunk,
+ * 5 robot, 6 tremolo. Changeable in the web UI; saved on the board. */
+#define TEL_FX_KEYED 5
+typedef struct {
+    int  fx;          /* voice_fx_t */
+    char key, def;    /* current key and default ('0'-'9', '*', '#') */
+} telephony_fx_key_t;
+/* Fills out[TEL_FX_KEYED], in the order normal, chipmunk, robot, Dalek, tremolo. */
+void      telephony_fx_keys(telephony_fx_key_t *out);
+char      telephony_fx_key(int fx);   /* '\0' if fx has no key */
+/* key '\0' puts the default back. ESP_ERR_INVALID_ARG: not 0-9, * or #, or
+ * not a keyed effect. ESP_ERR_INVALID_STATE: another effect has that key. */
+esp_err_t telephony_fx_key_set(int fx, char key);
 /* Warns (log) about any dial code whose audio file is missing. Call once storage is up. */
 void telephony_check_clip_files(void);
 /* Warns (log) about any dial code whose audio file is missing. Call once storage is up. */

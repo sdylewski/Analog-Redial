@@ -916,16 +916,72 @@ static voice_fx_t voice_fx_for(voice_effect_t e)
     }
 }
 
-/* A key pressed (or dialled, on a rotary phone) during a call: 1, 2, 5 and 6
- * pick an effect (voice_fx_t's numbers), 0 turns it off, the rest do
- * nothing. Set, not toggle: the tone also reaches the other
+/* In-call effect keys (telephony.h). The default key is the effect's own
+ * number. */
+static const voice_fx_t KEYED_FX[TEL_FX_KEYED] = {
+    VOICE_FX_NONE, VOICE_FX_CHIPMUNK, VOICE_FX_ROBOT, VOICE_FX_DALEK, VOICE_FX_TREMOLO,
+};
+static char s_fx_key[TEL_FX_KEYED] = { '0', '2', '5', '1', '6' };
+
+static int keyed_index(int fx)
+{
+    for (int i = 0; i < TEL_FX_KEYED; i++) if ((int)KEYED_FX[i] == fx) return i;
+    return -1;
+}
+
+static bool fx_key_ok(char k) { return (k >= '0' && k <= '9') || k == '*' || k == '#'; }
+
+static void fx_keys_load(void)
+{
+    char k[TEL_FX_KEYED];
+    memcpy(k, s_fx_key, sizeof(k));
+    board_voice_fx_keys_get(k, TEL_FX_KEYED);
+    for (int i = 0; i < TEL_FX_KEYED; i++) {
+        bool dup = false;
+        for (int j = 0; j < i; j++) dup |= (k[j] == k[i]);
+        if (fx_key_ok(k[i]) && !dup) s_fx_key[i] = k[i];
+    }
+}
+
+void telephony_fx_keys(telephony_fx_key_t *out)
+{
+    for (int i = 0; i < TEL_FX_KEYED; i++) {
+        out[i].fx = (int)KEYED_FX[i];
+        out[i].key = s_fx_key[i];
+        out[i].def = (char)('0' + (int)KEYED_FX[i]);
+    }
+}
+
+char telephony_fx_key(int fx)
+{
+    int i = keyed_index(fx);
+    return i < 0 ? '\0' : s_fx_key[i];
+}
+
+esp_err_t telephony_fx_key_set(int fx, char key)
+{
+    int i = keyed_index(fx);
+    if (i < 0) return ESP_ERR_INVALID_ARG;
+    if (!key) key = (char)('0' + fx);
+    if (!fx_key_ok(key)) return ESP_ERR_INVALID_ARG;
+    for (int j = 0; j < TEL_FX_KEYED; j++)
+        if (j != i && s_fx_key[j] == key) return ESP_ERR_INVALID_STATE;
+    s_fx_key[i] = key;
+    return board_voice_fx_keys_set(s_fx_key, TEL_FX_KEYED);
+}
+
+/* A key pressed (or dialled, on a rotary phone) during a call: an effect's
+ * key (telephony_fx_keys()) switches to it, the normal key turns it off, the
+ * rest do nothing. Set, not toggle: the tone also reaches the other
  * phone and can echo back into its own detector, and a second "set Dalek" is
  * harmless where a toggle would flip it straight back off. */
 static void in_call_key(int line, char ch)
 {
     if (!board_voice_fx_enabled_get()) return;
-    if (ch < '0' || ch > '9' || !voice_fx_valid(ch - '0')) return;
-    voice_fx_t fx = (voice_fx_t)(ch - '0');
+    int i = 0;
+    while (i < TEL_FX_KEYED && s_fx_key[i] != ch) i++;
+    if (i == TEL_FX_KEYED) return;
+    voice_fx_t fx = KEYED_FX[i];
     ESP_LOGI(TAG, "line %d: in-call key '%c' -> %s", line, ch, voice_fx_name(fx));
     if (audio_voice_fx(line) == fx) return;
     set_call_voice_fx(line, fx);
@@ -2836,6 +2892,7 @@ esp_err_t telephony_start(void)
     if (!s_q) return ESP_ERR_NO_MEM;
 
     dialplan_init();
+    fx_keys_load();
 
     for (int line = 0; line < NLINES; line++) {
         memset(&s_line[line], 0, sizeof(s_line[line]));

@@ -560,3 +560,10 @@ details.voip-hide > summary { cursor: pointer; font-weight: 600; padding: 10px 1
 details.voip-hide > summary::-webkit-details-marker { display: none; }
 details.voip-hide > summary::before { content: "\25b8  "; }
 details.voip-hide[open] > summary::before { content: "\25be  "; }
+/* Voice effects card: one column per effect, its in-call key in the heading. */
+.fxcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 24px; align-items: start; }
+.fxcols h3 { margin: 10px 0 4px; }
+.fxkey { font-size: 13px; font-weight: normal; color: var(--muted); margin-left: 6px; white-space: nowrap; }
+p.fxkey { margin-left: 0; }
+.fxkey b { color: var(--text); font-size: 15px; }
+.fxkey button { padding: 1px 8px; font-size: 12px; margin-left: 4px; }

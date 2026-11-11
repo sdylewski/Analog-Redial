@@ -202,6 +202,10 @@ esp_err_t board_voice_fx_enabled_set(bool enabled);
  * caller set them (the defaults); returns how many it filled. */
 size_t    board_voice_fx_tuning_get(int16_t *v, size_t n);
 esp_err_t board_voice_fx_tuning_set(const int16_t *v, size_t n);
+/* The key that picks each voice effect during a call (telephony.c's order):
+ * get fills in what was saved, leaving the rest as the caller set them. */
+size_t    board_voice_fx_keys_get(char *keys, size_t n);
+esp_err_t board_voice_fx_keys_set(const char *keys, size_t n);
 /* Alarms (dial 256) ring even during quiet hours. Off by default: quiet
  * hours silence alarms too, like every other ring. */
 bool      board_alarm_quiet_override_get(void);

@@ -2888,8 +2888,18 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         i18n_str("aec.js.loss", "The echo comes back %1 dB quieter than the earpiece signal. The canceller should start a little before the echo does: %2 ms."));
 
     bool fx_on = board_voice_fx_enabled_get();
+    telephony_fx_key_t keys[TEL_FX_KEYED];
+    telephony_fx_keys(keys);
+    char k_norm = telephony_fx_key(VOICE_FX_NONE), k_chip = telephony_fx_key(VOICE_FX_CHIPMUNK),
+         k_rob = telephony_fx_key(VOICE_FX_ROBOT), k_dal = telephony_fx_key(VOICE_FX_DALEK),
+         k_trem = telephony_fx_key(VOICE_FX_TREMOLO);
+    char lead[240];
+    snprintf(lead, sizeof(lead), i18n_str("voicefx.hint_keys",
+             "During a call, press or dial %c for a chipmunk voice, %c robot, %c Dalek or "
+             "%c tremolo, and %c to go back to normal. Both phones hear it."),
+             k_chip, k_rob, k_dal, k_trem, k_norm);
     off = appendf(buf, cap, off,
-        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"card wide\"><h2>%s</h2>"
         "<form method=\"POST\" action=\"/voice_fx_enabled\" class=\"settings-form\">"
         "<input type=\"hidden\" name=\"form\" value=\"1\">"
         "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> %s</label>"
@@ -2899,28 +2909,32 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         fx_on ? " checked" : "",
         i18n_str("voicefx.enabled", "Enable audio effects during calls (experimental, off by default)"),
         i18n_str("general.button.save", "Save"));
-    off = append_hint(buf, cap, off,
-        i18n_str("voicefx.hint_lead",
-                 "During a call, press or dial 2 for a chipmunk voice, 5 robot, 1 Dalek or "
-                 "6 tremolo, and 0 to go back to normal. Both phones hear it."),
+    off = append_hint(buf, cap, off, lead,
         i18n_str("voicefx.hint_detail",
-                 "Works on calls between this board's two phones and on VoIP calls: the board "
-                 "where the key is pressed changes both voices, so the far end needs nothing "
-                 "special. The key's tone also reaches the other phone as a short beep. On a "
-                 "VoIP call to an automated phone menu, turn this off so menu choices don't "
-                 "change your voice. Also applies to dialling 322 (chipmunk) and 324 (Dalek)."));
-    /* One slider per VOICE_FX_PARAMS entry, grouped by effect in key order. */
+                 "Works on any call: between this board's two phones, or over Wi-Fi to another "
+                 "board or a phone line. The board where the key is pressed changes both voices, "
+                 "so the far end needs nothing special. The key's tone also reaches the other "
+                 "phone as a short beep. On a VoIP call to an automated phone menu, turn this off "
+                 "so menu choices don't change your voice. Also applies to dialling 322 "
+                 "(chipmunk) and 324 (Dalek). Each effect's key can be changed: <b>change</b> "
+                 "next to it, or on the Dial codes tab."));
+    /* One column per effect: its key, then a slider per VOICE_FX_PARAMS entry. */
     static const struct { voice_fx_t fx; const char *i18n, *title; } FX_GROUPS[] = {
-        { VOICE_FX_CHIPMUNK, "voicefx.g.chip",  "2 · Chipmunk" },
-        { VOICE_FX_ROBOT,    "voicefx.g.robot", "5 · Robot" },
-        { VOICE_FX_DALEK,    "voicefx.g.dalek", "1 · Dalek" },
-        { VOICE_FX_TREMOLO,  "voicefx.g.trem",  "6 · Tremolo" },
+        { VOICE_FX_CHIPMUNK, "voicefx.g.chip",  "Chipmunk" },
+        { VOICE_FX_ROBOT,    "voicefx.g.robot", "Robot" },
+        { VOICE_FX_DALEK,    "voicefx.g.dalek", "Dalek" },
+        { VOICE_FX_TREMOLO,  "voicefx.g.trem",  "Tremolo" },
     };
+    const char *change = i18n_str("voicefx.change_key", "change");
     off = appendf(buf, cap, off,
-        "<form method=\"POST\" action=\"/voice_fx_tune\" class=\"settings-form\">");
+        "<form method=\"POST\" action=\"/voice_fx_tune\" class=\"settings-form\"><div class=\"fxcols\">");
     for (size_t g = 0; g < sizeof(FX_GROUPS) / sizeof(FX_GROUPS[0]); g++) {
-        off = appendf(buf, cap, off, "<h3 class=\"sub\">%s</h3>",
-                      i18n_str(FX_GROUPS[g].i18n, FX_GROUPS[g].title));
+        const char *title = i18n_str(FX_GROUPS[g].i18n, FX_GROUPS[g].title);
+        off = appendf(buf, cap, off,
+            "<div><h3>%s <span class=\"fxkey\">%s <b>%c</b> "
+            "<button type=\"button\" onclick=\"fxKey(%d,'%s','%c')\">%s</button></span></h3>",
+            title, i18n_str("voicefx.key", "key"), telephony_fx_key(FX_GROUPS[g].fx),
+            (int)FX_GROUPS[g].fx, title, telephony_fx_key(FX_GROUPS[g].fx), change);
         for (int i = 0; i < VFX_NPARAMS; i++) {
             const voice_fx_param_info_t *p = &VOICE_FX_PARAMS[i];
             if (p->fx != FX_GROUPS[g].fx) continue;
@@ -2932,21 +2946,31 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                 "value=\"%d\" oninput=\"fxTune(this,%d,'%s')\"> <span>%d%s</span></label>",
                 i18n_str(key, p->label), i, p->min, p->max, p->step, v, i, p->unit, v, p->unit);
         }
+        off = appendf(buf, cap, off, "</div>");
     }
     off = appendf(buf, cap, off,
+        "</div><p class=\"fxkey\">%s: %s <b>%c</b> "
+        "<button type=\"button\" onclick=\"fxKey(0,'%s','%c')\">%s</button></p>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button>"
         "<button type=\"submit\" name=\"defaults\" value=\"1\">%s</button></div>"
         "</form>"
         "<script>function fxTune(el,i,u){el.nextElementSibling.textContent=el.value+u;"
         "fetch('/voice_fx_tune',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},"
-        "body:'live=1&p'+i+'='+el.value});}</script>"
+        "body:'live=1&p'+i+'='+el.value});}"
+        "function fxKey(fx,name,cur){var k=prompt('%s'.replace('%%1',name),cur);if(k===null)return;"
+        "fetch('/fx_key_set',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},"
+        "body:'fx='+fx+'&key='+encodeURIComponent(k.trim())}).then(function(r){return r.text().then("
+        "function(t){if(r.ok)location.reload();else alert(t);});});}</script>"
         "<p class=\"hint\">%s</p></div>",
+        i18n_str("voicefx.normal_key", "Back to your own voice"), i18n_str("voicefx.key", "key"),
+        k_norm, i18n_str("voicefx.normal", "Normal voice"), k_norm, change,
         i18n_str("general.button.save", "Save"),
         i18n_str("voicefx.defaults", "Defaults"),
+        i18n_str("voicefx.key_prompt", "Key for %1 during a call: 0-9, * or #. Leave it empty for the original key."),
         i18n_str("voicefx.tune_hint",
                  "Drag during a call to hear it change (not saved yet), then click Save. "
-                 "On a VoIP call, the settings of the board where the key was pressed are the "
-                 "ones heard."));
+                 "Defaults puts the sliders back, not the keys. On a VoIP call, the settings of "
+                 "the board where the key was pressed are the ones heard."));
 
 
     return off;
@@ -3491,10 +3515,12 @@ static const char DC_JS[] =
     "document.querySelectorAll('.dcplay.playing').forEach(function(x){x.classList.remove('playing');x.innerHTML='&#9654;';});"
     "dcA.pause();if(on)return;dcA.src=b.dataset.src;dcA.play();b.classList.add('playing');b.innerHTML='&#9632;';"
     "dcA.onended=function(){b.classList.remove('playing');b.innerHTML='&#9654;';};}"
-    "function dcEdit(b){var d=b.dataset,clip=d.kind=='clip';dcCur=d;"
-    "dcG('dct').textContent=clip?'Dial code '+d.code:'Built-in: '+d.desc;"
+    "function dcEdit(b){var d=b.dataset,clip=d.kind=='clip',key=d.kind=='key';dcCur=d;"
+    "dcG('dct').textContent=clip?'Dial code '+d.code:key?'During a call: '+d.desc:'Built-in: '+d.desc;"
     "dcG('dccode').value=d.code;dcG('dcclip').style.display=clip?'':'none';"
     "dcG('dcfixnote').style.display=clip?'none':'';"
+    "dcG('dcfixnote').textContent=key?'One key: 0-9, * or #. Clear the box to put the original key back.':"
+    "'2\u201310 digits, * or #. Clear the box to put the original code back.';"
     "dcG('dcrm').style.display=clip&&d.builtin!='1'?'':'none';"
     "dcG('dcshr').style.display=clip&&(d.where=='flash'||d.where=='sd')?'':'none';"
     "if(clip){dcG('dcdesc').value=d.desc;dcG('dcfile').value=d.file;dcG('dcup').value='';}"
@@ -3540,7 +3566,8 @@ static const char DC_JS[] =
     "return q;}"
     "function dcBase(n){return n.replace(/\\.[^.]*$/,'');}"
     "function dcSave(){var d=dcCur,m=dcG('dcmsg'),code=dcG('dccode').value.trim(),p;"
-    "if(d.kind!='clip'){m.textContent='Saving...';p=dcPost('/fixed_code_set',{def:d.def,new_code:code});}"
+    "if(d.kind=='key'){m.textContent='Saving...';p=dcPost('/fx_key_set',{fx:d.fx,key:code});}"
+    "else if(d.kind!='clip'){m.textContent='Saving...';p=dcPost('/fixed_code_set',{def:d.def,new_code:code});}"
     "else{var desc=dcG('dcdesc').value,file=dcG('dcfile').value.trim(),f=dcG('dcup').files[0],"
     "dest=document.querySelector('input[name=clipdest]:checked').value;"
     "if(f)p=dcPrep(f,dcBase(file||d.file),m).then(function(u){file=u.name;return dcUp(u.blob,u.name,dest);});"
@@ -3710,7 +3737,7 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
     for (size_t i = 0; i < nfx && (size_t)off < cap; i++) {
         const char *note = "";
         bool usable = fx[i].available;
-        if (!fx[i].available && lines < 2) note = "needs a two-line board";
+        if (!fx[i].available && lines < 2) note = "calls this board's other phone: needs a two-line board";
         else if (!fx[i].available) note = "not available on this board";
         else if (!fx[i].info.implemented) note = "not working yet";
         bool changed = strcmp(fx[i].info.code, fx[i].info.default_code) != 0;
@@ -3728,6 +3755,30 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
             note[0] ? "<span class=\"fn\">" : "", note, note[0] ? "</span>" : "",
             fx[i].info.default_code, fx[i].info.code, edesc, usable ? "" : " disabled",
             i18n_str("dialcodes.edit", "edit"));
+    }
+
+    /* In-call voice effect keys: one key, pressed during any call. */
+    {
+        telephony_fx_key_t keys[TEL_FX_KEYED];
+        telephony_fx_keys(keys);
+        bool fx_on = board_voice_fx_enabled_get();
+        off = appendf(buf, cap, off, "<tr class=\"grp\"><td colspan=\"5\">%s</td></tr>",
+                      i18n_str("dialcodes.group_incall", "During any call (two phones on this board, or over Wi-Fi)"));
+        for (int i = 0; i < TEL_FX_KEYED && (size_t)off < cap; i++) {
+            char desc[48], was[16] = "";
+            if (keys[i].fx == VOICE_FX_NONE) snprintf(desc, sizeof(desc), "Back to your normal voice");
+            else snprintf(desc, sizeof(desc), "%c%s voice", toupper((unsigned char)voice_fx_name(keys[i].fx)[0]),
+                          voice_fx_name(keys[i].fx) + 1);
+            if (keys[i].key != keys[i].def) snprintf(was, sizeof(was), " (was %c)", keys[i].def);
+            off = appendf(buf, cap, off,
+                "<tr%s><td class=\"code\">%c<span class=\"fn\">%s</span></td><td class=\"desc\">%s</td>"
+                "<td class=\"audio\">%s</td><td class=\"size\"></td>"
+                "<td class=\"act\"><button type=\"button\" onclick=\"dcEdit(this)\" data-kind=\"key\" "
+                "data-fx=\"%d\" data-code=\"%c\" data-desc=\"%s\">%s</button></td></tr>",
+                fx_on ? "" : " class=\"muted\"", keys[i].key, was, desc,
+                fx_on ? "" : "<span class=\"fn\">voice effects are off (Settings &rarr; Phone)</span>",
+                keys[i].fx, keys[i].key, desc, i18n_str("dialcodes.edit", "edit"));
+        }
     }
     off = appendf(buf, cap, off, "</tbody></table>");
 
@@ -8082,6 +8133,41 @@ static esp_err_t voice_fx_tune_handler(httpd_req_t *req)
     return redirect_to(req, "/settings?tab=phone");
 }
 
+/* POST /fx_key_set -- fx=N&key=K: the key that picks voice effect N during a
+ * call (empty: its original key). Plain-text reply; 400 says why. */
+static esp_err_t fx_key_set_handler(httpd_req_t *req)
+{
+    char body[64] = "", fx_s[8] = "", key[8] = "";
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "fx", fx_s, sizeof(fx_s));
+    form_field(body, "key", key, sizeof(key));
+    int fx = atoi(fx_s);
+    if (key[0] && key[1]) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "One key only: 0-9, * or #"); return ESP_OK;
+    }
+    esp_err_t err = telephony_fx_key_set(fx, key[0]);
+    if (err == ESP_ERR_INVALID_STATE) {
+        telephony_fx_key_t keys[TEL_FX_KEYED];
+        telephony_fx_keys(keys);
+        char msg[96] = "That key is already used by another voice effect";
+        for (int i = 0; i < TEL_FX_KEYED; i++)
+            if (keys[i].key == key[0])
+                snprintf(msg, sizeof(msg), "Key %c already switches to the %s voice: change that one first",
+                         key[0], voice_fx_name(keys[i].fx));
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, msg); return ESP_OK;
+    }
+    if (err == ESP_ERR_INVALID_ARG) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "The key must be 0-9, * or #"); return ESP_OK;
+    }
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Could not save"); return ESP_OK;
+    }
+    httpd_resp_sendstr(req, "ok\n");
+    return ESP_OK;
+}
+
 static esp_err_t intercom_handler(httpd_req_t *req)
 {
     char body[WIFI_FORM_MAX_BODY];
@@ -10904,14 +10990,17 @@ static int append_dialguide_cards(char *buf, size_t cap, int off,
 
     /* Not dial-plan codes: in_call_key() in telephony.c. */
     if (off > 0 && (size_t)off < cap && board_voice_fx_enabled_get()) {
-        static const struct { const char *key, *desc; } IN_CALL[] = {
-            { "1", "Dalek voice" }, { "2", "Chipmunk voice" }, { "5", "Robot voice" },
-            { "6", "Tremolo voice" }, { "0", "Normal voice" },
-        };
+        telephony_fx_key_t keys[TEL_FX_KEYED];
+        telephony_fx_keys(keys);
         off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>During a call</h2>");
-        for (size_t i = 0; i < sizeof(IN_CALL) / sizeof(IN_CALL[0]); i++)
-            off = append_guide_row(buf, cap, off, IN_CALL[i].key, IN_CALL[i].desc, 0);
+        for (int i = 0; i < TEL_FX_KEYED; i++) {
+            char k[2] = { keys[i].key, 0 }, desc[40];
+            if (keys[i].fx == VOICE_FX_NONE) snprintf(desc, sizeof(desc), "Normal voice");
+            else snprintf(desc, sizeof(desc), "%c%s voice", toupper((unsigned char)voice_fx_name(keys[i].fx)[0]),
+                          voice_fx_name(keys[i].fx) + 1);
+            off = append_guide_row(buf, cap, off, k, desc, 0);
+        }
         off = appendf(buf, cap, off,
             "<p class=\"hint\">Press or dial during a call. Both phones hear the change, "
             "whoever presses it.</p></div>");
@@ -12594,6 +12683,7 @@ esp_err_t webui_start(void)
         { .uri = "/factory_reset",   .method = HTTP_POST, .handler = factory_reset_handler },
         { .uri = "/voice_fx_enabled", .method = HTTP_POST, .handler = voice_fx_enabled_handler },
         { .uri = "/voice_fx_tune",    .method = HTTP_POST, .handler = voice_fx_tune_handler },
+        { .uri = "/fx_key_set",       .method = HTTP_POST, .handler = fx_key_set_handler },
         { .uri = "/alarm_quiet",      .method = HTTP_POST, .handler = alarm_quiet_handler },
         { .uri = "/ring_pattern",     .method = HTTP_POST, .handler = ring_pattern_handler },        { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
         { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },
