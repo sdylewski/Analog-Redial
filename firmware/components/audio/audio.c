@@ -8,6 +8,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/stream_buffer.h"
+#include "freertos/semphr.h"
 #include "driver/i2s_std.h"
 #include <string.h>
 #include <stdlib.h>
@@ -52,8 +53,12 @@ typedef struct {
     volatile bool   inject_uplink; /* see audio_set_uplink_inject() */
     /* Voice effect (audio_set_voice_fx()): fx_down shapes what this line's
      * earpiece hears from a bridge/VoIP peer; fx_up/fx_up8 shape the uplink
-     * VoIP reads (48 kHz raw or 8 kHz echo-cancelled). Allocated on first use. */
+     * VoIP reads (48 kHz raw or 8 kHz echo-cancelled). Allocated when an
+     * effect is turned on; when it's turned off (every call end does that)
+     * fx_release asks the audio task to free them between frames, see
+     * fx_release_pending(). */
     voice_fx_t        fx;
+    bool              fx_release;
     voice_fx_state_t *fx_down, *fx_up, *fx_up8;   /* all run at 8 kHz, see fx_at_8k() */
     int16_t           fx_down_prev, fx_up_prev;   /* fx_at_8k()'s upsampler, per stream */
     /* When something (the VoIP RTP task, the recorder) last asked for this
@@ -201,6 +206,37 @@ void audio_tx_bridge(int line, int from_line, bool enable)
     portEXIT_CRITICAL(&s_mux);
 }
 
+/* Held while something outside the audio task reads the effect states
+ * (audio_voice_fx_stats()) and while the audio task frees them. */
+static StaticSemaphore_t s_fx_mtx_buf;
+static SemaphoreHandle_t s_fx_mtx;   /* created in audio_init() */
+
+/* Audio task only, between frames (nothing else processes the states): free
+ * the effect states of lines whose effect was turned off, about 10 KB per
+ * line. Skips a round if a stats reader holds the mutex. */
+static void fx_release_pending(void)
+{
+    for (int line = 0; line < AUDIO_NUM_LINES; line++) {
+        if (!s_line[line].fx_release) continue;
+        if (!s_fx_mtx || xSemaphoreTake(s_fx_mtx, 0) != pdTRUE) return;
+        voice_fx_state_t *d = NULL, *u = NULL, *u8 = NULL;
+        portENTER_CRITICAL(&s_mux);
+        line_t *l = &s_line[line];
+        if (l->fx_release && l->fx == VOICE_FX_NONE) {
+            d = l->fx_down; u = l->fx_up; u8 = l->fx_up8;
+            l->fx_down = l->fx_up = l->fx_up8 = NULL;
+            l->fx_down_prev = l->fx_up_prev = 0;
+        }
+        l->fx_release = false;
+        portEXIT_CRITICAL(&s_mux);
+        voice_fx_destroy(d);
+        voice_fx_destroy(u);
+        voice_fx_destroy(u8);
+        xSemaphoreGive(s_fx_mtx);
+        if (d) ESP_LOGI(TAG, "line %d: voice effect off, memory freed", line);
+    }
+}
+
 esp_err_t audio_set_voice_fx(int line, voice_fx_t fx)
 {
     if (line < 0 || line >= AUDIO_NUM_LINES) return ESP_ERR_INVALID_ARG;
@@ -210,8 +246,9 @@ esp_err_t audio_set_voice_fx(int line, voice_fx_t fx)
         voice_fx_state_t *up   = voice_fx_create(8000);
         voice_fx_state_t *up8  = voice_fx_create(8000);
         if (!down || !up || !up8) {
-            /* voice_fx states are never freed once in use, so a partial
-             * allocation can't be handed out; leak them (tiny, OOM path). */
+            voice_fx_destroy(down);
+            voice_fx_destroy(up);
+            voice_fx_destroy(up8);
             return ESP_ERR_NO_MEM;
         }
         portENTER_CRITICAL(&s_mux);
@@ -222,7 +259,9 @@ esp_err_t audio_set_voice_fx(int line, voice_fx_t fx)
     }
     portENTER_CRITICAL(&s_mux);
     l->fx = fx;
+    l->fx_release = (fx == VOICE_FX_NONE && l->fx_down);
     portEXIT_CRITICAL(&s_mux);
+    if (l->fx_release && s_paused && s_task) xTaskNotifyGive(s_task);   /* free it now, not in 0.5 s */
     return ESP_OK;
 }
 
@@ -230,6 +269,8 @@ void audio_voice_fx_stats(int line, bool downlink, voice_fx_stats_t *out)
 {
     memset(out, 0, sizeof(*out));
     if (line < 0 || line >= AUDIO_NUM_LINES) return;
+    if (!s_fx_mtx) return;
+    xSemaphoreTake(s_fx_mtx, portMAX_DELAY);
     if (downlink) {
         voice_fx_take_stats(s_line[line].fx_down, out);
     } else {
@@ -240,6 +281,7 @@ void audio_voice_fx_stats(int line, bool downlink, voice_fx_stats_t *out)
         voice_fx_take_stats(s_line[line].fx_up8, &b);
         *out = b.samples >= a.samples ? b : a;
     }
+    xSemaphoreGive(s_fx_mtx);
     out->fx = s_line[line].fx;
 }
 
@@ -650,6 +692,7 @@ static void audio_task(void *arg)
     }
 
     while (1) {
+        fx_release_pending();
         bool want_pause = s_allow_pause && !audio_busy();
         if (!s_paused && want_pause) {
             i2s_channel_disable(s_tx);
@@ -798,6 +841,7 @@ esp_err_t audio_init(const audio_config_t *cfg)
     s_sr = c.sample_rate;
     s_frame = c.frame_samples ? c.frame_samples : (s_sr / 100);
     int nbuf = (c.num_lines > 0 && c.num_lines < AUDIO_NUM_LINES) ? c.num_lines : AUDIO_NUM_LINES;
+    if (!s_fx_mtx) s_fx_mtx = xSemaphoreCreateMutexStatic(&s_fx_mtx_buf);
 
     for (int i = 0; i < AUDIO_NUM_LINES; i++) {
         memset(&s_line[i], 0, sizeof(s_line[i]));
