@@ -18,6 +18,25 @@ The calls and numbers are just examples, so write what your phone actually does.
 `png/` holds 300 dpi PNG exports of the same three cards (about 2100 px wide), for GIMP or for printing
 straight away. Edit the SVG, then export again; for example with `rsvg-convert -d 300 -p 300 file.svg -o png/file.png`.
 
+## Graphics for your own cards
+
+`graphics/` has single graphics to place on a card of your own (OpenOffice or LibreOffice
+Impress/Draw: Insert → Image; Inkscape; Affinity). The lettering is converted to outlines, so
+each one looks the same in any program, with no fonts needed.
+
+| File | What it is |
+|---|---|
+| `phone_sign_blue.svg` | The public "Phone" sign: white handset and lettering on blue |
+| `phone_sign_white.svg` | The same, reversed: blue on white, with a blue border |
+| `pacific_redial_logo.svg` | "PACIFIC (dial) REDIAL" in red, for a white card |
+| `pacific_redial_logo_blue.svg` | The same in the card blue |
+| `pacific_redial_logo_white.svg` | White lettering on a blue band |
+| `rotary_dial_red.svg`, `_blue`, `_white` | The rotary dial on its own: red, blue, or white (for a coloured background) |
+
+`graphics/gen_graphics.py` draws them all (`pip install fonttools`, then
+`python gen_graphics.py graphics`); it uses macOS's Helvetica Neue, so run it on a Mac, or change
+the font paths.
+
 ## Editing
 
 - **Text and colours:** each file starts with a `<style>` block; change a colour or a font size once

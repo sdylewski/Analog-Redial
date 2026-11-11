@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Rotary dial logo in the card blue. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <circle cx="100" cy="100" r="96" fill="#1f4fa8"/>
+  <circle cx="100" cy="100" r="86.40" fill="none" stroke="#ffffff" stroke-width="6.72"/>
+  <circle cx="159.86" cy="65.44" r="12.96" fill="#ffffff"/>
+  <circle cx="134.56" cy="40.14" r="12.96" fill="#ffffff"/>
+  <circle cx="100.00" cy="30.88" r="12.96" fill="#ffffff"/>
+  <circle cx="65.44" cy="40.14" r="12.96" fill="#ffffff"/>
+  <circle cx="40.14" cy="65.44" r="12.96" fill="#ffffff"/>
+  <circle cx="30.88" cy="100.00" r="12.96" fill="#ffffff"/>
+  <circle cx="40.14" cy="134.56" r="12.96" fill="#ffffff"/>
+  <circle cx="65.44" cy="159.86" r="12.96" fill="#ffffff"/>
+  <circle cx="100.00" cy="169.12" r="12.96" fill="#ffffff"/>
+  <circle cx="134.56" cy="159.86" r="12.96" fill="#ffffff"/>
+  <circle cx="100" cy="100" r="24.96" fill="#ffffff"/>
+  <path d="M149.16 126.14L183.07 144.17" stroke="#ffffff" stroke-width="10.56" stroke-linecap="round"/>
+</svg>
