@@ -504,6 +504,30 @@ esp_err_t board_voice_fx_enabled_set(bool enabled)
     return err;
 }
 
+void board_voice_fx_tuning_get(int *chipmunk_pct, int *robot_mix_pct, int *robot_hz)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return;
+    uint16_t v;
+    if (nvs_get_u16(h, "fx_chip_pct", &v) == ESP_OK) *chipmunk_pct = v;
+    if (nvs_get_u16(h, "fx_rb_mix", &v) == ESP_OK) *robot_mix_pct = v;
+    if (nvs_get_u16(h, "fx_rb_hz", &v) == ESP_OK) *robot_hz = v;
+    nvs_close(h);
+}
+
+esp_err_t board_voice_fx_tuning_set(int chipmunk_pct, int robot_mix_pct, int robot_hz)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u16(h, "fx_chip_pct", (uint16_t)chipmunk_pct);
+    if (err == ESP_OK) err = nvs_set_u16(h, "fx_rb_mix", (uint16_t)robot_mix_pct);
+    if (err == ESP_OK) err = nvs_set_u16(h, "fx_rb_hz", (uint16_t)robot_hz);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
+
 bool board_alarm_quiet_override_get(void)
 {
     nvs_handle_t h;

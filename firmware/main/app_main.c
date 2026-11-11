@@ -12,6 +12,7 @@
 #include "board_config.h"
 #include "es8388.h"
 #include "audio.h"
+#include "voice_fx.h"
 #include "aec.h"
 #include "prompts.h"
 #include "payphone.h"
@@ -186,6 +187,11 @@ void app_main(void)
         ESP_LOGE(TAG, "audio_init failed: %s (continuing for console tests)",
                  esp_err_to_name(err));
         had_soft_failure = true;
+    }
+    {
+        int chip = VOICE_FX_CHIPMUNK_PCT_DEFAULT, mix = VOICE_FX_ROBOT_MIX_DEFAULT, hz = VOICE_FX_ROBOT_HZ_DEFAULT;
+        board_voice_fx_tuning_get(&chip, &mix, &hz);
+        voice_fx_set_tuning(chip, mix, hz);
     }
 
     /* 3. Codec config over I2C. Non-fatal if the PCB/codec isn't present yet. */

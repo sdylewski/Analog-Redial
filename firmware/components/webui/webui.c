@@ -2910,7 +2910,40 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
                  "special. The key's tone also reaches the other phone as a short beep. On a "
                  "VoIP call to an automated phone menu, turn this off so menu choices don't "
                  "change your voice. Also applies to dialling 322-324."));
-    off = appendf(buf, cap, off, "</div>");
+    off = appendf(buf, cap, off,
+        "<form method=\"POST\" action=\"/voice_fx_tune\" class=\"settings-form\">"
+        "<label>%s <input type=\"range\" id=\"fxchip\" name=\"chip\" min=\"%d\" max=\"%d\" step=\"5\" "
+        "value=\"%d\" oninput=\"fxTune()\"> <span id=\"fxchipv\">%d%%</span></label>"
+        "<label>%s <input type=\"range\" id=\"fxmix\" name=\"mix\" min=\"0\" max=\"100\" step=\"5\" "
+        "value=\"%d\" oninput=\"fxTune()\"> <span id=\"fxmixv\">%d%%</span></label>"
+        "<label>%s <input type=\"range\" id=\"fxhz\" name=\"hz\" min=\"%d\" max=\"%d\" step=\"5\" "
+        "value=\"%d\" oninput=\"fxTune()\"> <span id=\"fxhzv\">%d Hz</span></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button>"
+        "<button type=\"submit\" name=\"defaults\" value=\"1\">%s</button></div>"
+        "</form>"
+        "<script>function fxTune(){"
+        "var c=document.getElementById('fxchip').value,m=document.getElementById('fxmix').value,"
+        "h=document.getElementById('fxhz').value;"
+        "document.getElementById('fxchipv').textContent=c+'%%';"
+        "document.getElementById('fxmixv').textContent=m+'%%';"
+        "document.getElementById('fxhzv').textContent=h+' Hz';"
+        "fetch('/voice_fx_tune',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},"
+        "body:'live=1&chip='+c+'&mix='+m+'&hz='+h});}</script>",
+        i18n_str("voicefx.chip", "Chipmunk pitch (100% is your own voice)"),
+        VOICE_FX_CHIPMUNK_PCT_MIN, VOICE_FX_CHIPMUNK_PCT_MAX, voice_fx_chipmunk_pct(), voice_fx_chipmunk_pct(),
+        i18n_str("voicefx.mix", "Robot amount (the rest is your own voice)"),
+        voice_fx_robot_mix(), voice_fx_robot_mix(),
+        i18n_str("voicefx.hz", "Robot pitch"),
+        VOICE_FX_ROBOT_HZ_MIN, VOICE_FX_ROBOT_HZ_MAX, voice_fx_robot_hz(), voice_fx_robot_hz(),
+        i18n_str("general.button.save", "Save"),
+        i18n_str("voicefx.defaults", "Defaults"));
+    char tune_hint[200];
+    snprintf(tune_hint, sizeof(tune_hint), i18n_str("voicefx.tune_hint",
+             "Drag during a call to hear it change (not saved yet), then click Save. "
+             "Defaults: chipmunk %d%%, robot %d%% at %d Hz. On a VoIP call, the settings of "
+             "the board where the key was pressed are the ones heard."),
+             VOICE_FX_CHIPMUNK_PCT_DEFAULT, VOICE_FX_ROBOT_MIX_DEFAULT, VOICE_FX_ROBOT_HZ_DEFAULT);
+    off = appendf(buf, cap, off, "<p class=\"hint\">%s</p></div>", tune_hint);
 
 
     return off;
@@ -8022,6 +8055,31 @@ static esp_err_t voice_fx_enabled_handler(httpd_req_t *req)
     return redirect_to(req, "/settings?tab=phone");
 }
 
+/* POST /voice_fx_tune -- chip=N&mix=N&hz=N, plus live=1 (the sliders while
+ * dragging: apply, don't save, plain-text reply) or defaults=1 (save the
+ * defaults). */
+static esp_err_t voice_fx_tune_handler(httpd_req_t *req)
+{
+    char body[128] = "", v[12];
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    int chip = voice_fx_chipmunk_pct(), mix = voice_fx_robot_mix(), hz = voice_fx_robot_hz();
+    if (form_field(body, "chip", v, sizeof(v)) && v[0]) chip = atoi(v);
+    if (form_field(body, "mix", v, sizeof(v)) && v[0]) mix = atoi(v);
+    if (form_field(body, "hz", v, sizeof(v)) && v[0]) hz = atoi(v);
+    if (form_field(body, "defaults", v, sizeof(v)) && v[0] == '1') {
+        chip = VOICE_FX_CHIPMUNK_PCT_DEFAULT; mix = VOICE_FX_ROBOT_MIX_DEFAULT; hz = VOICE_FX_ROBOT_HZ_DEFAULT;
+    }
+    voice_fx_set_tuning(chip, mix, hz);
+    if (form_field(body, "live", v, sizeof(v)) && v[0] == '1') {
+        httpd_resp_sendstr(req, "ok\n");
+        return ESP_OK;
+    }
+    board_voice_fx_tuning_set(voice_fx_chipmunk_pct(), voice_fx_robot_mix(), voice_fx_robot_hz());
+    return redirect_to(req, "/settings?tab=phone");
+}
+
 static esp_err_t intercom_handler(httpd_req_t *req)
 {
     char body[WIFI_FORM_MAX_BODY];
@@ -12534,6 +12592,7 @@ esp_err_t webui_start(void)
         { .uri = "/wifi_reprovision", .method = HTTP_POST, .handler = wifi_reprovision_handler },
         { .uri = "/factory_reset",   .method = HTTP_POST, .handler = factory_reset_handler },
         { .uri = "/voice_fx_enabled", .method = HTTP_POST, .handler = voice_fx_enabled_handler },
+        { .uri = "/voice_fx_tune",    .method = HTTP_POST, .handler = voice_fx_tune_handler },
         { .uri = "/alarm_quiet",      .method = HTTP_POST, .handler = alarm_quiet_handler },
         { .uri = "/ring_pattern",     .method = HTTP_POST, .handler = ring_pattern_handler },        { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
         { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },

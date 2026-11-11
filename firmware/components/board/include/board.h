@@ -197,6 +197,11 @@ int       board_feature_get(const char *key);
 esp_err_t board_feature_set(const char *key, bool on);
 bool      board_voice_fx_enabled_get(void);
 esp_err_t board_voice_fx_enabled_set(bool enabled);
+/* Voice effect tuning (voice_fx_set_tuning(), voice_fx.h): chipmunk pitch %,
+ * robot amount %, robot buzz Hz. get fills in only what has been saved and
+ * leaves the rest as the caller set it (the defaults). */
+void      board_voice_fx_tuning_get(int *chipmunk_pct, int *robot_mix_pct, int *robot_hz);
+esp_err_t board_voice_fx_tuning_set(int chipmunk_pct, int robot_mix_pct, int robot_hz);
 /* Alarms (dial 256) ring even during quiet hours. Off by default: quiet
  * hours silence alarms too, like every other ring. */
 bool      board_alarm_quiet_override_get(void);
