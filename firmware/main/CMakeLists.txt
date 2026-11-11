@@ -18,6 +18,9 @@ set(BUNDLED_AUDIO
     record_prompt.wav   # dial 211, before the beep
     timer_prompt.wav    # dial 846, "How many minutes for the timer?"
     timer_done.wav      # dial 846: "Your timer is done." when it goes off
+    msg_none.wav        # dial 674: "You have no new messages."
+    msg_menu.wav        # dial 674: what 0, 2 and 1 do, after a message
+    msg_menu_last.wav   # same, on the last message
     alarm_prompt.wav    # dial 256, "What time should the alarm ring?..."
     alarm_done.wav      # dial 256: "This is your alarm." when it rings
     am_greeting.wav     # answering machine's default greeting

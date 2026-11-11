@@ -156,6 +156,10 @@ typedef struct {
     bool                 timer_announce;   /* play TIMER_DONE_NAME once the line is on dial tone */
     int                  timer_minutes;    /* minutes accepted, counting down from the hang-up */
     bool                 timer_accepted;   /* the minutes are in; waiting to hang up on the caller */
+    /* Messages (dial 674): msg_cur is the voicemail file being played or just played. */
+    bool                 msg_active;
+    uint8_t              msg_stage;        /* MSG_STAGE_* */
+    char                 msg_cur[STORAGE_MAX_NAME];
     int64_t              timer_hangup_us;  /* when the line hangs up on the caller */
     /* Alarm (dial 256): entry reuses the timer's digit collection (entry_alarm
      * says which one is being asked). alarm_at is when it rings (wall clock,
@@ -384,6 +388,7 @@ static void enter_idle(int line)
     s_line[line].bt_music_pass = false;
     s_line[line].seq = NULL;
     s_line[line].timer_n = 0;
+    s_line[line].msg_active = false;
     s_line[line].timer_announce = false;
     s_line[line].timer_accepted = false;
     s_line[line].entry_alarm = false;
@@ -426,6 +431,7 @@ static void enter_dialtone(int line)
     /* A readback digit finishing now would silence the dial tone below. */
     if (s_line[line].rb_clip) { player_stop_and_wait(line, 150); s_line[line].rb_clip = false; }
     ESP_LOGD(TAG, "line %d: %s -> DIALTONE", line, telephony_state_name(s_line[line].state));
+    s_line[line].msg_active = false;
     audio_tx_tone(line, TONE_DIAL);
     s_line[line].state = TEL_DIALTONE;
     s_line[line].peer = PEER_NONE;
@@ -1194,16 +1200,19 @@ void telephony_check_clip_files(void)
 #define TIMER_FIRST_DIGIT_WAIT_US  (10LL * 1000000)  /* after the prompt, for the first digit */
 #define TIMER_SECOND_DIGIT_WAIT_MS 4000              /* wait this long for a second digit (not the 15 s dial-plan timeout);
                                                         a rotary 0 takes about 3 s to wind and pulse back */
-#define TIMER_HANGUP_GRACE_MS      3000              /* after the minutes are accepted, before the line hangs up on the caller */
+#define TIMER_HANGUP_GRACE_MS      3000              /* alarm: after the time is accepted, before the line hangs up on the caller */
+#define TIMER_LAST_DIGIT_WAIT_MS   1000              /* timer: after the second digit, before the timer is set and dial tone returns */
 #define TIMER_QUIET_MS             30000             /* then silence (fast busy right after the beep sounded like a reject);
                                                         fast busy only if the handset is still up after this */
 #define TIMER_RING_ROUNDS          4                 /* rings before it gives up */
 #define TIMER_RING_PAUSE_US        (18LL * 1000000)  /* between the end of one ring pattern and the next */
 
 /* The minutes are in. 0 cancels a running timer at once. Anything else is held
- * until the call ends: the countdown starts when the caller hangs up, or when
- * the line hangs up on them, `grace_ms` after the last digit (3 s, so a
- * mistake can still be heard before the line goes away). */
+ * until the call ends: the countdown starts when the caller hangs up, or
+ * `grace_ms` after the last digit, when the line gives dial tone back (the tick
+ * loop does that; see timer_tick()). */
+static void timer_start(int line);
+static void timer_finish(int line);
 static void timer_accept(int line, int grace_ms)
 {
     int minutes = atoi(s_line[line].timer_digits);
@@ -1218,7 +1227,7 @@ static void timer_accept(int line, int grace_ms)
         s_line[line].timer_ringing = false;
         activity_log(had ? "Line %d: timer cancelled" : "Line %d: no timer to cancel", line);
     }
-    play_transient(line, TONE_CONFIRM, 700, TEL_TIMER_ENTRY, TEL_TIMER_ENTRY);
+    if (grace_ms <= 0) timer_finish(line);   /* nothing left to wait for */
 }
 
 /* The call is over: start counting. */
@@ -1231,6 +1240,14 @@ static void timer_start(int line)
     s_line[line].timer_rounds = 0;
     s_line[line].timer_ringing = false;
     activity_log("Line %d: timer set for %d minute%s", line, minutes, minutes == 1 ? "" : "s");
+}
+
+/* The timer is set: back to dial tone, no confirmation tones. */
+static void timer_finish(int line)
+{
+    timer_start(line);
+    audio_tx_silence(line);
+    enter_dialtone(line);
 }
 
 /* The caller hung up while entering or just after: use what was dialled. */
@@ -1254,6 +1271,116 @@ static void timer_hung_up(int line)
         }
     }
     timer_start(line);
+}
+
+/* ---- messages (dial 674) -------------------------------------------------
+ * Plays the stored voicemail_* files oldest first (their names carry the time).
+ * After each, a menu clip says: 0 deletes it, 2 plays it again, 1 goes on to the
+ * next. Keys also work over the audio. Nothing left: "You have no new messages." */
+#define MSG_KEY_WAIT_US (15LL * 1000000)   /* after the menu, before dial tone returns */
+enum { MSG_STAGE_MSG, MSG_STAGE_MENU, MSG_STAGE_END };
+
+/* The oldest message after `after` ("" = from the start). `more` says another follows it. */
+static bool msg_find(const char *after, char *best, size_t cap, bool *more)
+{
+    enum { MAXL = 96 };
+    storage_entry_t *l = malloc(MAXL * sizeof(*l));
+    if (!l) return false;
+    size_t n = storage_list(l, MAXL), count = 0;
+    best[0] = '\0';
+    for (size_t i = 0; i < n; i++) {
+        const char *nm = l[i].name;
+        if (strncmp(nm, "voicemail_", 10) != 0 || strcmp(nm, after) <= 0) continue;
+        count++;
+        if (!best[0] || strcmp(nm, best) < 0) strlcpy(best, nm, cap);
+    }
+    free(l);
+    if (more) *more = count > 1;
+    return count > 0;
+}
+
+static void msg_say_none(int line)
+{
+    s_line[line].msg_stage = MSG_STAGE_END;
+    audio_tx_silence(line);
+    if (player_play(line, MSG_NONE_NAME, clip_done_cb, NULL) == ESP_OK) {
+        s_line[line].state = TEL_PLAYING;
+    } else {
+        s_line[line].msg_active = false;
+        play_transient(line, TONE_CONFIRM, 700, TEL_DIALTONE, TEL_DIALTONE);
+    }
+}
+
+static void msg_play_cur(int line)
+{
+    s_line[line].msg_stage = MSG_STAGE_MSG;
+    s_line[line].tone_return_us = 0;
+    audio_tx_silence(line);
+    if (player_play(line, s_line[line].msg_cur, clip_done_cb, NULL) == ESP_OK) {
+        s_line[line].state = TEL_PLAYING;
+        activity_log("Line %d: playing message %s", line, s_line[line].msg_cur);
+    } else {
+        ESP_LOGW(TAG, "line %d: can't play message %s", line, s_line[line].msg_cur);
+        char nxt[STORAGE_MAX_NAME];
+        if (msg_find(s_line[line].msg_cur, nxt, sizeof(nxt), NULL)) {
+            strlcpy(s_line[line].msg_cur, nxt, sizeof(s_line[line].msg_cur));
+            msg_play_cur(line);
+        } else {
+            msg_say_none(line);
+        }
+    }
+}
+
+/* Plays the message after msg_cur, or says there are no more. */
+static void msg_next(int line)
+{
+    char nxt[STORAGE_MAX_NAME];
+    if (msg_find(s_line[line].msg_cur, nxt, sizeof(nxt), NULL)) {
+        strlcpy(s_line[line].msg_cur, nxt, sizeof(s_line[line].msg_cur));
+        msg_play_cur(line);
+    } else {
+        msg_say_none(line);
+    }
+}
+
+static void msg_start(int line)
+{
+    s_line[line].msg_active = true;
+    s_line[line].msg_cur[0] = '\0';
+    telephony_messages_seen();
+    activity_log("Line %d: answering machine messages", line);
+    msg_next(line);
+}
+
+/* The message ended: say what the keys do, then wait for one. */
+static void msg_clip_done(int line)
+{
+    if (s_line[line].msg_stage == MSG_STAGE_MSG) {
+        char nxt[STORAGE_MAX_NAME];
+        bool has_next = msg_find(s_line[line].msg_cur, nxt, sizeof(nxt), NULL);
+        s_line[line].msg_stage = MSG_STAGE_MENU;
+        if (player_play(line, has_next ? MSG_MENU_NAME : MSG_MENU_LAST_NAME, clip_done_cb, NULL) == ESP_OK) return;
+    }
+    /* The menu is over (or missing): wait for a key, then dial tone. */
+    s_line[line].tone_return_us = esp_timer_get_time() + MSG_KEY_WAIT_US;
+    s_line[line].tone_return_state = TEL_DIALTONE;
+}
+
+static void msg_key(int line, char ch)
+{
+    if (s_line[line].msg_stage == MSG_STAGE_END) return;
+    if (ch != '0' && ch != '1' && ch != '2') return;
+    player_stop_and_wait(line, 300);
+    s_line[line].tone_return_us = 0;
+    if (ch == '0') {
+        storage_delete(s_line[line].msg_cur);
+        activity_log("Line %d: deleted message %s", line, s_line[line].msg_cur);
+        msg_next(line);
+    } else if (ch == '1') {
+        msg_next(line);
+    } else {
+        msg_play_cur(line);
+    }
 }
 
 /* ---- alarm (dial 256) ------------------------------------------------------
@@ -1402,7 +1529,7 @@ static void timer_digit(int line, char ch)
 {
     if (s_line[line].entry_alarm) { alarm_digit(line, ch); return; }
     if (s_line[line].timer_accepted) return;   /* already have the minutes */
-    if (ch == '#' && s_line[line].timer_n >= 1) { timer_accept(line, TIMER_HANGUP_GRACE_MS); return; }   /* touch-tone "enter" */
+    if (ch == '#' && s_line[line].timer_n >= 1) { timer_accept(line, 0); return; }   /* touch-tone "enter" */
     if (ch < '0' || ch > '9') return;
     if (s_line[line].timer_n == 0) {
         player_stop(line);   /* dialled over the prompt: no need to hear the rest */
@@ -1413,7 +1540,7 @@ static void timer_digit(int line, char ch)
         s_line[line].timer_digits[s_line[line].timer_n] = '\0';
     }
     s_line[line].last_digit_us = esp_timer_get_time();
-    if (s_line[line].timer_n >= 2) timer_accept(line, TIMER_HANGUP_GRACE_MS);
+    if (s_line[line].timer_n >= 2) timer_accept(line, TIMER_LAST_DIGIT_WAIT_MS);
 }
 
 /* Called every tick for `line`: waits for digits while asking, and rings when
@@ -1433,11 +1560,14 @@ static void timer_tick(int line, int64_t now)
     if (s_line[line].state == TEL_TIMER_ENTRY) {
         if (s_line[line].timer_accepted) {
             if (now >= s_line[line].timer_hangup_us) {
-                /* The minutes are in and nobody hung up: the line hangs up on the caller
-                 * (quiet, then fast busy if the handset is left up) and the countdown starts. */
-                if (!s_line[line].entry_alarm) timer_start(line);
-                else s_line[line].timer_accepted = false;
-                play_transient(line, TONE_NONE, TIMER_QUIET_MS, TEL_REORDER, TEL_REORDER);
+                if (!s_line[line].entry_alarm) {
+                    /* Timer: the minutes are in and nobody hung up: set it, back to dial tone. */
+                    timer_finish(line);
+                } else {
+                    /* Alarm: the line hangs up on the caller (quiet, then fast busy if the handset is left up). */
+                    s_line[line].timer_accepted = false;
+                    play_transient(line, TONE_NONE, TIMER_QUIET_MS, TEL_REORDER, TEL_REORDER);
+                }
             }
         } else if (s_line[line].entry_alarm) {
             if (s_line[line].timer_wait_until_us && now >= s_line[line].timer_wait_until_us) {
@@ -1567,6 +1697,10 @@ static void handle_action(int line, const dialplan_action_t *a)
                 s_line[line].timer_wait_until_us = esp_timer_get_time() + TIMER_FIRST_DIGIT_WAIT_US;
                 play_transient(line, TONE_ANSWERING_BEEP, 300, TEL_TIMER_ENTRY, TEL_TIMER_ENTRY);
             }
+            break;
+
+        case ACT_MESSAGES:
+            msg_start(line);
             break;
 
         case ACT_WEATHER:
@@ -1743,6 +1877,10 @@ static void process_digit(int line, char ch)
     }
     if (st == TEL_TIMER_ENTRY) {
         timer_digit(line, ch);
+        return;
+    }
+    if (st == TEL_PLAYING && s_line[line].msg_active) {
+        msg_key(line, ch);
         return;
     }
     if (st != TEL_DIALTONE && st != TEL_DIALING && st != TEL_COIN_WAIT) {
@@ -2067,6 +2205,9 @@ static void fsm_task(void *arg)
                         /* The "please deposit" message (or a coin's clip) ended: ask again later. */
                         s_line[e.line].coin_next_us = esp_timer_get_time() +
                             (int64_t)payphone_cfg().repeat_s * 1000000;
+                    } else if (s_line[e.line].state == TEL_PLAYING && s_line[e.line].msg_active &&
+                               s_line[e.line].msg_stage != MSG_STAGE_END) {
+                        msg_clip_done(e.line);
                     } else if (s_line[e.line].state == TEL_PLAYING && s_line[e.line].seq &&
                         s_line[e.line].seq_i < strlen(s_line[e.line].seq)) {
                         s_line[e.line].seq_playing = false;

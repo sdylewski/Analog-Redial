@@ -73,6 +73,13 @@ typedef enum {
 /* Dial 846 plays this ("How many minutes for the timer?") before waiting for
  * up to two digits. Missing: a short beep stands in for it. */
 #define TIMER_PROMPT_NAME "timer_prompt.wav"
+
+/* Dial 674 plays the answering machine's messages, oldest first. After each one
+ * the menu clip says what the keys do (0 delete, 2 again, 1 next); the "last"
+ * menu leaves out "next". With no message left the board says MSG_NONE_NAME. */
+#define MSG_NONE_NAME      "msg_none.wav"        /* "You have no new messages." */
+#define MSG_MENU_NAME      "msg_menu.wav"
+#define MSG_MENU_LAST_NAME "msg_menu_last.wav"
 /* Played when someone answers the ringing timer ("Your timer is done."), or
  * right away if the handset is already up. Missing: a short beep. */
 #define TIMER_DONE_NAME   "timer_done.wav"

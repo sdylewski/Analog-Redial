@@ -36,6 +36,7 @@ typedef enum {
     ACT_TIMER,          /* dial 846: ask how many minutes (1-99), then ring when it's up */
     ACT_ALARM,          /* dial 256 (ALM): ask for a 24-hour time, then ring at that time */
     ACT_WEATHER,        /* dial 1212: read the weather forecast (weather.h) */
+    ACT_MESSAGES,       /* dial 674 (MSG): play the answering machine's messages; 0 deletes, 1 next, 2 again */
 } dialplan_action_kind_t;
 
 typedef enum {

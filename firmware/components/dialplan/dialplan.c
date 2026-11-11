@@ -84,6 +84,8 @@ static const entry_t TABLE[] = {
     /* 1212, the end of the old weather lines' numbers (WE6-1212). Not 932
      * (W-E-A): every code starting with 9 is kept for Bluetooth dial-out. */
     { "1212", ACT_WEATHER, 0, 0, "Weather report", true },
+    /* 674 spells MSG. */
+    { "674", ACT_MESSAGES, 0, 0, "Hear the answering machine's messages (dial 0 to delete one, 1 for the next, 2 to hear it again)", true },
     { "321", ACT_CALL_LINE, -1, FX_NORMAL, "Call other phone (normal voice)", true },
     { "322", ACT_CALL_LINE, -1, FX_HIGH,   "Call other phone (chipmunk)", true },
     { "323", ACT_CALL_LINE, -1, FX_LOW,    "Call other phone (Vader)", true },
