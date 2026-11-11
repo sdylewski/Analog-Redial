@@ -2901,8 +2901,9 @@ static int append_phone_settings_tab(char *buf, size_t cap, int off)
         i18n_str("general.button.save", "Save"));
     off = append_hint(buf, cap, off,
         i18n_str("voicefx.hint_lead",
-                 "During a call, press or dial 1 Dalek, 2 chipmunk, 3 Darth Vader, 4 8-bit, "
-                 "5 robot, 6 tremolo, 7 distortion, 0 normal. Both phones hear it."),
+                 "During a call, press or dial 2 for a chipmunk voice or 5 for a robot voice, "
+                 "and 0 to go back to normal. Both phones hear it. Also: 1 Dalek, 3 Darth Vader, "
+                 "4 8-bit, 6 tremolo, 7 distortion."),
         i18n_str("voicefx.hint_detail",
                  "Works on calls between this board's two phones and on VoIP calls: the board "
                  "where the key is pressed changes both voices, so the far end needs nothing "
