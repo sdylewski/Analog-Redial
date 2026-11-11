@@ -68,7 +68,7 @@ static void downlink_push(int line, const int16_t *mono, size_t n, void *ctx)
     xStreamBufferSend(dc->sb, mono, n * sizeof(int16_t), 0);
 }
 
-/* AGC for recorded output only -- confirmed live (2026-09-03) that 211
+/* AGC for recorded output only (local mic recordings; a downlink/VoIP recording is stored unchanged) -- confirmed live (2026-09-03) that 211
  * messages were coming out around -46 dBFS RMS / 20% of full-scale peak
  * even for normal speaking volume, quiet enough several people assumed
  * playback itself was broken. That level is inherent to this hardware's
@@ -216,7 +216,8 @@ static void rec_task(void *arg)
          * capped so this specific block's own peak can't clear
          * AGC_CEILING_PEAK no matter how stale that estimate is. */
         int32_t block_gain_q8 = agc_gain_q8;
-        if (raw_peak > 0) {
+        if (a->downlink) block_gain_q8 = 256;   /* a caller's voice over the network is already at call level: stored as heard */
+        else if (raw_peak > 0) {
             int32_t ceiling_gain = (int32_t)(((int64_t)AGC_CEILING_PEAK << 8) / raw_peak);
             if (block_gain_q8 > ceiling_gain) block_gain_q8 = ceiling_gain;
         }
@@ -231,7 +232,7 @@ static void rec_task(void *arg)
          * dtmf.c's AGC, but no longer the only thing standing between a
          * transient and clipping (the ceiling above handles that now). */
         int32_t chunk_peak = raw_peak;
-        if (chunk_peak >= AGC_GATE_PEAK) {
+        if (!a->downlink && chunk_peak >= AGC_GATE_PEAK) {
             int32_t target = (int32_t)(((int64_t)AGC_TARGET_PEAK << 8) / chunk_peak);
             if (target < AGC_MIN_GAIN_Q8) target = AGC_MIN_GAIN_Q8;
             if (target > AGC_MAX_GAIN_Q8) target = AGC_MAX_GAIN_Q8;
