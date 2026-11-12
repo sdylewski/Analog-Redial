@@ -155,9 +155,10 @@ the hand-solder parts from AliExpress saves $7 per board.
 You'll also want a 2 A USB-C charger (or a regulated 5-6 V, 2 A DC supply for the DC jack; never 9 V or 12 V) and one or two analog phones. 
 
 Most of a small order is fixed PCB setup fees, so boards get cheaper when people
-order together. If you'd like a board from a group order,
-**[register your interest](https://forms.gle/kVKHiXejV6M2ZxC17)**: no
-commitment, it just tells us how many people want one.
+order together. If you'd like a board,
+**[fill out the interest form](https://forms.gle/kVKHiXejV6M2ZxC17)**. It's
+only to show interest, so I can email you when boards are available on Tindie;
+there's no commitment. Questions? [Join the Discord](https://discord.gg/zEZkqfcxqE) and ask there.
 
 Price breakdown: [Get a board](docs/board.md#what-it-costs).
 
@@ -196,7 +197,7 @@ Going further: [Troubleshooting](docs/troubleshooting.md) ·
 ## Community
 
 - **Discord:** [join the server](https://discord.gg/zEZkqfcxqE) for questions, build help and show-and-tell
-- **Want a board from a pooled order?** [Interest form](https://forms.gle/kVKHiXejV6M2ZxC17)
+- **Want a board?** [Interest form](https://forms.gle/kVKHiXejV6M2ZxC17): just to show interest, so I can email you when boards are available on Tindie. Questions? Ask in the Discord.
 - **Bugs and questions:** [GitHub Issues](https://github.com/sdylewski/Analog-Redial/issues)
 - **Built one?** Post a picture in the Discord channel! We'd love to see it.
 
