@@ -173,7 +173,7 @@ few commands in a terminal, you can build one.
 
 | Step | Guide | What's in it |
 |---|---|---|
-| **1** | [Get a board](docs/board.md) | Board versions, ordering from JLCPCB, pooled orders, costs |
+| **1** | [Get a board](docs/board.md) | Board versions, ordering from JLCPCB, buying on Tindie, costs |
 | **2** | [Parts](docs/bom.md) and [assembly](docs/building.md) | What to buy, soldering order, checks before power-on; [v5 step by step](docs/build-v5.md) |
 | **3** | [Flash & test](docs/flashing.md) | Install ESP-IDF, flash the firmware, run the hardware self-test |
 | **4** | [Set up & use](docs/setup.md) | Wi-Fi, the web interface, dial codes, your own audio |
