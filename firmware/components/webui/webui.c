@@ -9283,6 +9283,39 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
         "Tones it hears but can't place show in the log as not recognized.</p></div>",
         c.tone_detect ? " checked" : "");
 
+    /* Collect and return method */
+    off = appendf(buf, cap, off,
+        "<div class=\"card\"><h2>Collect and return</h2>"
+        "<form method=\"POST\" action=\"/payphone_set\" class=\"settings-form\">"
+        "<input type=\"hidden\" name=\"section\" value=\"relay\">"
+        "<label>Method <select name=\"relay_method\">"
+        "<option value=\"0\"%s>None</option>"
+        "<option value=\"1\"%s>Green box tones</option>"
+        "<option value=\"2\"%s>Coin board</option>"
+        "<option value=\"3\"%s>Both (tones + board)</option>"
+        "</select></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+        "</form>"
+        "<p class=\"hint\">"
+        "<b>None:</b> coins are counted and logged but not collected or returned.<br>"
+        "<b>Green box tones:</b> sends 2200+2600 Hz tone bursts down the phone line. "
+        "Works with older phones (~1950s&ndash;1980s) whose totalizer has an intact tone decoder. "
+        "No extra hardware &mdash; just tip and ring. One burst = collect, two = return.<br>"
+        "<b>Coin board:</b> fires the coin relay electrically over I2C. Works with any phone. "
+        "Requires the coin board connected to J11.<br>"
+        "<b>Both:</b> sends green box tones and fires the coin board.</p>"
+        "<p class=\"hint\"><b>Which phones use which method?</b> "
+        "Three-slot phones (WE 233G) and early single-slot phones respond to green box tones. "
+        "ACTS-era single-slot phones (WE 1D, 1D2) need the coin board for DC voltage control; "
+        "try &ldquo;Both&rdquo; to see if the phone also responds to tones. "
+        "COCOT phones (Protel, Elcotel) need their controller bypassed. "
+        "A phone with no coin mechanism needs &ldquo;None.&rdquo;</p>"
+        "</div>",
+        c.relay_method == 0 ? " selected" : "",
+        c.relay_method == 1 ? " selected" : "",
+        c.relay_method == 2 ? " selected" : "",
+        c.relay_method == 3 ? " selected" : "");
+
     /* Coin board */
     {
         coinboard_cfg_t b = coinboard_cfg();
@@ -9459,6 +9492,9 @@ static esp_err_t payphone_set_handler(httpd_req_t *req)
         }
     } else if (!strcmp(sec, "tones")) {
         c.tone_detect = PP_BOX("tone_detect");
+    } else if (!strcmp(sec, "relay")) {
+        v[0] = '\0'; form_field(body, "relay_method", v, sizeof(v));
+        if (v[0]) c.relay_method = (uint8_t)atoi(v);
     }
 #undef PP_BOX
     payphone_cfg_set(&c);
@@ -9540,6 +9576,7 @@ static esp_err_t payphone_json_handler(httpd_req_t *req)
     cJSON_AddBoolToObject(root, "tone_detect", c.tone_detect);
     cJSON_AddBoolToObject(root, "coin_required", c.coin_required);
     cJSON_AddNumberToObject(root, "price_cents", c.price_cents);
+    cJSON_AddNumberToObject(root, "relay_method", c.relay_method);
     int nlines = board_hw_config_get().num_lines;
     if (nlines < 1) nlines = 1;
     cJSON *cr = cJSON_AddArrayToObject(root, "credit");

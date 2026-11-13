@@ -1,4 +1,5 @@
 #include "payphone.h"
+#include "green_box.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "nvs.h"
@@ -13,7 +14,7 @@ static const char *TAG = "payphone";
 #define NVS_NS      "payphone"
 #define KEY_CFG     "cfg"
 #define KEY_TOTALS  "totals"
-#define CFG_VERSION 1
+#define CFG_VERSION 2
 
 /* What's stored: the settings plus a version, so a later layout can tell. */
 typedef struct {
@@ -29,6 +30,7 @@ static const payphone_cfg_t DEFAULTS = {
     .coin_msg = false,
     .price_cents = 10,
     .repeat_s = 8,
+    .relay_method = PAYPHONE_RELAY_NONE,
 };
 
 static payphone_cfg_t     s_cfg;
@@ -64,13 +66,22 @@ void payphone_init(void)
             st.version == CFG_VERSION) {
             s_cfg = st.cfg;
         }
+        /* V1 blobs (before relay_method was added) are one byte shorter.
+         * Copy what's there; relay_method stays at the DEFAULTS value. */
+        else if (nvs_get_blob(h, KEY_CFG, &st, &len) == ESP_OK &&
+                 st.version == 1 && len < sizeof(st)) {
+            memcpy(&s_cfg, &st.cfg, len - offsetof(stored_cfg_t, cfg));
+            ESP_LOGI(TAG, "migrated v1 config (%d -> %d bytes)", (int)len, (int)sizeof(st));
+        }
         len = sizeof(s_totals);
         if (nvs_get_blob(h, KEY_TOTALS, &s_totals, &len) != ESP_OK || len != sizeof(s_totals))
             memset(&s_totals, 0, sizeof(s_totals));
         nvs_close(h);
     }
     for (int i = 0; i < PAYPHONE_COINS; i++) s_cfg.coin_clip[i][PAYPHONE_CLIP_MAX - 1] = '\0';
-    ESP_LOGI(TAG, "payphone features %s", s_cfg.enabled ? "on" : "off");
+    green_box_init();
+    ESP_LOGI(TAG, "payphone features %s, relay method %d", s_cfg.enabled ? "on" : "off",
+             s_cfg.relay_method);
 }
 
 payphone_cfg_t payphone_cfg(void)
@@ -198,11 +209,20 @@ void payphone_set_relay_handler(payphone_relay_fn fn) { s_relay = fn; }
 
 void payphone_relay(int line, payphone_relay_t what, int cents, const char *why)
 {
+    uint8_t method = s_cfg.relay_method;
     payphone_relay_fn fn = s_relay;
     bool board = fn && line == s_board_line;
+    bool use_tones = (method == PAYPHONE_RELAY_TONES || method == PAYPHONE_RELAY_BOTH);
+    bool use_board = (method == PAYPHONE_RELAY_BOARD || method == PAYPHONE_RELAY_BOTH) && board;
+
+    const char *how = use_tones && use_board ? " (tones + board)" :
+                      use_tones ? " (green box tones)" :
+                      use_board ? " (coin board)" : " (no relay method set)";
     payphone_logf(line, "%d c %s: %s%s", cents, what == PAYPHONE_COLLECT ? "collected" : "returned",
-                  why, board ? "" : " (no coin board on this line)");
-    if (board) fn(line, what);
+                  why, how);
+
+    if (use_tones) green_box_fire(line, what);
+    if (use_board) fn(line, what);
 }
 
 void payphone_set_board_line(int line) { s_board_line = line; }
