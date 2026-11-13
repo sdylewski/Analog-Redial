@@ -80,6 +80,10 @@ the price is fixed set-up and shipping.
 
 ## Ordering from JLCPCB
 
+> **Referral link:** [jlcpcb.com](https://jlcpcb.com/?from=EGRLSA). If you order
+> through this link, I get a small kickback from JLCPCB. It helps pay for new
+> board revisions. Thanks!
+
 1. **Get the production files.** Open the KiCad project and export Gerbers,
    BOM and CPL with the
    [JLCPCB Tools plugin](https://github.com/Bouni/kicad-jlcpcb-tools). To
@@ -89,7 +93,7 @@ the price is fixed set-up and shipping.
 2. **Pick your build** before generating the CPL: dual-line, or single-line
    with microSD. See [Build options](bom.md#build-options). 2nd line's support
    parts and the microSD socket are mutually exclusive.
-3. **Upload the Gerbers** at jlcpcb.com: 2 layers, 1.6 mm, any colour, and
+3. **Upload the Gerbers** at [jlcpcb.com](https://jlcpcb.com/?from=EGRLSA) (referral link): 2 layers, 1.6 mm, any colour, and
    surface finish **lead-free HASL** (or HASL). Turn on **PCB Assembly**, top
    side, **Economic**. JLCPCB only offers Economic assembly with a HASL
    finish: pick OSP or ENIG and it switches to Standard assembly, which costs
