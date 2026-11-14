@@ -273,7 +273,9 @@ board's own readings: whether U1 and U4 answer, the idle rail, each coin switch 
 peak rail and HV against the shunts you've fitted, the firing current into a load, and HV bleeding
 down afterwards. A live line at the top shows the 20 V rail, HV and the coil current, and the
 **Collect**, **Return** and **HV on for 10 s** buttons (the last charges without firing, to read the
-voltage) are in the steps. The **Log** pane has the coin count, the simulate buttons and the log.
+voltage) are in the steps. Step 5 has a pulse-length box for that test only, and after each Collect or Return the card plots the coil
+current through the pulse (about every 1.7 ms) with HV beside it, so you can see when the relay's own
+contact cuts the current and how far C1 sagged. The **Log** pane has the coin count, the simulate buttons and the log.
 
 Suggested first power-up, one step at a time:
 

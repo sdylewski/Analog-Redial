@@ -82,6 +82,10 @@ static atomic_bool   s_adc_have[4];
 static atomic_uchar  s_seen;
 static atomic_int    s_pk_rail = -1, s_pk_hv = -1, s_pk_i = -1;
 static cf_state_t    s_prev_state;   /* the task's */
+static coinboard_ft_pt_t s_ft[COINBOARD_FT_MAX];
+static int           s_ft_n, s_ft_pulse, s_ft_what = -1;
+static int64_t       s_ft_t0_us;
+static atomic_int    s_test_pulse;   /* ms; 0 = use the saved setting */
 static coinboard_trace_pt_t s_trace[COINBOARD_TRACE_N];
 static int           s_trace_n;
 static int64_t       s_trace_t0_ms;
@@ -228,6 +232,16 @@ static void adc_service(int64_t now_us, cf_state_t st)
                 atomic_store(&s_adc_raw[s_adc_pending], (int16_t)((b[0] << 8) | b[1]));
                 atomic_store(&s_adc_have[s_adc_pending], true);
                 s_adc_kept++;
+                if (s_adc_pending == COINBOARD_AIN_ISENSE && (st == CF_FIRE || st == CF_DRAIN) && s_ft_n < COINBOARD_FT_MAX) {
+                    int64_t dt = (now_us - s_ft_t0_us) / 100;
+                    coinboard_ft_pt_t pt = { (uint16_t)(dt > 65535 ? 65535 : dt < 0 ? 0 : dt),
+                        (int16_t)coinboard_isense_ma((int16_t)((b[0] << 8) | b[1])),
+                        (int16_t)(atomic_load(&s_adc_have[COINBOARD_AIN_HV]) ?
+                                  coinboard_hv_mv(atomic_load(&s_adc_raw[COINBOARD_AIN_HV])) / 100 : -1) };
+                    lock();
+                    s_ft[s_ft_n++] = pt;
+                    unlock();
+                }
             }
             s_adc_fails = 0;
         } else {
@@ -380,7 +394,8 @@ static void service_once(int64_t now_us)
     bool failed = false;
 
     /* The relay first: it's the time-critical part. */
-    cf_cfg_t fc = { .pulse_ms = cfg.pulse_ms, .swap = cfg.swap };
+    int tp = atomic_load(&s_test_pulse);
+    cf_cfg_t fc = { .pulse_ms = tp ? (uint16_t)tp : cfg.pulse_ms, .swap = cfg.swap };
     cf_meas_t m = measurements();
     lock();
     coin_fire_step(&s_fire, &fc, &m, now_ms);
@@ -423,6 +438,15 @@ static void service_once(int64_t now_us)
         s_trace[s_trace_n++] = pt;
         unlock();
     }
+    if (st == CF_FIRE && s_prev_state != CF_FIRE) {
+        lock();
+        s_ft_n = 0;
+        s_ft_what = (int)s_fire.what;
+        unlock();
+        s_ft_t0_us = now_us;
+        s_ft_pulse = fc.pulse_ms;
+    }
+    if (st == CF_IDLE && s_prev_state != CF_IDLE) atomic_store(&s_test_pulse, 0);
     s_prev_state = st;
     if (results != s_results_seen) {
         s_results_seen = results;
@@ -544,6 +568,27 @@ esp_err_t coinboard_test(cf_what_t what)
     payphone_logf(s_cfg.line, "coin board: %s test", coin_fire_what_name(what));
     wake_task();
     return ESP_OK;
+}
+
+esp_err_t coinboard_test_pulse(cf_what_t what, uint16_t pulse_ms)
+{
+    if (pulse_ms < CF_PULSE_MIN_MS) pulse_ms = CF_PULSE_MIN_MS;
+    if (pulse_ms > CF_PULSE_MAX_MS) pulse_ms = CF_PULSE_MAX_MS;
+    atomic_store(&s_test_pulse, pulse_ms);
+    esp_err_t e = coinboard_test(what);
+    if (e != ESP_OK) atomic_store(&s_test_pulse, 0);
+    return e;
+}
+
+int coinboard_fire_trace(coinboard_ft_pt_t *out, int max, int *pulse_ms, int *what)
+{
+    lock();
+    int n = s_ft_n < max ? s_ft_n : max;
+    memcpy(out, s_ft, n * sizeof(*out));
+    if (pulse_ms) *pulse_ms = s_ft_pulse;
+    if (what) *what = s_ft_what;
+    unlock();
+    return n;
 }
 
 /* esp_restart() (OTA, a settings restart): leave nothing high. A panic

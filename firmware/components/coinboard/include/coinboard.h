@@ -109,6 +109,15 @@ int coinboard_trace(coinboard_trace_pt_t *out, int max);   /* returns the number
  * board is enabled (one probe each, no register writes). */
 void coinboard_probe(bool *io_ok, bool *adc_ok);
 
+/* ---- Fire trace and test pulse (bring-up) ----
+ * The coil current (and HV) every time U4 converted it during the last collect or return's
+ * FIRE and DRAIN: about every 1.7 ms, so the card can show when the relay's own contact cuts
+ * the current. coinboard_test_pulse() runs a test with its own pulse length (not saved). */
+#define COINBOARD_FT_MAX 200
+typedef struct { uint16_t t_100us; int16_t i_ma; int16_t hv_dv; } coinboard_ft_pt_t;   /* since FIRE began; 0.1 V */
+int coinboard_fire_trace(coinboard_ft_pt_t *out, int max, int *pulse_ms, int *what);
+esp_err_t coinboard_test_pulse(cf_what_t what, uint16_t pulse_ms);
+
 /* ---- Coin switch capture (bring-up) ----
  * Polls U1's input register as fast as the bus allows (400 kHz, or 100 kHz if that
  * errors) and records every change of the four coin inputs with a microsecond

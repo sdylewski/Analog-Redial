@@ -9348,7 +9348,8 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "diode (about 19 V). Do it first with J14 off, and check HV on C1 with a meter too.</td>"
         "<td id=\"cbr4\">-</td></tr>"
         "<tr><td>5. Firing, into a load</td><td>J14 off, a 100 &Omega; 5 W resistor (or a 12-24 V "
-        "coil) across J11 pins 1 and 3: "
+        "coil) across J11 pins 1 and 3: pulse <input type=\"number\" id=\"cbpulse\" min=\"20\" max=\"1000\" "
+        "value=\"%u\" style=\"width:5em\"> ms "
         "<button type=\"button\" class=\"cbt\" data-w=\"collect\">Collect</button> "
         "<button type=\"button\" class=\"cbt\" data-w=\"return\">Return</button><br>"
         "Each should show a current (about 190 mA into 100 &Omega;) and the FIRE LED should "
@@ -9359,10 +9360,10 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "Collect and Return with the buttons in step 5, and watch the levers. If it moves the "
         "wrong way, tick \"Collect and return are the wrong way round\" on the Settings tab's Coin board card; if it doesn't move "
         "reliably, try a longer pulse or the next voltage up.</td><td>you judge it</td></tr>"
-        "</table></div>",
+        "</table><div id=\"cbft\"></div></div>",
         b.enabled ? "" : "<p class=\"hint warn-text\">\"A coin board is connected\" isn't ticked "
         "on the Settings tab's Coin board card: only step 1 runs until it is.</p>",
-        CF_HVTEST_MS / 1000);
+        CF_HVTEST_MS / 1000, (unsigned)b.pulse_ms);
     return appendf(buf, cap, off,
         "<script>(function(){var $=function(i){return document.getElementById(i);};"
         "function chip(c,t){return '<span class=\"chip '+c+'\">'+t+'</span>';}"
@@ -9378,7 +9379,33 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "$('cbclear').onclick=function(){post('/coinboard_seen_clear');};"
         "document.querySelectorAll('#cbbring .cbt').forEach(function(b){b.onclick=function(){"
         "if(!confirm('The board makes high voltage for this. Keep clear of C1 and the relay wiring. Go on?'))return;"
-        "post('/coinboard_test','what='+b.dataset.w);};});"
+        "post('/coinboard_test','what='+b.dataset.w+(b.dataset.w=='hv'?'':'&pulse='+$('cbpulse').value));};});"
+        "var lastft='';"
+        "function plot(d){var pts=d.ft.split(',').map(function(s){var a=s.split(':');return [+a[0]/10,+a[1],+a[2]/10];}),"
+        "W=540,H=120,L=36,pul=d.ft_pulse||100,tmax=Math.max(pul*1.1,pts[pts.length-1][0]+4),"
+        "imax=Math.max.apply(null,pts.map(function(p){return p[1];}).concat([10]))*1.15,"
+        "hv=pts.filter(function(p){return p[2]>=0;}),hmax=Math.max.apply(null,hv.map(function(p){return p[2];}).concat([10]))*1.05,"
+        "X=function(t){return L+t/tmax*(W-L-8);},Yi=function(i){return H-20-i/imax*(H-30);},Yh=function(v){return H-20-v/hmax*(H-30);},"
+        "pk=0,tp=0,te=0;"
+        "pts.forEach(function(p){if(p[1]>pk){pk=p[1];tp=p[0];}});"
+        "pts.forEach(function(p){if(p[1]>=Math.max(8,pk*0.3))te=p[0];});"
+        "var li=pts.map(function(p){return X(p[0]).toFixed(1)+','+Yi(p[1]).toFixed(1);}).join(' '),"
+        "lh=hv.map(function(p){return X(p[0]).toFixed(1)+','+Yh(p[2]).toFixed(1);}).join(' '),"
+        "svg='<svg viewBox=\"0 0 '+W+' '+H+'\" width=\"100%%\" style=\"max-width:600px\">'+"
+        "'<line x1=\"'+L+'\" y1=\"'+(H-20)+'\" x2=\"'+(W-8)+'\" y2=\"'+(H-20)+'\" style=\"stroke:var(--border)\"/>'+"
+        "'<line x1=\"'+X(pul).toFixed(1)+'\" y1=\"6\" x2=\"'+X(pul).toFixed(1)+'\" y2=\"'+(H-20)+'\" "
+        "style=\"stroke:var(--red);stroke-dasharray:4 3\"/>'+"
+        "(lh?'<polyline points=\"'+lh+'\" style=\"fill:none;stroke:var(--muted);stroke-width:1.5\"/>':'')+"
+        "'<polyline points=\"'+li+'\" style=\"fill:none;stroke:var(--accent);stroke-width:2\"/>'+"
+        "'<text x=\"2\" y=\"14\" style=\"fill:var(--accent);font-size:11px\">'+Math.round(imax/1.15)+' mA</text>'+"
+        "'<text x=\"'+L+'\" y=\"'+(H-5)+'\" style=\"fill:var(--muted);font-size:11px\">0</text>'+"
+        "'<text x=\"'+(X(pul)-4).toFixed(1)+'\" y=\"'+(H-5)+'\" style=\"fill:var(--red);font-size:11px\" text-anchor=\"end\">'+pul+' ms pulse ends</text>'+"
+        "'</svg>';"
+        "var h0=hv.length?hv[0][2]:0,h1=hv.length?Math.min.apply(null,hv.map(function(p){return p[2];})):0;"
+        "$('cbft').innerHTML='<p class=\"hint\"><b>Coil current in the last '+(d.ft_what==1?'return':'collect')+'</b> "
+        "(the bold line; the thin grey line is HV, red dashes mark the end of the '+pul+' ms pulse): peak '+pk+' mA at '+"
+        "tp.toFixed(0)+' ms, above 30 percent of peak until about '+te.toFixed(0)+' ms'+"
+        "(hv.length?'; HV went from '+h0.toFixed(0)+' V down to '+h1.toFixed(0)+' V':'')+'.</p>'+svg;}"
         "var lastHv=-1,fall=0,e0=null;"
         "function tick(){if(document.hidden)return;fetch('/api/payphone').then(function(r){return r.json();})"
         ".then(function(j){var d=j.board;if(!d)return;"
@@ -9421,6 +9448,7 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "(d.res=='no_current'?'<br>No current: is the load on J11 pins 1 and 3? Check Q3 and R26.':'');}"
         "if(idle&&d.hv_mv>=0){if(lastHv>=0&&d.hv_mv<lastHv-200)fall++;else if(d.hv_mv>=lastHv)fall=0;"
         "$('cbr6').innerHTML='HV '+V(d.hv_mv)+(d.hv_mv<=d.rail_mv+1000?' '+chip('pass','back to the idle level'):fall>2?' '+chip('pass','falling'):'');}"
+        "if(d.ft&&d.ft!==lastft&&d.ft.length){lastft=d.ft;try{plot(d);}catch(e){}}"
         "lastHv=d.hv_mv;}).catch(function(){});}"
         "tick();setInterval(tick,1000);})();</script>");
 }
@@ -9813,14 +9841,17 @@ static esp_err_t coinboard_set_handler(httpd_req_t *req)
 
 static esp_err_t coinboard_test_handler(httpd_req_t *req)
 {
-    char body[64], w[12] = {0};
+    char body[96], w[12] = {0};
     if (!read_form_body(req, body, sizeof(body))) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
     }
     form_field(body, "what", w, sizeof(w));
+    char pl[8] = {0};
+    form_field(body, "pulse", pl, sizeof(pl));
     cf_what_t what = !strcmp(w, "collect") ? CF_COLLECT : !strcmp(w, "return") ? CF_RETURN :
                      !strcmp(w, "hv") ? CF_HV_TEST : (cf_what_t)-1;
-    esp_err_t err = coinboard_test(what);
+    esp_err_t err = (pl[0] && (what == CF_COLLECT || what == CF_RETURN)) ? coinboard_test_pulse(what, (uint16_t)atoi(pl))
+                                                                          : coinboard_test(what);
     if (err != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
             err == ESP_ERR_INVALID_STATE ? "the coin board isn't answering" : "unknown test");
@@ -10080,6 +10111,21 @@ static esp_err_t payphone_json_handler(httpd_req_t *req)
             cJSON_AddItemToArray(ta, pt);
         }
         cJSON_AddNumberToObject(b, "trace_ms", COINBOARD_TRACE_MS);
+        {   /* The last fire's coil current: "t_100us:mA:hv_dv,..." (a string: 200 points don't fit a cJSON tree) */
+            coinboard_ft_pt_t ft[COINBOARD_FT_MAX];
+            int fp = 0, fw = -1, fn = coinboard_fire_trace(ft, COINBOARD_FT_MAX, &fp, &fw);
+            char *fs = malloc(fn * 18 + 2);
+            if (fs) {
+                int o = 0;
+                fs[0] = '\0';
+                for (int k = 0; k < fn; k++)
+                    o += snprintf(fs + o, 20, "%s%u:%d:%d", k ? "," : "", (unsigned)ft[k].t_100us, ft[k].i_ma, ft[k].hv_dv);
+                cJSON_AddStringToObject(b, "ft", fs);
+                free(fs);
+            }
+            cJSON_AddNumberToObject(b, "ft_pulse", fp);
+            cJSON_AddNumberToObject(b, "ft_what", fw);
+        }
         /* The I2C lines at the ESP32's pins: low means something is holding the line down. */
         cJSON_AddNumberToObject(b, "sda", gpio_get_level(BOARD_I2C_SDA));
         cJSON_AddNumberToObject(b, "scl", gpio_get_level(BOARD_I2C_SCL));
