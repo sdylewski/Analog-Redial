@@ -291,11 +291,13 @@ Suggested first power-up, one step at a time:
 ### If a coin isn't counted
 
 Step 3 of the Bring-up pane shows, for each coin input, the coins counted, the closures too short to
-count, and the longest closure seen. The **Coin switch capture** card below it finds the cause: it asks
-you to drop a nickel, a dime and a quarter, reads the four inputs every 0.1-0.4 ms, and shows what each
-coin did on each input. A coin whose switch closes for under about 3 ms is "too short" (the normal
-polling is every 3 ms); one that closes the wrong input means two wires are swapped; one that shows
-nothing on any input never reached the board (a wire or crimp, or a sensor that isn't a plain contact).
+count, and the longest closure seen. The **Coin switch capture** card below it finds the cause: choose 2-5 coins of each kind, press Start, and
+drop the nickels, dimes and quarters it asks for. It reads the four inputs every 0.2 ms and shows, for each
+kind, how long the switch stays closed (minimum, average and maximum), how the contacts bounce, and how many
+of the coins the board would count. A closure under about 3 ms is "too short" (the normal polling is every
+3 ms); a coin that closes the wrong input means two wires are swapped (check the plug is the right way
+round: J3's green wire is pin 4); nothing on any input means it never reached the board (a wire or crimp, or
+a sensor that isn't a plain contact).
 
 ### If it is flaky: check VIO and ground first
 

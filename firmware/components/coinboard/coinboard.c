@@ -756,6 +756,7 @@ static void cap_task(void *arg)
 
 esp_err_t coinboard_capture_start(void)
 {
+    if (atomic_load(&s_cap_on)) coinboard_capture_stop();   /* a new Start replaces a capture left running */
     if (atomic_load(&s_cap_on)) return ESP_ERR_INVALID_STATE;
     if (!atomic_load(&s_active) || !atomic_load(&s_io_ok)) return ESP_ERR_INVALID_STATE;
     lock();
@@ -795,7 +796,10 @@ void coinboard_capture_info(coin_cap_info_t *out)
     lock();
     *out = s_cap_info;
     out->running = atomic_load(&s_cap_on);
-    if (out->running) out->n_events = s_cap_n;
+    if (out->running) {
+        out->n_events = s_cap_n;
+        out->t_ms = (uint32_t)((esp_timer_get_time() - s_cap_t0_us) / 1000);   /* so a page can tell how settled the last coin is */
+    }
     unlock();
 }
 

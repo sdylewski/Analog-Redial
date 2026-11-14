@@ -116,7 +116,7 @@ void coinboard_probe(bool *io_ok, bool *adc_ok);
  * relay are locked out while it runs (at most CAP_MAX_S), so nothing fires. The
  * result stays in RAM until the next capture. */
 #define COIN_CAP_MAX_EV 512
-#define COIN_CAP_MAX_S  90
+#define COIN_CAP_MAX_S  240
 typedef struct {
     uint32_t t_us;      /* since the capture started */
     uint8_t  bits;      /* U1's input register at that moment (P0-P3 low = closed) */
