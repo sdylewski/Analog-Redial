@@ -82,11 +82,22 @@ typedef struct {
     cf_state_t  state;
     cf_what_t   doing;
     cf_result_t result;
+    cf_what_t   last_what;          /* what `result` is about */
     char        result_msg[96];
     uint32_t    coins, fires, bus_errors, chip_resets;
+    /* For bring-up: inputs seen closed since coinboard_seen_clear() (or
+     * boot), and the highest readings during the last (or current) collect,
+     * return or HV test; -1: none measured. */
+    uint8_t     seen;
+    int         peak_rail_mv, peak_hv_mv, peak_i_ma;
 } coinboard_status_t;
 
 void coinboard_status(coinboard_status_t *out);
+void coinboard_seen_clear(void);
+
+/* Bring-up: do U1 and U4 answer on the bus? Works whether or not the coin
+ * board is enabled (one probe each, no register writes). */
+void coinboard_probe(bool *io_ok, bool *adc_ok);
 
 /* U1's pin names for an input bit, e.g. "quarter". */
 const char *coinboard_input_name(int bit);

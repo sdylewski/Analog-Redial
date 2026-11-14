@@ -155,19 +155,30 @@ static void check_sd_conflict(selftest_check_t *c)
 #if BOARD_LINE1_ON_EXPANDER
 static void check_line_expander(selftest_check_t *c)
 {
-    if (board_hw_config_get().num_lines < 2) {
-        set_result(c, SELFTEST_PASS, "not used: configured for one line");
-        return;
-    }
+    /* J10's pins use it too, so check it on a one-line board as well. */
+    if (!line_exp_started()) line_exp_init();
     line_exp_status_t st;
     line_exp_status(&st);
     if (!st.chip_ok) {
-        set_result(c, SELFTEST_FAIL, "TCA9534A not answering at 0x%02X: line 1 can't work",
-                   BOARD_EXP_I2C_ADDR);
+        set_result(c, SELFTEST_FAIL, "TCA9534A not answering at 0x%02X: %s", BOARD_EXP_I2C_ADDR,
+                   board_hw_config_get().num_lines >= 2 ? "line 1 and J10 can't work" : "J10 can't work");
         return;
     }
     set_result(c, SELFTEST_PASS, "answering at 0x%02X, %u bus errors, %u resets",
                BOARD_EXP_I2C_ADDR, (unsigned)st.bus_errors, (unsigned)st.chip_resets);
+}
+
+/* The line 1 SLIC is optional on v6: whether it's fitted should match the
+ * line count in Settings -> Hardware. */
+static void check_line1_slic(selftest_check_t *c)
+{
+    int lines = board_hw_config_get().num_lines;
+    int r = line_exp_probe_slic();
+    if (r < 0) { set_result(c, SELFTEST_SKIP, "can't tell (expander not answering)"); return; }
+    if (r == 1 && lines >= 2) set_result(c, SELFTEST_PASS, "fitted, board set to two lines");
+    else if (r == 0 && lines < 2) set_result(c, SELFTEST_PASS, "not fitted, board set to one line");
+    else if (r == 1) set_result(c, SELFTEST_FAIL, "fitted, but the board is set to one line");
+    else set_result(c, SELFTEST_FAIL, "not fitted, but the board is set to two lines");
 }
 #endif
 
@@ -243,7 +254,8 @@ void selftest_begin(void)
     check_board_cfg(add_check("board", "Board variant", NULL, SELFTEST_AUTO));
     check_sd_conflict(add_check("sd", "microSD / line-1 conflict", NULL, SELFTEST_AUTO));
 #if BOARD_LINE1_ON_EXPANDER
-    check_line_expander(add_check("lineexp", "Line 1 I/O expander", NULL, SELFTEST_AUTO));
+    check_line_expander(add_check("lineexp", "I/O expander (U6)", NULL, SELFTEST_AUTO));
+    check_line1_slic(add_check("slic1", "Line 1 chip fitted", NULL, SELFTEST_AUTO));
 #endif
     check_codec(add_check("codec", "Audio codec on I2C", NULL, SELFTEST_AUTO));
     check_codec_cfg(add_check("codeccfg", "Codec output configuration", NULL, SELFTEST_AUTO));

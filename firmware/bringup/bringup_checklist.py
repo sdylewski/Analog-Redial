@@ -18,6 +18,7 @@ HERE = Path(__file__).resolve().parent
 STEPS = [
     ("MCU / console", "test_mcu.py", []),
     ("Codec", "test_codec.py", []),
+    ("v6 expander / J10 / coin board", "test_v6.py", []),   # SKIPs on other boards
     ("Audio", "test_audio.py", ["--line", "0"]),
     ("SLIC / line 0", "test_slic.py", ["--line", "0"]),
     ("DTMF / tones", "test_dtmf.py", ["--line", "0"]),

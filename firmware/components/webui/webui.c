@@ -150,6 +150,8 @@ static int append_storage_table(char *buf, size_t cap, int off,
  * needs it to escape possibly remote-supplied caller ID text, and is
  * defined earlier in the file, right after append_log_panel()) can call it. */
 static void html_escape(const char *in, char *out, size_t outsz);
+static bool form_field(const char *body, const char *key, char *out, size_t out_len);
+static bool read_form_body(httpd_req_t *req, char *buf, size_t cap);
 
 /* ---- small shared helpers ---- */
 
@@ -3264,6 +3266,100 @@ static size_t list_code_entries(dialplan_pin_entry_t *out, bool ha, size_t *tota
         if ((all[i].gpio == DIALPLAN_PIN_NONE) == ha) out[k++] = all[i];
     if (total) *total = n;
     return k;
+}
+
+/* The spare pins as four on/off switches, set by hand: for testing a relay
+ * or whatever else is wired to them. /api/auxpins keeps them current (a dial
+ * code can change a pin too). */
+static int append_spare_outputs_card(char *buf, size_t cap, int off)
+{
+    char why[160] = "";
+    bool usable = auxpins_usable(why, sizeof(why));
+    int gp[AUXPINS_COUNT];
+    size_t ng = auxpins_list(gp, AUXPINS_COUNT);
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\" id=\"outputs\"><h2>%s outputs</h2>"
+        "<p class=\"hint\">Switch each spare pin on (3.3 V) or off (0 V) by hand, to test a relay or "
+        "whatever else is wired to it. A pin stays as you set it until you switch it again or a "
+        "dial code below changes it. A restart sets them all off.</p>", auxpins_header());
+    if (!usable) {
+        char why_esc[400];
+        html_escape(why, why_esc, sizeof(why_esc));
+        off = appendf(buf, cap, off, "<p class=\"hint warn-text\">Not available: %s.</p>", why_esc);
+    }
+    off = appendf(buf, cap, off, "<div class=\"auxsw\" id=\"auxsw\">");
+    for (size_t i = 0; i < ng; i++) {
+        char pl[16];
+        bool on = auxpins_level(gp[i]);
+        off = appendf(buf, cap, off,
+            "<button type=\"button\" data-id=\"%d\" aria-pressed=\"%s\" class=\"%s\"%s>%s<b>%s</b></button>",
+            gp[i], on ? "true" : "false", on ? "on" : "", usable ? "" : " disabled",
+            auxpins_label(gp[i], pl, sizeof(pl)), on ? "ON" : "off");
+    }
+    return appendf(buf, cap, off,
+        "</div><p class=\"hint\" id=\"auxmsg\"></p></div>"
+        "<script>(function(){var box=document.getElementById('auxsw'),msg=document.getElementById('auxmsg');"
+        "function show(j){if(!j||!j.pins)return;j.pins.forEach(function(p){"
+        "var b=box.querySelector('button[data-id=\"'+p.id+'\"]');if(!b)return;"
+        "b.className=p.on?'on':'';b.setAttribute('aria-pressed',p.on?'true':'false');"
+        "b.querySelector('b').textContent=p.on?'ON':'off';b.disabled=!j.usable;});"
+        "msg.textContent=j.usable?'':'Not available: '+j.why+'.';}"
+        "box.addEventListener('click',function(e){var b=e.target.closest('button');if(!b||b.disabled)return;"
+        "var on=b.getAttribute('aria-pressed')!=='true';b.disabled=true;"
+        "fetch('/auxpin_set',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},"
+        "body:'id='+b.dataset.id+'&level='+(on?1:0)}).then(function(r){return r.json();}).then(show)"
+        ".catch(function(){msg.textContent='The board did not answer.';b.disabled=false;});});"
+        "setInterval(function(){if(document.hidden)return;fetch('/api/auxpins').then(function(r){return r.json();})"
+        ".then(show).catch(function(){});},2000);})();</script>");
+}
+
+static esp_err_t auxpins_json_handler(httpd_req_t *req)
+{
+    char why[160] = "";
+    bool usable = auxpins_usable(why, sizeof(why));
+    int gp[AUXPINS_COUNT];
+    size_t ng = auxpins_list(gp, AUXPINS_COUNT);
+    cJSON *root = cJSON_CreateObject();
+    if (!root) { httpd_resp_send_500(req); return ESP_FAIL; }
+    cJSON_AddBoolToObject(root, "usable", usable);
+    cJSON_AddStringToObject(root, "why", why);
+    cJSON *arr = cJSON_AddArrayToObject(root, "pins");
+    for (size_t i = 0; i < ng; i++) {
+        char pl[16];
+        cJSON *p = cJSON_CreateObject();
+        cJSON_AddNumberToObject(p, "id", gp[i]);
+        cJSON_AddStringToObject(p, "label", auxpins_label(gp[i], pl, sizeof(pl)));
+        cJSON_AddBoolToObject(p, "on", auxpins_level(gp[i]));
+        cJSON_AddItemToArray(arr, p);
+    }
+    char *out = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!out) { httpd_resp_send_500(req); return ESP_FAIL; }
+    httpd_resp_set_type(req, "application/json");
+    esp_err_t r = httpd_resp_sendstr(req, out);
+    free(out);
+    return r;
+}
+
+static esp_err_t auxpin_set_handler(httpd_req_t *req)
+{
+    char body[64], id[8] = {0}, lv[4] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "id", id, sizeof(id));
+    form_field(body, "level", lv, sizeof(lv));
+    int gpio = atoi(id);
+    bool on = lv[0] == '1';
+    esp_err_t err = auxpins_set(gpio, on);
+    if (err == ESP_ERR_INVALID_ARG) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "not a spare pin"); return ESP_OK;
+    }
+    if (err == ESP_OK) {
+        char pl[16];
+        activity_log("%s switched %s by hand", auxpins_label(gpio, pl, sizeof(pl)), on ? "on" : "off");
+    }
+    return auxpins_json_handler(req);
 }
 
 static int append_pin_actions_card(char *buf, size_t cap, int off)
@@ -7594,6 +7690,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         off = append_timer_tab(buf, cap, off, entries, n);
         off = append_alarm_tab(buf, cap, off, entries, n);
         off = append_weather_card(buf, cap, off);
+        off = append_spare_outputs_card(buf, cap, off);
         off = append_pin_actions_card(buf, cap, off);
     }
     else if (strcmp(tab, "home") == 0) {
@@ -9184,6 +9281,99 @@ static esp_err_t ring_test_json_handler(httpd_req_t *req)
 
 static const int PP_CENTS[PAYPHONE_COINS] = { 5, 10, 25 };
 
+/* Coin board bring-up: docs/hardware-coin-board.md section 9's first
+ * power-up, one row per step, each judged live from /api/payphone. */
+static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
+{
+    coinboard_cfg_t b = coinboard_cfg();
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\" id=\"cbbring\"><h2>Coin board bring-up</h2>"
+        "<p class=\"hint\">For a newly built coin board: work down the steps in order and fix each "
+        "one before going on. Start with <b>J14 off</b> and <b>no coin relay</b> connected. "
+        "Step 1 works without ticking \"A coin board is connected\"; the rest need it. "
+        "<span class=\"warn-text\">From step 4 on the board makes high voltage: read the "
+        "<a href=\"https://github.com/sdylewski/Analog-Redial/blob/main/docs/hardware-coin-board.md"
+        "#safety-first-high-voltage\" target=\"_blank\" rel=\"noopener\">safety notes</a> first.</span></p>"
+        "%s"
+        "<table class=\"table bring\"><tr><th>Step</th><th>Do this</th><th>Result</th></tr>"
+        "<tr><td>1. On the bus</td><td>Connect the cable (J11 to the coin board's J6 or J1). "
+        "<button type=\"button\" id=\"cbprobe\">Check</button></td><td id=\"cbr1\">"
+        "<span class=\"chip\">not checked</span></td></tr>"
+        "<tr><td>2. Idle supply</td><td>Nothing to do: with EN_HV off the 20 V rail idles at about "
+        "4.6 V (the 5 V input through the boost diode) and HV near 0.</td><td id=\"cbr2\">-</td></tr>"
+        "<tr><td>3. Coin switches</td><td>Close each coin switch by hand (or short each J12 input to "
+        "pin 1): each one goes green once it's been seen. "
+        "<button type=\"button\" id=\"cbclear\">Clear</button></td><td id=\"cbr3\">-</td></tr>"
+        "<tr><td>4. High voltage</td><td>Shunts fitted <select id=\"cbsh\">"
+        "<option value=\"19\">none, J14 off (19 V)</option><option value=\"52\">J14 (52 V)</option>"
+        "<option value=\"60\">J14 + J9 (60 V)</option><option value=\"78\">J14 + J8 (78 V)</option>"
+        "<option value=\"85\">J14 + J8 + J9 (85 V)</option><option value=\"87\">J14 + J7 (87 V)</option>"
+        "<option value=\"94\">J14 + J7 + J9 (94 V)</option><option value=\"112\">J14 + J7 + J8 (112 V)</option>"
+        "<option value=\"119\">J14 + J7 + J8 + J9 (119 V)</option></select> "
+        "<button type=\"button\" class=\"cbt\" data-w=\"hv\">HV on for %d s</button><br>"
+        "Charges C1 and holds it without firing. Do it first with J14 off, and check HV on C1 "
+        "with a meter too.</td><td id=\"cbr4\">-</td></tr>"
+        "<tr><td>5. Firing, into a load</td><td>J14 off, a 100 &Omega; 5 W resistor (or a 12-24 V "
+        "coil) across J11 pins 1 and 3: "
+        "<button type=\"button\" class=\"cbt\" data-w=\"collect\">Collect</button> "
+        "<button type=\"button\" class=\"cbt\" data-w=\"return\">Return</button><br>"
+        "Each should show a current (about 190 mA into 100 &Omega;) and the FIRE LED should "
+        "blink; POL's LED is on for one of them.</td><td id=\"cbr5\">-</td></tr>"
+        "<tr><td>6. Bleed-down</td><td>After step 4: HV should fall by itself, and the red D7 LED "
+        "goes out below about 24 V (about 33 s from 119 V).</td><td id=\"cbr6\">-</td></tr>"
+        "<tr><td>7. The coin relay</td><td>Fit J14 (start at 52 V) and connect the relay to J2. "
+        "Collect and Return with the buttons in step 5, and watch the levers. If it moves the "
+        "wrong way, tick \"Collect and return are the wrong way round\" above; if it doesn't move "
+        "reliably, try a longer pulse or the next voltage up.</td><td>you judge it</td></tr>"
+        "</table></div>",
+        b.enabled ? "" : "<p class=\"hint warn-text\">\"A coin board is connected\" isn't ticked "
+        "on the Coin board card above: only step 1 runs until it is.</p>",
+        CF_HVTEST_MS / 1000);
+    return appendf(buf, cap, off,
+        "<script>(function(){var $=function(i){return document.getElementById(i);};"
+        "function chip(c,t){return '<span class=\"chip '+c+'\">'+t+'</span>';}"
+        "function V(mv){return mv<0?'-':(mv/1000).toFixed(1)+' V';}"
+        "var post=function(u,b){return fetch(u,{method:'POST',redirect:'manual',"
+        "headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b||''});};"
+        "$('cbprobe').onclick=function(){$('cbr1').innerHTML=chip('','checking');"
+        "fetch('/api/coinboard_probe').then(function(r){return r.json();}).then(function(j){"
+        "$('cbr1').innerHTML=chip(j.io?'pass':'fail','U1 0x39 '+(j.io?'answers':'missing'))+' '+"
+        "chip(j.adc?'pass':'warn','U4 0x48 '+(j.adc?'answers':'missing'))+"
+        "(!j.io&&!j.adc?'<br>Nothing answers: check the cable, VIO (pin 4) and 5 V (pin 5).':'')+"
+        "(j.io&&!j.adc?'<br>U4 is the ADS1115 module: without it nothing gets measured.':'');});};"
+        "$('cbclear').onclick=function(){post('/coinboard_seen_clear');};"
+        "document.querySelectorAll('#cbbring .cbt').forEach(function(b){b.onclick=function(){"
+        "if(!confirm('The board makes high voltage for this. Keep clear of C1 and the relay wiring. Go on?'))return;"
+        "post('/coinboard_test','what='+b.dataset.w);};});"
+        "var lastHv=-1,fall=0;"
+        "function tick(){if(document.hidden)return;fetch('/api/payphone').then(function(r){return r.json();})"
+        ".then(function(j){var d=j.board;if(!d)return;"
+        "if(!d.enabled||!d.io_ok){['cbr2','cbr3','cbr4','cbr5','cbr6'].forEach(function(i){"
+        "$(i).innerHTML=chip('',d.enabled?'board not answering':'not enabled');});return;}"
+        "var idle=d.state=='idle';"
+        "if(!d.adc_ok)$('cbr2').innerHTML=chip('warn','no ADC');"
+        "else if(!idle)$('cbr2').innerHTML=chip('','busy: '+d.state);"
+        "else{var ok=d.rail_mv>3500&&d.rail_mv<5500;$('cbr2').innerHTML=chip(ok?'pass':'fail','rail '+V(d.rail_mv))+' HV '+V(d.hv_mv)+"
+        "(d.rail_mv>=15000?'<br>The rail is up with EN_HV off: Q1 or U2\\'s feedback?':'')+"
+        "(d.rail_mv>=0&&d.rail_mv<=3500?'<br>No 5 V coming through: check F1, the 5 V wire and stage 1\\'s diode.':'');}"
+        "var n=['coin 4','quarter','dime','nickel'],h='';[3,2,1,0].forEach(function(i){"
+        "h+=chip(d.seen>>i&1?'pass':(d.stuck>>i&1?'fail':''),n[i]+(d.closed>>i&1?' (closed)':''))+' ';});"
+        "$('cbr3').innerHTML=h+((d.seen&14)==14?'<br>'+chip('pass','all three coins seen'):'');"
+        "var exp=+$('cbsh').value*1000,pr=d.peak_rail_mv,ph=d.peak_hv_mv,r4='';"
+        "if(d.doing=='HV test'||d.last_what=='HV test'){"
+        "var rok=pr>17000&&pr<23000,hok=ph>exp*0.88&&ph<exp*1.12;"
+        "r4=(idle?'':chip('','running'))+chip(rok?'pass':'fail','rail '+V(pr))+' '+chip(hok?'pass':'fail','HV '+V(ph)+' (want '+(exp/1000)+')');"
+        "if(idle&&d.res=='fault')r4+='<br>'+d.result;}"
+        "$('cbr4').innerHTML=r4||'-';"
+        "if(d.last_what=='collect'||d.last_what=='return'){var f=d.res=='fired';"
+        "$('cbr5').innerHTML=chip(f?'pass':(d.res=='unmeasured'?'warn':'fail'),d.last_what+': '+(f?'current flowed':d.res))+' peak '+(d.peak_i_ma<0?'-':d.peak_i_ma+' mA')+"
+        "(d.res=='no_current'?'<br>No current: is the load on J11 pins 1 and 3? Check Q3 and R26.':'');}"
+        "if(idle&&d.hv_mv>=0){if(lastHv>=0&&d.hv_mv<lastHv-200)fall++;else if(d.hv_mv>=lastHv)fall=0;"
+        "$('cbr6').innerHTML='HV '+V(d.hv_mv)+(d.hv_mv<1500?' '+chip('pass','drained'):fall>2?' '+chip('pass','falling'):'');}"
+        "lastHv=d.hv_mv;}).catch(function(){});}"
+        "tick();setInterval(tick,1000);})();</script>");
+}
+
 static int append_payphone_tab(char *buf, size_t cap, int off)
 {
     payphone_cfg_t c = payphone_cfg();
@@ -9288,14 +9478,24 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
         coinboard_cfg_t b = coinboard_cfg();
         off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>Coin board</h2>"
-            "<p class=\"hint\"><b>In development, untested on real hardware:</b> no coin board has been "
-            "built yet, and this driver has only run against simulated chips. "
+            "<p class=\"warn-text\"><b>Danger, high voltage:</b> the coin board makes up to 119 V DC "
+            "and can injure or kill. Only use it if you have experience with high-voltage "
+            "electronics, and read the <a href=\"https://github.com/sdylewski/Analog-Redial/blob/main/"
+            "docs/hardware-coin-board.md#safety-first-high-voltage\" target=\"_blank\" "
+            "rel=\"noopener\">safety documentation</a> first.</p>"
+            "<p class=\"hint\"><b>In development:</b> the first coin board is being brought up, so "
+            "collect and return are not yet tested on real hardware. The <b>Coin board bring-up</b> "
+            "card at the bottom of this page walks through a new board step by step. "
             "It reads the phone's coin switches and fires its coin relay to collect or return "
             "the coins, over I2C (0x39 and 0x48).</p>"
-            "<form method=\"POST\" action=\"/coinboard_set\" class=\"settings-form\">"
+            "<form method=\"POST\" action=\"/coinboard_set\" class=\"settings-form\" "
+            "onsubmit=\"var e=this.elements.enabled;if(e&&e.checked&&!%s)return confirm("
+            "'The coin board makes up to 119 V DC and can injure or kill. Only enable it if you "
+            "have experience with high-voltage electronics and have read the safety "
+            "documentation. Enable it?');return true\">"
             "<label><input type=\"checkbox\" name=\"enabled\" value=\"1\"%s> "
             "A coin board is connected</label>",
-            b.enabled ? " checked" : "");
+            b.enabled ? "true" : "false", b.enabled ? " checked" : "");
         if (nlines > 1) {
             off = appendf(buf, cap, off,
                 "<label>On line <select name=\"line\"><option value=\"0\"%s>0</option>"
@@ -9410,7 +9610,7 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
         "if(d.result)s+=' Last: '+esc(d.result)+'.';b.innerHTML=s;}"
         "}).catch(function(){});}setInterval(tick,2000);})();</script>",
         PAYPHONE_LOG_N);
-    return off;
+    return append_coinboard_bringup_card(buf, cap, off);
 }
 
 static esp_err_t payphone_enable_handler(httpd_req_t *req)
@@ -9521,6 +9721,26 @@ static esp_err_t coinboard_test_handler(httpd_req_t *req)
     return redirect_to(req, "/settings?tab=payphone");
 }
 
+/* GET /api/coinboard_probe: do the coin board's chips answer? (bring-up card, step 1) */
+static esp_err_t coinboard_probe_handler(httpd_req_t *req)
+{
+    bool io, adc;
+    coinboard_probe(&io, &adc);
+    char out[48];
+    snprintf(out, sizeof(out), "{\"io\":%s,\"adc\":%s}", io ? "true" : "false", adc ? "true" : "false");
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_sendstr(req, out);
+}
+
+static esp_err_t coinboard_seen_clear_handler(httpd_req_t *req)
+{
+    char body[16];
+    read_form_body(req, body, sizeof(body));
+    coinboard_seen_clear();
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_sendstr(req, "{}");
+}
+
 static esp_err_t payphone_reset_handler(httpd_req_t *req)
 {
     char body[16];
@@ -9592,6 +9812,14 @@ static esp_err_t payphone_json_handler(httpd_req_t *req)
         cJSON_AddNumberToObject(b, "fires", bs.fires);
         cJSON_AddNumberToObject(b, "bus_errors", bs.bus_errors);
         cJSON_AddNumberToObject(b, "chip_resets", bs.chip_resets);
+        /* For the bring-up card */
+        static const char *const RES[] = { "none", "fired", "no_current", "unmeasured", "hv_done", "fault" };
+        cJSON_AddStringToObject(b, "res", (unsigned)bs.result < 6 ? RES[bs.result] : "?");
+        cJSON_AddStringToObject(b, "last_what", bs.result == CF_RES_NONE ? "" : coin_fire_what_name(bs.last_what));
+        cJSON_AddNumberToObject(b, "seen", bs.seen);
+        cJSON_AddNumberToObject(b, "peak_rail_mv", bs.peak_rail_mv);
+        cJSON_AddNumberToObject(b, "peak_hv_mv", bs.peak_hv_mv);
+        cJSON_AddNumberToObject(b, "peak_i_ma", bs.peak_i_ma);
     }
     char *out = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
@@ -12598,7 +12826,7 @@ esp_err_t webui_start(void)
      * ESP_ERR_HTTPD_HANDLERS_FULL). Leaving real headroom this time instead
      * of matching the count exactly. (Blown through again at 96 with 97
      * routes, losing the catch-all route -- each slot is only a few bytes.) */
-    config.max_uri_handlers = 128;
+    config.max_uri_handlers = 136;
     /* Default httpd task stack is 4 KB. Our page handlers stack a few
      * storage_entry_t[32]/dialplan_entry_info_t[40] arrays and then descend
      * into SPIFFS readdir -> esp_flash_read, which is itself stack-hungry;
@@ -12756,6 +12984,10 @@ esp_err_t webui_start(void)
         { .uri = "/payphone_reset",         .method = HTTP_POST, .handler = payphone_reset_handler },
         { .uri = "/coinboard_set",          .method = HTTP_POST, .handler = coinboard_set_handler },
         { .uri = "/coinboard_test",         .method = HTTP_POST, .handler = coinboard_test_handler },
+        { .uri = "/api/coinboard_probe",    .method = HTTP_GET,  .handler = coinboard_probe_handler },
+        { .uri = "/coinboard_seen_clear",   .method = HTTP_POST, .handler = coinboard_seen_clear_handler },
+        { .uri = "/api/auxpins",            .method = HTTP_GET,  .handler = auxpins_json_handler },
+        { .uri = "/auxpin_set",             .method = HTTP_POST, .handler = auxpin_set_handler },
         { .uri = "/api/payphone",           .method = HTTP_GET,  .handler = payphone_json_handler },
         { .uri = "/test/dtmf",              .method = HTTP_POST, .handler = test_dtmf_handler },
         { .uri = "/api/dtmf_test",          .method = HTTP_GET,  .handler = dtmf_test_json_handler },

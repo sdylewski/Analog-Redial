@@ -203,6 +203,25 @@ esp_err_t auxpins_pulse(int gpio, int secs)
     return ESP_OK;
 }
 
+esp_err_t auxpins_set(int gpio, bool level)
+{
+    int slot = slot_of(gpio);
+    if (slot < 0) return ESP_ERR_INVALID_ARG;
+    char why[120], l[16];
+    auxpins_label(gpio, l, sizeof(l));
+    if (!auxpins_usable(why, sizeof(why))) {
+        ESP_LOGW(TAG, "%s not driven: %s", l, why);
+        auxpins_all_off();
+        return ESP_ERR_INVALID_STATE;
+    }
+    esp_err_t err = configure(slot);
+    if (err != ESP_OK) return err;
+    if (s_timer[slot]) esp_timer_stop(s_timer[slot]);
+    pin_set(slot, level ? 1 : 0);
+    ESP_LOGI(TAG, "%s set %s", l, level ? "high" : "low");
+    return ESP_OK;
+}
+
 bool auxpins_level(int gpio)
 {
     int slot = slot_of(gpio);

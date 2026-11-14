@@ -134,7 +134,9 @@ crimps).
 P4-P7 are U6's spare pins: **3.3 V outputs, a few mA each**, low from power-up. In the
 firmware they are the board's pin outputs (Settings → Dial Codes → Pin outputs, shown as
 "J10 P4" to "J10 P7"): a dial code drives one high for a few seconds or toggles it, and
-Home Assistant can do the same. Switch a relay or a MOSFET with them, not a load directly.
+Home Assistant can do the same. The **J10 outputs** card just above it has an on/off switch
+for each pin, to test whatever is wired to it by hand. Switch a relay or a MOSFET with them,
+not a load directly.
 Unlike J5 on v4 and v5, they work with two lines and a card fitted.
 
 ## 7. J11: I²C accessory header

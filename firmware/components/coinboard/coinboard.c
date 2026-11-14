@@ -72,6 +72,9 @@ static atomic_uchar  s_sent_output;
 static atomic_uint   s_bus_errors, s_chip_resets, s_coins;
 static atomic_int    s_adc_raw[4];
 static atomic_bool   s_adc_have[4];
+static atomic_uchar  s_seen;
+static atomic_int    s_pk_rail = -1, s_pk_hv = -1, s_pk_i = -1;
+static cf_state_t    s_prev_state;   /* the task's */
 
 /* Only the task touches these. */
 static int      s_fails;
@@ -346,6 +349,20 @@ static void service_once(int64_t now_us)
         if (io_write(REG_OUTPUT, out) == ESP_OK) atomic_store(&s_sent_output, out);
         else failed = true;
     }
+    /* Peaks for the bring-up card: from the start of each sequence. */
+    if (st != CF_IDLE) {
+        if (s_prev_state == CF_IDLE) {
+            atomic_store(&s_pk_rail, -1);
+            atomic_store(&s_pk_hv, -1);
+            atomic_store(&s_pk_i, -1);
+        }
+        if (m.adc) {
+            if (m.rail_mv > atomic_load(&s_pk_rail)) atomic_store(&s_pk_rail, m.rail_mv);
+            if (m.hv_mv > atomic_load(&s_pk_hv)) atomic_store(&s_pk_hv, m.hv_mv);
+            if (m.i_ma > atomic_load(&s_pk_i)) atomic_store(&s_pk_i, m.i_ma);
+        }
+    }
+    s_prev_state = st;
     if (results != s_results_seen) {
         s_results_seen = results;
         payphone_logf(cfg.line, "coin relay %s", msg);
@@ -368,6 +385,7 @@ static void service_once(int64_t now_us)
             s_mismatch = 0;
         }
         uint8_t closed = (uint8_t)(~in & COINBOARD_INPUTS), stuck = 0;
+        if (closed) atomic_fetch_or(&s_seen, closed);
         lock();
         uint8_t coins = coin_in_push(&s_cin, closed, now_ms, &stuck);
         unlock();
@@ -517,6 +535,7 @@ void coinboard_status(coinboard_status_t *o)
     o->state = s_fire.state;
     o->doing = s_fire.what;
     o->result = s_fire.result;
+    o->last_what = s_fire.result_what;
     memcpy(o->result_msg, s_fire.msg, sizeof(o->result_msg));
     o->result_msg[sizeof(o->result_msg) - 1] = '\0';
     o->fires = s_fire.fires;
@@ -536,6 +555,24 @@ void coinboard_status(coinboard_status_t *o)
     o->coins = atomic_load(&s_coins);
     o->bus_errors = atomic_load(&s_bus_errors);
     o->chip_resets = atomic_load(&s_chip_resets);
+    o->seen = atomic_load(&s_seen);
+    o->peak_rail_mv = atomic_load(&s_pk_rail);
+    o->peak_hv_mv = atomic_load(&s_pk_hv);
+    o->peak_i_ma = atomic_load(&s_pk_i);
+}
+
+void coinboard_seen_clear(void) { atomic_store(&s_seen, 0); }
+
+void coinboard_probe(bool *io_ok, bool *adc_ok)
+{
+    bool io = false, adc = false;
+    if (board_i2c_init() == ESP_OK) {
+        i2c_master_bus_handle_t bus = board_i2c_bus();
+        io = i2c_master_probe(bus, COINBOARD_IO_ADDR, CB_I2C_TIMEOUT) == ESP_OK;
+        adc = i2c_master_probe(bus, COINBOARD_ADC_ADDR, CB_I2C_TIMEOUT) == ESP_OK;
+    }
+    if (io_ok) *io_ok = io;
+    if (adc_ok) *adc_ok = adc;
 }
 
 void coinboard_init(void)

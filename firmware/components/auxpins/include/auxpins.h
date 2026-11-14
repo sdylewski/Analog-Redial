@@ -47,6 +47,10 @@ bool auxpins_usable(char *why, size_t why_len);
  * GPIO that isn't one of the four. */
 esp_err_t auxpins_pulse(int gpio, int secs);
 
+/* Drive a pin high or low and leave it there (the web UI's switches). Stops
+ * a dial code's timer on that pin. Errors as auxpins_pulse(). */
+esp_err_t auxpins_set(int gpio, bool level);
+
 /* Current pad level (read back through the input buffer). */
 bool auxpins_level(int gpio);
 

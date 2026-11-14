@@ -47,6 +47,7 @@
 #include "freertos/stream_buffer.h"
 #include "driver/i2c_master.h"
 #include <string.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <fcntl.h>
@@ -161,6 +162,13 @@ static int cmd_webhang(int argc, char **argv)
 /* line_exp: what the line 1 expander last did, for bringing up a new board. */
 static int cmd_line_exp(int argc, char **argv)
 {
+    if (argc >= 2 && !strcmp(argv[1], "detect")) {
+        int r = line_exp_probe_slic();
+        printf("line 1 SLIC (U3): %s\n", r == 1 ? "fitted" : r == 0 ? "NOT fitted" :
+               "unclear (expander not answering, or the reads disagreed: run it again)");
+        printf("configured lines: %d\n", board_hw_config_get().num_lines);
+        return r < 0 ? 1 : 0;
+    }
     line_exp_status_t st;
     line_exp_status(&st);
     printf("TCA9534A at 0x%02X: %s\n", BOARD_EXP_I2C_ADDR, st.chip_ok ? "answering" : "NOT answering");
@@ -168,10 +176,106 @@ static int cmd_line_exp(int argc, char **argv)
            st.input, (st.input >> BOARD_EXP_BIT_SHK) & 1, st.output,
            (st.output >> BOARD_EXP_BIT_FR) & 1, (st.output >> BOARD_EXP_BIT_RM) & 1, st.config,
            (st.config >> BOARD_EXP_BIT_PD) & 1 ? "running" : "powered down");
+    printf("J10: P4 %d, P5 %d, P6 %d, P7 %d\n", line_exp_spare(0), line_exp_spare(1),
+           line_exp_spare(2), line_exp_spare(3));
     printf("bus errors %u, chip resets %u\n", (unsigned)st.bus_errors, (unsigned)st.chip_resets);
+    printf("'line_exp detect': is line 1's SLIC fitted?\n");
     return st.chip_ok ? 0 : 1;
 }
+
+/* v6check [j10]: the v6 board's own parts, one PASS/WARN/FAIL line each, for
+ * bring-up (bringup/test_v6.py runs it). j10 adds a walking test of J10's
+ * P4-P7: each driven high in turn and read back through the expander, which
+ * finds a pin shorted to ground, to 3.3 V or to its neighbour. */
+static int v6_fails;
+static void v6_line(const char *verdict, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    printf("%-4s ", verdict);
+    vprintf(fmt, ap);
+    printf("\n");
+    va_end(ap);
+    if (!strcmp(verdict, "FAIL")) v6_fails++;
+}
+
+static int cmd_v6check(int argc, char **argv)
+{
+    bool j10 = argc >= 2 && !strcmp(argv[1], "j10");
+    v6_fails = 0;
+    if (board_i2c_init() != ESP_OK) { v6_line("FAIL", "I2C bus didn't start"); return 1; }
+    i2c_master_bus_handle_t bus = board_i2c_bus();
+    bool codec = i2c_master_probe(bus, BOARD_CODEC_I2C_ADDR, 50) == ESP_OK;
+    bool exp = i2c_master_probe(bus, BOARD_EXP_I2C_ADDR, 50) == ESP_OK;
+    v6_line(codec ? "PASS" : "FAIL", "ES8388 codec (U2) at 0x%02X", BOARD_CODEC_I2C_ADDR);
+    v6_line(exp ? "PASS" : "FAIL", "TCA9534A expander (U6) at 0x%02X", BOARD_EXP_I2C_ADDR);
+
+    if (!line_exp_started()) line_exp_init();
+    vTaskDelay(pdMS_TO_TICKS(50));
+    line_exp_status_t st;
+    line_exp_status(&st);
+    v6_line(st.chip_ok ? "PASS" : "FAIL", "U6 set up and its registers read back (bus errors %u, resets %u)",
+            (unsigned)st.bus_errors, (unsigned)st.chip_resets);
+
+    int lines = board_hw_config_get().num_lines;
+    int slic = st.chip_ok ? line_exp_probe_slic() : -1;
+    if (slic < 0) v6_line("WARN", "line 1 SLIC (U3): can't tell");
+    else if (slic == 1)
+        v6_line(lines >= 2 ? "PASS" : "WARN", "line 1 SLIC (U3) fitted%s", lines >= 2 ? "" :
+                ", but the board is set to one line (Settings -> Hardware)");
+    else
+        v6_line(lines >= 2 ? "FAIL" : "PASS", "line 1 SLIC (U3) not fitted%s", lines >= 2 ?
+                ", but the board is set to two lines" : " (one-line board)");
+
+    if (j10 && st.chip_ok) {
+        int was[LINE_EXP_SPARE_N];
+        for (int n = 0; n < LINE_EXP_SPARE_N; n++) was[n] = line_exp_spare(n);
+        /* All low, each one alone, all high. */
+        static const uint8_t pats[] = { 0x0, 0x1, 0x2, 0x4, 0x8, 0xF };
+        int bad = 0;
+        for (size_t p = 0; p < sizeof(pats); p++) {
+            for (int n = 0; n < LINE_EXP_SPARE_N; n++) line_exp_set_spare(n, (pats[p] >> n) & 1);
+            vTaskDelay(pdMS_TO_TICKS(40));
+            uint8_t in = 0;
+            if (line_exp_read_input(&in) != ESP_OK) { v6_line("FAIL", "J10: input read failed"); bad++; break; }
+            uint8_t got = (uint8_t)(in >> BOARD_EXP_BIT_SPARE0) & 0xF;
+            if (got != pats[p]) {
+                bad++;
+                v6_line("FAIL", "J10: drove P7-P4 = %d%d%d%d, read back %d%d%d%d", (pats[p] >> 3) & 1,
+                        (pats[p] >> 2) & 1, (pats[p] >> 1) & 1, pats[p] & 1, (got >> 3) & 1,
+                        (got >> 2) & 1, (got >> 1) & 1, got & 1);
+            }
+        }
+        for (int n = 0; n < LINE_EXP_SPARE_N; n++) line_exp_set_spare(n, was[n]);
+        if (!bad) v6_line("PASS", "J10 P4-P7: each pin drives high and low on its own");
+    } else if (!j10) {
+        v6_line("INFO", "J10 not tested ('v6check j10' switches P4-P7 for a moment)");
+    }
+
+    bool cio, cadc;
+    coinboard_probe(&cio, &cadc);
+    if (!cio && !cadc) v6_line("INFO", "no coin board on J11 (0x%02X, 0x%02X)", COINBOARD_IO_ADDR, COINBOARD_ADC_ADDR);
+    else {
+        v6_line(cio ? "PASS" : "FAIL", "coin board U1 TCA9534A at 0x%02X", COINBOARD_IO_ADDR);
+        v6_line(cadc ? "PASS" : "WARN", "coin board U4 ADS1115 at 0x%02X%s", COINBOARD_ADC_ADDR,
+                cadc ? "" : " (module not fitted? nothing gets measured without it)");
+    }
+    printf("v6check: %d fail%s\n", v6_fails, v6_fails == 1 ? "" : "s");
+    return v6_fails ? 1 : 0;
+}
 #endif
+
+/* What an address on the shared bus usually is. */
+static const char *i2c_name(uint8_t a)
+{
+    if (a == BOARD_CODEC_I2C_ADDR) return "ES8388 codec";
+#if BOARD_LINE1_ON_EXPANDER
+    if (a == BOARD_EXP_I2C_ADDR) return "U6 TCA9534A: line 1 + J10";
+#endif
+    if (a == COINBOARD_IO_ADDR) return "coin board U1 TCA9534A";
+    if (a == COINBOARD_ADC_ADDR) return "coin board U4 ADS1115";
+    return "?";
+}
 
 static int cmd_board_info(int argc, char **argv)
 {
@@ -207,15 +311,27 @@ static int cmd_i2c_scan(int argc, char **argv)
     i2c_master_bus_handle_t bus = board_i2c_bus();
     printf("Scanning I2C bus (SDA=%d SCL=%d)...\n", BOARD_I2C_SDA, BOARD_I2C_SCL);
     int found = 0;
+    bool have_codec = false, have_exp = false;
     for (uint8_t addr = 0x08; addr < 0x78; addr++) {
         if (i2c_master_probe(bus, addr, 50) == ESP_OK) {
-            printf("  found 0x%02X%s\n", addr,
-                   addr == BOARD_CODEC_I2C_ADDR ? "  <- codec" : "");
+            /* "<- codec" is what test_codec.py looks for. */
+            printf("  found 0x%02X%s  (%s)\n", addr,
+                   addr == BOARD_CODEC_I2C_ADDR ? "  <- codec" : "", i2c_name(addr));
+            if (addr == BOARD_CODEC_I2C_ADDR) have_codec = true;
+#if BOARD_LINE1_ON_EXPANDER
+            if (addr == BOARD_EXP_I2C_ADDR) have_exp = true;
+#endif
             found++;
         }
     }
     printf("%d device(s) found%s\n", found,
            found == 0 ? " (expected if no PCB / codec not powered)" : "");
+    if (!have_codec) printf("  missing: 0x%02X ES8388 codec\n", BOARD_CODEC_I2C_ADDR);
+#if BOARD_LINE1_ON_EXPANDER
+    if (!have_exp) printf("  missing: 0x%02X U6 expander (line 1 and J10 won't work)\n", BOARD_EXP_I2C_ADDR);
+#else
+    (void)have_exp;
+#endif
     return 0;
 }
 
@@ -3121,7 +3237,8 @@ void bringup_console_start(void)
 
     register_cmd("board_info", "Print detected board type and pin map", cmd_board_info);
 #if BOARD_LINE1_ON_EXPANDER
-    register_cmd("line_exp", "Show the line 1 I/O expander's state", cmd_line_exp);
+    register_cmd("line_exp", "Line 1 I/O expander's state; 'line_exp detect': is line 1's SLIC fitted?", cmd_line_exp);
+    register_cmd("v6check", "Check v6's own parts (codec, U6, line 1 SLIC, coin board): v6check [j10]", cmd_v6check);
 #endif
     register_cmd("bt401_probe", "BT401: is anything answering? listens, then queries status/name/address", cmd_bt401_probe);
     register_cmd("bt401_at", "BT401: send one command: bt401_at <cmd> [listen_ms], e.g. bt401_at TS", cmd_bt401_at);

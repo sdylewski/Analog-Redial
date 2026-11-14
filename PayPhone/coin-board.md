@@ -7,6 +7,10 @@ board. Reference designators and pin numbers match
 [docs/hardware-coin-board.md](../docs/hardware-coin-board.md); for the phone and its firmware,
 [README.md](README.md) and [payphone-firmware.md](payphone-firmware.md).
 
+> ⚠️ **High voltage, up to 119 V DC on a 220 µF capacitor.** Read
+> [Safety first](../docs/hardware-coin-board.md#safety-first-high-voltage) before you build or
+> power the board. It is untested and provided as is.
+
 | Part | Covers |
 |---|---|
 | [1. Design](#part-1-design) | how the board works: connectors, logic, the two power stages, coin inputs, cable, bench checks |

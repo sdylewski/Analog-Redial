@@ -41,6 +41,19 @@ int  line_exp_spare(int n);
 /* line_exp_init() has run (it's safe to call again). */
 bool line_exp_started(void);
 
+/* Is line 1's SLIC (U3) fitted? The AG1171's PD pin has an internal pull-up,
+ * which reaches P3 through D2. This drives P3 low for a moment (the SLIC
+ * powers down for about 3 ms: a phone off-hook on that line hears a click),
+ * lets it go and reads it straight back: a fitted SLIC pulls it high at
+ * once, an empty footprint leaves it low. Waits up to 300 ms for the task.
+ * Returns 1 fitted, 0 not fitted, -1 unclear (the two reads disagreed) or
+ * the expander isn't answering. */
+int  line_exp_probe_slic(void);
+
+/* Reads the input register now, over I2C (it shows every pin, outputs
+ * included). For bring-up: a read only, so it can't upset the task. */
+esp_err_t line_exp_read_input(uint8_t *in);
+
 typedef struct {
     bool     chip_ok;     /* answering, and its registers match what was written */
     uint8_t  input;       /* last input register read */

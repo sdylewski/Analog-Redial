@@ -90,7 +90,8 @@ often switch a 5 V relay module, but check that yours does (the parts page
 says what to look for). Set the board to
 "Pin outputs" under Settings → General → Board hardware, take the four shunts off J5, and leave
 the microSD socket empty. The card shows what's in the way if it isn't
-active.
+active. The card above it, **J5 outputs** (J10 on v6), switches each pin on or off by hand,
+for testing what's wired to it.
 
 **Home Assistant (experimental).** The board can POST every pickup,
 hang-up, dial code and incoming ring to a Home Assistant webhook, and Home

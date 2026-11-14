@@ -8,10 +8,11 @@
 > Values and timings on this page come from datasheets and arithmetic, not measurements, and
 > may change after the first build.
 
-> ⚠️ **High voltage.** This board makes up to **119 V DC** and stores it in a 220 µF capacitor
-> (C1), enough to hurt. The HV LED (D7) lights above about 24 V. After the firmware turns the
-> supply off, C1 takes up to about 40 seconds to bleed down to a safe level: wait until D7 is
-> dark before touching the board or the relay wires.
+> ⚠️ **Danger: high voltage.** This board makes up to **119 V DC** and stores it in a 220 µF
+> capacitor (C1). That can cause a painful shock, burns and serious injury, and in the wrong
+> circumstances it can kill. Build and test it only if you are experienced with high-voltage
+> circuits, and read [Safety first](#safety-first-high-voltage) before you power it. The board is
+> untested, uncertified and provided as is: you build and use it at your own risk.
 
 The coin board connects a payphone's coin mechanism to Analog Redial. It does three jobs:
 
@@ -20,11 +21,63 @@ The coin board connects a payphone's coin mechanism to Analog Redial. It does th
    for 12-24 V relays).
 2. **Reads the coin switches:** 5, 10 and 25 cents, plus a fourth input for another coin or a
    coin acceptor.
-3. **Talks to the main board over I²C**, on a 5-wire cable. The high voltage never leaves the
-   coin board.
+3. **Talks to the main board over I²C**, on a 5-wire cable. The high voltage never goes down
+   that cable: it exists only on the coin board and on the short wires to the coin relay.
 
 It plugs into v6's **J11** I²C accessory header. It should also work on any board or
 microcontroller with an I²C bus, 5 V and a 3.0-5.5 V logic supply.
+
+## Safety first: high voltage
+
+**What is dangerous.** With J14 fitted, the board charges C1 (220 µF, 200 V) to between 52 V and
+119 V DC, set by the J7-J9 shunts. At 119 V that is about **1.6 joules** stored in a capacitor
+that can deliver it in an instant. That is enough for a painful shock, a burn, or a muscle
+jerk that throws your hand into something else, and it is more dangerous across the chest, with
+wet skin, or for anyone with a heart condition or an implanted medical device. The same voltage
+reaches the coin relay on the short wires from J2 or J11. With J14 off (the default) the
+board makes only about 19 V.
+
+**It stays charged after you switch it off.** The bleed resistors across C1 need about 33
+seconds to take 119 V down to 24 V, and the red HV LED (D7) goes out at about 24 V. That is
+not a safe voltage, and a failed bleed resistor or LED would hide a charged capacitor. Before
+you touch the board or the relay wires:
+
+1. Remove the 5 V power, then wait until D7 is dark and for a further minute.
+2. **Measure C1 with a meter rated for the voltage** and wait for it to read under about 5 V.
+3. If it doesn't fall, discharge it through a resistor of a few kΩ rated for several watts,
+   held on insulated probes. Never short it with a screwdriver.
+
+**While you work:**
+
+- **Bring it up in stages.** Follow the first power-up steps in
+  [section 9](#9-firmware-and-first-power-up). Keep **J14 off** until everything else works, and
+  start from a current-limited 5 V supply.
+- **Change shunts and wiring only when it is unplugged and C1 reads near zero.** That covers
+  J7-J10, J14 and the relay wires.
+- **Match the voltage to the relay.** A 12-24 V coil on the 52-119 V setting burns out the coil
+  and can damage the board.
+- **Use one hand** when you must probe a live board, with the other kept away from it. Work dry,
+  with no loose jewellery or stray metal on the bench, and don't work alone.
+- **Don't leave it powered and unattended** while it is a prototype, and keep children and pets
+  away from it.
+- **Enclose it.** Once it is working, mount it in an insulated housing, insulate and strain-relieve
+  the relay wires, and make sure nobody can reach the board or those wires while it is powered.
+- **Don't rely on the firmware for safety.** The board powers up with the high voltage off, the
+  firmware only runs it for a collect or return, and D3 clamps a runaway supply. But the
+  firmware has only run against simulated chips, and it is not a safety system. Treat every
+  step as if the supply could come on.
+- **If you get more than a tingle,** get medical attention even if you feel fine afterwards.
+
+This design has not been built or tested, and it has no safety certification (UL, CE or
+similar). It is a hobby prototype, not a consumer product, and it does not replace electrical
+safety training. The same applies to anything you connect to it, including the payphone's own
+wiring.
+
+**No warranty.** The hardware design files and documentation are provided **as is**, without
+warranty of any kind, express or implied, including fitness for a particular purpose. The
+author is not liable for injury, death, fire or damage of any kind arising from building or
+using this board or following this page. See the note in the repository's
+[`LICENSE`](https://github.com/sdylewski/Analog-Redial/blob/main/LICENSE).
 
 ## 1. Overview
 
@@ -213,6 +266,11 @@ choose its line. The card then shows the board live (U1 and U4 answering, each c
 the 20 V rail, HV and the coil current), and has test buttons for **Collect**, **Return** and
 **HV on for 10 s** (charges without firing, to read the voltage). The console has the same as
 `coinboard [collect|return|hv]`.
+
+At the bottom of the Payphone tab, the **Coin board bring-up** card runs the steps below as a
+checklist and marks each one pass or fail from the board's own readings: whether U1 and U4
+answer, the idle rail, each coin switch seen, the HV test's peak rail and HV against the
+shunts you've fitted, the firing current into a load, and HV bleeding down afterwards.
 
 Suggested first power-up, one step at a time:
 

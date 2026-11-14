@@ -9,6 +9,7 @@
 #include "driver/i2c_master.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "esp_rom_sys.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <stdatomic.h>
@@ -151,9 +152,34 @@ static void service_once(int64_t now)
     }
 }
 
+/* line_exp_probe_slic(): 0 idle, 1 asked, then the task stores the result + 10. */
+static atomic_int s_probe;
+
+static int probe_slic_now(void)
+{
+    const uint8_t pd = (uint8_t)(1u << BOARD_EXP_BIT_PD);
+    uint8_t a = 0, b = 0;
+    /* PD's output bit is always 0, so making it an output drives it low. */
+    esp_err_t err = write_reg(REG_CONFIG, (uint8_t)(s_sent_config & ~pd));
+    esp_rom_delay_us(2000);
+    if (err == ESP_OK) err = write_reg(REG_CONFIG, (uint8_t)(s_sent_config | pd));
+    if (err == ESP_OK) err = read_reg(REG_INPUT, &a);
+    esp_rom_delay_us(1000);
+    if (err == ESP_OK) err = read_reg(REG_INPUT, &b);
+    /* Back as it was: running, or held powered down. */
+    esp_err_t r = write_reg(REG_CONFIG, s_sent_config);
+    if (err != ESP_OK || r != ESP_OK) return -1;
+    ESP_LOGI(TAG, "SLIC probe: P3 read %d then %d", (a & pd) != 0, (b & pd) != 0);
+    if ((a & pd) && (b & pd)) return 1;
+    if (!(a & pd) && !(b & pd)) return 0;
+    return -1;
+}
+
 static void expander_task(void *arg)
 {
     while (1) {
+        if (atomic_load(&s_probe) == 1)
+            atomic_store(&s_probe, 10 + (atomic_load(&s_chip_ok) ? probe_slic_now() : -1));
         /* A setter's notify wakes this early, so a new output goes out at once. */
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(EXP_POLL_MS));
         service_once(esp_timer_get_time());
@@ -194,6 +220,31 @@ void line_exp_set_pd_run(bool run)
 {
     atomic_store(&s_want_config, run ? CONFIG_RUN : CONFIG_POWERDOWN);
     wake_task();
+}
+
+esp_err_t line_exp_read_input(uint8_t *in)
+{
+    if (!s_dev) return ESP_ERR_INVALID_STATE;
+    return read_reg(REG_INPUT, in);
+}
+
+int line_exp_probe_slic(void)
+{
+    if (!s_task) line_exp_init();
+    if (!s_task || !atomic_load(&s_chip_ok)) return -1;
+    int expect = 0;
+    if (!atomic_compare_exchange_strong(&s_probe, &expect, 1)) return -1; /* one at a time */
+    wake_task();
+    for (int i = 0; i < 30; i++) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+        int v = atomic_load(&s_probe);
+        if (v >= 9) {
+            atomic_store(&s_probe, 0);
+            return v - 10;
+        }
+    }
+    atomic_store(&s_probe, 0);
+    return -1;
 }
 
 int line_exp_shk(void)

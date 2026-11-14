@@ -4,6 +4,10 @@
 nothing here has run on a real payphone yet: no coin board has been built, and the firmware
 has only run against simulated chips.
 
+> ⚠️ **The coin board makes up to 119 V DC and stores it in a capacitor: it can injure or
+> kill.** Read [Safety first](../docs/hardware-coin-board.md#safety-first-high-voltage) before
+> you build or power one. It is untested and provided as is.
+
 Analog Redial can run a real coin payphone: the handset lifts, a spoken message asks for
 coins, the coin switches (or the line's coin tones) add up the credit, and the board
 collects or returns the coins by firing the phone's coin relay. The project's first phone is

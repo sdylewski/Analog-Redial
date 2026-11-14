@@ -152,6 +152,7 @@ Or run one subsystem at a time while debugging a specific block:
 |---|---|
 | `test_mcu.py` | Board boots, console REPL responds, reports board type |
 | `test_codec.py` | I2C scan finds the codec, `codec_init` succeeds, register dump looks sane |
+| `test_v6.py` | v6 only (SKIPs on other boards): runs `v6check` — codec and U6 expander answer, U6 takes its settings, line 1's SLIC fitted or not as Settings → Hardware says, a coin board on J11 answers; optionally J10's P4-P7 walking test (each pin driven and read back) |
 | `test_audio.py` | Tone generation, ADC capture level, digital loopback (mic -> earpiece) |
 | `test_slic.py` | SLIC power-up, hook-switch detection, ringing |
 | `test_dtmf.py` | DTMF digit generation and call-progress tones (dial/ringback/busy) |
