@@ -139,6 +139,14 @@ static int cmd_coinboard(int argc, char **argv)
            st.rail_mv, st.hv_mv, st.i_ma, st.ain3_mv);
     printf("relay %s (%s); last: %s\n", coin_fire_state_name(st.state), coin_fire_what_name(st.doing),
            st.result_msg[0] ? st.result_msg : "-");
+    coinboard_trace_pt_t tr[COINBOARD_TRACE_N];
+    int tn = coinboard_trace(tr, COINBOARD_TRACE_N);
+    if (tn) {
+        printf("last test, every %d ms: rail / HV (V) / coil (mA)\n", COINBOARD_TRACE_MS);
+        for (int k = 0; k < tn; k++)
+            printf("  %5d ms  %5.1f  %5.1f  %4d\n", k * COINBOARD_TRACE_MS, tr[k].rail_dv / 10.0,
+                   tr[k].hv_dv / 10.0, tr[k].i_ma);
+    }
     printf("coins %u, pulses %u, bus errors %u, chip resets %u\n", (unsigned)st.coins,
            (unsigned)st.fires, (unsigned)st.bus_errors, (unsigned)st.chip_resets);
     return st.io_ok ? 0 : 1;

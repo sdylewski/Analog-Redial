@@ -75,6 +75,9 @@ static atomic_bool   s_adc_have[4];
 static atomic_uchar  s_seen;
 static atomic_int    s_pk_rail = -1, s_pk_hv = -1, s_pk_i = -1;
 static cf_state_t    s_prev_state;   /* the task's */
+static coinboard_trace_pt_t s_trace[COINBOARD_TRACE_N];
+static int           s_trace_n;
+static int64_t       s_trace_t0_ms;
 
 /* Only the task touches these. */
 static int      s_fails;
@@ -352,6 +355,10 @@ static void service_once(int64_t now_us)
     /* Peaks for the bring-up card: from the start of each sequence. */
     if (st != CF_IDLE) {
         if (s_prev_state == CF_IDLE) {
+            lock();
+            s_trace_n = 0;
+            unlock();
+            s_trace_t0_ms = now_ms;
             atomic_store(&s_pk_rail, -1);
             atomic_store(&s_pk_hv, -1);
             atomic_store(&s_pk_i, -1);
@@ -361,6 +368,18 @@ static void service_once(int64_t now_us)
             if (m.hv_mv > atomic_load(&s_pk_hv)) atomic_store(&s_pk_hv, m.hv_mv);
             if (m.i_ma > atomic_load(&s_pk_i)) atomic_store(&s_pk_i, m.i_ma);
         }
+    }
+    if (s_trace_n < COINBOARD_TRACE_N && st != CF_IDLE &&
+        now_ms - s_trace_t0_ms >= (int64_t)s_trace_n * COINBOARD_TRACE_MS) {
+        coinboard_trace_pt_t pt = { -1, -1, -1 };
+        if (m.adc) {
+            pt.rail_dv = (int16_t)(m.rail_mv / 100);
+            pt.hv_dv = (int16_t)(m.hv_mv / 100);
+            pt.i_ma = (int16_t)m.i_ma;
+        }
+        lock();
+        s_trace[s_trace_n++] = pt;
+        unlock();
     }
     s_prev_state = st;
     if (results != s_results_seen) {
@@ -562,6 +581,15 @@ void coinboard_status(coinboard_status_t *o)
 }
 
 void coinboard_seen_clear(void) { atomic_store(&s_seen, 0); }
+
+int coinboard_trace(coinboard_trace_pt_t *out, int max)
+{
+    lock();
+    int n = s_trace_n < max ? s_trace_n : max;
+    memcpy(out, s_trace, n * sizeof(*out));
+    unlock();
+    return n;
+}
 
 void coinboard_probe(bool *io_ok, bool *adc_ok)
 {

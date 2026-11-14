@@ -51,6 +51,7 @@ static void start(coin_fire_t *f, cf_what_t what, int64_t now)
     f->oc_since = -1;
     f->rail_low_since = -1;
     f->rail_min_mv = -1;
+    f->rail_was_up = false;
     go(f, CF_POL, now);
 }
 
@@ -139,9 +140,12 @@ void coin_fire_step(coin_fire_t *f, const cf_cfg_t *cfg, const cf_meas_t *m, int
             }
             break;
         }
+        if (m->rail_mv >= CF_RAIL_MIN_MV) f->rail_was_up = true;
         if (in_state >= CF_RAIL_CHECK_MS) {
             if (f->rail_min_mv < 0 || m->rail_mv < f->rail_min_mv) f->rail_min_mv = m->rail_mv;
-            if (m->rail_mv >= CF_RAIL_MIN_MV) {
+            /* The HV test is for measuring: once stage 1 has started, a sagging
+             * rail is something to report, not a reason to stop. */
+            if (m->rail_mv >= CF_RAIL_MIN_MV || (f->what == CF_HV_TEST && f->rail_was_up)) {
                 f->rail_low_since = -1;
             } else if (f->rail_low_since < 0) {
                 f->rail_low_since = now;

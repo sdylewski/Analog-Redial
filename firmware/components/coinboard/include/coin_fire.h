@@ -109,6 +109,7 @@ typedef struct {
     /* CHARGE: the rail below CF_RAIL_MIN_MV since (-1: it isn't), and its lowest after CF_RAIL_CHECK_MS */
     int64_t     rail_low_since;
     int         rail_min_mv;
+    bool        rail_was_up;    /* reached CF_RAIL_MIN_MV this charge */
     bool        fault;
     /* The last one finished */
     cf_result_t result;

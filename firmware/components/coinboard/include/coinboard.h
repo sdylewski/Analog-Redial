@@ -95,6 +95,13 @@ typedef struct {
 void coinboard_status(coinboard_status_t *out);
 void coinboard_seen_clear(void);
 
+/* Bring-up: the rail, HV and coil current every COINBOARD_TRACE_MS from the
+ * start of the last collect, return or HV test (-1: not measured). */
+#define COINBOARD_TRACE_N  64
+#define COINBOARD_TRACE_MS 50
+typedef struct { int16_t rail_dv, hv_dv, i_ma; } coinboard_trace_pt_t;   /* rail, HV in 0.1 V */
+int coinboard_trace(coinboard_trace_pt_t *out, int max);   /* returns the number of points */
+
 /* Bring-up: do U1 and U4 answer on the bus? Works whether or not the coin
  * board is enabled (one probe each, no register writes). */
 void coinboard_probe(bool *io_ok, bool *adc_ok);

@@ -9373,6 +9373,9 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "if(!rok&&pr>=0&&pr<6000)r4+='<br>Stage 1 never started: U2, Q1, L1, or EN_HV (its LED should light).';"
         "else if(rok&&!hok&&exp>19000&&ph<pr)r4+='<br>Stage 2 didn\\'t boost: is J14 fitted? Then U3, Q6, L2.';"
         "if(idle&&d.res=='fault')r4+='<br>'+d.result;}"
+        "if(r4&&d.trace&&d.trace.length){var tr=d.trace,st=Math.max(1,Math.floor(tr.length/16)),rs=[],hs=[];"
+        "for(var k=0;k<tr.length;k+=st){rs.push(tr[k][0]<0?'-':(tr[k][0]/10).toFixed(0));hs.push(tr[k][1]<0?'-':(tr[k][1]/10).toFixed(0));}"
+        "r4+='<br><small>every '+(d.trace_ms*st)+' ms from the start: rail '+rs.join(' ')+' V; HV '+hs.join(' ')+' V</small>';}"
         "$('cbr4').innerHTML=r4||'-';"
         "if(d.last_what=='collect'||d.last_what=='return'){var f=d.res=='fired';"
         "$('cbr5').innerHTML=chip(f?'pass':(d.res=='unmeasured'?'warn':'fail'),d.last_what+': '+(f?'current flowed':d.res))+' peak '+(d.peak_i_ma<0?'-':d.peak_i_ma+' mA')+"
@@ -9829,6 +9832,17 @@ static esp_err_t payphone_json_handler(httpd_req_t *req)
         cJSON_AddNumberToObject(b, "peak_rail_mv", bs.peak_rail_mv);
         cJSON_AddNumberToObject(b, "peak_hv_mv", bs.peak_hv_mv);
         cJSON_AddNumberToObject(b, "peak_i_ma", bs.peak_i_ma);
+        coinboard_trace_pt_t tr[COINBOARD_TRACE_N];
+        int tn = coinboard_trace(tr, COINBOARD_TRACE_N);
+        cJSON *ta = cJSON_AddArrayToObject(b, "trace");   /* [rail_dv, hv_dv, i_ma] every trace_ms */
+        for (int k = 0; k < tn; k++) {
+            cJSON *pt = cJSON_CreateArray();
+            cJSON_AddItemToArray(pt, cJSON_CreateNumber(tr[k].rail_dv));
+            cJSON_AddItemToArray(pt, cJSON_CreateNumber(tr[k].hv_dv));
+            cJSON_AddItemToArray(pt, cJSON_CreateNumber(tr[k].i_ma));
+            cJSON_AddItemToArray(ta, pt);
+        }
+        cJSON_AddNumberToObject(b, "trace_ms", COINBOARD_TRACE_MS);
     }
     char *out = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
