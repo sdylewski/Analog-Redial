@@ -53,6 +53,9 @@ bool        board_type_mismatch(void);
  * expected-vs-actual. Compare against board_pcb_variant_name() (running
  * binary's own compile-time type, board_config.h) for the other half. */
 void        board_type_recorded(char *out, size_t len);
+/* From the bus at boot (board_detect_codec): 1 if v6's U6 expander answers
+ * at 0x38, 0 if not, -1 if the bus hasn't been probed. Works on any build. */
+int         board_looks_like_v6(void);
 /* Records the CURRENTLY RUNNING binary's type as correct, clearing any
  * mismatch -- for a genuine board swap (old hardware retired, new board
  * really is a different variant), not for silencing a real mixup. */

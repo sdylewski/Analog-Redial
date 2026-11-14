@@ -120,6 +120,8 @@ i2c_master_bus_handle_t board_i2c_bus(void)
 }
 
 #define BOARD_ES8388_ADDR 0x10
+#define BOARD_V6_EXP_ADDR 0x38
+static int s_v6_seen = -1;   /* -1: not probed yet */
 
 void board_detect_codec(void)
 {
@@ -135,7 +137,22 @@ void board_detect_codec(void)
         ESP_LOGW(TAG, "codec detect: no ES8388 answering at 0x10 (built for %s)",
                  board_pcb_variant_name());
     }
+    /* Only v6 has a TCA9534A at 0x38 (U6); the coin board's is at 0x39. So
+     * the bus says which board this is, whatever the firmware was built for. */
+    s_v6_seen = i2c_master_probe(s_bus, BOARD_V6_EXP_ADDR, 50) == ESP_OK ? 1 : 0;
+#if BOARD_LINE1_ON_EXPANDER
+    if (!s_v6_seen)
+        ESP_LOGW(TAG, "no expander at 0x%02X: built for SMD6, but this may not be a v6 board",
+                 BOARD_V6_EXP_ADDR);
+#else
+    if (s_v6_seen)
+        ESP_LOGE(TAG, "expander answering at 0x%02X: this looks like a v6 board, but the firmware "
+                      "is built for %s -- flash the SMD6 build", BOARD_V6_EXP_ADDR,
+                 board_pcb_variant_name());
+#endif
 }
+
+int board_looks_like_v6(void) { return s_v6_seen; }
 
 board_codec_t board_detected_codec(void) { return s_detected_codec; }
 

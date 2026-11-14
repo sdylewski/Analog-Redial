@@ -80,6 +80,13 @@ def read_board_info(port: str, boot_wait: float = 3) -> dict:
 def detect_board(info: dict) -> tuple[str | None, str]:
     """(board key or None, how we know)."""
     recorded, pcb = info.get("pcb_recorded", "-"), info.get("pcb", "")
+    # The running firmware probes the bus: only v6 has its expander at 0x38.
+    if info.get("pcb_hw", "").startswith("v6"):
+        if recorded != "SMD6" and recorded in PCB_TO_BOARD:
+            print(f"  note: recorded as {recorded}, but the v6 expander answers at 0x38: using smd6")
+        return "smd6", "its v6 I/O expander answers at 0x38"
+    if info.get("pcb_hw") == "not v6" and "SMD6" in (recorded, pcb):
+        return None, "it runs v6 firmware, but no v6 expander answers at 0x38: pass --board"
     if recorded in PCB_TO_BOARD:
         return PCB_TO_BOARD[recorded], f"the board last confirmed booting as {recorded}"
     if pcb in PCB_TO_BOARD:

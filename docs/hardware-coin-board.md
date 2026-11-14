@@ -275,7 +275,9 @@ shunts you've fitted, the firing current into a load, and HV bleeding down after
 Suggested first power-up, one step at a time:
 
 1. No relay, J14 off. Connect the cable and tick "A coin board is connected": the card should
-   show U1 and U4 answering and the 20 V rail at about 4.6 V.
+   show U1 and U4 answering and the 20 V rail at about 4.6-4.9 V, with HV a little
+   lower (both stages pass the 5 V through while idle). I²C works without the 5 V, so this
+   reading is what shows the 5 V wire is good.
 2. Close each coin switch by hand: the card shows it, and the log counts a coin.
 3. **HV on for 10 s**, still with J14 off: about 20 V on the rail and 19 V on HV. Check both with a
    meter.

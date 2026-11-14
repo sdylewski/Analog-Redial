@@ -259,6 +259,17 @@ static int cmd_v6check(int argc, char **argv)
         v6_line(cio ? "PASS" : "FAIL", "coin board U1 TCA9534A at 0x%02X", COINBOARD_IO_ADDR);
         v6_line(cadc ? "PASS" : "WARN", "coin board U4 ADS1115 at 0x%02X%s", COINBOARD_ADC_ADDR,
                 cadc ? "" : " (module not fitted? nothing gets measured without it)");
+        /* I2C answers on VIO alone: the idle rail is what shows the 5 V arrives. */
+        coinboard_status_t cs;
+        coinboard_status(&cs);
+        if (!cs.active)
+            v6_line("INFO", "coin board 5 V not checked: tick \"A coin board is connected\" (Payphone tab)");
+        else if (cs.state != CF_IDLE)
+            v6_line("INFO", "coin board 5 V not checked: the relay is busy (%s)", coin_fire_state_name(cs.state));
+        else if (cs.rail_mv >= 0)
+            v6_line(cs.rail_mv > 3500 && cs.rail_mv < 5500 ? "PASS" : "FAIL",
+                    "coin board 5 V input: idle rail %d.%d V (want 4.6-4.9)%s", cs.rail_mv / 1000,
+                    (cs.rail_mv % 1000) / 100, cs.rail_mv <= 3500 ? ": check its 5 V wire and F1" : "");
     }
     printf("v6check: %d fail%s\n", v6_fails, v6_fails == 1 ? "" : "s");
     return v6_fails ? 1 : 0;
@@ -286,6 +297,9 @@ static int cmd_board_info(int argc, char **argv)
     board_type_recorded(recorded, sizeof(recorded));
     printf("pcb: %s\n", board_pcb_variant_name());
     printf("pcb_recorded: %s\n", recorded[0] ? recorded : "-");
+    /* What the bus says, whatever this build is for: v6 has U6 at 0x38. */
+    int v6 = board_looks_like_v6();
+    printf("pcb_hw: %s\n", v6 < 0 ? "-" : v6 ? "v6 (expander at 0x38)" : "not v6");
     printf("lines: %d\n", BOARD_NUM_LINES);
     printf("i2c: SDA=%d SCL=%d\n", BOARD_I2C_SDA, BOARD_I2C_SCL);
     /* Network state, so flash_board.py can say where to go next without
