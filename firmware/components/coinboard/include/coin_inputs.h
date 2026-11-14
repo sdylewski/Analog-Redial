@@ -28,8 +28,13 @@ extern "C" {
 typedef struct {
     int64_t closed_since;   /* -1 while open */
     int64_t open_since;     /* -1 while closed */
+    int64_t last_closed;    /* the most recent poll that read closed */
     bool    armed;
     bool    stuck;
+    /* For bring-up (coin_in_clear_stats resets them) */
+    uint32_t counted;       /* coins counted */
+    uint32_t too_short;     /* closures that ended before they counted: under about two polls */
+    int32_t  max_ms;        /* the longest closure seen, first to last closed poll (0: one poll) */
 } coin_in_ch_t;
 
 typedef struct {
@@ -42,6 +47,11 @@ void coin_in_init(coin_in_t *c);
  * the chip). Returns the inputs that just counted a coin; *stuck_now (if
  * non-NULL) gets the inputs that just became stuck. */
 uint8_t coin_in_push(coin_in_t *c, uint8_t closed, int64_t now_ms, uint8_t *stuck_now);
+
+/* Per input: coins counted, closures too short to count, longest closure in ms. */
+void coin_in_stats(const coin_in_t *c, uint32_t counted[COIN_IN_N], uint32_t too_short[COIN_IN_N],
+                   int32_t max_ms[COIN_IN_N]);
+void coin_in_clear_stats(coin_in_t *c);
 
 /* The inputs stuck closed now. */
 uint8_t coin_in_stuck(const coin_in_t *c);

@@ -90,6 +90,9 @@ typedef struct {
      * return or HV test; -1: none measured. */
     uint8_t     seen;
     int         peak_rail_mv, peak_hv_mv, peak_i_ma;
+    /* Per coin input (COINBOARD_BIT_*): coins counted, closures too short to count, longest closure ms */
+    uint32_t    in_counted[4], in_short[4];
+    int32_t     in_max_ms[4];
 } coinboard_status_t;
 
 void coinboard_status(coinboard_status_t *out);
@@ -105,6 +108,33 @@ int coinboard_trace(coinboard_trace_pt_t *out, int max);   /* returns the number
 /* Bring-up: do U1 and U4 answer on the bus? Works whether or not the coin
  * board is enabled (one probe each, no register writes). */
 void coinboard_probe(bool *io_ok, bool *adc_ok);
+
+/* ---- Coin switch capture (bring-up) ----
+ * Polls U1's input register as fast as the bus allows (400 kHz, or 100 kHz if that
+ * errors) and records every change of the four coin inputs with a microsecond
+ * timestamp, plus markers the web UI places between coins. Normal polling and the
+ * relay are locked out while it runs (at most CAP_MAX_S), so nothing fires. The
+ * result stays in RAM until the next capture. */
+#define COIN_CAP_MAX_EV 512
+#define COIN_CAP_MAX_S  90
+typedef struct {
+    uint32_t t_us;      /* since the capture started */
+    uint8_t  bits;      /* U1's input register at that moment (P0-P3 low = closed) */
+    uint8_t  mark;      /* 0: an input changed; 1-3: a coin window began (nickel, dime, quarter); 4: end */
+} coin_cap_ev_t;
+typedef struct {
+    bool     running, overflow;
+    uint32_t samples, errors, t_ms;
+    uint32_t gap_min_us, gap_avg_us, gap_max_us;   /* time between reads */
+    int      bus_khz;
+    int      n_events;
+} coin_cap_info_t;
+/* ESP_ERR_INVALID_STATE: not answering, a relay sequence is running, or already capturing. */
+esp_err_t coinboard_capture_start(void);
+void      coinboard_capture_mark(int mark);   /* 1-3 */
+void      coinboard_capture_stop(void);       /* waits for the task to finish */
+void      coinboard_capture_info(coin_cap_info_t *out);
+int       coinboard_capture_events(coin_cap_ev_t *out, int max);
 
 /* U1's pin names for an input bit, e.g. "quarter". */
 const char *coinboard_input_name(int bit);

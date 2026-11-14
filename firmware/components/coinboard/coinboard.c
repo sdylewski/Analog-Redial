@@ -94,6 +94,7 @@ static int      s_adc_pending = -1;
 static int64_t  s_adc_started_us;
 static int64_t  s_adc_last_idle_ms, s_adc_retry_ms;
 static int      s_adc_fails, s_adc_rr, s_adc_k;
+static atomic_bool s_cap_on, s_cap_stop;
 static int      s_adc_ch = -1, s_adc_skip, s_adc_kept;  /* channel the MUX is on; to discard; kept */
 static uint32_t s_results_seen;
 
@@ -331,6 +332,7 @@ static void on_coins(uint8_t coins, uint8_t stuck, int line, uint8_t coin4)
 
 static void service_once(int64_t now_us)
 {
+    if (atomic_load(&s_cap_on)) return;   /* the capture task owns the bus */
     int64_t now_ms = now_us / 1000;
     lock();
     coinboard_cfg_t cfg = s_cfg;
@@ -513,6 +515,10 @@ static void relay_cb(int line, payphone_relay_t what)
 {
     coinboard_cfg_t c = coinboard_cfg();
     if (!c.enabled || line != c.line) return;
+    if (atomic_load(&s_cap_on)) {
+        payphone_logf(line, "coin capture running: the relay was not fired");
+        return;
+    }
     if (!c.auto_relay) {
         payphone_logf(line, "coin board: automatic collect and return are off");
         return;
@@ -530,7 +536,7 @@ static void relay_cb(int line, payphone_relay_t what)
 
 esp_err_t coinboard_test(cf_what_t what)
 {
-    if (!atomic_load(&s_active) || !atomic_load(&s_io_ok)) return ESP_ERR_INVALID_STATE;
+    if (!atomic_load(&s_active) || !atomic_load(&s_io_ok) || atomic_load(&s_cap_on)) return ESP_ERR_INVALID_STATE;
     lock();
     bool ok = coin_fire_request(&s_fire, what);
     unlock();
@@ -599,6 +605,7 @@ void coinboard_status(coinboard_status_t *o)
     o->result_msg[sizeof(o->result_msg) - 1] = '\0';
     o->fires = s_fire.fires;
     o->stuck = coin_in_stuck(&s_cin);
+    coin_in_stats(&s_cin, o->in_counted, o->in_short, o->in_max_ms);
     unlock();
     o->active = atomic_load(&s_active);
     o->io_ok = atomic_load(&s_io_ok);
@@ -620,7 +627,13 @@ void coinboard_status(coinboard_status_t *o)
     o->peak_i_ma = atomic_load(&s_pk_i);
 }
 
-void coinboard_seen_clear(void) { atomic_store(&s_seen, 0); }
+void coinboard_seen_clear(void)
+{
+    atomic_store(&s_seen, 0);
+    lock();
+    coin_in_clear_stats(&s_cin);
+    unlock();
+}
 
 int coinboard_trace(coinboard_trace_pt_t *out, int max)
 {
@@ -641,6 +654,158 @@ void coinboard_probe(bool *io_ok, bool *adc_ok)
     }
     if (io_ok) *io_ok = io;
     if (adc_ok) *adc_ok = adc;
+}
+
+/* ---- coin switch capture ---- */
+
+static coin_cap_ev_t s_cap_ev[COIN_CAP_MAX_EV];
+static int           s_cap_n;
+static bool          s_cap_overflow;
+static int64_t       s_cap_t0_us;
+static coin_cap_info_t s_cap_info;
+static TaskHandle_t  s_cap_task;
+
+static void cap_push(uint32_t t_us, uint8_t bits, uint8_t mark)
+{
+    lock();
+    if (s_cap_n < COIN_CAP_MAX_EV) s_cap_ev[s_cap_n++] = (coin_cap_ev_t){ t_us, bits, mark };
+    else s_cap_overflow = true;
+    unlock();
+}
+
+/* One log line per coin window: closures and the longest, for nickel, dime, quarter, coin 4. */
+static void cap_summary(int line)
+{
+    static const int IN[4] = { COINBOARD_BIT_NICKEL, COINBOARD_BIT_DIME, COINBOARD_BIT_QUARTER, COINBOARD_BIT_COIN4 };
+    static const char *const NAME[3] = { "nickel", "dime", "quarter" };
+    static const char TAG4[4] = { 'N', 'D', 'Q', '4' };
+    lock();
+    int n = s_cap_n;
+    coin_cap_ev_t *ev = s_cap_ev;
+    for (int w = 1; w <= 3; w++) {
+        int count[4] = { 0 }; uint32_t maxw[4] = { 0 };
+        bool in_w = false; bool closed[4] = { false }; uint32_t st[4] = { 0 };
+        for (int k = 0; k < n; k++) {
+            if (ev[k].mark) { in_w = ev[k].mark == w; continue; }
+            for (int j = 0; j < 4; j++) {
+                bool c = !((ev[k].bits >> IN[j]) & 1);
+                if (c && !closed[j]) { closed[j] = true; st[j] = ev[k].t_us; if (in_w) count[j]++; }
+                else if (!c && closed[j]) {
+                    closed[j] = false;
+                    if (in_w && ev[k].t_us - st[j] > maxw[j]) maxw[j] = ev[k].t_us - st[j];
+                }
+            }
+        }
+        char m[PAYPHONE_MSG_LEN]; int o = snprintf(m, sizeof(m), "capture %s:", NAME[w - 1]);
+        for (int j = 0; j < 4 && o < (int)sizeof(m) - 1; j++) {
+            if (count[j]) o += snprintf(m + o, sizeof(m) - o, " %c%dx%u.%02ums", TAG4[j], count[j],
+                                         (unsigned)(maxw[j] / 1000), (unsigned)((maxw[j] % 1000) / 10));
+            else o += snprintf(m + o, sizeof(m) - o, " %c-", TAG4[j]);
+        }
+        unlock();
+        payphone_logf(line, "%s", m);
+        lock();
+    }
+    unlock();
+}
+
+static void cap_task(void *arg)
+{
+    (void)arg;
+    i2c_master_dev_handle_t fast = NULL, dev = s_io;
+    int khz = 100;
+    i2c_device_config_t dc = { .dev_addr_length = I2C_ADDR_BIT_LEN_7, .device_address = COINBOARD_IO_ADDR,
+                               .scl_speed_hz = 400000 };
+    if (i2c_master_bus_add_device(board_i2c_bus(), &dc, &fast) == ESP_OK) { dev = fast; khz = 400; }
+    uint8_t reg = REG_INPUT, v = 0xFF, last = 0xFF;
+    bool first = true;
+    uint32_t samples = 0, errors = 0, gmin = UINT32_MAX, gmax = 0;
+    uint64_t gsum = 0;
+    int64_t prev = 0;
+    s_cap_t0_us = esp_timer_get_time();
+    while (!atomic_load(&s_cap_stop) && esp_timer_get_time() - s_cap_t0_us < (int64_t)COIN_CAP_MAX_S * 1000000) {
+        int64_t t = esp_timer_get_time();
+        if (i2c_master_transmit_receive(dev, &reg, 1, &v, 1, 5) != ESP_OK) {
+            errors++;
+            if (dev == fast && errors > 20 && errors * 20 > samples + errors) { dev = s_io; khz = 100; }   /* too noisy at 400 kHz */
+            continue;
+        }
+        samples++;
+        if (prev) {
+            uint32_t g = (uint32_t)(t - prev);
+            if (g < gmin) gmin = g;
+            if (g > gmax) gmax = g;
+            gsum += g;
+        }
+        prev = t;
+        uint8_t b = v & COINBOARD_INPUTS;
+        if (first || b != last) { cap_push((uint32_t)(t - s_cap_t0_us), v, 0); last = b; first = false; }
+    }
+    cap_push((uint32_t)(esp_timer_get_time() - s_cap_t0_us), v, 4);
+    lock();
+    s_cap_info = (coin_cap_info_t){ .running = false, .overflow = s_cap_overflow, .samples = samples, .errors = errors,
+        .t_ms = (uint32_t)((esp_timer_get_time() - s_cap_t0_us) / 1000), .gap_min_us = samples > 1 ? gmin : 0,
+        .gap_avg_us = samples > 1 ? (uint32_t)(gsum / (samples - 1)) : 0, .gap_max_us = gmax, .bus_khz = khz, .n_events = s_cap_n };
+    unlock();
+    if (fast) i2c_master_bus_rm_device(fast);
+    cap_summary(s_cfg.line);
+    s_cap_task = NULL;
+    atomic_store(&s_cap_on, false);
+    vTaskDelete(NULL);
+}
+
+esp_err_t coinboard_capture_start(void)
+{
+    if (atomic_load(&s_cap_on)) return ESP_ERR_INVALID_STATE;
+    if (!atomic_load(&s_active) || !atomic_load(&s_io_ok)) return ESP_ERR_INVALID_STATE;
+    lock();
+    bool busy = coin_fire_busy(&s_fire);
+    unlock();
+    if (busy) return ESP_ERR_INVALID_STATE;
+    lock();
+    s_cap_n = 0;
+    s_cap_overflow = false;
+    memset(&s_cap_info, 0, sizeof(s_cap_info));
+    s_cap_info.running = true;
+    unlock();
+    atomic_store(&s_cap_stop, false);
+    atomic_store(&s_cap_on, true);
+    if (xTaskCreate(cap_task, "coincap", 4096, NULL, configMAX_PRIORITIES - 7, &s_cap_task) != pdPASS) {
+        atomic_store(&s_cap_on, false);
+        return ESP_ERR_NO_MEM;
+    }
+    payphone_logf(s_cfg.line, "coin capture started");
+    return ESP_OK;
+}
+
+void coinboard_capture_mark(int mark)
+{
+    if (!atomic_load(&s_cap_on) || mark < 1 || mark > 3) return;
+    cap_push((uint32_t)(esp_timer_get_time() - s_cap_t0_us), 0xFF, (uint8_t)mark);
+}
+
+void coinboard_capture_stop(void)
+{
+    atomic_store(&s_cap_stop, true);
+    for (int i = 0; i < 100 && atomic_load(&s_cap_on); i++) vTaskDelay(pdMS_TO_TICKS(10));
+}
+
+void coinboard_capture_info(coin_cap_info_t *out)
+{
+    lock();
+    *out = s_cap_info;
+    out->running = atomic_load(&s_cap_on);
+    if (out->running) out->n_events = s_cap_n;
+    unlock();
+}
+
+int coinboard_capture_events(coin_cap_ev_t *out, int max)
+{
+    lock();
+    int n = s_cap_n < max ? s_cap_n : max;
+    memcpy(out, s_cap_ev, n * sizeof(*out));
+    unlock();
+    return n;
 }
 
 void coinboard_init(void)

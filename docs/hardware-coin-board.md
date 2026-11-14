@@ -288,6 +288,15 @@ Suggested first power-up, one step at a time:
 5. Fit J14 (52 V) and the coin relay: HV on, then Collect and Return. Adjust the pulse length
    if the relay doesn't move reliably.
 
+### If a coin isn't counted
+
+Step 3 of the Bring-up pane shows, for each coin input, the coins counted, the closures too short to
+count, and the longest closure seen. The **Coin switch capture** card below it finds the cause: it asks
+you to drop a nickel, a dime and a quarter, reads the four inputs every 0.1-0.4 ms, and shows what each
+coin did on each input. A coin whose switch closes for under about 3 ms is "too short" (the normal
+polling is every 3 ms); one that closes the wrong input means two wires are swapped; one that shows
+nothing on any input never reached the board (a wire or crimp, or a sensor that isn't a plain contact).
+
 ### If it is flaky: check VIO and ground first
 
 U1 and U4 need **VIO to stay above 3.0 V** (U4's own minimum is 2.0 V) with a clean ground. Measure

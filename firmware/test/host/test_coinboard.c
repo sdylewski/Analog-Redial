@@ -73,6 +73,7 @@ esp_err_t i2c_master_bus_add_device(i2c_master_bus_handle_t b, const i2c_device_
     *d = c->device_address == 0x39 ? DEV_IO : DEV_ADC;
     return ESP_OK;
 }
+esp_err_t i2c_master_bus_rm_device(i2c_master_dev_handle_t d) { (void)d; return ESP_OK; }
 esp_err_t i2c_master_probe(i2c_master_bus_handle_t b, uint16_t addr, int ms)
 {
     (void)b; (void)ms;

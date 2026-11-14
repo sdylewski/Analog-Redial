@@ -7597,6 +7597,7 @@ static int append_storage_section(char *buf, size_t cap, int off)
 }
 
 static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub);   /* with its handlers, below */
+static int append_coin_capture_card(char *buf, size_t cap, int off);
 
 static esp_err_t settings_page_handler(httpd_req_t *req)
 {
@@ -9397,8 +9398,10 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "(d.rail_mv>=15000?'':'')+"
         "(d.rail_mv>=0&&d.rail_mv<=3500?'<br>No 5 V coming through: check F1, the 5 V wire and stage 1\\'s diode.':'');}"
         "var n=['coin 4','quarter','dime','nickel'],h='';[3,2,1,0].forEach(function(i){"
-        "h+=chip(d.seen>>i&1?'pass':(d.stuck>>i&1?'fail':''),n[i]+(d.closed>>i&1?' (closed)':''))+' ';});"
-        "$('cbr3').innerHTML=h+((d.seen&14)==14?'<br>'+chip('pass','all three coins seen'):'');"
+        "var q=d.ins&&d.ins[i]?d.ins[i]:[0,0,0],cls=d.stuck>>i&1?'fail':q[0]?'pass':q[1]?'warn':d.seen>>i&1?'warn':'';"
+        "h+=chip(cls,n[i]+': '+q[0]+' counted'+(q[1]?', '+q[1]+' too short':'')+(q[2]>0?', up to '+q[2]+' ms':'')+(d.closed>>i&1?' (closed now)':''))+' ';});"
+        "$('cbr3').innerHTML=h+((d.seen&14)==14?'<br>'+chip('pass','all three coins seen'):'')+"
+        "'<br><small>\"too short\" = the switch closed for under about 3 ms, too brief to count; none at all = the board never saw it close.</small>';"
         "var exp=+$('cbsh').value*1000,pr=d.peak_rail_mv,ph=d.peak_hv_mv,r4='';"
         "if(d.doing=='HV test'||d.last_what=='HV test'){"
         "var rok=pr>17000&&pr<23000,hok=ph>exp*0.88&&ph<exp*1.12;"
@@ -9705,7 +9708,10 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
         PAYPHONE_LOG_N);
     }   /* pane 1 */
 
-    if (pane == 2) off = append_coinboard_bringup_card(buf, cap, off);
+    if (pane == 2) {
+        off = append_coinboard_bringup_card(buf, cap, off);
+        off = append_coin_capture_card(buf, cap, off);
+    }
     return off;
 }
 
@@ -9841,6 +9847,125 @@ static esp_err_t coinboard_seen_clear_handler(httpd_req_t *req)
     return httpd_resp_sendstr(req, "{}");
 }
 
+/* ---- Coin switch capture (coinboard.h): POST /coin_capture, GET /api/coin_capture ---- */
+
+static esp_err_t coin_capture_post_handler(httpd_req_t *req)
+{
+    char body[64], a[8] = {0}, l[4] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "action", a, sizeof(a));
+    form_field(body, "label", l, sizeof(l));
+    bool ok = true;
+    const char *msg = "";
+    if (!strcmp(a, "start")) {
+        if (coinboard_capture_start() != ESP_OK) {
+            ok = false;
+            msg = "Cannot start: the coin board is not answering (tick A coin board is connected on the Settings tab), "
+                  "or a relay sequence or another capture is running.";
+        }
+    } else if (!strcmp(a, "mark")) {
+        coinboard_capture_mark(atoi(l) + 1);
+    } else if (!strcmp(a, "stop")) {
+        coinboard_capture_stop();
+    } else {
+        ok = false;
+        msg = "unknown action";
+    }
+    char out[240];
+    snprintf(out, sizeof(out), "{\"ok\":%s,\"msg\":\"%s\"}", ok ? "true" : "false", msg);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_sendstr(req, out);
+}
+
+/* Streamed: up to 512 events don't fit a cJSON tree in this heap. */
+static esp_err_t coin_capture_json_handler(httpd_req_t *req)
+{
+    coin_cap_info_t in;
+    coinboard_capture_info(&in);
+    coin_cap_ev_t *ev = malloc(COIN_CAP_MAX_EV * sizeof(*ev));
+    int n = ev ? coinboard_capture_events(ev, COIN_CAP_MAX_EV) : 0;
+    char b[320];
+    httpd_resp_set_type(req, "application/json");
+    int o = snprintf(b, sizeof(b),
+        "{\"running\":%s,\"overflow\":%s,\"samples\":%u,\"errors\":%u,\"t_ms\":%u,\"gap_min\":%u,"
+        "\"gap_avg\":%u,\"gap_max\":%u,\"khz\":%d,\"n\":%d,\"ev\":[",
+        in.running ? "true" : "false", in.overflow ? "true" : "false", (unsigned)in.samples, (unsigned)in.errors,
+        (unsigned)in.t_ms, (unsigned)in.gap_min_us, (unsigned)in.gap_avg_us, (unsigned)in.gap_max_us,
+        in.bus_khz, n);
+    httpd_resp_send_chunk(req, b, o);
+    char c[16 * 28];
+    for (int k = 0; k < n;) {
+        o = 0;
+        for (int j = 0; j < 16 && k < n; j++, k++)
+            o += snprintf(c + o, sizeof(c) - o, "%s[%u,%u,%u]", k ? "," : "", (unsigned)ev[k].t_us, ev[k].bits, ev[k].mark);
+        httpd_resp_send_chunk(req, c, o);
+    }
+    free(ev);
+    httpd_resp_send_chunk(req, "]}", 2);
+    return httpd_resp_send_chunk(req, NULL, 0);
+}
+
+/* The guided capture on the Bring-up pane: nickel, dime, quarter, one window each. */
+static int append_coin_capture_card(char *buf, size_t cap, int off)
+{
+    return appendf(buf, cap, off,
+        "<div class=\"card wide\" id=\"cpcard\"><h2>Coin switch capture</h2>"
+        "<p class=\"hint\">Finds out why a coin isn't counted. While it runs, the board reads the four coin "
+        "inputs as fast as the bus allows (every 0.1-0.4 ms) and records every change. Press Start, then drop a "
+        "nickel, a dime and a quarter when asked, one at a time, into the coin slot. Nothing fires: the relay is "
+        "locked out until it ends.</p>"
+        "<div class=\"toolbar sub\"><button type=\"button\" id=\"cpstart\" class=\"primary\">Start capture</button> "
+        "<button type=\"button\" id=\"cpnext\" disabled>Next coin</button> "
+        "<button type=\"button\" id=\"cpstop\" disabled>Stop</button></div>"
+        "<p id=\"cpprompt\" class=\"hint\"></p><div id=\"cpres\"></div>"
+        "<p class=\"hint\">The result stays on the board until the next capture (<code>/api/coin_capture</code>).</p></div>"
+        "<script>(function(){var $=function(i){return document.getElementById(i);};"
+        "var NAMES=['nickel','dime','quarter'],EXP=[3,2,1],COLS=[3,2,1,0],"
+        "HEAD=['nickel input','dime input','quarter input','coin 4 input'],WIN=20,cur=-1,left=0,timer=null;"
+        "function chip(c,t){return '<span class=\"chip '+c+'\">'+t+'</span>';}"
+        "function ms(x){return x<1?x.toFixed(2):x.toFixed(1);}"
+        "function post(b){return fetch('/coin_capture',{method:'POST',headers:{'Content-Type':"
+        "'application/x-www-form-urlencoded'},body:b}).then(function(r){return r.json();});}"
+        "function btn(run){$('cpstart').disabled=run;$('cpnext').disabled=!run;$('cpstop').disabled=!run;}"
+        "function show(){$('cpprompt').innerHTML='<b>'+(cur+1)+' of 3: drop a '+NAMES[cur].toUpperCase()+' now.</b> "
+        "Let it fall all the way through. '+left+' s left; press Next coin once it has dropped.';}"
+        "function advance(){cur++;if(cur>=3){finish();return;}"
+        "post('action=mark&label='+cur).then(function(){left=WIN;show();});}"
+        "function finish(){if(timer){clearInterval(timer);timer=null;}btn(false);"
+        "$('cpprompt').textContent='Finishing...';post('action=stop').then(function(){setTimeout(result,300);});}"
+        "$('cpstart').onclick=function(){$('cpres').innerHTML='';post('action=start').then(function(j){"
+        "if(!j.ok){$('cpprompt').textContent=j.msg;return;}cur=-1;btn(true);advance();"
+        "timer=setInterval(function(){left--;if(left<=0)advance();else show();},1000);});};"
+        "$('cpnext').onclick=function(){advance();};$('cpstop').onclick=function(){finish();};"
+        "function result(){fetch('/api/coin_capture').then(function(r){return r.json();}).then(function(j){"
+        "if(j.running){setTimeout(result,300);return;}"
+        "var cl=[0,1,2].map(function(){return [[],[],[],[]];}),closed=[0,0,0,0],st=[0,0,0,0],sw=[-1,-1,-1,-1],w=-1,last=0;"
+        "j.ev.forEach(function(e){var t=e[0],b=e[1],m=e[2];last=t;if(m){w=(m>=1&&m<=3)?m-1:-1;return;}"
+        "for(var i=0;i<4;i++){var c=!((b>>i)&1);"
+        "if(c&&!closed[i]){closed[i]=1;st[i]=t;sw[i]=w;}"
+        "else if(!c&&closed[i]){closed[i]=0;if(sw[i]>=0)cl[sw[i]][i].push((t-st[i])/1000);}}});"
+        "for(var i=0;i<4;i++)if(closed[i]&&sw[i]>=0)cl[sw[i]][i].push((last-st[i])/1000);"
+        "var h='<table class=\"table\"><tr><th>Coin dropped</th>'+COLS.map(function(i,k){return '<th>'+HEAD[k]+'</th>';}).join('')"
+        "+'<th>What it means</th></tr>';"
+        "for(var x=0;x<3;x++){var ex=EXP[x],row='<tr><td><b>'+NAMES[x]+'</b></td>';"
+        "COLS.forEach(function(i){var L=cl[x][i];row+='<td>'+(i==ex?'<b>':'')+(L.length?L.length+'x: '+L.slice(0,6).map(ms).join(', ')+' ms':'-')+(i==ex?'</b>':'')+'</td>';});"
+        "var mine=cl[x][ex],lo=Math.max.apply(null,mine.concat([0])),v;"
+        "if(mine.length&&lo>=3)v=chip('pass','counted: closes for '+ms(lo)+' ms');"
+        "else if(mine.length)v=chip('warn','too short: closes for only '+ms(lo)+' ms, the board needs about 3 ms');"
+        "else{var o=-1;COLS.forEach(function(i,k){if(i!=ex&&cl[x][i].length&&o<0)o=k;});"
+        "v=o>=0?chip('fail','closed the '+HEAD[o]+' instead: wires swapped?'):"
+        "chip('fail','nothing on any input: no closure reached the board');}"
+        "h+=row+'<td>'+v+'</td></tr>';}"
+        "h+='</table><p class=\"hint\">Sampled '+j.samples+' times in '+(j.t_ms/1000).toFixed(1)+' s: every '+j.gap_avg+"
+        "' us on average (at most '+j.gap_max+' us apart), bus '+j.khz+' kHz, '+j.errors+' read errors.'+"
+        "(j.overflow?' The event buffer filled up.':'')+'</p>';"
+        "$('cpres').innerHTML=h;$('cpprompt').textContent='Done. The result is below.';"
+        "}).catch(function(){$('cpprompt').textContent='Could not read the result.';});}"
+        "})();</script>");
+}
+
 static esp_err_t payphone_reset_handler(httpd_req_t *req)
 {
     char body[16];
@@ -9931,6 +10056,14 @@ static esp_err_t payphone_json_handler(httpd_req_t *req)
             cJSON_AddItemToArray(ta, pt);
         }
         cJSON_AddNumberToObject(b, "trace_ms", COINBOARD_TRACE_MS);
+        cJSON *ia = cJSON_AddArrayToObject(b, "ins");   /* per input 0..3: [counted, too_short, max_ms] */
+        for (int k = 0; k < 4; k++) {
+            cJSON *pt = cJSON_CreateArray();
+            cJSON_AddItemToArray(pt, cJSON_CreateNumber(bs.in_counted[k]));
+            cJSON_AddItemToArray(pt, cJSON_CreateNumber(bs.in_short[k]));
+            cJSON_AddItemToArray(pt, cJSON_CreateNumber(bs.in_max_ms[k]));
+            cJSON_AddItemToArray(ia, pt);
+        }
     }
     char *out = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
@@ -13097,6 +13230,8 @@ esp_err_t webui_start(void)
         { .uri = "/coinboard_test",         .method = HTTP_POST, .handler = coinboard_test_handler },
         { .uri = "/api/coinboard_probe",    .method = HTTP_GET,  .handler = coinboard_probe_handler },
         { .uri = "/coinboard_seen_clear",   .method = HTTP_POST, .handler = coinboard_seen_clear_handler },
+        { .uri = "/coin_capture",           .method = HTTP_POST, .handler = coin_capture_post_handler },
+        { .uri = "/api/coin_capture",       .method = HTTP_GET,  .handler = coin_capture_json_handler },
         { .uri = "/api/auxpins",            .method = HTTP_GET,  .handler = auxpins_json_handler },
         { .uri = "/auxpin_set",             .method = HTTP_POST, .handler = auxpin_set_handler },
         { .uri = "/api/payphone",           .method = HTTP_GET,  .handler = payphone_json_handler },
