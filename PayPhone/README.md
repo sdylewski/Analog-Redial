@@ -81,7 +81,12 @@ Notes on the columns:
   controlled), and whether the phone sends coin tones on the line.
 - Which relay direction the phone's own levers treat as collect, with the relay back in
   the phone.
-- What resets the relay's latched levers.
+- What resets the relay's latched levers. Once the relay trips, the coin flap latches down and
+  further fires don't move it, so until it's reset the coins fall straight into the box instead of
+  resting in the hopper. Check the flap is up before every Collect or Return test.
+- Whether 60 V is enough with the phone's own levers attached: it was the bare minimum on the bench
+  (55 V no, 60 V yes, relay alone), so start at 78 V (J14 + J8) and go to 87 V (J14 + J7) if the
+  levers don't move fully.
 
 ## Other payphone projects
 
