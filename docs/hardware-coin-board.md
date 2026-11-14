@@ -263,17 +263,17 @@ parts. An estimate, not a quote.
 
 ## 9. Firmware and first power-up
 
-The firmware is on the **Payphone** tab (Settings → Payphone, marked Experimental): turn on
-the Payphone features, then on the **Coin board** card tick "A coin board is connected" and
-choose its line. The card then shows the board live (U1 and U4 answering, each coin switch,
-the 20 V rail, HV and the coil current), and has test buttons for **Collect**, **Return** and
-**HV on for 10 s** (charges without firing, to read the voltage). The console has the same as
-`coinboard [collect|return|hv]`.
+The firmware is on the **Payphone** tab (Settings → Payphone, marked Experimental). It has three
+panes: **Settings**, **Log** and **Bring-up**. On Settings, turn on the Payphone features, then on
+the **Coin board** card tick "A coin board is connected" and choose its line. The console has the
+same tests as `coinboard [collect|return|hv]`.
 
-At the bottom of the Payphone tab, the **Coin board bring-up** card runs the steps below as a
-checklist and marks each one pass or fail from the board's own readings: whether U1 and U4
-answer, the idle rail, each coin switch seen, the HV test's peak rail and HV against the
-shunts you've fitted, the firing current into a load, and HV bleeding down afterwards.
+The **Bring-up** pane runs the steps below as a checklist and marks each one pass or fail from the
+board's own readings: whether U1 and U4 answer, the idle rail, each coin switch seen, the HV test's
+peak rail and HV against the shunts you've fitted, the firing current into a load, and HV bleeding
+down afterwards. A live line at the top shows the 20 V rail, HV and the coil current, and the
+**Collect**, **Return** and **HV on for 10 s** buttons (the last charges without firing, to read the
+voltage) are in the steps. The **Log** pane has the coin count, the simulate buttons and the log.
 
 Suggested first power-up, one step at a time:
 

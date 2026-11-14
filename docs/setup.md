@@ -297,7 +297,7 @@ operator message (the tab shows the command).
 **Not tested yet: the coin mechanism itself**, meaning the coin switches and the
 solenoid that collects or returns coins. That needs a separate
 [coin board](hardware-coin-board.md), which is sent to fab but not built or tested yet;
-its settings are on the same tab, on the Coin board card.
+its settings are on the same tab (Settings pane, Coin board card), and its bring-up checklist is on the Bring-up pane.
 
 Also still to find out: whether the board can sit inside a payphone's metal
 housing and still reach Wi-Fi and Bluetooth through it.

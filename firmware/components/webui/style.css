@@ -430,6 +430,7 @@ button:disabled:hover { border-color: var(--border); }
 }
 .settings-tabs .tab-btn:hover { color: var(--text); }
 .settings-tabs .tab-btn.active { background: var(--panel2); border-color: var(--border); color: var(--accent); font-weight: 600; }
+.settings-tabs.sub-tabs { grid-column: 1 / -1; margin: 4px 0 16px; }
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 .mode-master { font-size: 15px; font-weight: 600; margin-bottom: 6px; }

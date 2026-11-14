@@ -7596,17 +7596,18 @@ static int append_storage_section(char *buf, size_t cap, int off)
     return off;
 }
 
-static int append_payphone_tab(char *buf, size_t cap, int off);   /* with its handlers, below */
+static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub);   /* with its handlers, below */
 
 static esp_err_t settings_page_handler(httpd_req_t *req)
 {
     s_viewer_signed_in = request_signed_in(req);
-    char tab[16] = "general";
+    char tab[16] = "general", sub[12] = "settings";
     char checked[8] = "", result[8] = "";
     char created[8] = "", createresult[16] = "";
     char query[144];
     if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
         httpd_query_key_value(query, "tab", tab, sizeof(tab));
+        httpd_query_key_value(query, "sub", sub, sizeof(sub));
         httpd_query_key_value(query, "checked", checked, sizeof(checked));
         httpd_query_key_value(query, "result", result, sizeof(result));
         httpd_query_key_value(query, "created", created, sizeof(created));
@@ -7705,7 +7706,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
     }
     else if (strcmp(tab, "voip") == 0) off = append_voip_tab(buf, cap, off, checked, result, created, createresult);
     else if (strcmp(tab, "bluetooth") == 0) off = append_bluetooth_tab(buf, cap, off);
-    else if (strcmp(tab, "payphone") == 0) off = append_payphone_tab(buf, cap, off);
+    else if (strcmp(tab, "payphone") == 0) off = append_payphone_tab(buf, cap, off, sub);
     else if (strcmp(tab, "diag") == 0) off = append_diag_tab(buf, cap, off);
     /* Storage: the full SD+internal file manager, kept separate from
      * Hardware -- see SETTINGS_TABS's comment for why (its per-file
@@ -9296,7 +9297,7 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "#safety-first-high-voltage\" target=\"_blank\" rel=\"noopener\">safety notes</a> first.</span></p>"
         "%s"
         "<p id=\"cblive\" class=\"hint\">Now: &hellip;</p>"
-        "<details class=\"hint-detail\"><summary><b>Check the 3.3 V and ground wires first</b> "
+        "<details style=\"margin:10px 0\"><summary><b>Check the 3.3 V and ground wires first</b> "
         "(the cause of most odd behaviour)</summary>"
         "<p class=\"hint\">U1 and U4 run from <b>VIO</b>, the 3.3 V on pin 4 of the cable, and share its "
         "ground. A marginal VIO or GND wire still lets them answer on I2C, so a good Check in step 1 "
@@ -9353,11 +9354,11 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "goes out below about 24 V (about 33 s from 119 V).</td><td id=\"cbr6\">-</td></tr>"
         "<tr><td>7. The coin relay</td><td>Fit J14 (start at 52 V) and connect the relay to J2. "
         "Collect and Return with the buttons in step 5, and watch the levers. If it moves the "
-        "wrong way, tick \"Collect and return are the wrong way round\" above; if it doesn't move "
+        "wrong way, tick \"Collect and return are the wrong way round\" on the Settings tab's Coin board card; if it doesn't move "
         "reliably, try a longer pulse or the next voltage up.</td><td>you judge it</td></tr>"
         "</table></div>",
         b.enabled ? "" : "<p class=\"hint warn-text\">\"A coin board is connected\" isn't ticked "
-        "on the Coin board card above: only step 1 runs until it is.</p>",
+        "on the Settings tab's Coin board card: only step 1 runs until it is.</p>",
         CF_HVTEST_MS / 1000);
     return appendf(buf, cap, off,
         "<script>(function(){var $=function(i){return document.getElementById(i);};"
@@ -9418,7 +9419,7 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "tick();setInterval(tick,1000);})();</script>");
 }
 
-static int append_payphone_tab(char *buf, size_t cap, int off)
+static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
 {
     payphone_cfg_t c = payphone_cfg();
     off = append_feature_bar(buf, cap, off, "Payphone", c.enabled, "/payphone_enable",
@@ -9429,9 +9430,20 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
         "Turning it off keeps the settings below.");
     if (!c.enabled) return off;
 
+    /* Three panes, so the page stays short: the settings, the coin count and log,
+     * and the coin board's bring-up. Only the one asked for is built. */
+    int pane = !strcmp(sub, "log") ? 1 : !strcmp(sub, "bringup") ? 2 : 0;
+    static const char *const PANES[][2] = { { "settings", "Settings" }, { "log", "Log" }, { "bringup", "Bring-up" } };
+    off = appendf(buf, cap, off, "<nav class=\"settings-tabs sub-tabs\">");
+    for (int i = 0; i < 3; i++)
+        off = appendf(buf, cap, off, "<a class=\"tab-btn%s\" href=\"/settings?tab=payphone&amp;sub=%s\">%s</a>",
+                      i == pane ? " active" : "", PANES[i][0], PANES[i][1]);
+    off = appendf(buf, cap, off, "</nav>");
+
     int nlines = board_hw_config_get().num_lines;
     if (nlines < 1) nlines = 1;
 
+    if (pane == 0) {
     /* Coin required */
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>Coin required</h2>"
@@ -9497,17 +9509,8 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
         "</form>"
         "<p class=\"hint\">A coin with no clip of its own plays the general message at the bottom. "
         "A message plays only while the handset is up and the line is waiting for a coin or on dial "
-        "tone, not during dialing or a call, so lift the handset to hear it. Edit what each clip "
-        "says below, then generate the audio.</p>");
-    static const struct { const char *clip, *text, *label; } coin_say[] = {
-        { PAYPHONE_NICKEL_CLIP,  "Feed me.",   "5 c (nickel): " },
-        { PAYPHONE_DIME_CLIP,    "Yum yum.",   "10 c (dime): " },
-        { PAYPHONE_QUARTER_CLIP, "Thank you.", "25 c (quarter): " },
-    };
-    for (size_t k = 0; k < sizeof(coin_say) / sizeof(coin_say[0]); k++) {
-        off = appendf(buf, cap, off, "<h3>%s<code>%s</code></h3>", coin_say[k].label, coin_say[k].clip);
-        off = append_prompt_field_rows(buf, cap, off, coin_say[k].clip, coin_say[k].text, 2);
-    }
+        "tone, not during dialing or a call, so lift the handset to hear it. What each coin says "
+        "is edited in the Coin sounds card below.</p>");
     off = appendf(buf, cap, off, "<h3>Any other coin: <code>" PAYPHONE_THANKS_CLIP "</code></h3>");
     off = append_prompt_field_rows(buf, cap, off, PAYPHONE_THANKS_CLIP, "Thank you.", 2);
     off = appendf(buf, cap, off, "</div>");
@@ -9527,6 +9530,27 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
         "converted for home use don't send them any more; drop a coin and watch the log. "
         "Tones it hears but can't place show in the log as not recognized.</p></div>",
         c.tone_detect ? " checked" : "");
+
+    /* What each coin says: one row, one column per coin */
+    {
+        static const struct { const char *clip, *text, *label; } coin_say[] = {
+            { PAYPHONE_NICKEL_CLIP,  "Feed me.",   "5 c (nickel)" },
+            { PAYPHONE_DIME_CLIP,    "Yum yum.",   "10 c (dime)" },
+            { PAYPHONE_QUARTER_CLIP, "Thank you.", "25 c (quarter)" },
+        };
+        off = appendf(buf, cap, off,
+            "<div class=\"card wide\"><h2>Coin sounds</h2>"
+            "<p class=\"hint\">What the phone says for each coin. Edit a phrase and save it; the command under "
+            "each box then makes the audio.</p>"
+            "<div class=\"threecols\">");
+        for (size_t k = 0; k < sizeof(coin_say) / sizeof(coin_say[0]); k++) {
+            off = appendf(buf, cap, off, "<div><h3>%s</h3><p class=\"hint\"><code>%s</code></p>",
+                          coin_say[k].label, coin_say[k].clip);
+            off = append_prompt_field_rows(buf, cap, off, coin_say[k].clip, coin_say[k].text, 2);
+            off = appendf(buf, cap, off, "</div>");
+        }
+        off = appendf(buf, cap, off, "</div></div>");
+    }
 
     /* What happens to the coins */
     off = appendf(buf, cap, off,
@@ -9559,8 +9583,8 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
             "docs/hardware-coin-board.md#safety-first-high-voltage\" target=\"_blank\" "
             "rel=\"noopener\">safety documentation</a> first.</p>"
             "<p class=\"hint\"><b>In development:</b> the first coin board is being brought up, so "
-            "collect and return are not yet tested on real hardware. The <b>Coin board bring-up</b> "
-            "card at the bottom of this page walks through a new board step by step. "
+            "collect and return are not yet tested on real hardware. The <b>Bring-up</b> tab, next "
+            "to Settings, walks through a new board step by step. "
             "It reads the phone's coin switches and fires its coin relay to collect or return "
             "the coins, over I2C (0x39 and 0x48).</p>"
             "<form method=\"POST\" action=\"/coinboard_set\" class=\"settings-form\" "
@@ -9596,26 +9620,17 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
             "</form>",
             b.auto_relay ? " checked" : "", b.swap ? " checked" : "",
             CF_PULSE_MIN_MS, CF_PULSE_MAX_MS, (unsigned)b.pulse_ms, (unsigned)b.coin4_cents);
-        if (b.enabled) {
+        if (b.enabled)
             off = appendf(buf, cap, off,
-                "<p id=\"ppboard\">Reading the board&hellip;</p>"
-                "<form method=\"POST\" action=\"/coinboard_test\" class=\"settings-form\" "
-                "onsubmit=\"return confirm('The board makes up to 119 V for this. Keep clear of "
-                "the relay wiring. Go on?')\">"
-                "<div class=\"toolbar sub\">Test: "
-                "<button type=\"submit\" name=\"what\" value=\"collect\">Collect</button>"
-                "<button type=\"submit\" name=\"what\" value=\"return\">Return</button>"
-                "<button type=\"submit\" name=\"what\" value=\"hv\">HV on for %d s</button>"
-                "</div></form>"
-                "<p class=\"hint\">Coins from its switches count on its line, and coin tones are "
-                "ignored there (the switches see the same coins). The HV test charges to the "
-                "voltage J7-J9 set (about 19 V with J14 off) and reads it, without firing. Results "
-                "go in the log below.</p>",
-                CF_HVTEST_MS / 1000);
-        }
+                "<p class=\"hint\">The live readings and the Collect, Return and HV test buttons are on the "
+                "<a href=\"/settings?tab=payphone&amp;sub=bringup\">Bring-up</a> tab. Coins from its switches "
+                "count on its line, and coin tones are ignored there (the switches see the same coins).</p>");
         off = appendf(buf, cap, off, "</div>");
     }
 
+    }   /* pane 0 */
+
+    if (pane == 1) {
     /* Coins: credit, counter, simulate, log */
     payphone_totals_t t = payphone_totals();
     off = appendf(buf, cap, off,
@@ -9688,7 +9703,10 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
         "if(d.result)s+=' Last: '+esc(d.result)+'.';b.innerHTML=s;}"
         "}).catch(function(){});}setInterval(tick,2000);})();</script>",
         PAYPHONE_LOG_N);
-    return append_coinboard_bringup_card(buf, cap, off);
+    }   /* pane 1 */
+
+    if (pane == 2) off = append_coinboard_bringup_card(buf, cap, off);
+    return off;
 }
 
 static esp_err_t payphone_enable_handler(httpd_req_t *req)
@@ -9761,7 +9779,7 @@ static esp_err_t payphone_coin_handler(httpd_req_t *req)
             err == ESP_ERR_INVALID_STATE ? "payphone features are off" : "bad line or coin");
         return ESP_OK;
     }
-    return redirect_to(req, "/settings?tab=payphone");
+    return redirect_to(req, "/settings?tab=payphone&sub=log");
 }
 
 static esp_err_t coinboard_set_handler(httpd_req_t *req)
@@ -9828,7 +9846,7 @@ static esp_err_t payphone_reset_handler(httpd_req_t *req)
     char body[16];
     read_form_body(req, body, sizeof(body));
     payphone_totals_reset();
-    return redirect_to(req, "/settings?tab=payphone");
+    return redirect_to(req, "/settings?tab=payphone&sub=log");
 }
 
 /* GET /api/payphone: what the tab's log refreshes from, and for scripts. */
