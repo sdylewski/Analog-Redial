@@ -38,6 +38,13 @@ static const char *TAG = "coinboard";
 /* U4: single conversions at 860 samples/s take about 1.2 ms. */
 #define ADS_CONV_US      1500
 #define ADS_IDLE_MS      100     /* idle: one channel this often, for the web UI */
+/* AIN0 and AIN1 come from ~25 k dividers with no capacitor: right after the
+ * MUX changes channel the ADS1115's input still carries the last channel's
+ * charge, so the first conversions read toward it (the first board read a
+ * 19 V rail as 14 V while alternating with HV). Throw away the first
+ * conversions on a new channel, and stay on a channel for a block. */
+#define ADS_SETTLE_CONV  2
+#define ADS_BLOCK_CONV   6       /* kept conversions per channel before moving on */
 #define ADS_RETRY_MS     5000
 #define ADS_FAILS_TO_OFF 10
 
@@ -87,6 +94,7 @@ static int      s_adc_pending = -1;
 static int64_t  s_adc_started_us;
 static int64_t  s_adc_last_idle_ms, s_adc_retry_ms;
 static int      s_adc_fails, s_adc_rr, s_adc_k;
+static int      s_adc_ch = -1, s_adc_skip, s_adc_kept;  /* channel the MUX is on; to discard; kept */
 static uint32_t s_results_seen;
 
 static void lock(void)   { if (s_lock) xSemaphoreTake(s_lock, portMAX_DELAY); }
@@ -205,6 +213,7 @@ static void adc_service(int64_t now_us, cf_state_t st)
         atomic_store(&s_adc_ok, true);
         s_adc_fails = 0;
         s_adc_pending = -1;
+        s_adc_ch = -1;
         ESP_LOGI(TAG, "ADS1115 at 0x%02X answering", COINBOARD_ADC_ADDR);
     }
 
@@ -212,8 +221,13 @@ static void adc_service(int64_t now_us, cf_state_t st)
         if (now_us - s_adc_started_us < ADS_CONV_US) return;
         uint8_t reg = ADS_REG_CONV, b[2];
         if (i2c_master_transmit_receive(s_adc, &reg, 1, b, 2, CB_I2C_TIMEOUT) == ESP_OK) {
-            atomic_store(&s_adc_raw[s_adc_pending], (int16_t)((b[0] << 8) | b[1]));
-            atomic_store(&s_adc_have[s_adc_pending], true);
+            if (s_adc_skip > 0) {
+                s_adc_skip--;
+            } else {
+                atomic_store(&s_adc_raw[s_adc_pending], (int16_t)((b[0] << 8) | b[1]));
+                atomic_store(&s_adc_have[s_adc_pending], true);
+                s_adc_kept++;
+            }
             s_adc_fails = 0;
         } else {
             atomic_fetch_add(&s_bus_errors, 1);
@@ -223,15 +237,41 @@ static void adc_service(int64_t now_us, cf_state_t st)
     }
 
     int ch;
+    /* While firing, HV only gets a short look: the coil current matters more. */
+    int block_n = ((st == CF_FIRE || st == CF_DRAIN) && s_adc_ch == COINBOARD_AIN_HV) ? 2 : ADS_BLOCK_CONV;
+    bool block_done = s_adc_skip == 0 && s_adc_kept >= block_n;
     switch (st) {
         case CF_FIRE:
-        case CF_DRAIN:  ch = (s_adc_k++ % 4 == 3) ? COINBOARD_AIN_HV : COINBOARD_AIN_ISENSE; break;
-        case CF_CHARGE: ch = (s_adc_k++ % 2) ? COINBOARD_AIN_RAIL : COINBOARD_AIN_HV; break;
+        case CF_DRAIN:
+            /* Mostly the coil current; a short block of HV now and then. */
+            if (s_adc_ch < 0 || block_done || (s_adc_ch != COINBOARD_AIN_ISENSE && s_adc_ch != COINBOARD_AIN_HV))
+                ch = (s_adc_ch == COINBOARD_AIN_ISENSE && block_done && (s_adc_k++ % 3 == 2))
+                     ? COINBOARD_AIN_HV : COINBOARD_AIN_ISENSE;
+            else
+                ch = s_adc_ch;
+            break;
+        case CF_CHARGE:
+            if (s_adc_ch < 0 || block_done || (s_adc_ch != COINBOARD_AIN_RAIL && s_adc_ch != COINBOARD_AIN_HV))
+                ch = s_adc_ch == COINBOARD_AIN_HV ? COINBOARD_AIN_RAIL : COINBOARD_AIN_HV;
+            else
+                ch = s_adc_ch;
+            break;
         default:
             if (now_ms - s_adc_last_idle_ms < ADS_IDLE_MS) return;
             s_adc_last_idle_ms = now_ms;
             ch = s_adc_rr++ % 4;
+            /* 100 ms apart the input has settled: one conversion is enough. */
+            s_adc_ch = ch;
+            s_adc_skip = 0;
+            s_adc_kept = 0;
             break;
+    }
+    if (ch != s_adc_ch) {
+        s_adc_ch = ch;
+        s_adc_skip = ADS_SETTLE_CONV;
+        s_adc_kept = 0;
+    } else if (block_done) {
+        s_adc_kept = 0;
     }
     uint16_t c = ads_config(ch);
     uint8_t w[3] = { ADS_REG_CFG, (uint8_t)(c >> 8), (uint8_t)c };
