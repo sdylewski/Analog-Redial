@@ -9457,7 +9457,7 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "$('cbr4').innerHTML=r4||'-';"
         "if(d.last_what=='collect'||d.last_what=='return'){var f=d.res=='fired';"
         "$('cbr5').innerHTML=chip(f?'pass':(d.res=='unmeasured'?'warn':'fail'),d.last_what+': '+(f?'current flowed':d.res))+' peak '+(d.peak_i_ma<0?'-':d.peak_i_ma+' mA')+"
-        "(d.res=='no_current'?'<br>No current: is the load on J11 pins 1 and 3? Check Q3 and R26.':'');}"
+        "(d.res=='no_current'?'<br>No current. With the real relay this usually means its lever is still down: the relay\\'s own contact stays open until the lever is reset, so it cannot fire again. Lift the lever and try again. With a test load instead, check it is on J11 pins 1 and 3, then Q3 and R26.':'');}"
         "if(idle&&d.hv_mv>=0){if(lastHv>=0&&d.hv_mv<lastHv-200)fall++;else if(d.hv_mv>=lastHv)fall=0;"
         "$('cbr6').innerHTML='HV '+V(d.hv_mv)+(d.hv_mv<=d.rail_mv+1000?' '+chip('pass','back to the idle level'):fall>2?' '+chip('pass','falling'):'');}"
         "if(d.ft&&d.ft!==lastft&&d.ft.length){lastft=d.ft;try{plot(d);}catch(e){}}"

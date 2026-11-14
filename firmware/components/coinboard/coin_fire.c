@@ -214,7 +214,7 @@ void coin_fire_step(coin_fire_t *f, const cf_cfg_t *cfg, const cf_meas_t *m, int
                        v10(f->hv_before_mv - f->hv_min_mv));
             else
                 finish(f, CF_RES_NO_CURRENT, now,
-                       "%s: fired at %d V but no current flowed (relay not connected?)",
+                       "%s: no current at %d V (latched down?)",
                        coin_fire_what_name(f->what), v10(f->hv_before_mv));
         }
         break;
