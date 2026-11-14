@@ -9296,7 +9296,32 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "#safety-first-high-voltage\" target=\"_blank\" rel=\"noopener\">safety notes</a> first.</span></p>"
         "%s"
         "<p id=\"cblive\" class=\"hint\">Now: &hellip;</p>"
+        "<details class=\"hint-detail\"><summary><b>Check the 3.3 V and ground wires first</b> "
+        "(the cause of most odd behaviour)</summary>"
+        "<p class=\"hint\">U1 and U4 run from <b>VIO</b>, the 3.3 V on pin 4 of the cable, and share its "
+        "ground. A marginal VIO or GND wire still lets them answer on I2C, so a good Check in step 1 "
+        "proves nothing. Measure <b>VIO to GND at the coin board's J6 (or J1) pins 4 and 1</b> while the HV "
+        "test runs: it should stay above 3.0 V and within 0.1 V of the main board's J11 pins 4 and 1. "
+        "With the board unpowered, each of the five wires should read under 1 &Omega; end to end.</p>"
+        "<table class=\"table\"><tr><th>What you see</th><th>Likely cause</th></tr>"
+        "<tr><td>The log keeps saying \"coin board stopped answering\" then \"answering\"; the I2C error "
+        "count climbs</td><td>VIO or GND open or intermittent at a crimp or the JST</td></tr>"
+        "<tr><td>\"The coin board lost power\" or \"lost its settings\" when K1 clicks (Return) or when "
+        "stage 1 starts</td><td>The supply sags under load: a thin or poorly crimped VIO, GND or 5 V wire, "
+        "or a weak 3.3 V source on the main board</td></tr>"
+        "<tr><td>The EN_HV LED blinks and goes out, and the HV test ends early</td><td>U1 reset, "
+        "for the same reason</td></tr>"
+        "<tr><td>The rail reads about 14 V when your meter says 19-20 V, and HV reads high (about 1.7 "
+        "times)</td><td>U4 is running below its 2.0 V minimum, so its readings are wrong: VIO at U4 "
+        "is too low</td></tr>"
+        "<tr><td>VIO measures 0 V at the far end of the JST, but 3.3 V at the main board</td><td>A bad "
+        "crimp or a pin not seated in the housing: re-crimp and tug each wire</td></tr>"
+        "<tr><td>VIO is low (under about 3.0 V) even at the main board</td><td>The module's own 3.3 V "
+        "regulator is the limit: a clone module's is smaller than the DevKitC-1's</td></tr></table></details>"
         "<table class=\"table bring\"><tr><th>Step</th><th>Do this</th><th>Result</th></tr>"
+        "<tr><td>0. 3.3 V and ground</td><td>Nothing to do: the card watches the I2C error count while it "
+        "is open. Run the other steps with it open, and measure VIO as above during step 4.</td>"
+        "<td id=\"cbr0\">-</td></tr>"
         "<tr><td>1. On the bus</td><td>Connect the cable (J11 to the coin board's J6 or J1). "
         "<button type=\"button\" id=\"cbprobe\">Check</button></td><td id=\"cbr1\">"
         "<span class=\"chip\">not checked</span></td></tr>"
@@ -9350,12 +9375,18 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "document.querySelectorAll('#cbbring .cbt').forEach(function(b){b.onclick=function(){"
         "if(!confirm('The board makes high voltage for this. Keep clear of C1 and the relay wiring. Go on?'))return;"
         "post('/coinboard_test','what='+b.dataset.w);};});"
-        "var lastHv=-1,fall=0;"
+        "var lastHv=-1,fall=0,e0=null;"
         "function tick(){if(document.hidden)return;fetch('/api/payphone').then(function(r){return r.json();})"
         ".then(function(j){var d=j.board;if(!d)return;"
+        "if(!d.enabled)$('cbr0').innerHTML=chip('','not enabled');else if(!d.io_ok)$('cbr0').innerHTML=chip('fail','not answering')+'<br>Check VIO, GND and 5 V at the JST first.';"
         "if(!d.enabled||!d.io_ok){['cbr2','cbr3','cbr4','cbr5','cbr6'].forEach(function(i){"
         "$(i).innerHTML=chip('',d.enabled?'board not answering':'not enabled');});return;}"
         "var idle=d.state=='idle';"
+        "if(e0===null)e0=d.bus_errors;"
+        "var de=d.bus_errors-e0,tot=' (total '+d.bus_errors+', chip resets '+d.chip_resets+')';"
+        "$('cbr0').innerHTML=!d.io_ok?chip('fail','not answering')+'<br>Check VIO, GND and 5 V at the JST first.':"
+        "de>0?chip('warn',de+' I2C errors since you opened this page')+tot+'<br>Check the VIO and GND wires at the JST first.':"
+        "chip('pass','no I2C errors since you opened this page')+tot;"
         "$('cblive').innerHTML='Now: stage 1 (20 V rail) <b>'+V(d.rail_mv)+'</b>, stage 2 (HV on C1) <b>'+V(d.hv_mv)+'</b>, coil '+(d.i_ma<0?'-':d.i_ma+' mA')+', relay '+d.state+(d.adc_ok?'':' (U4 not answering: nothing measured)');"
         "if(!d.adc_ok)$('cbr2').innerHTML=chip('warn','no ADC');"
         "else if(!idle)$('cbr2').innerHTML=chip('','busy: '+d.state);"
@@ -9496,6 +9527,26 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
         "converted for home use don't send them any more; drop a coin and watch the log. "
         "Tones it hears but can't place show in the log as not recognized.</p></div>",
         c.tone_detect ? " checked" : "");
+
+    /* What happens to the coins */
+    off = appendf(buf, cap, off,
+        "<div class=\"card\"><h2>What happens to the coins</h2>"
+        "<form method=\"POST\" action=\"/payphone_set\" class=\"settings-form\">"
+        "<input type=\"hidden\" name=\"section\" value=\"coins\">"
+        "<label>Coins dropped during a pickup <select name=\"coin_mode\">"
+        "<option value=\"0\"%s>are collected when the call is answered</option>"
+        "<option value=\"1\"%s>are held until the handset goes down</option>"
+        "<option value=\"2\"%s>are collected as each one drops</option></select></label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
+        "</form>"
+        "<p class=\"hint\"><b>Answered</b> means a call this phone placed was picked up. When the handset "
+        "goes down, held coins are collected if a call was answered and returned if not. A coin dropped "
+        "with the handset down is always returned at once. Whether the coin board really fires its relay "
+        "is the \"Fire the coin relay by itself\" box on the Coin board card: with that off, this only "
+        "decides what the log says.</p></div>",
+        c.coin_mode == PAYPHONE_COINS_ON_ANSWER ? " selected" : "",
+        c.coin_mode == PAYPHONE_COINS_AT_HANGUP ? " selected" : "",
+        c.coin_mode == PAYPHONE_COINS_IMMEDIATE ? " selected" : "");
 
     /* Coin board */
     {
@@ -9654,7 +9705,7 @@ static esp_err_t payphone_enable_handler(httpd_req_t *req)
     return redirect_to(req, "/settings?tab=payphone");
 }
 
-/* One card's form at a time (section=req|msg|tones), so a card's unticked
+/* One card's form at a time (section=req|msg|tones|coins), so a card's unticked
  * boxes don't clear the other cards' settings. */
 static esp_err_t payphone_set_handler(httpd_req_t *req)
 {
@@ -9686,6 +9737,10 @@ static esp_err_t payphone_set_handler(httpd_req_t *req)
         }
     } else if (!strcmp(sec, "tones")) {
         c.tone_detect = PP_BOX("tone_detect");
+    } else if (!strcmp(sec, "coins")) {
+        v[0] = '\0'; form_field(body, "coin_mode", v, sizeof(v));
+        int m = atoi(v);
+        c.coin_mode = (uint8_t)(m >= PAYPHONE_COINS_ON_ANSWER && m <= PAYPHONE_COINS_IMMEDIATE ? m : PAYPHONE_COINS_ON_ANSWER);
     }
 #undef PP_BOX
     payphone_cfg_set(&c);

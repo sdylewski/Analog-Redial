@@ -686,6 +686,11 @@ static void on_coin(int line, int cents, payphone_src_t src)
         if (src == PAYPHONE_SRC_BOARD) payphone_relay(line, PAYPHONE_RETURN, cents, "handset down");
         return;
     }
+    /* "Collect each coin as it drops": nothing is held for later. */
+    if (c.coin_mode == PAYPHONE_COINS_IMMEDIATE && s_line[line].hopper_cents >= cents) {
+        s_line[line].hopper_cents -= cents;
+        payphone_relay(line, PAYPHONE_COLLECT, cents, "collected as it dropped");
+    }
 
     const char *clip = coin_clip_for(&c, cents);
     if (st == TEL_COIN_WAIT) {
@@ -2357,9 +2362,11 @@ static void fsm_task(void *arg)
             if (ts == TEL_INCALL && ts != s_line[line].tick_state &&
                 (s_line[line].tick_state == TEL_RINGBACK || s_line[line].tick_state == TEL_DIALING)) {
                 s_line[line].answered = true;
-                if (s_line[line].hopper_cents > 0)
+                /* "Hold until hang-up" keeps them: the hang-up below collects them. */
+                if (s_line[line].hopper_cents > 0 && payphone_cfg().coin_mode == PAYPHONE_COINS_ON_ANSWER) {
                     payphone_relay(line, PAYPHONE_COLLECT, s_line[line].hopper_cents, "call answered");
-                s_line[line].hopper_cents = 0;
+                    s_line[line].hopper_cents = 0;
+                }
             }
             s_line[line].tick_state = ts;
             timer_tick(line, now);

@@ -50,11 +50,20 @@ is silent while waiting for a coin.
 The firmware keeps the coins dropped since the handset was lifted (the phone's hopper
 holds them):
 
-- **A call this line placed is answered** (ringback or dialing, then connected): the
-  coins are collected. Coins dropped during the call are collected at hang-up.
-- **The handset goes down with coins and no answered call** (a busy line, no answer, only
-  the board's own free codes): they're returned.
-- **A coin from the coin board while the handset is down** is returned at once.
+The **What happens to the coins** card picks when they're collected:
+
+| Setting | A call this line placed is answered | The handset goes down |
+|---|---|---|
+| **Collected when the call is answered** (default, like a real payphone) | the coins are collected | coins dropped during the call are collected; with no answered call, they're returned |
+| **Held until the handset goes down** | nothing yet | collected if a call was answered, otherwise returned |
+| **Collected as each one drops** | nothing to do: each coin was collected as it dropped | nothing to do |
+
+- A call is "answered" when ringback or dialing turns into a connected call. A busy line,
+  no answer, or only the board's own free codes don't count.
+- **A coin from the coin board while the handset is down** is returned at once, in every mode.
+- Whether the coin board really fires its relay for these is the coin board card's
+  "Fire the coin relay by itself" box (off by default); with it off the log still shows what
+  would have happened.
 
 Each one goes in the log ("25 c collected: call answered"), with "no coin board on
 this line" when there's nothing to fire, so the logic can be watched with the

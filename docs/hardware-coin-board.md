@@ -239,6 +239,9 @@ short ones from J2 or J11 to the relay.
 - **Use 24 AWG or thicker** for 5 V and GND: charging C1 draws about 1 A peaks.
 - If the main board's audio codec loses its settings when the cable is touched, the cable is
   loading the bus: an I²C buffer (TCA4307 or PCA9517 class) at the main-board end fixes that.
+- **Crimps are the first thing to suspect.** U1 and U4 run from VIO (pin 4) and share the cable's
+  ground, and a marginal VIO or GND wire still lets them answer on I²C. Check each of the five
+  wires end to end (under 1 Ω with the board unpowered), and tug each pin in its housing.
 
 ## 8. Ordering and building
 
@@ -284,6 +287,22 @@ Suggested first power-up, one step at a time:
 4. A 100 Ω 5 W resistor (or a 12-24 V coil) on J11: Collect and Return should read a current.
 5. Fit J14 (52 V) and the coin relay: HV on, then Collect and Return. Adjust the pulse length
    if the relay doesn't move reliably.
+
+### If it is flaky: check VIO and ground first
+
+U1 and U4 need **VIO to stay above 3.0 V** (U4's own minimum is 2.0 V) with a clean ground. Measure
+VIO to GND at the coin board's J6 (or J1) pins 4 and 1 while the HV test runs, and compare it with the
+main board's J11 pins 4 and 1: they should agree within 0.1 V. The bring-up card's step 0 counts I²C
+errors while the page is open.
+
+| What you see | Likely cause |
+|---|---|
+| The log keeps showing "coin board stopped answering" then "answering"; the I²C error count climbs | VIO or GND open or intermittent at a crimp or the connector |
+| "The coin board lost power" or "lost its settings" when K1 clicks (Return) or stage 1 starts | the supply sags under load: a thin or poorly crimped VIO, GND or 5 V wire, or a weak 3.3 V source on the main board |
+| The EN_HV LED blinks and goes out; the HV test ends early | U1 reset, for the same reason |
+| The rail reads about 14 V when a meter says 19-20 V, and HV reads high (about 1.7 times) | U4 is below its 2.0 V minimum, so its readings are wrong |
+| VIO is 0 V at the coin board but 3.3 V at the main board | a bad crimp, or a pin not seated in the housing |
+| VIO is under about 3.0 V even at the main board | the module's own 3.3 V regulator is the limit; a clone module's is smaller than the DevKitC-1's |
 
 ## See also
 

@@ -20,6 +20,7 @@ typedef struct {
     uint8_t        version;
     payphone_cfg_t cfg;
 } stored_cfg_t;
+_Static_assert(sizeof(payphone_cfg_t) == 106, "payphone_cfg_t grew: an older saved blob would no longer load");
 
 static const payphone_cfg_t DEFAULTS = {
     .enabled = false,
@@ -71,6 +72,7 @@ void payphone_init(void)
         nvs_close(h);
     }
     for (int i = 0; i < PAYPHONE_COINS; i++) s_cfg.coin_clip[i][PAYPHONE_CLIP_MAX - 1] = '\0';
+    if (s_cfg.coin_mode > PAYPHONE_COINS_IMMEDIATE) s_cfg.coin_mode = PAYPHONE_COINS_ON_ANSWER;
     ESP_LOGI(TAG, "payphone features %s", s_cfg.enabled ? "on" : "off");
 }
 
@@ -90,6 +92,7 @@ esp_err_t payphone_cfg_set(const payphone_cfg_t *cfg)
     if (st.cfg.repeat_s < 2) st.cfg.repeat_s = 2;
     if (st.cfg.repeat_s > 60) st.cfg.repeat_s = 60;
     for (int i = 0; i < PAYPHONE_COINS; i++) st.cfg.coin_clip[i][PAYPHONE_CLIP_MAX - 1] = '\0';
+    if (st.cfg.coin_mode > PAYPHONE_COINS_IMMEDIATE) st.cfg.coin_mode = PAYPHONE_COINS_ON_ANSWER;
     lock();
     s_cfg = st.cfg;
     unlock();

@@ -10,7 +10,8 @@
  * Collect and return: telephony.c keeps the coins dropped since the handset
  * was lifted (the phone's hopper holds them) and calls payphone_relay():
  * collect when a call it placed is answered, return when the handset goes
- * down without one. The coin board, if one is set up, fires its relay.
+ * down without one (or, by payphone_cfg_t.coin_mode: hold the coins until hang-up,
+ * or collect each as it drops). The coin board, if one is set up, fires its relay.
  */
 #pragma once
 
@@ -44,7 +45,20 @@ typedef struct {
     uint16_t price_cents;    /* what a call costs */
     uint8_t  repeat_s;       /* seconds between "please deposit" messages */
     char     coin_clip[PAYPHONE_COINS][PAYPHONE_CLIP_MAX]; /* per coin; "" = PAYPHONE_THANKS_CLIP */
+    /* payphone_coin_mode_t. Last, and in what was padding, so a blob saved before
+     * it existed (the same size) still loads, with 0 = the old behaviour. */
+    uint8_t  coin_mode;
 } payphone_cfg_t;
+
+/* What happens to the coins dropped during one pickup (telephony.c). A coin
+ * dropped with the handset down is always returned at once. */
+typedef enum {
+    PAYPHONE_COINS_ON_ANSWER = 0,  /* collected when a call this line placed is answered;
+                                    * returned at hang-up if none was */
+    PAYPHONE_COINS_AT_HANGUP = 1,  /* held until the handset goes down: collected if a call
+                                    * was answered, else returned */
+    PAYPHONE_COINS_IMMEDIATE = 2,  /* collected as each coin drops */
+} payphone_coin_mode_t;
 
 typedef enum {
     PAYPHONE_SRC_TONE = 0,   /* coin tones on the line */

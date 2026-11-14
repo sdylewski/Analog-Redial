@@ -286,6 +286,8 @@ extra hardware:
   instead of dial tone until the coins add up to the price of a call. Calls need
   the credit; the board's own dial codes can stay free.
 - **A message after a coin**, one for each coin or one for all.
+- **What happens to the coins:** collected when the call is answered, held until the
+  handset goes down, or collected as each one drops.
 - **A coin count** with a reset, simulate buttons for testing, a log of every
   coin, and a `coin` event for Home Assistant.
 
