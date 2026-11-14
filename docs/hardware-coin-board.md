@@ -297,7 +297,9 @@ kind, how long the switch stays closed (minimum, average and maximum), how the c
 of the coins the board would count. A closure under about 3 ms is "too short" (the normal polling is every
 3 ms); a coin that closes the wrong input means two wires are swapped (check the plug is the right way
 round: J3's green wire is pin 4); nothing on any input means it never reached the board (a wire or crimp, or
-a sensor that isn't a plain contact).
+a sensor that isn't a plain contact). A plug forced in backwards gives a telltale pattern: the nickel still counts but the dime and
+quarter don't. On the GTE / Quadrum phone the three switches stay closed for 40-95 ms a coin, far longer than
+the board needs.
 
 ### If it is flaky: check VIO and ground first
 

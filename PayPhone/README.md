@@ -53,7 +53,7 @@ in the last column where the numbers came from.
 
 | Phone | Sensor | Cable | Wires | Signal | Coins | Coin tones |
 |---|---|---|---|---|---|---|
-| GTE / Quadrum 120B style | passive coin switches (measured) | 4-wire, Molex KK 396 (coin board J3) | green common; white quarter, red dime, blue nickel | contact to common, closes briefly per coin | 5, 10, 25 cents | not checked **[verify]** |
+| GTE / Quadrum 120B style | passive coin switches (measured) | 4-wire, Molex KK 396 (coin board J3) | green common; white quarter, red dime, blue nickel | contact to common; closes for 40-95 ms per coin (measured with the coin switch capture: nickel 44-95 ms, dime 44-51 ms, quarter about 40 ms, with up to 3 ms of chatter at first contact) | 5, 10, 25 cents | not checked **[verify]** |
 
 ### 3. Coin relay
 
