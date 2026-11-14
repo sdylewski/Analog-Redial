@@ -260,6 +260,17 @@ int main(void)
         printf("  %s\n", f.msg);
     }
 
+    /* The HV test holds its full time even with a dead rail: it's for a meter. */
+    {
+        plant_t p = board(19000, 0);
+        p.rail_dead = true;
+        watch_t w = { 0 };
+        coin_fire_init(&f);
+        coin_fire_request(&f, CF_HV_TEST);
+        run(&f, &cfg, &p, &w, CF_HVTEST_MS + 2000);
+        assert(f.result == CF_RES_HV_DONE && w.fire_pulses == 0 && w.en_ms >= CF_HVTEST_MS);
+    }
+
     /* The relay's contact shorts the coil at 60 V: FIRE drops after about
      * CF_OC_MS, well before the pulse ends. */
     {
