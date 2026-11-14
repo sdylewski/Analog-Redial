@@ -35,6 +35,7 @@ extern "C" {
 #define CF_HV_MIN_MV        15000   /* below this nothing is worth firing */
 #define CF_RAIL_CHECK_MS    1000    /* the 20 V rail must be up by then */
 #define CF_RAIL_MIN_MV      15000
+#define CF_RAIL_LOW_MS      300     /* ...and stays below it this long: one dipped sample isn't a fault */
 #define CF_PULSE_MIN_MS     20
 #define CF_PULSE_MAX_MS     1000    /* the doc's cap on FIRE */
 #define CF_PULSE_DEFAULT_MS 100
@@ -105,6 +106,9 @@ typedef struct {
     /* FIRE and DRAIN */
     int64_t     oc_since;       /* -1: not over */
     int         hv_before_mv, hv_min_mv, peak_ma;
+    /* CHARGE: the rail below CF_RAIL_MIN_MV since (-1: it isn't), and its lowest after CF_RAIL_CHECK_MS */
+    int64_t     rail_low_since;
+    int         rail_min_mv;
     bool        fault;
     /* The last one finished */
     cf_result_t result;

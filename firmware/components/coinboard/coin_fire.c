@@ -49,6 +49,8 @@ static void start(coin_fire_t *f, cf_what_t what, int64_t now)
     f->peak_ma = 0;
     f->hv_before_mv = f->hv_min_mv = 0;
     f->oc_since = -1;
+    f->rail_low_since = -1;
+    f->rail_min_mv = -1;
     go(f, CF_POL, now);
 }
 
@@ -137,15 +139,22 @@ void coin_fire_step(coin_fire_t *f, const cf_cfg_t *cfg, const cf_meas_t *m, int
             }
             break;
         }
-        if (in_state >= CF_RAIL_CHECK_MS && m->rail_mv < CF_RAIL_MIN_MV) {
-            finish(f, CF_RES_FAULT, now, "%s: the 20 V rail is at %d V (stage 1 not running?)",
-                   coin_fire_what_name(f->what), v10(m->rail_mv));
-            break;
+        if (in_state >= CF_RAIL_CHECK_MS) {
+            if (f->rail_min_mv < 0 || m->rail_mv < f->rail_min_mv) f->rail_min_mv = m->rail_mv;
+            if (m->rail_mv >= CF_RAIL_MIN_MV) {
+                f->rail_low_since = -1;
+            } else if (f->rail_low_since < 0) {
+                f->rail_low_since = now;
+            } else if (now - f->rail_low_since >= CF_RAIL_LOW_MS) {
+                finish(f, CF_RES_FAULT, now, "%s: the 20 V rail stayed below %d V (now %d V; stage 1 not running?)",
+                       coin_fire_what_name(f->what), CF_RAIL_MIN_MV / 1000, v10(m->rail_mv));
+                break;
+            }
         }
         if (f->what == CF_HV_TEST) {
             if (in_state >= CF_HVTEST_MS)
-                finish(f, CF_RES_HV_DONE, now, "HV test: %d V (20 V rail %d V)",
-                       v10(m->hv_mv), v10(m->rail_mv));
+                finish(f, CF_RES_HV_DONE, now, "HV test: %d V (20 V rail %d V, lowest %d V)",
+                       v10(m->hv_mv), v10(m->rail_mv), v10(f->rail_min_mv));
             break;
         }
         {

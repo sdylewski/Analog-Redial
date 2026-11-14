@@ -21,6 +21,8 @@ typedef struct {
     bool q3_short;      /* current flows whatever FIRE is */
     bool coil_short_at_fire;  /* the relay's own contact shorts the coil */
     bool hv_stuck_on;   /* the supply runs whatever EN_HV says (Q1 shorted) */
+    int  dip_every;     /* >0: the rail reads 14 V for 2 ms this often (ripple caught by the ADC) */
+    int  t;
     /* state */
     double rail, hv, i;
 } plant_t;
@@ -55,6 +57,7 @@ static void plant_step(plant_t *p, const cf_out_t *o)
 static cf_meas_t meas(const plant_t *p)
 {
     cf_meas_t m = { .adc = p->adc, .rail_mv = (int)p->rail, .hv_mv = (int)p->hv, .i_ma = (int)p->i };
+    if (p->dip_every && p->t % p->dip_every < 2 && m.rail_mv > 14000) m.rail_mv = 14000;
     /* AIN2 stops at VIO: 3.3 V on 10 ohm. */
     if (m.i_ma > 330) m.i_ma = 330;
     return m;
@@ -93,6 +96,7 @@ static void run(coin_fire_t *f, const cf_cfg_t *c, plant_t *p, watch_t *w, int m
         coin_fire_step(f, c, &m, now);
         check(w, &f->out, p);
         plant_step(p, &f->out);
+        p->t++;
         now++;
     }
 }
@@ -238,7 +242,21 @@ int main(void)
         run(&f, &cfg, &p, &w, 3000);
         rules_ok(&w);
         assert(w.fire_pulses == 0 && f.result == CF_RES_FAULT && !f.out.en_hv);
-        assert(w.en_ms <= CF_RAIL_CHECK_MS + 5);
+        assert(w.en_ms <= CF_RAIL_CHECK_MS + CF_RAIL_LOW_MS + 5);
+        printf("  %s\n", f.msg);
+    }
+
+    /* The rail dips for a sample now and then (what the first board's ADC
+     * caught): the HV test still runs its full time. */
+    {
+        plant_t p = board(19000, 0);
+        p.dip_every = 250;
+        watch_t w = { 0 };
+        coin_fire_init(&f);
+        coin_fire_request(&f, CF_HV_TEST);
+        run(&f, &cfg, &p, &w, CF_HVTEST_MS + 2000);
+        rules_ok(&w);
+        assert(f.result == CF_RES_HV_DONE && w.fire_pulses == 0);
         printf("  %s\n", f.msg);
     }
 
