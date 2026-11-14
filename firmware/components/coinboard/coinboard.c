@@ -60,7 +60,7 @@ typedef struct {
 static const coinboard_cfg_t DEFAULTS = {
     .enabled = false,
     .line = 0,
-    .auto_relay = true,
+    .auto_relay = false,   /* off: a coin switch closed with the handset down would fire the relay at full HV */
     .swap = false,
     .pulse_ms = CF_PULSE_DEFAULT_MS,
     .coin4_cents = 0,

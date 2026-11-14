@@ -50,7 +50,7 @@ extern "C" {
 typedef struct {
     bool     enabled;      /* a coin board is connected */
     uint8_t  line;         /* the phone line it's in */
-    bool     auto_relay;   /* collect when a call is answered, return on hang-up */
+    bool     auto_relay;   /* collect when a call is answered, return on hang-up (default off: bench testing) */
     bool     swap;         /* collect is POL high: the relay's wires the other way round */
     uint16_t pulse_ms;     /* FIRE pulse, CF_PULSE_MIN_MS-CF_PULSE_MAX_MS */
     uint8_t  coin4_cents;  /* coin 4's value; 0 = not a coin (logged only) */

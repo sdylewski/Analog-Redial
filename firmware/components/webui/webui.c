@@ -9464,10 +9464,21 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
     off = appendf(buf, cap, off,
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
         "</form>"
-        "<p class=\"hint\">A coin with no clip of its own plays the message below. A message "
-        "plays while the line is waiting for a coin or on dial tone, not during dialing or a "
-        "call.</p>");
-    off = append_prompt_field(buf, cap, off, PAYPHONE_THANKS_CLIP, "Thank you.");
+        "<p class=\"hint\">A coin with no clip of its own plays the general message at the bottom. "
+        "A message plays only while the handset is up and the line is waiting for a coin or on dial "
+        "tone, not during dialing or a call, so lift the handset to hear it. Edit what each clip "
+        "says below, then generate the audio.</p>");
+    static const struct { const char *clip, *text, *label; } coin_say[] = {
+        { PAYPHONE_NICKEL_CLIP,  "Feed me.",   "5 c (nickel): " },
+        { PAYPHONE_DIME_CLIP,    "Yum yum.",   "10 c (dime): " },
+        { PAYPHONE_QUARTER_CLIP, "Thank you.", "25 c (quarter): " },
+    };
+    for (size_t k = 0; k < sizeof(coin_say) / sizeof(coin_say[0]); k++) {
+        off = appendf(buf, cap, off, "<h3>%s<code>%s</code></h3>", coin_say[k].label, coin_say[k].clip);
+        off = append_prompt_field_rows(buf, cap, off, coin_say[k].clip, coin_say[k].text, 2);
+    }
+    off = appendf(buf, cap, off, "<h3>Any other coin: <code>" PAYPHONE_THANKS_CLIP "</code></h3>");
+    off = append_prompt_field_rows(buf, cap, off, PAYPHONE_THANKS_CLIP, "Thank you.", 2);
     off = appendf(buf, cap, off, "</div>");
 
     /* Coin tones */
@@ -9519,8 +9530,11 @@ static int append_payphone_tab(char *buf, size_t cap, int off)
         }
         off = appendf(buf, cap, off,
             "<label><input type=\"checkbox\" name=\"auto\" value=\"1\"%s> "
-            "Collect the coins when a call is answered, return them when the handset goes down "
-            "without one</label>"
+            "Fire the coin relay by itself: collect the coins when a call is answered, return them "
+            "when the handset goes down without one</label>"
+            "<p class=\"hint warn-text\">Leave this unticked for bench testing. With it on, a coin "
+            "switch closed while the handset is down returns the coin, which fires the relay at the "
+            "full high voltage. The test buttons below work either way.</p>"
             "<label><input type=\"checkbox\" name=\"swap\" value=\"1\"%s> "
             "Collect and return are the wrong way round (swap them)</label>"
             "<label>Relay pulse, ms <input type=\"number\" name=\"pulse\" min=\"%d\" max=\"%d\" "

@@ -27,6 +27,10 @@ extern "C" {
 /* Spoken prompts (prompts.h), made from text like the operator message. */
 #define PAYPHONE_DEPOSIT_CLIP "coin_deposit.wav"   /* "Please deposit..." until there's credit */
 #define PAYPHONE_THANKS_CLIP  "coin_thanks.wav"    /* after a coin, unless that coin has its own clip */
+/* The default per-coin clips (set on a board that has never saved the Payphone settings). */
+#define PAYPHONE_NICKEL_CLIP  "coin_nickel.wav"    /* "Feed me." */
+#define PAYPHONE_DIME_CLIP    "coin_dime.wav"      /* "Yum yum." */
+#define PAYPHONE_QUARTER_CLIP "coin_quarter.wav"   /* "Thank you." */
 
 #define PAYPHONE_CLIP_MAX 32   /* matches STORAGE_MAX_NAME */
 #define PAYPHONE_COINS    3    /* 5, 10, 25 cents */

@@ -29,6 +29,7 @@ static const payphone_cfg_t DEFAULTS = {
     .coin_msg = false,
     .price_cents = 10,
     .repeat_s = 8,
+    .coin_clip = { PAYPHONE_NICKEL_CLIP, PAYPHONE_DIME_CLIP, PAYPHONE_QUARTER_CLIP },
 };
 
 static payphone_cfg_t     s_cfg;

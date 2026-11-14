@@ -23,7 +23,9 @@ is collected in [the payphone types](README.md#payphone-types).
   than the off-hook alert's delay (Settings → Phone), the line sounds the alert.
 - **Message after a coin.** Off by default. Each coin can play its own clip (any
   audio file on the board, picked by name), or the general message ("Thank you",
-  text editable). It plays while the line is waiting for a coin or on dial tone,
+  text editable). The defaults are a nickel "Feed me.", a dime "Yum yum." and a
+  quarter "Thank you."; each phrase is editable on the card, and
+  `firmware/bringup/gen_prompt.py --sync <host>` makes the audio. It plays while the line is waiting for a coin or on dial tone,
   never during dialing or a call.
 - **Coin tones.** Listens to the line for the tones a payphone's totalizer sends:
   1700 and 2200 Hz together, one 66 ms beep for a nickel, two for a dime, five 33 ms
@@ -61,7 +63,8 @@ simulate buttons on any board.
 ## The coin board (`firmware/components/coinboard/`)
 
 The **Coin board** card: "A coin board is connected", which line it's on, automatic
-collect and return, a swap for a relay wired the other way round, the FIRE pulse
+collect and return (**off by default**: with it on, a coin switch closed while the handset
+is down returns the coin and fires the relay at full HV, so leave it off on the bench), a swap for a relay wired the other way round, the FIRE pulse
 (100 ms by default, 20-1000 ms), and what coin 4 is worth (0: not a coin, only logged).
 With it set up, the card shows the board live: U1 and U4 answering, each coin switch,
 the 20 V rail, HV, the coil current, AIN3, and the relay's state. Test buttons
