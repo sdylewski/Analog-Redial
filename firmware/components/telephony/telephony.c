@@ -108,6 +108,7 @@ typedef struct {
     uint8_t   kind;     /* IN_REC_DONE: the rec_purpose_t it was started for */
 } in_evt_t;
 
+#define COIN_Q_MAX 4   /* coins whose clips wait behind the one playing */
 typedef struct {
     tel_state_t          state;
     dialplan_collector_t coll;
@@ -209,6 +210,14 @@ typedef struct {
     int                  hopper_cents;
     bool                 answered;
     tel_state_t          tick_state;
+    /* A coin's clip is playing, and the coins that came in meanwhile (their payphone_coin_index) wait
+     * to be said right after it. coin_play_until_us bounds a flag left stale by a cut-off clip;
+     * coin_tail_until_us is the quiet after a coin clip, where the next coin is still said at once. */
+    bool                 coin_playing;
+    int64_t              coin_play_until_us;
+    int64_t              coin_tail_until_us;
+    int8_t               coin_q[COIN_Q_MAX];
+    int                  coin_q_n;
 } line_t;
 
 static line_t        s_line[NLINES];
@@ -409,6 +418,9 @@ static void enter_idle(int line)
                        ans ? "hung up after an answered call" : "hung up, no call answered");
     }
     s_line[line].hopper_cents = 0;
+    s_line[line].coin_playing = false;
+    s_line[line].coin_q_n = 0;
+    s_line[line].coin_tail_until_us = 0;
     s_line[line].answered = false;
     s_line[line].credit_cents = 0;
     s_line[line].coin_next_us = 0;
@@ -663,6 +675,43 @@ static const char *coin_clip_for(const payphone_cfg_t *c, int cents)
 
 static void enter_dialtone(int line);
 static esp_err_t play_clip_any_ext(int line, const char *name);
+static esp_err_t play_clip_any_ext_ex(int line, const char *name, bool now);
+
+/* A coin's clip starts at once (no lead-in pause: nobody wants to wait while feeding coins), and
+ * the line remembers it is playing so the next coin's clip can queue behind it. */
+static esp_err_t coin_clip_start(int line, const char *clip)
+{
+    esp_err_t err = play_clip_any_ext_ex(line, clip, true);
+    if (err == ESP_OK) {
+        s_line[line].coin_playing = true;
+        s_line[line].coin_play_until_us = esp_timer_get_time() + 6000000;
+        s_line[line].coin_tail_until_us = 0;
+    }
+    return err;
+}
+
+static bool coin_clip_busy(int line)
+{
+    if (!s_line[line].coin_playing) return false;
+    if (esp_timer_get_time() < s_line[line].coin_play_until_us) return true;
+    s_line[line].coin_playing = false;      /* cut off without a done callback: forget it */
+    s_line[line].coin_q_n = 0;
+    return false;
+}
+
+/* Once one coin's clip ends, the next waiting coin's starts straight away. */
+static void coin_q_play_next(int line)
+{
+    while (s_line[line].coin_q_n > 0) {
+        int idx = s_line[line].coin_q[0];
+        for (int k = 1; k < s_line[line].coin_q_n; k++) s_line[line].coin_q[k - 1] = s_line[line].coin_q[k];
+        s_line[line].coin_q_n--;
+        payphone_cfg_t c = payphone_cfg();
+        const char *clip = (idx >= 0 && idx < PAYPHONE_COINS && c.coin_clip[idx][0]) ? c.coin_clip[idx]
+                                                                                    : PAYPHONE_THANKS_CLIP;
+        if (coin_clip_start(line, clip) == ESP_OK) return;
+    }
+}
 
 static void on_coin(int line, int cents, payphone_src_t src)
 {
@@ -693,11 +742,20 @@ static void on_coin(int line, int cents, payphone_src_t src)
     }
 
     const char *clip = coin_clip_for(&c, cents);
+    /* Another coin's clip is playing: this one's is said right after it. */
+    if (clip[0] && coin_clip_busy(line)) {
+        if (s_line[line].coin_q_n < COIN_Q_MAX)
+            s_line[line].coin_q[s_line[line].coin_q_n++] = (int8_t)payphone_coin_index(cents);
+        return;
+    }
+    s_line[line].coin_q_n = 0;
+    /* In the quiet after a coin's clip, before dial tone returns, the next coin is said at once too. */
+    bool in_tail = st == TEL_PLAYING && esp_timer_get_time() < s_line[line].coin_tail_until_us;
     if (st == TEL_COIN_WAIT) {
         bool paid = !coin_needed(line);
         if (!paid && !clip[0]) return;   /* keep asking */
         coin_wait_end(line);
-        if (clip[0] && play_clip_any_ext(line, clip) == ESP_OK) {
+        if (clip[0] && coin_clip_start(line, clip) == ESP_OK) {
             /* Paid: TEL_PLAYING goes on to dial tone when the clip ends.
              * Short: back to asking for the rest when it ends. */
             if (paid) s_line[line].state = TEL_PLAYING;
@@ -705,10 +763,11 @@ static void on_coin(int line, int cents, payphone_src_t src)
         }
         if (paid) enter_dialtone(line);
         else coin_prompt(line);
-    } else if (st == TEL_DIALTONE && clip[0]) {
+    } else if ((st == TEL_DIALTONE || in_tail) && clip[0]) {
+        s_line[line].tone_return_us = 0;     /* cancel the dial-tone return pending after the last clip */
         audio_tx_silence(line);
         s_line[line].seq = NULL;
-        if (play_clip_any_ext(line, clip) == ESP_OK) s_line[line].state = TEL_PLAYING;
+        if (coin_clip_start(line, clip) == ESP_OK) s_line[line].state = TEL_PLAYING;
         else enter_dialtone(line);
     }
 }
@@ -1169,9 +1228,10 @@ static void auto_answer(int line)
  * dialup.wav: a board's saved dial codes keep the old name, and only a USB
  * flash rewrites the bundled audio (an over-the-air update doesn't), so
  * either name can be the one present. */
-static esp_err_t play_clip_any_ext(int line, const char *name)
+static esp_err_t play_clip_any_ext_ex(int line, const char *name, bool now)
 {
-    esp_err_t err = player_play(line, name, clip_done_cb, NULL);
+    esp_err_t (*play)(int, const char *, player_done_cb_t, void *) = now ? player_play_now : player_play;
+    esp_err_t err = play(line, name, clip_done_cb, NULL);
     size_t n = strlen(name);
     if (err != ESP_ERR_NOT_FOUND || n < 5 || n >= STORAGE_MAX_NAME) return err;
     char alt[STORAGE_MAX_NAME];
@@ -1179,8 +1239,10 @@ static esp_err_t play_clip_any_ext(int line, const char *name)
     if (!strcasecmp(alt + n - 4, ".mp3"))      memcpy(alt + n - 4, ".wav", 4);
     else if (!strcasecmp(alt + n - 4, ".wav")) memcpy(alt + n - 4, ".mp3", 4);
     else return err;
-    return player_play(line, alt, clip_done_cb, NULL);
+    return play(line, alt, clip_done_cb, NULL);
 }
+
+static esp_err_t play_clip_any_ext(int line, const char *name) { return play_clip_any_ext_ex(line, name, false); }
 
 /* ---- spoken digits ---- */
 
@@ -2266,6 +2328,16 @@ static void fsm_task(void *arg)
                     }
                     break;
                 case IN_CLIP_DONE:
+                    /* A coin's clip ended: the next waiting coin's starts at once; with none waiting,
+                     * the quiet before dial tone returns is also a time a new coin is said at once. */
+                    if (s_line[e.line].coin_playing) {
+                        s_line[e.line].coin_playing = false;
+                        if (s_line[e.line].coin_q_n > 0 && line_offhook(e.line)) {
+                            coin_q_play_next(e.line);
+                            if (s_line[e.line].coin_playing) break;
+                        }
+                        s_line[e.line].coin_tail_until_us = esp_timer_get_time() + (int64_t)CLIP_TAIL_MS * 1000;
+                    }
                     /* Ignore if we've already moved on (e.g. hung up mid-clip --
                      * end_call() already handled state via player_stop()). */
                     if (s_line[e.line].state == TEL_COIN_WAIT) {

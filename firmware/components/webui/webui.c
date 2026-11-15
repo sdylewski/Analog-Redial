@@ -9299,6 +9299,11 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "<a href=\"https://github.com/sdylewski/Analog-Redial/blob/main/docs/hardware-coin-board.md"
         "#safety-first-high-voltage\" target=\"_blank\" rel=\"noopener\">safety notes</a> first.</span></p>"
         "%s"
+        "<label style=\"display:block;margin:10px 0\"><input type=\"checkbox\" id=\"cbbench\"%s> <b>Bench test mode</b>: "
+        "ignore the normal phone settings while testing. The relay never fires by itself, whatever a coin or a call "
+        "does, so a shorted coin switch or a lifted handset can't fire it. The test buttons below always work.</label>"
+        "<p class=\"hint\">Turn it off when the phone is ready to run for real: the relay then fires as set under "
+        "What happens to the coins (Settings pane).</p>"
         "<p id=\"cblive\" class=\"hint\">Now: &hellip;</p>"
         "<details style=\"margin:10px 0\"><summary><b>Check the 3.3 V and ground wires first</b> "
         "(the cause of most odd behaviour)</summary>"
@@ -9363,13 +9368,14 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "</table><div id=\"cbft\"></div></div>",
         b.enabled ? "" : "<p class=\"hint warn-text\">\"A coin board is connected\" isn't ticked "
         "on the Settings tab's Coin board card: only step 1 runs until it is.</p>",
-        CF_HVTEST_MS / 1000, (unsigned)b.pulse_ms);
+        b.auto_relay ? "" : " checked", CF_HVTEST_MS / 1000, (unsigned)b.pulse_ms);
     return appendf(buf, cap, off,
         "<script>(function(){var $=function(i){return document.getElementById(i);};"
         "function chip(c,t){return '<span class=\"chip '+c+'\">'+t+'</span>';}"
         "function V(mv){return mv<0?'-':(mv/1000).toFixed(1)+' V';}"
         "var post=function(u,b){return fetch(u,{method:'POST',redirect:'manual',"
         "headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b||''});};"
+        "$('cbbench').onchange=function(){post('/coinboard_bench','bench='+(this.checked?1:0));};"
         "$('cbprobe').onclick=function(){$('cbr1').innerHTML=chip('','checking');"
         "fetch('/api/coinboard_probe').then(function(r){return r.json();}).then(function(j){"
         "$('cbr1').innerHTML=chip(j.io?'pass':'fail','U1 0x39 '+(j.io?'answers':'missing'))+' '+"
@@ -9612,7 +9618,7 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
         "<p class=\"hint\"><b>Answered</b> means a call this phone placed was picked up. When the handset "
         "goes down, held coins are collected if a call was answered and returned if not. A coin dropped "
         "with the handset down is always returned at once. Whether the coin board really fires its relay "
-        "is the \"Fire the coin relay by itself\" box on the Coin board card: with that off, this only "
+        "is Bench test mode on the Bring-up pane: with that on, this only "
         "decides what the log says.</p></div>",
         c.coin_mode == PAYPHONE_COINS_ON_ANSWER ? " selected" : "",
         c.coin_mode == PAYPHONE_COINS_AT_HANGUP ? " selected" : "",
@@ -9650,12 +9656,6 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
             off = appendf(buf, cap, off, "<input type=\"hidden\" name=\"line\" value=\"0\">");
         }
         off = appendf(buf, cap, off,
-            "<label><input type=\"checkbox\" name=\"auto\" value=\"1\"%s> "
-            "Fire the coin relay by itself: collect the coins when a call is answered, return them "
-            "when the handset goes down without one</label>"
-            "<p class=\"hint warn-text\">Leave this unticked for bench testing. With it on, a coin "
-            "switch closed while the handset is down returns the coin, which fires the relay at the "
-            "full high voltage. The test buttons below work either way.</p>"
             "<label><input type=\"checkbox\" name=\"swap\" value=\"1\"%s> "
             "Collect and return are the wrong way round (swap them)</label>"
             "<label>Relay pulse, ms <input type=\"number\" name=\"pulse\" min=\"%d\" max=\"%d\" "
@@ -9664,8 +9664,13 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
             "<input type=\"number\" name=\"coin4\" min=\"0\" max=\"100\" value=\"%u\"></label>"
             "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
             "</form>",
-            b.auto_relay ? " checked" : "", b.swap ? " checked" : "",
+            b.swap ? " checked" : "",
             CF_PULSE_MIN_MS, CF_PULSE_MAX_MS, (unsigned)b.pulse_ms, (unsigned)b.coin4_cents);
+        off = appendf(buf, cap, off, b.auto_relay ?
+            "<p class=\"hint\">The relay fires by itself as set under What happens to the coins. "
+            "Bench test mode (Bring-up tab) overrides that while you test.</p>" :
+            "<p class=\"hint warn-text\"><b>Bench test mode is on</b> (Bring-up tab): the relay never fires by "
+            "itself, whatever coins or calls do. Turn it off there when the phone is ready to run for real.</p>");
         if (b.enabled)
             off = appendf(buf, cap, off,
                 "<p class=\"hint\">The live readings and the Collect, Return and HV test buttons are on the "
@@ -9840,7 +9845,6 @@ static esp_err_t coinboard_set_handler(httpd_req_t *req)
     coinboard_cfg_t c = coinboard_cfg();
 #define CB_FIELD(name) (v[0] = '\0', form_field(body, name, v, sizeof(v)), v)
     c.enabled = CB_FIELD("enabled")[0] == '1';
-    c.auto_relay = CB_FIELD("auto")[0] == '1';
     c.swap = CB_FIELD("swap")[0] == '1';
     if (CB_FIELD("line")[0]) c.line = (uint8_t)atoi(v);
     if (CB_FIELD("pulse")[0]) c.pulse_ms = (uint16_t)atoi(v);
@@ -9849,6 +9853,23 @@ static esp_err_t coinboard_set_handler(httpd_req_t *req)
     coinboard_cfg_set(&c);
     activity_log("Coin board %s", c.enabled ? "enabled" : "disabled");
     return redirect_to(req, "/settings?tab=payphone");
+}
+
+/* Bench test mode (Bring-up pane): the relay never fires by itself. Stored as !auto_relay. */
+static esp_err_t coinboard_bench_handler(httpd_req_t *req)
+{
+    char body[32], v[4] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "bench", v, sizeof(v));
+    coinboard_cfg_t c = coinboard_cfg();
+    c.auto_relay = v[0] != '1';
+    coinboard_cfg_set(&c);
+    activity_log("Coin board bench test mode %s", c.auto_relay ? "off: the relay fires as the coin settings say"
+                                                                : "on: the relay never fires by itself");
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_sendstr(req, "{}");
 }
 
 static esp_err_t coinboard_test_handler(httpd_req_t *req)
@@ -10123,6 +10144,7 @@ static esp_err_t payphone_json_handler(httpd_req_t *req)
             cJSON_AddItemToArray(ta, pt);
         }
         cJSON_AddNumberToObject(b, "trace_ms", COINBOARD_TRACE_MS);
+        cJSON_AddBoolToObject(b, "bench", !coinboard_cfg().auto_relay);
         {   /* The last fire's coil current: "t_100us:mA:hv_dv,..." (a string: 200 points don't fit a cJSON tree) */
             coinboard_ft_pt_t ft[COINBOARD_FT_MAX];
             int fp = 0, fw = -1, fn = coinboard_fire_trace(ft, COINBOARD_FT_MAX, &fp, &fw);
@@ -13315,6 +13337,7 @@ esp_err_t webui_start(void)
         { .uri = "/coinboard_test",         .method = HTTP_POST, .handler = coinboard_test_handler },
         { .uri = "/api/coinboard_probe",    .method = HTTP_GET,  .handler = coinboard_probe_handler },
         { .uri = "/coinboard_seen_clear",   .method = HTTP_POST, .handler = coinboard_seen_clear_handler },
+        { .uri = "/coinboard_bench",        .method = HTTP_POST, .handler = coinboard_bench_handler },
         { .uri = "/coin_capture",           .method = HTTP_POST, .handler = coin_capture_post_handler },
         { .uri = "/api/coin_capture",       .method = HTTP_GET,  .handler = coin_capture_json_handler },
         { .uri = "/api/auxpins",            .method = HTTP_GET,  .handler = auxpins_json_handler },

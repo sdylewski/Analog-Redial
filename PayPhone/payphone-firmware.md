@@ -21,7 +21,9 @@ is collected in [the payphone types](README.md#payphone-types).
   it and every code waits for a coin. Dialing a call without enough credit goes back
   to the message. Credit is cleared when the handset goes down. Left waiting longer
   than the off-hook alert's delay (Settings → Phone), the line sounds the alert.
-- **Message after a coin.** Off by default. Each coin can play its own clip (any
+- **Message after a coin.** Off by default. A coin's clip starts at once (no lead-in pause), and a coin
+  that arrives while one is playing is queued (up to four), so two quarters in a row say the phrase twice,
+  the second right after the first. Each coin can play its own clip (any
   audio file on the board, picked by name), or the general message ("Thank you",
   text editable). The defaults are a nickel "Feed me.", a dime "Yum yum." and a
   quarter "Thank you."; each phrase is editable on the card, and
@@ -61,9 +63,9 @@ The **What happens to the coins** card picks when they're collected:
 - A call is "answered" when ringback or dialing turns into a connected call. A busy line,
   no answer, or only the board's own free codes don't count.
 - **A coin from the coin board while the handset is down** is returned at once, in every mode.
-- Whether the coin board really fires its relay for these is the coin board card's
-  "Fire the coin relay by itself" box (off by default); with it off the log still shows what
-  would have happened.
+- Whether the coin board really fires its relay for these is **Bench test mode** on the Bring-up
+  pane (on for a board that has never saved it): while it is on, the relay never fires by itself,
+  but the log still shows what would have happened.
 
 Each one goes in the log ("25 c collected: call answered"), with "no coin board on
 this line" when there's nothing to fire, so the logic can be watched with the
@@ -71,10 +73,12 @@ simulate buttons on any board.
 
 ## The coin board (`firmware/components/coinboard/`)
 
-The **Coin board** card: "A coin board is connected", which line it's on, automatic
-collect and return (**off by default**: with it on, a coin switch closed while the handset
-is down returns the coin and fires the relay at full HV, so leave it off on the bench), a swap for a relay wired the other way round, the FIRE pulse
+The **Coin board** card: "A coin board is connected", which line it's on, a swap for a relay wired the
+other way round, the FIRE pulse
 (100 ms by default, 20-1000 ms), and what coin 4 is worth (0: not a coin, only logged).
+The **Bring-up** pane has **Bench test mode**, an override that ignores the normal phone settings while
+testing: the relay never fires by itself (a coin switch closed with the handset down would otherwise
+return the coin at full HV), and the test buttons always work. Turn it off when the phone is ready.
 With it set up, the card shows the board live: U1 and U4 answering, each coin switch,
 the 20 V rail, HV, the coil current, AIN3, and the relay's state. Test buttons
 collect, return, or hold HV for 10 s without firing, to read the voltage. The
