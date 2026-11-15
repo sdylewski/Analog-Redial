@@ -20,7 +20,7 @@ typedef struct {
     uint8_t        version;
     payphone_cfg_t cfg;
 } stored_cfg_t;
-_Static_assert(sizeof(payphone_cfg_t) == 106, "payphone_cfg_t grew: an older saved blob would no longer load");
+_Static_assert(sizeof(payphone_cfg_t) == 110, "payphone_cfg_t changed size: check the older-blob migration in payphone_init");
 
 static const payphone_cfg_t DEFAULTS = {
     .enabled = false,
@@ -31,6 +31,7 @@ static const payphone_cfg_t DEFAULTS = {
     .price_cents = 10,
     .repeat_s = 8,
     .coin_clip = { PAYPHONE_NICKEL_CLIP, PAYPHONE_DIME_CLIP, PAYPHONE_QUARTER_CLIP },
+    .coin_limit = 8,
 };
 
 static payphone_cfg_t     s_cfg;
@@ -65,6 +66,13 @@ void payphone_init(void)
         if (nvs_get_blob(h, KEY_CFG, &st, &len) == ESP_OK && len == sizeof(st) &&
             st.version == CFG_VERSION) {
             s_cfg = st.cfg;
+        } else {
+            /* Saved before the unanswered / limit fields: a version byte, a pad byte, then the old
+             * 106-byte config, whose fields sit at the same offsets. The new ones keep their defaults. */
+            uint8_t raw[2 + PAYPHONE_CFG_V1_SIZE];
+            size_t rl = sizeof(raw);
+            if (nvs_get_blob(h, KEY_CFG, raw, &rl) == ESP_OK && rl == sizeof(raw) && raw[0] == CFG_VERSION)
+                memcpy(&s_cfg, raw + 2, PAYPHONE_CFG_V1_SIZE);
         }
         len = sizeof(s_totals);
         if (nvs_get_blob(h, KEY_TOTALS, &s_totals, &len) != ESP_OK || len != sizeof(s_totals))
@@ -73,6 +81,9 @@ void payphone_init(void)
     }
     for (int i = 0; i < PAYPHONE_COINS; i++) s_cfg.coin_clip[i][PAYPHONE_CLIP_MAX - 1] = '\0';
     if (s_cfg.coin_mode > PAYPHONE_COINS_IMMEDIATE) s_cfg.coin_mode = PAYPHONE_COINS_ON_ANSWER;
+    if (s_cfg.unanswered_collect > 1) s_cfg.unanswered_collect = 0;
+    if (s_cfg.limit_collect > 1) s_cfg.limit_collect = 0;
+    if (s_cfg.coin_limit > PAYPHONE_COIN_LIMIT_MAX) s_cfg.coin_limit = DEFAULTS.coin_limit;
     ESP_LOGI(TAG, "payphone features %s", s_cfg.enabled ? "on" : "off");
 }
 
@@ -93,6 +104,9 @@ esp_err_t payphone_cfg_set(const payphone_cfg_t *cfg)
     if (st.cfg.repeat_s > 60) st.cfg.repeat_s = 60;
     for (int i = 0; i < PAYPHONE_COINS; i++) st.cfg.coin_clip[i][PAYPHONE_CLIP_MAX - 1] = '\0';
     if (st.cfg.coin_mode > PAYPHONE_COINS_IMMEDIATE) st.cfg.coin_mode = PAYPHONE_COINS_ON_ANSWER;
+    if (st.cfg.unanswered_collect > 1) st.cfg.unanswered_collect = 0;
+    if (st.cfg.limit_collect > 1) st.cfg.limit_collect = 0;
+    if (st.cfg.coin_limit > PAYPHONE_COIN_LIMIT_MAX) st.cfg.coin_limit = PAYPHONE_COIN_LIMIT_MAX;
     lock();
     s_cfg = st.cfg;
     unlock();

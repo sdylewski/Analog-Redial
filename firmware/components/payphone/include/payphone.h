@@ -48,7 +48,14 @@ typedef struct {
     /* payphone_coin_mode_t. Last, and in what was padding, so a blob saved before
      * it existed (the same size) still loads, with 0 = the old behaviour. */
     uint8_t  coin_mode;
+    /* Appended after coin_mode, so a saved config of the older, shorter layout loads by copying
+     * its first PAYPHONE_CFG_V1_SIZE bytes (payphone_init). */
+    uint8_t  unanswered_collect;  /* handset down with coins and no answered call: 0 return them, 1 collect them */
+    uint8_t  coin_limit;          /* coins the hopper may hold before they are released at once; 0 = no limit */
+    uint8_t  limit_collect;       /* released at the limit: 0 returned, 1 collected */
 } payphone_cfg_t;
+#define PAYPHONE_CFG_V1_SIZE 106  /* sizeof(payphone_cfg_t) before the three fields above */
+#define PAYPHONE_COIN_LIMIT_MAX 50
 
 /* What happens to the coins dropped during one pickup (telephony.c). A coin
  * dropped with the handset down is always returned at once. */

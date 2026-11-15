@@ -208,6 +208,7 @@ typedef struct {
      * (the phone's hopper), whether a call this line placed was answered,
      * and the state at the last tick, to see that answer happen. */
     int                  hopper_cents;
+    int                  hopper_n;     /* how many coins that is: the hopper jams if too many pile up */
     bool                 answered;
     tel_state_t          tick_state;
     /* A coin's clip is playing, and the coins that came in meanwhile (their payphone_coin_index) wait
@@ -414,10 +415,13 @@ static void enter_idle(int line)
      * unless a call was answered (coins dropped during it). */
     if (s_line[line].hopper_cents > 0) {
         bool ans = s_line[line].answered;
-        payphone_relay(line, ans ? PAYPHONE_COLLECT : PAYPHONE_RETURN, s_line[line].hopper_cents,
-                       ans ? "hung up after an answered call" : "hung up, no call answered");
+        bool collect = ans || payphone_cfg().unanswered_collect;
+        payphone_relay(line, collect ? PAYPHONE_COLLECT : PAYPHONE_RETURN, s_line[line].hopper_cents,
+                       ans ? "hung up after an answered call" :
+                       collect ? "hung up, no call answered: collected as set" : "hung up, no call answered");
     }
     s_line[line].hopper_cents = 0;
+    s_line[line].hopper_n = 0;
     s_line[line].coin_playing = false;
     s_line[line].coin_q_n = 0;
     s_line[line].coin_tail_until_us = 0;
@@ -726,6 +730,7 @@ static void on_coin(int line, int cents, payphone_src_t src)
     if (up) {
         s_line[line].credit_cents += cents;
         s_line[line].hopper_cents += cents;
+        s_line[line].hopper_n++;
     }
     payphone_coin_seen(line, cents, src, s_line[line].credit_cents);
     webhook_eventf("coin", line, "%d", cents);
@@ -738,7 +743,20 @@ static void on_coin(int line, int cents, payphone_src_t src)
     /* "Collect each coin as it drops": nothing is held for later. */
     if (c.coin_mode == PAYPHONE_COINS_IMMEDIATE && s_line[line].hopper_cents >= cents) {
         s_line[line].hopper_cents -= cents;
+        if (s_line[line].hopper_n > 0) s_line[line].hopper_n--;
         payphone_relay(line, PAYPHONE_COLLECT, cents, "collected as it dropped");
+    }
+    /* Too many coins piled in the hopper jam it when they all come out at once: at the limit, let them go. */
+    if (c.coin_limit && s_line[line].hopper_n >= c.coin_limit && s_line[line].hopper_cents > 0) {
+        int amt = s_line[line].hopper_cents;
+        payphone_relay(line, c.limit_collect ? PAYPHONE_COLLECT : PAYPHONE_RETURN, amt,
+                       c.limit_collect ? "coin limit reached: collected" : "coin limit reached: returned");
+        if (!c.limit_collect) {   /* handed back: no longer credit */
+            s_line[line].credit_cents -= amt;
+            if (s_line[line].credit_cents < 0) s_line[line].credit_cents = 0;
+        }
+        s_line[line].hopper_cents = 0;
+        s_line[line].hopper_n = 0;
     }
 
     const char *clip = coin_clip_for(&c, cents);
@@ -782,6 +800,8 @@ static void on_coin(int line, int cents, payphone_src_t src)
 /* Silence after a clip (operator, timer message, pi, ...) before dial tone
  * returns. The pause before a clip starts is the player's PROMPT_LEAD_IN_MS. */
 #define CLIP_TAIL_MS 2000
+/* After a coin's clip dial tone comes back almost at once: a real phone's dial tone isn't interrupted by a coin. */
+#define COIN_TAIL_MS 300
 
 /* Answering machine's own greeting (212) -- short by nature (it's a greeting,
  * not a message), no per-board setting for it, unlike the caller's own
@@ -2336,7 +2356,7 @@ static void fsm_task(void *arg)
                             coin_q_play_next(e.line);
                             if (s_line[e.line].coin_playing) break;
                         }
-                        s_line[e.line].coin_tail_until_us = esp_timer_get_time() + (int64_t)CLIP_TAIL_MS * 1000;
+                        s_line[e.line].coin_tail_until_us = esp_timer_get_time() + (int64_t)COIN_TAIL_MS * 1000;
                     }
                     /* Ignore if we've already moved on (e.g. hung up mid-clip --
                      * end_call() already handled state via player_stop()). */
@@ -2380,6 +2400,11 @@ static void fsm_task(void *arg)
                             enter_idle(e.line);
                         }
                     }
+                    /* The generic code above waits CLIP_TAIL_MS before dial tone: after a coin, far less. */
+                    if (s_line[e.line].coin_tail_until_us && s_line[e.line].state == TEL_PLAYING &&
+                        s_line[e.line].tone_return_us > s_line[e.line].coin_tail_until_us &&
+                        s_line[e.line].tone_return_state == TEL_DIALTONE)
+                        s_line[e.line].tone_return_us = s_line[e.line].coin_tail_until_us;
                     break;
                 case IN_REC_DONE: {
                     int l = e.line;
@@ -2438,6 +2463,7 @@ static void fsm_task(void *arg)
                 if (s_line[line].hopper_cents > 0 && payphone_cfg().coin_mode == PAYPHONE_COINS_ON_ANSWER) {
                     payphone_relay(line, PAYPHONE_COLLECT, s_line[line].hopper_cents, "call answered");
                     s_line[line].hopper_cents = 0;
+                    s_line[line].hopper_n = 0;
                 }
             }
             s_line[line].tick_state = ts;

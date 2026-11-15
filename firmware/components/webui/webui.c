@@ -9613,16 +9613,25 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
         "<option value=\"0\"%s>are collected when the call is answered</option>"
         "<option value=\"1\"%s>are held until the handset goes down</option>"
         "<option value=\"2\"%s>are collected as each one drops</option></select></label>"
+        "<label>If the handset goes down without an answered call, the coins are <select name=\"unanswered\">"
+        "<option value=\"0\"%s>returned</option><option value=\"1\"%s>collected</option></select></label>"
+        "<label>Hold at most <input type=\"number\" name=\"limit\" min=\"0\" max=\"%d\" value=\"%u\" "
+        "style=\"width:4.5em\"> coins (0 = no limit); at that many they are <select name=\"limit_action\">"
+        "<option value=\"0\"%s>returned</option><option value=\"1\"%s>collected</option></select> at once</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
         "</form>"
         "<p class=\"hint\"><b>Answered</b> means a call this phone placed was picked up. When the handset "
-        "goes down, held coins are collected if a call was answered and returned if not. A coin dropped "
+        "goes down, held coins are collected if a call was answered, and otherwise returned or collected "
+        "as chosen above (the board's own codes, like 314, don't count as an answered call). A coin dropped "
         "with the handset down is always returned at once. Whether the coin board really fires its relay "
         "is Bench test mode on the Bring-up pane: with that on, this only "
         "decides what the log says.</p></div>",
         c.coin_mode == PAYPHONE_COINS_ON_ANSWER ? " selected" : "",
         c.coin_mode == PAYPHONE_COINS_AT_HANGUP ? " selected" : "",
-        c.coin_mode == PAYPHONE_COINS_IMMEDIATE ? " selected" : "");
+        c.coin_mode == PAYPHONE_COINS_IMMEDIATE ? " selected" : "",
+        c.unanswered_collect ? "" : " selected", c.unanswered_collect ? " selected" : "",
+        PAYPHONE_COIN_LIMIT_MAX, (unsigned)c.coin_limit,
+        c.limit_collect ? "" : " selected", c.limit_collect ? " selected" : "");
 
     /* Coin board */
     {
@@ -9813,6 +9822,12 @@ static esp_err_t payphone_set_handler(httpd_req_t *req)
         v[0] = '\0'; form_field(body, "coin_mode", v, sizeof(v));
         int m = atoi(v);
         c.coin_mode = (uint8_t)(m >= PAYPHONE_COINS_ON_ANSWER && m <= PAYPHONE_COINS_IMMEDIATE ? m : PAYPHONE_COINS_ON_ANSWER);
+        v[0] = '\0'; form_field(body, "unanswered", v, sizeof(v));
+        c.unanswered_collect = atoi(v) == 1;
+        v[0] = '\0'; form_field(body, "limit", v, sizeof(v));
+        if (v[0]) { int n = atoi(v); c.coin_limit = (uint8_t)(n < 0 ? 0 : n > PAYPHONE_COIN_LIMIT_MAX ? PAYPHONE_COIN_LIMIT_MAX : n); }
+        v[0] = '\0'; form_field(body, "limit_action", v, sizeof(v));
+        c.limit_collect = atoi(v) == 1;
     }
 #undef PP_BOX
     payphone_cfg_set(&c);

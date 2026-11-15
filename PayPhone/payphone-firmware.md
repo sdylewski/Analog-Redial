@@ -21,7 +21,8 @@ is collected in [the payphone types](README.md#payphone-types).
   it and every code waits for a coin. Dialing a call without enough credit goes back
   to the message. Credit is cleared when the handset goes down. Left waiting longer
   than the off-hook alert's delay (Settings → Phone), the line sounds the alert.
-- **Message after a coin.** Off by default. A coin's clip starts at once (no lead-in pause), and a coin
+- **Message after a coin.** Off by default. After the phrase, dial tone comes back after about 0.3 s, as on a
+  real phone where a coin doesn't interrupt it. A coin's clip starts at once (no lead-in pause), and a coin
   that arrives while one is playing is queued (up to four), so two quarters in a row say the phrase twice,
   the second right after the first. Each coin can play its own clip (any
   audio file on the board, picked by name), or the general message ("Thank you",
@@ -62,6 +63,10 @@ The **What happens to the coins** card picks when they're collected:
 
 - A call is "answered" when ringback or dialing turns into a connected call. A busy line,
   no answer, or only the board's own free codes don't count.
+- **No answered call:** when the handset goes down with coins and no answered call, they are returned or
+  collected, as chosen on the card (the board's own codes, like 314, don't count as an answered call).
+- **Coin limit:** the hopper jams if too many coins pile up and are released together, so at a set number
+  of coins (8 by default, 0 for no limit) they are returned or collected at once.
 - **A coin from the coin board while the handset is down** is returned at once, in every mode.
 - Whether the coin board really fires its relay for these is **Bench test mode** on the Bring-up
   pane (on for a board that has never saved it): while it is on, the relay never fires by itself,
