@@ -59,13 +59,13 @@ in the last column where the numbers came from.
 
 | Phone | Relay | Coils | Wires | Resistance | Operates at | Direction | Switch-off | Cable |
 |---|---|---|---|---|---|---|---|---|
-| GTE / Quadrum 120B style | **HD550002C** (QTI) | one, polarized | white and green to the coil path; red not connected | about 1 k at rest; 0.1 ohm across the coil once operated | 55 V no; **60 V yes** | white positive: lever left, **collect** (bench; confirm in the phone) **[verify]**; reversed: lever right, return | a contact on the white-green path opens as it operates, so it switches itself off | 3-wire, Molex KK 396 (coin board J2) |
+| GTE / Quadrum 120B style | **HD550002C** (QTI) | one, polarized | white and green to the coil path; red not connected | about 1 k at rest; 0.1 ohm across the coil once operated | 55 V no, 60 V yes on the bench (relay alone); **in the phone it needs 87 V** (about 67 mA through the 1.1 k coil) | white positive: lever left, **collect** (bench; confirm in the phone) **[verify]**; reversed: lever right, return | a contact on the white-green path opens as it operates, so it switches itself off | 3-wire, Molex KK 396 (coin board J2) |
 
 ### 4. Coin board settings
 
 | Phone | Relay connector | J10 (two-coil) | HV (J14, J7-J9) | Pulse | Swap | Coin 4 | Tested |
 |---|---|---|---|---|---|---|---|
-| GTE / Quadrum 120B style | J2 | off | fit J14; start at 60 V (J14 + J9), up to 78 V (J14 + J8) if it doesn't move reliably | 100 ms (default); the relay cuts its own current | **on**: the plug has white on J2 pin 3, so POL high is collect; confirm with a Collect test | 0 (not fitted) | **no** |
+| GTE / Quadrum 120B style | J2 | off | fit **J14 + J7 (87 V)**; 60 V and 78 V don't give the relay enough current with the phone's levers attached | 100 ms works (the armature moves at about 65-70 ms, seen as a dip in the coil current); 100-150 ms | **on**: the plug has white on J2 pin 3, so POL high is collect | 0 (not fitted) | **return: yes** (2026-11-14, 87 V, 100 and 200 ms); collect not yet |
 
 Notes on the columns:
 
@@ -81,12 +81,11 @@ Notes on the columns:
   controlled), and whether the phone sends coin tones on the line.
 - Which relay direction the phone's own levers treat as collect, with the relay back in
   the phone.
-- What resets the relay's latched levers. Once the relay trips, the coin flap latches down and
-  further fires don't move it, so until it's reset the coins fall straight into the box instead of
-  resting in the hopper. Check the flap is up before every Collect or Return test.
-- Whether 60 V is enough with the phone's own levers attached: it was the bare minimum on the bench
-  (55 V no, 60 V yes, relay alone), so start at 78 V (J14 + J8) and go to 87 V (J14 + J7) if the
-  levers don't move fully.
+- Whether Collect moves the lever the way the phone expects (return is tested).
+- Reset: after a fire the white lever stays down, and the relay can't fire again while it is down (its own
+  contact is open). A coin entering the chute pushes the lever back up. A stiff coin lever that wouldn't
+  return was the cause of the stuck-down states on the bench: it needed taking out and oiling.
+- Check the lever is up before every Collect or Return test.
 
 ## Other payphone projects
 
