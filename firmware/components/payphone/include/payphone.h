@@ -25,6 +25,15 @@
 extern "C" {
 #endif
 
+/* How the firmware collects / returns coins (Settings -> Payphone).
+ * See PayPhone/payphone-types.md for which phones need which method. */
+typedef enum {
+    PAYPHONE_RELAY_NONE  = 0,   /* just log (no coin control hardware) */
+    PAYPHONE_RELAY_TONES = 1,   /* green box tones (2200+2600 Hz) down the line */
+    PAYPHONE_RELAY_BOARD = 2,   /* coin board fires the relay electrically */
+    PAYPHONE_RELAY_BOTH  = 3,   /* tones AND board */
+} payphone_relay_method_t;
+
 /* Spoken prompts (prompts.h), made from text like the operator message. */
 #define PAYPHONE_DEPOSIT_CLIP "coin_deposit.wav"   /* "Please deposit..." until there's credit */
 #define PAYPHONE_THANKS_CLIP  "coin_thanks.wav"    /* after a coin, unless that coin has its own clip */
@@ -56,6 +65,8 @@ typedef struct {
     /* The phone type (payphone_types.h), appended likewise: 0 = not chosen. */
     uint8_t  housing;             /* pp_housing_t */
     uint8_t  inside;              /* pp_inside_t */
+    /* payphone_relay_method_t, appended last so a saved config of the older layout still loads. */
+    uint8_t  relay_method;
 } payphone_cfg_t;
 #define PAYPHONE_COIN_LIMIT_MAX 50
 

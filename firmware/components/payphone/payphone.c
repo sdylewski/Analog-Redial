@@ -1,5 +1,6 @@
 #include "payphone.h"
 #include "payphone_types.h"
+#include "green_box.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "nvs.h"
@@ -38,6 +39,7 @@ static const payphone_cfg_t DEFAULTS = {
     .repeat_s = 8,
     .coin_clip = { PAYPHONE_NICKEL_CLIP, PAYPHONE_DIME_CLIP, PAYPHONE_QUARTER_CLIP },
     .coin_limit = 8,
+    .relay_method = PAYPHONE_RELAY_BOARD,   /* as before: the coin board fires the relay */
 };
 
 static payphone_cfg_t     s_cfg;
@@ -92,7 +94,10 @@ void payphone_init(void)
     if (s_cfg.coin_limit > PAYPHONE_COIN_LIMIT_MAX) s_cfg.coin_limit = DEFAULTS.coin_limit;
     /* The byte the phone type now uses was padding in the 110-byte layout: anything odd is "not chosen". */
     if (s_cfg.housing >= PP_HOUSING_N || s_cfg.inside >= PP_INSIDE_N) s_cfg.housing = s_cfg.inside = 0;
-    ESP_LOGI(TAG, "payphone features %s", s_cfg.enabled ? "on" : "off");
+    if (s_cfg.relay_method > PAYPHONE_RELAY_BOTH) s_cfg.relay_method = DEFAULTS.relay_method;
+    green_box_init();
+    ESP_LOGI(TAG, "payphone features %s, relay method %d", s_cfg.enabled ? "on" : "off",
+             s_cfg.relay_method);
 }
 
 payphone_cfg_t payphone_cfg(void)
@@ -264,11 +269,20 @@ void payphone_set_relay_handler(payphone_relay_fn fn) { s_relay = fn; }
 
 void payphone_relay(int line, payphone_relay_t what, int cents, const char *why)
 {
+    uint8_t method = s_cfg.relay_method;
     payphone_relay_fn fn = s_relay;
     bool board = fn && line == s_board_line;
+    bool use_tones = (method == PAYPHONE_RELAY_TONES || method == PAYPHONE_RELAY_BOTH);
+    bool use_board = (method == PAYPHONE_RELAY_BOARD || method == PAYPHONE_RELAY_BOTH) && board;
+
+    const char *how = use_tones && use_board ? " (tones + board)" :
+                      use_tones ? " (green box tones)" :
+                      use_board ? " (coin board)" : " (no relay method set)";
     payphone_logf(line, "%d c %s: %s%s", cents, what == PAYPHONE_COLLECT ? "collected" : "returned",
-                  why, board ? "" : " (no coin board on this line)");
-    if (board) fn(line, what);
+                  why, how);
+
+    if (use_tones) green_box_fire(line, what);
+    if (use_board) fn(line, what);
 }
 
 void payphone_set_board_line(int line) { s_board_line = line; }
