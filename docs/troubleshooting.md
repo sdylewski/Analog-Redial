@@ -201,8 +201,7 @@ Try the test a few times, move the board, or switch the extender off for a minut
   - **Windows:** Device Manager → *Ports (COM & LPT)* → "USB Serial Device (COMn)".
   - **Any OS:** `python serial_probe.py` in `firmware/bringup/`, from the ESP-IDF
     terminal, lists the boards it finds.
-- **A clone board has no serial port after flashing:** that is expected if JP2 and JP3 were left in the factory position: the clone firmware takes the USB pins for the codec clock, so the port vanishes about a second after boot. Use the web UI, or move JP2 and JP3 to the clone side and flash `--board smd5`. The module's UART USB-C port isn't a substitute when a Bluetooth board is fitted: both share GPIO16/17, and you will see binary data. To flash, hold BOOT, tap RESET, release BOOT.
-- **A clone ESP32 module never shows up on serial, even in download mode:** check that every pin of the module is
+- **A clone ESP32 module never shows up on serial:** check that every pin of the module is
   soldered, on both the top and the bottom of the board, and that the pads on the back
   of the board are cut or bridged as the [build guide](building.md) says (JP2 and JP3 on
   v5 and later, set for the clone). A cold or missing joint on a USB or boot pin is

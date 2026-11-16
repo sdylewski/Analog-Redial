@@ -111,12 +111,8 @@ card-detect are on the clone's GPIO12/13:
   USB can't enumerate. Pull the card before flashing.
 - `sdkconfig.smd5_cheap.defaults` puts the console on UART0 (GPIO16/17),
   the same pins as the BM64 UART on J2 — they can't share.
-- Don't plug a cable into the clone module's own native-USB USB-C while the app runs:
+- Don't plug a cable into the clone module's own USB-C while the app runs:
   MCLK is on its D− pin.
-- The clone's *UART* USB-C (own USB-serial chip, shows up as a `cu.usbmodem...` "USB Single Serial") reaches
-  UART0 on GPIO16/17, the same pins as the BM64 on J2: measured 2026-11-16 on a clone board with a BM64, the only bytes on it in 3 s
-  were a BM64 frame (`aa 00 02 0d 00 f1`), so the console REPL is unusable there. Bluetooth set to None frees the pins.
-- BOOT + RESET (hold BOOT, tap RESET, release BOOT) gives the ROM downloader only: for flashing, never the app console.
 
 UART0 flashing (GPIO16 TX, GPIO17 RX, EN, GPIO9 boot strap, with a 3.3 V
 USB-serial adapter) works on any module and is the fallback if firmware
