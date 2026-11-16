@@ -579,6 +579,28 @@ esp_err_t board_voice_fx_keys_set(const char *keys, size_t n)
     return err;
 }
 
+uint8_t board_icon_get(void)
+{
+    nvs_handle_t h;
+    if (nvs_open(BOARD_NAME_NVS_NS, NVS_READONLY, &h) != ESP_OK) return 0;
+    uint8_t v = 0;
+    if (nvs_get_u8(h, "icon", &v) != ESP_OK || v > 2) v = 0;
+    nvs_close(h);
+    return v;
+}
+
+esp_err_t board_icon_set(uint8_t v)
+{
+    if (v > 2) return ESP_ERR_INVALID_ARG;
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(BOARD_NAME_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, "icon", v);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
+
 bool board_alarm_quiet_override_get(void)
 {
     nvs_handle_t h;

@@ -686,15 +686,29 @@ extern const uint8_t favicon_svg_start[] asm("_binary_favicon_svg_start");
 extern const uint8_t favicon_svg_end[]   asm("_binary_favicon_svg_end");
 extern const uint8_t favicon_ico_start[] asm("_binary_favicon_ico_start");
 extern const uint8_t favicon_ico_end[]   asm("_binary_favicon_ico_end");
+extern const uint8_t favicon_blue_svg_start[] asm("_binary_favicon_blue_svg_start");
+extern const uint8_t favicon_blue_svg_end[]   asm("_binary_favicon_blue_svg_end");
+extern const uint8_t favicon_blue_ico_start[] asm("_binary_favicon_blue_ico_start");
+extern const uint8_t favicon_blue_ico_end[]   asm("_binary_favicon_blue_ico_end");
+
+/* The blue dial (the Pacific Redial cards' colour) when chosen, or on automatic
+ * while payphone mode is on; the olive one otherwise. */
+static bool icon_is_blue(void)
+{
+    uint8_t v = board_icon_get();
+    return v == 2 || (v == 0 && payphone_enabled());
+}
 
 /* GET /static/favicon.svg -- what append_page_head()'s <link rel="icon"
  * type="image/svg+xml"> points at. Scalable, and what Chrome/Firefox
  * actually use. */
 static esp_err_t favicon_svg_handler(httpd_req_t *req)
 {
+    bool blue = icon_is_blue();
     httpd_resp_set_type(req, "image/svg+xml");
-    httpd_resp_send(req, (const char *)favicon_svg_start,
-                     favicon_svg_end - favicon_svg_start);
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
+    httpd_resp_send(req, (const char *)(blue ? favicon_blue_svg_start : favicon_svg_start),
+                     blue ? favicon_blue_svg_end - favicon_blue_svg_start : favicon_svg_end - favicon_svg_start);
     return ESP_OK;
 }
 
@@ -709,9 +723,11 @@ static esp_err_t favicon_svg_handler(httpd_req_t *req)
  * append_page_head() now both point at real raster data instead. */
 static esp_err_t favicon_ico_handler(httpd_req_t *req)
 {
+    bool blue = icon_is_blue();
     httpd_resp_set_type(req, "image/x-icon");
-    httpd_resp_send(req, (const char *)favicon_ico_start,
-                     favicon_ico_end - favicon_ico_start);
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
+    httpd_resp_send(req, (const char *)(blue ? favicon_blue_ico_start : favicon_ico_start),
+                     blue ? favicon_blue_ico_end - favicon_blue_ico_start : favicon_ico_end - favicon_ico_start);
     return ESP_OK;
 }
 
@@ -2030,6 +2046,25 @@ static int append_general_tab(char *buf, size_t cap, int off)
         i18n_str("general.boardname.label", "Name"), name,
         i18n_str("general.boardname.button", "Save name"),
         boardname_hint);
+
+    {
+        uint8_t ic = board_icon_get();
+        off = appendf(buf, cap, off,
+            "<div class=\"card\"><h2>%s</h2>"
+            "<form method=\"POST\" action=\"/icon_set\" class=\"settings-form\">"
+            "<label>%s <select name=\"icon\">"
+            "<option value=\"0\"%s>%s</option><option value=\"1\"%s>%s</option>"
+            "<option value=\"2\"%s>%s</option></select></label>"
+            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
+            "</form><p class=\"hint\">%s</p></div>",
+            i18n_str("general.icon.title", "Browser tab icon"),
+            i18n_str("general.icon.label", "Icon"),
+            ic == 0 ? " selected" : "", i18n_str("general.icon.auto", "Automatic (blue with payphone mode)"),
+            ic == 1 ? " selected" : "", i18n_str("general.icon.olive", "Olive and cream"),
+            ic == 2 ? " selected" : "", i18n_str("general.icon.blue", "Blue (payphone)"),
+            i18n_str("general.icon.button", "Save icon"),
+            i18n_str("general.icon.hint", "The little picture on this page's browser tab. A tab that's already open may need a reload, or a closed and reopened tab, to change."));
+    }
 
     char ssid[33];
     strncpy(ssid, wifi_get_ssid(), sizeof(ssid) - 1);
@@ -8386,6 +8421,19 @@ static esp_err_t ring_pattern_handler(httpd_req_t *req)
     return redirect_to(req, u == BOARD_RING_ALARM ? "/settings?tab=dialcodes#alarm" : "/settings?tab=dialcodes#timer");
 }
 
+/* POST /icon_set -- form body icon=0|1|2 (browser tab icon, see board_icon_get()). */
+static esp_err_t icon_set_handler(httpd_req_t *req)
+{
+    char body[32] = "", v[4] = "";
+    if (req->content_len > 0 && req->content_len < sizeof(body)) {
+        int r = httpd_req_recv(req, body, req->content_len);
+        if (r > 0) body[r] = '\0';
+    }
+    form_field(body, "icon", v, sizeof(v));
+    if (v[0] >= '0' && v[0] <= '2') board_icon_set((uint8_t)(v[0] - '0'));
+    return redirect_to(req, "/settings?tab=general");
+}
+
 /* POST /alarm_quiet -- form body [on=1]: alarms ring during quiet hours. */
 static esp_err_t alarm_quiet_handler(httpd_req_t *req)
 {
@@ -13709,6 +13757,7 @@ esp_err_t webui_start(void)
         { .uri = "/alarm_quiet",      .method = HTTP_POST, .handler = alarm_quiet_handler },
         { .uri = "/ring_pattern",     .method = HTTP_POST, .handler = ring_pattern_handler },        { .uri = "/board_name",      .method = HTTP_POST, .handler = board_name_handler },
         { .uri = "/language_set",    .method = HTTP_POST, .handler = language_set_handler },
+        { .uri = "/icon_set",        .method = HTTP_POST, .handler = icon_set_handler },
         { .uri = "/board_hw_set",    .method = HTTP_POST, .handler = board_hw_set_handler },
         { .uri = "/board_type_confirm", .method = HTTP_POST, .handler = board_type_confirm_handler },
         { .uri = "/offhook_alert",   .method = HTTP_POST, .handler = offhook_alert_handler },

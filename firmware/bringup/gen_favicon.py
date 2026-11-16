@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerates firmware/components/webui/favicon.ico from favicon.svg.
+"""Regenerates firmware/components/webui/favicon.ico (and favicon_blue.ico) from the .svg files.
 
 The web UI serves two favicon formats (see webui.c's favicon_handler() and
 its <link rel="icon"> tags): the SVG as-is for browsers that support scalable
@@ -25,8 +25,10 @@ from pathlib import Path
 
 SIZES = (16, 32, 48)
 HERE = Path(__file__).resolve().parent
-SVG_PATH = HERE.parent / "components" / "webui" / "favicon.svg"
-ICO_PATH = HERE.parent / "components" / "webui" / "favicon.ico"
+WEBUI = HERE.parent / "components" / "webui"
+# (svg, ico): the default icon, and the blue one (Settings -> General -> Browser tab icon)
+PAIRS = [(WEBUI / "favicon.svg", WEBUI / "favicon.ico"),
+         (WEBUI / "favicon_blue.svg", WEBUI / "favicon_blue.ico")]
 
 
 def render_png(svg_path: Path, size: int, out_path: Path) -> None:
@@ -63,20 +65,19 @@ def main() -> int:
     if shutil.which("rsvg-convert") is None:
         print("error: rsvg-convert not found (brew install librsvg)", file=sys.stderr)
         return 1
-    if not SVG_PATH.exists():
-        print(f"error: {SVG_PATH} not found", file=sys.stderr)
-        return 1
-
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        png_paths = []
-        for size in SIZES:
-            p = tmp_path / f"favicon-{size}.png"
-            render_png(SVG_PATH, size, p)
-            png_paths.append(p)
-        make_ico(png_paths, ICO_PATH)
-
-    print(f"wrote {ICO_PATH} ({ICO_PATH.stat().st_size} bytes, {len(SIZES)} sizes: {SIZES})")
+    for svg_path, ico_path in PAIRS:
+        if not svg_path.exists():
+            print(f"error: {svg_path} not found", file=sys.stderr)
+            return 1
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            png_paths = []
+            for size in SIZES:
+                p = tmp_path / f"favicon-{size}.png"
+                render_png(svg_path, size, p)
+                png_paths.append(p)
+            make_ico(png_paths, ico_path)
+        print(f"wrote {ico_path} ({ico_path.stat().st_size} bytes, {len(SIZES)} sizes: {SIZES})")
     return 0
 
 

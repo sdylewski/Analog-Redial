@@ -1,10 +1,8 @@
 **Home** · [1 · Get a board](docs/board.md) · [2 · Parts & assembly](docs/bom.md) · [3 · Flash & test](docs/flashing.md) · [4 · Set up & use](docs/setup.md)
 
-<p align="center">
-  <img src="docs/assets/logo.svg" alt="Analog Redial logo" width="160">
-</p>
-
-<h1 align="center">Analog Redial</h1>
+<h1 align="center">
+  <img src="docs/assets/logo.svg" alt="Analog Redial" width="480">
+</h1>
 
 <p align="center">
   <b>Bring old telephones back to life.</b><br>

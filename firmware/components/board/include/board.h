@@ -214,6 +214,11 @@ esp_err_t board_voice_fx_keys_set(const char *keys, size_t n);
 bool      board_alarm_quiet_override_get(void);
 esp_err_t board_alarm_quiet_override_set(bool on);
 
+/* Browser tab icon: 0 = automatic (blue dial when payphone mode is on, olive
+ * otherwise), 1 = olive, 2 = blue. */
+uint8_t   board_icon_get(void);
+esp_err_t board_icon_set(uint8_t v);
+
 /* How the alarm (dial 256) and the timer (dial 846) ring: `count` bursts of
  * `on_ms`, `off_ms` apart, repeated a few times until someone answers. Each
  * has its own, saved; out-of-range values are clamped by the setter. */

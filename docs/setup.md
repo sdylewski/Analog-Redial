@@ -121,7 +121,8 @@ Click any picture for the full page.
   </tr>
   <tr>
     <td><a href="pics/settings-general.png"><img src="pics/thumbs/settings-general.png" alt="General settings"></a></td>
-    <td valign="top"><b>Settings → General.</b> Board name, saved Wi-Fi
+    <td valign="top"><b>Settings → General.</b> Board name, the browser tab icon (olive, or blue
+    for a payphone), saved Wi-Fi
     networks, the board's hardware (what J5 is used for: a second line,
     microSD or pin outputs; and the Bluetooth module), time zone, quiet
     hours that keep the bell silent overnight, and the passwords.</td>

@@ -1,5 +1,7 @@
 # Payphone with Analog Redial
 
+<img src="instruction_cards/graphics/analog_redial_logo_blue.svg" alt="Analog Redial" width="420">
+
 **Working on one payphone.** One coin board v1 is built, on a v6 main board, and runs the
 project's first phone, a GTE / Quadrum 120B style set: coins are counted from its coin
 switches, a message plays for each, and the coins are collected or returned by its coin relay

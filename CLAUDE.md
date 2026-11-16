@@ -256,6 +256,10 @@ This is engineering guidance, not telecom safety certification.
   for KiCad's bundled Python), describe the commands and ask the user to run
   them in their own terminal.
 
+## Logo
+
+The mark is a rotary dial (ring of ten finger holes, hub, finger stop). Default (olive, cream, amber): `docs/assets/logo.svg` (the "ANALOG [dial] REDIAL" wordmark on cream), `logo_light.svg` (transparent, for white), `favicon.svg`/`favicon.ico` (also the web UI's tab icon, `firmware/components/webui/`); the old telephone illustration is `docs/assets/logo_telephone.svg`. Payphone: the blue wordmark `PayPhone/instruction_cards/graphics/analog_redial_logo_blue.svg` and the blue web UI icon `favicon_blue.svg` (Settings → General → Browser tab icon: automatic = blue when payphone mode is on). The Pacific Redial card logos in the same folder stay as they are. Rebuild both `.ico` files with `firmware/bringup/gen_favicon.py`. GitHub Pages gets its tab icon from `_includes/head-custom.html`.
+
 ## Status
 
 - Hardware: SMD4 is the current design — schematic unchanged from SMD3, re-routed as a 2-layer PCB. Fabricated and in use.
