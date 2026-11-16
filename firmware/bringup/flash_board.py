@@ -48,7 +48,6 @@ BOARDS = {
     "smd2":       ("sdkconfig.smd2.defaults",       "SMD2"),
     "smd4":       ("sdkconfig.smd4.defaults",       "SMD4"),
     "smd5":       ("sdkconfig.smd5.defaults",       "SMD5"),
-    "smd5_cheap": ("sdkconfig.smd5_cheap.defaults", "SMD5 (clone module)"),
     "smd6":       ("sdkconfig.smd6.defaults",       "SMD6"),
 }
 PCB_TO_BOARD = {pcb: key for key, (_, pcb) in BOARDS.items()}

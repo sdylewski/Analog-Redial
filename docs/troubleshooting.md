@@ -206,11 +206,11 @@ Try the test a few times, move the board, or switch the extender off for a minut
   of the board are cut or bridged as the [build guide](building.md) says (JP2 and JP3 on
   v5 and later, set for the clone). A cold or missing joint on a USB or boot pin is
   enough to stop it enumerating.
-- **The serial port is missing, or the console is silent:** hold the **BOOT** button for about a
-  second while the board starts (plug in the USB cable, or tap RESET, with BOOT held), then let go. That
-  starts the chip's built-in downloader and the serial port comes back, so you can flash or re-flash. It is
-  not the app's console: for that, unplug the cable and plug it back in **without** BOOT. Holding BOOT for
-  about 3 seconds *with the firmware running* does something else, it starts [rescue mode](setup.md#8-the-boot-button-rescue-and-reset).
+- **The serial port is missing, or the console is silent:** press the **RESET** button once while the
+  board is starting (or unplug the USB cable and plug it back in); the port often comes back. If it
+  doesn't, hold **BOOT** while you tap RESET and then let go: that starts the chip's built-in downloader, which
+  brings the port back for flashing but is not the app's console. Holding BOOT for about 3 seconds *with the
+  firmware running* does something else: it starts [rescue mode](setup.md#8-the-boot-button-rescue-and-reset).
 - **Flashing fails or the board stays in flashing mode afterwards:** try again once or
   twice. If it's still stuck, unplug the USB cable and plug it back in.
 - **The serial monitor restarts the board:** opening the port resets it. That's normal

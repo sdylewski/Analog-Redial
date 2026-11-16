@@ -77,9 +77,7 @@ mis-jumpering one board.
 |--|--|--|--|
 | Genuine | default | `SMD5` | works |
 | Clone | clone side | `SMD5` | works |
-| Clone | default | `SMD5_CHEAP` | works, but no USB console (see below) |
 | Clone | default | `SMD5` | no audio, microSD "no card" |
-| Clone | clone side | `SMD5_CHEAP` | no audio, no USB console |
 | Genuine | clone side | `SMD5` | no audio; MCLK and card-detect sit on USB D−/D+, so a seated card stops USB enumerating |
 
 Fastest check: scope U2 pin 1 for 12.288 MHz. Present at the ESP32 pad but
@@ -94,25 +92,11 @@ letters A=1, C=2, B=3, so wire by pin number. SparkFun's
 `SolderJumper_3_Bridged12_No_Silk` symbol numbers B and C both as pin 2.
 Footprint: `Jumper_3_NC-1_Trace_NoSilk` (only pads 1–2 joined).
 
-### `SMD5_CHEAP` build (clone module, jumpers at default)
+### The `SMD5_CHEAP` build was removed (2026-11-16)
 
-Only for a clone board whose jumpers were left at the default, so MCLK and
-card-detect are on the clone's GPIO12/13:
-
-- `board_pins_smd4.h` maps MCLK → GPIO12, CD → GPIO13, and
-  `board_early_pin_init()` detaches the USB PHY from those pads before
-  audio starts. For ~1 s after reset the ROM owns them.
-- No USB console: the port disappears ~1 s into every boot. Use the web
-  UI, or UART0.
-- Flashing over native USB still works (the ROM owns the pads at reset).
-  The `download` console command restarts into the ROM; power-cycle when
-  flashing is done. BOOT + RESET does the same in hardware.
-- A seated microSD card holds USB D+ low (card-detect shorts to GND), so
-  USB can't enumerate. Pull the card before flashing.
-- `sdkconfig.smd5_cheap.defaults` puts the console on UART0 (GPIO16/17),
-  the same pins as the BM64 UART on J2 — they can't share.
-- Don't plug a cable into the clone module's own USB-C while the app runs:
-  MCLK is on its D− pin.
+It existed for a clone board with its jumpers left at the default (MCLK and card-detect on the clone's
+GPIO12/13, its native USB pins), and cost the USB console: the port vanished about a second into every boot.
+It is no longer supported: move JP2 and JP3 to the clone side and use `smd5`. It was last built in v1.3.2.
 
 UART0 flashing (GPIO16 TX, GPIO17 RX, EN, GPIO9 boot strap, with a 3.3 V
 USB-serial adapter) works on any module and is the fallback if firmware
@@ -216,7 +200,7 @@ the module:
 |--|--|--|
 | Genuine ESP32-C6-DevKitC-1 | as shipped (pads 1–2 bridged) | `smd5` |
 | Clone, jumpers moved | cut 1–2, bridge 2–3 | `smd5` |
-| Clone, jumpers left | as shipped | `smd5_cheap` (no USB console) |
+| Clone, jumpers left | as shipped | not supported: move the jumpers |
 
 Moving the jumpers is a cut and a solder blob on the back of the board;
 the firmware doesn't change. Do one module at a time and re-check the
@@ -228,8 +212,7 @@ misbehaves.
    and that only one side of each is bridged.
 2. **First power, no phone, no daughter board.** 5 V in. Measure +3.3 V on
    the MCU rail and on `+3.3V_BM` (U5), and the SLIC rails.
-3. **Flash.** `firmware/bringup/flash_board.py --board smd5` (or
-   `smd5_cheap`), 16 MB or 8 MB is detected from the chip. A fresh board has
+3. **Flash.** `firmware/bringup/flash_board.py --board smd5`, 16 MB or 8 MB is detected from the chip. A fresh board has
    no firmware to ask, so `--board` is required the first time.
 4. **Console and board identity.** `board_info` reports the pin map;
    `codec_detect` → ES8388 at 0x10. If audio is silent but I²C answers,
@@ -330,9 +313,8 @@ laptop off its network.
 
 - Clone + `smd5` firmware and no audio is the documented "clone, jumpers left
   at default" row: MCLK is on the wrong pad. Either move JP2/JP3 to the clone
-  side (then `smd5` works with the USB console) or run `smd5_cheap`, which
-  has no USB console and puts the console on the same UART0 pins the Bluetooth
-  module uses, so serial bring-up of the BK3266 can't be done in that mode.
+  side (then `smd5` works with the USB console). (The old `smd5_cheap` build
+  put the console on the UART0 pins the Bluetooth module uses.)
   Which the jumpers are: unconfirmed, the symptoms point at default.
 - BM64 `config check: 6/6 correct, 0 written, error: couldn't enter IBDK`
   prints "6/6 correct" even though nothing could be read: the count is

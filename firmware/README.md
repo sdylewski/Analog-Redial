@@ -187,7 +187,6 @@ Every other board type gets its own build directory and its own
 | SMD4 (default) | `build/` | `CONFIG_BOARD_TYPE_SMD4` |
 | SMD2 | `build.smd2/` | `CONFIG_BOARD_TYPE_SMD2` |
 | SMD5, real MCU module | `build.smd5/` | `CONFIG_BOARD_TYPE_SMD5` |
-| SMD5, AliExpress clone module | `build.smd5_cheap/` | `CONFIG_BOARD_TYPE_SMD5_CHEAP` |
 | SMD6 (v6, in progress, not tested on hardware), either MCU module, JP2/JP3 to match | `build.smd6/` | `CONFIG_BOARD_TYPE_SMD6` |
 
 Create (or regenerate) a non-default board's build directory with an
@@ -207,15 +206,9 @@ Then plain `idf.py -B build.smd5 build`/`flash`/`monitor` from then on —
 **Always pass `-B`** for a non-default board type; a bare `idf.py build`
 targets `build/` (SMD4) regardless of which directory you last touched.
 
-SMD5's two Kconfig choices exist because of *which MCU module variant* is
-soldered down (see `archive/hardware/smd5.md`), not a different
-pin map — same SLIC/codec wiring either way. The real module keeps native
-USB working (flash/monitor exactly like SMD2/SMD4); the AliExpress clone
-module's native-USB pins don't reach the board's own USB connector once
-assembled, so that variant's `sdkconfig.smd5_cheap.defaults` leaves the
-console on plain UART0 instead — flash and monitor it over an external
-UART adapter on `GPIO16`/`GPIO17`/`EN`/`GPIO9`, or use OTA
-(`/ota_upload`) once a build is confirmed good.
+SMD5 builds one image for both MCU modules (the real Espressif module or an AliExpress clone): the
+clone's two solder jumpers, JP2 and JP3 on the back of the board, make the pins match, so the firmware is
+the same and the USB console works either way (see `archive/hardware/smd5.md`).
 
 If you edit a `sdkconfig.<type>.defaults` file, note that defaults files
 only fill in values not already set in an existing `sdkconfig` — they never

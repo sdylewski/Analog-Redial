@@ -374,9 +374,10 @@ unless you mean to wire USB there. With a clone they are in use by the board, so
 don't connect anything; the clone's USB lines (pads 12/13) reach only the
 cut side of JP2/JP3 and come out on no header.
 
-(`CONFIG_BOARD_TYPE_SMD5_CHEAP` remains for a clone board with the jumpers
-left at the default, which costs native USB.) Full detail, including the
-symptoms of getting it wrong, is in
+A clone needs both jumpers moved. With them left at the default, MCLK and
+card-detect are on the wrong pads: no audio and no microSD card-detect. There
+is no separate firmware for that. Full detail, including the symptoms of
+getting it wrong, is in
 [`archive/hardware/smd5.md`](https://github.com/sdylewski/Analog-Redial/blob/main/archive/hardware/smd5.md).
 
 ## 11. Board size & connectors

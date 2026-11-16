@@ -25,15 +25,6 @@ config BOARD_TYPE_SMD5
         SMD4, plus the BM64 companion's MFB on GPIO15. Use this for either
         MCU module as long as the JP2/JP3 jumpers match the module.
 
-config BOARD_TYPE_SMD5_CHEAP
-    bool "SMD5 gateway, AliExpress clone module (ES8388, ESP32-C6-DevKitC-1 pin map, no native USB)"
-    help
-        Only for an SMD5 with the clone module whose JP2/JP3 jumpers were
-        left at the default: MCLK and card-detect then land on the clone's
-        GPIO12/13 (its native USB pins), so this build remaps them, detaches
-        the USB PHY, and puts the console on UART0 (sdkconfig.smd5_cheap
-        .defaults). See archive/hardware/smd5.md.
-
 config BOARD_TYPE_SMD6
     bool "SMD6 gateway, either MCU module (ES8388, TCA9534A on line 1, native USB)"
     help

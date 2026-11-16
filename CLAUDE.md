@@ -49,6 +49,8 @@ with the clone 5V-pin footprint fixed plus the Oct 7/Oct 19 silkscreen and fab-f
 not built yet (its silkscreen still reads "Analog Redial 5.0" until re-exported). Firmware builds
 SMD5 for both.
 
+**No `smd5_cheap` build (removed 2026-11-16).** A clone module on SMD5 or later needs JP2/JP3 moved to the clone side (cut 1-2, bridge 2-3) and runs the normal `smd5` build; the user chose not to support a clone with default jumpers. Don't re-add it.
+
 **⚠️ v5 boards, 30-pin clone modules:** the footprint ties the clone's bottom-right 5V pin to GND.
 On a v5 board that pin must be removed (not connected); the bottom-left 5V pin carries the 5V.
 v5.1 and v6 have the fix. The warning stays in README/docs (board.md, bom.md, building.md,

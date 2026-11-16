@@ -9,7 +9,7 @@
 
 #if CONFIG_BOARD_TYPE_SMD2
 #include "board_pins_smd.h"
-#elif CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || CONFIG_BOARD_TYPE_SMD5_CHEAP || \
+#elif CONFIG_BOARD_TYPE_SMD4 || CONFIG_BOARD_TYPE_SMD5 || \
       CONFIG_BOARD_TYPE_SMD6
 /* SMD6 shares it too, apart from line 1 (BOARD_LINE1_ON_EXPANDER).
  * SMD5 (either MCU module variant) shares SMD4's pin map exactly -- see

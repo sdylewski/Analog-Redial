@@ -16,8 +16,6 @@ static inline const char *board_pcb_variant_name(void)
     return "SMD4";
 #elif CONFIG_BOARD_TYPE_SMD5
     return "SMD5";
-#elif CONFIG_BOARD_TYPE_SMD5_CHEAP
-    return "SMD5 (clone module)";
 #elif CONFIG_BOARD_TYPE_SMD6
     return "SMD6";
 #else
@@ -42,8 +40,6 @@ static inline const char *board_pcb_variant_name(void)
 #define BOARD_IMAGE_TYPE "smd4"
 #elif CONFIG_BOARD_TYPE_SMD5
 #define BOARD_IMAGE_TYPE "smd5"
-#elif CONFIG_BOARD_TYPE_SMD5_CHEAP
-#define BOARD_IMAGE_TYPE "smd5_cheap"
 #elif CONFIG_BOARD_TYPE_SMD6
 #define BOARD_IMAGE_TYPE "smd6"
 #endif

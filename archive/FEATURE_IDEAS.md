@@ -153,7 +153,7 @@ MCLK input is high-impedance. Two indirect checks do work:
    from a "Check microSD" button, not repeatedly.
 
 **Optional step further:** if check 1 fails on an SMD5 build, move MCLK to the
-clone's GPIO12 at runtime (what the `SMD5_CHEAP` build does at compile time)
+clone's GPIO12 at runtime (what the `SMD5_CHEAP` build, removed 2026-11-16, did at compile time)
 so one firmware self-corrects, at the cost of the USB console on that boot.
 
 
