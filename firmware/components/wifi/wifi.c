@@ -549,6 +549,7 @@ void wifi_setup_ap_name(char *out, size_t len)
 
 bool wifi_is_provisioning(void) { return s_provisioning; }
 bool wifi_ap_is_forced(void) { return s_forced_ap; }
+void wifi_ap_use_directly(void) { if (s_provisioning) s_forced_ap = true; }
 
 esp_err_t wifi_request_setup_ap(void)
 {

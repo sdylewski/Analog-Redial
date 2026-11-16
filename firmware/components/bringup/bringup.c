@@ -2578,12 +2578,13 @@ static int cmd_bm64_diagpins(int argc, char **argv)
 {
     if (argc >= 3) {
         esp_err_t err = bt_companion_diag_pins_set(atoi(argv[1]), atoi(argv[2]));
-        if (err != ESP_OK) { printf("bm64_diagpins: want two different pins from 18-21\n"); return 1; }
+        if (err != ESP_OK) { printf("bm64_diagpins: want two different pins: 18-21 (GPIO), or on v6 100-103 (J10 P4-P7)\n"); return 1; }
         printf("saved; reboot (the EEPROM check runs at start-up)\n");
     }
     int r, p;
     bt_companion_diag_pins_get(&r, &p);
-    printf("RST_N lead on GPIO%d, P2_0 lead on GPIO%d\n", r, p);
+    if (r >= 100) printf("RST_N lead on J10 P%d, P2_0 lead on J10 P%d\n", r - 100 + 4, p - 100 + 4);
+    else printf("RST_N lead on GPIO%d, P2_0 lead on GPIO%d\n", r, p);
     return 0;
 }
 #endif

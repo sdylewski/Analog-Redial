@@ -2,9 +2,9 @@
 
 # Build a v6 board, step by step
 
-> **Not built or tested yet.** v6's design and fab files are released, but no v6 board
-> has been built. These steps are written from the design and may change after the first build. **v5** is the tested
-> board: [Build a v5 board](build-v5.md).
+> **Built and working.** One v6 board has been built and runs both phone lines, the codec, Wi-Fi and the
+> payphone coin board. The microSD card and the J10 extra I/O haven't been checked yet, and these steps
+> are still written from the design, so they may change. v5 is the longest-tested board: [Build a v5 board](build-v5.md).
 
 From a board that arrives from the fab with its surface-mount parts on (including U6, the
 line 1 I/O expander) to a board ready to flash. Every part you add is through-hole. It's

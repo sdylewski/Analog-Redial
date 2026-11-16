@@ -77,6 +77,13 @@ esp_err_t wifi_request_setup_ap(void);
  * case -- the point of the gesture is reaching the UI, not re-provisioning. */
 bool wifi_ap_is_forced(void);
 
+/* The setup page's "configure directly" link: while the setup SoftAP is up
+ * with no network chosen, treat it like the rescue AP for this boot only --
+ * the full dashboard is served at 192.168.4.1 instead of the Wi-Fi form, so a
+ * new board can be tested without joining any other network. Nothing is saved;
+ * a reboot returns to the setup page. No-op when the SoftAP isn't up. */
+void wifi_ap_use_directly(void);
+
 /* Re-read the board name (board_hostname()/board_name_get()) and push it to
  * mDNS as the <name>.local hostname + instance name. Call after
  * board_name_set() so the .local address updates without a reboot. No-op-ish

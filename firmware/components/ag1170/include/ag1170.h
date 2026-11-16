@@ -72,6 +72,11 @@ void ag1170_ring_start_test(int line, uint16_t hz);
 /* Sets the frequency every later ring on this line uses (not saved: see
  * board_ring_hz_set()). Loaded from there at init. */
 void ag1170_set_ring_hz(int line, uint16_t hz);
+/* The cadence every ordinary ring uses from now on (alternating on/off phases
+ * in ms, 2 to 6 of them); the region's ring (tones_region_ring_cadence()).
+ * Without it, or with n < 2, the configured on/off above. Not for the alarm,
+ * timer or intercom rings, which keep their own. */
+void ag1170_set_ring_pattern(const uint16_t *phase_ms, uint8_t n);
 void ag1170_ring_stop(int line);
 bool ag1170_is_ringing(int line);
 

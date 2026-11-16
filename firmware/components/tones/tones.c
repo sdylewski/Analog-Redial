@@ -118,6 +118,16 @@ static const tone_region_t *lookup_region(void)
     return &TONE_REGION_FALLBACK;
 }
 
+static const tone_region_extra_t *lookup_extra(void)
+{
+    const char *code = lookup_region()->code;
+    for (size_t i = 0; i < TONE_REGION_EXTRAS_N; i++)
+        if (strcmp(TONE_REGION_EXTRAS[i].code, code) == 0) return &TONE_REGION_EXTRAS[i];
+    return &TONE_REGION_EXTRA_FALLBACK;
+}
+
+const tone_cadence_t *tones_region_ring_cadence(void) { return &lookup_extra()->ring; }
+
 /* Resolves a cadence's phase lengths from ms to samples once, at
  * progress_tone_start() time, rather than converting on every sample in
  * the hot fill loop below. */
@@ -145,10 +155,6 @@ static bool cadence_on(const progress_tone_t *p, uint32_t pos)
     return false; /* unreachable */
 }
 
-/* REORDER/CONFIRM aren't in the per-language region table (see tones.h) --
- * fixed specs, same shape as a tone_spec_t so they can share the same
- * resolve_cadence()/cadence_on() path. */
-static const tone_spec_t TONE_SPEC_REORDER = { 480, 620, { {250, 250}, 2 } };
 
 /* Off-hook (ROH) alert -- 4 frequencies, so it doesn't fit tone_spec_t's
  * f1/f2 pair; the cadence still does. See TONE_OFFHOOK_ALERT in tones.h.
@@ -197,8 +203,8 @@ void progress_tone_start(progress_tone_t *p, uint32_t sample_rate, call_progress
             break;
         }
         case TONE_REORDER:
-            f1 = TONE_SPEC_REORDER.f1; f2 = TONE_SPEC_REORDER.f2;
-            resolve_cadence(p, &TONE_SPEC_REORDER.cadence);
+            f1 = lookup_extra()->reorder.f1; f2 = lookup_extra()->reorder.f2;
+            resolve_cadence(p, &lookup_extra()->reorder.cadence);
             break;
         case TONE_CONFIRM:
             f1 = 350; f2 = 440; /* handled as a one-shot special case below, not a cadence */

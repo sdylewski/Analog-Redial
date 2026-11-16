@@ -55,7 +55,7 @@ typedef enum {
     TONE_DIAL,       /* region-dependent, see tone_regions.h (NA default: 350+450 Hz continuous) */
     TONE_RINGBACK,   /* region-dependent (NA default: 440+480 Hz, 2 s on / 4 s off) */
     TONE_BUSY,       /* region-dependent (NA default: 480+620 Hz, 0.5 s on / 0.5 s off) */
-    TONE_REORDER,    /* 480+620 Hz, 0.25 s on / 0.25 s off (fast busy) -- not regionalized */
+    TONE_REORDER,    /* region-dependent (NA default: 480+620 Hz, 0.25 s on / 0.25 s off, fast busy) */
     TONE_CONFIRM,    /* 350+440 Hz triple beep (stutter/confirmation) -- not regionalized */
     /* "Receiver off-hook" (ROH) / howler: 1400+2060+2450+2600 Hz, 100 ms on /
      * 100 ms off, per Telcordia GR-506-CORE SS17.2.8 (North American). Played
@@ -108,6 +108,10 @@ typedef struct {
     uint32_t        phase_samples[TONE_CADENCE_MAX_PHASES]; /* cadence, in samples, resolved at start */
     uint8_t         n_phases;
 } progress_tone_t;
+
+/* The bell cadence for the current region (alternating on/off phases, ms):
+ * what a ringing line should do. Follows the same region setting as the tones. */
+const tone_cadence_t *tones_region_ring_cadence(void);
 
 void progress_tone_start(progress_tone_t *p, uint32_t sample_rate, call_progress_t kind);
 

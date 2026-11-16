@@ -166,6 +166,8 @@ and resistors that are already on the board.
   time it runs. That needs two thin wires from the companion's 2-pin programming pads to the main
   board's J5 header (the firmware looks for them on GPIO19/20; `bm64_diagpins` in the console tells it
   if they're elsewhere), and the board configured as one line with no microSD. After that the wires come off.
+  **On a v6 board** the wires go to J10 (P4 and P5) instead, and line 2 and the microSD card can stay
+  in use: see [BM64 one-time setup on v6](hardware-smd6.md#bm64-one-time-setup-on-v6-the-two-programming-leads-go-to-j10).
 - **Cheaper option:** the DFRobot **DFR0781** (BT401 module), about $3.50 on
   [DigiKey](https://www.digikey.com/en/products/result?keywords=DFR0781) (DigiKey part `1738-DFR0781-ND`)
   or from [AliExpress](https://www.aliexpress.us/item/3256807742050408.html), with call control over a

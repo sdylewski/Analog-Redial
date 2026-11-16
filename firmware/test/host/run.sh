@@ -27,6 +27,9 @@ PP="$HERE/../../components/payphone"
 cp "$PP/coin_tone.c" "$PP/include/coin_tone.h" "$OUT/"
 cc -std=gnu11 -Wall -Wextra -O1 -I. test_coin_tone.c coin_tone.c -lm -o run_test_coin_tone
 ./run_test_coin_tone
+cp "$PP/payphone_types.c" "$PP/include/payphone_types.h" "$OUT/"
+cc -std=gnu11 -Wall -Wextra -Werror -O1 -I. test_payphone_types.c payphone_types.c -o run_test_payphone_types
+./run_test_payphone_types
 EX="$HERE/../../components/ag1170"
 cp "$EX/line_expander.c" "$EX/include/line_expander.h" "$OUT/"
 cp -r "$HERE/shim_line_expander" "$OUT/"

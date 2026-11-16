@@ -18,6 +18,7 @@
 #include "payphone.h"
 #include "coinboard.h"
 #include "ag1170.h"
+#include "line_expander.h"
 #include "dialplan.h"
 #include "telephony.h"
 #include "wifi.h"
@@ -218,6 +219,21 @@ void app_main(void)
      * which is the first thing that actually claims GPIO 18-21 based on
      * whatever board_hw_config_get() says. */
     board_hw_config_autodetect();
+
+#if BOARD_LINE1_ON_EXPANDER
+    /* v6: is line 2's SLIC (U3) actually fitted? Its PD pin's internal pull-up
+     * shows on the expander (line_exp_probe_slic()). Not fitted -> run one line,
+     * and don't show a second one. An unclear read leaves the saved config alone. */
+    if (line_exp_init() == ESP_OK) {
+        int fitted = line_exp_probe_slic();
+        if (fitted == 0) {
+            ESP_LOGW(TAG, "line 2: no SLIC fitted (U3 empty) -- running one line");
+            board_hw_set_line1_absent(true);
+        } else if (fitted < 0) {
+            ESP_LOGW(TAG, "line 2: SLIC check unclear -- keeping the saved line count");
+        }
+    }
+#endif
 
     /* 4. SLIC line interface. Line 2 vs. microSD on the shared GPIO 18-21
      * pads is a runtime choice now (board_hw_config_get(), board.h) rather

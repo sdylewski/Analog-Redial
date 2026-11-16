@@ -21,6 +21,7 @@
 #include "homecall.h"
 #include "autoupdate.h"
 #include "bt_companion.h"
+#include "bt401.h"
 #include "selftest.h"
 #include "multipart.h"
 #include "audio_convert.h"
@@ -61,6 +62,7 @@
 #include "webhook.h"
 #include "mqtt_ha.h"
 #include "payphone.h"
+#include "payphone_types.h"
 #include "coinboard.h"
 #include "callcap.h"
 #include "livestream.h"
@@ -1129,10 +1131,11 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
         off = appendf(buf, cap, off,
             "<div class=\"hazard-banner\">%s</div>",
             i18n_str("hazard.rescue_ap",
-                     "&#128246; Rescue mode: this board is running its own setup Wi-Fi network "
-                     "instead of joining yours, because the BOOT button was held. Everything here "
-                     "works normally. Your saved Wi-Fi is untouched &mdash; reboot "
-                     "(Settings &rarr; Hardware &rarr; Reset, or unplug it) to rejoin it."));
+                     "&#128246; Direct mode: this board is running its own Wi-Fi network "
+                     "instead of joining yours (the BOOT button was held, or &ldquo;configure "
+                     "directly&rdquo; was chosen). Everything here works normally. Saved Wi-Fi "
+                     "is untouched &mdash; reboot (Settings &rarr; Hardware &rarr; Reset, or "
+                     "unplug it) to rejoin it."));
     }
     if (board_power_warning()) {
         board_restart_stats_t rs;
@@ -1319,7 +1322,9 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
         "<label>%s<select name=\"lang\">%s</select></label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">"
         "%s</button></div>"
-        "</form></div></main>"
+        "</form>"
+        "<p class=\"hint\"><a href=\"/direct\">%s</a></p>"
+        "</div></main>"
         "<script>%s</script>"
         "</body></html>";
 
@@ -1353,6 +1358,8 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
     const char *name_placeholder = i18n_str("wifisetup.name_placeholder",
         "leave blank for default");
     const char *save_connect = i18n_str("wifisetup.save_connect", "Save & connect");
+    const char *direct_link = i18n_str("wifisetup.direct",
+        "Configure directly (stay on this network, no home Wi-Fi)");
 
     /* Measure the finished page, then allocate exactly that. The size used
      * to be a hand-kept sum of every argument's length; the language
@@ -1363,7 +1370,7 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
 #define SETUP_PAGE_ARGS setup_title, setup_title, connect_h1, intro, \
         network_name_label, scanning, network_name_label, enter_network, rescan, \
         ssid_label, password_label, password_placeholder, name_label, name_placeholder, \
-        lang_label, lang_opts, save_connect, WIFI_SCAN_JS
+        lang_label, lang_opts, save_connect, direct_link, WIFI_SCAN_JS
     int len = snprintf(NULL, 0, tmpl, SETUP_PAGE_ARGS);
     char *buf = (len > 0) ? malloc((size_t)len + 1) : NULL;
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
@@ -1373,6 +1380,17 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
     httpd_resp_set_type(req, "text/html");
     httpd_resp_sendstr(req, buf);
     free(buf);
+    return ESP_OK;
+}
+
+/* GET /direct -- "configure directly" on the setup page: use the dashboard over
+ * the board's own Wi-Fi network (192.168.4.1) without choosing a home network. */
+static esp_err_t direct_handler(httpd_req_t *req)
+{
+    wifi_ap_use_directly();
+    httpd_resp_set_status(req, "302 Found");
+    httpd_resp_set_hdr(req, "Location", "http://192.168.4.1/");
+    httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
 
@@ -3679,6 +3697,7 @@ static const char DC_JS[] =
     "var name=dcBase(d.file)+'.mp3';m.textContent='Uploading '+Math.round(r.size/1024)+' KB...';"
     "return dcUp(r,name,d.where=='sd'?'sd':'flash').then(function(){return dcAfter(d,d.code,d.desc,name,true);});})"
     ".then(function(){location.reload();}).catch(function(e){m.textContent='Failed: '+e.message;});}"
+    "function ppFree(c){fetch('/payphone_free_set',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'code='+encodeURIComponent(c.dataset.code)+'&free='+(c.checked?1:0)}).then(function(r){if(!r.ok){c.checked=!c.checked;}}).catch(function(){c.checked=!c.checked;});}"
     "function dcAdd(fm){var f=fm.elements.file.files[0],m=dcG('dcaddmsg');if(!f)return false;"
     "dcPrep(f,dcBase(f.name),m).then(function(u){var fd=new FormData();"
     "fd.append('new_code',fm.elements.new_code.value);fd.append('desc',fm.elements.desc.value);fd.append('file',u.blob,u.name);"
@@ -3687,6 +3706,24 @@ static const char DC_JS[] =
     "function dcRemove(){if(!confirm('Remove dial code '+dcCur.code+'?'))return;"
     "dcPost('/dialcode_delete/'+encodeURIComponent(dcCur.code),{}).then(function(){location.reload();})"
     ".catch(function(e){dcG('dcmsg').textContent='Failed: '+e.message;});}";
+
+/* The "Free" cell of a dial-code row (payphone features on): a tick to run this code with no coin.
+ * `show` false (calls to the other line always cost) leaves it empty. */
+static const char *free_cell(char *out, size_t n, const char *code, bool ppfree, bool show, bool allfree)
+{
+    char digits[20];
+    size_t k = 0;
+    for (const char *c = code; *c && k < sizeof(digits) - 1; c++)
+        if ((*c >= '0' && *c <= '9') || *c == '*' || *c == '#') digits[k++] = *c;
+    digits[k] = '\0';
+    if (!ppfree) out[0] = '\0';
+    else if (!show || !digits[0]) snprintf(out, n, "<td></td>");
+    else snprintf(out, n, "<td class=\"free\"><input type=\"checkbox\" data-code=\"%s\"%s%s "
+                  "title=\"%s\" onchange=\"ppFree(this)\"></td>", digits,
+                  (allfree || payphone_code_listed(digits)) ? " checked" : "", allfree ? " disabled" : "",
+                  allfree ? "All codes are free (Settings -> Payphone)" : "Runs without a coin");
+    return out;
+}
 
 static int append_dialcodes_tab(char *buf, size_t cap, int off)
 {
@@ -3701,6 +3738,10 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
     size_t nclips = dialplan_list_clip_entries(clips, DIALPLAN_MAX_CLIP_ENTRIES);
     size_t nfx = dialplan_list_fixed(fx, 32);
     int lines = board_hw_config_get().num_lines;
+    bool ppfree = payphone_enabled();            /* payphone features on: a Free column */
+    bool allfree = ppfree && payphone_cfg().codes_free;
+    int ncol = ppfree ? 6 : 5;
+    char fc[260];
 
     off = appendf(buf, cap, off,
         "<div class=\"card wide\" id=\"builtin\"><h2>%s</h2><script>%s</script>"
@@ -3736,8 +3777,9 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
 
     off = appendf(buf, cap, off,
         "<table class=\"dctable\"><thead><tr><th>Code</th><th>What it does</th><th>Audio</th>"
-        "<th class=\"size\">Size</th><th></th></tr></thead><tbody>"
-        "<tr class=\"grp\"><td colspan=\"5\">%s (%u)</td></tr>",
+        "<th class=\"size\">Size</th>%s<th></th></tr></thead><tbody>"
+        "<tr class=\"grp\"><td colspan=\"%d\">%s (%u)</td></tr>",
+        ppfree ? "<th title=\"Needs no coin on a payphone\">Free</th>" : "", ncol,
         i18n_str("dialcodes.group_clips", "Audio clips"), (unsigned)nclips);
 
     uint64_t used_int = 0, used_sd = 0;
@@ -3785,9 +3827,9 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
                               "storage space\">built in</span>");
         }
         off = appendf(buf, cap, off,
-            "</td><td class=\"act\"><button type=\"button\" onclick=\"dcEdit(this)\" data-kind=\"clip\" "
+            "</td>%s<td class=\"act\"><button type=\"button\" onclick=\"dcEdit(this)\" data-kind=\"clip\" "
             "data-code=\"%s\" data-desc=\"%s\" data-file=\"%s\" data-builtin=\"%d\" data-where=\"%s\">%s</button></td></tr>",
-            clips[i].code, edesc, fname_h, clips[i].builtin ? 1 : 0,
+            free_cell(fc, sizeof(fc), clips[i].code, ppfree, true, allfree), clips[i].code, edesc, fname_h, clips[i].builtin ? 1 : 0,
             wh == STORAGE_WHERE_SD ? "sd" : wh == STORAGE_WHERE_INTERNAL ? "flash" :
             wh == STORAGE_WHERE_BUNDLED ? "builtin" : "",
             i18n_str("dialcodes.edit", "edit"));
@@ -3802,7 +3844,7 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         "<td class=\"desc\"><input name=\"desc\" form=\"dcadd\" maxlength=\"63\" placeholder=\"%s\"></td>"
         "<td class=\"audio\"><input type=\"file\" name=\"file\" form=\"dcadd\" "
         "accept=\"audio/*,video/*,.wav,.mp3\" "
-        "required title=\"%s\"><div id=\"dcaddmsg\" class=\"fn\"></div></td><td class=\"size\"></td>"
+        "required title=\"%s\"><div id=\"dcaddmsg\" class=\"fn\"></div></td><td class=\"size\"></td>%s"
         "<td class=\"act\"><form id=\"dcadd\" method=\"POST\" action=\"/dialcode_upload\" "
         "enctype=\"multipart/form-data\" onsubmit=\"return dcAdd(this)\"><button type=\"submit\" class=\"primary\">%s</button></form></td>"
         "</tr>",
@@ -3811,14 +3853,15 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         i18n_str("dialcodes.desc_short", "Description"),
         i18n_str("dialcodes.audio_label", "Any audio file: this browser turns it into a small MP3 "
                  "(8 kHz mono, 24 kbps) before uploading"),
+        ppfree ? "<td></td>" : "",
         i18n_str("dialcodes.add", "Add"));
 
     /* What the clips take up, and what's left, on each place they can live. */
     {
         char a[16], b[16], c[16], d[16];
         off = appendf(buf, cap, off,
-            "<tr class=\"sum\"><td colspan=\"5\">Clips use <b>%s</b> of internal flash (%s free)",
-            fmt_bytes(used_int, a, sizeof(a)), fmt_bytes(storage_free_bytes_internal(), b, sizeof(b)));
+            "<tr class=\"sum\"><td colspan=\"%d\">Clips use <b>%s</b> of internal flash (%s free)",
+            ncol, fmt_bytes(used_int, a, sizeof(a)), fmt_bytes(storage_free_bytes_internal(), b, sizeof(b)));
         if (storage_sd_present()) {
             uint64_t cap_sd = storage_cap_bytes_sd(), u_sd = storage_used_bytes_sd();
             off = appendf(buf, cap, off, " and <b>%s</b> of the microSD card (%s free)",
@@ -3830,8 +3873,8 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
             "MP3s (about 3&nbsp;kB a second); <b>edit</b> &rarr; <b>Shrink file</b> does the same "
             "for one already here.</td></tr>");
     }
-    off = appendf(buf, cap, off, "<tr class=\"grp\"><td colspan=\"5\">%s</td></tr>",
-                  i18n_str("dialcodes.group_builtin", "Built-in"));
+    off = appendf(buf, cap, off, "<tr class=\"grp\"><td colspan=\"%d\">%s</td></tr>",
+                  ncol, i18n_str("dialcodes.group_builtin", "Built-in"));
     for (size_t i = 0; i < nfx && (size_t)off < cap; i++) {
         const char *note = "";
         bool usable = fx[i].available;
@@ -3845,12 +3888,13 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         html_escape(fx[i].info.desc, edesc, sizeof(edesc));
         off = appendf(buf, cap, off,
             "<tr%s><td class=\"code\">%s<span class=\"fn\">%s</span></td><td class=\"desc\">%s</td>"
-            "<td class=\"audio\">%s%s%s</td><td class=\"size\"></td>"
+            "<td class=\"audio\">%s%s%s</td><td class=\"size\"></td>%s"
             "<td class=\"act\"><button type=\"button\" onclick=\"dcEdit(this)\" data-kind=\"fix\" "
             "data-def=\"%s\" data-code=\"%s\" data-desc=\"%s\"%s>%s</button></td></tr>",
             usable ? "" : " class=\"muted\"",
             fx[i].info.code, was, edesc,
             note[0] ? "<span class=\"fn\">" : "", note, note[0] ? "</span>" : "",
+            free_cell(fc, sizeof(fc), fx[i].info.code, ppfree, fx[i].info.group != DIALPLAN_GROUP_CALLS, allfree),
             fx[i].info.default_code, fx[i].info.code, edesc, usable ? "" : " disabled",
             i18n_str("dialcodes.edit", "edit"));
     }
@@ -3860,8 +3904,8 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
         telephony_fx_key_t keys[TEL_FX_KEYED];
         telephony_fx_keys(keys);
         bool fx_on = board_voice_fx_enabled_get();
-        off = appendf(buf, cap, off, "<tr class=\"grp\"><td colspan=\"5\">%s</td></tr>",
-                      i18n_str("dialcodes.group_incall", "During any call (two phones on this board, or over Wi-Fi)"));
+        off = appendf(buf, cap, off, "<tr class=\"grp\"><td colspan=\"%d\">%s</td></tr>",
+                      ncol, i18n_str("dialcodes.group_incall", "During any call (two phones on this board, or over Wi-Fi)"));
         for (int i = 0; i < TEL_FX_KEYED && (size_t)off < cap; i++) {
             char desc[48], was[16] = "";
             if (keys[i].fx == VOICE_FX_NONE) snprintf(desc, sizeof(desc), "Back to your normal voice");
@@ -3870,12 +3914,12 @@ static int append_dialcodes_tab(char *buf, size_t cap, int off)
             if (keys[i].key != keys[i].def) snprintf(was, sizeof(was), " (was %c)", keys[i].def);
             off = appendf(buf, cap, off,
                 "<tr%s><td class=\"code\">%c<span class=\"fn\">%s</span></td><td class=\"desc\">%s</td>"
-                "<td class=\"audio\">%s</td><td class=\"size\"></td>"
+                "<td class=\"audio\">%s</td><td class=\"size\"></td>%s"
                 "<td class=\"act\"><button type=\"button\" onclick=\"dcEdit(this)\" data-kind=\"key\" "
                 "data-fx=\"%d\" data-code=\"%c\" data-desc=\"%s\">%s</button></td></tr>",
                 fx_on ? "" : " class=\"muted\"", keys[i].key, was, desc,
                 fx_on ? "" : "<span class=\"fn\">voice effects are off (Settings &rarr; Phone)</span>",
-                keys[i].fx, keys[i].key, desc, i18n_str("dialcodes.edit", "edit"));
+                ppfree ? "<td></td>" : "", keys[i].fx, keys[i].key, desc, i18n_str("dialcodes.edit", "edit"));
         }
     }
     off = appendf(buf, cap, off, "</tbody></table>");
@@ -4804,12 +4848,30 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
     char paired[BT_COMPANION_NAME_MAX * 6];
     html_escape(st.bt_connected ? st.paired_name : i18n_str("bt.none_paired", "(none)"),
                 paired, sizeof(paired));
+    /* What to pick in the phone's Bluetooth list. */
+    char pair_name_row[360] = "";
+    if (bt_companion_module() == BOARD_BT_BT401) {
+        char pn[40], pn_h[240];
+        bt401_pairing_name(pn, sizeof(pn));
+        html_escape(pn, pn_h, sizeof(pn_h));
+        snprintf(pair_name_row, sizeof(pair_name_row),
+                 "<div class=\"statusrow\"><span class=\"label\">Name to pick when pairing</span>"
+                 "<span><b>%s</b></span></div>", pn_h);
+    } else if (bt_companion_module() == BOARD_BT_BM64) {
+        char pn[40], pn_h[240];
+        bt_board_pairing_name(pn, sizeof(pn));
+        html_escape(pn, pn_h, sizeof(pn_h));
+        snprintf(pair_name_row, sizeof(pair_name_row),
+                 "<div class=\"statusrow\"><span class=\"label\">Name to pick when pairing</span>"
+                 "<span><b>%s</b></span></div>", pn_h);
+    }
     off = appendf(buf, cap, off,
         "<div class=\"card wide\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span id=\"bt-link-pill\" class=\"pill %s\">%s</span></div>"
         "<div class=\"statusrow\"%s id=\"bt-addr-row\"><span class=\"label\">%s</span>"
         "<span id=\"bt-addr\">%s</span></div>"
+        "%s"
         "<div class=\"statusrow\"%s id=\"bt-paired-row\"><span class=\"label\">%s</span>"
         "<span id=\"bt-paired-pill\" class=\"pill %s\">%s</span></div>"
         "<div class=\"statusrow\"%s id=\"bt-paired-name-row\"><span class=\"label\">%s</span>"
@@ -4818,6 +4880,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
         i18n_str("bt.link_label", "Companion board"), link_pill, link_text,
         (st.link_up && st.bd_addr[0]) ? "" : " hidden",
         i18n_str("bt.own_addr_label", "This module's Bluetooth address"), st.bd_addr,
+        pair_name_row,
         st.link_up ? "" : " hidden",
         i18n_str("bt.paired_phone_label", "Paired phone/laptop"), bt_pill, bt_conn_text,
         st.link_up ? "" : " hidden",
@@ -6611,15 +6674,62 @@ static int append_livestream_card(char *buf, size_t cap, int off)
     return appendf(buf, cap, off, "</div>");
 }
 
+/* Folds each card on the Diagnostics tab under its title: a <details> in the card's place, with the
+ * h2 as its summary. Opened or closed is remembered per card in localStorage (the page works without
+ * it); the first card of each section starts open. Cards keep their live scripts: the nodes are moved,
+ * not rebuilt. */
+static const char DIAG_FOLD_JS[] =
+    "<script>(function(){var K='diagfold',st={},ds=[];try{st=JSON.parse(localStorage.getItem(K)||'{}')||{};}catch(e){}"
+    "function save(){try{localStorage.setItem(K,JSON.stringify(st));}catch(e){}}"
+    "var first=[];document.querySelectorAll('h2.diag-sec').forEach(function(h){var n=h.nextElementSibling;"
+    "while(n&&!n.classList.contains('card')&&!n.classList.contains('diag-sec'))n=n.nextElementSibling;"
+    "if(n&&n.classList.contains('card'))first.push(n);});"
+    "document.querySelectorAll('.cards > .card').forEach(function(c){var h=c.firstElementChild;"
+    "if(!h||h.tagName!=='H2')return;var d=document.createElement('details'),s=document.createElement('summary'),"
+    "key=h.textContent.replace(/\\s+/g,' ').trim().slice(0,40),open=st[key]===undefined?(first.indexOf(c)>=0||key==='Logging'):!!st[key];"
+    "d.className=c.className+' dg';if(c.id)d.id=c.id;s.appendChild(h);d.appendChild(s);"
+    "while(c.firstChild)d.appendChild(c.firstChild);d.open=open;"
+    "d.addEventListener('toggle',function(){st[key]=d.open;save();});c.parentNode.replaceChild(d,c);ds.push(d);});"
+    "function all(o){ds.forEach(function(d){d.open=o;});}"
+    "var a=document.getElementById('dgall'),n=document.getElementById('dgnone');"
+    "if(a)a.onclick=function(){all(true);};if(n)n.onclick=function(){all(false);};"
+    "if(location.hash){var t=document.querySelector(location.hash);if(t&&t.tagName==='DETAILS')t.open=true;}"
+    "})();</script>";
+
 static int append_diag_tab(char *buf, size_t cap, int off)
 {
     static const char *LEVELS[] = { "none", "error", "warn", "info", "debug", "verbose" };
     esp_log_level_t cur = logctl_get_level();
 
-    off = append_selftest_card(buf, cap, off);
-    off = append_callcap_card(buf, cap, off);
-    off = append_livestream_card(buf, cap, off);
+    int diag_num_lines = board_hw_config_get().num_lines;
+    char diag_line_opts[128] = "";
+    {
+        int o = 0;
+        for (int l = 0; l < diag_num_lines; l++) {
+            o += snprintf(diag_line_opts + o, sizeof(diag_line_opts) - o,
+                           "<option value=\"%d\">Line %d</option>", l, l);
+        }
+    }
 
+    bool tmode = telephony_test_enabled();
+    bool loop  = audio_test_loopback();
+    int tl_n = board_hw_config_get().num_lines;
+    char tl_opts[160] = "";
+    {
+        int o = 0;
+        for (int l = 0; l < tl_n && o < (int)sizeof(tl_opts) - 48; l++)
+            o += snprintf(tl_opts + o, sizeof(tl_opts) - o,
+                          "<option value=\"%d\">%s %d</option>", l,
+                          i18n_str("diag.test.line", "Line"), l);
+    }
+
+    /* Four sections, each card folding away under its title (diagFold, below): the hardware
+     * checks first, then the phone's features, then the audio checks, then firmware and logs.
+     * The log level is a small card kept at the very top, where it is wanted while testing. */
+    off = appendf(buf, cap, off,
+        "<nav class=\"diag-nav\"><a href=\"#d-hw\">1 &middot; Hardware</a> <a href=\"#d-phone\">2 &middot; Phone features</a> "
+        "<a href=\"#d-audio\">3 &middot; Audio</a> <a href=\"#d-fw\">4 &middot; Firmware &amp; logs</a> "
+        "<button type=\"button\" id=\"dgall\">Open all</button><button type=\"button\" id=\"dgnone\">Close all</button></nav>");
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
@@ -6647,19 +6757,213 @@ static int append_diag_tab(char *buf, size_t cap, int off)
                  "over the serial console (<code>log_level debug</code>). WiFi/PHY noise stays "
                  "at warn so it doesn't bury the app's own debug output."));
 
-    /* Tone generator and mic record test sit right after Logging so the
-     * three small cards share one row (the self-test card above and the
-     * test-mode card below are full width). */
-    int diag_num_lines = board_hw_config_get().num_lines;
-    char diag_line_opts[128] = "";
+
+    off = appendf(buf, cap, off, "<h2 class=\"diag-sec\" id=\"d-hw\">1 &middot; Hardware checks</h2><p class=\"hint diag-sec-hint\">The board itself: its parts and chips, the phone line ring generator, and the spare I/O pins.</p>");
+    off = append_selftest_card(buf, cap, off);
+    /* --- ring --- */
+    off = appendf(buf, cap, off,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<form method=\"POST\" action=\"/test/ring\" class=\"settings-form\">"
+        "<p class=\"hint\">%s</p>"
+        "<div class=\"toolbar sub\">"
+        "<select name=\"line\">%s</select>"
+        "<select name=\"secs\"><option value=\"2\">2 s</option>"
+        "<option value=\"4\" selected>4 s</option><option value=\"8\">8 s</option></select>"
+        "<button type=\"submit\">%s</button></div></form></div>",
+        i18n_str("diag.test.ring_label", "Ring a phone"),
+        i18n_str("diag.test.ring_hint",
+                 "Rings the bell on a line, as an incoming call would. Confirms the SLIC's "
+                 "ring generator, the bell itself and the wiring in one go. Skipped if that "
+                 "handset is already off-hook. &#9888; Don't touch tip/ring while it rings."),
+        tl_opts, i18n_str("diag.test.ring_button", "Ring"));
+
+    /* --- ring frequency test --- */
     {
+        const uint8_t *hz;
+        int n = telephony_ring_test_freqs(&hz);
+        char hz_opts[32 * 12] = "";
         int o = 0;
-        for (int l = 0; l < diag_num_lines; l++) {
-            o += snprintf(diag_line_opts + o, sizeof(diag_line_opts) - o,
-                           "<option value=\"%d\">Line %d</option>", l, l);
-        }
+        /* Starts on the saved frequency, so pressing Save can't change it by accident. */
+        for (int i = 0; i < n && o < (int)sizeof(hz_opts) - 32; i++)
+            o += snprintf(hz_opts + o, sizeof(hz_opts) - o, "<option value=\"%d\"%s>%d Hz</option>",
+                          hz[i], hz[i] == board_ring_hz_get(0) ? " selected" : "", hz[i]);
+        char rt_saved[128] = "";
+        o = 0;
+        for (int l = 0; l < tl_n && o < (int)sizeof(rt_saved) - 48; l++)
+            o += snprintf(rt_saved + o, sizeof(rt_saved) - o, "%s%s %d: <b id=\"rts%d\">%u</b> Hz",
+                          l ? ", " : "", i18n_str("diag.test.line", "Line"), l, l,
+                          (unsigned)board_ring_hz_get(l));
+        off = appendf(buf, cap, off,
+            "<div class=\"card\"><h2>%s</h2><div class=\"settings-form\">"
+            "<p class=\"hint\">%s</p>"
+            "<div class=\"toolbar sub\">"
+            "<select id=\"rtline\">%s</select>"
+            "<button type=\"button\" onclick=\"rtGo(0)\">%s</button>"
+            "<select id=\"rthz\">%s</select>"
+            "<button type=\"button\" onclick=\"rtGo(document.getElementById('rthz').value)\">%s</button>"
+            "<button type=\"button\" onclick=\"rtStop()\">%s</button>"
+            "<button type=\"button\" onclick=\"rtSave()\">%s</button></div>"
+            "<p class=\"hint\" id=\"rtstat\" aria-live=\"polite\"></p>"
+            "<p class=\"hint\">%s %s <span id=\"rtsaved\" aria-live=\"polite\"></span></p></div>"
+            "<script>"
+            "var RT={step:'%s',one:'%s',gap:'%s',done:'%s',busy:'%s',saved:'%s',nosave:'%s'},rtT=0;"
+            "function rtShow(d){var e=document.getElementById('rtstat');clearTimeout(rtT);"
+            "if(!d.active){if(rtT)e.textContent=RT.done;rtT=0;return;}"
+            "e.textContent=!d.ringing?RT.gap:d.sweep?RT.step.replace('%%1',d.step).replace('%%2',d.steps)"
+            ".replace('%%3',d.hz):RT.one.replace('%%3',d.hz);rtT=setTimeout(rtPoll,500);}"
+            "function rtPoll(){fetch('/api/ring_test').then(function(r){return r.json();}).then(rtShow)"
+            ".catch(function(){rtT=setTimeout(rtPoll,2000);});}"
+            "function rtPost(b){return fetch('/test/ring_freq',{method:'POST',headers:"
+            "{'Content-Type':'application/x-www-form-urlencoded'},body:b}).then(function(r){return r.json();});}"
+            "function rtGo(hz){rtPost('line='+document.getElementById('rtline').value+'&hz='+hz)"
+            ".then(function(d){if(d.ok){rtT=1;rtPoll();}else{document.getElementById('rtstat').textContent=RT.busy;}});}"
+            "function rtStop(){rtPost('stop=1').then(rtPoll);}"
+            "function rtSave(){var l=document.getElementById('rtline').value,h=document.getElementById('rthz').value,"
+            "s=document.getElementById('rtsaved');fetch('/ring_freq',{method:'POST',headers:"
+            "{'Content-Type':'application/x-www-form-urlencoded'},body:'json=1&line='+l+'&hz='+h})"
+            ".then(function(r){return r.json();}).then(function(d){if(!d.ok)throw 0;"
+            "document.getElementById('rts'+l).textContent=h;s.textContent=RT.saved;})"
+            ".catch(function(){s.textContent=RT.nosave;});}"
+            "rtPoll();"
+            "</script></div>",
+            i18n_str("diag.test.ringfreq_label", "Ring frequency test"),
+            i18n_str("diag.test.ringfreq_hint",
+                     "For a phone that rings weakly or not at all. Party-line phones often have a "
+                     "ringer tuned to one frequency, and a normal ring is 20 Hz. This rings each "
+                     "frequency for 3 s with a 2 s pause, about a minute in all, so watch this page "
+                     "and note where the bell is clearly loudest. If that isn't 20 Hz, the ringer is "
+                     "tuned to it. Ring that frequency alone to confirm, then press Save for this line. "
+                     "Still no luck? See the "
+                     "<a href=\"https://github.com/sdylewski/Analog-Redial/blob/main/docs/troubleshooting.md#a-phone-wont-ring\" "
+                     "target=\"_blank\" rel=\"noopener\">troubleshooting guide</a>. "
+                     "&#9888; Don't touch tip/ring while it rings."),
+            tl_opts,
+            i18n_str("diag.test.ringfreq_sweep", "Step through all"),
+            hz_opts,
+            i18n_str("diag.test.ringfreq_one", "Ring this one"),
+            i18n_str("diag.test.ringfreq_stop", "Stop"),
+            i18n_str("diag.test.ringfreq_save", "Save for this line"),
+            i18n_str("diag.test.ringfreq_current", "Saved ring frequency:"), rt_saved,
+            i18n_str("diag.test.ringfreq_step", "Step %1 of %2: ringing at %3 Hz"),
+            i18n_str("diag.test.ringfreq_ringing", "Ringing at %3 Hz"),
+            i18n_str("diag.test.ringfreq_gap", "Pause..."),
+            i18n_str("diag.test.ringfreq_done", "Finished."),
+            i18n_str("diag.test.ringfreq_busy", "That line is in use: hang up and try again."),
+            i18n_str("diag.test.ringfreq_saved", "Saved."),
+            i18n_str("diag.test.ringfreq_nosave", "Could not save. Try again."));
     }
 
+
+    /* The spare I/O's latching on/off switches (also on the Dial codes tab, with the dial codes
+     * that use them): a new board's J10 and J5 pins checked one at a time. */
+    off = append_spare_outputs_card(buf, cap, off);
+
+    off = appendf(buf, cap, off, "<h2 class=\"diag-sec\" id=\"d-phone\">2 &middot; Phone features</h2><p class=\"hint diag-sec-hint\">What a caller or a phone does: tones, dialing, and recording or listening to a call.</p>");
+    /* --- call-progress tones --- */
+    off = appendf(buf, cap, off,
+        "<div class=\"card\"><h2>%s</h2>"
+        "<form method=\"POST\" action=\"/test/progress\" class=\"settings-form\">"
+        "<p class=\"hint\">%s</p>"
+        "<div class=\"toolbar sub\">"
+        "<select name=\"line\">%s</select>"
+        "<select name=\"tone\">"
+        "<option value=\"dial\">%s</option><option value=\"ringback\">%s</option>"
+        "<option value=\"busy\">%s</option><option value=\"reorder\">%s</option>"
+        "<option value=\"off\">%s</option></select>"
+        "<button type=\"submit\">%s</button></div></form></div>",
+        i18n_str("diag.test.progress_label", "Play a call-progress tone"),
+        i18n_str("diag.test.progress_hint",
+                 "Sends dial tone, ringback, busy or reorder down a line so you can listen on "
+                 "the handset. The quickest check that the codec, the SLIC's audio path and "
+                 "the earpiece all work &mdash; and that your tone region sounds right. "
+                 "Pick <i>Stop</i> to silence it."),
+        tl_opts,
+        i18n_str("diag.test.tone_dial", "Dial tone"),
+        i18n_str("diag.test.tone_ringback", "Ringback"),
+        i18n_str("diag.test.tone_busy", "Busy"),
+        i18n_str("diag.test.tone_reorder", "Reorder (fast busy)"),
+        i18n_str("diag.test.tone_off", "Stop"),
+        i18n_str("diag.test.progress_button", "Play"));
+
+    /* --- touch-tone test --- */
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\"><h2>%s</h2><div class=\"settings-form\">"
+        "<p class=\"hint\">%s</p>"
+        "<div class=\"toolbar sub\">"
+        "<select id=\"dtline\">%s</select>"
+        "<button type=\"button\" id=\"dtstart\" onclick=\"dtStart()\">%s</button>"
+        "<button type=\"button\" id=\"dtskip\" hidden onclick=\"dtPost('action=skip')\">%s</button>"
+        "<button type=\"button\" id=\"dtstop\" hidden onclick=\"dtPost('action=stop')\">%s</button></div>"
+        "<div id=\"dtkey\" aria-live=\"polite\" hidden style=\"margin:.6em 0\"><span id=\"dtphase\"></span> "
+        "<b id=\"dtbig\" style=\"font-size:2.6em;line-height:1;margin-left:.2em\"></b> "
+        "<span id=\"dtstep\" class=\"hint\"></span></div>"
+        "<p class=\"hint\" id=\"dtmsg\" aria-live=\"polite\"></p>"
+        "<div id=\"dtres\" hidden><table class=\"mini\"><thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>"
+        "<tbody id=\"dttab\"></tbody></table>"
+        "<div class=\"toolbar sub\">"
+        "<button type=\"button\" id=\"dtsave\" hidden onclick=\"dtPost('action=save')\">%s</button>"
+        "<a class=\"button\" id=\"dtrep\" hidden href=\"/dtmf_report.txt\" download>%s</a>"
+        "<button type=\"button\" id=\"dtcopy\" hidden onclick=\"dtCopy()\">%s</button>"
+        "<a class=\"button\" id=\"dtissue\" hidden target=\"_blank\" rel=\"noopener\">%s</a></div>"
+        "<textarea id=\"dtlog\" hidden readonly rows=\"8\" style=\"width:100%%;font-family:monospace;font-size:12px;margin-top:.5em\"></textarea></div>"
+        "<div class=\"toolbar sub\"><button type=\"button\" id=\"dtstd\" hidden onclick=\"dtStd()\">%s</button></div></div></div>",
+        i18n_str("diag.test.dtmf_label", "Touch-tone test"),
+        i18n_str("diag.test.dtmf_hint",
+                 "For a touch-tone phone that dials wrong numbers or doesn't dial at all. Lift the "
+                 "handset on the line you choose and press Start. The dial tone stops and this page "
+                 "shows each key in turn: press and hold it until the next one appears, about a "
+                 "second, and keep quiet in between. Nothing gets dialed. Afterwards it shows how "
+                 "well each key was heard and, if it helps, offers settings for this line to save. "
+                 "It also makes a log you can send in, to help make more phones work without tuning: "
+                 "firmware and board details, tone measurements and about 50 ms of audio per key, "
+                 "with no Wi-Fi details or serial number."),
+        tl_opts,
+        i18n_str("diag.test.dtmf_start", "Start"),
+        i18n_str("diag.test.dtmf_skip", "Skip this key"),
+        i18n_str("diag.test.dtmf_stop", "Stop"),
+        i18n_str("diag.test.dtmf_col_key", "Key"),
+        i18n_str("diag.test.dtmf_col_heard", "Heard as"),
+        i18n_str("diag.test.dtmf_col_std", "Standard"),
+        i18n_str("diag.test.dtmf_col_rec", "With these settings"),
+        i18n_str("diag.test.dtmf_save", "Save for this line"),
+        i18n_str("diag.test.dtmf_download", "Download report"),
+        i18n_str("diag.test.dtmf_copy", "Copy log"),
+        i18n_str("diag.test.dtmf_issue", "Post it on GitHub"),
+        i18n_str("diag.test.dtmf_std", "Back to standard settings"));
+    off = appendf(buf, cap, off,
+        "<script>var DT={noise:'%s',release:'%s',press:'%s',hold:'%s',step:'%s',work:'%s',stopped:'%s',"
+        "good:'%s',tuned:'%s',partial:'%s',none:'%s',clip:'%s',nosave:'%s',saved:'%s',busy:'%s',mem:'%s',"
+        "skipped:'%s',attach:'%s',std:'%s',pickup:'%s',unreach:'%s',copied:'%s',nocopy:'%s'};",
+        i18n_str("diag.test.dtmf_noise", "Keep quiet for a moment..."),
+        i18n_str("diag.test.dtmf_release", "Let go of the key"),
+        i18n_str("diag.test.dtmf_press", "Press and hold"),
+        i18n_str("diag.test.dtmf_hold", "Keep holding"),
+        i18n_str("diag.test.dtmf_step", "Key %1 of %2"),
+        i18n_str("diag.test.dtmf_work", "Working it out..."),
+        i18n_str("diag.test.dtmf_stopped", "Test stopped. Hanging up or dialing also ends it."),
+        i18n_str("diag.test.dtmf_good", "This phone works on the standard settings, so there is nothing to change."),
+        i18n_str("diag.test.dtmf_tuned", "These settings should get every key working on this phone. Save them, then run the test again or dial a number to check."),
+        i18n_str("diag.test.dtmf_partial", "These settings help, but some keys may still fail. Save them and try, and please send the report."),
+        i18n_str("diag.test.dtmf_none", "No tones were heard. Check the phone is set to tone, not pulse, and try again."),
+        i18n_str("diag.test.dtmf_clip", "Some keys are so loud they clip, which these settings cannot fix."),
+        i18n_str("diag.test.dtmf_nosave", "The report could not be saved: there is too little free storage."),
+        i18n_str("diag.test.dtmf_saved", "Saved for this line."),
+        i18n_str("diag.test.dtmf_busy", "This line is busy. Hang up, pick up again and wait for dial tone, then press Start."),
+        i18n_str("diag.test.dtmf_mem", "The board is short of memory right now. Try again in a moment."),
+        i18n_str("diag.test.dtmf_skipped", "not tested"),
+        i18n_str("diag.test.dtmf_attach", "Please paste the copied log here, or attach dtmf_report.txt."),
+        i18n_str("diag.test.dtmf_tuned_now", "This line is using tuned settings."),
+        i18n_str("diag.test.dtmf_pickup", "Pick up the handset on this line and wait for dial tone, then press Start."),
+        i18n_str("diag.test.dtmf_unreach", "Could not reach the board. Check the connection and try again."),
+        i18n_str("diag.test.dtmf_copied", "Log copied. Paste it into an email or a GitHub issue."),
+        i18n_str("diag.test.dtmf_nocopy", "Could not copy automatically: select everything in the box above and copy it."));
+    off = appendf(buf, cap, off, "%s", DTMF_TEST_JS);
+
+
+    off = append_callcap_card(buf, cap, off);
+    off = append_livestream_card(buf, cap, off);
+
+    off = appendf(buf, cap, off, "<h2 class=\"diag-sec\" id=\"d-audio\">3 &middot; Audio checks</h2><p class=\"hint diag-sec-hint\">The sound path: the earpiece, the microphone and the voice effects.</p>");
     /* Tone generator: same audio_tx_burst() the off-hook alert and AEC
      * echo-probe/sweep bring-up commands already use (see bringup.c's
      * `tone` console command, the same feature, console-only until now) --
@@ -6739,225 +7043,15 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         off = appendf(buf, cap, off, "</div>");
     }
 
-    /* Test mode + audio loopback + SD self-test (DVT harness controls; also
-     * usable by hand here). */
-    bool tmode = telephony_test_enabled();
-    bool loop  = audio_test_loopback();
-    int tl_n = board_hw_config_get().num_lines;
-    char tl_opts[160] = "";
-    {
-        int o = 0;
-        for (int l = 0; l < tl_n && o < (int)sizeof(tl_opts) - 48; l++)
-            o += snprintf(tl_opts + o, sizeof(tl_opts) - o,
-                          "<option value=\"%d\">%s %d</option>", l,
-                          i18n_str("diag.test.line", "Line"), l);
-    }
+    off = append_fx_diag_card(buf, cap, off);
 
+    off = appendf(buf, cap, off, "<h2 class=\"diag-sec\" id=\"d-fw\">4 &middot; Firmware and logs</h2><p class=\"hint diag-sec-hint\">Flashing, the test-harness switches and the board's log.</p>");
+    off = append_flash_help_card(buf, cap, off);
+
+    /* Harness-only switches: these change how the board behaves rather than
+     * exercising hardware, and normal users never need them. */
     off = appendf(buf, cap, off,
-        "<div class=\"card wide\"><h2>%s</h2>"
-
-        /* --- ring --- */
-        "<form method=\"POST\" action=\"/test/ring\" class=\"settings-form\">"
-        "<label>%s</label>"
-        "<p class=\"hint\">%s</p>"
-        "<div class=\"toolbar sub\">"
-        "<select name=\"line\">%s</select>"
-        "<select name=\"secs\"><option value=\"2\">2 s</option>"
-        "<option value=\"4\" selected>4 s</option><option value=\"8\">8 s</option></select>"
-        "<button type=\"submit\">%s</button></div></form>"
-
-        /* --- call-progress tones --- */
-        "<form method=\"POST\" action=\"/test/progress\" class=\"settings-form\">"
-        "<label>%s</label>"
-        "<p class=\"hint\">%s</p>"
-        "<div class=\"toolbar sub\">"
-        "<select name=\"line\">%s</select>"
-        "<select name=\"tone\">"
-        "<option value=\"dial\">%s</option><option value=\"ringback\">%s</option>"
-        "<option value=\"busy\">%s</option><option value=\"reorder\">%s</option>"
-        "<option value=\"off\">%s</option></select>"
-        "<button type=\"submit\">%s</button></div></form>",
-
-        i18n_str("diag.test.title", "Bench tests"),
-
-        i18n_str("diag.test.ring_label", "Ring a phone"),
-        i18n_str("diag.test.ring_hint",
-                 "Rings the bell on a line, as an incoming call would. Confirms the SLIC's "
-                 "ring generator, the bell itself and the wiring in one go. Skipped if that "
-                 "handset is already off-hook. &#9888; Don't touch tip/ring while it rings."),
-        tl_opts, i18n_str("diag.test.ring_button", "Ring"),
-
-        i18n_str("diag.test.progress_label", "Play a call-progress tone"),
-        i18n_str("diag.test.progress_hint",
-                 "Sends dial tone, ringback, busy or reorder down a line so you can listen on "
-                 "the handset. The quickest check that the codec, the SLIC's audio path and "
-                 "the earpiece all work &mdash; and that your tone region sounds right. "
-                 "Pick <i>Stop</i> to silence it."),
-        tl_opts,
-        i18n_str("diag.test.tone_dial", "Dial tone"),
-        i18n_str("diag.test.tone_ringback", "Ringback"),
-        i18n_str("diag.test.tone_busy", "Busy"),
-        i18n_str("diag.test.tone_reorder", "Reorder (fast busy)"),
-        i18n_str("diag.test.tone_off", "Stop"),
-        i18n_str("diag.test.progress_button", "Play"));
-
-    /* --- ring frequency test --- */
-    {
-        const uint8_t *hz;
-        int n = telephony_ring_test_freqs(&hz);
-        char hz_opts[32 * 12] = "";
-        int o = 0;
-        /* Starts on the saved frequency, so pressing Save can't change it by accident. */
-        for (int i = 0; i < n && o < (int)sizeof(hz_opts) - 32; i++)
-            o += snprintf(hz_opts + o, sizeof(hz_opts) - o, "<option value=\"%d\"%s>%d Hz</option>",
-                          hz[i], hz[i] == board_ring_hz_get(0) ? " selected" : "", hz[i]);
-        char rt_saved[128] = "";
-        o = 0;
-        for (int l = 0; l < tl_n && o < (int)sizeof(rt_saved) - 48; l++)
-            o += snprintf(rt_saved + o, sizeof(rt_saved) - o, "%s%s %d: <b id=\"rts%d\">%u</b> Hz",
-                          l ? ", " : "", i18n_str("diag.test.line", "Line"), l, l,
-                          (unsigned)board_ring_hz_get(l));
-        off = appendf(buf, cap, off,
-            "<div class=\"settings-form\">"
-            "<label>%s</label>"
-            "<p class=\"hint\">%s</p>"
-            "<div class=\"toolbar sub\">"
-            "<select id=\"rtline\">%s</select>"
-            "<button type=\"button\" onclick=\"rtGo(0)\">%s</button>"
-            "<select id=\"rthz\">%s</select>"
-            "<button type=\"button\" onclick=\"rtGo(document.getElementById('rthz').value)\">%s</button>"
-            "<button type=\"button\" onclick=\"rtStop()\">%s</button>"
-            "<button type=\"button\" onclick=\"rtSave()\">%s</button></div>"
-            "<p class=\"hint\" id=\"rtstat\" aria-live=\"polite\"></p>"
-            "<p class=\"hint\">%s %s <span id=\"rtsaved\" aria-live=\"polite\"></span></p></div>"
-            "<script>"
-            "var RT={step:'%s',one:'%s',gap:'%s',done:'%s',busy:'%s',saved:'%s',nosave:'%s'},rtT=0;"
-            "function rtShow(d){var e=document.getElementById('rtstat');clearTimeout(rtT);"
-            "if(!d.active){if(rtT)e.textContent=RT.done;rtT=0;return;}"
-            "e.textContent=!d.ringing?RT.gap:d.sweep?RT.step.replace('%%1',d.step).replace('%%2',d.steps)"
-            ".replace('%%3',d.hz):RT.one.replace('%%3',d.hz);rtT=setTimeout(rtPoll,500);}"
-            "function rtPoll(){fetch('/api/ring_test').then(function(r){return r.json();}).then(rtShow)"
-            ".catch(function(){rtT=setTimeout(rtPoll,2000);});}"
-            "function rtPost(b){return fetch('/test/ring_freq',{method:'POST',headers:"
-            "{'Content-Type':'application/x-www-form-urlencoded'},body:b}).then(function(r){return r.json();});}"
-            "function rtGo(hz){rtPost('line='+document.getElementById('rtline').value+'&hz='+hz)"
-            ".then(function(d){if(d.ok){rtT=1;rtPoll();}else{document.getElementById('rtstat').textContent=RT.busy;}});}"
-            "function rtStop(){rtPost('stop=1').then(rtPoll);}"
-            "function rtSave(){var l=document.getElementById('rtline').value,h=document.getElementById('rthz').value,"
-            "s=document.getElementById('rtsaved');fetch('/ring_freq',{method:'POST',headers:"
-            "{'Content-Type':'application/x-www-form-urlencoded'},body:'json=1&line='+l+'&hz='+h})"
-            ".then(function(r){return r.json();}).then(function(d){if(!d.ok)throw 0;"
-            "document.getElementById('rts'+l).textContent=h;s.textContent=RT.saved;})"
-            ".catch(function(){s.textContent=RT.nosave;});}"
-            "rtPoll();"
-            "</script>",
-            i18n_str("diag.test.ringfreq_label", "Ring frequency test"),
-            i18n_str("diag.test.ringfreq_hint",
-                     "For a phone that rings weakly or not at all. Party-line phones often have a "
-                     "ringer tuned to one frequency, and a normal ring is 20 Hz. This rings each "
-                     "frequency for 3 s with a 2 s pause, about a minute in all, so watch this page "
-                     "and note where the bell is clearly loudest. If that isn't 20 Hz, the ringer is "
-                     "tuned to it. Ring that frequency alone to confirm, then press Save for this line. "
-                     "Still no luck? See the "
-                     "<a href=\"https://github.com/sdylewski/Analog-Redial/blob/main/docs/troubleshooting.md#a-phone-wont-ring\" "
-                     "target=\"_blank\" rel=\"noopener\">troubleshooting guide</a>. "
-                     "&#9888; Don't touch tip/ring while it rings."),
-            tl_opts,
-            i18n_str("diag.test.ringfreq_sweep", "Step through all"),
-            hz_opts,
-            i18n_str("diag.test.ringfreq_one", "Ring this one"),
-            i18n_str("diag.test.ringfreq_stop", "Stop"),
-            i18n_str("diag.test.ringfreq_save", "Save for this line"),
-            i18n_str("diag.test.ringfreq_current", "Saved ring frequency:"), rt_saved,
-            i18n_str("diag.test.ringfreq_step", "Step %1 of %2: ringing at %3 Hz"),
-            i18n_str("diag.test.ringfreq_ringing", "Ringing at %3 Hz"),
-            i18n_str("diag.test.ringfreq_gap", "Pause..."),
-            i18n_str("diag.test.ringfreq_done", "Finished."),
-            i18n_str("diag.test.ringfreq_busy", "That line is in use: hang up and try again."),
-            i18n_str("diag.test.ringfreq_saved", "Saved."),
-            i18n_str("diag.test.ringfreq_nosave", "Could not save. Try again."));
-    }
-
-    /* --- touch-tone test --- */
-    off = appendf(buf, cap, off,
-        "<div class=\"settings-form\">"
-        "<label>%s</label>"
-        "<p class=\"hint\">%s</p>"
-        "<div class=\"toolbar sub\">"
-        "<select id=\"dtline\">%s</select>"
-        "<button type=\"button\" id=\"dtstart\" onclick=\"dtStart()\">%s</button>"
-        "<button type=\"button\" id=\"dtskip\" hidden onclick=\"dtPost('action=skip')\">%s</button>"
-        "<button type=\"button\" id=\"dtstop\" hidden onclick=\"dtPost('action=stop')\">%s</button></div>"
-        "<div id=\"dtkey\" aria-live=\"polite\" hidden style=\"margin:.6em 0\"><span id=\"dtphase\"></span> "
-        "<b id=\"dtbig\" style=\"font-size:2.6em;line-height:1;margin-left:.2em\"></b> "
-        "<span id=\"dtstep\" class=\"hint\"></span></div>"
-        "<p class=\"hint\" id=\"dtmsg\" aria-live=\"polite\"></p>"
-        "<div id=\"dtres\" hidden><table class=\"mini\"><thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>"
-        "<tbody id=\"dttab\"></tbody></table>"
-        "<div class=\"toolbar sub\">"
-        "<button type=\"button\" id=\"dtsave\" hidden onclick=\"dtPost('action=save')\">%s</button>"
-        "<a class=\"button\" id=\"dtrep\" hidden href=\"/dtmf_report.txt\" download>%s</a>"
-        "<button type=\"button\" id=\"dtcopy\" hidden onclick=\"dtCopy()\">%s</button>"
-        "<a class=\"button\" id=\"dtissue\" hidden target=\"_blank\" rel=\"noopener\">%s</a></div>"
-        "<textarea id=\"dtlog\" hidden readonly rows=\"8\" style=\"width:100%%;font-family:monospace;font-size:12px;margin-top:.5em\"></textarea></div>"
-        "<div class=\"toolbar sub\"><button type=\"button\" id=\"dtstd\" hidden onclick=\"dtStd()\">%s</button></div></div>",
-        i18n_str("diag.test.dtmf_label", "Touch-tone test"),
-        i18n_str("diag.test.dtmf_hint",
-                 "For a touch-tone phone that dials wrong numbers or doesn't dial at all. Lift the "
-                 "handset on the line you choose and press Start. The dial tone stops and this page "
-                 "shows each key in turn: press and hold it until the next one appears, about a "
-                 "second, and keep quiet in between. Nothing gets dialed. Afterwards it shows how "
-                 "well each key was heard and, if it helps, offers settings for this line to save. "
-                 "It also makes a log you can send in, to help make more phones work without tuning: "
-                 "firmware and board details, tone measurements and about 50 ms of audio per key, "
-                 "with no Wi-Fi details or serial number."),
-        tl_opts,
-        i18n_str("diag.test.dtmf_start", "Start"),
-        i18n_str("diag.test.dtmf_skip", "Skip this key"),
-        i18n_str("diag.test.dtmf_stop", "Stop"),
-        i18n_str("diag.test.dtmf_col_key", "Key"),
-        i18n_str("diag.test.dtmf_col_heard", "Heard as"),
-        i18n_str("diag.test.dtmf_col_std", "Standard"),
-        i18n_str("diag.test.dtmf_col_rec", "With these settings"),
-        i18n_str("diag.test.dtmf_save", "Save for this line"),
-        i18n_str("diag.test.dtmf_download", "Download report"),
-        i18n_str("diag.test.dtmf_copy", "Copy log"),
-        i18n_str("diag.test.dtmf_issue", "Post it on GitHub"),
-        i18n_str("diag.test.dtmf_std", "Back to standard settings"));
-    off = appendf(buf, cap, off,
-        "<script>var DT={noise:'%s',release:'%s',press:'%s',hold:'%s',step:'%s',work:'%s',stopped:'%s',"
-        "good:'%s',tuned:'%s',partial:'%s',none:'%s',clip:'%s',nosave:'%s',saved:'%s',busy:'%s',mem:'%s',"
-        "skipped:'%s',attach:'%s',std:'%s',pickup:'%s',unreach:'%s',copied:'%s',nocopy:'%s'};",
-        i18n_str("diag.test.dtmf_noise", "Keep quiet for a moment..."),
-        i18n_str("diag.test.dtmf_release", "Let go of the key"),
-        i18n_str("diag.test.dtmf_press", "Press and hold"),
-        i18n_str("diag.test.dtmf_hold", "Keep holding"),
-        i18n_str("diag.test.dtmf_step", "Key %1 of %2"),
-        i18n_str("diag.test.dtmf_work", "Working it out..."),
-        i18n_str("diag.test.dtmf_stopped", "Test stopped. Hanging up or dialing also ends it."),
-        i18n_str("diag.test.dtmf_good", "This phone works on the standard settings, so there is nothing to change."),
-        i18n_str("diag.test.dtmf_tuned", "These settings should get every key working on this phone. Save them, then run the test again or dial a number to check."),
-        i18n_str("diag.test.dtmf_partial", "These settings help, but some keys may still fail. Save them and try, and please send the report."),
-        i18n_str("diag.test.dtmf_none", "No tones were heard. Check the phone is set to tone, not pulse, and try again."),
-        i18n_str("diag.test.dtmf_clip", "Some keys are so loud they clip, which these settings cannot fix."),
-        i18n_str("diag.test.dtmf_nosave", "The report could not be saved: there is too little free storage."),
-        i18n_str("diag.test.dtmf_saved", "Saved for this line."),
-        i18n_str("diag.test.dtmf_busy", "This line is busy. Hang up, pick up again and wait for dial tone, then press Start."),
-        i18n_str("diag.test.dtmf_mem", "The board is short of memory right now. Try again in a moment."),
-        i18n_str("diag.test.dtmf_skipped", "not tested"),
-        i18n_str("diag.test.dtmf_attach", "Please paste the copied log here, or attach dtmf_report.txt."),
-        i18n_str("diag.test.dtmf_tuned_now", "This line is using tuned settings."),
-        i18n_str("diag.test.dtmf_pickup", "Pick up the handset on this line and wait for dial tone, then press Start."),
-        i18n_str("diag.test.dtmf_unreach", "Could not reach the board. Check the connection and try again."),
-        i18n_str("diag.test.dtmf_copied", "Log copied. Paste it into an email or a GitHub issue."),
-        i18n_str("diag.test.dtmf_nocopy", "Could not copy automatically: select everything in the box above and copy it."));
-    off = appendf(buf, cap, off, "%s", DTMF_TEST_JS);
-
-    /* Harness-only switches, kept to the bottom: these change how the board
-     * behaves rather than exercising hardware, and normal users never need
-     * them. */
-    off = appendf(buf, cap, off,
-        "<hr class=\"sep\">"
+        "<div class=\"card wide\"><h2>Test harness (advanced)</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span class=\"pill %s\">%s</span></div>"
         "<p class=\"hint\">%s</p>"
@@ -6991,8 +7085,6 @@ static int append_diag_tab(char *buf, size_t cap, int off)
                  "<b>off</b> for normal use. Protocol and host runner: <code>firmware/test/</code>."),
         i18n_str("aec.enable", "Enable"), i18n_str("aec.disable", "Disable"));
 
-    off = append_flash_help_card(buf, cap, off);
-    off = append_fx_diag_card(buf, cap, off);
 
     /* Full debug log -- moved here from the Status page (which now only
      * shows the much shorter activity panel, see append_activity_panel())
@@ -7007,6 +7099,7 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         off = append_log_panel(buf, cap, off, log_snapshot);
         free(log_snapshot);
     }
+    off = appendf(buf, cap, off, "%s", DIAG_FOLD_JS);
     return off;
 }
 
@@ -9361,10 +9454,13 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "blink; POL's LED is on for one of them.</td><td id=\"cbr5\">-</td></tr>"
         "<tr><td>6. Bleed-down</td><td>After step 4: HV should fall by itself, and the red D7 LED "
         "goes out below about 24 V (about 33 s from 119 V).</td><td id=\"cbr6\">-</td></tr>"
-        "<tr><td>7. The coin relay</td><td>Fit J14 (start at 52 V) and connect the relay to J2. "
-        "Collect and Return with the buttons in step 5, and watch the levers. If it moves the "
-        "wrong way, tick \"Collect and return are the wrong way round\" on the Settings tab's Coin board card; if it doesn't move "
-        "reliably, try a longer pulse or the next voltage up.</td><td>you judge it</td></tr>"
+        "<tr><td>7. The coin relay</td><td>Connect the relay to J2 and fit J14 + J9 (60 V) to start. "
+        "Collect and Return with the buttons in step 5 and watch the coin flap; the plot below shows the "
+        "coil current. If it moves the wrong way, tick \"Collect and return are the wrong way round\" on the "
+        "Settings pane's Coin board card. If it doesn't move all the way, go up a voltage before making the "
+        "pulse longer: the first phone's relay needed 87 V (J14 + J7) with its levers attached, at 100 ms. "
+        "A relay that switches itself off leaves its flap down after a fire and draws no current until a coin "
+        "pushes it back up, so drop a coin (or lift the flap) between tests.</td><td>you judge it</td></tr>"
         "</table><div id=\"cbft\"></div></div>",
         b.enabled ? "" : "<p class=\"hint warn-text\">\"A coin board is connected\" isn't ticked "
         "on the Settings tab's Coin board card: only step 1 runs until it is.</p>",
@@ -9443,7 +9539,6 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "else if(d.rail_mv>=6000)$('cbr2').innerHTML=chip('','settling')+' rail '+V(d.rail_mv)+': still holding the last test\\'s charge, which drains over a minute or so. If it never comes down, stage 1 is running with EN_HV off (Q1?).';"
         "else{var ok=d.rail_mv>3500&&d.rail_mv<5500;$('cbr2').innerHTML=chip(ok?'pass':'fail','rail '+V(d.rail_mv))+' HV '+V(d.hv_mv)+"
         "(d.hv_mv>d.rail_mv+2000?' '+chip('warn','C1 still charged'):'')+"
-        "(d.rail_mv>=15000?'':'')+"
         "(d.rail_mv>=0&&d.rail_mv<=3500?'<br>No 5 V coming through: check F1, the 5 V wire and stage 1\\'s diode.':'');}"
         "var n=['coin 4','quarter','dime','nickel'],h='';[3,2,1,0].forEach(function(i){"
         "var q=d.ins&&d.ins[i]?d.ins[i]:[0,0,0],cls=d.stuck>>i&1?'fail':q[0]?'pass':q[1]?'warn':d.seen>>i&1?'warn':'';"
@@ -9471,19 +9566,132 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "tick();setInterval(tick,1000);})();</script>");
 }
 
+/* Phone type (payphone_types.h): housing, then what's inside, then what that means and the settings
+ * it uses. The two menus are filled by script from the same table, so the second lists only the
+ * insides found in the chosen housing. */
+static int append_payphone_type_card(char *buf, size_t cap, int off, const payphone_cfg_t *c)
+{
+    coinboard_cfg_t b = coinboard_cfg();
+    const pp_housing_info_t *h = pp_housing_info(c->housing);
+    const pp_inside_info_t *in = pp_inside_info(c->inside);
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\" id=\"pptype\"><h2>Phone type</h2>"
+        "<p class=\"hint\">Pick the payphone, then what handles its coins: the settings it needs are filled in "
+        "for you, and the cards that don't apply are hidden. The housing alone doesn't decide it (a Quadrum is "
+        "only a case); what's inside does. <a href=\"https://telesfor.org/payphones/doku.php?id=smart\" "
+        "target=\"_blank\" rel=\"noopener\">telesfor.org's payphone wiki</a> helps identify a phone.</p>"
+        "<form method=\"POST\" action=\"/payphone_type\" class=\"settings-form\" onsubmit=\"var e=this.elements.cb;"
+        "if(e&&e.checked&&!%s&&!confirm('The coin board makes up to 119 V DC and can injure or kill. Only enable it "
+        "if you have experience with high-voltage electronics and have read the safety documentation. Enable it?'))"
+        "return false;return true\">"
+        "<label>1. Housing <select name=\"housing\" id=\"pph\"><option value=\"0\">choose&hellip;</option>",
+        b.enabled ? "true" : "false");
+    for (int i = 1; i < PP_HOUSING_N; i++) {
+        const pp_housing_info_t *hi = pp_housing_info(i);
+        off = appendf(buf, cap, off, "<option value=\"%d\"%s>%s%s%s%s</option>", i, i == c->housing ? " selected" : "",
+                      hi->name, hi->made[0] ? " (" : "", hi->made, hi->made[0] ? ")" : "");
+    }
+    off = appendf(buf, cap, off,
+        "</select></label><p class=\"hint\" id=\"pphab\"></p>"
+        "<label>2. What handles the coins <select name=\"inside\" id=\"ppi\"></select></label>"
+        "<p class=\"hint\" id=\"ppiab\"></p>"
+        "<label id=\"ppcb\"><input type=\"checkbox\" name=\"cb\" value=\"1\"%s> A coin board is installed "
+        "(<a href=\"https://github.com/sdylewski/Analog-Redial/blob/main/docs/hardware-coin-board.md\" "
+        "target=\"_blank\" rel=\"noopener\">the coin board</a>)</label>"
+        "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Use these settings</button></div></form>",
+        b.enabled ? " checked" : "");
+
+    /* What the saved choice means */
+    if (h && in) {
+        char e1[640], e2[640];
+        off = appendf(buf, cap, off, "<table class=\"table\"><tr><th colspan=\"2\">For this phone</th></tr>");
+        html_escape(h->dial, e1, sizeof(e1));
+        html_escape(h->ring, e2, sizeof(e2));
+        off = appendf(buf, cap, off, "<tr><td>Dialing</td><td>%s</td></tr><tr><td>Ringing</td><td>%s</td></tr>", e1, e2);
+        html_escape(in->coins, e1, sizeof(e1));
+        html_escape(in->relay, e2, sizeof(e2));
+        off = appendf(buf, cap, off, "<tr><td>Coins</td><td>%s</td></tr><tr><td>Coin relay</td><td>%s</td></tr>", e1, e2);
+        if (in->coinboard || in->board_optional)
+            off = appendf(buf, cap, off, "<tr><td>Coin board</td><td>%s: %s</td></tr>",
+                          in->coinboard ? "needed" : "optional",
+                          b.enabled ? "<span class=\"chip pass\">installed</span> (live readings and tests on the "
+                                      "<a href=\"/settings?tab=payphone&amp;sub=bringup\">Bring-up</a> pane)"
+                                    : "<span class=\"chip\">not installed</span>");
+        const pp_known_t *k = pp_known(c->housing, c->inside);
+        if (k) {
+            html_escape(k->phone, e1, sizeof(e1));
+            html_escape(k->notes, e2, sizeof(e2));
+            off = appendf(buf, cap, off,
+                "<tr><td>Measured on</td><td>%s: relay pulse %u ms, swap %s, shunts <b>%s</b> (set on the coin "
+                "board itself). %s</td></tr>",
+                e1, (unsigned)k->pulse_ms, k->swap < 0 ? "not settled (check the direction on the Bring-up pane)" :
+                k->swap ? "on" : "off", k->hv, e2);
+        }
+        if (in->tone_detect >= 0)
+            off = appendf(buf, cap, off, "<tr><td>Set by this choice</td><td>coin tones %s, coin required %s%s</td></tr>",
+                          in->tone_detect ? "on" : "off", in->coin_required ? "on" : "off",
+                          k ? (k->swap >= 0 ? ", and the coin board's pulse and swap as measured" : ", and the coin board's pulse as measured") : "");
+        if (in->tested)
+            off = appendf(buf, cap, off, "<tr><td>Status</td><td><span class=\"chip pass\">tested</span> on one "
+                          "phone (the GTE / Quadrum style set); other phones haven't been tried</td></tr>");
+        else if (c->inside != PP_INSIDE_MANUAL)
+            off = appendf(buf, cap, off, "<tr><td>Status</td><td><span class=\"chip warn\">untested</span> "
+                          "no phone has been tried with this yet, so expect to adjust it</td></tr>");
+        off = appendf(buf, cap, off, "</table>");
+        if (in->cards == 0)
+            off = appendf(buf, cap, off, "<p class=\"hint\">Nothing else on this tab applies to this phone; the "
+                          "payphone features can stay off.</p>");
+    } else {
+        off = appendf(buf, cap, off, "<p class=\"hint\">No phone type chosen yet: every setting shows below.</p>");
+    }
+
+    /* The table for the menus */
+    off = appendf(buf, cap, off, "<script>(function(){var H=[null");
+    for (int i = 1; i < PP_HOUSING_N; i++) {
+        const pp_housing_info_t *hi = pp_housing_info(i);
+        char ea[640];
+        js_escape(hi->about, ea, sizeof(ea));
+        off = appendf(buf, cap, off, ",{a:'%s',i:[", ea);
+        for (int k = 0; k < PP_INSIDE_N && hi->insides[k]; k++)
+            off = appendf(buf, cap, off, "%s%d", k ? "," : "", hi->insides[k]);
+        off = appendf(buf, cap, off, "]}");
+    }
+    off = appendf(buf, cap, off, "],I=[null");
+    for (int i = 1; i < PP_INSIDE_N; i++) {
+        const pp_inside_info_t *ii = pp_inside_info(i);
+        char en[160], ea[640];
+        js_escape(ii->name, en, sizeof(en));
+        js_escape(ii->about, ea, sizeof(ea));
+        off = appendf(buf, cap, off, ",{n:'%s',a:'%s',b:%d,t:%d}", en, ea, ii->coinboard ? 2 : ii->board_optional ? 1 : 0,
+                      (ii->tested || i == PP_INSIDE_MANUAL) ? 1 : 0);   /* "not sure" has nothing to test */
+    }
+    return appendf(buf, cap, off,
+        "],cur=%d,$=function(i){return document.getElementById(i);};"
+        "function fill(){var h=+$('pph').value,s=$('ppi'),keep=+s.value||cur;s.innerHTML='';"
+        "$('pphab').textContent=h?H[h].a:'';"
+        "(h?H[h].i:[]).forEach(function(k,n){var o=document.createElement('option');o.value=k;"
+        "o.textContent=I[k].n+(n==0?' (usual)':'')+(I[k].t?'':' - untested');if(k==keep)o.selected=true;s.appendChild(o);});"
+        "s.disabled=!h;inside();}"
+        "function inside(){var k=+$('ppi').value;$('ppiab').textContent=k?I[k].a:'';"
+        "$('ppcb').style.display=k&&I[k].b?'':'none';}"
+        "$('pph').onchange=function(){cur=0;fill();};$('ppi').onchange=inside;fill();})();</script></div>",
+        c->inside);
+}
+
 static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
 {
     payphone_cfg_t c = payphone_cfg();
     off = append_feature_bar(buf, cap, off, "Payphone", c.enabled, "/payphone_enable",
-        "<b>Experimental, not yet tested with a real payphone.</b> For a phone in a payphone: hears the coin tones a payphone "
-        "sends when a coin drops, can ask for a coin before a call, plays a message after "
-        "a coin, and keeps a coin count. With the coin board (still in development) it "
-        "also counts coins from the phone's coin switches and collects or returns them. "
-        "Turning it off keeps the settings below.");
+        "<b>Experimental.</b> For a phone in a payphone: asks for a coin before a call, plays a "
+        "message after each coin, keeps a coin count, and can hear the coin tones an older payphone "
+        "sends. With the coin board it reads the phone's coin switches and collects or returns the "
+        "coins; that has been tested on one payphone so far. Turning it off keeps the settings below.");
     if (!c.enabled) return off;
 
     /* Three panes, so the page stays short: the settings, the coin count and log,
-     * and the coin board's bring-up. Only the one asked for is built. */
+     * and the coin board's bring-up. Only the one asked for is built. sub=all is the
+     * Settings pane with every card, including those the phone type hides. */
+    bool all = !strcmp(sub, "all");
     int pane = !strcmp(sub, "log") ? 1 : !strcmp(sub, "bringup") ? 2 : 0;
     static const char *const PANES[][2] = { { "settings", "Settings" }, { "log", "Log" }, { "bringup", "Bring-up" } };
     off = appendf(buf, cap, off, "<nav class=\"settings-tabs sub-tabs\">");
@@ -9496,6 +9704,23 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
     if (nlines < 1) nlines = 1;
 
     if (pane == 0) {
+    off = append_payphone_type_card(buf, cap, off, &c);
+    /* The cards this phone type uses. The coin board card also shows whenever a board is
+     * enabled, and for "not sure" (where it has its own enable box). */
+    uint8_t show = all ? PP_CARD_ALL : pp_cards(c.housing, c.inside);
+    {
+        bool manual = !pp_inside_info(c.inside) || c.inside == PP_INSIDE_MANUAL;
+        if (!all && !manual && !coinboard_cfg().enabled) show &= (uint8_t)~PP_CARD_BOARD;
+        static const char *const CARD_NAMES[] = { "Coin required", "Message after a coin", "Coin tones",
+                                                  "Coin sounds", "What happens to the coins", "Coin board" };
+        if (show != PP_CARD_ALL) {
+            off = appendf(buf, cap, off, "<p class=\"hint\">Hidden for this phone type: ");
+            for (int i = 0, n = 0; i < 6; i++)
+                if (!(show & (1u << i))) off = appendf(buf, cap, off, "%s%s", n++ ? ", " : "", CARD_NAMES[i]);
+            off = appendf(buf, cap, off, ". <a href=\"/settings?tab=payphone&amp;sub=all\">Show all settings</a></p>");
+        }
+    }
+    if (show & PP_CARD_REQUIRED) {
     /* Coin required */
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>Coin required</h2>"
@@ -9508,7 +9733,7 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
         "<label>Repeat the message every <input type=\"number\" name=\"repeat\" min=\"2\" "
         "max=\"60\" value=\"%u\"> seconds</label>"
         "<label><input type=\"checkbox\" name=\"codes_free\" value=\"1\"%s> "
-        "The board's own dial codes are free (operator, clips, timer, alarm)</label>"
+        "Every dial code is free (or tick the ones that are, in the Free column of the Dial Codes tab)</label>"
         "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">Save</button></div>"
         "</form>"
         "<p class=\"hint\">Lifting the handset plays the message below instead of dial tone "
@@ -9520,7 +9745,9 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
     off = append_prompt_field(buf, cap, off, PAYPHONE_DEPOSIT_CLIP,
                               "Please deposit 10 cents for your call.");
     off = appendf(buf, cap, off, "</div>");
+    }
 
+    if (show & PP_CARD_MESSAGE) {
     /* Messages after a coin */
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>Message after a coin</h2>"
@@ -9566,10 +9793,12 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
     off = appendf(buf, cap, off, "<h3>Any other coin: <code>" PAYPHONE_THANKS_CLIP "</code></h3>");
     off = append_prompt_field_rows(buf, cap, off, PAYPHONE_THANKS_CLIP, "Thank you.", 2);
     off = appendf(buf, cap, off, "</div>");
+    }
 
+    if (show & PP_CARD_TONES) {
     /* Coin tones */
     off = appendf(buf, cap, off,
-        "<div class=\"card\"><h2>Coin tones</h2>"
+        "<div class=\"card\"><h2>Coin tones <span class=\"chip warn\">untested</span></h2>"
         "<form method=\"POST\" action=\"/payphone_set\" class=\"settings-form\">"
         "<input type=\"hidden\" name=\"section\" value=\"tones\">"
         "<label><input type=\"checkbox\" name=\"tone_detect\" value=\"1\"%s> "
@@ -9582,9 +9811,10 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
         "converted for home use don't send them any more; drop a coin and watch the log. "
         "Tones it hears but can't place show in the log as not recognized.</p></div>",
         c.tone_detect ? " checked" : "");
+    }
 
     /* What each coin says: one row, one column per coin */
-    {
+    if (show & PP_CARD_SOUNDS) {
         static const struct { const char *clip, *text, *label; } coin_say[] = {
             { PAYPHONE_NICKEL_CLIP,  "Feed me.",   "5 c (nickel)" },
             { PAYPHONE_DIME_CLIP,    "Yum yum.",   "10 c (dime)" },
@@ -9605,6 +9835,7 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
     }
 
     /* What happens to the coins */
+    if (show & PP_CARD_COINS)
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>What happens to the coins</h2>"
         "<form method=\"POST\" action=\"/payphone_set\" class=\"settings-form\">"
@@ -9634,7 +9865,7 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
         c.limit_collect ? "" : " selected", c.limit_collect ? " selected" : "");
 
     /* Coin board */
-    {
+    if (show & PP_CARD_BOARD) {
         coinboard_cfg_t b = coinboard_cfg();
         off = appendf(buf, cap, off,
             "<div class=\"card\"><h2>Coin board</h2>"
@@ -9643,11 +9874,9 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
             "electronics, and read the <a href=\"https://github.com/sdylewski/Analog-Redial/blob/main/"
             "docs/hardware-coin-board.md#safety-first-high-voltage\" target=\"_blank\" "
             "rel=\"noopener\">safety documentation</a> first.</p>"
-            "<p class=\"hint\"><b>In development:</b> the first coin board is being brought up, so "
-            "collect and return are not yet tested on real hardware. The <b>Bring-up</b> tab, next "
-            "to Settings, walks through a new board step by step. "
-            "It reads the phone's coin switches and fires its coin relay to collect or return "
-            "the coins, over I2C (0x39 and 0x48).</p>"
+            "<p class=\"hint\">It reads the phone's coin switches and fires its coin relay to collect or "
+            "return the coins, over I2C (0x39 and 0x48). The <b>Bring-up</b> pane, next to Settings, walks "
+            "through a new board, and a phone it hasn't met, step by step.</p>"
             "<form method=\"POST\" action=\"/coinboard_set\" class=\"settings-form\" "
             "onsubmit=\"var e=this.elements.enabled;if(e&&e.checked&&!%s)return confirm("
             "'The coin board makes up to 119 V DC and can injure or kill. Only enable it if you "
@@ -9752,15 +9981,6 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
         "j.log.forEach(function(e){h+='<tr><td>'+esc(e.time)+'</td><td>'+(e.line<0?'-':e.line)+'</td><td>'+esc(e.msg)+'</td></tr>';});"
         "if(!j.log.length)h+='<tr><td colspan=\"3\">No coins yet.</td></tr>';t.innerHTML=h;"
         "c.innerHTML='Credit now: '+j.credit.map(function(v,i){return 'line '+i+': <b>'+v+' c</b>';}).join(', ');"
-        "var b=document.getElementById('ppboard'),d=j.board;if(b&&d){"
-        "function v(x,u){return x<0?'-':(x/1000).toFixed(1)+' '+u;}"
-        "var s=!d.io_ok?'<b>Not answering</b> at 0x39 (check the cable, and that the board has power).':"
-        "'Answering. Coin switches: '+['coin 4','quarter','dime','nickel'].map(function(n,i){"
-        "return n+(d.closed>>i&1?' <b>closed</b>':' open')+(d.stuck>>i&1?' (stuck)':'');}).join(', ')+'. ';"
-        "if(d.io_ok)s+=d.adc_ok?'20 V rail '+v(d.rail_mv,'V')+', HV '+v(d.hv_mv,'V')+', coil '+(d.i_ma<0?'-':d.i_ma+' mA')+"
-        "', AIN3 '+v(d.ain3_mv,'V')+'. ':'ADC (0x48) not answering: fixed timing, nothing measured. ';"
-        "s+='Relay: <b>'+esc(d.state)+'</b>'+(d.state!='idle'?' ('+esc(d.doing)+')':'')+'.';"
-        "if(d.result)s+=' Last: '+esc(d.result)+'.';b.innerHTML=s;}"
         "}).catch(function(){});}setInterval(tick,2000);})();</script>",
         PAYPHONE_LOG_N);
     }   /* pane 1 */
@@ -9784,6 +10004,23 @@ static esp_err_t payphone_enable_handler(httpd_req_t *req)
     payphone_cfg_set(&c);
     activity_log("Payphone features %s", c.enabled ? "on" : "off");
     return redirect_to(req, "/settings?tab=payphone");
+}
+
+/* POST /payphone_free_set -- code=<digits>&free=0|1: a dial code that needs no coin on a payphone. */
+static esp_err_t payphone_free_set_handler(httpd_req_t *req)
+{
+    char body[96], code[24] = {0}, fr[4] = {0};
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+    form_field(body, "code", code, sizeof(code));
+    form_field(body, "free", fr, sizeof(fr));
+    if (payphone_code_free_set(code, fr[0] == '1') != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad code or list full"); return ESP_OK;
+    }
+    activity_log("Payphone: dial %s is %s", code, fr[0] == '1' ? "free" : "no longer free");
+    httpd_resp_sendstr(req, "ok\n");
+    return ESP_OK;
 }
 
 /* One card's form at a time (section=req|msg|tones|coins), so a card's unticked
@@ -9831,6 +10068,46 @@ static esp_err_t payphone_set_handler(httpd_req_t *req)
     }
 #undef PP_BOX
     payphone_cfg_set(&c);
+    return redirect_to(req, "/settings?tab=payphone");
+}
+
+/* POST /payphone_type (housing, inside, cb): saves the phone type and applies the settings it implies
+ * (payphone_types.h). "Not sure" changes nothing but the coin board's enable box. */
+static esp_err_t payphone_type_handler(httpd_req_t *req)
+{
+    char body[96], v[8];
+    if (!read_form_body(req, body, sizeof(body))) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body"); return ESP_OK;
+    }
+#define PT_FIELD(name) (v[0] = '\0', form_field(body, name, v, sizeof(v)), atoi(v))
+    int housing = PT_FIELD("housing"), inside = PT_FIELD("inside");
+    bool cb = PT_FIELD("cb") == 1;
+#undef PT_FIELD
+    if (!pp_housing_info(housing)) housing = inside = 0;
+    else if (!pp_inside_fits(housing, inside)) inside = pp_inside_default(housing);
+
+    payphone_cfg_t c = payphone_cfg();
+    c.housing = (uint8_t)housing;
+    c.inside = (uint8_t)inside;
+    const pp_inside_info_t *in = pp_inside_info(inside);
+    if (in && in->tone_detect >= 0) c.tone_detect = in->tone_detect;
+    if (in && in->coin_required >= 0) c.coin_required = in->coin_required;
+    payphone_cfg_set(&c);
+
+    if (in) {
+        coinboard_cfg_t b = coinboard_cfg();
+        bool was = b.enabled;
+        b.enabled = (in->coinboard || in->board_optional) && cb;
+        const pp_known_t *k = pp_known(housing, inside);
+        if (k) {
+            if (k->swap >= 0) b.swap = k->swap;
+            b.pulse_ms = k->pulse_ms;
+        }
+        coinboard_cfg_set(&b);
+        if (b.enabled != was) activity_log("Coin board %s", b.enabled ? "enabled" : "disabled");
+    }
+    const pp_housing_info_t *h = pp_housing_info(housing);
+    activity_log("Payphone type: %s, %s", h ? h->name : "not chosen", in ? in->name : "-");
     return redirect_to(req, "/settings?tab=payphone");
 }
 
@@ -10088,6 +10365,8 @@ static esp_err_t payphone_json_handler(httpd_req_t *req)
     cJSON_AddBoolToObject(root, "tone_detect", c.tone_detect);
     cJSON_AddBoolToObject(root, "coin_required", c.coin_required);
     cJSON_AddNumberToObject(root, "price_cents", c.price_cents);
+    cJSON_AddNumberToObject(root, "housing", c.housing);   /* payphone_types.h; 0 = not chosen */
+    cJSON_AddNumberToObject(root, "inside", c.inside);
     int nlines = board_hw_config_get().num_lines;
     if (nlines < 1) nlines = 1;
     cJSON *cr = cJSON_AddArrayToObject(root, "credit");
@@ -13192,7 +13471,7 @@ esp_err_t webui_start(void)
      * ESP_ERR_HTTPD_HANDLERS_FULL). Leaving real headroom this time instead
      * of matching the count exactly. (Blown through again at 96 with 97
      * routes, losing the catch-all route -- each slot is only a few bytes.) */
-    config.max_uri_handlers = 136;
+    config.max_uri_handlers = 140;
     /* Default httpd task stack is 4 KB. Our page handlers stack a few
      * storage_entry_t[32]/dialplan_entry_info_t[40] arrays and then descend
      * into SPIFFS readdir -> esp_flash_read, which is itself stack-hungry;
@@ -13271,6 +13550,7 @@ esp_err_t webui_start(void)
         { .uri = "/wifi_set",        .method = HTTP_POST, .handler = wifi_set_handler },
         { .uri = "/wifi_forget",     .method = HTTP_POST, .handler = wifi_forget_handler },
         { .uri = "/api/wifi_scan",   .method = HTTP_GET,  .handler = wifi_scan_json_handler },
+        { .uri = "/direct",          .method = HTTP_GET,  .handler = direct_handler },
         { .uri = "/ota_upload",      .method = HTTP_POST, .handler = ota_upload_handler },
         { .uri = "/ota_revert",      .method = HTTP_POST, .handler = ota_revert_handler },
         { .uri = "/wifi_reprovision", .method = HTTP_POST, .handler = wifi_reprovision_handler },
@@ -13346,12 +13626,14 @@ esp_err_t webui_start(void)
         { .uri = "/test/ring_freq",         .method = HTTP_POST, .handler = test_ring_freq_handler },
         { .uri = "/payphone_enable",        .method = HTTP_POST, .handler = payphone_enable_handler },
         { .uri = "/payphone_set",           .method = HTTP_POST, .handler = payphone_set_handler },
+        { .uri = "/payphone_type",          .method = HTTP_POST, .handler = payphone_type_handler },
         { .uri = "/payphone_coin",          .method = HTTP_POST, .handler = payphone_coin_handler },
         { .uri = "/payphone_reset",         .method = HTTP_POST, .handler = payphone_reset_handler },
         { .uri = "/coinboard_set",          .method = HTTP_POST, .handler = coinboard_set_handler },
         { .uri = "/coinboard_test",         .method = HTTP_POST, .handler = coinboard_test_handler },
         { .uri = "/api/coinboard_probe",    .method = HTTP_GET,  .handler = coinboard_probe_handler },
         { .uri = "/coinboard_seen_clear",   .method = HTTP_POST, .handler = coinboard_seen_clear_handler },
+        { .uri = "/payphone_free_set",      .method = HTTP_POST, .handler = payphone_free_set_handler },
         { .uri = "/coinboard_bench",        .method = HTTP_POST, .handler = coinboard_bench_handler },
         { .uri = "/coin_capture",           .method = HTTP_POST, .handler = coin_capture_post_handler },
         { .uri = "/api/coin_capture",       .method = HTTP_GET,  .handler = coin_capture_json_handler },

@@ -59,6 +59,7 @@ extern "C" {
 #define BT401_CMD_MODE_IDLE     "CM08"   /* idle mode; radio off only with CG00 */
 #define BT401_CMD_BG_ON         "CG01"   /* Bluetooth in the background (factory; stored, after a reset) */
 #define BT401_CMD_BG_OFF        "CG00"   /* no background Bluetooth (stored, after a reset) */
+#define BT401_CMD_SET_NAME      "BD"     /* BD<name>: the Bluetooth name (max 32 bytes; stored, applies after a reset) */
 #define BT401_CMD_RESET         "CZ"
 
 typedef enum {

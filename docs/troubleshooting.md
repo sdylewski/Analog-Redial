@@ -134,6 +134,13 @@ for you to paste the log into.
 
 ## Sound problems
 
+- **Everything is much quieter after plugging in a Bluetooth module (BT401):** an idle
+  BT401 loads line 0's earpiece through its audio output (the DAC, via R16). The firmware
+  turns that output off while nothing is playing, but only once the module is turned on:
+  Settings → General → Board hardware → **Bluetooth module: DFRobot BT401**, then
+  **Save and reboot**. The Speaker volume slider reads the same level either way, so it
+  doesn't show the loss. The same thing happens if the module's audio wire is fitted and
+  the setting is left on None. With no BT401 fitted, set it back to None.
 - **Harsh dial tone:** the earpiece level is too high and the line's audio input is
   distorting. Run the line audio level check under Settings → Diagnostics, and use
   its recommended level.
@@ -185,6 +192,11 @@ for you to paste the log into.
   - **Windows:** Device Manager → *Ports (COM & LPT)* → "USB Serial Device (COMn)".
   - **Any OS:** `python serial_probe.py` in `firmware/bringup/`, from the ESP-IDF
     terminal, lists the boards it finds.
+- **A clone ESP32 module never shows up on serial:** check that every pin of the module is
+  soldered, on both the top and the bottom of the board, and that the pads on the back
+  of the board are cut or bridged as the [build guide](building.md) says (JP2 and JP3 on
+  v5 and later, set for the clone). A cold or missing joint on a USB or boot pin is
+  enough to stop it enumerating.
 - **Flashing fails or the board stays in flashing mode afterwards:** try again once or
   twice. If it's still stuck, unplug the USB cable and plug it back in.
 - **The serial monitor restarts the board:** opening the port resets it. That's normal

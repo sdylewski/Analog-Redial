@@ -46,16 +46,17 @@ REPO_SLUG = "sdylewski/Analog-Redial"
 RAW_BASE = f"https://raw.githubusercontent.com/{REPO_SLUG}/firmware/"
 
 # image id (what the firmware reports as BOARD_IMAGE_ID) -> sdkconfig overlay.
-# smd6 is left out on purpose: no v6 image gets released until
-# v6 boards exist and the firmware has been tested on one.
+# smd6: the first v6 board runs this firmware (2026-11-15); its microSD card and J10 extra I/O
+# were still to be confirmed when it was added.
 OVERLAYS = {
     "smd2": "sdkconfig.smd2.defaults",
     "smd4": "sdkconfig.smd4.defaults",
     "smd5": "sdkconfig.smd5.defaults",
     "smd5_cheap": "sdkconfig.smd5_cheap.defaults",
+    "smd6": "sdkconfig.smd6.defaults",
 }
-DEFAULT_IMAGES = ["smd4/16MB", "smd5/16MB", "smd5_cheap/16MB", "smd2/16MB",
-                  "smd4/8MB", "smd5/8MB", "smd5_cheap/8MB", "smd2/8MB"]
+DEFAULT_IMAGES = ["smd4/16MB", "smd5/16MB", "smd5_cheap/16MB", "smd6/16MB", "smd2/16MB",
+                  "smd4/8MB", "smd5/8MB", "smd5_cheap/8MB", "smd6/8MB", "smd2/8MB"]
 
 
 def run(cmd: list[str], cwd: Path = FIRMWARE, check: bool = True) -> subprocess.CompletedProcess:

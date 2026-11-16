@@ -203,8 +203,25 @@ bool ag1170_is_ringing(int line)
     return s_ls[line].ringing;
 }
 
+static uint16_t s_pat[6];
+static uint8_t  s_pat_n;
+
+void ag1170_set_ring_pattern(const uint16_t *phase_ms, uint8_t n)
+{
+    if (!phase_ms || n < 2 || n > 6) { s_pat_n = 0; return; }
+    for (uint8_t i = 0; i < n; i++) s_pat[i] = phase_ms[i];
+    s_pat_n = n;
+}
+
 void ag1170_ring_cadence_ms(uint16_t *on_ms, uint16_t *off_ms)
 {
+    if (s_pat_n) {   /* one whole cycle, reported as "on" */
+        uint32_t t = 0;
+        for (uint8_t i = 0; i < s_pat_n; i++) t += s_pat[i];
+        if (on_ms) *on_ms = (uint16_t)t;
+        if (off_ms) *off_ms = 0;
+        return;
+    }
     if (on_ms) *on_ms = s_cfg.ring_on_ms;
     if (off_ms) *off_ms = s_cfg.ring_off_ms;
 }
@@ -256,6 +273,15 @@ static void service_ring(int line, int64_t now)
     uint32_t period_ms = on_ms + (ls->ring_on_ms ? ls->ring_off_ms : s_cfg.ring_off_ms);
     int64_t  phase_ms  = ((now - ls->ring_phase_start_us) / 1000) % period_ms;
     bool     on        = phase_ms < on_ms;
+    if (!ls->ring_on_ms && !ls->ring_intercom && s_pat_n) {
+        /* The region's ring: phases alternate on/off. */
+        uint32_t total = 0;
+        for (uint8_t i = 0; i < s_pat_n; i++) total += s_pat[i];
+        uint32_t t = total ? (uint32_t)(((now - ls->ring_phase_start_us) / 1000) % total) : 0;
+        uint8_t i = 0;
+        while (i < s_pat_n - 1 && t >= s_pat[i]) { t -= s_pat[i]; i++; }
+        on = (i % 2) == 0;
+    }
     if (ls->ring_intercom) {
         /* Distinctive internal ring: two short bursts, then a pause
          * (0.4 s on, 0.2 s off, 0.4 s on, 2.0 s off). */

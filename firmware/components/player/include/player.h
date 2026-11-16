@@ -49,6 +49,9 @@ esp_err_t player_play(int line, const char *storage_name, player_done_cb_t done_
  * (A WAV; an MP3 plays as with player_play().) */
 esp_err_t player_play_chained(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx);
 
+/* Like player_play(), with a pause of `lead_in_ms` before the clip starts instead of PROMPT_LEAD_IN_MS. */
+esp_err_t player_play_lead(int line, const char *storage_name, uint16_t lead_in_ms, player_done_cb_t done_cb, void *ctx);
+
 /* Like player_play(), but starts at once: no PROMPT_LEAD_IN_MS pause. For a
  * clip that continues something already playing (the last digit of a
  * sequence), where the pause would sound like a hiccup. */

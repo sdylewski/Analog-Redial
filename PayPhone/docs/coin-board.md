@@ -1,15 +1,15 @@
 # Payphone coin board: design, wiring and parts
 
-**Released for fab, untested.** The PCB layout is finished (2026-11-08), but nothing here has
-been built, tested or simulated yet. Items marked **[verify]** are to be checked on the first
-board. Reference designators and pin numbers match
-`Payphone_coin_board_v1/Payphone_coin_board_v1.kicad_sch`. For the short public version, see
-[docs/hardware-coin-board.md](../docs/hardware-coin-board.md); for the phone and its firmware,
-[README.md](README.md) and [payphone-firmware.md](payphone-firmware.md).
+**Built and working (v1).** One board was built 2026-11-13 and runs the GTE / Quadrum payphone:
+coin switches, HV at every shunt setting tried (19, 52, 60, 87 and 112 V), collect and return.
+Section 11 has what the first board showed. Items still marked **[verify]** were not measured. Reference designators and pin numbers match
+`../Payphone_coin_board_v1/Payphone_coin_board_v1.kicad_sch`. For the short public version, see
+[docs/hardware-coin-board.md](../../docs/hardware-coin-board.md); for the phone and its firmware,
+[README.md](../README.md) and [payphone-firmware.md](payphone-firmware.md).
 
 > ⚠️ **High voltage, up to 119 V DC on a 220 µF capacitor.** Read
-> [Safety first](../docs/hardware-coin-board.md#safety-first-high-voltage) before you build or
-> power the board. It is untested and provided as is.
+> [Safety first](../../docs/hardware-coin-board.md#safety-first-high-voltage) before you build or
+> power the board. It is provided as is.
 
 | Part | Covers |
 |---|---|
@@ -445,25 +445,35 @@ the relay.
   so the cable can't load the codec's bus, or a differential extender such as the PCA9615
   for longer runs. **Probably not needed under 1 m.**
 
-### 11. Bench checks for the first board
+### 11. Bench checks: what the first board showed
 
-1. **Which voltage the phone needs:** the HD550002C works at about 60 V; J14 alone gives
-   52 V and J14 + J9 gives 60 V. The higher settings are for other phones.
-2. **Stage 1 against stage 2:** while charging, stage 2 can ask for more than stage 1's 2 W
-   (section 6). If the 20 V rail sags to U3's 7.6 V stop, the converter hiccups: raise Rcs1
-   for a lower peak current, or add a soft start on COMP.
-3. **Overshoot at the end of a charge:** watch that HV stays below D3's standoff at 119 V.
-   A smaller C28 (47 nF) cuts overshoot. Chirping from skipped cycles at light load is
-   harmless.
-4. **U2's switch-node waveform** (section 5), and whether charging pulls the 5 V rail below spec.
-5. **Pull-in charge** (current x time at the operating voltage), to confirm C1 is large enough.
-6. **J14 off:** U3 stays off (R53 holding Q6), and HV settles near 19 V.
-7. **Coin inputs through D16-D19:** the low level U1 reads with a real switch (about
-   0.3 V diode drop plus the 1 k), and a coin acceptor's output if one is to hand.
-8. **Firmware** (`firmware/components/coinboard/`, tested only against simulated chips): the
-   coin inputs' timing, U4's readings against a meter, the pulse length the relay needs, and
-   the overcurrent limit. [payphone-firmware.md](payphone-firmware.md) has the
-   bring-up steps.
+1. **Which voltage the phone needs:** the HD550002C moves at about 60 V on the bench, alone,
+   but in the phone, with its levers attached, it needs **87 V (J14 + J7)**; 60 and 78 V
+   don't move the flap all the way. Start a new relay at 60 V and go up.
+2. **Stage 1 against stage 2:** no hiccup seen at any setting up to 112 V (meter and U4
+   agreed). The early "rail sags, HV test stops" reports were VIO, not stage 1 (item 9).
+3. **Overshoot at the end of a charge:** not measured **[verify]** at 119 V.
+4. **U2's switch-node waveform:** not looked at **[verify]**. The 5 V input held 4.89 V
+   while charging (5.2 V at the DC jack, 4.91 V after v6's D1).
+5. **Pull-in charge:** at 87 V the coil current builds to about 67-75 mA over 65 ms (the coil
+   is about 1.1 k and very inductive), and C1 falls only about 3 V in a 100 ms fire, so C1 is
+   plenty. The armature's movement shows as a dip in the current at 65-70 ms (the fire plot on
+   the Bring-up pane).
+6. **J14 off:** HV settles near 19 V, as designed.
+7. **Coin inputs through D16-D19:** the phone's switches read fine; each closes for 40-95 ms
+   a coin, the quarter with up to 3 ms of chatter. A coin acceptor's output not tried.
+8. **Firmware:** coin timing, U4 against a meter, and the 100 ms pulse all good; the
+   overcurrent limit never tripped. [payphone-firmware.md](payphone-firmware.md) has the
+   bring-up pane.
+9. **VIO is the weak point.** The first board's problems were nearly all on the cable: a bad
+   5 V crimp (I2C still answers without 5 V), then VIO at 2.8 V from a clone ESP32 module's
+   small regulator and later a bad VIO crimp. With VIO low, U4 (2.0 V minimum) reads the rail
+   as 14 V and HV about 1.7x high, and U1 resets when stage 1 or K1 starts. v2 adds its own
+   3.3 V regulator. Also found: A2 not soldered on the top side (it upset the HV reading), and a J3 plug forced
+   in backwards (nickels count, dimes and quarters don't).
+10. **The relay's latch:** after a fire the flap stays down and the relay's own contact stays
+    open until a coin pushes it up, so a second fire draws no current. A stiff coin lever kept
+    it down and sent coins straight to the box until it was cleaned and oiled.
 
 ### Sources
 
@@ -478,7 +488,7 @@ the relay.
 ## Part 2: Coin relay output stage, what connects where
 
 Reference designators and pin numbers match
-`Payphone_coin_board_v1/Payphone_coin_board_v1.kicad_sch`.
+`../Payphone_coin_board_v1/Payphone_coin_board_v1.kicad_sch`.
 
 The output stage takes the high voltage on net **HV** (C1, 52-119 V, set by
 J7-J9) and sends it through the payphone's coin relay one way or the other.
@@ -723,7 +733,7 @@ so don't name one that way.)
 ## Part 3: Parts and PCB layout
 
 Reference designators and
-values match `Payphone_coin_board_v1/Payphone_coin_board_v1.kicad_sch`.
+values match `../Payphone_coin_board_v1/Payphone_coin_board_v1.kicad_sch`.
 
 The board is surface-mount, with through-hole only for C1, K1, U4's module and the
 connectors. JLCPCB places every surface-mount part except seven that are hand-soldered:
@@ -815,7 +825,7 @@ I2C pull-ups and decoupling, which is fine at VIO.
 | C28 | 100 nF | X7R: compensation zero (1.6 Hz) |
 
 The full list, with LCSC numbers, is
-[`jlcpcb/production_files/BOM-Payphone_coin_board_v1.csv`](Payphone_coin_board_v1/jlcpcb/production_files/BOM-Payphone_coin_board_v1.csv).
+[`jlcpcb/production_files/BOM-Payphone_coin_board_v1.csv`](../Payphone_coin_board_v1/jlcpcb/production_files/BOM-Payphone_coin_board_v1.csv).
 
 #### Hand-solder parts from DigiKey
 
@@ -845,7 +855,7 @@ UC3842 (16 V start) and the UC3844/5 (50 % duty limit).
 
 #### Ordering
 
-Upload the files in `Payphone_coin_board_v1/jlcpcb/production_files/` (gerbers, BOM, CPL):
+Upload the files in `../Payphone_coin_board_v1/jlcpcb/production_files/` (gerbers, BOM, CPL):
 
 - 2 layers, **lead-free HASL**, top-side assembly, **Economic PCBA** (JLCPCB offers Economic
   only with HASL).
@@ -856,7 +866,7 @@ Upload the files in `Payphone_coin_board_v1/jlcpcb/production_files/` (gerbers, 
 
 #### The JLCPCB plugin
 
-`Payphone_coin_board_v1/jlcpcb/` is kicad-jlcpcb-tools' output (its `project.db` isn't
+`../Payphone_coin_board_v1/jlcpcb/` is kicad-jlcpcb-tools' output (its `project.db` isn't
 tracked). Before each export:
 
 - Every surface-mount part JLCPCB places is in the CPL file, not just the BOM. A symbol marked

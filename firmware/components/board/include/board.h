@@ -474,6 +474,12 @@ esp_err_t board_hw_config_set(board_hw_config_t cfg);
  * 1-line. Falls back to (1, false) if neither gives a positive read. */
 void board_hw_config_autodetect(void);
 
+/* v6 only: set at boot when line 2's SLIC (U3) is found not fitted. From then on
+ * board_hw_config_get() reports one line even if two are saved, so the second
+ * line isn't started, shown or advertised. Nothing is saved: a board that gets
+ * its SLIC later runs two lines again at the next boot. */
+void board_hw_set_line1_absent(bool absent);
+
 /* Best-effort, purely advisory evidence for a human to sanity-check
  * board_hw_config_autodetect()'s guess against -- e.g. Settings ->
  * Hardware's "Advisory evidence" row, or the first-boot banner. NOT

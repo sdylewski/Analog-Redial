@@ -88,7 +88,8 @@ Bluetooth is the only one that needs an extra board.
   	- Storage to internal flash or microSD card for hours of storage
   (1-line version only). 
 - **Payphones.** Dial tone, ringing, dialing and calls work on a payphone like
-  on any phone; the coin mechanism isn't supported yet. See
+  on any phone. With the coin board it counts coins and collects or returns
+  them (working on one payphone so far). See
   [Payphones](docs/setup.md#10-payphones).
 - **Home automation.** Every pickup, hang-up, dial code and incoming ring
   can go to Home Assistant, or any system that takes a webhook or MQTT. Home
@@ -213,7 +214,7 @@ Going further: [Troubleshooting](docs/troubleshooting.md) ·
 | Sep 2026 | **v4** <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | 2-layer, built around a cheaper 32-pin ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. |
 | Oct 2026 | **v5** <br><img src="docs/pics/V5_board.jpg" width="220" alt="Analog Redial v5 board">| Working: takes a genuine or clone ESP32-C6 module, and adds the expansion header (used for the Bluetooth board). <br>**With a clone module, remove the clone's bottom-right 5V pin** (see [Get a board](docs/board.md)). |
 | Oct 2026 | **v5.1** | **RECOMMENDED VERSION** v5 with the clone-module 5V pin fixed (nothing to remove) and small silkscreen and fab-file updates. |
-| Nov 2026 | **v6** <br><img src="docs/pics/V6_board_top.png" width="220" alt="Analog Redial v6 board"> | **Released, not built or tested yet.** Two phone lines, the microSD card, payphone support and extra I/O all working at once (an I²C I/O expander drives the second line), plus the clone-module 5V pin fix and a 3 A diode (SS34) for the DC jack. |
+| Nov 2026 | **v6** <br><img src="docs/pics/V6_board_top.png" width="220" alt="Analog Redial v6 board"> | **Built and working.** Two phone lines, payphone support (the coin board runs a real payphone) and extra I/O, with an I²C I/O expander driving the second line; the microSD card and the extra I/O haven't been checked on it yet. It's meant to run all of those at once, plus the clone-module 5V pin fix and a 3 A diode (SS34) for the DC jack. |
 
 ### Related projects
 
@@ -237,7 +238,7 @@ Other open-source projects that bring old phones back to life:
 | **Offline phone-to-phone** | ✅ | ❌ | ❌ | ❌ |
 | **Dial codes & actions** | ✅ | ❌ | ❌ | ❌ |
 | **Home automation** | ✅ | ❌ | ❌ | ❌ |
-| **Payphone coin support** | In progress | ❌ | ❌ | ✅ +/-130 V |
+| **Payphone coin support** | ✅ with the coin board (smart-phone coin relays) | ❌ | ❌ | ✅ +/-130 V |
 | **OTA firmware update** | ✅ | ✅ | ❌ | ❌ |
 | **Battery powered** | USB-C power bank | ✅ | ✅ | ❌ |
 | **Approx. cost** | **~$37** (+$15 BT) | **~$60** + SIM | **~$60** shield + gCore (~$80-100) | **~$50-80** est. |

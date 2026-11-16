@@ -2,6 +2,8 @@
 #include "bt401.h"
 #include "board.h"
 #include "board_pins.h"
+#include "board_config.h"
+#include "line_expander.h"
 #include "driver/gpio.h"
 #include "driver/uart.h"
 #include "esp_log.h"
@@ -221,18 +223,60 @@ static void load_config(void)
  * fails the documented way it is tried once with the two swapped, and a swap
  * that works is remembered. */
 #ifdef BOARD_BT_MFB_PIN
+/* v6: the carrier's RST_N and P2_0 leads go to J10's P5 and P4, which are the
+ * I2C expander's spare pins, not GPIOs. They are numbered 100 + n (n = 0 for
+ * P4 .. 3 for P7) wherever a pin number is kept or shown, so "101" is P5. */
+#define MP_EXP_BASE 100
+#if BOARD_LINE1_ON_EXPANDER
+#define MP_IS_EXP(p)  ((p) >= MP_EXP_BASE)
+#define MP_VALID(p)   ((p) >= MP_EXP_BASE && (p) < MP_EXP_BASE + LINE_EXP_SPARE_N)
+#define MP_DEFAULT_RST (MP_EXP_BASE + 1)   /* P5: carrier J2 pin 2 */
+#define MP_DEFAULT_P20 (MP_EXP_BASE + 0)   /* P4: carrier J2 pin 1 */
+#else
+#define MP_IS_EXP(p)  0
+#define MP_VALID(p)   ((p) >= 18 && (p) <= 21)
+#define MP_DEFAULT_RST BOARD_BT_RST_PIN
+#define MP_DEFAULT_P20 BOARD_BT_P20_PIN
+#endif
+/* Can the firmware drive RST_N / P2_0 on this board and config? */
+static bool mode_pins_usable(void) { return BOARD_LINE1_ON_EXPANDER || board_shared_pads_free(); }
+static void mode_pin_prepare(int p)
+{
+    if (MP_IS_EXP(p)) {
+#if BOARD_LINE1_ON_EXPANDER
+        line_exp_init();   /* safe to repeat */
+#endif
+        return;
+    }
+    gpio_hold_dis(p);
+    gpio_config_t c = { .pin_bit_mask = 1ULL << p, .mode = GPIO_MODE_OUTPUT,
+                        .pull_up_en = GPIO_PULLUP_DISABLE, .pull_down_en = GPIO_PULLDOWN_DISABLE,
+                        .intr_type = GPIO_INTR_DISABLE };
+    gpio_config(&c);
+    gpio_sleep_sel_dis(p);
+}
+static void mode_pin_set(int p, int level)
+{
+    if (MP_IS_EXP(p)) {
+#if BOARD_LINE1_ON_EXPANDER
+        line_exp_set_spare(p - MP_EXP_BASE, level);
+#endif
+    } else {
+        gpio_set_level(p, level);
+    }
+}
 static int  s_rst_pin = -1, s_p20_pin = -1;
 static bool s_diag_tried_swap;
 static void diag_pins_load(void)
 {
     if (s_rst_pin >= 0) return;
-    s_rst_pin = BOARD_BT_RST_PIN;
-    s_p20_pin = BOARD_BT_P20_PIN;
+    s_rst_pin = MP_DEFAULT_RST;
+    s_p20_pin = MP_DEFAULT_P20;
     nvs_handle_t h;
     if (nvs_open("board", NVS_READONLY, &h) == ESP_OK) {
         uint8_t r, p;
         if (nvs_get_u8(h, "bt_rst_pin", &r) == ESP_OK && nvs_get_u8(h, "bt_p20_pin", &p) == ESP_OK &&
-            r >= 18 && r <= 21 && p >= 18 && p <= 21 && r != p) {
+            MP_VALID(r) && MP_VALID(p) && r != p) {
             s_rst_pin = r;
             s_p20_pin = p;
         }
@@ -252,7 +296,7 @@ static void diag_pins_save(void)
 }
 esp_err_t bt_companion_diag_pins_set(int rst, int p20)
 {
-    if (rst < 18 || rst > 21 || p20 < 18 || p20 > 21 || rst == p20) return ESP_ERR_INVALID_ARG;
+    if (!MP_VALID(rst) || !MP_VALID(p20) || rst == p20) return ESP_ERR_INVALID_ARG;
     diag_pins_load();
     s_rst_pin = rst;
     s_p20_pin = p20;
@@ -613,7 +657,7 @@ esp_err_t bt_companion_start_pairing(void)
      * in case the startup send was too early and got ignored. */
     {
         char name[32] = {0};
-        board_name_get(name, sizeof(name));
+        bt_board_pairing_name(name, sizeof(name));   /* "AnalogRedial-<board name>" */
         send_command(BM64_CHANGE_DEVICE_NAME_CMD, (const uint8_t *)name, sizeof(name));
         vTaskDelay(pdMS_TO_TICKS(50));
     }
@@ -1250,7 +1294,7 @@ static void poll_task(void *arg)
     if (s_task_stop) { s_task = NULL; vTaskDelete(NULL); }
 
     /* Also one-time at startup: set the module's own advertised Bluetooth
-     * name to this board's name (e.g. "dualphone"), so pairing shows
+     * name to "AnalogRedial-<board name>" (e.g. "AnalogRedial-dualphone"), so pairing shows
      * something short and recognizable instead of a generic factory name.
      * Confirmed frame format 2026-09-22 straight from Microchip's real
      * command-set doc: BT_Device_Name is a fixed 32-byte field, no length
@@ -1260,7 +1304,7 @@ static void poll_task(void *arg)
      * one-time provisioning step. */
     {
         char name[32] = {0};
-        board_name_get(name, sizeof(name));
+        bt_board_pairing_name(name, sizeof(name));   /* "AnalogRedial-<board name>" */
         send_command(BM64_CHANGE_DEVICE_NAME_CMD, (const uint8_t *)name, sizeof(name));
         ESP_LOGI(TAG, "set BT device name to '%s'", name);
     }
@@ -1568,7 +1612,7 @@ esp_err_t bt_companion_ibdk_enter(bool toggle_pins)
      * point here -- that lets bt_companion_config_check() park the poll task
      * without touching the persisted enabled flag. */
     if (s_task) return ESP_ERR_INVALID_STATE; /* poll task would fight for RX */
-    if (!board_shared_pads_free()) {
+    if (!mode_pins_usable()) {
         ESP_LOGE(TAG, "IBDK: refusing -- GPIO18-20 are claimed by line 1 SLIC/microSD");
         return ESP_ERR_INVALID_STATE;
     }
@@ -1581,11 +1625,8 @@ esp_err_t bt_companion_ibdk_enter(bool toggle_pins)
          * each (the module needs it; manual testing had seconds of typing
          * delay between steps and that's what worked). */
         gpio_hold_dis(BOARD_BT_MFB_PIN);
-        gpio_hold_dis(diag_rst_pin());
-        gpio_hold_dis(diag_p20_pin());
         gpio_config_t gpio_cfg = {
-            .pin_bit_mask = (1ULL << BOARD_BT_MFB_PIN) | (1ULL << diag_rst_pin()) |
-                            (1ULL << diag_p20_pin()),
+            .pin_bit_mask = 1ULL << BOARD_BT_MFB_PIN,
             .mode = GPIO_MODE_OUTPUT,
             .pull_up_en = GPIO_PULLUP_DISABLE,
             .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -1593,16 +1634,16 @@ esp_err_t bt_companion_ibdk_enter(bool toggle_pins)
         };
         gpio_config(&gpio_cfg);
         gpio_sleep_sel_dis(BOARD_BT_MFB_PIN);
-        gpio_sleep_sel_dis(diag_rst_pin());
-        gpio_sleep_sel_dis(diag_p20_pin());
+        mode_pin_prepare(diag_rst_pin());
+        mode_pin_prepare(diag_p20_pin());
 
         ESP_LOGI(TAG, "IBDK: entering (P2_0 low across reset)");
-        gpio_set_level(diag_p20_pin(), 0);
+        mode_pin_set(diag_p20_pin(), 0);
         gpio_set_level(BOARD_BT_MFB_PIN, 0);
         vTaskDelay(pdMS_TO_TICKS(200));
-        gpio_set_level(diag_rst_pin(), 0);
+        mode_pin_set(diag_rst_pin(), 0);
         vTaskDelay(pdMS_TO_TICKS(200));
-        gpio_set_level(diag_rst_pin(), 1);
+        mode_pin_set(diag_rst_pin(), 1);
         vTaskDelay(pdMS_TO_TICKS(1000));
         gpio_set_level(BOARD_BT_MFB_PIN, 1);
         s_mfb_held = true; s_mfb_high = true;   /* poll_task's startup hands it back to idle-low */
@@ -1702,23 +1743,24 @@ esp_err_t bt_companion_ibdk_enter(bool toggle_pins)
 
 esp_err_t bt_companion_ibdk_exit(void)
 {
-    if (!board_shared_pads_free()) return ESP_ERR_INVALID_STATE;
+    if (!mode_pins_usable()) return ESP_ERR_INVALID_STATE;
 
     ESP_LOGI(TAG, "IBDK: exiting -> normal Flash Application mode");
     gpio_config_t gpio_cfg = {
-        .pin_bit_mask = (1ULL << BOARD_BT_MFB_PIN) | (1ULL << diag_rst_pin()) |
-                        (1ULL << diag_p20_pin()),
+        .pin_bit_mask = 1ULL << BOARD_BT_MFB_PIN,
         .mode = GPIO_MODE_OUTPUT,
         .pull_up_en = GPIO_PULLUP_DISABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_DISABLE,
     };
     gpio_config(&gpio_cfg);
-    gpio_set_level(diag_p20_pin(), 1);   /* high across reset = normal mode */
+    mode_pin_prepare(diag_rst_pin());
+    mode_pin_prepare(diag_p20_pin());
+    mode_pin_set(diag_p20_pin(), 1);   /* high across reset = normal mode */
     gpio_set_level(BOARD_BT_MFB_PIN, 0);
-    gpio_set_level(diag_rst_pin(), 0);
+    mode_pin_set(diag_rst_pin(), 0);
     vTaskDelay(pdMS_TO_TICKS(200));
-    gpio_set_level(diag_rst_pin(), 1);
+    mode_pin_set(diag_rst_pin(), 1);
     vTaskDelay(pdMS_TO_TICKS(500));
     gpio_set_level(BOARD_BT_MFB_PIN, 1);
     s_mfb_held = true; s_mfb_high = true;   /* poll_task's startup hands it back to idle-low */

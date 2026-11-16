@@ -21,7 +21,7 @@ capacitors and diodes). You add the larger through-hole parts with a soldering i
 
 | | **v4** (SMD4) | **v5** (SMD5) | **v5.1** | **v6** (SMD6) |
 |---|---|---|---|---|
-| Status | **Proven.** Built and in daily use | **Working.** The boards as fabbed and bench-tested; adds the expansion header (Bluetooth) and the clone-module option | **Released, not built yet.** v5 with the clone-module 5V pin fixed, plus small silkscreen and fab-file updates | **Released, not built yet.** Two phone lines, microSD, payphone support and extra I/O all at once (an I²C I/O expander drives the second line), plus the clone 5V pin fix and a 3 A DC-jack diode. Nothing built or tested yet |
+| Status | **Proven.** Built and in daily use | **Working.** The boards as fabbed and bench-tested; adds the expansion header (Bluetooth) and the clone-module option | **Released, not built yet.** v5 with the clone-module 5V pin fixed, plus small silkscreen and fab-file updates | **Working.** Built (2026-11): two phone lines, the codec, Wi-Fi and the payphone coin board work, with the second line driven by an I²C I/O expander. The microSD card and the extra I/O (J10) haven't been checked yet. Also has the clone 5V pin fix and a 3 A DC-jack diode |
 | Microcontroller | ESP32-C6-DevKitC-1 | ESP32-C6-DevKitC-1, or a cheaper 30-pin clone (remove one pin) | Same as v5, no pin to remove | Same as v5.1 |
 | Phone lines | 1 or 2 | 1 or 2 | 1 or 2 | 1 or 2 |
 | microSD | Single-line build | Single-line build | Single-line build | With one or two lines |
@@ -36,7 +36,7 @@ capacitors and diodes). You add the larger through-hole parts with a soldering i
 assembly guide cover either one.
 
 > **v5 is the tested board.** **v5.1** is v5 with the clone-module 5V pin fixed (a clone needs no
-> rework) and small silkscreen and fab-file updates; it hasn't been built yet. **v6** is released but not built or tested yet.
+> rework) and small silkscreen and fab-file updates; it hasn't been built yet. **v6** is built and working; its microSD card and extra I/O haven't been checked yet.
 > This page will say which to order once one of them has been built and tested.
 
 > ⚠️ **v5 boards with the 30-pin clone module: read before soldering.** On a v5 board the clone's

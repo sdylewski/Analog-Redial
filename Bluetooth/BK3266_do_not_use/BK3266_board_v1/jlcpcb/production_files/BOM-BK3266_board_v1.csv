@@ -1,0 +1,9 @@
+Comment,Designator,Footprint,LCSC,Quantity
+PINHD_1x8_Female,J1,PinSocket_1x08_P2.54mm_Vertical,,1
+~,U1,BK3266SR,,1
+10k,R4,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+1k,R3,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+1k,R2,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+1k,R1,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,1
+PINHD_1x6_Male,Diag,PinHeader_1x06_P2.54mm_Vertical,,1
+LED_5mm,D2,LED_D5.0mm,,1

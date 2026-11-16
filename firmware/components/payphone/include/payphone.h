@@ -53,8 +53,10 @@ typedef struct {
     uint8_t  unanswered_collect;  /* handset down with coins and no answered call: 0 return them, 1 collect them */
     uint8_t  coin_limit;          /* coins the hopper may hold before they are released at once; 0 = no limit */
     uint8_t  limit_collect;       /* released at the limit: 0 returned, 1 collected */
+    /* The phone type (payphone_types.h), appended likewise: 0 = not chosen. */
+    uint8_t  housing;             /* pp_housing_t */
+    uint8_t  inside;              /* pp_inside_t */
 } payphone_cfg_t;
-#define PAYPHONE_CFG_V1_SIZE 106  /* sizeof(payphone_cfg_t) before the three fields above */
 #define PAYPHONE_COIN_LIMIT_MAX 50
 
 /* What happens to the coins dropped during one pickup (telephony.c). A coin
@@ -94,6 +96,12 @@ void payphone_init(void);
 payphone_cfg_t payphone_cfg(void);
 esp_err_t payphone_cfg_set(const payphone_cfg_t *cfg);
 bool payphone_enabled(void);
+/* Dial codes that need no coin (Settings -> Dial Codes, when payphone features are on).
+ * payphone_code_free(): the code is free (all codes free, or this one ticked).
+ * payphone_code_listed(): this one is ticked. Codes are digits, * and #. */
+bool payphone_code_free(const char *code);
+bool payphone_code_listed(const char *code);
+esp_err_t payphone_code_free_set(const char *code, bool is_free);
 bool payphone_tones_on(void);        /* enabled and tone_detect */
 
 /* 5 -> 0, 10 -> 1, 25 -> 2; -1 for any other value. */

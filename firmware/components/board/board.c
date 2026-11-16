@@ -1107,6 +1107,10 @@ esp_err_t board_record_max_ms_set(uint32_t ms)
 #define HW_CONFIG_NVS_KEY_BTMOD "hw_btmod"  /* u8: board_bt_module_t -- which module */
 #define HW_CONFIG_NVS_KEY_CONFIRMED "hw_confirmed" /* u8: 1 once a human has actually reviewed this */
 
+/* Set once at boot by board_hw_set_line1_absent(): v6's line 2 has no SLIC. */
+static bool s_line1_absent;
+void board_hw_set_line1_absent(bool absent) { s_line1_absent = absent; }
+
 board_hw_config_t board_hw_config_get(void)
 {
     /* safe fallback if nothing saved yet */
@@ -1133,6 +1137,10 @@ board_hw_config_t board_hw_config_get(void)
         }
         nvs_close(h);
     }
+#if BOARD_LINE1_ON_EXPANDER
+    /* v6: line 2's SLIC (U3) isn't fitted, so there is no second line, whatever was saved. */
+    if (s_line1_absent) cfg.num_lines = 1;
+#endif
     return cfg;
 }
 

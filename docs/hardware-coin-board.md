@@ -2,17 +2,17 @@
 
 # Board reference: payphone coin board
 
-> **Sent to fab, not built or tested yet.** The design and fab files are published
-> ([KiCad project](https://github.com/sdylewski/Analog-Redial/tree/main/PayPhone/Payphone_coin_board_v1)),
-> but no coin board has been built, and its firmware has only run against simulated chips.
-> Values and timings on this page come from datasheets and arithmetic, not measurements, and
-> may change after the first build.
+> **Built and working with one payphone.** The design and fab files are published
+> ([KiCad project](https://github.com/sdylewski/Analog-Redial/tree/main/PayPhone/Payphone_coin_board_v1)).
+> One board has been built and runs a GTE / Quadrum style payphone: it counts the phone's coins
+> and collects and returns them. Other phones and relays haven't been tried yet. Values marked
+> as measured come from that phone; the rest come from datasheets and arithmetic.
 
 > ⚠️ **Danger: high voltage.** This board makes up to **119 V DC** and stores it in a 220 µF
 > capacitor (C1). That can cause a painful shock, burns and serious injury, and in the wrong
 > circumstances it can kill. Build and test it only if you are experienced with high-voltage
 > circuits, and read [Safety first](#safety-first-high-voltage) before you power it. The board is
-> untested, uncertified and provided as is: you build and use it at your own risk.
+> a hobby prototype, uncertified and provided as is: you build and use it at your own risk.
 
 The coin board connects a payphone's coin mechanism to Analog Redial. It does three jobs:
 
@@ -63,12 +63,12 @@ you touch the board or the relay wires:
 - **Enclose it.** Once it is working, mount it in an insulated housing, insulate and strain-relieve
   the relay wires, and make sure nobody can reach the board or those wires while it is powered.
 - **Don't rely on the firmware for safety.** The board powers up with the high voltage off, the
-  firmware only runs it for a collect or return, and D3 clamps a runaway supply. But the
-  firmware has only run against simulated chips, and it is not a safety system. Treat every
-  step as if the supply could come on.
+  firmware only runs it for a collect or return, and D3 clamps a runaway supply. **Bench test
+  mode** (on by default) stops the relay firing by itself while you test. But the firmware is not
+  a safety system: treat every step as if the supply could come on.
 - **If you get more than a tingle,** get medical attention even if you feel fine afterwards.
 
-This design has not been built or tested, and it has no safety certification (UL, CE or
+This design has been built and tested on one phone only, and it has no safety certification (UL, CE or
 similar). It is a hobby prototype, not a consumer product, and it does not replace electrical
 safety training. The same applies to anything you connect to it, including the payphone's own
 wiring.
@@ -146,8 +146,9 @@ The payphone has two separate cables for this board: a 4-wire one from the coin 
 | J14 + J7 + J8 + J9 | **119 V**, the maximum |
 
 Every combination is valid and the same table is printed on the board. A missing or loose
-shunt gives a lower voltage, never a higher one. The GTE / Quadrum phone this was designed
-around needs about 50-60 V, so start with J14 alone (52 V).
+shunt gives a lower voltage, never a higher one. The HD550002C moves at about 60 V on the bench,
+but in the GTE / Quadrum phone, with its levers attached, it needs **87 V (J14 + J7)**: start a
+new relay at 60 V and go up until the flap moves all the way.
 
 ## 3. The I²C bus and VIO
 
@@ -192,7 +193,8 @@ A collect or return runs this sequence:
 1. Set **POL** (K1's direction: which coin-relay wire gets HV).
 2. Raise **EN_HV** and wait for HV, which U4 reads.
 3. Pulse **FIRE**: Q3 lets current through the coin relay for the pulse length (100 ms by
-   default).
+   default, enough for the HD550002C: its coil is about 1.1 kΩ and very inductive, so the current
+   builds over about 65 ms and the armature moves at about 65-70 ms, measured).
 4. Drop FIRE, then EN_HV.
 
 K1 only switches while no current flows, so its contacts never break the coil current. U4
@@ -205,9 +207,15 @@ catches the coil's kick when Q3 turns off.
 | low (at power-up) | HV | return (through Q3) |
 | high | return (through Q3) | HV |
 
-On the HD550002C, green positive returns the coins and white positive collects them, the
-opposite of the firmware's default, so tick **"Collect and return are the wrong way round"** on
-the Coin board card. Do the same for any relay that moves the wrong way, rather than rewiring.
+On the GTE / Quadrum phone's HD550002C, with the cable plugged in as described above, the
+default direction is correct: leave **"Collect and return are the wrong way round"** unticked.
+If a relay moves the wrong way, tick it rather than rewiring.
+
+**The HD550002C switches itself off.** A contact in series with its coil opens as it operates, and
+stays open while the coin flap is down. The flap stays down after a fire until the next coin pushes
+it back up, so a second Collect or Return in a row draws no current and does nothing; the firmware
+reports "no current (latched down?)". A flap that won't come back up by itself needs its lever
+cleaned and oiled: a stiff one sends every coin straight to the coin box.
 
 **Two-coil relays** (separate collect and return coils on a common wire): wire them to J11
 with the common on pin 2, and fit J10. The common is then always HV, and K1 picks which coil
@@ -218,8 +226,9 @@ fires.
 - The phone's coin switches are passive: green is the common, and it closes briefly to white,
   red or blue for a quarter, dime or nickel. The board ties the common to GND and pulls each
   line up to VIO. A closure reads low.
-- Each line has a 1 ms RC filter and its own LED; the firmware polls every few ms and
-  debounces.
+- Each line has a 1 ms RC filter and its own LED; the firmware polls every 3 ms and
+  debounces. On the GTE / Quadrum phone each switch closes for 40-95 ms a coin (measured), with up
+  to 3 ms of chatter on the quarter.
 - **Coin 4** (J12 pin 2) is wired the same, for a 50¢ or $1 switch, a coin-present switch or a
   coin acceptor's pulse output. Set what it's worth on the Coin board card (0 means log it
   only).
@@ -261,12 +270,26 @@ Fit **J2 or J11** for the relay and **J3 or J12** for the coin switches, not bot
 Estimated cost for 5 boards: about **$40 a board**, delivered to the US with the hand-solder
 parts. An estimate, not a quote.
 
+![The coin board mounted in the payphone's upper housing, wired to the coin switches and the coin relay](pics/coin_board_mounted.jpeg)
+
+*The v1 board mounted in the GTE / Quadrum phone on a 3D-printed bracket, with the coin switch cable (J3) and the relay cable (J2) plugged in.*
+
 ## 9. Firmware and first power-up
 
 The firmware is on the **Payphone** tab (Settings → Payphone, marked Experimental). It has three
-panes: **Settings**, **Log** and **Bring-up**. On Settings, turn on the Payphone features, then on
-the **Coin board** card tick "A coin board is connected" and choose its line. The console has the
-same tests as `coinboard [collect|return|hv]`.
+panes: **Settings**, **Log** and **Bring-up**. On Settings, turn on the Payphone features, then pick
+the phone on the **Phone type** card: its housing, then what handles the coins. For a phone whose
+coin switches and relay are wired to this board, choose "Coin switches and coin relay wired to the
+coin board" and tick "A coin board is installed"; the settings that phone needs are filled in, and
+cards that don't apply are hidden ("Show all settings" brings them back). For a phone nobody has
+tried, choose "Other, or not sure" and set everything by hand. The **Coin board** card then has the
+line, the relay pulse and the swap. The console has the same tests as
+`coinboard [collect|return|hv]`.
+
+**Bench test mode**, at the top of the Bring-up pane, is on until you turn it off: while it is on,
+the relay never fires by itself, whatever coins or calls do (a coin switch shorted on the bench
+would otherwise return a coin at full HV), but the test buttons work. Turn it off when the phone is
+ready to run.
 
 The **Bring-up** pane runs the steps below as a checklist and marks each one pass or fail from the
 board's own readings: whether U1 and U4 answer, the idle rail, each coin switch seen, the HV test's
@@ -287,8 +310,12 @@ Suggested first power-up, one step at a time:
 3. **HV on for 10 s**, still with J14 off: about 20 V on the rail and 19 V on HV. Check both with a
    meter.
 4. A 100 Ω 5 W resistor (or a 12-24 V coil) on J11: Collect and Return should read a current.
-5. Fit J14 (52 V) and the coin relay: HV on, then Collect and Return. Adjust the pulse length
-   if the relay doesn't move reliably.
+5. Fit J14 + J9 (60 V) and the coin relay: HV on, then Collect and Return, watching the coin flap
+   and the current plot. If the flap doesn't move all the way, go up a voltage before lengthening
+   the pulse (the GTE / Quadrum phone needs 87 V at 100 ms). Drop a coin between tests to reset a
+   relay that switches itself off.
+6. Turn Bench test mode off, lift the handset, drop coins and make a call: the Log pane shows each
+   coin, and each collect or return with its reason.
 
 ### If a coin isn't counted
 
@@ -321,10 +348,12 @@ errors while the page is open.
 
 ## See also
 
-- [Coin board: design, wiring and parts](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/coin-board.md): every part value, how each stage works,
+- [Coin board: design, wiring and parts](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/docs/coin-board.md): every part value, how each stage works,
   the output stage pin by pin, the parts list and the layout
 - [Payphone project overview](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/README.md): the pieces, status, what each known payphone needs,
   and other payphone projects (PhilTel, Futel and more)
-- [Payphone firmware](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/payphone-firmware.md): the Payphone tab and the coin board's driver
+- [telesfor.org payphone wiki](https://telesfor.org/payphones/doku.php?id=smart): smart (COCOT) and
+  coin-line payphones, their makers and boards, and how to program them; a good place to identify a phone
+- [Payphone firmware](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/docs/payphone-firmware.md): the Payphone tab and the coin board's driver
 - [Schematic (PDF)](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/Payphone_coin_board_v1/Payphone_coin_board_v1_schematic.pdf)
 - [Board reference: v6](hardware-smd6.md), whose J11 header the coin board plugs into

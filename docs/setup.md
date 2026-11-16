@@ -275,29 +275,49 @@ The board works with a payphone just as with any other phone: it gives dial
 tone, rings the bell, reads the dial or keypad, and handles calls and every
 other feature the same way.
 
-**Settings → Payphone (experimental)** adds what a payphone needs, with no
-extra hardware:
+**Settings → Payphone (experimental)** adds what a payphone needs. Start with
+the **Phone type** card: pick the housing (for example a Quadrum / GTE 120B
+style, or a Western Electric single-slot), then what handles its coins:
 
-- **Coin tones:** a payphone whose totalizer still works sends a tone down the
+| What handles the coins | What the board does |
+|---|---|
+| Coin switches and coin relay wired to the [coin board](hardware-coin-board.md) | counts the coins, asks for them before a call, and collects or returns them |
+| Its own smart board (Elcotel, Protel and others), working and programmed | nothing: the phone does it all, and the board just gives it a line |
+| No coin board, used as a phone | works as a phone; listens for coin tones in case the phone sends them (untested) |
+| A coin-line totalizer that sends coin tones | hears the coin tones and asks for coins before a call (untested) |
+| No coin parts (coinless) | nothing: it is a normal phone |
+
+The card fills in the settings that phone needs and hides the cards that don't
+apply; "Show all settings" brings them back, and "Other, or not sure" sets
+nothing. [telesfor.org's payphone wiki](https://telesfor.org/payphones/doku.php?id=smart)
+helps to identify a phone. The settings themselves:
+
+- **Coin tones (untested):** a payphone whose totalizer still works sends a tone down the
   line for each coin, and the board hears them while the handset is up: one beep
   for a nickel, two for a dime, five short ones for a quarter. Not every phone
   converted for home use still sends them; drop a coin and watch the tab's log.
 - **Coin required:** lifting the handset plays a spoken "please deposit" message
   instead of dial tone until the coins add up to the price of a call. Calls need
-  the credit; the board's own dial codes can stay free.
-- **A message after a coin**, one for each coin or one for all.
+  the credit. Each dial code on the Dial Codes tab has a **Free** tick (shown while
+  payphone features are on) to let it run with no coin; untick it and the code waits for coins.
+- **A message after a coin**, one for each coin or one for all, starting at once
+  and queued when coins drop quickly; dial tone comes back right after it.
 - **What happens to the coins:** collected when the call is answered, held until the
-  handset goes down, or collected as each one drops.
+  handset goes down, or collected as each one drops; whether they are returned or
+  collected when the handset goes down without an answered call; and a limit
+  (8 by default) at which the coins held are released at once, so the hopper
+  doesn't jam.
 - **A coin count** with a reset, simulate buttons for testing, a log of every
   coin, and a `coin` event for Home Assistant.
 
 Set the two spoken messages' text on the tab, then generate their audio like the
 operator message (the tab shows the command).
 
-**Not tested yet: the coin mechanism itself**, meaning the coin switches and the
-solenoid that collects or returns coins. That needs a separate
-[coin board](hardware-coin-board.md), which is sent to fab but not built or tested yet;
-its settings are on the same tab (Settings pane, Coin board card), and its bring-up checklist is on the Bring-up pane.
+**The coin mechanism itself**, meaning the coin switches and the relay that
+collects or returns coins, needs the separate [coin board](hardware-coin-board.md).
+It works on a GTE / Quadrum style payphone; other phones haven't been tried yet.
+Its settings are on the same tab (Settings pane, Coin board card), and the
+Bring-up pane walks through a new board, and a phone it hasn't met, step by step.
 
 Also still to find out: whether the board can sit inside a payphone's metal
 housing and still reach Wi-Fi and Bluetooth through it.

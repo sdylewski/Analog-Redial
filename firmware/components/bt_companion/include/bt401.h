@@ -35,6 +35,11 @@ esp_err_t bt401_start(bt401_notify_cb cb);
  * so the module stops driving the audio path). */
 void      bt401_stop(bool disconnect);
 bool      bt401_running(void);
+/* The name a phone lists this module under: the module's own name once it has said it, else the one it
+ * will be given ("AnalogRedial-<board name>"). */
+void      bt401_pairing_name(char *out, size_t len);
+/* "AnalogRedial-<board name>" (letters, digits, - and _; at most len-1 chars): the name both module types advertise. */
+void      bt_board_pairing_name(char *out, size_t len);
 /* With the task stopped: background Bluetooth off, reset, idle mode (radio
  * off, ~7 mA). Runs in its own short task; bt401_start() brings it back. */
 esp_err_t bt401_sleep(void);

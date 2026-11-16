@@ -1,0 +1,9 @@
+Designator,Val,Package,Mid X,Mid Y,Rotation,Layer
+D2,LED_5mm,LED_D5.0mm,140.905,-93.97,-90.0,top
+Diag,PINHD_1x6_Male,PinHeader_1x06_P2.54mm_Vertical,155.505,-89.05,0.0,top
+J1,PINHD_1x8_Female,PinSocket_1x08_P2.54mm_Vertical,141.315,-76.7,-90.0,top
+R1,1k,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,140.905,-84.6,90.0,top
+R2,1k,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,145.805,-87.8,90.0,top
+R3,1k,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,148.905,-87.7,-90.0,top
+R4,10k,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,152.105,-87.7,90.0,top
+U1,~,BK3266SR,127.53,-87.2,90.0,top

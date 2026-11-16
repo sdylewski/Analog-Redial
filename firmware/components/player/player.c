@@ -29,7 +29,7 @@ typedef struct {
     int    line;
     char   name[STORAGE_MAX_NAME];
     bool   is_mp3;   /* decided in player_play(): sets the task's stack size */
-    bool   lead_in;  /* wait PROMPT_LEAD_IN_MS first: the caller may still be lifting the handset to an ear */
+    uint16_t lead_in_ms; /* wait this long first (usually PROMPT_LEAD_IN_MS): the caller may still be lifting the handset to an ear */
     bool   chained;  /* another clip follows at once: don't wait out the tail or silence the line */
     player_done_cb_t done_cb;
     void  *ctx;
@@ -240,7 +240,7 @@ static void play_task(void *arg)
         goto out;
     }
 
-    for (int waited = 0; a->lead_in && waited < PROMPT_LEAD_IN_MS && !s_line[line].stop_requested; waited += 20)
+    for (int waited = 0; waited < a->lead_in_ms && !s_line[line].stop_requested; waited += 20)
         vTaskDelay(pdMS_TO_TICKS(20));
     if (s_line[line].stop_requested) goto out;
 
@@ -370,32 +370,37 @@ out:
 }
 
 static esp_err_t play_start(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx,
-                            bool chained, bool lead_in, const player_seg_t *segs, size_t nsegs);
+                            bool chained, uint16_t lead_in_ms, const player_seg_t *segs, size_t nsegs);
 
 esp_err_t player_play(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx)
 {
-    return play_start(line, storage_name, done_cb, ctx, false, done_cb != NULL, NULL, 0);
+    return play_start(line, storage_name, done_cb, ctx, false, done_cb != NULL ? PROMPT_LEAD_IN_MS : 0, NULL, 0);
+}
+
+esp_err_t player_play_lead(int line, const char *storage_name, uint16_t lead_in_ms, player_done_cb_t done_cb, void *ctx)
+{
+    return play_start(line, storage_name, done_cb, ctx, false, lead_in_ms, NULL, 0);
 }
 
 esp_err_t player_play_now(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx)
 {
-    return play_start(line, storage_name, done_cb, ctx, false, false, NULL, 0);
+    return play_start(line, storage_name, done_cb, ctx, false, 0, NULL, 0);
 }
 
 esp_err_t player_play_chained(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx)
 {
-    return play_start(line, storage_name, done_cb, ctx, true, false, NULL, 0);
+    return play_start(line, storage_name, done_cb, ctx, true, 0, NULL, 0);
 }
 
 esp_err_t player_play_segments(int line, const char *storage_name, const player_seg_t *segs, size_t nsegs,
                                player_done_cb_t done_cb, void *ctx)
 {
     if (!segs || nsegs == 0) return ESP_ERR_INVALID_ARG;
-    return play_start(line, storage_name, done_cb, ctx, false, done_cb != NULL, segs, nsegs);
+    return play_start(line, storage_name, done_cb, ctx, false, done_cb != NULL ? PROMPT_LEAD_IN_MS : 0, segs, nsegs);
 }
 
 static esp_err_t play_start(int line, const char *storage_name, player_done_cb_t done_cb, void *ctx,
-                            bool chained, bool lead_in, const player_seg_t *segs, size_t nsegs)
+                            bool chained, uint16_t lead_in_ms, const player_seg_t *segs, size_t nsegs)
 {
     if (line < 0 || line >= AUDIO_NUM_LINES) return ESP_ERR_INVALID_ARG;
     if (s_line[line].active) return ESP_ERR_INVALID_STATE;
@@ -440,7 +445,7 @@ static esp_err_t play_start(int line, const char *storage_name, player_done_cb_t
     a->ctx = ctx;
     a->is_mp3 = is_mp3;
     a->chained = chained && !is_mp3;
-    a->lead_in = lead_in;
+    a->lead_in_ms = lead_in_ms;
     a->segs = NULL;
     a->nsegs = 0;
     if (segs) {

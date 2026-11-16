@@ -1,9 +1,9 @@
 # Analog Redial v6
 
-**Released, not built or tested yet.** The KiCad project, a schematic PDF and the
-JLCPCB fab files (`jlcpcb/`: gerbers, BOM and placement) are here, but no v6 board has
-been built and its firmware support is untested. **v5** (`../Analog Redial v5/`) is
-the tested board and **v5.1** (`../Analog Redial v5.1/`) is v5 with the
+**Built and working** (one board, 2026-11): both phone lines, the codec, Wi-Fi and the
+payphone coin board on J11. The microSD card and J10's extra I/O haven't been checked yet.
+The KiCad project, a schematic PDF and the JLCPCB fab files (`jlcpcb/`: gerbers, BOM and
+placement) are here. **v5** (`../Analog Redial v5/`) is the longest-tested board and **v5.1** (`../Analog Redial v5.1/`) is v5 with the
 clone-module 5V pin fixed. Board reference: `docs/hardware-smd6.md`.
 
 What v6 adds:

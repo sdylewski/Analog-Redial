@@ -12,7 +12,7 @@
  * rail, HV, the coil current, and the spare AIN3. U4 is optional: without it
  * the sequence uses fixed times and can't tell whether the relay fired.
  *
- * Written before any coin board exists: not yet tested on hardware.
+ * Tested on coin board v1 with a GTE / Quadrum payphone (HD550002C relay).
  */
 #pragma once
 

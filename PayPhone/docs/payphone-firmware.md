@@ -1,12 +1,49 @@
 # Payphone features in the firmware
 
-Settings → **Payphone**, marked *Experimental*. Everything on it except the Coin
-board card works on any Analog Redial board, without the coin board. Items marked
-**[verify]** are from memory and need checking against a real phone. The coin
-board's driver is written and passes its tests against simulated chips, but no
-coin board has been built, so none of it has run on real hardware. None of the
-Payphone tab has been tried with a real payphone either. What each phone model needs
-is collected in [the payphone types](README.md#payphone-types).
+Settings → **Payphone**, marked *Experimental*. Everything on it except the coin
+board works on any Analog Redial board. Items marked **[verify]** are from memory and
+need checking against a real phone. The coin board and the whole tab run the
+project's first payphone (GTE / Quadrum style, coin board v1 on a v6 board, since
+2026-11-15); coin tones have not been heard from a real phone yet. What each phone
+model needs is collected in [the payphone types](../README.md#payphone-types).
+
+The tab has three panes, `?sub=settings` (the default; `sub=all` shows every card),
+`log` and `bringup`, each building only its own cards.
+
+## Phone type
+
+The first card on the Settings pane. Two menus, in order:
+
+1. **Housing**: Quadrum / GTE 120B style, Western Electric / AT&T single-slot,
+   Western Electric 3-slot, Nortel Millennium, Other or not sure (with the years each
+   was made).
+2. **What handles the coins**, listing only what that housing is found with, the
+   usual first: coin switches and relay wired to the coin board, **no coin board (use
+   it as a phone, listening for any coin tones it sends)**, its own smart board, a
+   coin-line totalizer (coin tones), coinless, or not sure. Every choice but the coin
+   board one is labelled **untested** in the menu and in its status row, as is the Coin
+   tones card, until a real phone has shown it works (`tested` in `INSIDES[]`).
+
+Below them, a description of each choice as it's picked, and **A coin board is
+installed** (with a link to the board's page) when the choice uses one. **Use these
+settings** saves both, sets coin tones and coin required as that choice needs, turns
+the coin board on or off from the box, and for a measured phone sets the coin
+board's pulse (and swap, for a measured phone whose swap is known). The saved choice then shows a table: dialing, ringing, how
+coins are seen, how the relay is worked, the coin board, and the measured values
+(with the shunts to fit, which firmware can't set).
+
+Cards that don't apply are hidden, with a line naming them and **Show all
+settings** (`sub=all`). A smart board or coinless phone hides every card; a coin
+board phone hides Coin tones; the Coin board card shows only while a board is
+installed (or for "not sure"). The Bring-up pane always shows everything. "Not
+sure" changes nothing and shows every card, which is the way to start on a phone
+nobody has tried.
+
+The table is `components/payphone/payphone_types.c` (plain data, host-tested by
+`test/host/test_payphone_types.c`): `HOUSINGS[]`, `INSIDES[]` and `KNOWN[]`, the
+measured phones. The categories and what each needs are in
+[the payphone types](../README.md#payphone-types). The choice is stored as two bytes
+appended to `payphone_cfg_t`.
 
 ## The tab
 
@@ -16,13 +53,14 @@ is collected in [the payphone types](README.md#payphone-types).
   10 cents for your call", text editable) instead of dial tone, repeated every few
   seconds, until the coins add up to the **price**. Then dial tone. Calls (the other
   line, VoIP, Bluetooth, other boards) always need the credit and use it up when
-  placed. With **"the board's own dial codes are free"** ticked (the default), the
+  placed. With **"Every dial code is free"** ticked (the default), the
   operator, clips, timer and so on work without a coin, even before dial tone; untick
-  it and every code waits for a coin. Dialing a call without enough credit goes back
+  it and every code waits for a coin, except the ones ticked in the **Free** column of
+  the Dial Codes tab (shown while payphone features are on; the calls to the other line
+  have no tick, as they always cost a coin). Dialing a call without enough credit goes back
   to the message. Credit is cleared when the handset goes down. Left waiting longer
   than the off-hook alert's delay (Settings → Phone), the line sounds the alert.
-- **Message after a coin.** Off by default. After the phrase, dial tone comes back after about 0.3 s, as on a
-  real phone where a coin doesn't interrupt it. A coin's clip starts at once (no lead-in pause), and a coin
+- **Message after a coin.** Off by default. After the phrase, dial tone comes back after about 0.3 s. A coin's clip starts at once (no lead-in pause), and a coin
   that arrives while one is playing is queued (up to four), so two quarters in a row say the phrase twice,
   the second right after the first. Each coin can play its own clip (any
   audio file on the board, picked by name), or the general message ("Thank you",
@@ -37,7 +75,7 @@ is collected in [the payphone types](README.md#payphone-types).
   recognized. Whether a converted phone still sends these depends on the phone:
   the totalizer needs line current, and some conversions bypass the coin mechanism
   **[verify on real phones]**.
-- **Coins.** The credit on each line, a coin box counter (nickels, dimes, quarters,
+- **Coins** (Log pane). The credit on each line, a coin box counter (nickels, dimes, quarters,
   total) with a reset, **simulate** buttons for each coin on each line (handset up),
   and a log of the last 40 events: coins with their source and the credit after,
   calls that needed more, credit used, unrecognized tones. The log refreshes by
@@ -53,7 +91,8 @@ is silent while waiting for a coin.
 The firmware keeps the coins dropped since the handset was lifted (the phone's hopper
 holds them):
 
-The **What happens to the coins** card picks when they're collected:
+The **What happens to the coins** card picks when they're collected (tested on the
+first phone in all three modes):
 
 | Setting | A call this line placed is answered | The handset goes down |
 |---|---|---|
@@ -78,17 +117,32 @@ simulate buttons on any board.
 
 ## The coin board (`firmware/components/coinboard/`)
 
-The **Coin board** card: "A coin board is connected", which line it's on, a swap for a relay wired the
-other way round, the FIRE pulse
-(100 ms by default, 20-1000 ms), and what coin 4 is worth (0: not a coin, only logged).
-The **Bring-up** pane has **Bench test mode**, an override that ignores the normal phone settings while
-testing: the relay never fires by itself (a coin switch closed with the handset down would otherwise
-return the coin at full HV), and the test buttons always work. Turn it off when the phone is ready.
-With it set up, the card shows the board live: U1 and U4 answering, each coin switch,
-the 20 V rail, HV, the coil current, AIN3, and the relay's state. Test buttons
-collect, return, or hold HV for 10 s without firing, to read the voltage. The
-console has the same as `coinboard [collect|return|hv]`, and the self-test checks the
-board when it's set up.
+The **Coin board** card (Settings pane): "A coin board is connected", which line it's on, a swap for
+a relay wired the other way round, the FIRE pulse (100 ms by default, 20-1000 ms), and what coin 4 is
+worth (0: not a coin, only logged). The Phone type card sets the first, and for a measured phone the
+pulse.
+
+The **Bring-up** pane is for a new board, or a phone nobody has tried:
+
+- **Bench test mode** (on for a board that has never saved it; stored as `!auto_relay`): the relay
+  never fires by itself (a coin switch closed with the handset down would otherwise return the coin
+  at full HV), but the test buttons always work. Turn it off when the phone is ready.
+- **The bring-up checklist**, steps 0-7, each judged live from `/api/payphone`: I2C errors (the 3.3 V
+  and ground wires, with a symptom table), U1/U4 answering (and SDA/SCL levels when nothing does),
+  the idle rail (the 5 V wire), each coin input (counted, too short, longest closure), the HV test
+  against the shunts chosen in a menu (it warns when HV doesn't match), firing into a load with a
+  pulse length for that test only, the bleed-down, and the coin relay.
+- **The fire plot**: after each collect or return, the coil current every ~1.7 ms through the pulse
+  with HV beside it, the peak and when the current fell (the armature's stroke, and the relay's own
+  contact opening), and **Copy data** (CSV). The HD550002C's current builds over ~65 ms and dips
+  as the armature moves at 65-70 ms.
+- **Coin switch capture**: reads the four inputs every ~0.2 ms (400 kHz) and walks through 2-5
+  nickels, dimes and quarters, then shows each switch's on-time (min/avg/max), bounce, whole-coin
+  length, how many the board would count, and other inputs closed (swapped wires, or a reversed
+  plug). Normal polling and the relay are locked out while it runs. `/api/coin_capture`.
+
+The console has `coinboard [collect|return|hv]` and `v6check`, and the self-test checks the board
+when it's set up.
 
 Nothing touches the bus for it unless both the Payphone features and "A coin board is
 connected" are on.
@@ -142,20 +196,15 @@ and the relay, checking at every millisecond that FIRE is never high without EN_
 never changes while current flows, and FIRE never exceeds 1 s; and each fault above),
 and `test_coinboard.c` (the driver against simulated U1 and U4: start-up order, coins,
 collect and return, a chip reset mid-charge, a held pin, the cable coming off, no U4, the
-features switched off).
+features switched off). `test_payphone_types.c` checks the phone type table (every housing's insides exist, the
+measured phones point at a real pair).
 
-**Bringing up the first board** (J14 off, so HV can't pass about 19 V):
-
-1. Cable to the main board, then the card: "A coin board is connected". The card should
-   say U1 and U4 answer, and show the 20 V rail at about 4.6 V idle. Run `coinboard` on
-   the console for the registers.
-2. Close each coin switch by hand: the card shows it closed and the log gets one coin.
-   Drop real coins and check for doubles or misses.
-3. **HV on** with no relay: the rail reads about 20 V and HV about 19 V; check both with a
-   meter. Then Collect and Return with no relay: "no current flowed".
-4. A 12-24 V coil or a resistor (100 ohm, 5 W) on J11: Collect and Return should read a
-   current; compare with a meter.
-5. Fit J14 (52 V) and the HD550002C: HV test, then Collect and Return. Adjust the pulse.
+**Bringing up a board** follows the Bring-up pane's steps (the public version is
+[hardware-coin-board.md §9](../../docs/hardware-coin-board.md#9-firmware-and-first-power-up)).
+On the first board the problems found were, in order: a bad 5 V crimp, A2 not soldered,
+VIO at 2.8 V from a clone module's regulator (U4 then reads the rail as 14 V and HV
+1.7x high), a bad VIO crimp, a reversed J3 plug, and a stiff coin lever. Start a new relay at
+60 V and go up; the HD550002C needed 87 V in the phone.
 
 ## For scripts and Home Assistant
 
@@ -176,14 +225,16 @@ features switched off).
   detector, only while off-hook; a coin is a queued event like a digit. The state
   `COIN_WAIT` is the "please deposit" wait; the coin rule sits in front of every
   dial-plan action.
-- `webui.c`: the tab, `/payphone_enable`, `/payphone_set`, `/payphone_coin`,
+- `webui.c`: the tab, `/payphone_enable`, `/payphone_type`, `/payphone_set`, `/payphone_coin`,
   `/payphone_reset`, `/coinboard_set`, `/coinboard_test`, `/api/payphone`.
 - `coinboard/`: the coin board (above). `telephony.c` keeps each line's hopper and
   calls `payphone_relay()`; the coin board registers as its handler.
 
 ## Still to build
 
-- Running all of the above on a real coin board (bring-up steps above).
+- Coin board v2: the ground-start relay on P7 (for coin-first coin-line phones), and its
+  firmware.
+- A second phone type measured, so `KNOWN[]` has more than one entry.
 - Timed calls ("please deposit 5 cents for the next 3 minutes").
 - A refund of the credit when a call fails, instead of using it when the call is placed.
 - Optional: an "HV at least" setting, so a board with stage 2 broken stops with a fault

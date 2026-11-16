@@ -1,10 +1,12 @@
 #include "payphone.h"
+#include "payphone_types.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "nvs.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -20,7 +22,11 @@ typedef struct {
     uint8_t        version;
     payphone_cfg_t cfg;
 } stored_cfg_t;
-_Static_assert(sizeof(payphone_cfg_t) == 110, "payphone_cfg_t changed size: check the older-blob migration in payphone_init");
+/* New fields are only ever appended, so an older, shorter blob loads by copying its bytes over the
+ * defaults (payphone_init). Blobs saved so far: 2 + 106 bytes (before the unanswered / limit fields),
+ * 2 + 110 (before the phone type). */
+_Static_assert(sizeof(payphone_cfg_t) == 112, "payphone_cfg_t changed size: append fields only, and check payphone_init");
+#define CFG_OLDEST_SIZE 106
 
 static const payphone_cfg_t DEFAULTS = {
     .enabled = false,
@@ -42,6 +48,10 @@ static size_t             s_log_n;
 static SemaphoreHandle_t  s_lock;
 static payphone_relay_fn  s_relay;
 static volatile int       s_board_line = -1;
+/* Dial codes that need no coin: ",314,0,..." (commas around every code). */
+#define KEY_FREE   "free"
+#define FREE_MAX   200
+static char               s_free[FREE_MAX] = ",";
 
 static void lock(void)   { if (s_lock) xSemaphoreTake(s_lock, portMAX_DELAY); }
 static void unlock(void) { if (s_lock) xSemaphoreGive(s_lock); }
@@ -61,22 +71,18 @@ void payphone_init(void)
     memset(&s_totals, 0, sizeof(s_totals));
     nvs_handle_t h;
     if (nvs_open(NVS_NS, NVS_READONLY, &h) == ESP_OK) {
-        stored_cfg_t st;
-        size_t len = sizeof(st);
-        if (nvs_get_blob(h, KEY_CFG, &st, &len) == ESP_OK && len == sizeof(st) &&
-            st.version == CFG_VERSION) {
-            s_cfg = st.cfg;
-        } else {
-            /* Saved before the unanswered / limit fields: a version byte, a pad byte, then the old
-             * 106-byte config, whose fields sit at the same offsets. The new ones keep their defaults. */
-            uint8_t raw[2 + PAYPHONE_CFG_V1_SIZE];
-            size_t rl = sizeof(raw);
-            if (nvs_get_blob(h, KEY_CFG, raw, &rl) == ESP_OK && rl == sizeof(raw) && raw[0] == CFG_VERSION)
-                memcpy(&s_cfg, raw + 2, PAYPHONE_CFG_V1_SIZE);
-        }
+        /* A version byte, a pad byte, then the config. An older, shorter config keeps the
+         * defaults for the fields added since (its own fields sit at the same offsets). */
+        uint8_t raw[sizeof(stored_cfg_t)];
+        size_t len = sizeof(raw);
+        if (nvs_get_blob(h, KEY_CFG, raw, &len) == ESP_OK && raw[0] == CFG_VERSION &&
+            len >= offsetof(stored_cfg_t, cfg) + CFG_OLDEST_SIZE && len <= sizeof(raw))
+            memcpy(&s_cfg, raw + offsetof(stored_cfg_t, cfg), len - offsetof(stored_cfg_t, cfg));
         len = sizeof(s_totals);
         if (nvs_get_blob(h, KEY_TOTALS, &s_totals, &len) != ESP_OK || len != sizeof(s_totals))
             memset(&s_totals, 0, sizeof(s_totals));
+        size_t fl = sizeof(s_free);
+        if (nvs_get_str(h, KEY_FREE, s_free, &fl) != ESP_OK || s_free[0] != ',') strcpy(s_free, ",");
         nvs_close(h);
     }
     for (int i = 0; i < PAYPHONE_COINS; i++) s_cfg.coin_clip[i][PAYPHONE_CLIP_MAX - 1] = '\0';
@@ -84,6 +90,8 @@ void payphone_init(void)
     if (s_cfg.unanswered_collect > 1) s_cfg.unanswered_collect = 0;
     if (s_cfg.limit_collect > 1) s_cfg.limit_collect = 0;
     if (s_cfg.coin_limit > PAYPHONE_COIN_LIMIT_MAX) s_cfg.coin_limit = DEFAULTS.coin_limit;
+    /* The byte the phone type now uses was padding in the 110-byte layout: anything odd is "not chosen". */
+    if (s_cfg.housing >= PP_HOUSING_N || s_cfg.inside >= PP_INSIDE_N) s_cfg.housing = s_cfg.inside = 0;
     ESP_LOGI(TAG, "payphone features %s", s_cfg.enabled ? "on" : "off");
 }
 
@@ -107,10 +115,50 @@ esp_err_t payphone_cfg_set(const payphone_cfg_t *cfg)
     if (st.cfg.unanswered_collect > 1) st.cfg.unanswered_collect = 0;
     if (st.cfg.limit_collect > 1) st.cfg.limit_collect = 0;
     if (st.cfg.coin_limit > PAYPHONE_COIN_LIMIT_MAX) st.cfg.coin_limit = PAYPHONE_COIN_LIMIT_MAX;
+    if (st.cfg.housing >= PP_HOUSING_N || st.cfg.inside >= PP_INSIDE_N) st.cfg.housing = st.cfg.inside = 0;
     lock();
     s_cfg = st.cfg;
     unlock();
     save_blob(KEY_CFG, &st, sizeof(st));
+    return ESP_OK;
+}
+
+bool payphone_code_listed(const char *code)
+{
+    if (!code || !code[0] || strlen(code) > 16) return false;
+    char key[24];
+    snprintf(key, sizeof(key), ",%s,", code);
+    lock();
+    bool r = strstr(s_free, key) != NULL;
+    unlock();
+    return r;
+}
+
+bool payphone_code_free(const char *code) { return s_cfg.codes_free || payphone_code_listed(code); }
+
+esp_err_t payphone_code_free_set(const char *code, bool is_free)
+{
+    if (!code || !code[0] || strlen(code) > 16) return ESP_ERR_INVALID_ARG;
+    for (const char *c = code; *c; c++) if (*c != '*' && *c != '#' && (*c < '0' || *c > '9')) return ESP_ERR_INVALID_ARG;
+    char key[24];
+    snprintf(key, sizeof(key), ",%s,", code);
+    lock();
+    char *at = strstr(s_free, key);
+    if (is_free && !at) {
+        if (strlen(s_free) + strlen(code) + 2 > FREE_MAX) { unlock(); return ESP_ERR_NO_MEM; }
+        strcat(s_free, code);
+        strcat(s_free, ",");
+    } else if (!is_free && at) {
+        memmove(at, at + strlen(key) - 1, strlen(at + strlen(key) - 1) + 1);
+    }
+    char copy[FREE_MAX];
+    strcpy(copy, s_free);
+    unlock();
+    nvs_handle_t h;
+    if (nvs_open(NVS_NS, NVS_READWRITE, &h) != ESP_OK) return ESP_FAIL;
+    nvs_set_str(h, KEY_FREE, copy);
+    nvs_commit(h);
+    nvs_close(h);
     return ESP_OK;
 }
 

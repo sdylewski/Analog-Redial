@@ -2,10 +2,12 @@
 
 # Board reference: v6 (SMD6)
 
-> **Released, not built or tested yet.** The design and fab files are published
-> ([KiCad project](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v6)), but no v6 board has been built, and its firmware support has
-> only run against simulated chips. **v5** is the tested board: see the
-> [v5 board reference](hardware-smd5.md). This page may change after the first build.
+> **Built and working.** The design and fab files are published
+> ([KiCad project](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v6)).
+> One v6 board has been built (2026-11): both phone lines (line 2 through the I²C expander U6), the codec and Wi-Fi
+> work, and it runs the [payphone coin board](hardware-coin-board.md) on J11. **Not checked yet:** the microSD card and
+> J10's extra I/O (the latching switches on the Diagnostics tab test each pin). **v5** is the longest-tested board: see the
+> [v5 board reference](hardware-smd5.md).
 
 v6 is v5 with everything at once: **two phone lines and the microSD card together**,
 payphone support and four extra I/O pins. An I²C I/O expander (U6) drives the second
@@ -134,10 +136,38 @@ crimps).
 P4-P7 are U6's spare pins: **3.3 V outputs, a few mA each**, low from power-up. In the
 firmware they are the board's pin outputs (Settings → Dial Codes → Pin outputs, shown as
 "J10 P4" to "J10 P7"): a dial code drives one high for a few seconds or toggles it, and
-Home Assistant can do the same. The **J10 outputs** card just above it has an on/off switch
-for each pin, to test whatever is wired to it by hand. Switch a relay or a MOSFET with them,
+Home Assistant can do the same. The **J10 outputs** card just above it, and the same card at the top of
+Settings → Diagnostics, has a latching on/off button for each pin, to test whatever is wired to it by hand. Switch a relay or a MOSFET with them,
 not a load directly.
 Unlike J5 on v4 and v5, they work with two lines and a card fitted.
+
+### BM64 one-time setup on v6: the two programming leads go to J10
+
+A BM64 carrier needs its audio settings written to the module's EEPROM once. The firmware does
+it by putting the module into its programming mode, which takes two thin wires from the carrier's
+2-pin programming pads to the main board. On v5 those go to the J5 header and the board must be a
+single line with no microSD card. **On v6 they go to J10 instead, so line 2 and the microSD card can
+stay in use:**
+
+| Carrier programming pad | Wire to | Firmware name |
+|---|---|---|
+| Pin 1 (P2_0, programming mode) | **J10 pin 2 (P4)** | expander pin 100 |
+| Pin 2 (RST_N, reset) | **J10 pin 3 (P5)** | expander pin 101 |
+
+1. Wire the two leads (pin 1 to P4, pin 2 to P5) with the carrier plugged into J2 as usual, and
+   choose **BM64** under Settings → General → Board hardware.
+2. Start the check: Settings → Bluetooth → **Check and repair module configuration**, or in the serial console
+   `bt_enable 0`, then `bm64_config apply`, then `bt_enable 1`. Bluetooth drops for about 15 s
+   (the console prints each step). It lists six EEPROM bytes and writes only the ones that are
+   wrong, so it is safe to run again and a module that is already set up reports "all 6 bytes correct".
+3. If the leads are on each other's pins, the firmware tries them the other way round once and
+   remembers a swap that works. To set them by hand: `bm64_diagpins 101 100` (RST_N pin, then P2_0 pin).
+4. **Take both wires off afterwards.** They sit on J10's P4 and P5, and those pins drive the
+   module's reset and mode inputs if anything switches them: a dial code, Home Assistant or the
+   J10 test buttons would reset the module.
+
+The firmware also runs this check by itself at start-up when a module reports a Bluetooth address
+it hasn't verified yet, which needs the leads connected at the time.
 
 ## 7. J11: I²C accessory header
 
@@ -154,7 +184,7 @@ JST XH, 5 pins, 2.5 mm pitch (B5B-XH-A; mates with XHP-5).
 The payphone coin board's J1 and J6 use the same pin numbers, so its cable is wired pin 1
 to pin 1. Its 3.3 V is the coin board's logic supply; its 5 V powers the coin board's
 converter, which draws about 1 A peaks while charging, so use 24 AWG or thicker for 5 V and
-GND. The coin board is sent to fab but not built or tested yet: see
+GND. The coin board is built and working on one payphone: see
 [the coin board reference](hardware-coin-board.md).
 
 ## 8. MCU module variants

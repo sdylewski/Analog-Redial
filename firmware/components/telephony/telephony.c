@@ -403,7 +403,10 @@ static void enter_idle(int line)
     s_line[line].timer_accepted = false;
     s_line[line].entry_alarm = false;
     s_line[line].alarm_announce = false;
-    if (s_line[line].rb_clip) { player_stop(line); s_line[line].rb_clip = false; }
+    /* Whatever clip was playing (a digit, or "please deposit" cut off by the hang-up) ends now: a clip still
+     * running when the handset is lifted again would make the next player_play() fail and leave the line silent. */
+    player_stop_and_wait(line, 200);
+    s_line[line].rb_clip = false;
     audio_tx_silence(line);
     s_line[line].state = TEL_IDLE;
     s_line[line].peer = PEER_NONE;
@@ -604,7 +607,7 @@ static bool coin_needed(int line)
 
 /* Which dial-plan results the coin rule holds back: calls always, and with
  * "codes free" off, every code. */
-static bool action_needs_coin(const dialplan_action_t *a)
+static bool action_needs_coin(const dialplan_action_t *a, const char *dialed)
 {
     switch (a->kind) {
         case ACT_NONE:
@@ -616,7 +619,7 @@ static bool action_needs_coin(const dialplan_action_t *a)
         case ACT_HOME_CALL:
             return true;
         default:
-            return !payphone_cfg().codes_free;
+            return !payphone_code_free(dialed);
     }
 }
 
@@ -628,15 +631,20 @@ static bool action_is_call(const dialplan_action_t *a)
 
 static void clip_done_cb(int line, void *ctx);
 
+/* Pause after lifting the handset before "please deposit" starts (the general clip lead-in is 1.5 s). */
+#define COIN_PROMPT_LEAD_IN_MS 1000
+
 /* The "please deposit" message, or with no audio for it yet, silence until
  * the next try (the Payphone tab says the clip is missing). */
 static void coin_prompt(int line)
 {
     int64_t now = esp_timer_get_time();
     s_line[line].coin_next_us = 0;
-    if (player_play(line, PAYPHONE_DEPOSIT_CLIP, clip_done_cb, NULL) != ESP_OK) {
+    player_stop_and_wait(line, 200);   /* a clip still winding down would make this one fail */
+    if (player_play_lead(line, PAYPHONE_DEPOSIT_CLIP, COIN_PROMPT_LEAD_IN_MS, clip_done_cb, NULL) != ESP_OK) {
+        ESP_LOGW(TAG, "line %d: couldn't start the deposit message; trying again in 1 s", line);
         audio_tx_silence(line);
-        s_line[line].coin_next_us = now + (int64_t)payphone_cfg().repeat_s * 1000000;
+        s_line[line].coin_next_us = now + 1000000;
     }
 }
 
@@ -922,6 +930,10 @@ static void start_ring(int line, bool intercom)
             s_line[line].ring_am_cfg = (board_am_cfg_t){ .enabled = false };
         }
         return; /* no ag1170_ring_start() -- stay silent either way */
+    }
+    {   /* the region's ring cadence (Settings -> General -> tone region) */
+        const tone_cadence_t *rc = tones_region_ring_cadence();
+        ag1170_set_ring_pattern(rc->phase_ms, rc->n_phases);
     }
     if (intercom) ag1170_ring_start_intercom(line);
     else          ag1170_ring_start(line);
@@ -1790,7 +1802,7 @@ static void handle_action(int line, const dialplan_action_t *a)
         s_line[line].rb_clip = false;
     }
     /* Payphone: a call (or with "codes free" off, any code) waits for coins. */
-    if (action_needs_coin(a) && coin_needed(line)) {
+    if (action_needs_coin(a, s_line[line].coll.buf) && coin_needed(line)) {
         payphone_cfg_t pc = payphone_cfg();
         payphone_logf(line, "dialed %s: needs %d c, credit %d c", s_line[line].coll.buf,
                       pc.price_cents, s_line[line].credit_cents);

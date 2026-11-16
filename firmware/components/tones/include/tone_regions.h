@@ -86,6 +86,34 @@ static const tone_region_t TONE_REGIONS[] = {
 };
 #define TONE_REGIONS_N (sizeof(TONE_REGIONS) / sizeof(TONE_REGIONS[0]))
 
+/* ---- per-region ring (the bell, sent down the line to the phone) and
+ * reorder / congestion tone ("number unobtainable", fast busy) ----
+ * Kept apart from TONE_REGIONS[] above; a region with no row here uses the
+ * generic row at the end. Ring phases alternate on/off, like a tone cadence.
+ * Ring frequency isn't regional: it stays the board's Ring Hz setting. */
+typedef struct {
+    const char *code;
+    tone_cadence_t ring;
+    tone_spec_t    reorder;
+} tone_region_extra_t;
+
+static const tone_region_extra_t TONE_REGION_EXTRAS[] = {
+    { "us", { {2000, 4000},               2 }, { 480, 620, { {250, 250},                2 } } },
+    { "gb", { {400, 200, 400, 2000},      4 }, { 400, 0,   { {400, 350, 225, 525},      4 } } },
+    { "au", { {400, 200, 400, 2000},      4 }, { 425, 0,   { {375, 375},                2 } } },
+    { "in", { {400, 200, 400, 2000},      4 }, { 400, 0,   { {250, 250},                2 } } },
+    { "it", { {1000, 4000},               2 }, { 425, 0,   { {200, 200},                2 } } },
+    { "de", { {1000, 4000},               2 }, { 425, 0,   { {250, 250},                2 } } },
+    { "fr", { {1500, 3500},               2 }, { 440, 0,   { {250, 250},                2 } } },
+    { "jp", { {1000, 2000},               2 }, { 400, 0,   { {250, 250},                2 } } },
+    { "cn", { {1000, 4000},               2 }, { 450, 0,   { {700, 700},                2 } } },
+    { "es", { {1500, 3000},               2 }, { 425, 0,   { {200, 200},                2 } } },
+    { "eu", { {1000, 4000},               2 }, { 425, 0,   { {250, 250},                2 } } },
+};
+#define TONE_REGION_EXTRAS_N (sizeof(TONE_REGION_EXTRAS) / sizeof(TONE_REGION_EXTRAS[0]))
+static const tone_region_extra_t TONE_REGION_EXTRA_FALLBACK =
+    { "", { {1000, 4000}, 2 }, { 425, 0, { {250, 250}, 2 } } };
+
 /* ---- language -> default region ----
  * Only for the "follow my language" convenience setting. A language maps to
  * a region here only when the answer is unambiguous: Italian means Italy,

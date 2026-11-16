@@ -147,6 +147,21 @@ static void handle_msg(const bt401_msg_t *m, bt_call_state_t *last_call, char *l
     }
 }
 
+/* The name any Bluetooth module is given, BT401 and BM64 alike: "AnalogRedial-<board name>", keeping letters, digits, '-' and '_' (spaces become '-'): the module takes up to 32 bytes. */
+void bt_board_pairing_name(char *out, size_t len)
+{
+    char nm[64];
+    board_name_get(nm, sizeof(nm));
+    size_t n = (size_t)snprintf(out, len, "AnalogRedial-");
+    for (const char *c = nm; *c && n + 1 < len; c++) {
+        char ch = *c == ' ' ? '-' : *c;
+        if ((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '-' || ch == '_')
+            out[n++] = ch;
+    }
+    out[n] = '\0';
+    if (n == strlen("AnalogRedial-")) strlcpy(out, "AnalogRedial", len);
+}
+
 static void bt401_task(void *arg)
 {
     (void)arg;
@@ -158,6 +173,8 @@ static void bt401_task(void *arg)
     bool dac_on = true;        /* the module powers up with its DAC on */
     bool woken = false;        /* reset out of idle mode already (once per start) */
     bool mode_bt_due = false;  /* send CM01 once the reset's burst is in */
+    bool name_checked = false; /* the Bluetooth name was compared with this board's (once per start) */
+    bool name_reset_due = false; /* AT+BD sent: the reset that applies it is next */
 
     ESP_LOGI(TAG, "listening at %d baud on GPIO%d/GPIO%d", BT401_BAUD, (int)BOARD_UART_TX, (int)BOARD_UART_RX);
 
@@ -215,6 +232,32 @@ static void bt401_task(void *arg)
         if (stage < (int)(sizeof(startup) / sizeof(startup[0]))) {
             send_line(startup[stage++], NULL);
             continue;
+        }
+
+        /* The module's own name is "BT401-AUDIO-V31": a phone's pairing list can't tell boards apart. Once
+         * it has told us its name, give it "AnalogRedial-<this board's name>" (stored; applies after a reset). */
+        if (name_reset_due) {
+            name_reset_due = false;
+            send_line(BT401_CMD_RESET, NULL);
+            next_poll = now_us() + (int64_t)RESET_WAIT_MS * 1000;
+            continue;
+        }
+        if (!name_checked && !mode_bt_due) {
+            char cur[BT401_NAME_MAX];
+            portENTER_CRITICAL(&s_lock);
+            strlcpy(cur, s_st.name, sizeof(cur));
+            portEXIT_CRITICAL(&s_lock);
+            if (cur[0]) {
+                name_checked = true;
+                char want[BT401_NAME_MAX];
+                bt_board_pairing_name(want, sizeof(want));
+                if (strcmp(cur, want) != 0) {
+                    ESP_LOGI(TAG, "renaming the module '%s' -> '%s'", cur, want);
+                    send_line(BT401_CMD_SET_NAME, want);
+                    name_reset_due = true;
+                    continue;
+                }
+            }
         }
 
         if (s_pair_pending && !mode_bt_due) {
@@ -285,6 +328,14 @@ void bt401_stop(bool disconnect)
 }
 
 bool bt401_running(void) { return s_task != NULL; }
+
+void bt401_pairing_name(char *out, size_t len)
+{
+    portENTER_CRITICAL(&s_lock);
+    strlcpy(out, s_task ? s_st.name : "", len);
+    portEXIT_CRITICAL(&s_lock);
+    if (!out[0]) bt_board_pairing_name(out, len);
+}
 
 /* Idle mode alone keeps the radio up (32 mA, still discoverable); with
  * background Bluetooth off as well it really stops (7 mA at 3.3 V). CG only
