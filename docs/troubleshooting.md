@@ -151,6 +151,15 @@ for you to paste the log into.
   Settings → Phone. Pick up the handset first and keep the room quiet while it measures.
 - **Audio cuts out and the board restarts:** see [power problems](#power-problems).
 
+## Pages load slowly, or calls break up
+
+Open **Settings → Diagnostics → Network speed** and press **Run test**. The board pings your router
+five times and shows the replies: under about 30 ms with nothing lost is good, and a slow or lossy
+result means the Wi-Fi link is the problem, not the board. The usual causes are a weak signal, and a
+**Wi-Fi extender** between the board and the router: the board joins whichever access point is
+strongest, which next to an extender is the extender, and every packet then takes a second wireless hop.
+Try the test a few times, move the board, or switch the extender off for a minute, and compare.
+
 ## Can't reach the board
 
 1. **Check the status light** ([what each colour means](setup.md#7-the-status-light)).

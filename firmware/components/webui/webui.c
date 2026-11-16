@@ -30,6 +30,8 @@
 #include "ag1170.h"
 #include "tones.h"
 #include "tone_regions.h"
+#include "ping/ping_sock.h"
+#include "lwip/ip_addr.h"
 #include "aec.h"
 #include "es8388.h"
 #include "sdcard.h"
@@ -6757,6 +6759,24 @@ static int append_diag_tab(char *buf, size_t cap, int off)
                  "over the serial console (<code>log_level debug</code>). WiFi/PHY noise stays "
                  "at warn so it doesn't bury the app's own debug output."));
 
+    /* Network speed: five pings to the router, from the board. */
+    off = appendf(buf, cap, off,
+        "<div class=\"card\"><h2>Network speed</h2>"
+        "<p class=\"hint\">Pings your router five times from this board. Under about 30 ms is good; "
+        "a slow or lossy result usually means a weak signal, or a Wi-Fi extender between the board and "
+        "the router.</p>"
+        "<div class=\"statusrow\"><span class=\"label\">Result</span><span id=\"pt-res\">not run yet</span></div>"
+        "<div class=\"toolbar sub\"><button type=\"button\" id=\"pt-go\" class=\"primary\">Run test</button></div>"
+        "<script>(function(){var b=document.getElementById('pt-go'),r=document.getElementById('pt-res');"
+        "if(!b)return;b.onclick=function(){b.disabled=true;r.textContent='testing...';"
+        "fetch('/api/ping_test',{cache:'no-store'}).then(function(x){return x.json();}).then(function(j){"
+        "b.disabled=false;if(j.error){r.textContent=j.error;return;}"
+        "var v={good:'Good',slow:'Slow',bad:'Bad'}[j.verdict]||j.verdict;"
+        "r.textContent=v+' \u2014 '+j.received+' of '+j.sent+' replies, '+j.min_ms+' / '+j.avg_ms+' / '+j.max_ms+"
+        "' ms (min / avg / max), router '+j.router+', signal '+j.rssi+' dBm';"
+        "}).catch(function(){b.disabled=false;r.textContent='the test failed (no answer from the board)';});};})();"
+        "</script></div>");
+
 
     off = appendf(buf, cap, off, "<h2 class=\"diag-sec\" id=\"d-hw\">1 &middot; Hardware checks</h2><p class=\"hint diag-sec-hint\">The board itself: its parts and chips, the phone line ring generator, and the spare I/O pins.</p>");
     off = append_selftest_card(buf, cap, off);
@@ -7941,6 +7961,96 @@ static bool form_field(const char *body, const char *key, char *out, size_t out_
  * list plus "error":true rather than an HTTP error, so the page's JS can
  * just fall back to manual entry. */
 #define WIFI_SCAN_MAX 24
+
+/* ---- Network speed test: GET /api/ping_test ----
+ * Pings the router (the station's gateway) five times from the board and reports the times, so a slow
+ * link (a weak signal, a Wi-Fi extender in the way) shows as numbers instead of "pages feel slow".
+ * Takes about 2 s; answers with the figures and a verdict. One test at a time. */
+typedef struct {
+    SemaphoreHandle_t done;
+    uint32_t sent, got, min_ms, max_ms, sum_ms;
+} ping_run_t;
+
+static void ping_on_success(esp_ping_handle_t h, void *arg)
+{
+    ping_run_t *r = arg;
+    uint32_t t = 0;
+    esp_ping_get_profile(h, ESP_PING_PROF_TIMEGAP, &t, sizeof(t));
+    r->got++;
+    r->sum_ms += t;
+    if (r->got == 1 || t < r->min_ms) r->min_ms = t;
+    if (t > r->max_ms) r->max_ms = t;
+}
+static void ping_on_timeout(esp_ping_handle_t h, void *arg) { (void)h; (void)arg; }
+static void ping_on_end(esp_ping_handle_t h, void *arg)
+{
+    ping_run_t *r = arg;
+    esp_ping_get_profile(h, ESP_PING_PROF_REQUEST, &r->sent, sizeof(r->sent));
+    xSemaphoreGive(r->done);
+}
+
+static esp_err_t ping_test_handler(httpd_req_t *req)
+{
+    static bool busy;
+    cJSON *root = cJSON_CreateObject();
+    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    esp_netif_ip_info_t ip = {0};
+    if (busy) {
+        cJSON_AddStringToObject(root, "error", "A test is already running.");
+    } else if (!sta || esp_netif_get_ip_info(sta, &ip) != ESP_OK || ip.gw.addr == 0) {
+        cJSON_AddStringToObject(root, "error", "Not connected to a Wi-Fi network (no router to ping).");
+    } else {
+        busy = true;
+        ping_run_t run = { .done = xSemaphoreCreateBinary() };
+        esp_ping_config_t cfg = ESP_PING_DEFAULT_CONFIG();
+        cfg.count = 5;
+        cfg.interval_ms = 300;
+        cfg.timeout_ms = 1000;
+        cfg.task_stack_size = 3072;
+        ip_addr_t target = {0};
+        target.type = IPADDR_TYPE_V4;
+        target.u_addr.ip4.addr = ip.gw.addr;
+        cfg.target_addr = target;
+        esp_ping_callbacks_t cbs = { .cb_args = &run, .on_ping_success = ping_on_success,
+                                     .on_ping_timeout = ping_on_timeout, .on_ping_end = ping_on_end };
+        esp_ping_handle_t h = NULL;
+        if (!run.done || esp_ping_new_session(&cfg, &cbs, &h) != ESP_OK || esp_ping_start(h) != ESP_OK) {
+            cJSON_AddStringToObject(root, "error", "Couldn't start the test (out of memory?).");
+            if (h) esp_ping_delete_session(h);
+        } else {
+            bool finished = xSemaphoreTake(run.done, pdMS_TO_TICKS(9000)) == pdTRUE;
+            esp_ping_stop(h);
+            esp_ping_delete_session(h);
+            if (!finished) run.sent = 5;
+            char gw[16];
+            snprintf(gw, sizeof(gw), IPSTR, IP2STR(&ip.gw));
+            uint32_t avg = run.got ? run.sum_ms / run.got : 0;
+            int lost = (int)run.sent - (int)run.got;
+            if (lost < 0) lost = 0;
+            /* Good: nothing lost and quick. Slow: anything else under half lost.
+             * Bad: half or more lost, or very slow. */
+            const char *verdict = (lost == 0 && avg <= 30 && run.max_ms <= 100) ? "good"
+                                : (run.got >= 3 && avg <= 150) ? "slow" : "bad";
+            cJSON_AddStringToObject(root, "router", gw);
+            cJSON_AddNumberToObject(root, "sent", run.sent);
+            cJSON_AddNumberToObject(root, "received", run.got);
+            cJSON_AddNumberToObject(root, "lost", lost);
+            cJSON_AddNumberToObject(root, "min_ms", run.got ? run.min_ms : 0);
+            cJSON_AddNumberToObject(root, "avg_ms", avg);
+            cJSON_AddNumberToObject(root, "max_ms", run.max_ms);
+            cJSON_AddNumberToObject(root, "rssi", wifi_rssi());
+            cJSON_AddStringToObject(root, "verdict", verdict);
+        }
+        if (run.done) vSemaphoreDelete(run.done);
+        busy = false;
+    }
+    char *text = cJSON_PrintUnformatted(root);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, text ? text : "{\"error\":\"out of memory\"}");
+    cJSON_Delete(root);
+    free(text);
+    return ESP_OK;
+}
 
 static esp_err_t wifi_scan_json_handler(httpd_req_t *req)
 {
@@ -13587,6 +13697,7 @@ esp_err_t webui_start(void)
         { .uri = "/wifi_set",        .method = HTTP_POST, .handler = wifi_set_handler },
         { .uri = "/wifi_forget",     .method = HTTP_POST, .handler = wifi_forget_handler },
         { .uri = "/api/wifi_scan",   .method = HTTP_GET,  .handler = wifi_scan_json_handler },
+        { .uri = "/api/ping_test",   .method = HTTP_GET,  .handler = ping_test_handler },
         { .uri = "/direct",          .method = HTTP_GET,  .handler = direct_handler },
         { .uri = "/ota_upload",      .method = HTTP_POST, .handler = ota_upload_handler },
         { .uri = "/ota_revert",      .method = HTTP_POST, .handler = ota_revert_handler },
