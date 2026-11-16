@@ -124,6 +124,9 @@ hr.sep { border: 0; border-top: 1px solid var(--border); margin: 18px 0 14px; }
  * squeezed into one of several narrow auto-fit columns on a wide screen --
  * span the full row regardless of how many sibling cards there are. */
 .card.wide { grid-column: 1 / -1; }
+/* Diagnostics: related cards side by side (touch-tone test, call recording, live audio). */
+.diagrow { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+@media (min-width: 1100px) { .diagrow { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 /* Top of an optional feature's tab; tinted while the feature is off. */
 .card.featurebar.off { border-color: var(--accent); background: var(--accent-bg); }
 /* Answering machine: one column per line plus the shared default greeting. */

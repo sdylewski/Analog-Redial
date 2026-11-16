@@ -3328,17 +3328,17 @@ static size_t list_code_entries(dialplan_pin_entry_t *out, bool ha, size_t *tota
 /* The spare pins as four on/off switches, set by hand: for testing a relay
  * or whatever else is wired to them. /api/auxpins keeps them current (a dial
  * code can change a pin too). */
-static int append_spare_outputs_card(char *buf, size_t cap, int off)
+static int append_spare_outputs_card(char *buf, size_t cap, int off, bool wide)
 {
     char why[160] = "";
     bool usable = auxpins_usable(why, sizeof(why));
     int gp[AUXPINS_COUNT];
     size_t ng = auxpins_list(gp, AUXPINS_COUNT);
     off = appendf(buf, cap, off,
-        "<div class=\"card wide\" id=\"outputs\"><h2>%s outputs</h2>"
+        "<div class=\"card%s\" id=\"outputs\"><h2>%s outputs</h2>"
         "<p class=\"hint\">Switch each spare pin on (3.3 V) or off (0 V) by hand, to test a relay or "
         "whatever else is wired to it. A pin stays as you set it until you switch it again or a "
-        "dial code below changes it. A restart sets them all off.</p>", auxpins_header());
+        "dial code below changes it. A restart sets them all off.</p>", wide ? " wide" : "", auxpins_header());
     if (!usable) {
         char why_esc[400];
         html_escape(why, why_esc, sizeof(why_esc));
@@ -6539,7 +6539,7 @@ static int append_fx_diag_card(char *buf, size_t cap, int off)
 {
     int lines = board_hw_config_get().num_lines;
     off = appendf(buf, cap, off,
-        "<div class=\"card wide\"><h2>%s</h2>", i18n_str("fxdiag.title", "Voice effects: live levels"));
+        "<div class=\"card\"><h2>%s</h2>", i18n_str("fxdiag.title", "Voice effects: live levels"));
     off = append_hint(buf, cap, off,
         i18n_str("fxdiag.hint_lead",
                  "Pick an effect, then talk or call. The numbers show how loud the voice is going "
@@ -6609,7 +6609,7 @@ static int append_callcap_card(char *buf, size_t cap, int off)
         url_encode_path(callcap_last_name(), last_u, sizeof(last_u));
     }
     off = appendf(buf, cap, off,
-        "<div class=\"card wide\"><h2>Call recording</h2>"
+        "<div class=\"card\"><h2>Call recording</h2>"
         "<div class=\"statusrow\"><span class=\"label\">Status</span><span>%s</span></div>",
         status);
     if (last[0]) {
@@ -6669,7 +6669,7 @@ static int append_livestream_card(char *buf, size_t cap, int off)
     }
     else snprintf(status, sizeof(status), "on, waiting for a listener");
     off = appendf(buf, cap, off,
-        "<div class=\"card wide\" id=\"livestream\"><h2>Live call audio</h2>"
+        "<div class=\"card\" id=\"livestream\"><h2>Live call audio</h2>"
         "<div class=\"statusrow\"><span class=\"label\">Status</span><span>%s</span></div>", status);
     if (!s_viewer_signed_in) {
         return appendf(buf, cap, off, "<p class=\"muted\">Sign in to turn it on or see its link.</p></div>");
@@ -6721,7 +6721,7 @@ static const char DIAG_FOLD_JS[] =
     "var first=[];document.querySelectorAll('h2.diag-sec').forEach(function(h){var n=h.nextElementSibling;"
     "while(n&&!n.classList.contains('card')&&!n.classList.contains('diag-sec'))n=n.nextElementSibling;"
     "if(n&&n.classList.contains('card'))first.push(n);});"
-    "document.querySelectorAll('.cards > .card').forEach(function(c){var h=c.firstElementChild;"
+    "document.querySelectorAll('.cards > .card,.cards > .diagrow > .card').forEach(function(c){var h=c.firstElementChild;"
     "if(!h||h.tagName!=='H2')return;var d=document.createElement('details'),s=document.createElement('summary'),"
     "key=h.textContent.replace(/\\s+/g,' ').trim().slice(0,40),open=st[key]===undefined?(first.indexOf(c)>=0||key==='Logging'):!!st[key];"
     "d.className=c.className+' dg';if(c.id)d.id=c.id;s.appendChild(h);d.appendChild(s);"
@@ -6911,7 +6911,7 @@ static int append_diag_tab(char *buf, size_t cap, int off)
 
     /* The spare I/O's latching on/off switches (also on the Dial codes tab, with the dial codes
      * that use them): a new board's J10 and J5 pins checked one at a time. */
-    off = append_spare_outputs_card(buf, cap, off);
+    off = append_spare_outputs_card(buf, cap, off, false);
 
     off = appendf(buf, cap, off, "<h2 class=\"diag-sec\" id=\"d-phone\">2 &middot; Phone features</h2><p class=\"hint diag-sec-hint\">What a caller or a phone does: tones, dialing, and recording or listening to a call.</p>");
     /* --- call-progress tones --- */
@@ -6942,7 +6942,7 @@ static int append_diag_tab(char *buf, size_t cap, int off)
 
     /* --- touch-tone test --- */
     off = appendf(buf, cap, off,
-        "<div class=\"card wide\"><h2>%s</h2><div class=\"settings-form\">"
+        "<div class=\"diagrow\"><div class=\"card\"><h2>%s</h2><div class=\"settings-form\">"
         "<p class=\"hint\">%s</p>"
         "<div class=\"toolbar sub\">"
         "<select id=\"dtline\">%s</select>"
@@ -7017,6 +7017,7 @@ static int append_diag_tab(char *buf, size_t cap, int off)
 
     off = append_callcap_card(buf, cap, off);
     off = append_livestream_card(buf, cap, off);
+    off = appendf(buf, cap, off, "</div>" /* .diagrow */);
 
     off = appendf(buf, cap, off, "<h2 class=\"diag-sec\" id=\"d-audio\">3 &middot; Audio checks</h2><p class=\"hint diag-sec-hint\">The sound path: the earpiece, the microphone and the voice effects.</p>");
     /* Tone generator: same audio_tx_burst() the off-hook alert and AEC
@@ -7842,7 +7843,7 @@ static esp_err_t settings_page_handler(httpd_req_t *req)
         off = append_timer_tab(buf, cap, off, entries, n);
         off = append_alarm_tab(buf, cap, off, entries, n);
         off = append_weather_card(buf, cap, off);
-        off = append_spare_outputs_card(buf, cap, off);
+        off = append_spare_outputs_card(buf, cap, off, true);
         off = append_pin_actions_card(buf, cap, off);
     }
     else if (strcmp(tab, "home") == 0) {
