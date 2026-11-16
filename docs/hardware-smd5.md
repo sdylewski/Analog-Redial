@@ -375,7 +375,17 @@ don't connect anything; the clone's USB lines (pads 12/13) reach only the
 cut side of JP2/JP3 and come out on no header.
 
 (`CONFIG_BOARD_TYPE_SMD5_CHEAP` remains for a clone board with the jumpers
-left at the default, which costs native USB.) Full detail, including the
+left at the default, which costs native USB.)
+
+> ⚠️ **Clone module: no USB console unless JP2 and JP3 are moved.** With the jumpers left in the factory
+> position, a clone board runs the `smd5_cheap` firmware, which uses the clone's GPIO12 and GPIO13 (its native USB
+> pins) for the codec clock and the microSD card-detect. The USB serial port then **disappears about a second
+> after every boot**, and there is no console over USB. The module's *other* USB-C port (the UART one, with its own
+> USB-serial chip) doesn't fix that: it shares GPIO16/17 with the Bluetooth header, so a Bluetooth board fills it
+> with binary data. Use the web UI over Wi-Fi, or **move JP2 and JP3 to the clone side and flash `--board smd5`**,
+> which gives a USB console. To flash a board in this state, hold **BOOT**, tap **RESET**, release **BOOT**: the
+> chip's built-in downloader appears as a serial port. That is for flashing only; it is not a console.
+ Full detail, including the
 symptoms of getting it wrong, is in
 [`archive/hardware/smd5.md`](https://github.com/sdylewski/Analog-Redial/blob/main/archive/hardware/smd5.md).
 

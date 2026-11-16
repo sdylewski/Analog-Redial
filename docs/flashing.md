@@ -194,7 +194,7 @@ their own; pass `--port COM5` if several are plugged in.
 
 </details>
 
-`--board smd5` is for a v5 or v5.1 board, including a 30-pin clone whose two solder jumpers were moved (see [the v5 reference](hardware-smd5.md#10-mcu-module-variants)); a clone with the jumpers left at the default needs `--board smd5_cheap`, which has no USB console. A v4 board uses `--board smd4`. The script reads the chip's flash size,
+`--board smd5` is for a v5 or v5.1 board, including a 30-pin clone whose two solder jumpers were moved (see [the v5 reference](hardware-smd5.md#10-mcu-module-variants)); a clone with the jumpers left at the default needs `--board smd5_cheap`, which **has no USB console**: its serial port vanishes about a second after every boot (use the web UI, or move the jumpers and flash `--board smd5`). To flash such a board, hold BOOT, tap RESET and release BOOT; that downloader port is for flashing only. A v4 board uses `--board smd4`. The script reads the chip's flash size,
 builds the matching image and flashes it. Later flashes don't need
 `--board`: the script asks the running firmware what it is.
 

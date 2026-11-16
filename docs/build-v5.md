@@ -90,6 +90,17 @@ check again, then solder the rest and trim the leads.
 
 Skip this with the genuine 32-pin module.
 
+> ⚠️ **Clone module: no USB console unless JP2 and JP3 are moved.** With the jumpers left in the factory
+> position, a clone board runs the `smd5_cheap` firmware, which uses the clone's GPIO12 and GPIO13 (its native USB
+> pins) for the codec clock and the microSD card-detect. The USB serial port then **disappears about a second
+> after every boot**, and there is no console over USB. The module's *other* USB-C port (the UART one, with its own
+> USB-serial chip) doesn't fix that: it shares GPIO16/17 with the Bluetooth header, so a Bluetooth board fills it
+> with binary data. Use the web UI over Wi-Fi, or **move JP2 and JP3 to the clone side and flash `--board smd5`**,
+> which gives a USB console. To flash a board in this state, hold **BOOT**, tap **RESET**, release **BOOT**: the
+> chip's built-in downloader appears as a serial port. That is for flashing only; it is not a console.
+
+**Do this step, or you will have no USB console.**
+
 On the back, each jumper has three pads, with pads 1 and 2 joined by a thin trace. For a
 clone, **cut the trace between pads 1 and 2** with a craft knife, check with the meter that
 they no longer connect, then **bridge pads 2 and 3** with a blob of solder. Do both, JP2 and
