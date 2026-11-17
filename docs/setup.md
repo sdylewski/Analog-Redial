@@ -80,17 +80,18 @@ defaults:
 
 Add your own codes with your own audio in Settings → Dial Codes. The built-in codes above can be given other codes there too (Built-in codes card); clear a box to put the original back.
 
-**Make a code switch something.** On a one-line board with no microSD card,
-four spare pins (GPIO18–21) are wired to header J5. Under Settings → Dial
+**Make a code switch something.** Four spare pins can drive things: on v6
+they're on header J10 (P4–P7) and always available; on v4 and v5 they're
+GPIO18–21 on header J5, on a one-line board with no microSD card. Under Settings → Dial
 Codes → **Pin outputs**, pick a code, a pin and a time: dial it and that pin
 goes high for that many seconds (or toggles, if you set 0). Wire a relay or
 a MOSFET to it to unlock a door, sound a buzzer, switch a lamp. The output
 is 3.3 V at only a few mA, so don't connect a solenoid directly. It will
 often switch a 5 V relay module, but check that yours does (the parts page
-says what to look for). Set the board to
+says what to look for). On v4 and v5, set the board to
 "Pin outputs" under Settings → General → Board hardware, take the four shunts off J5, and leave
 the microSD socket empty. The card shows what's in the way if it isn't
-active. The card above it, **J5 outputs** (J10 on v6), switches each pin on or off by hand,
+active. The card above it, **J10 outputs** (**J5 outputs** on v4 and v5), switches each pin on or off by hand,
 for testing what's wired to it.
 
 **Home Assistant (experimental).** The board can POST every pickup,
@@ -123,8 +124,9 @@ Click any picture for the full page.
     <td><a href="pics/settings-general.png"><img src="pics/thumbs/settings-general.png" alt="General settings"></a></td>
     <td valign="top"><b>Settings → General.</b> Board name, the browser tab icon (olive, or blue
     for a payphone), saved Wi-Fi
-    networks, the board's hardware (what J5 is used for: a second line,
-    microSD or pin outputs; and the Bluetooth module), time zone, quiet
+    networks, the board's hardware (the number of lines and, on v4 and v5,
+    what J5 is used for: a second line, microSD or pin outputs; and the
+    Bluetooth module), time zone, quiet
     hours that keep the bell silent overnight, and the passwords.</td>
   </tr>
   <tr>
@@ -180,7 +182,7 @@ Optional features (VoIP, Bluetooth, Home Assistant, Payphone) always have their 
 you can read how they work first. A bar at the top says whether the feature
 is on: VoIP, Home Assistant and Payphone have their switch there, and Bluetooth turns on
 when you choose its module in Board hardware. Settings are kept while a
-feature is off. Bluetooth needs the v5 board with the BM64 companion.
+feature is off. Bluetooth needs a v5 or v6 board with a Bluetooth board (BM64 or BT401) on its expansion header.
 
 ## 5. Your own audio
 
@@ -230,8 +232,8 @@ The DevKit's RGB LED shows what the board is doing. It's deliberately dim.
 | **Off** | Running normally |
 | **Yellow, fast blink** | Installing a firmware update. Don't unplug it |
 | **Amber, double blink every 2 s** | The board restarted because its power supply dipped (a brownout). Dismiss the banner on any page; use a 5 V, 2 A supply |
-| **Blue, slow blink** | Bluetooth pairing (v5) |
-| **Blue, solid** (5 s) | A phone just connected over Bluetooth (v5) |
+| **Blue, slow blink** | Bluetooth pairing (v5, v6) |
+| **Blue, solid** (5 s) | A phone just connected over Bluetooth (v5, v6) |
 
 ## 8. The BOOT button: rescue and reset
 

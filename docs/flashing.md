@@ -145,7 +145,7 @@ already has the serial and flashing libraries the script needs.
 
 ```bash
 cd bringup
-./flash_board.py --board smd5 --yes
+./flash_board.py --board smd6 --yes
 ```
 
 The board appears as `/dev/cu.usbmodem…` (`ls /dev/cu.usbmodem*` lists it).
@@ -163,7 +163,7 @@ spoken-prompt upload fails with "No route to host".
 
 ```bash
 cd bringup
-./flash_board.py --board smd5 --yes
+./flash_board.py --board smd6 --yes
 ```
 
 The board appears as `/dev/ttyACM0` (`ls /dev/ttyACM*` lists it).
@@ -185,7 +185,7 @@ In the **ESP-IDF 5.2 PowerShell** (or CMD), run the scripts through `python`:
 
 ```powershell
 cd bringup
-python flash_board.py --board smd5 --yes
+python flash_board.py --board smd6 --yes
 ```
 
 The board appears as a `COM` port (`COM3`, `COM5`, …) in Device Manager
@@ -194,7 +194,15 @@ their own; pass `--port COM5` if several are plugged in.
 
 </details>
 
-`--board smd5` is for a v5 or v5.1 board, including a 30-pin clone whose two solder jumpers were moved (see [the v5 reference](hardware-smd5.md#10-mcu-module-variants)); a clone needs both its jumpers moved first; there is no separate clone firmware. A v4 board uses `--board smd4`. The script reads the chip's flash size,
+Pick `--board` for your board:
+
+| Board | `--board` |
+|---|---|
+| **v6** | `smd6` |
+| **v5** or **v5.1** | `smd5` |
+| **v4** | `smd4` |
+
+The same build runs a genuine module or a 30-pin clone whose two solder jumpers were moved (see [the v6 reference](hardware-smd6.md#8-mcu-module-variants)); a clone needs both its jumpers moved first, and there is no separate clone firmware. The script reads the chip's flash size,
 builds the matching image and flashes it. Later flashes don't need
 `--board`: the script asks the running firmware what it is.
 
@@ -202,12 +210,13 @@ builds the matching image and flashes it. Later flashes don't need
 <summary>Prefer to drive <code>idf.py</code> yourself?</summary>
 
 Each board type builds in its own directory with its own settings. From
-`firmware/`, for a v5 board, create its directory once, then build and flash into it:
+`firmware/`, for a v6 board, create its directory once, then build and flash into it
+(for a v5 board, put `smd5` in place of each `smd6`):
 
 ```bash
-idf.py -B build.smd5 -D SDKCONFIG="build.smd5/sdkconfig" \
-  -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.smd5.defaults" set-target esp32c6
-idf.py -B build.smd5 -D SDKCONFIG="build.smd5/sdkconfig" -p <PORT> flash monitor
+idf.py -B build.smd6 -D SDKCONFIG="build.smd6/sdkconfig" \
+  -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.smd6.defaults" set-target esp32c6
+idf.py -B build.smd6 -D SDKCONFIG="build.smd6/sdkconfig" -p <PORT> flash monitor
 ```
 
 Always pass the same `-B` and `-D SDKCONFIG=` pair, or the build can fall back to
@@ -222,7 +231,7 @@ it on macOS and Linux only.
 find it. Quit the monitor with **Ctrl-]**.
 
 On a module with **8 MB** of flash, use a separate directory with the 8 MB
-settings added (`smd4` here; use `smd5` for a v5 board):
+settings added (`smd4` here; use `smd6` or `smd5` for those boards):
 
 ```bash
 idf.py -B build.smd4_8mb -D SDKCONFIG="build.smd4_8mb/sdkconfig" \

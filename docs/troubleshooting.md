@@ -183,6 +183,10 @@ Try the test a few times, move the board, or switch the extender off for a minut
 - **A v5 board with a 30-pin clone module won't power up properly:** on a v5 board
   (not v5.1), the clone's bottom-right 5V pin must be removed, because the footprint
   ties it to GND. See [the clone module notes](bom.md#microcontroller-module-32-pin-or-30-pin-clone).
+- **A v6 board stays dead on the DC jack but works on USB-C:** the adapter is probably
+  above about 6 V, and the board's over-voltage switch (U7) has cut it off to protect
+  it. Use a regulated 5-6 V, 2 A adapter, centre-positive. (On v4 and v5 a 9 V or 12 V
+  adapter damages the board instead: see [the parts page](bom.md#power-either-input-and-2a).)
 
 ## Updating and flashing
 

@@ -19,7 +19,10 @@ In [`Analog Redial v4/`](Analog%20Redial%20v4/). Print one box and the lid.
 
 The `.step` files are the same parts, for editing in CAD.
 
-## Other boards
+## v5 and v6 boards
 
-- **v5** is 5 mm longer than v4, so the v4 case won't fit it. Its case is
-  being designed and will be added here.
+In [`Analog Redial v5/`](Analog%20Redial%20v5/), for a one-line board: the box
+(`AnalogRedial-5 - Box-OneLine-130x70x35`, also as `.3mf`) and the lid
+(`AnalogRedial-5 - Lid-FlatHead-130x70`). v5 is 5 mm longer than v4, so the v4
+case won't fit it. v6 has the same outline and mounting holes as v5, so this
+case should fit it too (not tried yet).

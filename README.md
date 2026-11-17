@@ -30,6 +30,11 @@
   </tr>
 </table>
 
+<p align="center">
+  <a href="https://youtu.be/3b8vMIZM7FU"><img src="https://img.youtube.com/vi/3b8vMIZM7FU/hqdefault.jpg" alt="Watch the Analog Redial video on YouTube" width="480"></a><br>
+  <a href="https://youtu.be/3b8vMIZM7FU">Watch the video</a>
+</p>
+
 
 ## What can I do with it?
 
@@ -40,7 +45,7 @@
 | **Call between boards** | Put a board in each room. Each gets its own 4-digit number the first time it's on your Wi-Fi; dial another board's number and its phone rings. It's VoIP over your home network: no server needed. | Two or more boards <br> Wi-Fi |
 | **VoIP server** | Register a line with Asterisk, FreePBX or any SIP server and call anything that server can reach, at home or away. If the server goes down, the boards can still call each other directly. | One phone <br> Wi-Fi <br> SIP server |
 | **Home Assistant** | Every pickup, hang-up and dial code becomes an event, so a dial code can turn on a light and the phone can ring when your doorbell does. Over MQTT or a plain webhook. *Experimental.* | Wi-Fi and Home Assistant (or any MQTT broker) |
-| **Switch things** | Dial a code and a pin goes high for a few seconds or continuously: a relay, a buzzer, a lamp. | One line <br> no microSD <br> a relay |
+| **Switch things** | Dial a code and a pin goes high for a few seconds or continuously: a relay, a buzzer, a lamp. | A relay <br> (on v4/v5: one line, no microSD) |
 | **Bluetooth calls** | Pair your mobile and the rotary phone becomes its handset: the bell rings for incoming calls, lift to answer, dial out on the rotary dial. | The BM64 Bluetooth board |
 
 ### Why not just buy a VoIP adapter?
@@ -56,6 +61,8 @@ You can do a lot with VoIP adapters and an Asterisk server, but this system can 
 
 Every network option runs on the board's own Wi-Fi, with nothing to add.
 Bluetooth is the only one that needs an extra board.
+The diagram shows v4/v5, where the J5 jumpers pick a second line, microSD or
+spare pins; on v6 all three work at once.
 
 ### The finer print
 
@@ -84,7 +91,7 @@ Bluetooth is the only one that needs an extra board.
   	- Optional per-line answering machine, each line with its own greeting,
   that also answers VoIP or local calls. 
   	- Storage to internal flash or microSD card for hours of storage
-  (1-line version only). 
+  (on v6 with one or two lines; on v4 and v5, one-line boards only). 
 - **Payphones.** Dial tone, ringing, dialing and calls work on a payphone like
   on any phone. With the coin board it counts coins and collects or returns
   them (working on one payphone so far). See
@@ -135,7 +142,7 @@ Click any picture for the full page. A guided tour is in
 
 ## What does one cost?
 
-US prices from October 2026, including shipping and import tariff:
+US prices from October 2026 (quoted for v5; v6 adds a few dollars of SMT parts per order), including shipping and import tariff:
 
 | | Per board | 5 boards |
 |---|---:|---:|
@@ -144,7 +151,7 @@ US prices from October 2026, including shipping and import tariff:
 | DigiKey shipping, about $5 an order | $1 | $5 |
 | **Total, one phone line** | **about $37** | **about $186** |
 | Second phone line (optional) | +$10 | +$50 |
-| Bluetooth board (optional, v5) | +$15 | +$80 |
+| Bluetooth board (optional, v5 and v6) | +$15 | +$80 |
 
 **Five boards cost about $186 in all, about $37 each.**
 JLCPCB's minimum is five, so it's about $110 up front, with four spare PCBs.
@@ -153,16 +160,17 @@ the hand-solder parts from AliExpress saves $7 per board.
 
 You'll also want a 2 A USB-C charger (or a regulated 5-6 V, 2 A DC supply for the DC jack; never 9 V or 12 V) and one or two analog phones. 
 
+Boards are now available on [Tindie](https://www.tindie.com/products/majorhack/analog-redial-hackable-telephone-board-kit/)!  
 Most of a small order is fixed PCB setup fees, so boards get cheaper when people
-order together. If you'd like a board,
-**[fill out the interest form](https://forms.gle/kVKHiXejV6M2ZxC17)**. It's
-only to show interest, so I can email you when boards are available on Tindie;
-there's no commitment. Questions? [Join the Discord](https://discord.gg/zEZkqfcxqE) and ask there.
+order together. If you add it to your wishlist on Tindie, it will help me gauge interest and know how many to order.  
+
+Questions? [Join the Discord](https://discord.gg/zEZkqfcxqE) and ask there.
 
 Price breakdown: [Get a board](docs/board.md#what-it-costs).
 
 ---
 <br><img src="docs/pics/V5_board_annotated.png" width="600" alt="Analog Redial v5 board, with its parts labelled">
+<br><sub>The v5 board, labelled. For v6, see the <a href="docs/hardware-smd6.md">v6 board reference</a>.</sub>
 
 ## Build one
 
@@ -173,15 +181,17 @@ few commands in a terminal, you can build one.
 | Step | Guide | What's in it |
 |---|---|---|
 | **1** | [Get a board](docs/board.md) | Board versions, ordering from JLCPCB, buying on Tindie, costs |
-| **2** | [Parts](docs/bom.md) and [assembly](docs/building.md) | What to buy, soldering order, checks before power-on; [v5 step by step](docs/build-v5.md) |
+| **2** | [Parts](docs/bom.md) and assembly: [v6 step by step](docs/build-v6.md) (current board) · [v5 step by step](docs/build-v5.md) | What to buy, soldering order with photos, checks before power-on |
 | **3** | [Flash & test](docs/flashing.md) | Install ESP-IDF, flash the firmware, run the hardware self-test |
 | **4** | [Set up & use](docs/setup.md) | Wi-Fi, the web interface, dial codes, your own audio |
 
 Going further: [Troubleshooting](docs/troubleshooting.md) ·
 [VoIP setup](docs/voip-setup.md) ·
 [Home Assistant](docs/home-assistant.md) ·
-[Board reference (v4)](docs/hardware-smd4.md) ·
+[Board reference (v6)](docs/hardware-smd6.md) ·
 [Board reference (v5)](docs/hardware-smd5.md) ·
+[Board reference (v4)](docs/hardware-smd4.md) ·
+[Payphone coin board](docs/hardware-coin-board.md) ·
 [Features & firmware architecture](docs/features.md) ·
 [Firmware developer notes](https://github.com/sdylewski/Analog-Redial/blob/main/firmware/README.md)
 
@@ -196,7 +206,7 @@ Going further: [Troubleshooting](docs/troubleshooting.md) ·
 ## Community
 
 - **Discord:** [join the server](https://discord.gg/zEZkqfcxqE) for questions, build help and show-and-tell
-- **Want a board?** [Interest form](https://forms.gle/kVKHiXejV6M2ZxC17): just to show interest, so I can email you when boards are available on Tindie. Questions? Ask in the Discord.
+- **Want a board?** [Get one on Tindie](https://www.tindie.com/products/majorhack/analog-redial-hackable-telephone-board-kit/), or add it to your Tindie wishlist if it's sold out. Questions? Ask in the Discord.
 - **Bugs and questions:** [GitHub Issues](https://github.com/sdylewski/Analog-Redial/issues)
 - **Built one?** Post a picture in the Discord channel! We'd love to see it.
 
@@ -211,8 +221,8 @@ Going further: [Troubleshooting](docs/troubleshooting.md) ·
 | Jul 2026 | **v2** <br><img src="docs/pics/smd2_board.jpg" width="220" alt="Analog Redial v2 board"> | First surface-mount board: ESP32-C6 module, ES8388 codec, AG1171 SLICs, microSD. Required rework on audio lines and usb connection but it worked. |
 | Sep 2026 | **v4** <br><img src="docs/pics/smd4_board.jpg" width="220" alt="Analog Redial v4 board"> | 2-layer, built around a cheaper 32-pin ESP32-C6-DevKitC-1, one or two phone lines, optional microSD. |
 | Oct 2026 | **v5** <br><img src="docs/pics/V5_board.jpg" width="220" alt="Analog Redial v5 board">| Working: takes a genuine or clone ESP32-C6 module, and adds the expansion header (used for the Bluetooth board). <br>**With a clone module, remove the clone's bottom-right 5V pin** (see [Get a board](docs/board.md)). |
-| Oct 2026 | **v5.1** | **RECOMMENDED VERSION** v5 with the clone-module 5V pin fixed (nothing to remove) and small silkscreen and fab-file updates. |
-| Nov 2026 | **v6** <br><img src="docs/pics/V6_board_top.png" width="220" alt="Analog Redial v6 board"> | **Built and working.** Two phone lines, payphone support (the coin board runs a real payphone) and extra I/O, with an I²C I/O expander driving the second line; the microSD card and the extra I/O haven't been checked on it yet. It's meant to run all of those at once, plus the clone-module 5V pin fix and a 3 A diode (SS34) for the DC jack. |
+| Oct 2026 | **v5.1** | v5 with the clone-module 5V pin fixed (nothing to remove) and small silkscreen and fab-file updates. Released, not built: v6 followed it. |
+| Nov 2026 | **v6** <br><img src="docs/pics/build-v6/16-finished.jpg" width="220" alt="Analog Redial v6 board"> | **CURRENT VERSION. Built and working.** Two phone lines, payphone support (the coin board runs a real payphone) and extra I/O, with an I²C I/O expander driving the second line. And additional overvoltage protection for the DC jack. |
 
 ### Related projects
 

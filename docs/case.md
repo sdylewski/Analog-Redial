@@ -4,10 +4,11 @@
 
 A two-part case, a box and a lid, that you print yourself. The boards are
 different lengths, so **each board version has its own case**: a v4 case
-will not fit a v5.
+will not fit a v5 or v6.
 
 <!-- TODO: photo of the finished board in its case (docs/pics/board_in_case.jpg) -->
-![Photo coming soon: the board in its case](assets/photo-placeholder.svg)
+![A v4 board in its 3D-printed case](pics/v4_case.jpg)
+*A v4 board in its case*
 
 ## Which case do I print?
 
@@ -15,7 +16,7 @@ will not fit a v5.
 |-------|-----|-----|--------|
 | **v4**, single line | `Box-SingleLine` | `Lid` | Ready |
 | **v4**, dual line | `Box - dualLine` | `Lid` | Ready |
-| **v5** (5 mm longer than v4) | In progress | In progress | Being designed; files not yet available |
+| **v5** and **v6**, one line (5 mm longer than v4) | `Box-OneLine-130x70x35` | `Lid-FlatHead-130x70` | First files available, below. v6 has the same outline and mounting holes as v5, so it should fit; not tried on a v6 yet |
 
 Print one box and one lid. The lid is the same for single-line and dual-line
 v4 boards.
@@ -35,13 +36,18 @@ Each part comes as a **STEP** file (for editing in CAD) and an **STL** file
 
 <!-- TODO: photos of the v4 box (single-line and dual-line) and the lid -->
 
-### v5
+### v5 and v6
 
-The v5 case files will go in
-[`hardware/3d-printed-case/Analog Redial v5/`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/3d-printed-case/Analog%20Redial%20v5)
-once they are finished, printed and tested.
+In [`hardware/3d-printed-case/Analog Redial v5/`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/3d-printed-case/Analog%20Redial%20v5),
+for a one-line board. The outside is 130 × 70 × 35 mm. The box also comes as a `.3mf`
+for slicers that take it.
 
-<!-- TODO: v5 STEP and STL links, and photos, when the files exist -->
+| Part | STEP | STL |
+|------|------|-----|
+| Box, one line | [.step](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5/AnalogRedial-5%20-%20Box-OneLine-130x70x35.step) | [.stl](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5/AnalogRedial-5%20-%20Box-OneLine-130x70x35.stl) |
+| Lid | [.step](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5/AnalogRedial-5%20-%20Lid-FlatHead-130x70.step) | [.stl](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5/AnalogRedial-5%20-%20Lid-FlatHead-130x70.stl) |
+
+<!-- TODO: a dual-line box, and photos -->
 
 ## What you need
 

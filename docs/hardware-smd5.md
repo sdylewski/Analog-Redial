@@ -2,11 +2,12 @@
 
 # Board reference: v5 (SMD5)
 
-> **v5 is built and working.** The first boards (a genuine DevKitC-1 and a 30-pin
-> clone, both with the BM64 companion) came up on the bench: audio path, microSD,
-> Wi-Fi, over-the-air updates and Bluetooth. v4 remains the board with the longest
-> track record. Everything here that isn't listed as new against v4 carries over from
-> v4 unchanged.
+> **v5 is built and working**, and boards are in use: a genuine DevKitC-1 and a 30-pin
+> clone, both with the BM64 companion, run the audio path, microSD, Wi-Fi,
+> over-the-air updates and Bluetooth. **v6 is now the current board** (see the
+> [v6 reference](hardware-smd6.md)); this page stays the full reference for v5 and v5.1,
+> and for everything v6 carries over. Everything here that isn't listed as new against
+> v4 carries over from v4 unchanged.
 
 > ⚠️ **v5 boards with the 30-pin clone module: read before soldering.** On a v5 board the clone's
 > **bottom-right 5V pin** is wired to **GND** (the footprint is wrong for the clone's pinout). If you fit a

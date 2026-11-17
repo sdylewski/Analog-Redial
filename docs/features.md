@@ -9,16 +9,20 @@ using these features day to day, see [Set up & use](setup.md).
 
 ## 1. Hardware
 
-| | SMD4 (v4) | SMD5 (v5) |
-|--|------|------|
-| MCU | ESP32-C6-DevKitC-1 | ESP32-C6-DevKitC-1, or a 30-pin clone (see the warning in [`hardware-smd5.md`](hardware-smd5.md#10-mcu-module-variants)) |
-| Codec | ES8388 @ I²C 0x10 | same |
-| SLIC | AG1171 ×1–2 | same |
-| Expansion header | none | 8-pin **J2**: 3.3 V, a serial port, a control pin and line 0's audio; currently used for the Bluetooth board |
-| Pin map | `board_pins_smd4.h` (SMD2 uses `board_pins_smd.h` instead) | reuses SMD4's |
+| | SMD6 (v6, current) | SMD5 (v5) | SMD4 (v4) |
+|---|------|------|------|
+| MCU | ESP32-C6-DevKitC-1, or a 30-pin clone | ESP32-C6-DevKitC-1, or a 30-pin clone (see the warning in [`hardware-smd5.md`](hardware-smd5.md#10-mcu-module-variants)) | ESP32-C6-DevKitC-1 |
+| Codec | ES8388 @ I²C 0x10 | same | same |
+| SLIC | AG1171 ×1–2; line 1 driven by a TCA9534A I²C expander (0x38) | AG1171 ×1–2 | same |
+| Second line and microSD | both at once | one or the other (J5) | one or the other (J5) |
+| Spare pins | four on **J10** (the expander's P4–P7) | four on **J5** (GPIO18–21), one line without microSD | as v5 |
+| Expansion header | 8-pin **J2**, as v5 | 8-pin **J2**: 3.3 V, a serial port, a control pin and line 0's audio; currently used for the Bluetooth board | none |
+| I²C accessory header | 5-pin **J11** (payphone coin board) | none | none |
+| Pin map | reuses SMD4's, plus `line_expander.c` | reuses SMD4's | `board_pins_smd4.h` (SMD2 uses `board_pins_smd.h` instead) |
 
 Two phone lines as codec **Left / Right** (stereo interleaved in firmware).
-A single-line build can trade line 2 for **microSD** (GPIO 18–21 shared).
+On v4 and v5 a single-line build can trade line 2 for **microSD** (GPIO 18–21
+shared); on v6 the expander drives line 2, so both work together.
 
 | Resource | ESP32-C6 |
 |----------|----------|
@@ -26,7 +30,7 @@ A single-line build can trade line 2 for **microSD** (GPIO 18–21 shared).
 | Ring | **RM** + **F/R** toggle (20 Hz, or the line's saved frequency) |
 | Net | Wi-Fi → SIP |
 
-See [`hardware-smd4.md`](hardware-smd4.md), [`hardware-smd5.md`](hardware-smd5.md) and [`signal-levels.md`](https://github.com/sdylewski/Analog-Redial/blob/main/archive/signal-levels.md).
+See [`hardware-smd6.md`](hardware-smd6.md), [`hardware-smd5.md`](hardware-smd5.md), [`hardware-smd4.md`](hardware-smd4.md) and [`signal-levels.md`](https://github.com/sdylewski/Analog-Redial/blob/main/archive/signal-levels.md).
 
 ---
 
@@ -49,11 +53,11 @@ Legend: ✅ working · 🧪 experimental, off by default · 🔜 coming soon · 
 | **Record to web archive (211)** | ✅ | 8 kHz mono WAV, timestamped filename (UTC), downloadable/playable from `/recordings` |
 | **Intercom** | 🧪 off by default (Settings → Phone, 2-line boards) | Pick up and don't dial: after a wait (default 4 s, 1–30) the other line rings with a short double ring (0.4 s, 0.2 s gap, 0.4 s, 2 s pause), distinct from an outside call. Dial a digit first and it's a normal call, so there is no mode to switch. If the other handset is already up and idle the lines connect at once; if it is busy you hear busy |
 | **Voice effects during a call** | 🧪 experimental, off by default (Settings → Phone) | Press or dial **2** chipmunk, **5** robot, **1** Dalek, **6** tremolo, **0** normal — mid-call, on either phone; both hear it. Each effect's key can be changed (Settings → Phone, or the Dial codes tab). Works on local and VoIP calls (the board where the key is pressed changes both voices). Or dial 322 or 324 to start a call as chipmunk or Dalek. Chipmunk and robot add 15–40 ms; Dalek and tremolo add no delay. Robot turns any voice into a steady monotone. On/off and sliders in Settings → Phone: chipmunk pitch (70–200%, default 130%; below 100% is a deep voice), robot amount and pitch (70–200 Hz, default 125 Hz), Dalek amount and speed (15–100 Hz, default 30 Hz), tremolo speed (2–15 Hz, default 6) and depth; drag during a call to hear the change |
-| **Pin dial codes** (Settings → Dial Codes → Pin outputs) | ✅ one-line boards without microSD | Up to four codes, each drives one of GPIO18–21 (header J5) high for 0–3600 s, or toggles it: relay, MOSFET, buzzer, light. Refused while a card is in the socket, the board is set to two lines or microSD, or a J5 shunt could connect the pin to line 1's chip (shown on the card). Same code rules as clip codes, in both directions |
+| **Pin dial codes** (Settings → Dial Codes → Pin outputs) | ✅ v6 always; v4/v5 one-line boards without microSD | Up to four codes, each drives a spare pin high for 0–3600 s, or toggles it: relay, MOSFET, buzzer, light. On v6 the pins are J10's P4–P7 and work whatever else is fitted. On v4 and v5 they are GPIO18–21 (header J5), refused while a card is in the socket, the board is set to two lines or microSD, or a J5 shunt could connect the pin to line 1's chip (shown on the card). Same code rules as clip codes, in both directions |
 | **Internet radio** | 💡 | An idea, not built: dial a code and stream a station. No dial codes are assigned |
 | **Operator help / TTS (dial 0)** | ✅ | No on-device TTS; `operator.wav` ships pre-rendered by default. Text-to-speech generation (`gen_prompt.py`, host-side) can re-render it, the record-message prompt, the timer's question and message, and the answering machine's default greeting from edited text; with a VoIP provisioner that offers text-to-speech, the board does it itself ("Save & generate on server", "Update spoken audio") |
 | **Answering machine** (dial 899 to record a greeting) | ✅ | Per line: rings N times, plays that line's own greeting (or the shared default if none is recorded), then records the caller. Needs VOIP or a second line to actually be reachable. Messages (this and 211's) shorter than 2 seconds are discarded. Dial 674 on the phone to hear the messages, oldest first (1 plays it again, 3 deletes it, 5 goes to the next, each followed by "Next message."; the clips are `msg_none.wav`, `msg_next.wav`, `msg_menu.wav` and `msg_menu_last.wav`) |
-| **Bluetooth (BM64 companion)** | ✅ v5 board | Pair a mobile and the analog phone becomes its handset: the bell rings for an incoming call, lift to answer, hang up to end it, caller ID in the activity log, and dial out by dialing 9 (the dial tone pulses, like an outside line on a work phone) and then the area code + number. Music playing from the mobile comes through the handset when you lift it, with no dial tone over it. The BM64's audio configuration is written to the module automatically the first time (needs its two programming leads once; see [`hardware-smd5.md`](hardware-smd5.md) §9). The cheaper DFRobot BT401 module has a driver too (Settings → General → Board hardware), but hasn't been tested on a real module yet |
+| **Bluetooth (BM64 companion)** | ✅ v5 and v6 boards | Pair a mobile and the analog phone becomes its handset: the bell rings for an incoming call, lift to answer, hang up to end it, caller ID in the activity log, and dial out by dialing 9 (the dial tone pulses, like an outside line on a work phone) and then the area code + number. Music playing from the mobile comes through the handset when you lift it, with no dial tone over it. The BM64's audio configuration is written to the module automatically the first time (needs its two programming leads once; see [`hardware-smd5.md`](hardware-smd5.md) §9, or on v6 [J10](hardware-smd6.md#bm64-one-time-setup-on-v6-the-two-programming-leads-go-to-j10)). The cheaper DFRobot BT401 module (DFR0781) works too: music, ringing, dialing out and call audio, hand-wired to a v5 board's header; choose it in Settings → General → Board hardware |
 | **Home Assistant** (Settings → HA) | 🧪 | Webhook and MQTT auto-discovery: every pickup, hang-up, dial code and ring becomes an event; Home Assistant can ring a phone or fire a pin output back. Verified against Home Assistant Core (events, discovery, the ring button); the REST sensor and command examples are untested. See [Home Assistant](home-assistant.md) |
 | **Low-power idle** (Settings → Hardware) | ✅ on by default | After a few idle minutes (default 5) the phone-line chips are polled instead of left on, the audio pipeline pauses and the CPU clock scales down; a pickup restores everything. Wi-Fi power-save is added too, with or without a VoIP server: the radio then wakes for each router beacon, so an incoming call can take about 0.1-0.3 s longer to start ringing (longer on a router set to a long beacon interval). With a BT401 Bluetooth module, Bluetooth also sleeps (radio off, about 7 mA instead of 30) after 4 hours with no phone connected, up to about 1 kWh a year saved; lifting a handset, an incoming VoIP call or Start pairing wakes it, and its phone can't reconnect or ring while it sleeps. Each option can be switched off |
 | **Touch-tone test** (Settings → Diagnostics) | ✅ | Guides you through each key of a touch-tone phone, shows how well each was heard, and if it helps offers looser detector limits to save for that line. Makes a log to copy and send in. See [Troubleshooting](troubleshooting.md#touch-tone-test) |

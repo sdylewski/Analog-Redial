@@ -2,12 +2,12 @@
 
 # Board reference: v6 (SMD6)
 
-> **Built and working.** The design and fab files are published
+> **v6 is the current board, built and working.** The design and fab files are published
 > ([KiCad project](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v6)).
-> One v6 board has been built (2026-11): both phone lines (line 2 through the I²C expander U6), the codec and Wi-Fi
-> work, and it runs the [payphone coin board](hardware-coin-board.md) on J11. **Not checked yet:** the microSD card and
-> J10's extra I/O (the latching switches on the Diagnostics tab test each pin). **v5** is the longest-tested board: see the
-> [v5 board reference](hardware-smd5.md).
+> Both phone lines (line 2 through the I²C expander U6), the codec and Wi-Fi work, and it runs the
+> [payphone coin board](hardware-coin-board.md) on J11. **Not checked yet:** the microSD card and
+> J10's extra I/O (the latching switches on the Diagnostics tab test each pin). For a v5 or v5.1
+> board, see the [v5 board reference](hardware-smd5.md).
 
 v6 is v5 with everything at once: **two phone lines and the microSD card together**,
 payphone support and four extra I/O pins. An I²C I/O expander (U6) drives the second
@@ -30,7 +30,7 @@ Build instructions: [Build a v6 board](build-v6.md).
 | **U7, a WS3222D over-voltage switch**, plus D13 (SMAJ22A) on the DC-jack input | A wrong adapter (9 V, 12 V, up to about 22 V) cuts +5 V off instead of damaging the board |
 | Larger vias on +5 V / +3.3 V, teardrops, silkscreen updates | |
 
-Same outline as v5 (115 × 52 mm) and the same mounting holes.
+Same outline as v5 (115 × 54 mm) and the same mounting holes.
 
 ## Schematic and layout
 
@@ -41,9 +41,13 @@ as an image; open the KiCad project (above) for the bottom layer, the 3D view, o
 
 ![v6 schematic](pics/smd6_schematic.png)
 
-**PCB layout, top copper/silkscreen** (from KiCad: no v6 board has been built yet):
+**PCB layout, top copper/silkscreen** (from KiCad):
 
 ![v6 PCB layout, top](pics/V6_board_top.png)
+
+**A built board** (one line: U4, J9 and C16, plus J11, J2, D12 and the DC jack):
+
+![A finished one-line v6 board](pics/build-v6/16-finished.jpg)
 
 ## 1. Board overview
 
@@ -206,8 +210,9 @@ MCLK, so connect nothing to them.
 
 `CONFIG_BOARD_TYPE_SMD6`, built in `firmware/build.smd6/` and flashed with
 `./flash_board.py --board smd6` ([step 3](flashing.md)): a blank board has no firmware to
-say what it is. There is one v6 build for both modules, and no v6 image in the
-firmware-update releases yet.
+say what it is. There is one v6 build for both modules, and the firmware-update
+releases carry a v6 image, so a v6 board updates from Settings → Hardware → Firmware
+like any other.
 
 ---
 

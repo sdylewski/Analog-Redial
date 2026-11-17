@@ -10,6 +10,9 @@ where v5.1 needs no pin removed from a clone module.
 For where to buy each part, see the [parts list](bom.md). The shorter checklist version
 of this page is [Assembly](building.md).
 
+> **Building a new board?** v6 is the current board: [Build a v6 board](build-v6.md). This page is
+> for the v5 and v5.1 boards already out there.
+
 > ⚠️ **This board makes real telephone-line voltages:** about 48 V DC off-hook and about
 > 60 V AC while ringing, with peaks near 90 V. Never connect its jacks to house or telco
 > wiring, and don't touch the jack or SLIC pins while it's powered.
@@ -69,6 +72,9 @@ Look the board over: the fab has already placed the codec, resistors, capacitors
 microSD socket and the regulator. Find U1's outline, the two SLIC outlines, and on the back
 the two small solder jumpers **JP2** and **JP3**.
 
+![A v5 board as it arrives, with the parts for a one-line build beside it: the module, D12, C16, J9 and the AG1171 SLIC](pics/build-v5/00-parts.jpg)
+*A v5 board as it arrives, with the parts for a one-line build: the module, D12, C16, J9, the SLIC*
+
 <table>
   <tr>
     <td width="50%"><img src="assets/photo-placeholder.svg" alt="The v5 board as it arrives, top"></td>
@@ -126,8 +132,8 @@ non-polarized and only matter with J7.
 **Polarized:** the band on the diode goes to the band end of the silkscreen. Bend the leads
 to the 10 mm hole spacing and lay it flat.
 
-![Photo to take: D12 with its band visible](assets/photo-placeholder.svg)
-*D12, band at the silkscreen band (`pics/build-v5/04-d12.jpg`)*
+![D12 at the left edge of a v5 board, with C16 and the DC jack also fitted](pics/build-v5/11-j1-c16-d12.jpg)
+*D12 at the left edge, band at the silkscreen band (C16 and J1 are in too)*
 
 ### Step 5: J9, RJ12 jack for line 0
 
@@ -148,8 +154,7 @@ As J9.
 **Polarized:** the stripe on the can (the negative lead, also the shorter one) goes to the
 negative pad, marked on the silkscreen. Backwards, it can vent.
 
-![Photo to take: C16 with its stripe and the silkscreen marking visible](assets/photo-placeholder.svg)
-*C16, stripe to the negative pad (`pics/build-v5/07-c16.jpg`)*
+C16 is the tall can in the photo in step 4, in the outline marked "line 0".
 
 ### Step 8: C17, 470 µF for line 1 (dual line)
 
@@ -167,11 +172,11 @@ square, then the other end, then the rest.
 <table>
   <tr>
     <td width="50%"><img src="assets/photo-placeholder.svg" alt="AG1171 pin 1 marking"></td>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="U4 fitted"></td>
+    <td width="50%"><img src="pics/build-v5/09-u4.jpg" alt="U4, the line 0 SLIC, fitted in the Line 0 outline of a v5 board"></td>
   </tr>
   <tr>
     <td align="center">Pin 1 on the module and the board (<code>pics/build-v5/09-u4-pin1.jpg</code>)</td>
-    <td align="center">U4 fitted, upright (<code>pics/build-v5/09-u4.jpg</code>)</td>
+    <td align="center">U4 fitted in the "Line 0" outline</td>
   </tr>
 </table>
 
@@ -187,8 +192,7 @@ As U4.
 Recommended with the clone module, whose USB-C port sits back from the board edge. Chunky
 pins: use a hot iron and give the solder a moment to flow into the slots.
 
-![Photo to take: J1 fitted, from the back edge](assets/photo-placeholder.svg)
-*J1 (`pics/build-v5/11-j1.jpg`)*
+J1 is the black jack in the photo in step 4.
 
 ### Step 12: J2, expansion header (optional)
 
@@ -201,6 +205,9 @@ rotated 180° shorts the 3.3 V regulator to ground.
 ### Step 13: U1, the ESP32-C6 module
 
 The tallest part, so it goes last. Do the option for your module.
+
+![A module fitted on a v5 board, seen from the USB end](pics/build-v5/13-module.jpg)
+*A module fitted, seen from its USB end*
 
 <table>
   <tr>

@@ -4,8 +4,19 @@
 
 From a fab-assembled board and the [parts list](bom.md) to a board that's
 ready to flash. Everything you solder is through-hole, so a regular iron is
-all you need. Written for v4; v5 differences are called out where they come
-up. For v5 and v5.1 there's also a [step-by-step guide with photos](build-v5.md).
+all you need.
+
+**Use the step-by-step guide for your board, with photos:**
+
+| Board | Guide |
+|---|---|
+| **v6** (current) | [Build a v6 board](build-v6.md) |
+| **v5** and **v5.1** | [Build a v5 board](build-v5.md) |
+| **v4** | this page |
+
+This page is the short checklist, written for v4 with v5 differences called
+out where they come up. v6 has no J5 header and no jumpers to set: follow its
+own guide.
 
 ## 1. Tools
 

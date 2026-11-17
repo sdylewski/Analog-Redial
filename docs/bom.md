@@ -9,12 +9,22 @@ continue to [assembly](building.md).
 Mark rows done in the leading empty column as you buy them.
 
 Reference designators: **U1** = ESP32-C6-DevKitC-1, **U3**/**U4** = AG1171
-SLICs, **J8**/**J9** = their RJ12 jacks, **J1** = DC jack, **J5** =
-line-1/microSD jumper header, **Card1** = microSD socket.
+SLICs, **J8**/**J9** = their RJ12 jacks, **J1** = DC jack, **Card1** = microSD
+socket. On v6, **J10** = extra I/O header and **J11** = I²C accessory header.
+On v4 and v5, **J5** = line-1/microSD jumper header.
+
+**v6 is the current board**, and its parts are the same as v5's apart from the
+J5 header (gone) and two optional JST headers (added). Each section below says
+where v6 differs.
 
 ---
 
 ## Build options
+
+**On v6 there's nothing to choose:** two lines, the microSD card and four spare
+pins (on J10) all work together. Fit the second line's parts if you want two
+lines; put a card in if you want microSD. The rest of this section is for v4
+and v5.
 
 | Build | Lines | microSD | J5 jumpers | Parts |
 |-------|-------|---------|------------|-------|
@@ -78,7 +88,7 @@ DigiKey prices are for quantity 1, checked September 2026, before shipping
 | | 1 | **U4** AG1171 SLIC (line 0, at **J9**) | [DigiKey](https://www.digikey.com/en/products/detail/silvertel/AG1171/21187236) $8.50 | [AliExpress](https://www.aliexpress.us/item/3256804758849823.html) $3.79 | 14-pin SIL module. DigiKey lead time can be 16 weeks, so buy a spare |
 | | 1 | **C16** 470 µF 16 V radial electrolytic | [DigiKey](https://www.digikey.com/en/products/detail/rubycon/16YXJ470M8X11-5/3134104) $0.42 | [AliExpress](https://www.aliexpress.us/item/2255799897996539.html) $1.99 / 20 | Rubycon **16YXJ470M8X11.5**, or any 470 µF ≥16 V that is 8 mm across with 3.5 mm lead spacing |
 | | 1 | **J9** RJ12 jack, horizontal, 6p2c | [DigiKey](https://www.digikey.com/en/products/detail/amphenol-cs-fci/87180-062LF/1001369) $1.07 | [AliExpress](https://www.aliexpress.us/item/3256810043215346.html) $3.38 / 10 | Amphenol **87180-062LF**. On AliExpress pick the **322** variant. Alternative: [54601-006](https://www.digikey.com/en/products/detail/amphenol-icc/54601-006/1158894) |
-| | 1 | **J5** 2×4 pin header, 2.54 mm | [DigiKey](https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/SSK03-MPH-254-B4/28772142) $0.13 | | **SSK03-MPH-254-B4**, or two 1×4 strips cut from any header stock. Fitted on every build |
+| | 1 | **J5** 2×4 pin header, 2.54 mm (v4 and v5 only) | [DigiKey](https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/SSK03-MPH-254-B4/28772142) $0.13 | | **SSK03-MPH-254-B4**, or two 1×4 strips cut from any header stock. Fitted on every v4/v5 build; v6 has no J5 |
 
 ## Second phone line · +about $10
 
@@ -87,7 +97,16 @@ DigiKey prices are for quantity 1, checked September 2026, before shipping
 | | 1 | **U3** AG1171 SLIC (line 1, at **J8**) | same as **U4** | same as **U4** | |
 | | 1 | **C17** 470 µF 16 V radial | same as **C16** | same as **C16** | |
 | | 1 | **J8** RJ12 jack | same as **J9** | same as **J9** | |
-| | 4 | **J5** jumper shunts, 2.54 mm | [DigiKey](https://www.digikey.com/en/products/detail/sullins-connector-solutions/QPC02SXGN-RC/2618262) $0.29 / 10 | | **QPC02SXGN-RC**. Bridge all four pairs: 1-2, 3-4, 5-6, 7-8 |
+| | 4 | **J5** jumper shunts, 2.54 mm (v4 and v5 only) | [DigiKey](https://www.digikey.com/en/products/detail/sullins-connector-solutions/QPC02SXGN-RC/2618262) $0.29 / 10 | | **QPC02SXGN-RC**. Bridge all four pairs: 1-2, 3-4, 5-6, 7-8 |
+
+## v6 only: extra I/O and accessory headers (optional)
+
+| | Qty | Component | Notes |
+|---|-----|-----------|-------|
+| | 1 | **J10** JST XH 7-pin vertical header, **B7B-XH-A** | Extra I/O: +5 V, P4-P7, +3.3 V, GND. Mates with an XHP-7 housing and SXH-001T-P0.6 crimps. Fit it to use the pin outputs; pinout in the [v6 reference](hardware-smd6.md#6-j10-extra-io) |
+| | 1 | **J11** JST XH 5-pin vertical header, **B5B-XH-A** | I²C accessory header for the [payphone coin board](hardware-coin-board.md). Mates with XHP-5 |
+
+Both are common parts; any JST XH-compatible vertical header fits.
 
 ## Optional: DC jack and line protection
 
@@ -106,13 +125,16 @@ convenient:
   supply. It loses about 0.4 V through the OR diode, so **5.5–6 V** is better
   than a bare 5 V one.
 
-> ⚠️ **Never use a 9 V or 12 V adapter on the DC jack.** The 5.5 × 2.1 mm jack
+> ⚠️ **Never use a 9 V or 12 V adapter on the DC jack of a v4 or v5 board.** The 5.5 × 2.1 mm jack
 > is the same size as those very common adapters, but there is no regulator
 > between it and the board: the voltage goes straight to the phone-line chips
 > and the 3.3 V regulators (rated about 6 V), and it will destroy them. Check
 > the label: **5–6 V DC, centre-positive, regulated**. An unregulated "6 V"
 > adapter can read 8 V or more with no load, so avoid those too. If you're not
 > sure, power the board from USB-C instead.
+>
+> **v6** cuts the power off instead: a 9 V or 12 V adapter (up to about 20 V) leaves the board
+> off rather than damaged. It still needs a regulated 5-6 V supply to run.
 
 2A covers the worst case: two phones ringing at once while the Wi-Fi
 transmits. One idle line needs far less, but an undersized supply browns out
@@ -145,16 +167,16 @@ None of these are needed for any feature. Generic 2.54 mm pin headers.
 | Ref | What it is | What it's for |
 |-----|-----------|---------------|
 | **J7** | 1×3 audio monitor output | Mirrors the earpiece audio: scope it, feed a powered speaker, or listen in without picking up. Needs **C10** and **C11** fitted (below) |
-| **J3**, **J4** | 1×2 each, signal and GND | **v4:** GPIO16 (J3) and GPIO17 (J4), spare pins for a button, an LED, a relay or a serial port. **v5:** J3 is module pad 20 and J4 pad 19, so what they carry depends on the module. On the genuine 32-pin DevKitC-1 they are GPIO13 (USB D+) and GPIO12 (USB D−), the module's live USB lines: leave them unconnected unless you mean to wire USB there. On a 30-pin clone with JP2/JP3 set for the clone they are GPIO3 (microSD card-detect) and GPIO2 (the codec's MCLK clock): in use, don't connect anything |
+| **J3**, **J4** | 1×2 each, signal and GND | **v4:** GPIO16 (J3) and GPIO17 (J4), spare pins for a button, an LED, a relay or a serial port. **v5 and v6:** J3 is module pad 20 and J4 pad 19, so what they carry depends on the module. On the genuine 32-pin DevKitC-1 they are GPIO13 (USB D+) and GPIO12 (USB D−), the module's live USB lines: leave them unconnected unless you mean to wire USB there. On a 30-pin clone with JP2/JP3 set for the clone they are GPIO3 (microSD card-detect) and GPIO2 (the codec's MCLK clock): in use, don't connect anything |
 
 **C10/C11, for J7 only:** fit two **1 µF** non-polarized film or ceramic
 capacitors in the 5 mm disc footprints. That passes the whole phone band.
 To drive headphones directly, use 47 µF electrolytics instead, **+ toward
 the codec** (U2) and − toward J7. Left empty, J7 carries no signal.
 
-## Bluetooth board (v5 expansion header, optional)
+## Bluetooth board (v5 and v6 expansion header, optional)
 
-The v5 board's 8-pin **expansion header** (**J2**; pinout in the [v5 board reference](hardware-smd5.md#9-expansion-header-j2-currently-used-for-the-bluetooth-board)) is currently used for a small board carrying a **BM64** Bluetooth
+The v5 and v6 boards' 8-pin **expansion header** (**J2**; pinout in the [v5 board reference](hardware-smd5.md#9-expansion-header-j2-currently-used-for-the-bluetooth-board)) is currently used for a small board carrying a **BM64** Bluetooth
 module (about $14, **working**). The companion's KiCad project is `Bluetooth/BM64/BM64_Board_v1`
 in the repository; the main board adds one 3.3 V regulator (**U5**) and a handful of 1 µF capacitors
 and resistors that are already on the board.
@@ -184,7 +206,7 @@ and resistors that are already on the board.
 
 ## Microcontroller module: 32-pin or 30-pin clone
 
-The v5 board also takes a cheap 30-pin clone. They aren't equivalent:
+v5, v5.1 and v6 also take a cheap 30-pin clone. They aren't equivalent:
 
 > ⚠️ **v5 boards with the 30-pin clone module: read before soldering.** On a v5 board the clone's
 > **bottom-right 5V pin** is wired to **GND** (the footprint is wrong for the clone's pinout). If you fit a
@@ -195,12 +217,12 @@ The v5 board also takes a cheap 30-pin clone. They aren't equivalent:
 > fixed, so nothing needs removing there.
 
 
-| | **32-pin (recommended)** | **30-pin clone (v5 only)** |
+| | **32-pin (recommended)** | **30-pin clone (v5 and later)** |
 |----|----|----|
 | Part | Genuine ESP32-C6-DevKitC-1 | AliExpress clone, about $4 |
 | Fitting | Drops straight in | Move two solder jumpers on back of board, **JP2** and **JP3** |
 | USB flashing and console | Works | Works once the jumpers are set |
-| Status | Known good | Works; on a v5 board remove one pin first (see the warning above); v5.1 needs nothing |
+| Status | Known good | Works; on a v5 board remove one pin first (see the warning above); v5.1 and v6 need nothing |
 
 <table>
   <tr>
@@ -208,12 +230,13 @@ The v5 board also takes a cheap 30-pin clone. They aren't equivalent:
     <td width="50%"><img src="../docs/assets/photo-placeholder.svg" alt=" (photo coming soon)"></td>
   </tr>
   <tr>
-    <td align="center">v5 board: modification needed for the cheap 30-pin esp32-c6-devkit</td>
-    <td align="center">add photo of finished rework</td>
+    <td align="center">JP2 and JP3, the solder jumpers to move for the 30-pin clone (v6 shown; v5 is the same)</td>
+    <td align="center">After the rework (photo coming soon)</td>
   </tr>
 </table>
 
 Use the genuine module unless you're happy to debug. Details in the
+[v6 board reference](hardware-smd6.md#8-mcu-module-variants) and the
 [v5 board reference](hardware-smd5.md#10-mcu-module-variants).
 
 ## Flash size: 16 MB or 8 MB

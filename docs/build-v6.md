@@ -2,9 +2,10 @@
 
 # Build a v6 board, step by step
 
-> **Built and working.** One v6 board has been built and runs both phone lines, the codec, Wi-Fi and the
-> payphone coin board. The microSD card and the J10 extra I/O haven't been checked yet, and these steps
-> are still written from the design, so they may change. v5 is the longest-tested board: [Build a v5 board](build-v5.md).
+> **v6 is the current board.** It's built and working: both phone lines, the codec, Wi-Fi and the
+> payphone coin board. The microSD card and the J10 extra I/O haven't been checked on it yet. The
+> photos on this page are from a one-line v6 build. Have a v5 or v5.1 board? Use
+> [Build a v5 board](build-v5.md).
 
 From a board that arrives from the fab with its surface-mount parts on (including U6, the
 line 1 I/O expander) to a board ready to flash. Every part you add is through-hole. It's
@@ -68,18 +69,20 @@ on the back the two solder jumpers **JP2** and **JP3**.
 <table>
   <tr>
     <td width="50%"><img src="assets/photo-placeholder.svg" alt="The v6 board as it arrives, top"></td>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="The v6 board as it arrives, bottom"></td>
+    <td width="50%"><img src="pics/build-v6/00-back-unsoldered.jpg" alt="The back of a v6 board, with the module's pins pushed through and the JP2 and JP3 pads beside the module rows"></td>
   </tr>
   <tr>
     <td align="center">Top, as it arrives, U6 marked (<code>pics/build-v6/00-top.jpg</code>)</td>
-    <td align="center">Bottom, JP2 and JP3 circled (<code>pics/build-v6/00-bottom.jpg</code>)</td>
+    <td align="center">The back. JP2 and JP3 are the small pads labelled "Wide esp32 short / cut", between the module's rows (the module is already pushed through in this photo)</td>
   </tr>
 </table>
 
 ## Steps
 
-Lowest parts first, tallest last. For each part: push it in from the top, check it's flat
-and the right way round, solder one pin, check again, then solder the rest and trim.
+Lowest parts first, tallest last, is the easy order. The order isn't critical, though: the
+board in these photos had its module fitted first, and that works too. For each part: push it
+in from the top, check it's flat and the right way round, solder one pin, check again, then
+solder the rest and trim.
 
 ### Step 1: JP2 and JP3 (30-pin clone only)
 
@@ -112,15 +115,15 @@ Only if you want them. C10 and C11 are non-polarized and only matter with J7.
 
 **Polarized:** the band on the diode goes to the band end of the silkscreen.
 
-![Photo to take: D12 with its band visible](assets/photo-placeholder.svg)
-*D12 (`pics/build-v6/03-d12.jpg`)*
+![D12 at the left edge, band toward the top, leads not trimmed yet; the module is already in place](pics/build-v6/03-d12-module.jpg)
+*D12 at the left edge, leads not trimmed yet (this board had its module fitted first)*
 
 ### Step 4: J9, RJ12 jack for line 0
 
 It snaps in; check it sits flat before soldering.
 
-![Photo to take: J9 fitted](assets/photo-placeholder.svg)
-*J9 (`pics/build-v6/04-j9.jpg`)*
+![J9 at the front left corner, with the DC jack J1 also fitted](pics/build-v6/04-j9-j1.jpg)
+*J9, line 0's jack, at the front left (J1, the DC jack, is in too: step 12)*
 
 ### Step 5: J8, RJ12 jack for line 1 (two lines)
 
@@ -133,8 +136,8 @@ As J9.
 
 **Polarized:** the stripe (the negative, shorter lead) to the negative pad on the silkscreen.
 
-![Photo to take: C16, stripe and silkscreen visible](assets/photo-placeholder.svg)
-*C16 (`pics/build-v6/06-c16.jpg`)*
+![C16 fitted in the right-hand of the two 470 µF outlines, the line 1 outline beside it left empty](pics/build-v6/16-finished.jpg)
+*C16, in the outline marked "line 0". On a one-line board C17's outline beside it stays empty*
 
 ### Step 7: C17, 470 µF for line 1 (two lines)
 
@@ -151,11 +154,11 @@ straight, then the other end, then the rest.
 <table>
   <tr>
     <td width="50%"><img src="assets/photo-placeholder.svg" alt="AG1171 pin 1 marking"></td>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="U4 fitted"></td>
+    <td width="50%"><img src="pics/build-v6/08-u4.jpg" alt="U4, the line 0 SLIC, fitted along the left half of the board"></td>
   </tr>
   <tr>
     <td align="center">Pin 1 on the module and the board (<code>pics/build-v6/08-u4-pin1.jpg</code>)</td>
-    <td align="center">U4 fitted (<code>pics/build-v6/08-u4.jpg</code>)</td>
+    <td align="center">U4 fitted, in the "Line 0" outline</td>
   </tr>
 </table>
 
@@ -182,11 +185,11 @@ coin board's header, so the cable runs pin 1 to pin 1.
 
 <table>
   <tr>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="J11 fitted"></td>
+    <td width="50%"><img src="pics/build-v6/11-j11-j2.jpg" alt="J11, a white 5-pin JST header beside the module, and J2, the black 8-pin expansion header, fitted"></td>
     <td width="50%"><img src="assets/photo-placeholder.svg" alt="J11 with the coin board cable"></td>
   </tr>
   <tr>
-    <td align="center">J11 fitted (<code>pics/build-v6/11-j11.jpg</code>)</td>
+    <td align="center">J11 (white, beside the module) and J2 (black, step 13) fitted</td>
     <td align="center">With a cable plugged in (<code>pics/build-v6/11-j11-cable.jpg</code>)</td>
   </tr>
 </table>
@@ -195,19 +198,20 @@ coin board's header, so the cable runs pin 1 to pin 1.
 
 Recommended with the clone module. Use a hot iron; give the solder time to fill the slots.
 
-![Photo to take: J1 fitted](assets/photo-placeholder.svg)
-*J1 (`pics/build-v6/12-j1.jpg`)*
+J1 is beside the microSD socket: see the photo in step 4.
 
 ### Step 13: J2, expansion header (optional)
 
 For the Bluetooth board. Pin 1 matches the silkscreen; it carries **3.3 V**, as on v5.
 
-![Photo to take: J2 fitted, pin 1 visible](assets/photo-placeholder.svg)
-*J2 (`pics/build-v6/13-j2.jpg`)*
+J2 is the black header in the photo in step 11, along the "Bluetooth" row.
 
 ### Step 14: U1, the ESP32-C6 module
 
 The tallest part, so it goes last. Do the option for your module.
+
+![The back of the board with the module's pins pushed through, before soldering](pics/build-v6/14-module-back.jpg)
+*From the back, pins through and ready to solder: on the right, the module's pins sit in the row that fits its width*
 
 <table>
   <tr>
@@ -251,8 +255,8 @@ clone's 5V pins right.
    pins 1 (+5 V) and 6 (+3.3 V) to pin 7 (GND) are easy places to probe.
 4. **JP2/JP3** (clone): one side of each bridged, never both.
 
-![Photo to take: the meter on J10's +5 V and GND](assets/photo-placeholder.svg)
-*Checking +5 V to GND at J10 (`pics/build-v6/15-check.jpg`)*
+![The back of a finished one-line v6 board, every joint soldered and the leads trimmed](pics/build-v6/15-back-soldered.jpg)
+*The back of a finished one-line board: check every joint before power*
 
 ## 6. First power-on
 
@@ -263,8 +267,8 @@ Nothing plugged into the phone jacks or J11 yet.
 - Measure +5 V and 3.3 V (J10 pins 1 and 6): both within a few percent.
 - Then plug in a phone. It does nothing yet: there's no firmware.
 
-![Photo to take: the finished board](assets/photo-placeholder.svg)
-*The finished board (`pics/build-v6/16-finished.jpg`)*
+![A finished one-line v6 board: module, J11, D12, J9, J1, U4 and C16 fitted](pics/build-v6/16-finished.jpg)
+*A finished one-line v6 board*
 
 ---
 
