@@ -4,7 +4,7 @@
 
 From a board that arrives from the fab with its surface-mount parts on, to a board ready
 to flash. Every part you add is through-hole, so a regular soldering iron is enough. The
-same steps build a **v5.1**: the only difference is in [step 13](#step-13-u1-the-esp32-c6-module),
+same steps build a **v5.1**: the only difference is in [step 4](#step-4-u1-the-esp32-c6-module),
 where v5.1 needs no pin removed from a clone module.
 
 For where to buy each part, see the [parts list](bom.md). The shorter checklist version
@@ -34,7 +34,7 @@ Two choices decide which steps you do.
 | Module | Extra work |
 |--------|------------|
 | **Genuine ESP32-C6-DevKitC-1, 32 pins** (recommended) | none |
-| **30-pin clone** | move two solder jumpers (step 1); on v5 (not v5.1) remove one pin (step 13) |
+| **30-pin clone** | move two solder jumpers (step 1); on v5 (not v5.1) remove one pin (step 4) |
 
 ## 2. Tools
 
@@ -77,8 +77,9 @@ the two small solder jumpers **JP2** and **JP3**.
 
 ## Steps
 
-Lowest parts first, tallest last, so the board sits flat when it’s upside-down on the bench during soldering. For each part: push it in from the top, check it's flat and the right way round, solder one pin,
-check again, then solder the rest and trim the leads.
+Lowest parts first, tallest last, so the board sits flat when it's upside-down on the bench
+during soldering. For each part: push it in from the top, check it's flat and the right way
+round, solder one pin, check again, then solder the rest and trim the leads.
 
 ### Step 1: JP2 and JP3 (30-pin clone only)
 
@@ -102,109 +103,30 @@ JP3. Never leave both sides bridged: that shorts a codec pin to a USB data line.
 
 ### Step 2: J5, 2×4 header
 
-Short pins down, long pins up. Fitted on every build.
+Only needed on a dual-line board, or if you want to use the spare GPIO pins instead of the
+microSD card. Short pins down, long pins up.
 
-![Photo to take: J5 seated flat, from the side](assets/photo-placeholder.svg)
-*J5 fitted (`pics/build-v5/02-j5.jpg`)*
-
-### Step 3: optional low headers: J7, J3, J4, and C10/C11
-
-Only if you want them (see [components](#3-components-needed)). C10 and C11 are
-non-polarized and only matter with J7.
-
-![Photo to take: J7, C10 and C11 fitted](assets/photo-placeholder.svg)
-*J7 with C10 and C11 (`pics/build-v5/03-j7.jpg`)*
-
-### Step 4: D12, line TVS (optional, recommended)
+### Step 3: D12, line TVS diode (optional, recommended)
 
 **Polarized:** the band on the diode goes to the band end of the silkscreen. Bend the leads
-to the 10 mm hole spacing and lay it flat.
+to the 10 mm hole spacing and lay it flat. Clip the leads after soldering them on the back
+of the board.
 
-![D12 at the left edge of a v5 board, with C16 and the DC jack also fitted](pics/build-v5/11-j1-c16-d12.jpg)
-*D12 at the left edge, band at the silkscreen band (C16 and J1 are in too)*
+![D12 at the left edge of a v5 board, its band at the silkscreen band, beside J5](pics/build-v5/V5diode.jpeg)
+*D12 at the left edge, band at the silkscreen band*
 
-### Step 5: J9, RJ12 jack for line 0
+### Step 4: U1, the ESP32-C6 module
 
-It snaps into its holes. Check it sits flat against the board before soldering.
-
-![Photo to take: J9 fitted, from the front edge](assets/photo-placeholder.svg)
-*J9 (`pics/build-v5/05-j9.jpg`)*
-
-### Step 6: J8, RJ12 jack for line 1 (dual line)
-
-As J9.
-
-![Photo to take: J8 and J9 fitted](assets/photo-placeholder.svg)
-*J8 beside J9 (`pics/build-v5/06-j8.jpg`)*
-
-### Step 7: C16, 470 µF for line 0
-
-**Polarized:** the stripe on the can (the negative lead, also the shorter one) goes to the
-negative pad, marked on the silkscreen. Backwards, it can vent.
-
-C16 is the tall can in the photo in step 4, in the outline marked "line 0".
-
-### Step 8: C17, 470 µF for line 1 (dual line)
-
-As C16, same polarity care.
-
-![Photo to take: C16 and C17 fitted](assets/photo-placeholder.svg)
-*C17 (`pics/build-v5/08-c17.jpg`)*
-
-### Step 9: U4, AG1171 SLIC for line 0
-
-A 14-pin module that stands upright. **Match pin 1 to the silkscreen before soldering**:
-desoldering a 14-pin module is miserable. Solder one end pin, check it stands straight and
-square, then the other end, then the rest.
-
-<table>
-  <tr>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="AG1171 pin 1 marking"></td>
-    <td width="50%"><img src="pics/build-v5/09-u4.jpg" alt="U4, the line 0 SLIC, fitted in the Line 0 outline of a v5 board"></td>
-  </tr>
-  <tr>
-    <td align="center">Pin 1 on the module and the board (<code>pics/build-v5/09-u4-pin1.jpg</code>)</td>
-    <td align="center">U4 fitted in the "Line 0" outline</td>
-  </tr>
-</table>
-
-### Step 10: U3, AG1171 SLIC for line 1 (dual line)
-
-As U4.
-
-![Photo to take: U3 and U4 fitted](assets/photo-placeholder.svg)
-*Both SLICs (`pics/build-v5/10-u3.jpg`)*
-
-### Step 11: J1, DC jack (optional)
-
-Recommended with the clone module, whose USB-C port sits back from the board edge. Chunky
-pins: use a hot iron and give the solder a moment to flow into the slots.
-
-J1 is the black jack in the photo in step 4.
-
-### Step 12: J2, expansion header (optional)
-
-For the Bluetooth board, or your own. Pin 1 matches the silkscreen: a board plugged in
-rotated 180° shorts the 3.3 V regulator to ground.
-
-![Photo to take: J2 fitted, pin 1 marking visible](assets/photo-placeholder.svg)
-*J2, pin 1 marked (`pics/build-v5/12-j2.jpg`)*
-
-### Step 13: U1, the ESP32-C6 module
-
-The tallest part, so it goes last. Do the option for your module.
-
-![A module fitted on a v5 board, seen from the USB end](pics/build-v5/13-module.jpg)
-*A module fitted, seen from its USB end*
+Do the option for your ESP32 module.
 
 <table>
   <tr>
     <td width="50%"><img src="assets/photo-placeholder.svg" alt="Genuine 32-pin ESP32-C6-DevKitC-1"></td>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="30-pin clone"></td>
+    <td width="50%"><img src="pics/build-v5/v5-module-clone.jpg" alt="30-pin clone"></td>
   </tr>
   <tr>
     <td align="center">Option A: genuine DevKitC-1, 32 pins (<code>pics/build-v5/13-module-genuine.jpg</code>)</td>
-    <td align="center">Option B: 30-pin clone (<code>pics/build-v5/13-module-clone.jpg</code>)</td>
+    <td align="center">Option B: 30-pin clone (<code>pics/build-v5/v5-module-clone.jpg</code>)</td>
   </tr>
 </table>
 
@@ -216,6 +138,7 @@ The tallest part, so it goes last. Do the option for your module.
 2. Solder one pin at each far corner. Check the module sits flat and square against the
    board, and reheat a corner to adjust if not.
 3. Solder the rest.
+4. Check that every pin is soldered, on the top side and the bottom side.
 
 ![Photo to take: genuine module fitted](assets/photo-placeholder.svg)
 *Genuine module fitted (`pics/build-v5/13a-genuine-fitted.jpg`)*
@@ -224,28 +147,67 @@ The tallest part, so it goes last. Do the option for your module.
 
 Step 1 (JP2, JP3) must be done first.
 
-1. **v5 only, not v5.1: take out the clone's bottom-right 5V pin.** On a v5 board that pin
-   lands on GND. Cut it off the module flush, or leave it out of its hole unsoldered, so it
-   doesn't connect at all. The bottom-left 5V pin is then the module's only 5 V connection,
-   which is enough.
-2. Seat it as the silkscreen outline shows: on the right, its pins drop into the row of holes
-   that matches its width.
+1. **v5 only, not v5.1: take out the clone's bottom-right 5V pin.** A mistake in the v5
+   footprint puts that pin on GND (v5.1 fixes it, so there's nothing to remove). Cut it off
+   the module flush, or leave it out of its hole unsoldered, so it doesn't connect at all.
+   The bottom-left 5V pin is then the module's only 5 V connection, which is enough.
+2. Seat it as the silkscreen outline shows: **the module's top two pins hang off the top
+   edge of the board.**
 3. Solder one pin at each far corner, check it's flat and square, then solder the rest.
-4. **With the power off, check with the meter** that the module's 5V pin has no continuity
-   to GND. If it beeps, the 5V pin is still connected: power on and the 5 V rail is shorted.
+4. Check that every pin is soldered, on the top side and the bottom side.
+5. **With the power off, check with the meter** that the module's 5V pin has no continuity
+   to GND.
 
 <table>
   <tr>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="The clone's 5V pin to remove"></td>
+    <td width="50%"><img src="pics/build-v5/v5-module-clone.jpg" alt="The clone's 5V pin to remove"></td>
     <td width="50%"><img src="assets/photo-placeholder.svg" alt="Clone module fitted"></td>
   </tr>
   <tr>
     <td align="center">v5: the bottom-right 5V pin, removed (<code>pics/build-v5/13b-pin-removed.jpg</code>)</td>
-    <td align="center">Clone fitted (<code>pics/build-v5/13b-clone-fitted.jpg</code>)</td>
+    <td align="center">Clone fitted (<code>pics/build-v5/v5-module-clone.jpg</code>)</td>
   </tr>
 </table>
 
-### Step 14: J5 shunts
+### Step 5: J1, DC jack, and J2, Bluetooth header (optional)
+
+Place the DC jack in its holes and solder it from the back: chunky pins, so use a hot iron
+and give the solder a moment to flow into the slots. If you'll use the Bluetooth board, fit
+its header (J2) at the same time: with both in, the board sits more level while you solder.
+Pin 1 matches the silkscreen.
+
+![Photo to take: J1 and J2 fitted](assets/photo-placeholder.svg)
+*J1 and J2 (`pics/build-v5/v5dcJack.jpg`)*
+
+### Step 6: RJ12 jacks and 470 µF capacitors
+
+Place your RJ12 jacks: J9 for line 0, and J8 too for two lines. They snap in; check they sit
+flat before soldering. Then the 470 µF capacitors, C16 for line 0 and C17 for line 1. **They're
+polarized:** the negative side (the stripe, and the shorter lead) faces the white marking on
+the board. Line 0 and Line 1 are labelled, so for a one-line board just use the holes on the
+right.
+
+![Photo to take: J8 and J9 fitted](assets/photo-placeholder.svg)
+*J8 beside J9 (`pics/build-v5/06-j8.jpg`)*
+
+### Step 7: U4, AG1171 SLIC for line 0 (and U3 for line 1)
+
+A 14-pin module that stands upright. **Note which way it faces before soldering:** the
+module's circuit board goes on the RJ12 side of the pin holes, as in the picture.
+Desoldering a 14-pin module is miserable. Solder one end pin, check it stands straight and
+square, then the other end, then the rest. For two lines, fit U3 in the "Line 1" outline the
+same way.
+
+<table>
+  <tr>
+    <td width="50%"><img src="pics/build-v5/09-u4.jpg" alt="U4, the line 0 SLIC, fitted in the Line 0 outline of a v5 board"></td>
+  </tr>
+  <tr>
+    <td align="center">U4 fitted in the "Line 0" outline</td>
+  </tr>
+</table>
+
+### Step 8: J5 shunts
 
 - **Dual line:** fit all four shunts, across 1-2, 3-4, 5-6, 7-8.
 - **Single line + microSD** or **your own gadgets:** none. Never a mix.
@@ -270,14 +232,11 @@ Step 1 (JP2, JP3) must be done first.
    With a clone on v5, also the module's 5V pin to GND.
 4. **J5:** all four shunts for two lines, none otherwise.
 
-![Photo to take: the meter on the 5 V and GND test points](assets/photo-placeholder.svg)
-*Checking +5 V to GND (`pics/build-v5/15-check.jpg`)*
-
 ## 6. First power-on
 
 Nothing plugged into the phone jacks yet.
 
-- Power from USB-C (or the DC jack). The module's LED comes on, and nothing gets warm. If
+- Power from USB-C (or the DC jack with a regulated 5-6 V, 2 A supply). The module's LED comes on, and nothing gets warm. If
   anything does, unplug and go back to [section 5](#5-check-before-power).
 - Measure +5 V and 3.3 V: both within a few percent (from the DC jack, +5 V sits about
   0.4 V below the supply, after the OR diode).

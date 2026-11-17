@@ -79,10 +79,9 @@ on the back the two solder jumpers **JP2** and **JP3**.
 
 ## Steps
 
-Lowest parts first, tallest last, is the easy order. The order isn't critical, though: the
-board in these photos had its module fitted first, and that works too. For each part: push it
-in from the top, check it's flat and the right way round, solder one pin, check again, then
-solder the rest and trim.
+Lowest parts first, tallest last, so the board sits flat when it's upside-down on the bench
+during soldering. For each part: push it in from the top, check it's flat and the right way
+round, solder one pin, check again, then solder the rest and trim the leads.
 
 ### Step 1: JP2 and JP3 (30-pin clone only)
 
@@ -90,149 +89,56 @@ Skip this with the genuine 32-pin module.
 
 On the back, each jumper has three pads, with pads 1 and 2 joined by a thin trace. For a
 clone, **cut the trace between pads 1 and 2** with a craft knife, check with the meter that
-they no longer connect, then **bridge pads 2 and 3** with solder. Both jumpers. Never leave
-both sides bridged.
+they no longer connect, then **bridge pads 2 and 3** with a blob of solder. Do both, JP2 and
+JP3. Never leave both sides bridged: that shorts a codec pin to a USB data line.
 
 <table>
   <tr>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="JP2 and JP3 before"></td>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="JP2 and JP3 after"></td>
+    <td width="50%"><img src="pics/v6_esp32_solder_jumpers.png" alt="JP2 and JP3 before"></td>
+    <td width="50%"><img src="assets/photo-placeholder.svg" alt="JP2 and JP3 after the rework"></td>
   </tr>
   <tr>
-    <td align="center">Before: 1-2 joined (<code>pics/build-v6/01-jp-before.jpg</code>)</td>
+    <td align="center">Before: 1-2 joined (factory)</td>
     <td align="center">After: 1-2 cut, 2-3 bridged (<code>pics/build-v6/01-jp-after.jpg</code>)</td>
   </tr>
 </table>
 
-### Step 2: optional low headers: J7, J3, J4, and C10/C11
+### Step 2: D12, line TVS diode (optional, recommended)
 
-Only if you want them. C10 and C11 are non-polarized and only matter with J7.
-
-![Photo to take: J7, C10 and C11 fitted](assets/photo-placeholder.svg)
-*J7 with C10 and C11 (`pics/build-v6/02-j7.jpg`)*
-
-### Step 3: D12, line TVS (optional, recommended)
-
-**Polarized:** the band on the diode goes to the band end of the silkscreen.
+**Polarized:** the band on the diode goes to the band end of the silkscreen. Bend the leads
+to the 10 mm hole spacing and lay it flat. Clip the leads after soldering them on the back
+of the board.
 
 ![D12 at the left edge, band toward the top, leads not trimmed yet; the module is already in place](pics/build-v6/03-d12-module.jpg)
 *D12 at the left edge, leads not trimmed yet (this board had its module fitted first)*
 
-### Step 4: J9, RJ12 jack for line 0
+There's no J5 on v6, so there's no 2×4 header to fit: two lines, the microSD card and the
+spare pins (on J10) all work together.
 
-It snaps in; check it sits flat before soldering.
+### Step 3: U1, the ESP32-C6 module
 
-![J9 at the front left corner, with the DC jack J1 also fitted](pics/build-v6/04-j9-j1.jpg)
-*J9, line 0's jack, at the front left (J1, the DC jack, is in too: step 12)*
-
-### Step 5: J8, RJ12 jack for line 1 (two lines)
-
-As J9.
-
-![Photo to take: J8 and J9 fitted](assets/photo-placeholder.svg)
-*J8 beside J9 (`pics/build-v6/05-j8.jpg`)*
-
-### Step 6: C16, 470 µF for line 0
-
-**Polarized:** the stripe (the negative, shorter lead) to the negative pad on the silkscreen.
-
-![C16 fitted in the right-hand of the two 470 µF outlines, the line 1 outline beside it left empty](pics/build-v6/16-finished.jpg)
-*C16, in the outline marked "line 0". On a one-line board C17's outline beside it stays empty*
-
-### Step 7: C17, 470 µF for line 1 (two lines)
-
-As C16.
-
-![Photo to take: C16 and C17 fitted](assets/photo-placeholder.svg)
-*C17 (`pics/build-v6/07-c17.jpg`)*
-
-### Step 8: U4, AG1171 SLIC for line 0
-
-**Match pin 1 to the silkscreen before soldering.** Solder one end pin, check it stands
-straight, then the other end, then the rest.
-
-<table>
-  <tr>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="AG1171 pin 1 marking"></td>
-    <td width="50%"><img src="pics/build-v6/08-u4.jpg" alt="U4, the line 0 SLIC, fitted along the left half of the board"></td>
-  </tr>
-  <tr>
-    <td align="center">Pin 1 on the module and the board (<code>pics/build-v6/08-u4-pin1.jpg</code>)</td>
-    <td align="center">U4 fitted, in the "Line 0" outline</td>
-  </tr>
-</table>
-
-### Step 9: U3, AG1171 SLIC for line 1 (two lines)
-
-As U4. On v6 it's driven by U6 rather than ESP32 pins, so there's no jumper to set.
-
-![Photo to take: U3 and U4 fitted](assets/photo-placeholder.svg)
-*Both SLICs (`pics/build-v6/09-u3.jpg`)*
-
-### Step 10: J10, extra I/O (optional)
-
-JST XH, 7 pins. It's shaped so a plug goes in only one way: match the header to its
-silkscreen outline before soldering, or every cable will be reversed. Pin 1 is +5 V and
-pin 7 GND.
-
-![Photo to take: J10 fitted, outline and pin 1 visible](assets/photo-placeholder.svg)
-*J10 (`pics/build-v6/10-j10.jpg`)*
-
-### Step 11: J11, I²C accessory header (optional)
-
-JST XH, 5 pins, the same way as J10. Pin 1 is GND and pin 5 +5 V, the same numbering as the
-coin board's header, so the cable runs pin 1 to pin 1.
-
-<table>
-  <tr>
-    <td width="50%"><img src="pics/build-v6/11-j11-j2.jpg" alt="J11, a white 5-pin JST header beside the module, and J2, the black 8-pin expansion header, fitted"></td>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="J11 with the coin board cable"></td>
-  </tr>
-  <tr>
-    <td align="center">J11 (white, beside the module) and J2 (black, step 13) fitted</td>
-    <td align="center">With a cable plugged in (<code>pics/build-v6/11-j11-cable.jpg</code>)</td>
-  </tr>
-</table>
-
-### Step 12: J1, DC jack (optional)
-
-Recommended with the clone module. Use a hot iron; give the solder time to fill the slots.
-
-J1 is beside the microSD socket: see the photo in step 4.
-
-### Step 13: J2, expansion header (optional)
-
-For the Bluetooth board. Pin 1 matches the silkscreen; it carries **3.3 V**, as on v5.
-
-J2 is the black header in the photo in step 11, along the "Bluetooth" row.
-
-### Step 14: U1, the ESP32-C6 module
-
-The tallest part, so it goes last. Do the option for your module.
-
-![The back of the board with the module's pins pushed through, before soldering](pics/build-v6/14-module-back.jpg)
-*From the back, pins through and ready to solder: on the right, the module's pins sit in the row that fits its width*
+Do the option for your ESP32 module.
 
 <table>
   <tr>
     <td width="50%"><img src="assets/photo-placeholder.svg" alt="Genuine 32-pin ESP32-C6-DevKitC-1"></td>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="30-pin clone"></td>
+    <td width="50%"><img src="pics/build-v6/14-module-back.jpg" alt="The back of the board with the module's pins pushed through, before soldering"></td>
   </tr>
   <tr>
     <td align="center">Option A: genuine DevKitC-1, 32 pins (<code>pics/build-v6/14-module-genuine.jpg</code>)</td>
-    <td align="center">Option B: 30-pin clone (<code>pics/build-v6/14-module-clone.jpg</code>)</td>
+    <td align="center">From the back, pins through and ready to solder</td>
   </tr>
 </table>
 
 #### Option A: genuine ESP32-C6-DevKitC-1 (32 pins)
 
-1. Seat it as the silkscreen outline shows. The footprint takes both modules: the left row
-   of holes is shared, and on the right there are two rows, one for each module's width, so
-   the pins only drop in where they fit.
-2. Solder one pin at each far corner, check it sits flat and square, then solder the rest.
-
-![Photo to take: genuine module fitted](assets/photo-placeholder.svg)
-*Genuine module fitted (`pics/build-v6/14a-genuine-fitted.jpg`)*
+1. Seat it as the silkscreen outline shows. The footprint
+   takes both modules: the left row of holes is shared, and on the right there are two rows,
+   one for each module's width, so the pins only drop in where they fit.
+2. Solder one pin at each far corner. Check the module sits flat and square against the
+   board, and reheat a corner to adjust if not.
+3. Solder the rest.
+4. Check that every pin is soldered, on the top side and the bottom side.
 
 #### Option B: 30-pin clone
 
@@ -242,9 +148,62 @@ clone's 5V pins right.
 1. Seat it as the silkscreen outline shows: on the right, its pins drop into the row of holes
    that matches its width.
 2. Solder one pin at each far corner, check it's flat and square, then solder the rest.
+3. Check that every pin is soldered, on the top side and the bottom side.
 
-![Photo to take: clone module fitted](assets/photo-placeholder.svg)
-*Clone fitted (`pics/build-v6/14b-clone-fitted.jpg`)*
+### Step 4: J1, DC jack, J2, Bluetooth header, and J10/J11, JST headers (optional)
+
+Place the DC jack in its holes and solder it from the back: chunky pins, so use a hot iron
+and give the solder a moment to flow into the slots. If you'll use the Bluetooth board, fit
+its header (J2) at the same time: with both in, the board sits more level while you solder.
+Pin 1 matches the silkscreen; it carries **3.3 V**, as on v5.
+
+The two white JST headers go in now too, if you want them:
+
+- **J10**, 7 pins, extra I/O. Pin 1 is +5 V and pin 7 GND.
+- **J11**, 5 pins, the I²C accessory header for the payphone coin board. Pin 1 is GND and pin
+  5 +5 V, the same numbering as the coin board's header, so the cable runs pin 1 to pin 1.
+
+Both are shaped so a plug goes in only one way: match each header to its silkscreen outline
+before soldering, or every cable will be reversed.
+
+<table>
+  <tr>
+    <td width="50%"><img src="pics/build-v6/11-j11-j2.jpg" alt="J11, a white 5-pin JST header beside the module, and J2, the black 8-pin expansion header, fitted"></td>
+    <td width="50%"><img src="pics/build-v6/04-j9-j1.jpg" alt="J1, the DC jack, beside the microSD socket, with J9 also fitted"></td>
+  </tr>
+  <tr>
+    <td align="center">J11 (white, beside the module) and J2 (black)</td>
+    <td align="center">J1, the DC jack, beside the microSD socket (J9 is in too: step 5)</td>
+  </tr>
+</table>
+
+### Step 5: RJ12 jacks and 470 µF capacitors
+
+Place your RJ12 jacks: J9 for line 0, and J8 too for two lines. They snap in; check they sit
+flat before soldering. Then the 470 µF capacitors, C16 for line 0 and C17 for line 1. **They're
+polarized:** the negative side (the stripe, and the shorter lead) faces the white marking on
+the board. Line 0 and Line 1 are labelled, so for a one-line board just use the holes on the
+right.
+
+![C16 fitted in the right-hand of the two 470 µF outlines, the line 1 outline beside it left empty; J9 at the front left](pics/build-v6/16-finished.jpg)
+*J9 at the front left, and C16 in the outline marked "line 0"; C17's outline beside it stays empty on a one-line board*
+
+### Step 6: U4, AG1171 SLIC for line 0 (and U3 for line 1)
+
+A 14-pin module that stands upright. **Note which way it faces before soldering:** the
+module's circuit board goes on the RJ12 side of the pin holes, as in the picture.
+Desoldering a 14-pin module is miserable. Solder one end pin, check it stands straight and
+square, then the other end, then the rest. For two lines, fit U3 in the "Line 1" outline the
+same way: on v6 it's driven by U6, so there's no jumper to set.
+
+<table>
+  <tr>
+    <td width="50%"><img src="pics/build-v6/08-u4.jpg" alt="U4, the line 0 SLIC, fitted along the left half of the board"></td>
+  </tr>
+  <tr>
+    <td align="center">U4 fitted in the "Line 0" outline</td>
+  </tr>
+</table>
 
 ## 5. Check before power
 
@@ -262,7 +221,7 @@ clone's 5V pins right.
 
 Nothing plugged into the phone jacks or J11 yet.
 
-- Power from USB-C (or the DC jack). The module's LED comes on, and nothing gets warm. If
+- Power from USB-C (or the DC jack with a regulated 5-6 V, 2 A supply). The module's LED comes on, and nothing gets warm. If
   anything does, unplug and go back to [section 5](#5-check-before-power).
 - Measure +5 V and 3.3 V (J10 pins 1 and 6): both within a few percent.
 - Then plug in a phone. It does nothing yet: there's no firmware.
