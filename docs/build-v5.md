@@ -73,23 +73,11 @@ microSD socket and the regulator. Find U1's outline, the two SLIC outlines, and 
 the two small solder jumpers **JP2** and **JP3**.
 
 ![A v5 board as it arrives, with the parts for a one-line build beside it: the module, D12, C16, J9 and the AG1171 SLIC](pics/build-v5/00-parts.jpg)
-*A v5 board as it arrives, with the parts for a one-line build: the module, D12, C16, J9, the SLIC*
-
-<table>
-  <tr>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="The v5 board as it arrives, top"></td>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="The v5 board as it arrives, bottom"></td>
-  </tr>
-  <tr>
-    <td align="center">Top, as it arrives (<code>pics/build-v5/00-top.jpg</code>)</td>
-    <td align="center">Bottom, JP2 and JP3 circled (<code>pics/build-v5/00-bottom.jpg</code>)</td>
-  </tr>
-</table>
+*A v5 board as it arrives, with the parts for a one-line build: the module, the diode D12, 470uF cap C16, RJ12 J9, the AG1171 SLIC*
 
 ## Steps
 
-Lowest parts first, tallest last, so the board sits flat on the bench while you work. For
-each part: push it in from the top, check it's flat and the right way round, solder one pin,
+Lowest parts first, tallest last, so the board sits flat when it’s upside-down on the bench during soldering. For each part: push it in from the top, check it's flat and the right way round, solder one pin,
 check again, then solder the rest and trim the leads.
 
 ### Step 1: JP2 and JP3 (30-pin clone only)
