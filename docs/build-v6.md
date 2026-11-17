@@ -145,8 +145,9 @@ Do the option for your ESP32 module.
 Step 1 (JP2, JP3) must be done first. **No pin is removed on v6**: its footprint has the
 clone's 5V pins right.
 
-1. Seat it as the silkscreen outline shows: on the right, its pins drop into the row of holes
-   that matches its width.
+1. Seat it as the silkscreen outline shows: **the module's top two pins hang off the top
+   edge of the board.** On the right, its pins drop into the row of holes that matches its
+   width.
 2. Solder one pin at each far corner, check it's flat and square, then solder the rest.
 3. Check that every pin is soldered, on the top side and the bottom side.
 

@@ -169,7 +169,17 @@ Step 1 (JP2, JP3) must be done first.
   </tr>
 </table>
 
-### Step 5: J1, DC jack, and J2, Bluetooth header (optional)
+### Step 5: J5 jumpers
+
+Set the build with jumper shunts on J5:
+
+- **Dual line:** fit all four shunts, across 1-2, 3-4, 5-6, 7-8.
+- **Single line + microSD** or **your own gadgets:** none. Never a mix.
+
+![Photo to take: J5 with four shunts fitted](assets/photo-placeholder.svg)
+*J5 with four shunts, for a dual-line board (`pics/build-v5/05-j5-jumpers.jpg`)*
+
+### Step 6: J1, DC jack, and J2, Bluetooth header (optional)
 
 Place the DC jack in its holes and solder it from the back: chunky pins, so use a hot iron
 and give the solder a moment to flow into the slots. If you'll use the Bluetooth board, fit
@@ -179,7 +189,7 @@ Pin 1 matches the silkscreen.
 ![Photo to take: J1 and J2 fitted](assets/photo-placeholder.svg)
 *J1 and J2 (`pics/build-v5/v5dcJack.jpg`)*
 
-### Step 6: RJ12 jacks and 470 µF capacitors
+### Step 7: RJ12 jacks and 470 µF capacitors
 
 Place your RJ12 jacks: J9 for line 0, and J8 too for two lines. They snap in; check they sit
 flat before soldering. Then the 470 µF capacitors, C16 for line 0 and C17 for line 1. **They're
@@ -190,7 +200,7 @@ right.
 ![Photo to take: J8 and J9 fitted](assets/photo-placeholder.svg)
 *J8 beside J9 (`pics/build-v5/06-j8.jpg`)*
 
-### Step 7: U4, AG1171 SLIC for line 0 (and U3 for line 1)
+### Step 8: U4, AG1171 SLIC for line 0 (and U3 for line 1)
 
 A 14-pin module that stands upright. **Note which way it faces before soldering:** the
 module's circuit board goes on the RJ12 side of the pin holes, as in the picture.
@@ -204,22 +214,6 @@ same way.
   </tr>
   <tr>
     <td align="center">U4 fitted in the "Line 0" outline</td>
-  </tr>
-</table>
-
-### Step 8: J5 shunts
-
-- **Dual line:** fit all four shunts, across 1-2, 3-4, 5-6, 7-8.
-- **Single line + microSD** or **your own gadgets:** none. Never a mix.
-
-<table>
-  <tr>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="J5 with four shunts"></td>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="J5 with no shunts"></td>
-  </tr>
-  <tr>
-    <td align="center">Dual line: four shunts (<code>pics/build-v5/14-j5-dual.jpg</code>)</td>
-    <td align="center">Single line: none (<code>pics/build-v5/14-j5-single.jpg</code>)</td>
   </tr>
 </table>
 
