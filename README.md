@@ -56,13 +56,14 @@ You can do a lot with VoIP adapters and an Asterisk server, but this system can 
 ## System overview
 
 <p align="center">
-  <img src="docs/assets/setup-overview-top-web.png" alt="Everything the Analog Redial board can connect to: one phone always, then a second phone line or a microSD card or your own gadgets on four spare pins chosen with the J5 jumpers; Wi-Fi to the web interface, other Analog Redial boards, a VoIP server and Home Assistant; and Bluetooth to a cell phone through an extra adapter board">
+  <img src="docs/assets/setup-overview-top-web.png" alt="Everything the Analog Redial v6 board can connect to: one phone always, then a second phone line, a microSD card and four spare pins on J10, all at once with nothing to select; Wi-Fi to the web interface, other Analog Redial boards, a VoIP server and Home Assistant; and Bluetooth to a cell phone through an extra adapter board">
 </p>
 
 Every network option runs on the board's own Wi-Fi, with nothing to add.
 Bluetooth is the only one that needs an extra board.
-The diagram shows v4/v5, where the J5 jumpers pick a second line, microSD or
-spare pins; on v6 all three work at once.
+The diagram is for the v6 board, where a second line, microSD and four spare
+pins all work at once. On v4 and v5 the J5 jumpers pick one of the three:
+[the v4 / v5 version](docs/assets/setup-overview-v5-top-web.png).
 
 ### The finer print
 

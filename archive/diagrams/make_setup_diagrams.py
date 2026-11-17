@@ -341,7 +341,15 @@ OPTIONS_SIDE = [
 
 DW, DH = 720, 780    # design size of the diagram itself, before any scaling
 
-PILL_COLORS = {"ALWAYS": OLIVE_D, "PICK ONE": OLIVE_D, "BUILT-IN WI-FI": BROWN_D, "EXTRA BOARD": AMBER_D}
+# v6: the three wired options all work together (an I2C expander drives line 2, the
+# microSD card has its own pins, the four spare pins are on J10): nothing to pick.
+OPTIONS_V6 = [
+    ("line-2", "phone", 0.62, "Second phone line", "a second analog phone", "Fit U3, J8 and C17"),
+    ("microsd", "sd-card", 1.0, "microSD card", "recordings and clips", "Put a card in"),
+    ("pins", "pin-outputs", 1.0, "Four spare pins", "relay, light, buzzer", "Wire them to J10"),
+]
+
+PILL_COLORS = {"ALWAYS": OLIVE_D, "PICK ONE": OLIVE_D, "ALL AT ONCE": OLIVE_D, "BUILT-IN WI-FI": BROWN_D, "EXTRA BOARD": AMBER_D}
 
 
 def pill_markup(cx: float, cy: float, label: str, color: str) -> str:
@@ -386,10 +394,14 @@ def wifi_to_board(s: Scene, cx: float, bar_bottom: float, board_top: float) -> N
           + PARTS_DEF["wifi"][3], cx - 30, bar_bottom + 12)
 
 
-def compose_overview_content() -> Scene:
+def overview_title(v6: bool) -> str:
+    return "Everything the v6 board can connect to" if v6 else "Everything the v4 / v5 board can connect to"
+
+
+def compose_overview_content(v6: bool = False) -> Scene:
     """Side layout: options in cards on the right, Bluetooth below the board."""
     s = Scene(DW, DH)
-    s.text("title", "Everything the board can connect to", 360, 24, 21, 700, INK)
+    s.text("title", overview_title(v6), 360, 24, 21, 700, INK)
     s.text("subtitle", "Every network option works on the same board. Only Bluetooth needs an extra board.",
            360, 48, 14, 400, TEXT)
     bar_bottom = services_row(s, DW, (90, 270, 450, 630))
@@ -411,12 +423,16 @@ def compose_overview_content() -> Scene:
     cx0 = DW - card_w
     top = by
     spine_x = bx + 237 + 31
-    s.text("pick-one-heading-1", "Four spare pins, one job at a time:", cx0 + card_w / 2, top - 32, 13, 700, INK)
-    s.text("pick-one-heading-2", "the jumpers pick.", cx0 + card_w / 2, top - 14, 13, 400, TEXT)
+    if v6:
+        s.text("pick-one-heading-1", "All three work together:", cx0 + card_w / 2, top - 32, 13, 700, INK)
+        s.text("pick-one-heading-2", "nothing to pick, no jumpers.", cx0 + card_w / 2, top - 14, 13, 400, TEXT)
+    else:
+        s.text("pick-one-heading-1", "Four spare pins, one job at a time:", cx0 + card_w / 2, top - 32, 13, 700, INK)
+        s.text("pick-one-heading-2", "the jumpers pick.", cx0 + card_w / 2, top - 14, 13, 400, TEXT)
     s.line("link-options", "Wire to the option cards", bx + 237, jack_y, spine_x, jack_y, OLIVE)
     s.line("link-options-spine", "Spine", spine_x, top + card_h / 2, spine_x,
            top + 2 * (card_h + gap) + card_h / 2, OLIVE)
-    for i, (key, partname, k, title, sub, action) in enumerate(OPTIONS_SIDE):
+    for i, (key, partname, k, title, sub, action) in enumerate(OPTIONS_V6 if v6 else OPTIONS_SIDE):
         y = top + i * (card_h + gap)
         s.line(f"stub-{key}", f"Wire to {title}", spine_x, y + card_h / 2, cx0, y + card_h / 2, OLIVE)
         w, h, _, body = PARTS_DEF[partname]
@@ -427,7 +443,7 @@ def compose_overview_content() -> Scene:
               f'<text x="82" y="51" font-size="12" fill="{TEXT}">{sub}</text>'
               f'<text x="82" y="72" font-size="12" font-weight="700" fill="{OLIVE_D}">{action}</text>', cx0, y)
         if i < 2:
-            s.text(f"or-{i + 1}", "or", spine_x + 62, y + card_h + gap / 2 + 4, 11, 700, OLIVE_D)
+            s.text(f"or-{i + 1}", "and" if v6 else "or", spine_x + 62, y + card_h + gap / 2 + 4, 11, 700, OLIVE_D)
 
     # Bluetooth: an extra board plugged into the header under the board, then the cell phone
     ax, ay = cx_board - 75, by + 170
@@ -452,11 +468,14 @@ def compose_overview_content() -> Scene:
 DW2, DH2 = 780, 858
 
 
-def compose_overview_top_content() -> Scene:
+DH2_V6 = DH2 - 72    # no J5 drawings under the options
+
+
+def compose_overview_top_content(v6: bool = False) -> Scene:
     """Top layout: Wi-Fi services on top, the three wired options below the
     board, Bluetooth out to the right."""
-    s = Scene(DW2, DH2)
-    s.text("title", "Everything the board can connect to", DW2 / 2, 24, 21, 700, INK)
+    s = Scene(DW2, DH2_V6 if v6 else DH2)
+    s.text("title", overview_title(v6), DW2 / 2, 24, 21, 700, INK)
     s.text("subtitle", "Every network option works on the same board. Only Bluetooth needs an extra board.",
            DW2 / 2, 48, 14, 400, TEXT)
     bar_bottom = services_row(s, DW2, (100, 293, 487, 680))
@@ -497,25 +516,38 @@ def compose_overview_top_content() -> Scene:
     s.add("options-bar", "Wired option bar",
           f'<rect x="0" y="{opt_bar_y}" width="{DW2}" height="36" rx="18" fill="{PAPER}" stroke="{PAPER_D}" stroke-width="2"/>'
           f'<text x="{DW2 / 2}" y="{opt_bar_y + 23}" text-anchor="middle" font-size="14" font-weight="600" '
-          f'fill="{BROWN_D}">Four spare pins, one job at a time: the jumpers pick.</text>')
-    s.add("tag-pick-one", "tag: PICK ONE",
-          pill_markup(70, opt_bar_y + 18, "PICK ONE", PILL_COLORS["PICK ONE"])[0])
+          f'fill="{BROWN_D}">' + ("All three work together: nothing to pick, no jumpers to set."
+                                   if v6 else "Four spare pins, one job at a time: the jumpers pick.") + '</text>')
+    tag = "ALL AT ONCE" if v6 else "PICK ONE"
+    s.add("tag-pick-one", f"tag: {tag}", pill_markup(82 if v6 else 70, opt_bar_y + 18, tag, PILL_COLORS[tag])[0])
     jy = opt_bar_y + 36 + 26
-    icon_top = jy + 62 + 30
-    for (key, partname, _, title, sub, _a), (k, cx) in zip(OPTIONS_SIDE, ((0.78, 130), (1.45, 390), (1.3, 650))):
+    icon_top = jy + (24 if v6 else 62 + 30)
+    v6_caps = {"line-2": "U3, J8 and C17 fitted", "microsd": "card in the slot", "pins": "wires on J10"}
+    for (key, partname, _, title, sub, _a), (k, cx) in zip(OPTIONS_V6 if v6 else OPTIONS_SIDE,
+                                                           ((0.78, 130), (1.45, 390), (1.3, 650))):
         w, h, _, body = PARTS_DEF[partname]
         jname, jcap = j5_for[key]
-        s.line(f"link-{key}", f"Link to {title}", cx, opt_bar_y + 36, cx, jy + 4, OLIVE)
-        s.place(f"j5-{key}", jname, cx - 50, jy)
-        s.text(f"j5-caption-{key}", jcap, cx, jy + 62 + 14, 12, 700, OLIVE_D)
+        if v6:
+            s.line(f"link-{key}", f"Link to {title}", cx, opt_bar_y + 36, cx, icon_top - 6, OLIVE)
+        else:
+            s.line(f"link-{key}", f"Link to {title}", cx, opt_bar_y + 36, cx, jy + 4, OLIVE)
+            s.place(f"j5-{key}", jname, cx - 50, jy)
+            s.text(f"j5-caption-{key}", jcap, cx, jy + 62 + 14, 12, 700, OLIVE_D)
         ix, iy = cx - w * k / 2, icon_top + (62 - h * k) / 2
         s.add(f"option-{key}", title, f'<g transform="scale({k:g})">{body}</g>', ix, iy)
         s.text(f"label-{key}", title, cx, icon_top + 62 + 24, 15, 600, INK)
         s.text(f"desc-{key}", sub, cx, icon_top + 62 + 42, 12, 400, TEXT)
-    s.text("or-1", "or", 260, icon_top + 31 + 5, 14, 700, OLIVE_D)
-    s.text("or-2", "or", 520, icon_top + 31 + 5, 14, 700, OLIVE_D)
+        if v6:
+            s.text(f"v6-caption-{key}", v6_caps[key], cx, icon_top + 62 + 60, 12, 700, OLIVE_D)
+    word = "and" if v6 else "or"
+    s.text("or-1", word, 260, icon_top + 31 + 5, 14, 700, OLIVE_D)
+    s.text("or-2", word, 520, icon_top + 31 + 5, 14, 700, OLIVE_D)
     return s
 
+
+LEGEND_V6_PICK = ("ALL AT ONCE", "On v6 a second phone line, a microSD card and four spare pins (header J10) all work "
+                  "together: nothing to pick and no jumpers to set. Fit the second line's parts, put a card in the "
+                  "slot, and wire a relay, light or buzzer to J10, in any combination.")
 
 LEGEND = [
     ("ALWAYS", "One analog phone, wired to the board. It works with no network at all: dial tone, "
@@ -565,12 +597,12 @@ def j5_strip(x: float, y: float, step: float, k: float = 0.78) -> tuple[str, flo
 
 
 def legend_markup(x: float, y: float, chars: int, size: float = 13,
-                  inline: bool = False, j5: bool = True) -> tuple[str, float]:
+                  inline: bool = False, j5: bool = True, v6: bool = False) -> tuple[str, float]:
     """The key. Stacked (tag above its paragraph) for a narrow column, or
     inline (tag left, paragraph right) for a full-width band. Returns
     (markup, height)."""
     out, cy = [], y
-    for tag, text in LEGEND:
+    for tag, text in [LEGEND_V6_PICK if (v6 and t == "PICK ONE") else (t, x_) for t, x_ in LEGEND]:
         pw = 22 + 7.3 * len(tag)
         mk, _ = pill_markup(x + pw / 2, cy + 11, tag, PILL_COLORS[tag])
         out.append(f'<g id="legend-{tag.lower().replace(" ", "-")}" inkscape:label="legend: {tag}">{mk}')
@@ -596,14 +628,15 @@ SCALES = {   # per layout: (landscape k, portrait k)
 }
 
 
-def build_overview(kind: str, layout: str = "side", with_legend: bool = True) -> tuple[str, int, int]:
+def build_overview(kind: str, layout: str = "side", with_legend: bool = True,
+                   v6: bool = False) -> tuple[str, int, int]:
     if layout == "side":
-        content, dw, dh = compose_overview_content(), DW, DH
+        content, dw, dh = compose_overview_content(v6), DW, DH
     else:
-        content, dw, dh = compose_overview_top_content(), DW2, DH2
+        content, dw, dh = compose_overview_top_content(v6), DW2, (DH2_V6 if v6 else DH2)
     body = "\n".join(content.items)
     k_land, k_port = SCALES[layout]
-    j5 = layout == "side"        # the top layout draws J5 under each option itself
+    j5 = layout == "side" and not v6   # the top layout draws J5 under each option itself; v6 has no J5
     legend = ""
     if kind == "web":
         # For embedding in a web page (the README): no legend, tight margins,
@@ -629,24 +662,26 @@ def build_overview(kind: str, layout: str = "side", with_legend: bool = True) ->
         k = k_land
         ox, oy = 28, (H - dh * k) / 2
         lx = ox + dw * k + 30
-        _, lh = legend_markup(lx, 0, 36, 13, j5=j5)
+        _, lh = legend_markup(lx, 0, 36, 13, j5=j5, v6=v6)
         ly = min(oy + 26, H - 18 - lh)        # pull the key up if it would run off the page
-        legend, _ = legend_markup(lx, max(18, ly), 36, 13, j5=j5)
+        legend, _ = legend_markup(lx, max(18, ly), 36, 13, j5=j5, v6=v6)
     elif kind == "letter-portrait":       # 8.5 x 11 in at 96 dpi
         W, H = 816, 1056
-        _, lh = legend_markup(48, 0, 74, 13, inline=True, j5=j5)
+        _, lh = legend_markup(48, 0, 74, 13, inline=True, j5=j5, v6=v6)
         k = min(k_port, (H - 28 - 20 - lh - 16) / dh)   # shrink the diagram to make room for the key
         ox, oy = (W - dw * k) / 2, 28
-        legend, _ = legend_markup(48, oy + dh * k + 20, 74, 13, inline=True, j5=j5)
+        legend, _ = legend_markup(48, oy + dh * k + 20, 74, 13, inline=True, j5=j5, v6=v6)
     else:
         raise ValueError(kind)
     diagram = (f'<g id="diagram" inkscape:label="Diagram" '
                f'transform="translate({ox:g},{oy:g}) scale({k:g})">\n{body}\n</g>')
     if legend:
         diagram += f'\n<g id="legend" inkscape:label="Legend">\n{legend}\n</g>'
+    wired = ("a second phone line, a microSD card and four spare pins on J10, all at once with nothing to select"
+             if v6 else "a second line or a microSD card or your own gadgets on four spare pins, chosen with the J5 jumpers")
     doc = svg_doc(W, H, diagram,
-                  "Everything the Analog Redial board can connect to: one phone always, then a second line or a "
-                  "microSD card or your own gadgets on four spare pins, chosen with the J5 jumpers; Wi-Fi to the web interface, other Analog Redial boards, a VoIP "
+                  f"Everything the Analog Redial {'v6' if v6 else 'v4 / v5'} board can connect to: one phone always, then {wired}; "
+                  "Wi-Fi to the web interface, other Analog Redial boards, a VoIP "
                   "server and Home Assistant; and Bluetooth through an extra adapter board", bg=True)
     return doc, W, H
 
@@ -668,15 +703,17 @@ def main() -> None:
     out.write_text(scene.svg("Two phone lines on an Analog Redial board, with Bluetooth to a cell phone, "
                              "and Wi-Fi to the web interface, a VoIP server and Home Assistant"))
     export_png(out, out.with_suffix(".png"))
-    for layout, prefix in (("side", "setup-overview"), ("top", "setup-overview-top")):
+    # v6 gets the plain names (the default); the v4 / v5 diagram, where the J5 jumpers pick, is -v5-
+    for layout, prefix, v6 in (("side", "setup-overview", True), ("top", "setup-overview-top", True),
+                               ("side", "setup-overview-v5", False), ("top", "setup-overview-v5-top", False)):
         for kind in ("docs", "letter-landscape", "letter-portrait", "web"):
-            doc, W, H = build_overview(kind, layout)
+            doc, W, H = build_overview(kind, layout, v6=v6)
             path = ASSETS / f"{prefix}-{kind}.svg"
             path.write_text(doc)
             export_png(path, path.with_suffix(".png"))
             print(f"  {path.name}  {W} x {H}")
             if kind not in ("docs", "web"):     # those two have no legend to begin with
-                doc, W, H = build_overview(kind, layout, with_legend=False)
+                doc, W, H = build_overview(kind, layout, with_legend=False, v6=v6)
                 path = ASSETS / f"{prefix}-{kind}-notext.svg"
                 path.write_text(doc)
                 export_png(path, path.with_suffix(".png"))
