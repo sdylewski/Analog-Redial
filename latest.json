@@ -1,0 +1,48 @@
+{
+  "version": "v1.3.3",
+  "released": "2026-11-16",
+  "notes": "New dial logo and browser tab icon (olive, or blue for payphones, in Settings -> General), Diagnostics cards laid out side by side.",
+  "base": "https://raw.githubusercontent.com/sdylewski/Analog-Redial/firmware/",
+  "images": {
+    "smd4/16MB": {
+      "file": "v1.3.3/smd4-16MB.bin",
+      "size": 2201728,
+      "sha256": "db82195ce8233591711f4a4a63682fc52f82f5fe7ae91a2f11cec151391e712f"
+    },
+    "smd5/16MB": {
+      "file": "v1.3.3/smd5-16MB.bin",
+      "size": 2201296,
+      "sha256": "faa0b2a3b151128350c3af161d4a6cbe5bb006f5abb39c825460e3ab3beafa08"
+    },
+    "smd6/16MB": {
+      "file": "v1.3.3/smd6-16MB.bin",
+      "size": 2207232,
+      "sha256": "e932426074a3e469216961f5e4a5950267abfddb186370b10bab3021c6efd25c"
+    },
+    "smd2/16MB": {
+      "file": "v1.3.3/smd2-16MB.bin",
+      "size": 2180496,
+      "sha256": "043eebe7ca2d5ba7078607e271266bf3e0723367bda53d8f62a31cbd875f1adf"
+    },
+    "smd4/8MB": {
+      "file": "v1.3.3/smd4-8MB.bin",
+      "size": 2201712,
+      "sha256": "c8e02139e664d0bf4f45fe852b40cdea8b1771f620dd90484d2f4550fc3fb56e"
+    },
+    "smd5/8MB": {
+      "file": "v1.3.3/smd5-8MB.bin",
+      "size": 2201296,
+      "sha256": "4318e5babfc473a669ddecea489d3ccf72160b6b8706798a6ccc9dfd35630cca"
+    },
+    "smd6/8MB": {
+      "file": "v1.3.3/smd6-8MB.bin",
+      "size": 2207216,
+      "sha256": "df73d0d7d2216fedbe7198069838d0017273abbb3b8be6d4cd2be0a21e929677"
+    },
+    "smd2/8MB": {
+      "file": "v1.3.3/smd2-8MB.bin",
+      "size": 2180496,
+      "sha256": "384763d27727b724df3e4be0a26530ddfc3590fb513f5ab2aff94502667ecb90"
+    }
+  }
+}
