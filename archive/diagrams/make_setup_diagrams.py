@@ -185,6 +185,29 @@ part("pin-outputs", 44, 48, "Your own gadgets (relay, light, buzzer) on the spar
   <circle cx="28" cy="41" r="3" fill="{AMBER}"/><circle cx="38" cy="41" r="3" fill="{AMBER}"/>
   <path d="M 22 28 V 34" stroke="{BROWN}" stroke-width="3"/>''')
 
+part("board-v6", 270, 240, "Analog Redial v6 board: two phone jacks, microSD slot, J10 and J11 on the bottom edge", f'''
+  <rect id="pcb" x="0" y="0" width="270" height="240" rx="10" fill="{INK}"/>
+  <rect id="jack-line-1" x="-7" y="42" width="10" height="26" rx="2" fill="{BROWN}"/>
+  <rect id="jack-line-2" x="-7" y="172" width="10" height="26" rx="2" fill="{BROWN}"/>
+  <rect id="options-connector" x="267" y="107" width="10" height="26" rx="2" fill="{BROWN}"/>
+  <rect id="j10" x="35" y="236" width="30" height="12" rx="2" fill="{BROWN}"/>
+  <rect id="j11" x="205" y="236" width="30" height="12" rx="2" fill="{BROWN}"/>
+  <circle id="led-1" cx="30" cy="18" r="4" fill="{AMBER}"/><circle id="led-2" cx="46" cy="18" r="4" fill="{OLIVE}"/>
+  <text x="135" y="122" text-anchor="middle" font-size="17" font-weight="600" fill="{CREAM}">ANALOG REDIAL</text>
+  <text x="135" y="144" text-anchor="middle" font-size="12" fill="{TAN}">Wi-Fi built in</text>
+  <text x="50" y="226" text-anchor="middle" font-size="10" font-weight="600" fill="{TAN}">J10</text>
+  <text x="220" y="226" text-anchor="middle" font-size="10" font-weight="600" fill="{TAN}">J11</text>
+  <rect id="sd-slot" x="198" y="-2" width="44" height="16" rx="2" fill="{BROWN}"/>
+  <g id="sd-card" transform="translate(202,-12)">{PARTS_DEF["sd-card"][3]}</g>
+''')
+
+part("i2c-board", 60, 62, "I2C accessory board (payphone coin board, sensors)", f'''
+  <rect id="plug" x="20" y="0" width="20" height="10" rx="2" fill="{BROWN}"/>
+  <rect id="pcb" x="0" y="8" width="60" height="54" rx="6" fill="{INK}"/>
+  <rect id="chip" x="8" y="16" width="24" height="14" rx="2" fill="#3a3128"/>
+  <circle id="coin" cx="46" cy="26" r="8" fill="{AMBER}"/>
+  <text x="30" y="52" text-anchor="middle" font-size="11" font-weight="700" fill="{CREAM}">I²C</text>''')
+
 def j5_header() -> str:
     """J5, 2x4, drawn at (0,22): odd pins (the four ESP32 pins) on the top
     row, even pins (line 2's chip) on the bottom row."""
@@ -349,7 +372,7 @@ OPTIONS_V6 = [
     ("pins", "pin-outputs", 1.0, "Four spare pins", "relay, light, buzzer", "Wire them to J10"),
 ]
 
-PILL_COLORS = {"ALWAYS": OLIVE_D, "PICK ONE": OLIVE_D, "ALL AT ONCE": OLIVE_D, "BUILT-IN WI-FI": BROWN_D, "EXTRA BOARD": AMBER_D}
+PILL_COLORS = {"ALWAYS": OLIVE_D, "OPTIONAL": OLIVE_D, "PICK ONE": OLIVE_D, "ALL AT ONCE": OLIVE_D, "BUILT-IN WI-FI": BROWN_D, "EXTRA BOARD": AMBER_D}
 
 
 def pill_markup(cx: float, cy: float, label: str, color: str) -> str:
@@ -468,13 +491,81 @@ def compose_overview_content(v6: bool = False) -> Scene:
 DW2, DH2 = 780, 858
 
 
-DH2_V6 = DH2 - 72    # no J5 drawings under the options
+DW2_V6, DH2_V6 = 820, 800
+
+
+def compose_overview_top_v6() -> Scene:
+    """v6, top layout: both phone lines on the board's left edge, the microSD card
+    sitting in its slot on the board, and the two expansion headers (J10 spare
+    pins, J11 I2C) wired to their own options below."""
+    s = Scene(DW2_V6, DH2_V6)
+    s.text("title", overview_title(True), DW2_V6 / 2, 24, 21, 700, INK)
+    s.text("subtitle", "Every network option works on the same board. Only Bluetooth needs an extra board.",
+           DW2_V6 / 2, 48, 14, 400, TEXT)
+    bar_bottom = services_row(s, DW2_V6, (110, 310, 510, 710))
+
+    bx, by = 190, bar_bottom + 66
+    cx_board = bx + 135
+    j1, j2, mid_y = by + 55, by + 185, by + 120
+    s.place("board", "board-v6", bx, by, "Analog Redial v6 board")
+    wifi_to_board(s, cx_board, bar_bottom, by)
+
+    # callout for the card that sits in the board's slot
+    s.line("link-microsd", "microSD callout", bx + 240, by + 8, bx + 282, by + 8, TAN, width=2)
+    s.text("label-microsd", "microSD card", bx + 290, by + 6, 13, 600, INK, "start")
+    s.text("desc-microsd", "recordings and clips", bx + 290, by + 23, 12, 400, TEXT, "start")
+
+    # both phones on the left edge, same geometry
+    for n, jy, name in ((1, j1, "Your phone"), (2, j2, "Second phone")):
+        s.place(f"phone-line-{n}", "phone", 0, jy - 54, f"Analog phone, line {n}")
+        s.add(f"cord-line-{n}", f"Curly cord, line {n}", cord(bx - 7 - 96, 4), 96, jy)
+        s.text(f"label-line-{n}", name, 45, jy + 52, 14, 600, INK)
+    s.add("tag-optional", "tag: OPTIONAL", pill_markup(45, j2 + 78, "OPTIONAL", PILL_COLORS["OPTIONAL"])[0])
+
+    # Bluetooth to the right, as in the other layouts
+    ax = bx + 270 - 3
+    s.place("bluetooth-adapter", "bluetooth-adapter-side", ax, mid_y - 28, "Bluetooth adapter board (BM64)")
+    s.add("tag-extra-board", "tag: EXTRA BOARD",
+          pill_markup(ax + 80, mid_y + 54, "EXTRA BOARD", PILL_COLORS["EXTRA BOARD"])[0])
+    cell_x = 690
+    s.line("link-bluetooth", "Bluetooth link", ax + 140, mid_y, cell_x - 8, mid_y, AMBER, dashed=True)
+    mid = (ax + 140 + cell_x - 8) / 2
+    s.add("bluetooth-symbol", "Bluetooth rune",
+          f'<rect x="-6" y="-4" width="28" height="32" rx="6" fill="{CREAM}"/>' + PARTS_DEF["bluetooth-symbol"][3],
+          mid - 8, mid_y - 12)
+    s.text("label-bluetooth", "Bluetooth", mid, mid_y - 26, 13, 600, AMBER_D)
+    s.place("cell-phone", "cell-phone", cell_x, mid_y - 56, "Your cell phone")
+    s.place("cellular", "cellular", cell_x + 78, mid_y - 40)
+    s.text("label-cell-phone", "Your cell phone", cell_x + 31, mid_y + 76, 14, 600, INK)
+    s.text("label-cellular", "cellular calls", cell_x + 31, mid_y + 95, 13, 600, OLIVE_D)
+
+    # the two expansion headers, each wired to its own option below the board
+    icon_top = by + 296
+    cols = [
+        ("pins", "pin-outputs", 1.3, bx + 50, "Four spare pins",
+         ["relay, light, buzzer"], "wires on J10"),
+        ("i2c", "i2c-board", 1.0, bx + 220, "I²C header",
+         ["Payphone coin board or", "any I²C hardware"], "plugs into J11"),
+    ]
+    for key, partname, k, cx, title, desc, cap in cols:
+        w, h, _, body = PARTS_DEF[partname]
+        s.line(f"link-{key}", f"Wire to {title}", cx, by + 248, cx, icon_top - 6, OLIVE)
+        s.add(f"option-{key}", title, f'<g transform="scale({k:g})">{body}</g>',
+              cx - w * k / 2, icon_top + (62 - h * k) / 2)
+        s.text(f"label-{key}", title, cx, icon_top + 62 + 24, 15, 600, INK)
+        for j, line in enumerate(desc):
+            s.text(f"desc-{key}-{j + 1}", line, cx, icon_top + 62 + 42 + 17 * j, 12, 400, TEXT)
+        s.text(f"v6-caption-{key}", cap, cx, icon_top + 62 + 42 + 17 * len(desc) + 4 + (17 if len(desc) < 2 else 0),
+               12, 700, OLIVE_D)
+    return s
 
 
 def compose_overview_top_content(v6: bool = False) -> Scene:
     """Top layout: Wi-Fi services on top, the three wired options below the
     board, Bluetooth out to the right."""
-    s = Scene(DW2, DH2_V6 if v6 else DH2)
+    if v6:
+        return compose_overview_top_v6()
+    s = Scene(DW2, DH2)
     s.text("title", overview_title(v6), DW2 / 2, 24, 21, 700, INK)
     s.text("subtitle", "Every network option works on the same board. Only Bluetooth needs an extra board.",
            DW2 / 2, 48, 14, 400, TEXT)
@@ -549,6 +640,18 @@ LEGEND_V6_PICK = ("ALL AT ONCE", "On v6 a second phone line, a microSD card and 
                   "together: nothing to pick and no jumpers to set. Fit the second line's parts, put a card in the "
                   "slot, and wire a relay, light or buzzer to J10, in any combination.")
 
+LEGEND_V6_TOP = [
+    ("OPTIONAL", "The first phone is always there. A second analog phone goes on the board's second jack "
+                 "(fit U3, J8 and C17) and works alongside it, with nothing to select. The microSD card just "
+                 "goes in its slot. Header J10 gives four spare pins for a relay, light or buzzer, and J11 is an "
+                 "I²C header for the payphone coin board or any other I²C hardware."),
+    ("BUILT-IN WI-FI", "The web interface (with firmware updates), calls to other Analog Redial boards on your network "
+                       "(no server needed), VoIP calls to a SIP server and Home Assistant over MQTT all run over the "
+                       "board's own Wi-Fi. Nothing to add: set them up in the web interface."),
+    ("EXTRA BOARD", "Bluetooth is the only option that needs more hardware: a BM64 adapter board that plugs "
+                    "into the header. Your analog phone then rings and answers your cell phone's calls."),
+]
+
 LEGEND = [
     ("ALWAYS", "One analog phone, wired to the board. It works with no network at all: dial tone, "
                "dial codes, audio clips and recordings."),
@@ -597,12 +700,13 @@ def j5_strip(x: float, y: float, step: float, k: float = 0.78) -> tuple[str, flo
 
 
 def legend_markup(x: float, y: float, chars: int, size: float = 13,
-                  inline: bool = False, j5: bool = True, v6: bool = False) -> tuple[str, float]:
+                  inline: bool = False, j5: bool = True, v6: bool = False,
+                  items: list | None = None) -> tuple[str, float]:
     """The key. Stacked (tag above its paragraph) for a narrow column, or
     inline (tag left, paragraph right) for a full-width band. Returns
     (markup, height)."""
     out, cy = [], y
-    for tag, text in [LEGEND_V6_PICK if (v6 and t == "PICK ONE") else (t, x_) for t, x_ in LEGEND]:
+    for tag, text in items or [LEGEND_V6_PICK if (v6 and t == "PICK ONE") else (t, x_) for t, x_ in LEGEND]:
         pw = 22 + 7.3 * len(tag)
         mk, _ = pill_markup(x + pw / 2, cy + 11, tag, PILL_COLORS[tag])
         out.append(f'<g id="legend-{tag.lower().replace(" ", "-")}" inkscape:label="legend: {tag}">{mk}')
@@ -633,11 +737,12 @@ def build_overview(kind: str, layout: str = "side", with_legend: bool = True,
     if layout == "side":
         content, dw, dh = compose_overview_content(v6), DW, DH
     else:
-        content, dw, dh = compose_overview_top_content(v6), DW2, (DH2_V6 if v6 else DH2)
+        content, dw, dh = compose_overview_top_content(v6), (DW2_V6 if v6 else DW2), (DH2_V6 if v6 else DH2)
     body = "\n".join(content.items)
     k_land, k_port = SCALES[layout]
     j5 = layout == "side" and not v6   # the top layout draws J5 under each option itself; v6 has no J5
     legend = ""
+    items = LEGEND_V6_TOP if (v6 and layout == "top") else None
     if kind == "web":
         # For embedding in a web page (the README): no legend, tight margins,
         # and text a little larger than the print versions so it stays
@@ -662,22 +767,22 @@ def build_overview(kind: str, layout: str = "side", with_legend: bool = True,
         k = k_land
         ox, oy = 28, (H - dh * k) / 2
         lx = ox + dw * k + 30
-        _, lh = legend_markup(lx, 0, 36, 13, j5=j5, v6=v6)
+        _, lh = legend_markup(lx, 0, 36, 13, j5=j5, v6=v6, items=items)
         ly = min(oy + 26, H - 18 - lh)        # pull the key up if it would run off the page
-        legend, _ = legend_markup(lx, max(18, ly), 36, 13, j5=j5, v6=v6)
+        legend, _ = legend_markup(lx, max(18, ly), 36, 13, j5=j5, v6=v6, items=items)
     elif kind == "letter-portrait":       # 8.5 x 11 in at 96 dpi
         W, H = 816, 1056
-        _, lh = legend_markup(48, 0, 74, 13, inline=True, j5=j5, v6=v6)
+        _, lh = legend_markup(48, 0, 74, 13, inline=True, j5=j5, v6=v6, items=items)
         k = min(k_port, (H - 28 - 20 - lh - 16) / dh)   # shrink the diagram to make room for the key
         ox, oy = (W - dw * k) / 2, 28
-        legend, _ = legend_markup(48, oy + dh * k + 20, 74, 13, inline=True, j5=j5, v6=v6)
+        legend, _ = legend_markup(48, oy + dh * k + 20, 74, 13, inline=True, j5=j5, v6=v6, items=items)
     else:
         raise ValueError(kind)
     diagram = (f'<g id="diagram" inkscape:label="Diagram" '
                f'transform="translate({ox:g},{oy:g}) scale({k:g})">\n{body}\n</g>')
     if legend:
         diagram += f'\n<g id="legend" inkscape:label="Legend">\n{legend}\n</g>'
-    wired = ("a second phone line, a microSD card and four spare pins on J10, all at once with nothing to select"
+    wired = ("a second phone line, a microSD card in its slot, four spare pins on J10 and an I2C header J11, all at once with nothing to select"
              if v6 else "a second line or a microSD card or your own gadgets on four spare pins, chosen with the J5 jumpers")
     doc = svg_doc(W, H, diagram,
                   f"Everything the Analog Redial {'v6' if v6 else 'v4 / v5'} board can connect to: one phone always, then {wired}; "
@@ -706,7 +811,7 @@ def main() -> None:
     # v6 gets the plain names (the default); the v4 / v5 diagram, where the J5 jumpers pick, is -v5-
     for layout, prefix, v6 in (("side", "setup-overview", True), ("top", "setup-overview-top", True),
                                ("side", "setup-overview-v5", False), ("top", "setup-overview-v5-top", False)):
-        for kind in ("docs", "letter-landscape", "letter-portrait", "web"):
+        for kind in ("docs", "web"):     # the letter-size print versions are no longer generated
             doc, W, H = build_overview(kind, layout, v6=v6)
             path = ASSETS / f"{prefix}-{kind}.svg"
             path.write_text(doc)

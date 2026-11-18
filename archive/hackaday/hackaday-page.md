@@ -60,7 +60,7 @@ phone.* (129)
 | v5 board (until you have a photo) | `docs/pics/V5_board_front.png` | v5 front |
 | v5 board back | `docs/pics/V5_board_rear.png` | Solder jumpers for the genuine or clone ESP32-C6 module |
 | Bluetooth carrier **[YOU]** | photo of the BM64 board on the header | The BM64 Bluetooth board plugs onto the 8-pin header |
-| Overview | `docs/assets/setup-overview-top-docs.png` (or `-letter-portrait.png`) | Everything a v6 board connects to: one phone always, plus line 2, microSD and four spare pins all at once, Wi-Fi, Home Assistant, Bluetooth. The v4/v5 version (pick one of line 2 / microSD / your own gadgets) is `setup-overview-v5-top-docs.png` |
+| Overview | `docs/assets/setup-overview-top-docs.png` | Everything a v6 board connects to: one phone always, plus line 2, microSD and four spare pins all at once, Wi-Fi, Home Assistant, Bluetooth. The v4/v5 version (pick one of line 2 / microSD / your own gadgets) is `setup-overview-v5-top-docs.png` |
 | Web UI | `docs/pics/status.png` | Status page: lines, activity, the dial guide |
 | Web UI | `docs/pics/settings-dialcodes.png` | Add your own dial codes and audio from the browser |
 | Web UI | `docs/pics/settings-bluetooth.png` | Pairing your cell phone |

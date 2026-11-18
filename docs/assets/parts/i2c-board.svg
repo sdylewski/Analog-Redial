@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 76 78" width="76" height="78" role="img" aria-label="I2C accessory board (payphone coin board, sensors)">
+<g font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+<g id="i2c-board" inkscape:label="I2C accessory board (payphone coin board, sensors)" transform="translate(8,8)">
+  <rect id="plug" x="20" y="0" width="20" height="10" rx="2" fill="#5c4a35"/>
+  <rect id="pcb" x="0" y="8" width="60" height="54" rx="6" fill="#2b2620"/>
+  <rect id="chip" x="8" y="16" width="24" height="14" rx="2" fill="#3a3128"/>
+  <circle id="coin" cx="46" cy="26" r="8" fill="#c78a2b"/>
+  <text x="30" y="52" text-anchor="middle" font-size="11" font-weight="700" fill="#f7f0e0">I²C</text></g>
+</g>
+</svg>
