@@ -691,12 +691,11 @@ extern const uint8_t favicon_blue_svg_end[]   asm("_binary_favicon_blue_svg_end"
 extern const uint8_t favicon_blue_ico_start[] asm("_binary_favicon_blue_ico_start");
 extern const uint8_t favicon_blue_ico_end[]   asm("_binary_favicon_blue_ico_end");
 
-/* The blue dial (the Pacific Redial cards' colour) when chosen, or on automatic
- * while payphone mode is on; the olive one otherwise. */
+/* The tab icon is always the olive dial for now (the blue one and the saved
+ * Settings choice are kept in the tree but not offered). */
 static bool icon_is_blue(void)
 {
-    uint8_t v = board_icon_get();
-    return v == 2 || (v == 0 && payphone_enabled());
+    return false;
 }
 
 /* GET /static/favicon.svg -- what append_page_head()'s <link rel="icon"
@@ -2046,25 +2045,6 @@ static int append_general_tab(char *buf, size_t cap, int off)
         i18n_str("general.boardname.label", "Name"), name,
         i18n_str("general.boardname.button", "Save name"),
         boardname_hint);
-
-    {
-        uint8_t ic = board_icon_get();
-        off = appendf(buf, cap, off,
-            "<div class=\"card\"><h2>%s</h2>"
-            "<form method=\"POST\" action=\"/icon_set\" class=\"settings-form\">"
-            "<label>%s <select name=\"icon\">"
-            "<option value=\"0\"%s>%s</option><option value=\"1\"%s>%s</option>"
-            "<option value=\"2\"%s>%s</option></select></label>"
-            "<div class=\"toolbar sub\"><button type=\"submit\" class=\"primary\">%s</button></div>"
-            "</form><p class=\"hint\">%s</p></div>",
-            i18n_str("general.icon.title", "Browser tab icon"),
-            i18n_str("general.icon.label", "Icon"),
-            ic == 0 ? " selected" : "", i18n_str("general.icon.auto", "Automatic (blue with payphone mode)"),
-            ic == 1 ? " selected" : "", i18n_str("general.icon.olive", "Olive and cream"),
-            ic == 2 ? " selected" : "", i18n_str("general.icon.blue", "Blue (payphone)"),
-            i18n_str("general.icon.button", "Save icon"),
-            i18n_str("general.icon.hint", "The little picture on this page's browser tab. A tab that's already open may need a reload, or a closed and reopened tab, to change."));
-    }
 
     char ssid[33];
     strncpy(ssid, wifi_get_ssid(), sizeof(ssid) - 1);
@@ -6711,26 +6691,17 @@ static int append_livestream_card(char *buf, size_t cap, int off)
     return appendf(buf, cap, off, "</div>");
 }
 
-/* Folds each card on the Diagnostics tab under its title: a <details> in the card's place, with the
- * h2 as its summary. Opened or closed is remembered per card in localStorage (the page works without
- * it); the first card of each section starts open. Cards keep their live scripts: the nodes are moved,
- * not rebuilt. */
+/* Wraps each card on the Diagnostics tab as a <details> with the h2 as its summary, always open and
+ * not collapsible (the layout is the folding one's, minus the folding). Cards keep their live
+ * scripts: the nodes are moved, not rebuilt. */
 static const char DIAG_FOLD_JS[] =
-    "<script>(function(){var K='diagfold',st={},ds=[];try{st=JSON.parse(localStorage.getItem(K)||'{}')||{};}catch(e){}"
-    "function save(){try{localStorage.setItem(K,JSON.stringify(st));}catch(e){}}"
-    "var first=[];document.querySelectorAll('h2.diag-sec').forEach(function(h){var n=h.nextElementSibling;"
-    "while(n&&!n.classList.contains('card')&&!n.classList.contains('diag-sec'))n=n.nextElementSibling;"
-    "if(n&&n.classList.contains('card'))first.push(n);});"
+    "<script>(function(){"
     "document.querySelectorAll('.cards > .card,.cards > .diagrow > .card').forEach(function(c){var h=c.firstElementChild;"
-    "if(!h||h.tagName!=='H2')return;var d=document.createElement('details'),s=document.createElement('summary'),"
-    "key=h.textContent.replace(/\\s+/g,' ').trim().slice(0,40),open=st[key]===undefined?(first.indexOf(c)>=0||key==='Logging'):!!st[key];"
+    "if(!h||h.tagName!=='H2')return;var d=document.createElement('details'),s=document.createElement('summary');"
     "d.className=c.className+' dg';if(c.id)d.id=c.id;s.appendChild(h);d.appendChild(s);"
-    "while(c.firstChild)d.appendChild(c.firstChild);d.open=open;"
-    "d.addEventListener('toggle',function(){st[key]=d.open;save();});c.parentNode.replaceChild(d,c);ds.push(d);});"
-    "function all(o){ds.forEach(function(d){d.open=o;});}"
-    "var a=document.getElementById('dgall'),n=document.getElementById('dgnone');"
-    "if(a)a.onclick=function(){all(true);};if(n)n.onclick=function(){all(false);};"
-    "if(location.hash){var t=document.querySelector(location.hash);if(t&&t.tagName==='DETAILS')t.open=true;}"
+    "while(c.firstChild)d.appendChild(c.firstChild);d.open=true;"
+    "s.addEventListener('click',function(e){e.preventDefault();});"
+    "d.addEventListener('toggle',function(){d.open=true;});c.parentNode.replaceChild(d,c);});"
     "})();</script>";
 
 static int append_diag_tab(char *buf, size_t cap, int off)
@@ -6760,13 +6731,12 @@ static int append_diag_tab(char *buf, size_t cap, int off)
                           i18n_str("diag.test.line", "Line"), l);
     }
 
-    /* Four sections, each card folding away under its title (diagFold, below): the hardware
+    /* Four sections, each card under its title (DIAG_FOLD_JS, above): the hardware
      * checks first, then the phone's features, then the audio checks, then firmware and logs.
      * The log level is a small card kept at the very top, where it is wanted while testing. */
     off = appendf(buf, cap, off,
         "<nav class=\"diag-nav\"><a href=\"#d-hw\">1 &middot; Hardware</a> <a href=\"#d-phone\">2 &middot; Phone features</a> "
-        "<a href=\"#d-audio\">3 &middot; Audio</a> <a href=\"#d-fw\">4 &middot; Firmware &amp; logs</a> "
-        "<button type=\"button\" id=\"dgall\">Open all</button><button type=\"button\" id=\"dgnone\">Close all</button></nav>");
+        "<a href=\"#d-audio\">3 &middot; Audio</a> <a href=\"#d-fw\">4 &middot; Firmware &amp; logs</a></nav>");
     off = appendf(buf, cap, off,
         "<div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"

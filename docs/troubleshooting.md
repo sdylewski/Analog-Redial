@@ -134,7 +134,9 @@ for you to paste the log into.
 
 ## Sound problems
 
-- **Everything is much quieter after plugging in a Bluetooth module (BT401):** an idle
+- **Line 0 sounds weak, or everything is much quieter, after plugging in a Bluetooth module
+  (BT401):** the module is wired straight onto line 0's audio connections, so it affects that
+  line even while it does nothing. Check the setting first. An idle
   BT401 loads line 0's earpiece through its audio output (the DAC, via R16). The firmware
   turns that output off while nothing is playing, but only once the module is turned on:
   Settings → General → Board hardware → **Bluetooth module: DFRobot BT401**, then

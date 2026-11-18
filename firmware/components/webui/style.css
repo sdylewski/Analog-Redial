@@ -592,10 +592,8 @@ p.diag-sec-hint { grid-column: 1 / -1; margin: -8px 0 0; }
 .diag-nav a { font-weight: 600; }
 .diag-nav button { padding: 3px 10px; font-size: 12px; }
 details.card.dg { padding: 0; }
-details.card.dg > summary { cursor: pointer; list-style: none; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; }
+details.card.dg > summary { cursor: default; list-style: none; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; }
 details.card.dg > summary::-webkit-details-marker { display: none; }
-details.card.dg > summary::after { content: "\25be"; color: var(--muted); }
-details.card.dg[open] > summary::after { content: "\25b4"; }
 details.card.dg > summary h2 { margin: 0; }
 details.card.dg[open] > summary { padding-bottom: 6px; }
 details.card.dg > :not(summary) { margin-left: 16px; margin-right: 16px; }

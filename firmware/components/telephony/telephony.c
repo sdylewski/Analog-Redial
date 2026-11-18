@@ -202,6 +202,7 @@ typedef struct {
      * off-hook alert then; 0 = not armed). */
     coin_tone_det_t      coin;
     int                  credit_cents;
+    bool                 ring_pickup;      /* this pickup answered the timer/alarm bell: no coin prompt (payphone) */
     int64_t              coin_next_us;
     int64_t              coin_alert_us;
     /* The coins dropped since the handset was lifted and not yet collected
@@ -2093,12 +2094,14 @@ static bool am_active(int line)
 /* ---- main event handlers ---- */
 static void on_offhook(int line)
 {
+    s_line[line].ring_pickup = false;
     if (s_line[line].timer_end_us && esp_timer_get_time() >= s_line[line].timer_end_us) {
         /* Picked up the ringing timer: say so once the line is on dial tone. */
         s_line[line].timer_end_us = 0;
         s_line[line].timer_rounds = 0;
         s_line[line].timer_ringing = false;
         s_line[line].timer_announce = true;
+        s_line[line].ring_pickup = true;
     }
     if (s_line[line].alarm_at && clock_is_set() && time(NULL) >= s_line[line].alarm_at) {
         /* Picked up the ringing alarm. */
@@ -2106,6 +2109,7 @@ static void on_offhook(int line)
         s_line[line].alarm_rounds = 0;
         s_line[line].alarm_ringing = false;
         s_line[line].alarm_announce = true;
+        s_line[line].ring_pickup = true;
         alarm_save(line);
     }
     if (bt_companion_should_intercept(line)) {
@@ -2189,7 +2193,8 @@ static void on_offhook(int line)
         play_transient(line, TONE_LOW_POWER, TONE_LOW_POWER_MS, TEL_REORDER, TEL_DIALTONE);
         return;
     }
-    if (coin_needed(line)) enter_coin_wait(line);   /* payphone: a coin first */
+    /* payphone: a coin first, except when the phone rang for a timer/alarm */
+    if (coin_needed(line) && !s_line[line].ring_pickup) enter_coin_wait(line);
     else enter_dialtone(line);
 }
 
