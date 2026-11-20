@@ -1,9 +1,10 @@
 # Hackaday.io page: "Analog Redial: a hackable analog phone system"
 
-Paste-ready text for the hackaday.io project. Written about the **v5 board
-with the BM64 Bluetooth option**, in your voice. Don't publish until v5 and
-the BM64 carrier are tested; every spot that depends on that, or that only
-you can fill in, is marked **[YOU]**.
+Paste-ready text for the hackaday.io project, in your voice. The Details
+(section 4) match the live page, rewritten for the **v6 board with the BT401
+Bluetooth option** (synced 2026-11-18); the other sections still carry v5 and
+BM64 wording from the first draft. Spots that only you can fill in are marked
+**[YOU]**.
 
 Hackaday.io's editor changes now and then, so check the field names against
 its "Create project" page. The Details and log editors take Markdown; paste,
@@ -56,14 +57,14 @@ phone.* (129)
 | Use | File | Caption |
 |-----|------|---------|
 | **Cover** (landscape) **[YOU]** | a photo of the yellow wall phone plugged into the board | Yes, that's the actual phone from when I was a kid |
-| v5 board, assembled **[YOU]** | photo after bring-up | The v5 board |
+| v6 board, assembled **[YOU]** | photo after bring-up (`docs/pics/build-v6/16-finished.jpg`) | The v6 board |
 | v5 board (until you have a photo) | `docs/pics/V5_board_front.png` | v5 front |
 | v5 board back | `docs/pics/V5_board_rear.png` | Solder jumpers for the genuine or clone ESP32-C6 module |
-| Bluetooth carrier **[YOU]** | photo of the BM64 board on the header | The BM64 Bluetooth board plugs onto the 8-pin header |
-| Overview | `docs/assets/setup-overview-top-docs.png` | Everything a v6 board connects to: one phone always, plus line 2, microSD and four spare pins all at once, Wi-Fi, Home Assistant, Bluetooth. The v4/v5 version (pick one of line 2 / microSD / your own gadgets) is `setup-overview-v5-top-docs.png` |
-| Web UI | `docs/pics/status.png` | Status page: lines, activity, the dial guide |
-| Web UI | `docs/pics/settings-dialcodes.png` | Add your own dial codes and audio from the browser |
-| Web UI | `docs/pics/settings-bluetooth.png` | Pairing your cell phone |
+| Bluetooth carrier **[YOU]** | photo of the BT401 board on the header | The Bluetooth board plugs onto the 8-pin header |
+| Overview | `docs/assets/setup-overview-top-docs.png` | Everything a v6 board connects to: a phone, an optional second phone, microSD in its slot, the J10 spare pins and J11 I²C header, Wi-Fi, Home Assistant, Bluetooth. The v4/v5 version (pick one of line 2 / microSD / your own gadgets) is `setup-overview-v5-top-docs.png` |
+| Web UI | `docs/UI_screenshots/status.png` | Status page: lines, activity, the dial guide |
+| Web UI | `docs/UI_screenshots/settings-dialcodes.png` | Add your own dial codes and audio from the browser |
+| Web UI | `docs/UI_screenshots/settings-bluetooth.png` | Pairing your cell phone |
 | Schematic | `docs/pics/smd5_schematic.png` | The v5 schematic |
 | History | `docs/pics/pi_version.jpg` | The original Raspberry Pi version |
 | History | `docs/pics/smd4_board.jpg` | v4, the board that's been running the house |
@@ -75,8 +76,9 @@ The yellow phone is the picture people will click on.
 
 ## 4. Details (paste this)
 
-This is the text as it stands on the live page (synced 2026-10-18). Edit the
-page and this file together, or this file goes stale.
+This is the text as it stands on the live page (synced 2026-11-18, rewritten
+for the v6 board). Edit the page and this file together, or this file goes
+stale.
 
 **Analog Redial turns old analog phones into a little phone system you can
 hack.**
@@ -90,6 +92,8 @@ handset for your cell phone!
 Everything's open: KiCad hardware, ESP-IDF firmware in C (MIT license), and a
 serial console for poking at every part of the hardware.
 
+See full details at https://github.com/sdylewski/Analog-Redial
+
 ### Why I built it
 
 This project started as a way to use my family's yellow rotary-dial wall
@@ -98,10 +102,10 @@ kid liked playing with it. The first version ran on a Raspberry Pi and worked
 ok for years, but this ESP32-based version has more features and is cheaper
 to build.
 
-Why not just buy a VoIP adapter? Flexibility and packability. On a
-Grandstream device, you need to dial *47 then the other phone address... not
-exactly simple. Analog Redial is a whole phone system on its own, with the
-ability to hack and extend it as you wish.
+Why not just buy a VoIP adapter? Flexibility and features! On a Grandstream
+device, you need to dial *47 then the other phone address... not exactly
+simple. Analog Redial is a whole phone system on its own, with the ability to
+hack and extend it as you wish.
 
 ### Dial anything
 
@@ -117,7 +121,12 @@ The dial plan is just a table. Defaults:
 | **412** | A dial-up modem recording - why not? |
 | **314** | Speaks the first 100 digits of pi |
 | **8675309** | Calls Jenny |
+| **846** | Set a timer to ring in N minutes |
 | **1** + (area code) + (number) | Call out through your cell phone (needs the Bluetooth board) |
+
+*(When the live page was pasted back, the table's cells were scrambled and
+the modem recording showed up next to 846. The firmware has 412 = modem and
+846 = timer, as above. **[YOU: check the table on the live page.]**)*
 
 Add your own codes and audio files from the browser. This could be a joke
 line for the kids, a song, a museum exhibit, or a wedding guestbook phone
@@ -125,10 +134,10 @@ recorder...
 
 ### Bluetooth option
 
-Plug the Bluetooth board (a BM64 module) onto the header and pair it with
+Plug the Bluetooth board (a BT401 module) onto the header and pair it with
 your cell phone. Then:
 
-- **Make calls from the rotary phone.** Pick it up and dial 1+(area
+- **Make calls from the analog phone.** Pick it up and dial 1+(area
   code)+(number). The call goes out on your cell phone, and the audio comes
   through the old handset.
 - **Incoming calls ring the real bell.** Lift the handset to answer, hang up
@@ -137,62 +146,53 @@ your cell phone. Then:
 - **Everything else still works.** With your cell connected but no call up,
   picking up still gives you dial tone and all the local dial codes.
 
-There's also a cheaper Bluetooth module, the BK3266, that fits the same
-header. It should ring and answer, but probably can't dial out. I'm still
-testing it.
-
 ### Home Assistant
 
-No add-on, no cloud. Tick one box in the settings and the board announces
-itself to Home Assistant over MQTT: each line's state, a "ring the phone"
-button, a "new messages" count, and an event every time someone lifts the
-handset or dials a code. You can add codes whose only job is to tell Home
-Assistant, like "dial 42 for the porch light".
+Tick one box in the settings and the board announces itself to Home Assistant
+over MQTT: each line's state, a "ring the phone" button, a "new messages"
+count, and an event every time someone lifts the handset or dials a code. You
+can add codes whose only job is to tell Home Assistant "dial 42 for the porch
+light".
 
-It also works with a plain webhook if you'd rather skip MQTT. It's
-experimental: I've tested it against a Mosquitto broker, not yet against a
-real Home Assistant, so tell me what breaks.
+It also works with plain web hooks if you'd rather skip MQTT.
 
-**[YOU: "tick one box" skips one step: the MQTT card also wants your
-broker's address (and its user and password). Maybe "tick one box and give
-it your MQTT broker's address".]**
+### microSD card
 
-### One header, three ways to use it
+Add a card in the slot, and recordings, messages and your own audio go to the
+card instead of the board's built-in flash: adds hours of storage, and you can
+pull the card out and copy things off or upload/download files directly from
+the web UI.
 
-The board has four spare pins, and a little header (J5) with jumpers picks
-what they do. They do one job at a time, so you choose when you build it:
+### Expansion options
 
-- **A second phone line.** Put the four jumpers on and the pins run the
-  second line: another SLIC, another RJ12 jack, and both phones can call each
-  other, run an intercom, or each have its own answering machine. (The second
-  line costs about $10 more per board.)
-- **A microSD card.** Take the jumpers off, add a card in the slot, and
-  recordings, messages and your own audio go to the card instead of the
-  board's 4 MB of flash: hours of storage, and you can pull the card out and
-  copy things off. It's a one-line board then, because the card and line 2
-  share the pins. If you insert a card into a board set up for two lines, the
-  firmware turns line 2 off and warns you on the web page.
-- **Your own gadgets.** Jumpers off and no card, and the four pins (GPIO18 to
-  GPIO21) are free for your own wires. Pick a dial code, a pin and a time on
-  the web page: dial it and the pin goes high for that many seconds (or
-  toggles). Hook a relay or a MOSFET to it to unlock a door, sound a buzzer or
-  flash a light. A pin gives 3.3 V and only a few milliamps, so a solenoid
-  needs a relay in between. Most 5 V relay modules will switch, but check
-  yours.
+The board has two expansion headers to control other stuff:
+
+- **I²C expansion header.** Use this to connect to other devices or boards.
+  The project has payphone support, and the I²C expansion header is used to
+  connect to a different board to detect the coin relays and trigger coin
+  return.
+- **4 GPIOs for your own relays.** The J10 expansion header is for your own
+  wires. Pick a dial code, a pin and a time on the web page: dial it and the
+  pin goes high for that many seconds (or toggles). Hook a relay or a MOSFET
+  to it to unlock a door, sound a buzzer or flash a light. A pin gives 3.3 V
+  and only a few milliamps, so a solenoid needs a relay in between. Most 5 V
+  relay modules will switch, but check yours.
 
 ### More things it does
 
 - **Rotary and touch-tone.** Both work on either line.
+- **Call another phone without wires** (VoIP with no server, requires 2
+  Analog Redial boards).
 - **Answering machine** per line, each with its own greeting. Messages are
   saved on the board or on a microSD card if enabled.
 - **Intercom mode:** lift one handset, wait a few seconds, and the other
   phone rings.
 - **VoIP:** register a line with Asterisk or FreePBX and call anything that
   server can reach.
-- **Proper phone sounds:** dial tone, ringback and busy tones for your
+- **Proper phone sounds:** dial tones, ringback and busy tones for your
   country, plus echo cancellation.
 - **Day to day:** quiet hours so the bell doesn't go off at 2 a.m., several
-  remembered Wi-Fi networks, firmware updates from the browser, and an
+  remembered Wi-Fi networks, OTA firmware updates from the browser, and an
   optional web password.
 
 ### How it works
@@ -215,7 +215,7 @@ Phone - RJ12 - AG1171 SLIC - ES8388 codec - ESP32 - WIFI / Bluetooth
   cell phone call never goes through the ESP32 at all. The ESP32 just tells
   it what to do.
 
-### The board (v5)
+### The board
 
 A 2-layer board around an ESP32-C6 DevKit, the ES8388 codec, and one or two
 AG1171 SLICs. The fab places the surface-mount parts; you solder the DevKit,
@@ -224,14 +224,9 @@ SLICs, jacks and a few headers.
 - **Genuine 32-pin or cheap 30-pin ESP32-C6 module.** The footprint takes
   either the real Espressif DevKitC-1 or a cheaper clone; a couple of solder
   jumpers on the back select which.
-- **Bluetooth header** with its own 3.3 V regulator, for the BM64 board.
-- **Second phone line, microSD, or your own gadgets** (they share four
-  pins), picked with the J5 jumpers and a setting.
-
-*(The live page also has the Home Assistant paragraph a second time here,
-after the board section. It reads like a paste slip; one copy, above, is
-enough, so it isn't repeated in this file. **[YOU: remove the duplicate on
-the page.]**)*
+- **Bluetooth header** with its own 3.3 V regulator, for the BT401 board.
+- **Second phone line**
+- **microSD** to store more recorded audio or clips to play
 
 ### Setup
 
@@ -241,9 +236,9 @@ network with a setup page; pick your Wi-Fi, and after that it's at
 complete web interface to check the board's recordings, in addition to
 extensive settings and options.
 
-### Built with Claude Code
+### Use of AI tools
 
-I wrote a lot of this with Claude Code. The web UI is the part that really
+I wrote a lot of this with Claude Code.  The web UI is the part that really
 shows it: eight settings tabs, a file manager for your audio and recordings,
 browser firmware updates, a VoIP number provisioner. For a one-person hobby
 project, AI helped me to do things quickly like tone dialing, an advanced web
@@ -254,23 +249,21 @@ code from the raspberry pi.
 
 Ordering the minimum five assembled boards from JLCPCB comes to about **$86
 delivered (about $17 a board)**, plus about **$19 of parts you solder
-yourself** for each board you build. Bluetooth is $15 extra or a 2nd line is
-$10 for another SLIC board.
+yourself** for each board you build. Bluetooth is $20 extra right now, and a
+2nd line is $10 for another SLIC board.
 
-If a few people want boards, ordering together gets a lot cheaper. **Want
-one? [Fill in the interest form](https://forms.gle/kVKHiXejV6M2ZxC17)**: no
-commitment, it just tells me if you want me to order a batch for people... if
-there's enough interest, I'll find a way to put it on CrowdSupply or
-something.
+If a few people want boards, I put some boards on
+[Tindie](https://www.tindie.com/products/majorhack/analog-redial-hackable-telephone-board-kit/).
+If they're out of stock and you put it on your wishlist, it will let me know
+how many to order for the next batch.
+
+*(These prices are still the October v5 quote. **[YOU: update after the
+50-board v6 quote.]**)*
 
 ### 3d printed case
 
 There's a .step file for the board to make your own case, but you can also
 just print the ready-made case yourself from the files in the project.
-
-**[YOU: the ready-made cases in the repo
-(`hardware/3d-printed-case`) are for the v4 board, and v5 is 5 mm longer, so
-say which board the case fits, or add a v5 case.]**
 
 ### Get more info or build one yourself
 
@@ -289,7 +282,7 @@ Code, hardware and docs:
 | 1–2 | RJ12 jack | One per phone |
 | 1 | 5 V DC supply and jack | Power |
 | 0–1 | microSD socket and card | Message storage (one-line build) |
-| 0–1 | BM64 Bluetooth module on its carrier board | Pair with your cell phone |
+| 0–1 | BT401 Bluetooth module (or BM64 on its carrier board) | Pair with your cell phone |
 | 1 | XC6206 3.3 V regulator | Powers the Bluetooth board |
 | — | Passives, TVS diodes, headers | Full BOM in the repo |
 
@@ -302,7 +295,7 @@ Full parts list with DigiKey numbers:
 
 - GitHub: https://github.com/sdylewski/Analog-Redial
 - Docs, start at "Get a board": https://github.com/sdylewski/Analog-Redial/blob/main/docs/board.md
-- Interest form: https://forms.gle/kVKHiXejV6M2ZxC17
+- Tindie: https://www.tindie.com/products/majorhack/analog-redial-hackable-telephone-board-kit/
 - KiCad library: https://github.com/sdylewski/MajorHack-Kicad-Libraries
 
 **Files [YOU]:** the v5 Gerbers and BOM/CPL, the schematic PDF, and the
@@ -312,9 +305,9 @@ Bluetooth carrier's files, exported from the revision you tested.
 
 ## 7. Instructions (build steps)
 
-1. **Get a board.** Order v5 from JLCPCB with SMT assembly (five-board
-   minimum), or [fill in the interest form](https://forms.gle/kVKHiXejV6M2ZxC17)
-   for a group order.
+1. **Get a board.** Order v6 from JLCPCB with SMT assembly (five-board
+   minimum), or buy one on
+   [Tindie](https://www.tindie.com/products/majorhack/analog-redial-hackable-telephone-board-kit/).
 2. **Order the hand-solder parts.** The ESP32-C6 DevKit, SLICs, jacks and a
    few through-hole parts, about $19 from DigiKey (there's a ready-made list).
 3. **Set the module jumpers.** Genuine Espressif DevKit: leave them alone.
@@ -420,14 +413,14 @@ buffer, so the dial plan doesn't care which kind of phone you have.
 - [ ] Pin dial code tried on the bench with a relay or an LED **[YOU]**
 - [ ] Home Assistant tried against a real instance, then drop "not yet
       against a real Home Assistant" from the page **[YOU]**
-- [ ] **Fix on the live page [YOU]** (noted 2026-10-14):
-  - [ ] Home Assistant is there twice (after "Bluetooth option" and again
-        after "The board (v5)"): delete the second.
-  - [ ] "Tick one box" skips a step: the MQTT card also needs the broker's
-        address (and user/password). Try "tick one box and give it your MQTT
-        broker's address".
-  - [ ] "Print the ready-made case" is for the v4 board; v5 is 5 mm longer.
-        Say which board the case fits, or add a v5 case.
+- [x] Live-page fixes from 2026-10-14 are done in the 2026-11-18 rewrite (the
+      duplicate Home Assistant section is gone; the case line no longer names
+      a board).
+- [ ] "Tick one box" still skips a step: the MQTT card also needs the broker's
+      address (and user/password). **[YOU: maybe "tick one box and give it
+      your MQTT broker's address".]**
+- [ ] Check the dial-code table on the live page (412 modem, 846 timer).
+- [ ] Update the cost paragraph after the 50-board v6 quote.
 - [ ] Edit the live page and this file together, so they don't drift again
 - [ ] Photos: the yellow phone plugged in, the v5 board, the Bluetooth board
 - [ ] Re-check the cost line for v5, and add the Bluetooth parts

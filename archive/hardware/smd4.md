@@ -1,4 +1,4 @@
-# Analog Redial v4 (SMD4) — dev notes
+# Analog Redial v4 — dev notes
 
 The current board: 2-layer, ESP32-C6-DevKitC-1 carrier, ES8388 codec, one or
 two AG1171 SLICs, optional microSD. KiCad project:
@@ -72,7 +72,7 @@ AG1171's SHK output is ~3.3 V through an internal 3.3 kΩ pull-up, so with
 Which line fails is luck of the pad threshold.
 
 **Remove R12 and R14 (the 15 kΩ to ground).** Off-hook then reads
-~3.1–3.2 V and the 10 kΩ stays as series protection. (SMD5 uses 100 kΩ.)
+~3.1–3.2 V and the 10 kΩ stays as series protection. (v5 uses 100 kΩ.)
 
 ## Expected ERC/DRC noise
 

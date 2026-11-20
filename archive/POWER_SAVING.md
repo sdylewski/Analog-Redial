@@ -168,7 +168,7 @@ reality rather than the datasheet estimate.
 
 ## Measured on real hardware (2026-10-28)
 
-Board ACEBE6C21C04: SMD5 v5, genuine DevKit, one AG1171, electronic ringer. Total current at the 5 V input,
+Board ACEBE6C21C04: v5 v5, genuine DevKit, one AG1171, electronic ringer. Total current at the 5 V input,
 except the BT401 rows (the module's own VCC lead at 3.3 V; U5 is a linear regulator, so the same current is drawn
 from 5 V). W = mA x 5 V; kWh/yr assumes the state holds all year (x 8.766).
 
@@ -220,7 +220,7 @@ low-power, which confirms the first reading was the asleep figure. Doing the sam
 
 The firmware used to lower the Wi-Fi TX power from 20 to 11 dBm when the received signal was strong,
 on the assumption that the link is symmetric. On a mesh network it isn't: the board dropped off the
-router (disconnect reason 4, inactivity) and pages stalled, only while reduced. Every failure on one SMD2
+router (disconnect reason 4, inactivity) and pages stalled, only while reduced. Every failure on one v2
 board fell inside a reduced-power period; back at 20 dBm the send errors stopped. The saving was also
 small: about 1-3 mA average on an idle web server (the radio transmits a few percent of the time), against
 about 40 mA per line for SLIC power-down and about 50 mA for Wi-Fi modem sleep. So the feature, its setting

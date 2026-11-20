@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Capture full-page screenshots of the board's web UI into docs/pics/.
+"""Capture full-page screenshots of the board's web UI into docs/UI_screenshots/.
 
 Each page is saved as <page-name>.png (status.png, recordings.png,
 settings-<tab>.png) in the dark theme, which is what the docs show, and as
 <page-name>-light.png in the light theme. A 400x250 thumbnail of each goes in
-docs/pics/thumbs/ (macOS `sips`). The Wi-Fi name, the board's name and the
+docs/UI_screenshots/thumbs/ (macOS `sips`). The Wi-Fi name, the board's name and the
 serial number are replaced with generic ones. Re-running overwrites the previous set.
 
 How: curl fetches each page and its stylesheet into a temp folder, and
@@ -120,7 +120,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("host", help="board IP or hostname")
-    ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "..", "..", "docs", "pics"))
+    ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "..", "..", "docs", "UI_screenshots"))
     ap.add_argument("--themes", nargs="+", choices=THEMES.keys(), default=list(THEMES),
                     help="which themes to capture (default: both)")
     ap.add_argument("--only", nargs="+", choices=PAGES.keys(), help="capture just these pages")

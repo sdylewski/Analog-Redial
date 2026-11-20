@@ -1,4 +1,4 @@
-# Analog Redial v2 (SMD2) — reference
+# Analog Redial v2 — reference
 
 The first surface-mount board: ESP32-C6-WROOM-1 module, ES8388 codec, one or
 two AG1171 SLICs, optional microSD. Three were built, all hand-soldered and
@@ -8,7 +8,7 @@ firmware `CONFIG_BOARD_TYPE_SMD2`, `board_pins_smd.h`, build dir
 
 ## Rework checklist for a bare board
 
-Every SMD2 needs all of these.
+Every v2 needs all of these.
 
 1. **USB D+/D− swapped** between U3 (USBLC6) and the module. Cut **both**
    traces between U3 and module pins 13/14, then cross-wire with two short

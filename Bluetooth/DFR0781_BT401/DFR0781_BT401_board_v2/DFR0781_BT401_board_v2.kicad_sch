@@ -1320,14 +1320,14 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "PCM_SL_Pin_Headers:PINHD_1x8_Female"
+		(symbol "PCM_SL_Pin_Headers:PINHD_1x8_Male"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
 			(in_pos_files yes)
 			(duplicate_pin_numbers_are_jumpers no)
 			(property "Reference" "J"
-				(at 0 15.24 0)
+				(at 0 13.97 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
@@ -1336,8 +1336,8 @@
 					)
 				)
 			)
-			(property "Value" "PINHD_1x8_Female"
-				(at 0 12.7 0)
+			(property "Value" "PINHD_1x8_Male"
+				(at 0 11.43 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
@@ -1346,8 +1346,8 @@
 					)
 				)
 			)
-			(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_1x08_P2.54mm_Vertical"
-				(at 2.54 17.78 0)
+			(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical"
+				(at -1.27 16.51 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(hide yes)
@@ -1368,7 +1368,7 @@
 					)
 				)
 			)
-			(property "Description" "Pin Header female with pin space 2.54mm. Pin Count -8"
+			(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -8"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -1390,7 +1390,7 @@
 					)
 				)
 			)
-			(property "ki_fp_filters" "PinSocket_1x08_P2.54mm*"
+			(property "ki_fp_filters" "PinHeader_1x08_P2.54mm*"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -1401,10 +1401,10 @@
 					)
 				)
 			)
-			(symbol "PINHD_1x8_Female_0_1"
+			(symbol "PINHD_1x8_Male_0_1"
 				(rectangle
 					(start -1.27 10.16)
-					(end 1.905 -10.16)
+					(end 1.27 -10.16)
 					(stroke
 						(width 0)
 						(type default)
@@ -1415,10 +1415,10 @@
 				)
 				(polyline
 					(pts
-						(xy -1.27 8.89) (xy -0.508 8.89)
+						(xy -1.27 8.89) (xy 0 8.89)
 					)
 					(stroke
-						(width 0.25)
+						(width 0.3)
 						(type default)
 					)
 					(fill
@@ -1427,10 +1427,10 @@
 				)
 				(polyline
 					(pts
-						(xy -1.27 6.35) (xy -0.508 6.35)
+						(xy -1.27 8.89) (xy 0 8.89)
 					)
 					(stroke
-						(width 0.25)
+						(width 0.5)
 						(type default)
 					)
 					(fill
@@ -1439,10 +1439,10 @@
 				)
 				(polyline
 					(pts
-						(xy -1.27 3.81) (xy -0.508 3.81)
+						(xy -1.27 6.35) (xy 0 6.35)
 					)
 					(stroke
-						(width 0.25)
+						(width 0.3)
 						(type default)
 					)
 					(fill
@@ -1451,10 +1451,10 @@
 				)
 				(polyline
 					(pts
-						(xy -1.27 1.27) (xy -0.508 1.27)
+						(xy -1.27 6.35) (xy 0 6.35)
 					)
 					(stroke
-						(width 0.25)
+						(width 0.5)
 						(type default)
 					)
 					(fill
@@ -1463,10 +1463,10 @@
 				)
 				(polyline
 					(pts
-						(xy -1.27 -1.27) (xy -0.508 -1.27)
+						(xy -1.27 3.81) (xy 0 3.81)
 					)
 					(stroke
-						(width 0.25)
+						(width 0.3)
 						(type default)
 					)
 					(fill
@@ -1475,10 +1475,10 @@
 				)
 				(polyline
 					(pts
-						(xy -1.27 -3.81) (xy -0.508 -3.81)
+						(xy -1.27 3.81) (xy 0 3.81)
 					)
 					(stroke
-						(width 0.25)
+						(width 0.5)
 						(type default)
 					)
 					(fill
@@ -1487,10 +1487,10 @@
 				)
 				(polyline
 					(pts
-						(xy -1.27 -6.35) (xy -0.508 -6.35)
+						(xy -1.27 1.27) (xy 0 1.27)
 					)
 					(stroke
-						(width 0.25)
+						(width 0.3)
 						(type default)
 					)
 					(fill
@@ -1499,10 +1499,10 @@
 				)
 				(polyline
 					(pts
-						(xy -1.27 -8.89) (xy -0.508 -8.89)
+						(xy -1.27 1.27) (xy 0 1.27)
 					)
 					(stroke
-						(width 0.25)
+						(width 0.5)
 						(type default)
 					)
 					(fill
@@ -1511,34 +1511,10 @@
 				)
 				(polyline
 					(pts
-						(xy 0 9.398) (xy 1.016 9.398)
+						(xy -1.27 -1.27) (xy 0 -1.27)
 					)
 					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start -0.508 8.89)
-					(mid -0.3592 9.2492)
-					(end 0 9.398)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start 0 8.382)
-					(mid -0.3592 8.5308)
-					(end -0.508 8.89)
-					(stroke
-						(width 0.25)
+						(width 0.3)
 						(type default)
 					)
 					(fill
@@ -1547,10 +1523,10 @@
 				)
 				(polyline
 					(pts
-						(xy 0 8.382) (xy 1.016 8.382)
+						(xy -1.27 -1.27) (xy 0 -1.27)
 					)
 					(stroke
-						(width 0.25)
+						(width 0.5)
 						(type default)
 					)
 					(fill
@@ -1559,34 +1535,10 @@
 				)
 				(polyline
 					(pts
-						(xy 0 6.858) (xy 1.016 6.858)
+						(xy -1.27 -3.81) (xy 0 -3.81)
 					)
 					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start -0.508 6.35)
-					(mid -0.3592 6.7092)
-					(end 0 6.858)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start 0 5.842)
-					(mid -0.3592 5.9908)
-					(end -0.508 6.35)
-					(stroke
-						(width 0.25)
+						(width 0.3)
 						(type default)
 					)
 					(fill
@@ -1595,10 +1547,10 @@
 				)
 				(polyline
 					(pts
-						(xy 0 5.842) (xy 1.016 5.842)
+						(xy -1.27 -3.81) (xy 0 -3.81)
 					)
 					(stroke
-						(width 0.25)
+						(width 0.5)
 						(type default)
 					)
 					(fill
@@ -1607,34 +1559,10 @@
 				)
 				(polyline
 					(pts
-						(xy 0 4.318) (xy 1.016 4.318)
+						(xy -1.27 -6.35) (xy 0 -6.35)
 					)
 					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start -0.508 3.81)
-					(mid -0.3592 4.1692)
-					(end 0 4.318)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start 0 3.302)
-					(mid -0.3592 3.4508)
-					(end -0.508 3.81)
-					(stroke
-						(width 0.25)
+						(width 0.3)
 						(type default)
 					)
 					(fill
@@ -1643,10 +1571,10 @@
 				)
 				(polyline
 					(pts
-						(xy 0 3.302) (xy 1.016 3.302)
+						(xy -1.27 -6.35) (xy 0 -6.35)
 					)
 					(stroke
-						(width 0.25)
+						(width 0.5)
 						(type default)
 					)
 					(fill
@@ -1655,34 +1583,10 @@
 				)
 				(polyline
 					(pts
-						(xy 0 1.778) (xy 1.016 1.778)
+						(xy -1.27 -8.89) (xy 0 -8.89)
 					)
 					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start -0.508 1.27)
-					(mid -0.3592 1.6292)
-					(end 0 1.778)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start 0 0.762)
-					(mid -0.3592 0.9108)
-					(end -0.508 1.27)
-					(stroke
-						(width 0.25)
+						(width 0.3)
 						(type default)
 					)
 					(fill
@@ -1691,202 +1595,10 @@
 				)
 				(polyline
 					(pts
-						(xy 0 0.762) (xy 1.016 0.762)
+						(xy -1.27 -8.89) (xy 0 -8.89)
 					)
 					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 -0.762) (xy 1.016 -0.762)
-					)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start -0.508 -1.27)
-					(mid -0.3592 -0.9108)
-					(end 0 -0.762)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start 0 -1.778)
-					(mid -0.3592 -1.6292)
-					(end -0.508 -1.27)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 -1.778) (xy 1.016 -1.778)
-					)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 -3.302) (xy 1.016 -3.302)
-					)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start -0.508 -3.81)
-					(mid -0.3592 -3.4508)
-					(end 0 -3.302)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start 0 -4.318)
-					(mid -0.3592 -4.1692)
-					(end -0.508 -3.81)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 -4.318) (xy 1.016 -4.318)
-					)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 -5.842) (xy 1.016 -5.842)
-					)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start -0.508 -6.35)
-					(mid -0.3592 -5.9908)
-					(end 0 -5.842)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start 0 -6.858)
-					(mid -0.3592 -6.7092)
-					(end -0.508 -6.35)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 -6.858) (xy 1.016 -6.858)
-					)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 -8.382) (xy 1.016 -8.382)
-					)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start -0.508 -8.89)
-					(mid -0.3592 -8.5308)
-					(end 0 -8.382)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start 0 -9.398)
-					(mid -0.3592 -9.2492)
-					(end -0.508 -8.89)
-					(stroke
-						(width 0.25)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 -9.398) (xy 1.016 -9.398)
-					)
-					(stroke
-						(width 0.25)
+						(width 0.5)
 						(type default)
 					)
 					(fill
@@ -1894,7 +1606,7 @@
 					)
 				)
 			)
-			(symbol "PINHD_1x8_Female_1_1"
+			(symbol "PINHD_1x8_Male_1_1"
 				(pin passive line
 					(at -3.81 8.89 0)
 					(length 2.54)
@@ -2482,6 +2194,18 @@
 		(uuid "d45deff5-d42c-46a6-b928-ebb76888be7b")
 	)
 	(junction
+		(at 55.88 97.79)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "8478d9b5-2694-4665-b0af-a00d587effa7")
+	)
+	(junction
+		(at 55.88 110.49)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "a24ec462-ba58-424c-8616-8025a34accb4")
+	)
+	(junction
 		(at 68.58 110.49)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2506,6 +2230,16 @@
 			(type default)
 		)
 		(uuid "0ccc0051-64d6-4495-a5f4-205602148e27")
+	)
+	(wire
+		(pts
+			(xy 44.45 110.49) (xy 55.88 110.49)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0d67ca69-1926-474b-934e-e6a62e24c410")
 	)
 	(wire
 		(pts
@@ -2539,17 +2273,27 @@
 	)
 	(wire
 		(pts
-			(xy 55.88 110.49) (xy 68.58 110.49)
+			(xy 44.45 97.79) (xy 55.88 97.79)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "4134bc4b-a43c-4dc8-9eb6-f63444076bec")
+		(uuid "3bc21ef0-af0e-4b85-af29-712578d1c400")
 	)
 	(wire
 		(pts
-			(xy 55.88 97.79) (xy 55.88 105.41)
+			(xy 44.45 106.68) (xy 44.45 110.49)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4460bb50-6472-45a9-b31f-9854b04ea26f")
+	)
+	(wire
+		(pts
+			(xy 55.88 97.79) (xy 55.88 101.6)
 		)
 		(stroke
 			(width 0)
@@ -2609,6 +2353,26 @@
 	)
 	(wire
 		(pts
+			(xy 55.88 110.49) (xy 68.58 110.49)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "911fc47e-1a3d-4edc-9cff-de6c667fd8bf")
+	)
+	(wire
+		(pts
+			(xy 55.88 106.68) (xy 55.88 110.49)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b384b1c6-27e8-4a0f-a12b-06fa3a00281c")
+	)
+	(wire
+		(pts
 			(xy 168.91 83.82) (xy 161.29 83.82)
 		)
 		(stroke
@@ -2636,6 +2400,16 @@
 			(type default)
 		)
 		(uuid "d1bec61d-c39c-4878-9857-cd2fd3fe2f95")
+	)
+	(wire
+		(pts
+			(xy 44.45 101.6) (xy 44.45 97.79)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e9d8a391-fcf1-4882-b0ca-77b2052b0ae7")
 	)
 	(label "USBDP"
 		(at 72.39 92.71 180)
@@ -2788,7 +2562,7 @@
 		(uuid "f3b134df-79b6-4149-89a4-4abbf3be32c0")
 	)
 	(symbol
-		(lib_id "PCM_SL_Pin_Headers:PINHD_1x8_Female")
+		(lib_id "PCM_SL_Pin_Headers:PINHD_1x8_Male")
 		(at 172.72 92.71 0)
 		(unit 1)
 		(body_style 1)
@@ -2809,7 +2583,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "PINHD_1x8_Female"
+		(property "Value" "PINHD_1x8"
 			(at 175.006 105.918 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2820,8 +2594,8 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_1x08_P2.54mm_Vertical"
-			(at 175.26 74.93 0)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical"
+			(at 171.45 76.2 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2842,7 +2616,7 @@
 				)
 			)
 		)
-		(property "Description" "Pin Header female with pin space 2.54mm. Pin Count -8"
+		(property "Description" "Pin Header male with pin space 2.54mm. Pin Count -8"
 			(at 172.72 92.71 0)
 			(hide yes)
 			(show_name no)
@@ -3042,6 +2816,87 @@
 		)
 	)
 	(symbol
+		(lib_id "PCM_SL_Capacitors:104_Ceramic")
+		(at 44.45 104.14 270)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "4c8bc60c-5db8-428e-9d15-c6641f03fc22")
+		(property "Reference" "C2"
+			(at 48.26 102.8699 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1uF"
+			(at 40.132 98.298 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+			(at 40.64 104.14 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 44.45 104.14 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "1uF SMT capacitor"
+			(at 44.45 104.14 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "cb3dd446-68f0-4950-9395-64e798b5e59c")
+		)
+		(pin "2"
+			(uuid "36f78d15-b3f2-4be2-8cb8-8d80f5723645")
+		)
+		(instances
+			(project "DFR0781_BT401_board_v2"
+				(path "/ae5d8edc-3faa-41fe-90b3-432a5a2c7d06"
+					(reference "C2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Custom:DFR0781_BT401_Bluetooth_Module")
 		(at 77.47 72.39 0)
 		(unit 1)
@@ -3201,17 +3056,17 @@
 	)
 	(symbol
 		(lib_id "PCM_SL_Capacitors:104_Ceramic")
-		(at 55.88 107.95 270)
+		(at 55.88 104.14 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "5ef2ce55-9d91-4aca-a9ed-f663937409f3")
 		(property "Reference" "C1"
-			(at 59.69 106.6799 90)
+			(at 59.69 102.8699 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3222,7 +3077,7 @@
 			)
 		)
 		(property "Value" "1uF 105_Ceramic"
-			(at 51.562 102.108 0)
+			(at 51.562 98.298 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3233,7 +3088,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
-			(at 52.07 107.95 0)
+			(at 52.07 104.14 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3244,7 +3099,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 55.88 107.95 0)
+			(at 55.88 104.14 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3255,7 +3110,7 @@
 			)
 		)
 		(property "Description" "1uF Ceramic Capacitor"
-			(at 55.88 107.95 0)
+			(at 55.88 104.14 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

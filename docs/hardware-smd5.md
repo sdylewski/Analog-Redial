@@ -1,6 +1,6 @@
 [Home](../README.md) · [1 · Get a board](board.md) · [2 · Parts & assembly](bom.md) · [3 · Flash & test](flashing.md) · [4 · Set up & use](setup.md)
 
-# Board reference: v5 (SMD5)
+# Board reference: v5
 
 > **v5 is built and working**, and boards are in use: a genuine DevKitC-1 and a 30-pin
 > clone, both with the BM64 companion, run the audio path, microSD, Wi-Fi,
@@ -32,17 +32,17 @@ separately and shared across boards:
 grab that too if you want to open the schematic for editing, not just view
 or order it.
 
-## What's new against SMD4
+## What's new against v4
 
 | Change | Why |
 |--------|-----|
 | **Expansion header (J2)** | 8 pins: 3.3 V, a serial port, a control pin and line 0's audio; currently used for the Bluetooth board — see §9 |
 | **Dedicated 3.3 V LDO (U5)** for the BM64 | Keeps the module's radio bursts off the DevKit's own regulator |
 | **MFB on GPIO15** with a 100 kΩ pull-down | The BM64's power button needs firmware control and must idle low |
-| **SHK divider 15 kΩ → 100 kΩ** | Fixes SMD4's as-built off-hook level, which sat below the ESP32's input-high threshold |
+| **SHK divider 15 kΩ → 100 kΩ** | Fixes v4's as-built off-hook level, which sat below the ESP32's input-high threshold |
 | **Dual MCU footprint** | Takes the genuine 32-pin DevKitC-1 *or* a 30-pin AliExpress clone — see §10 |
 | **C10/C11 → 5 mm disc footprint, DNP** | Drops an Extended part; fit 1 µF only if you want the J7 monitor header |
-| **Board grew to 115 × 54 mm** | 5 mm longer than SMD4 — **needs its own enclosure**, an SMD4 case won't fit |
+| **Board grew to 115 × 54 mm** | 5 mm longer than v4 — **needs its own enclosure**, an v4 case won't fit |
 
 ## 1. Board overview
 
@@ -72,11 +72,11 @@ out here.
 
 **Schematic:**
 
-![SMD5 schematic](pics/smd5_schematic.png)
+![v5 schematic](pics/smd5_schematic.png)
 
 **PCB layout, top copper/silkscreen:**
 
-![SMD5 PCB](pics/V5_board_front.png)
+![v5 PCB](pics/V5_board_front.png)
 
 ## 3. Power tree
 
@@ -112,7 +112,7 @@ J1 (DC jack) ──[D1, Schottky, cathode → +5V]──┐                    �
 - **No separate 3.3 V LDO for the main board logic.** The carrier PCB's
   3.3 V rail (ES8388 + its I²C pull-ups, and any other 3.3 V logic on the
   PCB) is drawn directly from the DevKit module's own 3.3 V output pin.
-  **SMD5 adds a second, dedicated 3.3 V LDO (U5)** off the raw +5 V rail,
+  **v5 adds a second, dedicated 3.3 V LDO (U5)** off the raw +5 V rail,
   purely for the BM64 — see §9.
 - The raw **+5 V** rail (before the DevKit's regulator) also feeds each
   AG1171's **+VPWR**, with local bulk capacitance at each SLIC.
@@ -146,7 +146,7 @@ the codec's left channel, line 1 uses the right channel — each with its own
 dedicated ADC input and DAC output, so both lines' receive audio digitizes
 simultaneously every I²S frame. I²S (MCLK/BCLK/LRCK/DIN/DOUT) and I²C
 (SDA/SCL, address `0x10`) wiring is standard and visible in the schematic
-above — unchanged from SMD4.
+above — unchanged from v4.
 
 I²S: 48 kHz, 16-bit stereo, ESP32 as master, codec as slave — one LRCK frame
 carries one line-0 sample and one line-1 sample. No on-chip crystal; MCLK
@@ -184,7 +184,7 @@ line 0, **J8** line 1) with the following support network.
 |--------|--------|
 | **+VPWR** | Board **+5 V** rail, with local **470 µF** electrolytic bulk capacitance per SLIC plus a 100 nF bypass close to the SLIC's power pins |
 | **PD** (power-down) | Driven from an ESP32 GPIO through a series diode only (1N4148W-class, cathode toward the PD pin) — **no pull-up or pull-down resistor**. Per the AG1171 datasheet, PD should never be pulled to a logic high; GPIO low = power-down, GPIO high (diode blocks, PD floats) = run |
-| **SHK** (hook status) | AG1171 SHK is a ~3.3 V logic output with an internal 3.3 kΩ pull-up (datasheet: VOH 2.8 V min) — **not** 5 V, whichever rail the SLIC runs from. **SMD5 uses a 10 kΩ / 100 kΩ divider**, giving ~2.9 V off-hook — comfortably above the ESP32-C6's 2.475 V input-high threshold (0.75 × VDD). This fixes SMD4's as-built 10 kΩ / 15 kΩ divider, which landed at ~1.9 V and only worked on some pads by luck |
+| **SHK** (hook status) | AG1171 SHK is a ~3.3 V logic output with an internal 3.3 kΩ pull-up (datasheet: VOH 2.8 V min) — **not** 5 V, whichever rail the SLIC runs from. **v5 uses a 10 kΩ / 100 kΩ divider**, giving ~2.9 V off-hook — comfortably above the ESP32-C6's 2.475 V input-high threshold (0.75 × VDD). This fixes v4's as-built 10 kΩ / 15 kΩ divider, which landed at ~1.9 V and only worked on some pads by luck |
 | **F/R** (ring cadence), **RM** (ringing mode) | Driven directly as 3.3 V ESP32 GPIO outputs — no level shifting needed, since these are ESP32-driven control inputs on the SLIC, not SLIC-driven signals |
 | **VIN** (needs external drive) | Fed from the codec's DAC output for that line through a coupling capacitor |
 | **VOUT** (SLIC-driven) | Feeds the codec's ADC input for that line through a coupling capacitor and series resistor |
@@ -212,12 +212,12 @@ Tip/Ring ◄──► RJ12 jack
               └── [M7 ×2 per conductor] ──► /P6K ──[D12 P6KE82A]──► GND   (one TVS, both lines)
 ```
 
-**SHK divider: fixed on SMD5**, unlike SMD4. SMD4's as-built 15 kΩ
+**SHK divider: fixed on v5**, unlike v4. v4's as-built 15 kΩ
 pull-down makes the off-hook level ~1.9 V, below the ESP32-C6's guaranteed
-input-high threshold of 2.475 V — SMD5 uses 100 kΩ instead (≈2.9 V
+input-high threshold of 2.475 V — v5 uses 100 kΩ instead (≈2.9 V
 off-hook), designed in rather than needing a rework. See
 [`hardware-smd4.md`](hardware-smd4.md) §7 for the full story if you're
-comparing against an SMD4 board.
+comparing against an v4 board.
 
 **Mounting:** the AG1171 is a through-hole SIL module — hand-soldered even
 on this SMD board.
@@ -244,7 +244,7 @@ This board routes on 2 copper layers (`F.Cu`/`B.Cu`) rather than 4. Standard
 2-layer tradeoffs apply and are worth keeping in mind when reviewing or
 modifying the layout:
 
-![SMD5 PCB bottom](pics/V5_board_rear.png)
+![v5 PCB bottom](pics/V5_board_rear.png)
 
 
 - **No dedicated ground/power plane** — GND is a deliberately-poured zone on
@@ -264,7 +264,7 @@ modifying the layout:
 
 ## 9. Expansion header (J2): currently used for the Bluetooth board
 
-**SMD5 addition.** An 8-pin, 2.54 mm header that brings out power, a serial
+**v5 addition.** An 8-pin, 2.54 mm header that brings out power, a serial
 port, one control pin and line 0's audio, so a small board can plug straight
 on. Today that's the Bluetooth board (a BM64 carrier, `Bluetooth/BM64/BM64_Board_v1/`
 in the repository), but nothing about it is Bluetooth-specific: use it for
@@ -287,15 +287,15 @@ both silkscreens and dry-fit before applying power.
 
 **The serial pins are free when nothing is fitted.** With no Bluetooth module
 chosen in Settings → General → Board hardware, the firmware doesn't start its
-link on GPIO16/17. (On SMD4 they were on headers J3/J4. On SMD5, J3/J4 carry
-different signals: see [§10](#j3-and-j4-on-smd5).)
+link on GPIO16/17. (On v4 they were on headers J3/J4. On v5, J3/J4 carry
+different signals: see [§10](#j3-and-j4-on-v5).)
 
 ### How the Bluetooth board uses it
 
-Two modules work. The **BM64** carrier (about $14) plugs into the header. The
-cheaper **DFRobot DFR0781 (BT401)** module (about $3.50) works hand-wired to it,
-pin for pin as in [its notes](https://github.com/sdylewski/Analog-Redial/blob/main/Bluetooth/DFR0781_BT401/BT401_NOTES.md);
-an [adapter board](https://github.com/sdylewski/Analog-Redial/tree/main/Bluetooth/DFR0781_BT401/DFR0781_BT401_board_v1) for it, plugging in like the BM64 carrier, is designed but not yet built or tested. No extra parts are needed: J2.7 straight to its DACL pad, J2.5 to its MIC pad. It has a text command set
+Two modules work, and the **BT401 is preferred**. The **DFRobot DFR0781 (BT401)** module (about $3.50)
+sits on a small [adapter board](bt401.md) that plugs into the header like the BM64 carrier (or you can wire
+it by hand, pin for pin as in [its notes](https://github.com/sdylewski/Analog-Redial/blob/main/Bluetooth/DFR0781_BT401/BT401_NOTES.md)).
+The **BM64** carrier (about $14) is the older alternative. No extra parts are needed on the main board: J2.7 straight to its DACL pad, J2.5 to its MIC pad. It has a text command set
 with call control and no setup step; the firmware switches its DAC off whenever
 there's no Bluetooth audio, so it doesn't load line 0's earpiece input. The status LED shows pairing and connection
 state once one is fitted: see [the status light reference](setup.md#7-the-status-light).
@@ -314,7 +314,7 @@ state once one is fitted: see [the status light reference](setup.md#7-the-status
 Audio never passes through firmware: both directions are analog, between the
 module and line 0's SLIC. The ESP32 only carries control over the serial link.
 
-**SMD5 and later only.** On SMD4 the same signals take hand-wiring and board
+**v5 and later only.** On v4 the same signals take hand-wiring and board
 modifications, which is why [`hardware-smd4.md`](hardware-smd4.md) doesn't
 describe it.
 
@@ -362,7 +362,7 @@ the normal `CONFIG_BOARD_TYPE_SMD5` build with native USB working.
 </table>
 
 Bridge one side only: both sides together short GPIO2 to a USB data line.
-<a id="j3-and-j4-on-smd5"></a>**J3 and J4** (2-pin headers, signal and GND) are wired to pads 20 and 19, so
+<a id="j3-and-j4-on-v5"></a>**J3 and J4** (2-pin headers, signal and GND) are wired to pads 20 and 19, so
 what they carry depends on the module:
 
 | Header | Pad | Genuine DevKitC-1 | 30-pin clone, jumpers on the clone side |
@@ -385,7 +385,7 @@ getting it wrong, is in
 
 | Item | Detail |
 |------|--------|
-| Board size | **115 × 54 mm**, 2-layer — **5 mm longer than SMD4** (110 × 54 mm), so an SMD4 enclosure will not fit |
+| Board size | **115 × 54 mm**, 2-layer — **5 mm longer than v4** (110 × 54 mm), so an v4 enclosure will not fit |
 | Phone lines | RJ12 ×1 (single-line build) or ×2 (dual-line build), **J9**/**J8** |
 | Power | USB-C (via the DevKit module's own port) and DC jack (**J1**), diode-ORed |
 | Storage | microSD, optional, single-line build only |

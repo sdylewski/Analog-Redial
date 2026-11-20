@@ -46,7 +46,7 @@
 | **VoIP server** | Register a line with Asterisk, FreePBX or any SIP server and call anything that server can reach, at home or away. If the server goes down, the boards can still call each other directly. | One phone <br> Wi-Fi <br> SIP server |
 | **Home Assistant** | Every pickup, hang-up and dial code becomes an event, so a dial code can turn on a light and the phone can ring when your doorbell does. Over MQTT or a plain webhook. *Experimental.* | Wi-Fi and Home Assistant (or any MQTT broker) |
 | **Switch things** | Dial a code and a pin goes high for a few seconds or continuously: a relay, a buzzer, a lamp. | A relay <br> (on v4/v5: one line, no microSD) |
-| **Bluetooth calls** | Pair your mobile and the rotary phone becomes its handset: the bell rings for incoming calls, lift to answer, dial out on the rotary dial. | The BM64 Bluetooth board |
+| **Bluetooth calls** | Pair your mobile and the rotary phone becomes its handset: the bell rings for incoming calls, lift to answer, dial out on the rotary dial. | A BT401 Bluetooth board (about $3.50; [how to build it](docs/bt401.md)) |
 
 ### Why not just buy a VoIP adapter?
 
@@ -123,14 +123,14 @@ onto yours. Firmware is updating frequently, so these are just examples.
 
 <table>
   <tr>
-    <td align="center" width="33%"><a href="docs/pics/status.png"><img src="docs/pics/thumbs/status.png" alt="Status page"></a><br><b>Status</b><br>Lines, activity, the dial guide</td>
-    <td align="center" width="33%"><a href="docs/pics/settings-phone.png"><img src="docs/pics/thumbs/settings-phone.png" alt="Phone settings"></a><br><b>Phone settings</b><br>Answering machine, tones, effects</td>
-    <td align="center" width="33%"><a href="docs/pics/settings-dialcodes.png"><img src="docs/pics/thumbs/settings-dialcodes.png" alt="Dial codes and prompts"></a><br><b>Dial codes</b><br>Your own codes and audio</td>
+    <td align="center" width="33%"><a href="docs/UI_screenshots/status.png"><img src="docs/UI_screenshots/thumbs/status.png" alt="Status page"></a><br><b>Status</b><br>Lines, activity, the dial guide</td>
+    <td align="center" width="33%"><a href="docs/UI_screenshots/settings-phone.png"><img src="docs/UI_screenshots/thumbs/settings-phone.png" alt="Phone settings"></a><br><b>Phone settings</b><br>Answering machine, tones, effects</td>
+    <td align="center" width="33%"><a href="docs/UI_screenshots/settings-dialcodes.png"><img src="docs/UI_screenshots/thumbs/settings-dialcodes.png" alt="Dial codes and prompts"></a><br><b>Dial codes</b><br>Your own codes and audio</td>
   </tr>
   <tr>
-    <td align="center"><a href="docs/pics/settings-voip.png"><img src="docs/pics/thumbs/settings-voip.png" alt="VoIP settings"></a><br><b>VoIP</b><br>SIP server, generated Asterisk script</td>
-    <td align="center"><a href="docs/pics/recordings.png"><img src="docs/pics/thumbs/recordings.png" alt="Recordings"></a><br><b>Recordings</b><br>Play or download messages</td>
-    <td align="center"><a href="docs/pics/settings-hardware.png"><img src="docs/pics/thumbs/settings-hardware.png" alt="Hardware settings"></a><br><b>Hardware</b><br>Line count, microSD, firmware update</td>
+    <td align="center"><a href="docs/UI_screenshots/settings-voip.png"><img src="docs/UI_screenshots/thumbs/settings-voip.png" alt="VoIP settings"></a><br><b>VoIP</b><br>SIP server, generated Asterisk script</td>
+    <td align="center"><a href="docs/UI_screenshots/recordings.png"><img src="docs/UI_screenshots/thumbs/recordings.png" alt="Recordings"></a><br><b>Recordings</b><br>Play or download messages</td>
+    <td align="center"><a href="docs/UI_screenshots/settings-hardware.png"><img src="docs/UI_screenshots/thumbs/settings-hardware.png" alt="Hardware settings"></a><br><b>Hardware</b><br>Line count, microSD, firmware update</td>
   </tr>
 </table>
 
@@ -200,7 +200,8 @@ Going further: [Troubleshooting](docs/troubleshooting.md) ·
 > an off-hook line and about 60 V AC while ringing, with peaks near 90 V.
 > Don't touch the phone jacks or the line chips while it's powered, and never
 > connect it to your house or telephone-company wiring. This is a hobby
-> project, not certified telecom equipment.
+> project, sold as a kit for builders: not certified telecom equipment, and not a
+> finished, approved product.
 
 ---
 

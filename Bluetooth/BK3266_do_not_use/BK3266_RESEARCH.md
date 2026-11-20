@@ -290,7 +290,7 @@ Header pin   Net                                    BK3266SR pin
   command.
 ```
 
-**GPIO15 is reused directly** — same dedicated MFB-style pin SMD5 already
+**GPIO15 is reused directly** — same dedicated MFB-style pin v5 already
 carved out for the BM64's MFB (`BOARD_BT_MFB_PIN`/`BOARD_BT_MFB_DEDICATED`
 in `board_pins_smd4.h`), since both modules need exactly one power/wake
 GPIO and nothing else.

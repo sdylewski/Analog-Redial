@@ -34,7 +34,7 @@ the ESP32-C6 reliably reads as high. The symptom is a line whose audio works
 but which never notices the handset being lifted.
 
 Leave **R15** and **R13**, the 10 kΩ resistors, in place. Full explanation
-in the [v4 board reference](hardware-smd4.md#7-shk-divider-rework-smd4-as-built).
+in the [v4 board reference](hardware-smd4.md#7-shk-divider-rework-v4-as-built).
 v5 has the corrected values, so there's nothing to remove.
 
 ## 3. Soldering order

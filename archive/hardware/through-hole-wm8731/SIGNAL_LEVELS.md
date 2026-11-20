@@ -6,12 +6,12 @@ production data **Rev 3.4, April 2004** and **Silvertel AG1170** full
 datasheet (local PDF; revision/date on cover sheet — see extract).
 
 Split out from the old `HARDWARE_SIGNAL_LEVELS.md` on 2026-10-03 — that
-file covered both this board and the SMD2/SMD4 lineage in one doc; its
+file covered both this board and the v2/v4 lineage in one doc; its
 SMD2-specific sections (ES8388/AG1171 DTMF-clipping rework, AEC timing)
 moved to [`../smd2.md`](../smd2.md) instead, since they're unrelated to
 this board. The current production board's own signal-level reference is
 [`../../../archive/signal-levels.md`](../../../archive/signal-levels.md)
-(SMD4, ES8388 + AG1171).
+(v4, ES8388 + AG1171).
 
 ---
 

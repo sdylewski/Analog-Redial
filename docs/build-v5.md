@@ -63,7 +63,7 @@ Two choices decide which steps you do.
 | **J2** | 1×8 pin header, 2.54 mm | 1 | optional | for the Bluetooth board |
 | **J7** | 1×3 pin header | 1 | optional | audio monitor; needs C10, C11 |
 | **C10**, **C11** | 1 µF film or ceramic, 5 mm pitch | 2 | optional | only with J7 |
-| **J3**, **J4** | 1×2 pin header | 2 | optional | rarely useful on v5: see the [v5 reference](hardware-smd5.md#j3-and-j4-on-smd5) |
+| **J3**, **J4** | 1×2 pin header | 2 | optional | rarely useful on v5: see the [v5 reference](hardware-smd5.md#j3-and-j4-on-v5) |
 | | microSD card | 1 | single line + microSD | FAT-formatted |
 
 ## 4. Before you start
@@ -161,44 +161,37 @@ Step 1 (JP2, JP3) must be done first.
 <table>
   <tr>
     <td width="50%"><img src="pics/build-v5/v5-module-clone.jpg" alt="The clone's 5V pin to remove"></td>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="Clone module fitted"></td>
   </tr>
   <tr>
     <td align="center">v5: the bottom-right 5V pin, removed (<code>pics/build-v5/13b-pin-removed.jpg</code>)</td>
-    <td align="center">Clone fitted (<code>pics/build-v5/v5-module-clone.jpg</code>)</td>
   </tr>
 </table>
 
 ### Step 5: J5 jumpers
 
-Set the build with jumper shunts on J5:
-
 - **Dual line:** fit all four shunts, across 1-2, 3-4, 5-6, 7-8.
-- **Single line + microSD** or **your own gadgets:** none. Never a mix.
+- **Single line + microSD** or **your own gadgets:** no shunts
 
-![Photo to take: J5 with four shunts fitted](assets/photo-placeholder.svg)
-*J5 with four shunts, for a dual-line board (`pics/build-v5/05-j5-jumpers.jpg`)*
+![J5 with four jumper shunts fitted, on a dual-line board](pics/build-v5/v5_dual_line.jpg)
+*J5 with four shunts, for a dual-line board*
 
 ### Step 6: J1, DC jack, and J2, Bluetooth header (optional)
 
-Place the DC jack in its holes and solder it from the back: chunky pins, so use a hot iron
-and give the solder a moment to flow into the slots. If you'll use the Bluetooth board, fit
+Place the DC jack in its holes and solder it from the back.  If you'll use the Bluetooth board, fit
 its header (J2) at the same time: with both in, the board sits more level while you solder.
-Pin 1 matches the silkscreen.
 
-![Photo to take: J1 and J2 fitted](assets/photo-placeholder.svg)
-*J1 and J2 (`pics/build-v5/v5dcJack.jpg`)*
+![J1, the DC jack, and J2, the Bluetooth header, fitted](pics/build-v5/v6_dc_bt.jpg)
+*J1 and J2 ( on V6 board, but it’s the same on the V5)*
 
 ### Step 7: RJ12 jacks and 470 µF capacitors
 
 Place your RJ12 jacks: J9 for line 0, and J8 too for two lines. They snap in; check they sit
-flat before soldering. Then the 470 µF capacitors, C16 for line 0 and C17 for line 1. **They're
+flat before soldering. 
+Then the 470 µF capacitors, C16 for line 0 and C17 for line 1. **They're
 polarized:** the negative side (the stripe, and the shorter lead) faces the white marking on
 the board. Line 0 and Line 1 are labelled, so for a one-line board just use the holes on the
 right.
 
-![Photo to take: J8 and J9 fitted](assets/photo-placeholder.svg)
-*J8 beside J9 (`pics/build-v5/06-j8.jpg`)*
 
 ### Step 8: U4, AG1171 SLIC for line 0 (and U3 for line 1)
 
@@ -236,8 +229,8 @@ Nothing plugged into the phone jacks yet.
   0.4 V below the supply, after the OR diode).
 - Then plug in a phone. It does nothing yet: there's no firmware.
 
-![Photo to take: the finished board](assets/photo-placeholder.svg)
-*The finished board (`pics/build-v5/16-finished.jpg`)*
+![A finished dual-line v5 board](pics/build-v5/v5_dual_line.jpg)
+*The finished board (dual line)*
 
 ---
 

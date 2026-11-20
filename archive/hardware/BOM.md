@@ -7,12 +7,12 @@ Each line-item BOM uses the same columns: leading empty cell (your checkbox), **
 
 | Sub-project | Board | KiCad project | BOM |
 |-------------|-------|---------------|-----|
-| **SMD4** (current) | ESP32-C6-DevKitC-1 + **ES8388** + **AG1171** ×1–2 | [`hardware/kicad/Analog Redial v4/`](../../hardware/kicad/Analog%20Redial%20v4/) | [**docs/bom.md**](../../docs/bom.md) |
-| **SMD5** (at the fab) | as SMD4, plus BM64 Bluetooth carrier | [`hardware/kicad/Analog Redial v5/`](../../hardware/kicad/Analog%20Redial%20v5/) | [**docs/bom.md**](../../docs/bom.md) + [**BOM-bluetooth.md**](BOM-bluetooth.md) |
-| **SMD2** (3 built) | ESP32-C6-WROOM-1 + **ES8388** + **AG1171** | [`hardware/kicad/Analog Redial v2/`](../../hardware/kicad/Analog%20Redial%20v2/) | [**smd2.md**](smd2.md) |
+| **v4** (current) | ESP32-C6-DevKitC-1 + **ES8388** + **AG1171** ×1–2 | [`hardware/kicad/Analog Redial v4/`](../../hardware/kicad/Analog%20Redial%20v4/) | [**docs/bom.md**](../../docs/bom.md) |
+| **v5** (at the fab) | as v4, plus BM64 Bluetooth carrier | [`hardware/kicad/Analog Redial v5/`](../../hardware/kicad/Analog%20Redial%20v5/) | [**docs/bom.md**](../../docs/bom.md) + [**BOM-bluetooth.md**](BOM-bluetooth.md) |
+| **v2** (3 built) | ESP32-C6-WROOM-1 + **ES8388** + **AG1171** | [`hardware/kicad/Analog Redial v2/`](../../hardware/kicad/Analog%20Redial%20v2/) | [**smd2.md**](smd2.md) |
 | **Through-hole / hand-solder** (reference) | ESP32-C6-DevKitM-1 + **WM8731** + **AG1170 or AG1171** | [`hardware/kicad/Old/Analog Redial v1/`](../../hardware/kicad/Old/Analog%20Redial%20v1/) | [**BOM-through-hole.md**](through-hole-wm8731/BOM-through-hole.md) |
 
-**Design references:** [`smd2.md`](smd2.md) (SMD2, archived) · [`WM8731.md`](through-hole-wm8731/WM8731.md) (through-hole codec wiring)
+**Design references:** [`smd2.md`](smd2.md) (v2, archived) · [`WM8731.md`](through-hole-wm8731/WM8731.md) (through-hole codec wiring)
 
 **Firmware board types:** one codebase, `CONFIG_BOARD_TYPE_*` selects the pin map — see [`firmware/README.md`](../../firmware/README.md).
 

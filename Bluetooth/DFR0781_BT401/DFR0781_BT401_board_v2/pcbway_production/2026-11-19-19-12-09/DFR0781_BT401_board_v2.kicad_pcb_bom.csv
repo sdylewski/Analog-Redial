@@ -1,0 +1,6 @@
+Designator,Quantity,Value,Footprint,Package,MPN,DNP,Mount_Type,Description
+D1,1,LED_5mm,LED_D5.0mm,,,,tht,Common 5mm diameter LED
+J1,1,PINHD_1x8_Female,PinSocket_1x08_P2.54mm_Vertical,,,,tht,Pin Header female with pin space 2.54mm. Pin Count -8
+J2,1,PINHD_1x6_Male,PinHeader_1x06_P2.54mm_Vertical,,,,tht,Pin Header male with pin space 2.54mm. Pin Count -6
+R1,1,1k,R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal,,,,tht,"1kΩ, 1/4W Resistor"
+U1,1,DFR0781,DFR0781_BT401_new,,,,smt,BT401 bluetooth module

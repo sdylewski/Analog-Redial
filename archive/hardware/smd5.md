@@ -1,4 +1,4 @@
-# Analog Redial v5 (SMD5) — dev notes
+# Analog Redial v5 — dev notes
 
 > **Status: boards back (2026-10-19), first bring-up under way** — see [Bring-up log](#bring-up-log) at the end. Originally sent to fab untested. Ordered together with the BM64
 > Bluetooth carrier (`Bluetooth/Bluetooth_board/`) and a BK3266 test board
@@ -8,11 +8,11 @@
 KiCad project: `hardware/kicad/Analog Redial v5/`. Working notes per
 [`CLAUDE.md`](../../CLAUDE.md)'s public-vs-internal-docs split; the public
 reference is [`docs/hardware-smd5.md`](../../docs/hardware-smd5.md).
-Everything not listed here is the same as SMD4 — see
+Everything not listed here is the same as v4 — see
 [`smd4.md`](smd4.md) and
 [`docs/hardware-smd4.md`](../../docs/hardware-smd4.md).
 
-## What's different from SMD4
+## What's different from v4
 
 - **Dual MCU footprint** (`U1`): takes a genuine Espressif
   ESP32-C6-DevKitC-1 or a cheaper AliExpress clone, selected with two solder
@@ -70,7 +70,7 @@ sides together short GPIO2 to a USB data line.
   with the clone-side jumper also pulls USB D+ low, so USB stops enumerating.
 
 The MCLK behaviour is what the codec's design implies (it runs as an I²S
-slave and needs MCLK); confirm it on the first SMD5 by deliberately
+slave and needs MCLK); confirm it on the first v5 by deliberately
 mis-jumpering one board.
 
 | Module | Jumpers | Firmware | Result |
@@ -255,7 +255,7 @@ misbehaves.
 
 
 - **A wider-input DC jack (next board version, idea):** a 5 V step-down converter between
-  the DC jack and the diode-OR (D1), so a 9 V wall supply works. The SMD4/SMD5 jack path is
+  the DC jack and the diode-OR (D1), so a 9 V wall supply works. The v4/v5 jack path is
   limited to about 5.5-6 V: the +5 V rail feeds the DevKit's onboard LDO, the AG1171 SLICs
   and U5, an XC6206 rated about 6 V in. Spec the jack as roughly 7-24 V, 9 V recommended; a
   5 V adapter does not work through a buck (no headroom), so 5 V stays on USB-C. Set the
@@ -305,7 +305,7 @@ laptop off its network.
 
 | Check | Genuine + BM64 | Clone + BK3266 |
 |--|--|--|
-| Boots, console, `board_info` = SMD5 | ok | ok |
+| Boots, console, `board_info` = v5 | ok | ok |
 | ES8388 at 0x10 (I²C) | ok | ok |
 | Codec -> SLIC -> codec (`tonetest`) | tone returns, -31 dBFS | **no tone**; both ADC inputs read rms ~80 (genuine: 1-3) |
 | BT module on UART | BM64 answers at 115200, BD address 3C:BC:32:D0:B7:44; pairing mode (discoverable) starts | **silent** at every baud tried (`bk_baudscan`), binary and text |

@@ -4,7 +4,7 @@ A systematic pass over the firmware, area by area, looking for bugs (memory
 safety, races, input handling, security) and things worth improving. Tools:
 cppcheck 2.21 over the real build configuration (`compile_commands.json`),
 plus reading each area by hand. Every fix below was built, flashed to an
-SMD4 (8 MB) and tested on it where the behaviour can be exercised without a
+v4 (8 MB) and tested on it where the behaviour can be exercised without a
 person at the phone.
 
 ## Fixed
@@ -33,7 +33,7 @@ person at the phone.
 | gen_prompt.py | Prompt text (which `--sync` fetches from a board) passed to `say`/`espeak-ng` as an argument | Text starting with `-` was parsed as an option, e.g. `say -o <path>` overwriting a file on your Mac | `98ed6f0` |
 | SLIC | Ring-trip only stopped ringing on the on-hook to off-hook edge | **The self-test's ringer check or the `ring` command on a line whose handset was already up put ring voltage into the earpiece** | `9df5d61` |
 | Diagnostics | No record of why the board restarted | A crash, watchdog or brownout looked like an ordinary reboot; now shown in Recent activity and `/api/status` | `d2b00ea` |
-| Firmware upload | Browser upload didn't check the image was built for this board | An SMD2 image on an SMD4 (or a 16 MB image on an 8 MB board) booted with the wrong pin map, and rollback doesn't catch a build that starts up fine. Images now carry a board/flash-size id and a mismatch (or an image without one) is refused | `3acce29` |
+| Firmware upload | Browser upload didn't check the image was built for this board | An v2 image on an v4 (or a 16 MB image on an 8 MB board) booted with the wrong pin map, and rollback doesn't catch a build that starts up fine. Images now carry a board/flash-size id and a mismatch (or an image without one) is refused | `3acce29` |
 | SD card | Card removal unmounted and freed the card while a player, recorder or download on another task was mid-read | **Pulling the card during playback could crash the board.** Every SD use now holds the card; removal refuses new users at once and unmounts once current ones finish (up to 5 s) | `59fb0a6` |
 | Web UI | No login; the Origin check didn't stop DNS rebinding | Anything on the LAN (or a VPN) could change settings. Optional web password now (Settings -> General): every POST and the secret-bearing VoIP script need a sign-in or HTTP Basic auth, which also closes DNS rebinding. Removed by BOOT-button rescue mode, the 10 s hold, or `webpass clear` | `d6b999d` |
 
@@ -95,7 +95,7 @@ person at the phone.
    collector, SIP header parsing, multipart parser, URL decoding -- compiled
    for the Mac. The bugs found here (truncate-then-decode twice, missing
    header handling) are exactly what such tests catch.
-3. **A CI build of every board variant** (SMD2, SMD4, SMD5, SMD5 clone,
+3. **A CI build of every board variant** (v2, v4, v5, v5 clone,
    8 MB) on each push, plus cppcheck. A build directory nobody has
    regenerated lately can drift silently today.
 4. **Compiler optimization**: the firmware is built `-Og` (debug). `-Os`

@@ -129,7 +129,7 @@ frames, so a third probe is possible; and decide what happens when the
 manual setting and the detection disagree (suggest: warn, trust the
 detection). Needs a real module of each kind to validate.
 
-## Catch a wrong SMD5 jumper (JP2/JP3) at boot
+## Catch a wrong v5 jumper (JP2/JP3) at boot
 
 Idea (2026-10-09): a clone MCU module with the jumpers left at default
 leaves the codec without a clock and the card-detect switch unread, with no
@@ -152,7 +152,7 @@ MCLK input is high-impedance. Two indirect checks do work:
    refuses to attempt a mount when CD reads empty.) Do it once at boot or
    from a "Check microSD" button, not repeatedly.
 
-**Optional step further:** if check 1 fails on an SMD5 build, move MCLK to the
+**Optional step further:** if check 1 fails on an v5 build, move MCLK to the
 clone's GPIO12 at runtime (what the `SMD5_CHEAP` build, removed 2026-11-16, did at compile time)
 so one firmware self-corrects, at the cost of the USB console on that boot.
 

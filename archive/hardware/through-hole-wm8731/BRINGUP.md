@@ -2,7 +2,7 @@
 
 Step-by-step console walkthrough for the original through-hole reference
 board (ESP32-C6-DevKitM-1 + WM8731 + AG1170). This used to live in
-`firmware/README.md`; moved here once SMD4 became the board anyone starts
+`firmware/README.md`; moved here once v4 became the board anyone starts
 from — the modern, board-agnostic equivalent is
 [`../../../firmware/bringup/README.md`](../../../firmware/bringup/README.md)'s
 `flash_board.py --setup` and `bringup_checklist.py`, which run the same kind

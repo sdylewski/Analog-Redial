@@ -254,16 +254,16 @@ AOHPL output-impedance/single-ended-mode section, and ideally a scope
 capture of AOHPL's own waveform in isolation to see whether the distortion
 originates at the BM64 side or only appears once it's fighting the shared
 node) -- but it's real, reproducible, and worth designing around before
-finalizing SMD5's BM64 header: either a unity-gain buffer between AOHPL and
+finalizing v5's BM64 header: either a unity-gain buffer between AOHPL and
 the shared Vin node (isolates the two branches' AC loading from each other,
 the textbook fix), or accept the loss and compensate with a few dB of extra
 `spkamp` gain when BM64 is the active path -- but the *distortion* (not
 just the level drop) argues for the buffer, since gain can't undo clipping
 that already happened upstream of it.
 
-### Adding a BM64 to a 2-line SMD4 board (decided 2026-09-27)
+### Adding a BM64 to a 2-line v4 board (decided 2026-09-27)
 
-A 2-line SMD4 has line 1's SLIC wired to GPIO18-21 through J5's four
+A 2-line v4 has line 1's SLIC wired to GPIO18-21 through J5's four
 shunts. The BM64's MFB/RST_N/P2_0 need those same three GPIOs (18-20), so
 the two can't share them. The plan: **pull J5's four shunts** -- line 1's
 SLIC stays stuffed but is electrically disconnected -- and wire the BM64's
@@ -275,7 +275,7 @@ concerned, so both normal operation and EEPROM programming
 without further changes. Restoring line 1 later is just re-fitting the
 shunts and switching back to two lines.
 
-SMD5 plans to avoid this trade by giving MFB its own GPIO and using J5 only
+v5 plans to avoid this trade by giving MFB its own GPIO and using J5 only
 temporarily for programming -- see
 [`hardware/smd5.md`](hardware/smd5.md).
 
@@ -422,7 +422,7 @@ engineering agree for once.
 - **Power sequencing:** does the BM64 need to come up before/after the SLIC,
   or share a rail so they rise together? The damage mechanism above is
   really about hot-plugging rather than sequencing per se, but with both
-  permanently wired on SMD5 it's worth confirming no ordering leaves AOHPL
+  permanently wired on v5 it's worth confirming no ordering leaves AOHPL
   driving an unpowered Vin (or vice versa) -- check the BM64 datasheet's
   AOHPL output stage behavior during its own power-up/down.
 - **Bench procedure until protection exists:** power down before rewiring;

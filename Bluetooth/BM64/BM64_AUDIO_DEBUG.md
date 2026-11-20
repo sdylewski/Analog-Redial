@@ -156,7 +156,7 @@ bm64_eeprom read 0348 1    → expect 0A
 bm64_eeprom read 01D7 1    → expect 94 (unchanged)
 ```
 
-### APPLIED AND VERIFIED 2026-09-26 (newphone, SMD4 single-line)
+### APPLIED AND VERIFIED 2026-09-26 (newphone, v4 single-line)
 
 Every pre-write read matched this doc's predictions exactly, so the
 diagnosis above is confirmed against real silicon, not inferred:
@@ -178,7 +178,7 @@ resets, unlike IBDK/pairing state.
 
 ---
 
-## Test Plan: BM64 Audio on SMD4 Board
+## Test Plan: BM64 Audio on v4 Board
 
 ### 1. Hardware checks (power off)
 

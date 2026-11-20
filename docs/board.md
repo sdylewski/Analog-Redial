@@ -24,7 +24,7 @@ card, the payphone coin board and four extra I/O pins all at once, takes the che
 module with nothing to cut off, and protects itself from a wrong DC adapter. v5 and v5.1
 boards are already out there and stay fully supported; their guides are below.
 
-| | **v6** (SMD6), current | **v5** (SMD5) | **v5.1** | **v4** (SMD4) |
+| | **v6**, current | **v5** | **v5.1** | **v4** |
 |---|---|---|---|---|
 | Status | **Built and working**: two phone lines, the codec, Wi-Fi and the payphone coin board. The microSD card and the extra I/O (J10) haven't been checked on it yet | **Working**, the longest-tested board; boards are in use | v5 with the clone-module 5V pin fixed, plus silkscreen and fab-file updates. Released, not built | **Proven**, the first board in daily use |
 | Microcontroller | ESP32-C6-DevKitC-1, or a cheaper 30-pin clone (move two solder jumpers) | Same, but a clone needs one pin removed | Same as v6 | ESP32-C6-DevKitC-1 only |

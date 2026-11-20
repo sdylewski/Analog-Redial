@@ -23,7 +23,7 @@ plus mic input on **MIC_P1** → BM64 → Bluetooth HFP back to phone.
 
 ## Step 1: Wiring — ESP32-C6 to BM64
 
-**Confirmed 2026-09-23 on the actual "newphone" SMD4 single-line board** (no
+**Confirmed 2026-09-23 on the actual "newphone" v4 single-line board** (no
 microSD populated) — these are the real pins, not placeholders. GPIO16/17
 are the board's existing UART header; GPIO18-20 are the free jumper pads
 that would otherwise go to line 1's SLIC/microSD (see

@@ -1,0 +1,4 @@
+﻿Designator,Quantity,Value,Footprint,Package,MPN,DNP,Mount_Type,Description
+C2,1,1uF,C_0402_1005Metric,,,,smt,1uF SMT capacitor
+J1,1,PINHD_1x8_Female,PinSocket_1x08_P2.54mm_Vertical,,,,tht,Pin Header female with pin space 2.54mm. Pin Count 8
+U1,1,DFR0781,DFR0781_BT401_new,,,,smt,https://www.digikey.com/en/products/detail/dfrobot/DFR0781/13688344

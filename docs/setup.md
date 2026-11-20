@@ -108,7 +108,7 @@ Click any picture for the full page.
 
 <table>
   <tr>
-    <td width="40%"><a href="pics/status.png"><img src="pics/thumbs/status.png" alt="Status page"></a></td>
+    <td width="40%"><a href="UI_screenshots/status.png"><img src="UI_screenshots/thumbs/status.png" alt="Status page"></a></td>
     <td valign="top"><b>Status.</b> Each line's state and last caller, this
     phone's number and the other phones on your network it can call, Wi-Fi
     and storage, recent activity (calls, recordings, misdials) and the dial
@@ -116,12 +116,12 @@ Click any picture for the full page.
     name and hardware type.</td>
   </tr>
   <tr>
-    <td><a href="pics/recordings.png"><img src="pics/thumbs/recordings.png" alt="Recordings page"></a></td>
+    <td><a href="UI_screenshots/recordings.png"><img src="UI_screenshots/thumbs/recordings.png" alt="Recordings page"></a></td>
     <td valign="top"><b>Recordings.</b> Messages left with 211 and on the
     answering machine: length, time, play, download, delete.</td>
   </tr>
   <tr>
-    <td><a href="pics/settings-general.png"><img src="pics/thumbs/settings-general.png" alt="General settings"></a></td>
+    <td><a href="UI_screenshots/settings-general.png"><img src="UI_screenshots/thumbs/settings-general.png" alt="General settings"></a></td>
     <td valign="top"><b>Settings → General.</b> Board name, the browser tab icon (olive, or blue
     for a payphone), saved Wi-Fi
     networks, the board's hardware (the number of lines and, on v4 and v5,
@@ -130,21 +130,21 @@ Click any picture for the full page.
     hours that keep the bell silent overnight, and the passwords.</td>
   </tr>
   <tr>
-    <td><a href="pics/settings-phone.png"><img src="pics/thumbs/settings-phone.png" alt="Phone settings"></a></td>
+    <td><a href="UI_screenshots/settings-phone.png"><img src="UI_screenshots/thumbs/settings-phone.png" alt="Phone settings"></a></td>
     <td valign="top"><b>Settings → Phone.</b> The answering machine
     per line, your country's dial tone, the off-hook alert, echo
     cancellation, digit readback, voice effects, intercom mode and earpiece
     volume.</td>
   </tr>
   <tr>
-    <td><a href="pics/settings-dialcodes.png"><img src="pics/thumbs/settings-dialcodes.png" alt="Dial codes and prompts"></a></td>
+    <td><a href="UI_screenshots/settings-dialcodes.png"><img src="UI_screenshots/thumbs/settings-dialcodes.png" alt="Dial codes and prompts"></a></td>
     <td valign="top"><b>Settings → Dial Codes.</b> Every clip code
     and its audio, editable: change a code, upload new audio, or add a new
     one. Also the operator message, the record-message prompt, the timer's
     spoken question and message, and the pin outputs.</td>
   </tr>
   <tr>
-    <td><a href="pics/settings-voip.png"><img src="pics/thumbs/settings-voip.png" alt="VoIP settings"></a></td>
+    <td><a href="UI_screenshots/settings-voip.png"><img src="UI_screenshots/thumbs/settings-voip.png" alt="VoIP settings"></a></td>
     <td valign="top"><b>Settings → VOIP.</b> Each line's board-to-board
     number and the other phones found on your network; then, folded away until
     VoIP is turned on, the SIP server and per-line extension, registration
@@ -152,19 +152,19 @@ Click any picture for the full page.
     in §6 below.</td>
   </tr>
   <tr>
-    <td><a href="pics/settings-hardware.png"><img src="pics/thumbs/settings-hardware.png" alt="Hardware settings"></a></td>
+    <td><a href="UI_screenshots/settings-hardware.png"><img src="UI_screenshots/thumbs/settings-hardware.png" alt="Hardware settings"></a></td>
     <td valign="top"><b>Settings → Hardware.</b> Board and chip
     details, low-power idle mode (on by default; it saves power when the
     phones have been idle for a few minutes), each line's ring frequency, firmware updates (with a check for new
     releases), restart counts, the memory map, and resets.</td>
   </tr>
   <tr>
-    <td><a href="pics/settings-storage.png"><img src="pics/thumbs/settings-storage.png" alt="Storage settings"></a></td>
+    <td><a href="UI_screenshots/settings-storage.png"><img src="UI_screenshots/thumbs/settings-storage.png" alt="Storage settings"></a></td>
     <td valign="top"><b>Settings → Storage.</b> A file manager for the
     board's flash and the microSD card.</td>
   </tr>
   <tr>
-    <td><a href="pics/settings-diag.png"><img src="pics/thumbs/settings-diag.png" alt="Diagnostics"></a></td>
+    <td><a href="UI_screenshots/settings-diag.png"><img src="UI_screenshots/thumbs/settings-diag.png" alt="Diagnostics"></a></td>
     <td valign="top"><b>Settings → Diagnostics.</b> The full log, log
     level, the hardware self-test (including a line audio level check that
     recommends an earpiece level, with a button to apply it), a
@@ -182,7 +182,7 @@ Optional features (VoIP, Bluetooth, Home Assistant, Payphone) always have their 
 you can read how they work first. A bar at the top says whether the feature
 is on: VoIP, Home Assistant and Payphone have their switch there, and Bluetooth turns on
 when you choose its module in Board hardware. Settings are kept while a
-feature is off. Bluetooth needs a v5 or v6 board with a Bluetooth board (BM64 or BT401) on its expansion header.
+feature is off. Bluetooth needs a v5 or v6 board with a Bluetooth board (BM64 or BT401) on its expansion header: [how to build the BT401 one](bt401.md).
 
 ## 5. Your own audio
 

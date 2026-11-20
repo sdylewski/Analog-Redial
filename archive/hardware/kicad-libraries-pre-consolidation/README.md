@@ -2,7 +2,7 @@
 
 Archived 2026-10-02. These were this repo's own copies of custom symbols and
 footprints (`Custom_Symbol_Library.kicad_sym`, `WM8731_lib.kicad_sym`,
-`Custom.pretty`), used by SMD2, SMD4, and the SMD5/"Analog Redial" board
+`Custom.pretty`), used by v2, v4, and the SMD5/"Analog Redial" board
 files before this date.
 
 They've been consolidated into one personal library used across all KiCad

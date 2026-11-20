@@ -2,13 +2,13 @@
 
 An ESP32-C6 analog phone exchange: **ESP32-C6**, stereo **I²S codec** (ES8388), **Silvertel AG1171 SLIC(s)** for real tip/ring phone lines. Firmware on **ESP-IDF** (hook detect, pulse/DTMF, tones, ringing, VoIP). Successor to the Raspberry Pi stack in `pi_rotary_phone` (Python v1.0).
 
-Public docs (README, `docs/`) present the current **SMD4** board as the only
+Public docs (README, `docs/`) present the current **v4** board as the only
 board — see [Public vs. internal docs](#public-vs-internal-docs) below for
 why, and what else still exists in this tree.
 
-## Current hardware: SMD4
+## Current hardware: v4
 
-| | SMD4 (current) |
+| | v4 (current) |
 |---|---|
 | Board | `hardware/kicad/Analog Redial v4/` |
 | MCU | ESP32-C6-DevKitC-1 |
@@ -19,14 +19,14 @@ why, and what else still exists in this tree.
 The firmware tree also still supports **`CONFIG_BOARD_TYPE_SMD2`** (the
 first hand-soldered SMD spin, `board_pins_smd.h`) — a real, working Kconfig
 choice, just not part of the public-facing story since the project
-standardized on SMD4. Don't remove it without asking.
+standardized on v4. Don't remove it without asking.
 
 The original through-hole board (WM8731 codec, `CONFIG_BOARD_TYPE_THT`) was
 **removed from the firmware on 2026-10-03** at the user's request — driver,
 pin map and Kconfig choice all gone. Last commit that still builds it:
 `2fdde5e`. Its docs remain under `archive/hardware/through-hole-wm8731/`.
 
-**SMD5 ("Analog Redial 5")** is the current-generation board — boards back from
+**v5 ("Analog Redial 5")** is the current-generation board — boards back from
 the fab 2026-10-19; documented as working (BM64 carrier, microSD, audio, OTA verified on the first two boards; see
 `archive/hardware/smd5.md`'s Bring-up log) — `hardware/kicad/Analog Redial v5/`,
 dev notes at [`archive/hardware/smd5.md`](archive/hardware/smd5.md).
@@ -35,28 +35,27 @@ a cheaper clone, selected by solder jumpers JP2/JP3), and an 8-pin J2 **expansio
 (3.3 V from U5, GPIO16/17 UART, GPIO15 with a pull-down, line 0 mic out / earpiece in, GND),
 currently used for the Bluetooth board; docs call it "Expansion header: currently used for the
 Bluetooth board" and give its general pinout in docs/hardware-smd5.md §9. MFB/WAKEUP on GPIO15, chosen in Settings → Hardware
-(`board_bt_module_t`). Firmware reuses SMD4's pin map for it. The BM64 carrier is
-the supported module; a BK3266 module was tried and its UART never answered (notes in
+(`board_bt_module_t`). Firmware reuses v4's pin map for it. The BM64 carrier is
+the older supported module; a BK3266 module was tried and its UART never answered (notes in
 `Bluetooth/BK3266_do_not_use/` and `archive/hardware/bk3266.md`; its firmware driver was removed after v1.0.1). The BK3266 option
 is replaced by the DFRobot DFR0781 / BT401 (`Bluetooth/DFR0781_BT401/`, `archive/hardware/bt401.md`): driver
-(`firmware/components/bt_companion/bt401*.c`), **working on a v5 board since 2026-10-27** (hand-wired; its adapter board `Bluetooth/DFR0781_BT401/DFR0781_BT401_board_v1/` is
-released for fab 2026-10-28 but not built or tested: say so in docs until the user has built one): music, ringing, dial-out, call audio. The driver turns the module's DAC off when idle, since an idle DAC
-loads line 0's VIN through R16. The user now prefers it over the BM64.
+(`firmware/components/bt_companion/bt401*.c`), **working on a v5 board since 2026-10-27** (first hand-wired; its adapter board `Bluetooth/DFR0781_BT401/DFR0781_BT401_board_v1/` was built and works as of 2026-11-19, a v2 is in `DFR0781_BT401_board_v2/`; build page `docs/bt401.md`): music, ringing, dial-out, call audio. The driver turns the module's DAC off when idle, since an idle DAC
+loads line 0's VIN through R16. The user prefers it over the BM64, and the public docs (bom.md, bt401.md, hardware-smd5.md, README) now lead with the BT401 and describe the BM64 as the alternative.
 
 **v5 vs v5.1.** `hardware/kicad/Analog Redial v5/` is the board **as fabbed** (the Oct 5 save,
 restored from commit 19def2e on 2026-10-25). `hardware/kicad/Analog Redial v5.1/` is the same board
 with the clone 5V-pin footprint fixed plus the Oct 7/Oct 19 silkscreen and fab-file edits; released,
 not built yet (its silkscreen still reads "Analog Redial 5.0" until re-exported). Firmware builds
-SMD5 for both.
+v5 for both.
 
-**No `smd5_cheap` build (removed 2026-11-16).** A clone module on SMD5 or later needs JP2/JP3 moved to the clone side (cut 1-2, bridge 2-3) and runs the normal `smd5` build; the user chose not to support a clone with default jumpers. Don't re-add it.
+**No `smd5_cheap` build (removed 2026-11-16).** A clone module on v5 or later needs JP2/JP3 moved to the clone side (cut 1-2, bridge 2-3) and runs the normal `smd5` build; the user chose not to support a clone with default jumpers. Don't re-add it.
 
 **⚠️ v5 boards, 30-pin clone modules:** the footprint ties the clone's bottom-right 5V pin to GND.
 On a v5 board that pin must be removed (not connected); the bottom-left 5V pin carries the 5V.
 v5.1 and v6 have the fix. The warning stays in README/docs (board.md, bom.md, building.md,
 hardware-smd5.md): keep it in any doc that describes fitting a clone.
 
-**v6 (SMD6, `hardware/kicad/Analog Redial v6/`) is the current board (2026-11-16: the user is preparing a 50-board v6 order; v5 boards are already shipped, so docs support both, v6 first). Built and working (2026-11-15; microSD and the J10 extra I/O not yet confirmed; released 2026-11-08 with v1.2.1):** its KiCad
+**v6 (`hardware/kicad/Analog Redial v6/`) is the current board (2026-11-16: the user is preparing a 50-board v6 order; v5 boards are already shipped, so docs support both, v6 first). Built and working (2026-11-15; microSD and the J10 extra I/O not yet confirmed; released 2026-11-08 with v1.2.1):** its KiCad
 project, schematic PDF and JLCPCB fab files are in git (its old PCBWay export is still ignored). New on v6: U6, a TCA9534APWR I²C expander (0x38, A0-A2 to GND)
 driving line 2's SLIC on the `Line1_*` nets so line 2, microSD, payphone (coin board at 0x39) and spare I/O
 (J10, P4-P7) work together; v6 has no J5, so GPIO18-21 are microSD only. Firmware: `CONFIG_BOARD_TYPE_SMD6` (`build.smd6`; a clone module needs JP2/JP3 on the clone side), driver `firmware/components/ag1170/line_expander.c`, working on the first v6 board. Releases carry v6 images (`smd6/16MB`, `smd6/8MB` in `firmware/release/release.py`, since v1.3.x). Docs say
@@ -68,7 +67,7 @@ tested or working until the user has built one and says so.
 
 **Payphone coin board (`PayPhone/Payphone_coin_board_v1/`) is built and working with one phone (2026-11-15):** one v1 board on the v6 board runs the user's GTE / Quadrum payphone (coin switches, collect and return at 87 V / 100 ms). Docs say "working on one payphone"; other phones are untried. v2 (`Payphone_coin_board_v2/`: own 3.3 V regulator, ground-start relay on P7) is in progress in KiCad. The Payphone tab's Phone type card is a lookup table in `firmware/components/payphone/payphone_types.c` (housing → what handles the coins → settings; measured phones in `KNOWN[]`), mirrored in `PayPhone/README.md#payphone-types`. Its JLCPCB exports (`jlcpcb/`) and schematic PDF are in git since v1.2.1; public reference: `docs/hardware-coin-board.md`; internal docs: `PayPhone/README.md` (overview, phone types, links) and, in `PayPhone/docs/`, `coin-board.md` (design, wiring, parts) and `payphone-firmware.md`; the photo of the board mounted in the phone is `docs/pics/coin_board_mounted.jpeg` (copy in `PayPhone/docs/pics/`), and the 3D-printed mounting bracket (STL) is in `Payphone_coin_board_v2/Coin board bracket/`. `HV_Relay.kicad_sch` in its folder is an unreferenced leftover, left untracked.
 
-## Building/flashing for a specific board type (SMD2 vs SMD4 vs SMD5)
+## Building/flashing for a specific board type (v2 vs v4 vs v5)
 
 Each board type is a separate build directory with its own `sdkconfig`, not
 just a Kconfig toggle flipped in place — mixing these up has actually
@@ -77,13 +76,13 @@ follow this exactly:
 
 | Board type | Build dir | Defaults file(s) |
 |---|---|---|
-| SMD4 (current, default) | `build/` | `sdkconfig.defaults` only — its `sdkconfig` is the one tracked in git |
-| SMD2 | `build.smd2/` | `sdkconfig.defaults;sdkconfig.smd2.defaults` |
+| v4 (current, default) | `build/` | `sdkconfig.defaults` only — its `sdkconfig` is the one tracked in git |
+| v2 | `build.smd2/` | `sdkconfig.defaults;sdkconfig.smd2.defaults` |
 | Any SMD board, 8 MB module | `build.<type>_8mb/` | `sdkconfig.defaults;sdkconfig.<type>.defaults;sdkconfig.8mb.defaults` (`partitions_8mb.csv`) |
 
 `firmware/bringup/flash_board.py` picks and creates these automatically
 (board type from the running firmware's `board_info`, flash size from
-esptool). `sdkconfig.smd4.defaults` exists for SMD4 build dirs other than
+esptool). `sdkconfig.smd4.defaults` exists for v4 build dirs other than
 `build/` (it carries the 16 MB / native-USB settings `sdkconfig.defaults` lacks).
 
 **Creating or regenerating a non-default board's build directory**, always
@@ -97,10 +96,10 @@ idf.py -B build.smd2 -D SDKCONFIG="build.smd2/sdkconfig" \
 
 **Why the explicit `-D SDKCONFIG=...` is non-negotiable**: `idf.py -B
 build.smd2 ...` without it can silently fall back to reading/writing the
-*shared root* `firmware/sdkconfig` (the SMD4 one) instead of
+*shared root* `firmware/sdkconfig` (the v4 one) instead of
 `build.smd2/sdkconfig`, if no sdkconfig already exists inside `build.smd2/`
 yet. This isn't hypothetical — it happened in the 2026-09-21 session and
-silently flipped the tracked root `sdkconfig`'s `CONFIG_BOARD_TYPE` to SMD2,
+silently flipped the tracked root `sdkconfig`'s `CONFIG_BOARD_TYPE` to v2,
 caught only via `git status`/`git diff` on `firmware/sdkconfig` afterward
 and fixed with `git checkout -- firmware/sdkconfig`. Always check
 `git status firmware/sdkconfig` after any `-B build.<other-type>` command
@@ -171,11 +170,11 @@ before chasing something else.
 ## Public vs. internal docs
 
 This repo is public on GitHub. `README.md` and everything under `docs/` are
-written for someone building a board from scratch — SMD4 only, no
+written for someone building a board from scratch — v4 only, no
 dev-journal detail. Everything else lives under **[`archive/`](archive/)** —
 dev-journal docs (`archive/ECHO_DEBUGGING.md`, `archive/BLUETOOTH_AUDIO_UPGRADE.md`,
 `archive/ANSWERING_MACHINE.md`, `archive/POWER_SAVING.md`, `archive/VOIP_SETUP.md`), and superseded/pre-SMD4 hardware docs
-(`archive/hardware/smd2.md` — the SMD2 board whole: design, BOM, DTMF-clipping rework, only 3 ever built; `archive/hardware/smd4.md`, `smd5.md`, `bk3266.md` — the BK3266 Bluetooth module's wiring, driver, bring-up sequence and bench log —, `BOM*.md`, and the through-hole/WM8731 board's own docs under `archive/hardware/through-hole-wm8731/`). These are
+(`archive/hardware/smd2.md` — the v2 board whole: design, BOM, DTMF-clipping rework, only 3 ever built; `archive/hardware/smd4.md`, `smd5.md`, `bk3266.md` — the BK3266 Bluetooth module's wiring, driver, bring-up sequence and bench log —, `BOM*.md`, and the through-hole/WM8731 board's own docs under `archive/hardware/through-hole-wm8731/`). These are
 **your working notes, not part of the public doc set** — useful for you when
 picking up this project again, not linked from the public README. When
 adding new engineering-journal-style content (debug sessions, open
@@ -199,12 +198,14 @@ Always use at least three dashes in each table header separator cell (`|---|---|
 ## Key docs (read before making changes)
 
 - [`README.md`](README.md) — public front page (also the GitHub Pages home via `_config.yml`): use cases, finer-print features, web UI thumbnails, cost table, the 4-step build guide
-- Newcomer flow, each page with the same nav bar: [`docs/board.md`](docs/board.md) (1 · get a board: versions, JLCPCB ordering, the cost of a 5-board order) → [`docs/bom.md`](docs/bom.md) + [`docs/building.md`](docs/building.md) (2 · hand-solder parts, assembly incl. the SMD4 15k rework) → [`docs/flashing.md`](docs/flashing.md) (3 · toolchain, flash, console self-test) → [`docs/setup.md`](docs/setup.md) (4 · Wi-Fi, web UI tour, dial codes, LED, BOOT button, OTA)
+- Newcomer flow, each page with the same nav bar: [`docs/board.md`](docs/board.md) (1 · get a board: versions, JLCPCB ordering, the cost of a 5-board order) → [`docs/bom.md`](docs/bom.md) + [`docs/building.md`](docs/building.md) (2 · hand-solder parts, assembly incl. the v4 15k rework) → [`docs/flashing.md`](docs/flashing.md) (3 · toolchain, flash, console self-test) → [`docs/setup.md`](docs/setup.md) (4 · Wi-Fi, web UI tour, dial codes, LED, BOOT button, OTA)
 - Public docs are also served by GitHub Pages, which only publishes `README.md` + `docs/`: link anything outside `docs/` by full `https://github.com/sdylewski/Analog-Redial/blob/main/...` URL, and never put a `.md` link inside raw HTML (Jekyll won't rewrite it)
 - [`docs/troubleshooting.md`](docs/troubleshooting.md) — symptom-by-symptom guide (phone won't ring and the ring frequency test, no dial tone, calls between boards, sound, reaching the board, power, flashing); the Diagnostics page's ring test links to it by full GitHub URL, so keep the `#a-phone-wont-ring` anchor
 - [`docs/features.md`](docs/features.md) — feature list, firmware architecture (components, threading model, VoIP seams)
-- [`docs/hardware-smd4.md`](docs/hardware-smd4.md) — SMD4 schematic reference, GPIO pin map, power tree
-- [`docs/hardware-smd5.md`](docs/hardware-smd5.md) — SMD5 board reference (Bluetooth companion, LDO, dual MCU footprint); built and working
+- [`docs/bt401.md`](docs/bt401.md) — the BT401 Bluetooth adapter board: parts, build steps, hand-wiring, pairing and dial-out (9 + number)
+- Naming: in prose, name boards **v4 / v5 / v6** (not SMD4/SMD5/SMD6; done across all `.md` files 2026-11-19). Code identifiers keep their names (`CONFIG_BOARD_TYPE_SMD6`, `--board smd6`, `build.smd6/`, `smd6/16MB` images) and so do the `hardware-smd*.md` file names. Web UI screenshots (and their `thumbs/`) live in `docs/UI_screenshots/`, written there by `firmware/bringup/screenshot_webui.py`; `docs/pics/` is for photos and diagrams.
+- [`docs/hardware-smd4.md`](docs/hardware-smd4.md) — v4 schematic reference, GPIO pin map, power tree
+- [`docs/hardware-smd5.md`](docs/hardware-smd5.md) — v5 board reference (Bluetooth companion, LDO, dual MCU footprint); built and working
 - [`docs/hardware-smd6.md`](docs/hardware-smd6.md) — v6 board reference (U6 expander, J10 extra I/O, J11 I²C accessory); the current board
 - [`docs/build-v5.md`](docs/build-v5.md), [`docs/build-v6.md`](docs/build-v6.md) — step-by-step build guides with photo placeholders (`assets/photo-placeholder.svg`, each captioned with the `pics/build-v5/…` / `pics/build-v6/…` filename to use); a step with two options gets one subsection per option and a two-photo row; real photos replace placeholders as the user supplies them
 - [`archive/signal-levels.md`](archive/signal-levels.md) — SLIC/codec levels, SHK dividers
@@ -264,8 +265,8 @@ The mark is a rotary dial (ring of ten finger holes, hub, finger stop). Default 
 
 ## Status
 
-- Hardware: SMD4 is the current design — schematic unchanged from SMD3, re-routed as a 2-layer PCB. Fabricated and in use.
-- Firmware: core telephony is mature and tested on earlier SMD-family hardware (hand-soldered SMD2 and SMD4, ES8388 + AG1171), selected via board Kconfig (`CONFIG_BOARD_TYPE_SMD2`/`_SMD4`/`_SMD5`); runtime `codec_detect` warns if the ES8388 doesn't answer.
+- Hardware: v4 is the current design — schematic unchanged from SMD3, re-routed as a 2-layer PCB. Fabricated and in use.
+- Firmware: core telephony is mature and tested on earlier SMD-family hardware (hand-soldered v2 and v4, ES8388 + AG1171), selected via board Kconfig (`CONFIG_BOARD_TYPE_SMD2`/`_SMD4`/`_SMD5`); runtime `codec_detect` warns if the ES8388 doesn't answer.
 ## Git commits
 
 Never add Devin/AI attribution to commits: no `Co-Authored-By: Devin` trailer, no "Generated with Devin" line, and never set Devin as author. Commits use the user's own git identity and a plain message. Only commit or push when asked.

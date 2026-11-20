@@ -144,3 +144,8 @@ Bluetooth/BM64/DSPK v2.1.5 Package/
 
 # JLCPCB plugin parts database: local only
 PayPhone/**/jlcpcb/project.db
+
+# Vendor reference material (not for the public repo)
+Bluetooth/BK3266_do_not_use/BK3266.PDF
+Bluetooth/BK3266_do_not_use/reference_docs/
+Bluetooth/BK3266_do_not_use/ToolKitV5_8_6_C_20180814/

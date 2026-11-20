@@ -36,7 +36,7 @@ in the main board's reel.
 
 ---
 
-## Main board (SMD5) — parts added for the Bluetooth option
+## Main board (v5) — parts added for the Bluetooth option
 
 Skip this whole table on a board built without Bluetooth.
 

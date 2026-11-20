@@ -1,6 +1,6 @@
 # Signal levels — ES8388 + AG1171 + ESP32-C6
 
-Power, logic, and audio level reference for the SMD4 board (ESP32-C6 +
+Power, logic, and audio level reference for the v4 board (ESP32-C6 +
 ES8388 codec + AG1171 SLIC). Derived from the ES8388 and AG1171 datasheets
 (local copies in `datasheets/`).
 
@@ -27,7 +27,7 @@ ES8388 absolute maximum on its supply pins is **3.63 V** — never run it from
 
 | Pin | Direction | ESP32 side |
 |-----|-----------|------------|
-| **SHK** (hook state) | SLIC → ESP32 | ~3.3 V logic (internal 3.3 kΩ pull-up, VOH 2.8 V min), not 5 V. SMD4's 10 kΩ / 15 kΩ divider over-attenuates it to ~1.9 V, below the ESP32's 2.475 V input-high threshold — use 10 kΩ / 100 kΩ (see `../docs/hardware-smd4.md`) |
+| **SHK** (hook state) | SLIC → ESP32 | ~3.3 V logic (internal 3.3 kΩ pull-up, VOH 2.8 V min), not 5 V. v4's 10 kΩ / 15 kΩ divider over-attenuates it to ~1.9 V, below the ESP32's 2.475 V input-high threshold — use 10 kΩ / 100 kΩ (see `../docs/hardware-smd4.md`) |
 | **F/R** (forward/reverse) | ESP32 → SLIC | Logic 1 = forward battery sense (normal polarity); used for ring cadence |
 | **RM** (ringing mode) | ESP32 → SLIC | Logic 1 during ringing |
 | **PD** (power-down) | ESP32 → SLIC | **Never drive a logic-1 directly** — datasheet requires PD be left open-circuit or driven through a diode (see `../docs/hardware-smd4.md`); a GPIO output low pulls PD low (power-down), driving high lets the diode block and PD floats (run) |

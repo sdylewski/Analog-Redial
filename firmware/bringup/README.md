@@ -8,7 +8,7 @@ macOS and Linux run them as `./flash_board.py ...`; on Windows as
 macOS, `/dev/ttyACM*` on Linux and `COMn` on Windows, and the scripts find it
 on their own when one board is plugged in.
 
-Hardware bring-up for Analog Redial boards (SMD2/SMD4/SMD5, ES8388 codec).
+Hardware bring-up for Analog Redial boards (v2/v4/v5, ES8388 codec).
 Two layers:
 
 1. **On-target console** (`firmware/components/bringup`) — a serial REPL
@@ -32,7 +32,7 @@ Two layers:
   board last confirmed booting as), else it asks. A board running firmware
   from before 2026-10-02 only says "smd", so pass `--board` once.
 - **Flash size:** read off the chip with esptool — no firmware needed.
-- **Build directory:** `build/` for SMD4 on 16 MB (the tracked sdkconfig),
+- **Build directory:** `build/` for v4 on 16 MB (the tracked sdkconfig),
   `build.<board>/` for other boards, `build.<board>_8mb/` for 8 MB parts
   (`partitions_8mb.csv`). Created with the right defaults chain and an
   explicit `SDKCONFIG` path if it doesn't exist yet.
@@ -193,7 +193,7 @@ page to `docs/pics/` as `status.png`, `recordings.png` and
 `settings-<tab>.png`, overwriting the previous set. It replaces the board's
 Wi-Fi name and setup password with placeholders before capturing.
 
-## Audio path on SMD2 (ES8388)
+## Audio path on v2 (ES8388)
 
 - **RX (mic/line-in):** LIN1 = Line 0, RIN1 = Line 1 — independent left/right
   ADC channels, both digitize simultaneously every I2S frame. (Originally

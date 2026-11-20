@@ -1,6 +1,6 @@
 [Home](../README.md) · [1 · Get a board](board.md) · [2 · Parts & assembly](bom.md) · [3 · Flash & test](flashing.md) · [4 · Set up & use](setup.md)
 
-# Board reference: v6 (SMD6)
+# Board reference: v6
 
 > **v6 is the current board, built and working.** The design and fab files are published
 > ([KiCad project](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/kicad/Analog%20Redial%20v6)).
@@ -125,7 +125,7 @@ except:
 ## 6. J10: extra I/O
 
 JST XH, 7 pins, 2.5 mm pitch (B7B-XH-A; mates with an XHP-7 housing and SXH-001T-P0.6
-crimps).
+crimps). The holes also take a plain 2.54 mm 1×7 pin header.
 
 | J10 pin | Signal |
 |---------|--------|
@@ -175,7 +175,7 @@ it hasn't verified yet, which needs the leads connected at the time.
 
 ## 7. J11: I²C accessory header
 
-JST XH, 5 pins, 2.5 mm pitch (B5B-XH-A; mates with XHP-5).
+JST XH, 5 pins, 2.5 mm pitch (B5B-XH-A; mates with XHP-5). The holes also take a plain 2.54 mm 1×5 pin header: the 0.04 mm difference is nothing over five pins.
 
 | J11 pin | Signal |
 |---------|--------|

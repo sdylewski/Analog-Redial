@@ -3,8 +3,7 @@
 # Build a v6 board, step by step
 
 > **v6 is the current board.** It's built and working: both phone lines, the codec, Wi-Fi and the
-> payphone coin board. The microSD card and the J10 extra I/O haven't been checked on it yet. The
-> photos on this page are from a one-line v6 build. Have a v5 or v5.1 board? Use
+> payphone coin board. The photos on this page are from a one-line v6 build. Have a v5 or v5.1 board? Use
 > [Build a v5 board](build-v5.md).
 
 From a board that arrives from the fab with its surface-mount parts on (including U6, the
@@ -22,8 +21,7 @@ J11), and a clone module needs **no pin removed**. Board details:
 
 | Choice | Options |
 |--------|---------|
-| **Lines** | one (line 0) or two: the second line is U3, J8 and C17, with nothing else to set |
-| **microSD** | with either: just put a card in |
+| **Lines** | one (line 0) or two: the second line needs U3, J8 and C17, with nothing else to set |
 | **Extra I/O (J10)** | fit it if you'll use the pin outputs |
 | **Accessory header (J11)** | fit it for the payphone coin board or another I²C add-on |
 | **Module** | genuine ESP32-C6-DevKitC-1, 32 pins (recommended), or a 30-pin clone with JP2/JP3 moved (step 1) |
@@ -52,7 +50,7 @@ The parts v5 and v6 share are in the [parts list](bom.md), with links.
 | **J8** | RJ12 jack | 1 | two lines | line 1 |
 | **J10** | JST XH 7-pin, vertical, **B7B-XH-A** | 1 | extra I/O | mates with an XHP-7 housing and SXH-001T-P0.6 crimps |
 | **J11** | JST XH 5-pin, vertical, **B5B-XH-A** | 1 | payphone / I²C add-ons | mates with XHP-5; the coin board has the same header |
-| **J1** | DC barrel jack, 5.5 × 2.1 mm | 1 | optional | recommended with the clone module |
+| **J1** | DC barrel jack, 5.5 × 2.1 mm | 1 | optional | recommended  |
 | **D12** | P6KE82**A** TVS diode | 1 | optional, recommended | line protection, polarized |
 | **J2** | 1×8 pin header, 2.54 mm | 1 | optional | for the Bluetooth board; pin 1 is 3.3 V |
 | **J7** | 1×3 pin header | 1 | optional | audio monitor; needs C10, C11 |
@@ -95,11 +93,11 @@ JP3. Never leave both sides bridged: that shorts a codec pin to a USB data line.
 <table>
   <tr>
     <td width="50%"><img src="pics/v6_esp32_solder_jumpers.png" alt="JP2 and JP3 before"></td>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="JP2 and JP3 after the rework"></td>
+    <td width="50%"><img src="pics/build-v6/v6_bridged.png"  alt="JP2 and JP3 after the rework"></td>
   </tr>
   <tr>
     <td align="center">Before: 1-2 joined (factory)</td>
-    <td align="center">After: 1-2 cut, 2-3 bridged (<code>pics/build-v6/01-jp-after.jpg</code>)</td>
+    <td align="center">After: 1-2 cut, 2-3 bridged</td>
   </tr>
 </table>
 
@@ -121,12 +119,12 @@ Do the option for your ESP32 module.
 
 <table>
   <tr>
-    <td width="50%"><img src="assets/photo-placeholder.svg" alt="Genuine 32-pin ESP32-C6-DevKitC-1"></td>
-    <td width="50%"><img src="pics/build-v6/14-module-back.jpg" alt="The back of the board with the module's pins pushed through, before soldering"></td>
+    <td width="50%"><img src="pics/build-v6/v6_realESP32.jpg" alt="Genuine 32-pin ESP32-C6-DevKitC-1"></td>
+    <td width="50%"><img src="pics/build-v6/v6_cloneESP32.jpg" alt="Clone 30-pin ESP32-C6"></td>
   </tr>
   <tr>
-    <td align="center">Option A: genuine DevKitC-1, 32 pins (<code>pics/build-v6/14-module-genuine.jpg</code>)</td>
-    <td align="center">From the back, pins through and ready to solder</td>
+    <td align="center">Option A: genuine DevKitC-1, 32 pins </td>
+    <td align="center">Clone module from the back 30 pins, pins through and ready to solder</td>
   </tr>
 </table>
 
@@ -142,8 +140,7 @@ Do the option for your ESP32 module.
 
 #### Option B: 30-pin clone
 
-Step 1 (JP2, JP3) must be done first. **No pin is removed on v6**: its footprint has the
-clone's 5V pins right.
+Step 1 (JP2, JP3) must be done first. 
 
 1. Seat it as the silkscreen outline shows: **the module's top two pins hang off the top
    edge of the board.** On the right, its pins drop into the row of holes that matches its
@@ -157,26 +154,18 @@ Place the DC jack in its holes and solder it from the back: chunky pins, so use 
 and give the solder a moment to flow into the slots. If you'll use the Bluetooth board, fit
 its header (J2) at the same time: with both in, the board sits more level while you solder.
 Pin 1 matches the silkscreen; it carries **3.3 V**, as on v5.
-
-The two white JST headers go in now too, if you want them:
-
-- **J10**, 7 pins, extra I/O. Pin 1 is +5 V and pin 7 GND.
-- **J11**, 5 pins, the I²C accessory header for the payphone coin board. Pin 1 is GND and pin
-  5 +5 V, the same numbering as the coin board's header, so the cable runs pin 1 to pin 1.
-
-Both are shaped so a plug goes in only one way: match each header to its silkscreen outline
-before soldering, or every cable will be reversed.
-
 <table>
   <tr>
-    <td width="50%"><img src="pics/build-v6/11-j11-j2.jpg" alt="J11, a white 5-pin JST header beside the module, and J2, the black 8-pin expansion header, fitted"></td>
-    <td width="50%"><img src="pics/build-v6/04-j9-j1.jpg" alt="J1, the DC jack, beside the microSD socket, with J9 also fitted"></td>
+    <td width="50%"><img src="pics/build-v6/v6_dc_jack.jpg" alt="DC jack and connectors"></td>
   </tr>
   <tr>
-    <td align="center">J11 (white, beside the module) and J2 (black)</td>
-    <td align="center">J1, the DC jack, beside the microSD socket (J9 is in too: step 5)</td>
+    <td align="center">DC Jack and J11 (white, beside the module) and J2 (black)</td>
   </tr>
 </table>
+The accessory headers go in now too, if you want them:
+
+- **J10**, 7 pins, extra I/O. The holes take either a standard 2.54 mm 1×7 pin header or a 2.5 mm JST XH header (B7B-XH-A): use whichever you like.
+- **J11**, 5 pins, the I²C accessory header for the payphone coin board or any other I²C board. Same choice: a standard 2.54 mm 1×5 pin header or a JST XH (B5B-XH-A).
 
 ### Step 5: RJ12 jacks and 470 µF capacitors
 
@@ -195,7 +184,7 @@ A 14-pin module that stands upright. **Note which way it faces before soldering:
 module's circuit board goes on the RJ12 side of the pin holes, as in the picture.
 Desoldering a 14-pin module is miserable. Solder one end pin, check it stands straight and
 square, then the other end, then the rest. For two lines, fit U3 in the "Line 1" outline the
-same way: on v6 it's driven by U6, so there's no jumper to set.
+same way.
 
 <table>
   <tr>

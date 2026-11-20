@@ -1,6 +1,6 @@
 [Home](../README.md) · [1 · Get a board](board.md) · [2 · Parts & assembly](bom.md) · [3 · Flash & test](flashing.md) · [4 · Set up & use](setup.md)
 
-# Board reference: v4 (SMD4)
+# Board reference: v4
 
 Design reference for the v4 board: a 2-layer, ESP32-C6-based
 analog-phone-line gateway carrying one or two POTS lines through Silvertel
@@ -16,7 +16,7 @@ or order it.
 
 **No Bluetooth on this board.** The BM64 companion needs a dedicated 3.3 V
 rail, a GPIO for its MFB pin and an 8-pin board-to-board header, none of
-which SMD4 has — fitting one means hand-wiring and board modifications. v5
+which v4 has — fitting one means hand-wiring and board modifications. v5
 has it designed in: see [`hardware-smd5.md`](hardware-smd5.md).
 
 ## 1. Board overview
@@ -48,11 +48,11 @@ trace any net not called out below.
 
 **Schematic:**
 
-![SMD4 schematic](pics/smd4_schematic.png)
+![v4 schematic](pics/smd4_schematic.png)
 
 **PCB layout, top copper/silkscreen:**
 
-![SMD4 PCB layout, top](pics/smd4_layout_top.png)
+![v4 PCB layout, top](pics/smd4_layout_top.png)
 
 ## 3. Power tree
 
@@ -159,14 +159,14 @@ so only the corrected circuit is described below.
 |--------|--------|
 | **+VPWR** | Board **+5 V** rail, with local **470 µF** electrolytic bulk capacitance per SLIC plus a 100 nF bypass close to the SLIC's power pins |
 | **PD** (power-down) | Driven from an ESP32 GPIO through a series diode only (1N4148W-class, cathode toward the PD pin) — **no pull-up or pull-down resistor**. Per the AG1171 datasheet, PD should never be pulled to a logic high; GPIO low = power-down, GPIO high (diode blocks, PD floats) = run |
-| **SHK** (hook status) | AG1171 SHK is a ~3.3 V logic output with an internal 3.3 kΩ pull-up (datasheet: VOH 2.8 V min) — **not** 5 V, whichever rail the SLIC runs from. See [§7 below](#7-shk-divider-rework-smd4-as-built) for the as-built value and the fix |
+| **SHK** (hook status) | AG1171 SHK is a ~3.3 V logic output with an internal 3.3 kΩ pull-up (datasheet: VOH 2.8 V min) — **not** 5 V, whichever rail the SLIC runs from. See [§7 below](#7-shk-divider-rework-v4-as-built) for the as-built value and the fix |
 | **F/R** (ring cadence), **RM** (ringing mode) | Driven directly as 3.3 V ESP32 GPIO outputs — no level shifting needed, since these are ESP32-driven control inputs on the SLIC, not SLIC-driven signals |
 | **VIN** (needs external drive) | Fed from the codec's DAC output for that line through a coupling capacitor |
 | **VOUT** (SLIC-driven) | Feeds the codec's ADC input for that line through a coupling capacitor and series resistor |
 | **Tip/Ring** | Straight from the RJ12 jack to the SLIC, with a surge clamp hanging off it — the AG1171 datasheet's own Figure 4 protection circuit. One unidirectional TVS (**D12**, P6KE82A) clamps that bus for both lines. |
 
 
-## 7. SHK divider rework (SMD4 as built)
+## 7. SHK divider rework (v4 as built)
 
 **Remove R14 and R12**, the two 15 kΩ resistors in the hook-switch dividers.
 
@@ -187,7 +187,7 @@ safe: SHK can't exceed its own ~3.3 V internal pull-up, under the ESP32's
 real hardware**: a board where line 1 had never registered a handset lift
 read both lines correctly afterwards, with no other change.
 
-**SMD5 fixes this in the design** (10 kΩ / 100 kΩ), so no rework there.
+**v5 fixes this in the design** (10 kΩ / 100 kΩ), so no rework there.
 
 **Mounting:** the AG1171 is a through-hole SIL module — hand-soldered even
 on this SMD board.

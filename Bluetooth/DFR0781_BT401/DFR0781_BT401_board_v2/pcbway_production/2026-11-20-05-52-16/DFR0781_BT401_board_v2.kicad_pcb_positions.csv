@@ -1,0 +1,4 @@
+﻿pos_x,pos_y,rotation,side,designator,mpn,pack,footprint,value,mount_type
+140.99,-87.58,90.0,top,C2,,,C_0402_1005Metric,1uF,smt
+150.205,-76.7,-90.0,top,J1,,,PinSocket_1x08_P2.54mm_Vertical,PINHD_1x8_Female,tht
+119.52499,-95.400127,90.0,top,U1,,,DFR0781_BT401_new,DFR0781,smt

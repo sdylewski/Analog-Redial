@@ -106,7 +106,7 @@ DigiKey prices are for quantity 1, checked September 2026, before shipping
 | | 1 | **J10** JST XH 7-pin vertical header, **B7B-XH-A** | Extra I/O: +5 V, P4-P7, +3.3 V, GND. Mates with an XHP-7 housing and SXH-001T-P0.6 crimps. Fit it to use the pin outputs; pinout in the [v6 reference](hardware-smd6.md#6-j10-extra-io) |
 | | 1 | **J11** JST XH 5-pin vertical header, **B5B-XH-A** | I²C accessory header for the [payphone coin board](hardware-coin-board.md). Mates with XHP-5 |
 
-Both are common parts; any JST XH-compatible vertical header fits.
+Both are common parts. The pads take a JST XH header (2.5 mm pitch) or a plain 2.54 mm pin header (1×7 and 1×5), whichever you prefer; the pin order is the same.
 
 ## Optional: DC jack and line protection
 
@@ -176,31 +176,29 @@ the codec** (U2) and − toward J7. Left empty, J7 carries no signal.
 
 ## Bluetooth board (v5 and v6 expansion header, optional)
 
-The v5 and v6 boards' 8-pin **expansion header** (**J2**; pinout in the [v5 board reference](hardware-smd5.md#9-expansion-header-j2-currently-used-for-the-bluetooth-board)) is currently used for a small board carrying a **BM64** Bluetooth
-module (about $14, **working**). The companion's KiCad project is `Bluetooth/BM64/BM64_Board_v1`
-in the repository; the main board adds one 3.3 V regulator (**U5**) and a handful of 1 µF capacitors
-and resistors that are already on the board.
+The v5 and v6 boards' 8-pin **expansion header** (**J2**; pinout in the [v5 board reference](hardware-smd5.md#9-expansion-header-j2-currently-used-for-the-bluetooth-board)) takes a small Bluetooth board. Two modules work; the
+**BT401 is the one to build**. The main board adds one 3.3 V regulator (**U5**) and a handful of 1 µF
+capacitors and resistors that are already on the board.
 
-- **BM64 module:** Microchip `BM64SPKS1MC2-0003AA`, about $14 on
-  [DigiKey](https://www.digikey.com/en/products/detail/microchip-technology/BM64SPKS1MC2-0003AA/13252265).
-- **Headers:** an 8-pin 2.54 mm female header on the companion, a male one on the main board.
-- **One-time setup:** the BM64's audio settings are written to the module by the firmware the first
-  time it runs. That needs two thin wires from the companion's 2-pin programming pads to the main
-  board's J5 header (the firmware looks for them on GPIO19/20; `bm64_diagpins` in the console tells it
+- **Preferred: DFRobot DFR0781 (BT401 module)**, about $3.50 on
+  [DigiKey](https://www.digikey.com/en/products/result?keywords=DFR0781) (DigiKey part `1738-DFR0781-ND`)
+  or from [AliExpress](https://www.aliexpress.us/item/3256807742050408.html). **Working:** pairing, music,
+  incoming calls ringing the bell, dialing out and call audio, with little delay. It has call control over a
+  simple text command set and needs no setup step. Choose it in Settings → General → Board hardware.
+  It sits on a small through-hole adapter board that plugs into J2: the module, an 8-pin header, a 1 µF
+  ceramic capacitor, an optional status LED with a 1 kΩ resistor, and an optional 6-pin header (USB, reset
+  and the right audio channel). The [BT401 page](bt401.md) has the parts and the build steps. On AliExpress,
+  choose the **"DAC output"** version: this board takes the module's analog audio output, so another version
+  won't work.
+- **Alternative: Microchip BM64**, about $14, also working. Module `BM64SPKS1MC2-0003AA`, about $14 on
+  [DigiKey](https://www.digikey.com/en/products/detail/microchip-technology/BM64SPKS1MC2-0003AA/13252265), on
+  a carrier board (KiCad project `Bluetooth/BM64/BM64_Board_v1`) with an 8-pin female header, a male one on the
+  main board. It costs more and needs a **one-time setup**: the BM64's audio settings are written to the module
+  by the firmware the first time it runs. That needs two thin wires from the carrier's 2-pin programming pads to
+  the main board's J5 header (the firmware looks for them on GPIO19/20; `bm64_diagpins` in the console tells it
   if they're elsewhere), and the board configured as one line with no microSD. After that the wires come off.
   **On a v6 board** the wires go to J10 (P4 and P5) instead, and line 2 and the microSD card can stay
   in use: see [BM64 one-time setup on v6](hardware-smd6.md#bm64-one-time-setup-on-v6-the-two-programming-leads-go-to-j10).
-- **Cheaper option:** the DFRobot **DFR0781** (BT401 module), about $3.50 on
-  [DigiKey](https://www.digikey.com/en/products/result?keywords=DFR0781) (DigiKey part `1738-DFR0781-ND`)
-  or from [AliExpress](https://www.aliexpress.us/item/3256807742050408.html), with call control over a
-  simple text command set, wired to the same header. Choose it in Settings → General → Board hardware;
-  it needs no setup step. Music, incoming calls and dialing out work on a v5 board, with the module
-  hand-wired to the header. An [adapter board](https://github.com/sdylewski/Analog-Redial/tree/main/Bluetooth/DFR0781_BT401/DFR0781_BT401_board_v1) that plugs into the
-  header like the BM64 carrier is designed and ready to order, but not yet built or tested. Its parts are
-  through-hole: the module, an 8-pin female header, a 1 uF ceramic capacitor, an optional status LED with
-  a 1 kohm resistor, and an optional 6-pin header (USB, reset and the right audio channel).
-  On AliExpress, choose the **"DAC output"** version: this board takes the module's analog audio output,
-  so another version won't work.
 
 ---
 

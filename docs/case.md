@@ -4,7 +4,7 @@
 
 A two-part case, a box and a lid, that you print yourself. The boards are
 different lengths, so **each board version has its own case**: a v4 case
-will not fit a v5 or v6.
+will not fit a v5 or v6. **v5 and v6 boards both use the v5+ cases.**
 
 <!-- TODO: photo of the finished board in its case (docs/pics/board_in_case.jpg) -->
 ![A v4 board in its 3D-printed case](pics/v4_case.jpg)
@@ -16,10 +16,10 @@ will not fit a v5 or v6.
 |-------|-----|-----|--------|
 | **v4**, single line | `Box-SingleLine` | `Lid` | Ready |
 | **v4**, dual line | `Box - dualLine` | `Lid` | Ready |
-| **v5** and **v6**, one line (5 mm longer than v4) | `Box-OneLine-130x70x35` | `Lid-FlatHead-130x70` | First files available, below. v6 has the same outline and mounting holes as v5, so it should fit; not tried on a v6 yet |
+| **v5** and **v6**, one or two lines (5 mm longer than v4) | `Box-1Line` or `Box-2Lines`, in the `32pinESP32` or `30pinESP32` version | `Lid-withLogo` or `Lid-noLogo` | Ready. v6 has the same outline and mounting holes as v5, so it should fit; not tried on a v6 yet |
 
 Print one box and one lid. The lid is the same for single-line and dual-line
-v4 boards.
+boards.
 
 ## Files
 
@@ -38,16 +38,26 @@ Each part comes as a **STEP** file (for editing in CAD) and an **STL** file
 
 ### v5 and v6
 
-In [`hardware/3d-printed-case/Analog Redial v5/`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/3d-printed-case/Analog%20Redial%20v5),
-for a one-line board. The outside is 130 × 70 × 35 mm. The box also comes as a `.3mf`
-for slicers that take it.
+In [`hardware/3d-printed-case/Analog Redial v5+/`](https://github.com/sdylewski/Analog-Redial/tree/main/hardware/3d-printed-case/Analog%20Redial%20v5%2B),
+in `STEP/` and `STL/` folders. The outside is 130 × 70 × 35 mm. Pick the box for the number
+of phone lines you fitted and for the kind of ESP32 module on the board:
 
 | Part | STEP | STL |
-|------|------|-----|
-| Box, one line | [.step](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5/AnalogRedial-5%20-%20Box-OneLine-130x70x35.step) | [.stl](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5/AnalogRedial-5%20-%20Box-OneLine-130x70x35.stl) |
-| Lid | [.step](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5/AnalogRedial-5%20-%20Lid-FlatHead-130x70.step) | [.stl](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5/AnalogRedial-5%20-%20Lid-FlatHead-130x70.stl) |
+|---|---|---|
+| Box, one line, real ESP32-C6-DevKitC-1 | [.step](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5%2B/STEP/AnalogRedial-v5%20-%20Box-1Line-32pinESP32.step) | [.stl](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5%2B/STL/AnalogRedial-v5%20-%20Box-1Line-32pinESP32.stl) |
+| Box, one line, 30-pin clone module | [.step](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5%2B/STEP/AnalogRedial-v5%20-%20Box-1Line-30pinESP32.step) | [.stl](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5%2B/STL/AnalogRedial-v5%20-%20Box-1Line-30pinESP32.stl) |
+| Box, two lines, real ESP32-C6-DevKitC-1 | [.step](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5%2B/STEP/AnalogRedial-v5%20-%20Box-2Lines-32pinESP32.step) | [.stl](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5%2B/STL/AnalogRedial-v5%20-%20Box-2Lines-32pinESP32.stl) |
+| Box, two lines, 30-pin clone module | [.step](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5%2B/STEP/AnalogRedial-v5%20-%20Box-2Lines-30pinESP32.step) | [.stl](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5%2B/STL/AnalogRedial-v5%20-%20Box-2Lines-30pinESP32.stl) |
+| Lid, with logo | [.step](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5%2B/STEP/AnalogRedial-v5%20-%20Lid-withLogo.step) | [.stl](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5%2B/STL/AnalogRedial-v5%20-%20Lid-withLogo.stl) |
+| Lid, plain | [.step](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5%2B/STEP/AnalogRedial-v5%20-%20Lid-noLogo.step) | [.stl](https://github.com/sdylewski/Analog-Redial/blob/main/hardware/3d-printed-case/Analog%20Redial%20v5%2B/STL/AnalogRedial-v5%20-%20Lid-noLogo.stl) |
 
-<!-- TODO: a dual-line box, and photos -->
+**The USB hole.** The real ESP32-C6-DevKitC-1 has its USB-C connector at the edge of its
+board, and the box has a normal-sized hole for the plug. The 30-pin clone modules have the
+USB-C socket **recessed** from the edge, so the `30pinESP32` boxes have a **larger hole** that
+lets a USB-C cable's plug reach in. Print the one that matches your module. With a plug that is
+too wide for the hole on a real DevKitC box, the cable won't reach, so don't swap them.
+
+The lid comes with the dial logo on it, or plain.
 
 ## What you need
 

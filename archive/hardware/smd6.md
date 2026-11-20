@@ -1,4 +1,4 @@
-# SMD6 (Analog Redial v6): line 2 on an I²C expander
+# v6 (Analog Redial v6): line 2 on an I²C expander
 
 Working notes, not public docs. **The board isn't built, and this firmware has
 never run on hardware.** The driver has only a host test against a simulated chip
@@ -36,7 +36,7 @@ each pin access. `line_expander.c` does the rest:
   and retry once a second.
 - At boot it writes the output register before the config register, because the chip
   keeps its state through an ESP32 reset and a crash could have left RM high.
-- `board_i2c_init()` clocks the bus free first on SMD6, since polling makes a reset
+- `board_i2c_init()` clocks the bus free first on v6, since polling makes a reset
   mid-transfer likely enough to matter.
 
 Not supported yet: pin outputs on J10 (`auxpins` reports none on this board), and using
