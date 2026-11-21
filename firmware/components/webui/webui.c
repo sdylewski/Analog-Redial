@@ -1405,9 +1405,14 @@ static esp_err_t wifi_setup_page(httpd_req_t *req)
 static esp_err_t direct_handler(httpd_req_t *req)
 {
     wifi_ap_use_directly();
-    httpd_resp_set_status(req, "302 Found");
-    httpd_resp_set_hdr(req, "Location", "http://192.168.4.1/");
-    httpd_resp_send(req, NULL, 0);
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_sendstr(req,
+        "<!doctype html><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        "<title>Direct mode</title><body style=\"font:16px system-ui;margin:2em auto;max-width:30em;padding:0 1em\">"
+        "<h2>Direct mode is on</h2>"
+        "<p>This small sign-in window should close in a few seconds. Then open "
+        "<b>http://192.168.4.1/</b> in your normal browser, where you can resize the window.</p>"
+        "<p><a href=\"http://192.168.4.1/\">Continue here instead</a></p></body>");
     return ESP_OK;
 }
 
@@ -1417,6 +1422,25 @@ static esp_err_t direct_handler(httpd_req_t *req)
  * it's just a normal 404. */
 static esp_err_t catchall_handler(httpd_req_t *req)
 {
+    /* Direct mode: answer the OS's "is there internet?" probes as if there
+     * were, so the small non-resizable sign-in window closes by itself and
+     * the dashboard is used in a normal, resizable browser window. */
+    if (wifi_is_provisioning() && wifi_ap_is_forced()) {
+        if (strstr(req->uri, "generate_204") || strstr(req->uri, "gen_204")) {
+            httpd_resp_set_status(req, "204 No Content");
+            httpd_resp_send(req, NULL, 0);
+            return ESP_OK;
+        }
+        if (strstr(req->uri, "hotspot-detect") || strstr(req->uri, "library/test/success")) {
+            httpd_resp_set_type(req, "text/html");
+            httpd_resp_sendstr(req, "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>");
+            return ESP_OK;
+        }
+        if (strstr(req->uri, "connecttest") || strstr(req->uri, "ncsi")) {
+            httpd_resp_sendstr(req, "Microsoft Connect Test");
+            return ESP_OK;
+        }
+    }
     if (wifi_is_provisioning()) {
         httpd_resp_set_status(req, "302 Found");
         httpd_resp_set_hdr(req, "Location", "http://192.168.4.1/");
@@ -13082,7 +13106,15 @@ static bool peer_on_netif(httpd_req_t *req, const char *ifkey)
     return (peer_ip & ip_info.netmask.addr) == (ip_info.ip.addr & ip_info.netmask.addr);
 }
 
-static bool peer_on_lan(httpd_req_t *req) { return peer_on_netif(req, "WIFI_STA_DEF"); }
+/* In direct mode (the setup AP kept on purpose: BOOT-button hold or "configure
+ * directly") a caller on the board's own network counts as local too, so the
+ * setup secret isn't needed to load audio. Direct mode lives in RAM only: the
+ * next boot is back to normal. */
+static bool peer_on_lan(httpd_req_t *req)
+{
+    return peer_on_netif(req, "WIFI_STA_DEF") ||
+           (wifi_ap_is_forced() && peer_on_netif(req, "WIFI_AP_DEF"));
+}
 
 /* Expands {{boardname}} (case-insensitive, spaces inside the braces
  * allowed, and {{board name}} / {{board_name}} too) in spoken-prompt text. Unknown {{...}} tokens are left as-is. */
