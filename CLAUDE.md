@@ -207,6 +207,7 @@ Always use at least three dashes in each table header separator cell (`|---|---|
 - [`docs/hardware-smd4.md`](docs/hardware-smd4.md) — v4 schematic reference, GPIO pin map, power tree
 - [`docs/hardware-smd5.md`](docs/hardware-smd5.md) — v5 board reference (Bluetooth companion, LDO, dual MCU footprint); built and working
 - [`docs/hardware-smd6.md`](docs/hardware-smd6.md) — v6 board reference (U6 expander, J10 extra I/O, J11 I²C accessory); the current board
+- [`docs/build-coin-board.md`](docs/build-coin-board.md) — coin board build guide (parts to order with DigiKey/AliExpress links, step-by-step, component directions with photos in `docs/pics/build-coin-board/`); its J2/J3 links are DigiKey searches until the user supplies exact part numbers for KK 396 headers without the friction-lock ramp
 - [`docs/build-v5.md`](docs/build-v5.md), [`docs/build-v6.md`](docs/build-v6.md) — step-by-step build guides with photo placeholders (`assets/photo-placeholder.svg`, each captioned with the `pics/build-v5/…` / `pics/build-v6/…` filename to use); a step with two options gets one subsection per option and a two-photo row; real photos replace placeholders as the user supplies them
 - [`archive/signal-levels.md`](archive/signal-levels.md) — SLIC/codec levels, SHK dividers
 - [`docs/voip-setup.md`](docs/voip-setup.md) — SIP server setup, dial-plan reference

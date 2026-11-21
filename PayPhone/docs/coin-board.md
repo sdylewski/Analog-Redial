@@ -839,8 +839,9 @@ One board's worth. Check stock and price on the page before ordering.
 | C5, C7, C14, C20 | 4 | Nichicon UCD1H101MNL1GS, 100 uF 50 V, 8 x 10.5 mm | [UCD1H101MNL1GS](https://www.digikey.com/en/products/detail/nichicon/UCD1H101MNL1GS/2549678) |
 | C1 | 1 | Nichicon UCS2D221MHD, 220 uF 200 V | [UCS2D221MHD](https://www.digikey.com/en/products/detail/nichicon/UCS2D221MHD/4991877) |
 | K1 | 1 | Panasonic TX2-5V | [TX2-5V](https://www.digikey.com/en/products/detail/panasonic-industry/TX2-5V/251803) |
-| J2 | 1 | Molex 0026604030, KK 396 header, 3-pin | [0026604030](https://www.digikey.com/en/products/detail/molex/0026604030/96502) |
-| J3 | 1 | Molex 0026604040, KK 396 header, 4-pin | [0026604040](https://www.digikey.com/en/products/detail/molex/0026604040/197447) |
+| J2 | 1 | Molex KK 396 header, 3-pin, plain rectangular polarizing wall (no friction-lock ramp); the earlier 0026604030 has the ramp | [DigiKey search](https://www.digikey.com/en/products/result?keywords=molex%20kk%20396%20header%203%20position) |
+| J3 | 1 | Molex KK 396 header, 4-pin, same wall; the earlier 0026604040 has the ramp | [DigiKey search](https://www.digikey.com/en/products/result?keywords=molex%20kk%20396%20header%204%20position) |
+| J11 (optional) | 1 | 3-pin screw terminal, 5.08 mm pitch (not at DigiKey) | [AliExpress](https://www.aliexpress.us/item/3256809025211496.html) |
 | J1 | 1 | JST B5B-XH-A (or fit J6 instead) | [B5B-XH-A](https://www.digikey.com/en/products/detail/jst-sales-america-inc/B5B-XH-A-LF-SN/1530483) |
 | U4 socket | 1 | Sullins PPTC101LFBN-RC, 1 x 10 female | [PPTC101LFBN-RC](https://www.digikey.com/en/products/detail/sullins-connector-solutions/PPTC101LFBN-RC/810149) |
 | J12 (optional) | 1 | KF128-2.54-5P screw terminal (not at DigiKey) | [AliExpress](https://www.aliexpress.us/item/3256801737987839.html) |

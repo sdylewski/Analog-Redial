@@ -348,6 +348,7 @@ errors while the page is open.
 
 ## See also
 
+- [Build the coin board, step by step](build-coin-board.md): the parts to order, which way round each part goes, and the checks before power
 - [Coin board: design, wiring and parts](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/docs/coin-board.md): every part value, how each stage works,
   the output stage pin by pin, the parts list and the layout
 - [Payphone project overview](https://github.com/sdylewski/Analog-Redial/blob/main/PayPhone/README.md): the pieces, status, what each known payphone needs,
