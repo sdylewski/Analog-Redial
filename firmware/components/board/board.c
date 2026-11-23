@@ -1146,6 +1146,19 @@ board_hw_config_t board_hw_config_get(void)
     return cfg;
 }
 
+esp_err_t board_hw_config_set_bt_module(board_bt_module_t m)
+{
+    if (m > BOARD_BT_BT401) return ESP_ERR_INVALID_ARG;
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(HW_CONFIG_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    err = nvs_set_u8(h, HW_CONFIG_NVS_KEY_BT, m != BOARD_BT_NONE ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_u8(h, HW_CONFIG_NVS_KEY_BTMOD, (uint8_t)m);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
+
 /* Internal: has *any* value ever been written (by a human OR
  * board_hw_config_autodetect()), regardless of whether it's been reviewed?
  * This is the real "has something already claimed GPIO18-21 based on a

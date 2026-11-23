@@ -25,6 +25,24 @@ uint16_t rtp_local_port(int line);
  * tx/rx tasks. Idempotent-ish: call rtp_stop() first if already running. */
 esp_err_t rtp_start(int line, const char *remote_ip, uint16_t remote_port);
 
+/* Call-quality counters for one line: live while a call is up, otherwise the
+ * last call's (all zero before the first). Loss/late are from RTP sequence
+ * numbers; jitter is the RFC 3550 estimate; max_gap_ms is the longest wait
+ * between two arriving packets (20 is perfect; 100+ is an audible hole). */
+typedef struct {
+    bool     active;
+    uint32_t duration_s;
+    uint32_t rx_pkts, rx_lost, rx_late;
+    uint32_t rx_gaps60;        /* gaps between packets over 60 ms */
+    uint32_t rx_max_gap_ms;
+    uint32_t jitter_us;
+    uint32_t dl_drops;         /* packets the playback buffer could not take in full */
+    uint32_t tx_pkts, tx_underruns, tx_send_fail;
+    int      rssi_start, rssi_end;   /* dBm; 0 = unknown */
+    uint32_t heap_min_free;    /* lowest free heap since boot, at the last update */
+} rtp_stats_t;
+void rtp_stats_get(int line, rtp_stats_t *out);
+
 /* Tear down the session on `line` (call ended). Safe if not running. */
 void rtp_stop(int line);
 

@@ -94,6 +94,19 @@ esp_err_t   bt_companion_set_enabled(bool enabled);
  * (2026-09-26). "Fitted" is a fact about the board, "enabled" is a choice. */
 bool bt_companion_active(void);
 
+/* What the boot-time check of the J2 UART found (bt_companion_init() runs it
+ * before the module type is read): which module answered, and what the
+ * setting said beforehand. When they differ the setting is changed to match,
+ * so "changed" is true and the Bluetooth tab says so. `none_found` with
+ * was != NONE means a module is set but nothing answered. */
+typedef struct {
+    bool ran;
+    board_bt_module_t found;   /* BOARD_BT_NONE if nothing answered */
+    board_bt_module_t was;     /* the setting before the check */
+    bool changed;              /* the setting was rewritten to `found` */
+} bt_companion_detect_t;
+bt_companion_detect_t bt_companion_detect_result(void);
+
 /* Which module the board was booted with (Settings -> Hardware). */
 board_bt_module_t bt_companion_module(void);
 

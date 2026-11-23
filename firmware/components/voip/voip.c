@@ -783,6 +783,21 @@ static void handle_request(const char *msg, const struct sockaddr_in *src)
     if (!get_header(msg, "Call-ID", "i", callid, sizeof(callid))) return;
 
     bool home = !from_server(src) && from_home_peer(method, msg, callid, src);
+    /* A BYE/CANCEL from a board on our network for a call we no longer have
+     * (we hung up first, or both sides did at once): answer it so the peer
+     * stops resending it for several seconds, instead of ignoring it. */
+    if (!home && !from_server(src) && (!strcmp(method, "BYE") || !strcmp(method, "CANCEL")) &&
+        on_our_network(src) && line_for_callid(callid) < 0) {
+        line_t t = {0};
+        get_header(msg, "Via", "v", t.in_via, sizeof(t.in_via));
+        get_header(msg, "From", "f", t.in_from, sizeof(t.in_from));
+        get_header(msg, "To", "t", t.in_to, sizeof(t.in_to));
+        char cseq[64]; get_header(msg, "CSeq", NULL, cseq, sizeof(cseq)); t.in_cseq = atoi(cseq);
+        strncpy(t.call_id, callid, sizeof(t.call_id) - 1);
+        t.reply_addr = *src;
+        send_response(&t, 481, "Call Does Not Exist", method, false, 0);
+        return;
+    }
     if (strcmp(method, "OPTIONS") != 0 && !from_server(src) && !home) {
         static int64_t s_last_warn_us;
         static bool s_warned;

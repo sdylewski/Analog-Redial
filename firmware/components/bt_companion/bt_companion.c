@@ -2073,8 +2073,47 @@ static void start_autocheck(void)
                 tskIDLE_PRIORITY + 1, &s_autocheck_task);
 }
 
+static bt_companion_detect_t s_detect;
+
+bt_companion_detect_t bt_companion_detect_result(void) { return s_detect; }
+
+/* Ask the UART what is there. BT401 first: it only listens and sends AT
+ * text, which a BM64 ignores, while the BM64 probe drives MFB (GPIO15) and
+ * should not be done to a BT401 adapter board for nothing. A module that
+ * answers and differs from the setting rewrites the setting (not the
+ * "human confirmed" flag); one that doesn't answer leaves it alone, since
+ * the module may just be off. Both drivers read the type later, so this
+ * must run before module() is first called. */
+static void detect_module(void)
+{
+    board_bt_module_t was = board_hw_config_get().bt_module;
+    board_bt_module_t found = BOARD_BT_NONE;
+    if (bt401_detect()) {
+        found = BOARD_BT_BT401;
+    } else if (bt_companion_raw_ping(1500) == ESP_OK) {
+        found = BOARD_BT_BM64;
+    }
+    s_detect.ran = true;
+    s_detect.found = found;
+    s_detect.was = was;
+    s_detect.changed = false;
+    static const char *const names[] = { "none", "BM64", "BT401" };
+    ESP_LOGI(TAG, "module check: found %s, setting says %s", names[found], names[was]);
+    if (found != BOARD_BT_NONE && found != was) {
+        if (board_hw_config_set_bt_module(found) == ESP_OK) {
+            s_detect.changed = true;
+            s_module_known = false;     /* re-read the new value */
+            ESP_LOGW(TAG, "a %s is fitted but the setting said %s: setting changed to %s",
+                     names[found], names[was], names[found]);
+        }
+    } else if (found == BOARD_BT_NONE && was != BOARD_BT_NONE) {
+        ESP_LOGW(TAG, "setting says %s but nothing answered on the UART", names[was]);
+    }
+}
+
 void bt_companion_init(void)
 {
+    detect_module();
     load_config();
     if (s_enabled && !board_hw_config_get().has_bt_module) {
         ESP_LOGW(TAG, "enabled in settings but no Bluetooth module is marked as fitted "

@@ -3,6 +3,9 @@
 #include "audio.h"
 #include "aec.h"
 #include "esp_log.h"
+#include "esp_timer.h"
+#include "esp_wifi.h"
+#include "esp_system.h"
 #include "esp_random.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -37,9 +40,31 @@ typedef struct {
     bool         up_primed;
     TaskHandle_t tx_task;
     TaskHandle_t rx_task;
+    rtp_stats_t  st;           /* counters; written by the tasks, read racily (display only) */
+    int64_t      start_us;
 } rtp_line_t;
 
 static rtp_line_t s_rtp[AUDIO_NUM_LINES];
+
+static int wifi_rssi_now(void)
+{
+    wifi_ap_record_t ap;
+    return esp_wifi_sta_get_ap_info(&ap) == ESP_OK ? ap.rssi : 0;
+}
+
+void rtp_stats_get(int line, rtp_stats_t *out)
+{
+    memset(out, 0, sizeof(*out));
+    if (line < 0 || line >= AUDIO_NUM_LINES) return;
+    rtp_line_t *r = &s_rtp[line];
+    *out = r->st;
+    out->active = r->active;
+    if (r->active) {
+        out->duration_s = (uint32_t)((esp_timer_get_time() - r->start_us) / 1000000);
+        out->rssi_end = wifi_rssi_now();
+        out->heap_min_free = esp_get_minimum_free_heap_size();
+    }
+}
 
 uint16_t rtp_local_port(int line)
 {
@@ -58,6 +83,7 @@ static void read_uplink_48k(int line, int16_t *buf)
         if (n == 0 && xTaskGetTickCount() >= deadline_ticks) break;
     }
     for (size_t i = got; i < SAMPLES_48K; i++) buf[i] = 0; /* pad underrun */
+    if (got < SAMPLES_48K) s_rtp[line].st.tx_underruns++;
 }
 
 static void tx_task(void *arg)
@@ -88,6 +114,7 @@ static void tx_task(void *arg)
                 got += n;
                 if (n == 0 && xTaskGetTickCount() >= deadline) break;
             }
+            if (got < SAMPLES_8K) r->st.tx_underruns++;
             for (size_t i = got; i < SAMPLES_8K; i++) aec8[i] = 0; /* pad underrun */
             for (; on < SAMPLES_8K; on++) payload[on] = ulaw_encode(aec8[on]);
         } else {
@@ -113,8 +140,12 @@ static void tx_task(void *arg)
         r->seq++;
         r->ts += SAMPLES_8K;
 
-        sendto(r->sock, pkt, RTP_HDR_LEN + SAMPLES_8K, 0,
-               (struct sockaddr *)&r->remote, sizeof(r->remote));
+        if (sendto(r->sock, pkt, RTP_HDR_LEN + SAMPLES_8K, 0,
+                   (struct sockaddr *)&r->remote, sizeof(r->remote)) < 0) {
+            r->st.tx_send_fail++;
+        } else {
+            r->st.tx_pkts++;
+        }
 
         vTaskDelayUntil(&next, pdMS_TO_TICKS(PTIME_MS));
     }
@@ -134,9 +165,46 @@ static void rx_task(void *arg)
     int16_t *out = malloc(SAMPLES_48K * sizeof(int16_t));
     if (!buf || !out) { ESP_LOGE(TAG, "line %d rx alloc failed", line); goto out; }
 
+    bool     seen = false;
+    uint16_t expect = 0;
+    int64_t  last_arr_us = 0;
+    int64_t  prev_transit = 0;
+    bool     have_transit = false;
+    int32_t  jit16 = 0;                 /* RFC 3550 jitter, in 1/16 of a microsecond */
+
     while (r->active) {
         int n = recv(r->sock, buf, RTP_HDR_LEN + 512, 0);
         if (n < RTP_HDR_LEN + 1) continue; /* timeout or runt */
+
+        /* Counters: sequence gaps, reordering, inter-arrival gap, jitter. */
+        {
+            int64_t now = esp_timer_get_time();
+            uint16_t seq = ((uint16_t)buf[2] << 8) | buf[3];
+            uint32_t ts = ((uint32_t)buf[4] << 24) | ((uint32_t)buf[5] << 16) | ((uint32_t)buf[6] << 8) | buf[7];
+            r->st.rx_pkts++;
+            if (seen) {
+                int16_t d = (int16_t)(seq - expect);
+                if (d > 0) { r->st.rx_lost += (uint32_t)d; expect = seq + 1; }
+                else if (d < 0) { r->st.rx_late++; if (r->st.rx_lost) r->st.rx_lost--; }
+                else expect = seq + 1;
+                uint32_t gap_ms = (uint32_t)((now - last_arr_us) / 1000);
+                if (gap_ms > r->st.rx_max_gap_ms) r->st.rx_max_gap_ms = gap_ms;
+                if (gap_ms > 60) r->st.rx_gaps60++;
+            } else {
+                seen = true;
+                expect = seq + 1;
+            }
+            last_arr_us = now;
+            int64_t transit = now - (int64_t)ts * 125;   /* 8 kHz ticks -> microseconds */
+            if (have_transit) {
+                int64_t dd = transit - prev_transit;
+                if (dd < 0) dd = -dd;
+                jit16 += (int32_t)(dd - (jit16 >> 4));
+                r->st.jitter_us = (uint32_t)(jit16 >> 4);
+            }
+            prev_transit = transit;
+            have_transit = true;
+        }
 
         /* Skip the RTP header (+ any CSRCs); ignore extensions for our peers. */
         int cc = buf[0] & 0x0F;
@@ -158,7 +226,7 @@ static void rx_task(void *arg)
             }
             r->up_prev = cur;
         }
-        if (oo) audio_ext_write_downlink(line, out, oo);
+        if (oo && audio_ext_write_downlink(line, out, oo) < oo) r->st.dl_drops++;
     }
 out:
     free(buf);
@@ -202,6 +270,9 @@ esp_err_t rtp_start(int line, const char *remote_ip, uint16_t remote_port)
     r->ssrc = esp_random();
     r->dn_acc = 0; r->dn_n = 0;
     r->up_prev = 0; r->up_primed = false;
+    memset(&r->st, 0, sizeof(r->st));
+    r->start_us = esp_timer_get_time();
+    r->st.rssi_start = wifi_rssi_now();
     r->active = true;
 
     /* Priority 6: above the web server, the phone logic and SIP (all 5), so
@@ -239,5 +310,22 @@ void rtp_stop(int line)
     /* Let tasks observe the flag and exit (rx wakes on its 200 ms timeout). */
     for (int i = 0; i < 20 && (r->tx_task || r->rx_task); i++) vTaskDelay(pdMS_TO_TICKS(20));
     if (r->sock >= 0) { close(r->sock); r->sock = -1; }
-    ESP_LOGI(TAG, "line %d: RTP stopped", line);
+    r->st.duration_s = (uint32_t)((esp_timer_get_time() - r->start_us) / 1000000);
+    r->st.rssi_end = wifi_rssi_now();
+    r->st.heap_min_free = esp_get_minimum_free_heap_size();
+    {
+        const rtp_stats_t *t = &r->st;
+        uint32_t expected = t->rx_pkts + t->rx_lost;
+        ESP_LOGI(TAG, "line %d: RTP stopped after %lu s -- rx %lu pkts, lost %lu (%lu.%lu%%), late %lu, "
+                 "jitter %lu.%lu ms, max gap %lu ms (%lu over 60), playback drops %lu; "
+                 "tx %lu pkts, mic underruns %lu, send fails %lu; Wi-Fi %d -> %d dBm, min free heap %lu",
+                 line, (unsigned long)t->duration_s, (unsigned long)t->rx_pkts, (unsigned long)t->rx_lost,
+                 (unsigned long)(expected ? t->rx_lost * 100 / expected : 0),
+                 (unsigned long)(expected ? (t->rx_lost * 1000 / expected) % 10 : 0),
+                 (unsigned long)t->rx_late, (unsigned long)(t->jitter_us / 1000),
+                 (unsigned long)((t->jitter_us % 1000) / 100), (unsigned long)t->rx_max_gap_ms,
+                 (unsigned long)t->rx_gaps60, (unsigned long)t->dl_drops, (unsigned long)t->tx_pkts,
+                 (unsigned long)t->tx_underruns, (unsigned long)t->tx_send_fail,
+                 t->rssi_start, t->rssi_end, (unsigned long)t->heap_min_free);
+    }
 }

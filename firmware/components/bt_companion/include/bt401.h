@@ -71,6 +71,9 @@ esp_err_t bt401_send_at(const char *cmd, int listen_ms);
  * stopped (ESP_ERR_INVALID_STATE otherwise). */
 esp_err_t bt401_probe(void);
 
+/* Boot-time detection: true if a BT401 answers on the UART (see bt401.c). */
+bool      bt401_detect(void);
+
 /* Prints what the task has decoded so far, plus parser counters. */
 void      bt401_print_state(void);
 

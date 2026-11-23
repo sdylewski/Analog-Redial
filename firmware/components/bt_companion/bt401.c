@@ -483,6 +483,40 @@ esp_err_t bt401_send_at(const char *cmd, int listen_ms)
     return ESP_OK;
 }
 
+/* Boot-time detection: is a BT401 on the UART? Listens briefly for its
+ * power-up lines, then asks for its address a few times; any well-formed
+ * reply (OK, ER+n, XX+value) counts. A BM64 never sends text lines, and a
+ * missing module sends nothing. On "no" the UART driver is removed again so
+ * the BM64 probe can install its own. Needs the poll task not running. */
+bool bt401_detect(void)
+{
+    if (s_task) return s_uart_ready;
+    if (uart_ready() != ESP_OK) return false;
+    bt401_parser_t p;
+    bt401_parser_init(&p);
+    bool found = false;
+    uint8_t buf[64];
+    for (int attempt = 0; attempt < 4 && !found; attempt++) {
+        if (attempt > 0) {
+            uart_flush_input(BT_UART);
+            send_line(BT401_CMD_QUERY_ADDR, NULL);
+        }
+        int64_t end = now_us() + (attempt == 0 ? 300 : 350) * 1000LL;
+        while (now_us() < end && !found) {
+            int n = uart_read_bytes(BT_UART, buf, sizeof(buf), pdMS_TO_TICKS(50));
+            for (int i = 0; i < n; i++) {
+                bt401_msg_t m;
+                if (bt401_parser_feed(&p, buf[i], &m) && m.kind != BT401_MSG_NONE) found = true;
+            }
+        }
+    }
+    if (!found) {
+        uart_driver_delete(BT_UART);
+        s_uart_ready = false;
+    }
+    return found;
+}
+
 esp_err_t bt401_probe(void)
 {
     if (s_task) return ESP_ERR_INVALID_STATE;

@@ -17,6 +17,7 @@
 #include "prompts.h"
 #include "dialplan.h"
 #include "voip.h"
+#include "rtp.h"
 #include "voip_prov.h"
 #include "homecall.h"
 #include "autoupdate.h"
@@ -579,6 +580,13 @@ static cJSON *build_status_json(void)
     cJSON_AddStringToObject(root, "bt_paired_name", bt_st.paired_name);
     cJSON_AddStringToObject(root, "bt_addr", bt_st.bd_addr);
     {
+        bt_companion_detect_t d = bt_companion_detect_result();
+        cJSON_AddStringToObject(root, "bt_detected",
+                                !d.ran ? "unchecked" : d.found == BOARD_BT_BM64 ? "bm64"
+                                : d.found == BOARD_BT_BT401 ? "bt401" : "none");
+        cJSON_AddBoolToObject(root, "bt_module_autoset", d.changed);
+    }
+    {
         board_bt_module_t m = bt_companion_module();
         cJSON_AddStringToObject(root, "bt_module",
                                 m == BOARD_BT_BM64 ? "bm64" : m == BOARD_BT_BT401 ? "bt401" : "none");
@@ -612,6 +620,25 @@ static cJSON *build_status_json(void)
         cJSON_AddStringToObject(jl, "caller_name", telephony_caller_name(l));
         cJSON_AddStringToObject(jl, "caller_number", telephony_caller_number(l));
         cJSON_AddNumberToObject(jl, "rx_level", audio_rx_level(l));
+        {
+            rtp_stats_t rs;
+            rtp_stats_get(l, &rs);
+            cJSON *jr = cJSON_AddObjectToObject(jl, "rtp");
+            cJSON_AddBoolToObject(jr, "active", rs.active);
+            cJSON_AddNumberToObject(jr, "duration_s", rs.duration_s);
+            cJSON_AddNumberToObject(jr, "rx_pkts", rs.rx_pkts);
+            cJSON_AddNumberToObject(jr, "rx_lost", rs.rx_lost);
+            cJSON_AddNumberToObject(jr, "rx_late", rs.rx_late);
+            cJSON_AddNumberToObject(jr, "rx_gaps60", rs.rx_gaps60);
+            cJSON_AddNumberToObject(jr, "rx_max_gap_ms", rs.rx_max_gap_ms);
+            cJSON_AddNumberToObject(jr, "jitter_ms", rs.jitter_us / 1000.0);
+            cJSON_AddNumberToObject(jr, "dl_drops", rs.dl_drops);
+            cJSON_AddNumberToObject(jr, "tx_pkts", rs.tx_pkts);
+            cJSON_AddNumberToObject(jr, "tx_underruns", rs.tx_underruns);
+            cJSON_AddNumberToObject(jr, "tx_send_fail", rs.tx_send_fail);
+            cJSON_AddNumberToObject(jr, "rssi_start", rs.rssi_start);
+            cJSON_AddNumberToObject(jr, "rssi_end", rs.rssi_end);
+        }
         if (aec_is_enabled(l)) {
             /* Stats since the last read (reading resets them). */
             aec_status_t as;
@@ -1137,7 +1164,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
     off = appendf(buf, cap, off,
         "</select></form>"
         "<button type=\"button\" id=\"themebtn\" class=\"themebtn\" onclick=\"rdTheme()\">"
-        "\xe2\x97\x90 Auto</button></nav>");
+        "\xe2\x97\x90 Auto</button></nav></header><div class=\"hazards\">");
 
     /* Shown on every page (this function is every page's shared head) --
      * see board_sd_line1_conflict()'s own doc comment (board.h) for why
@@ -1199,6 +1226,7 @@ static int append_page_head(char *buf, size_t cap, int off, const char *page_tit
             "<div class=\"hazard-banner\">%s</div>", mismatch_hint);
     }
     off = append_fw_update_script(buf, cap, off);
+    off = appendf(buf, cap, off, "</div>");
     return off;
 }
 
@@ -4787,6 +4815,24 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
         : NULL;
 
     {
+        /* What the boot-time check of the J2 UART found (bt_companion_init). */
+        bt_companion_detect_t d = bt_companion_detect_result();
+        static const char *const nm[] = { "none", "BM64", "BT401" };
+        if (d.ran && d.changed) {
+            off = appendf(buf, cap, off,
+                "<div class=\"card wide\"><p class=\"warn-text\">A <b>%s</b> was found on the "
+                "Bluetooth header, but the setting said <b>%s</b>, so it was changed to %s. "
+                "(With the wrong setting the call audio is quiet.)</p></div>",
+                nm[d.found], nm[d.was], nm[d.found]);
+        } else if (d.ran && d.found == BOARD_BT_NONE && d.was != BOARD_BT_NONE) {
+            off = appendf(buf, cap, off,
+                "<div class=\"card wide\"><p class=\"warn-text\">The setting says a <b>%s</b> is "
+                "fitted, but nothing answered on the Bluetooth header at boot. Check its "
+                "power and wiring.</p></div>", nm[d.was]);
+        }
+    }
+
+    {
         board_bt_module_t want = board_hw_config_get().bt_module;
         const char *note;
         if (want != bt_mod) {
@@ -6728,8 +6774,79 @@ static const char DIAG_FOLD_JS[] =
     "d.addEventListener('toggle',function(){d.open=true;});c.parentNode.replaceChild(d,c);});"
     "})();</script>";
 
+/* Diagnostics: how the last (or current) VoIP/board-to-board call sounded on
+ * the wire, from rtp.c's counters. Always collected (a few integer adds per
+ * 20 ms packet); this card just reads them. What it counts is what THIS board
+ * received, so for a two-board call open the other board's page too. */
+static int append_call_quality_card(char *buf, size_t cap, int off)
+{
+    off = appendf(buf, cap, off,
+        "<div class=\"card wide\"><h2>Call diagnostics</h2>"
+        "<p class=\"hint\">How the last call arrived at this board, counted from the audio "
+        "packets (20 ms each). Reload the page after a call. Only calls over the network "
+        "(board to board or VoIP) are counted.</p>");
+    int n = board_hw_config_get().num_lines;
+    for (int l = 0; l < n; l++) {
+        rtp_stats_t t;
+        rtp_stats_get(l, &t);
+        off = appendf(buf, cap, off, "<h3>Line %d%s</h3>", l, t.active ? " (call in progress)" : "");
+        if (t.rx_pkts == 0 && t.tx_pkts == 0) {
+            off = appendf(buf, cap, off, "<p class=\"hint\">No network call since this board started.</p>");
+            continue;
+        }
+        uint32_t expected = t.rx_pkts + t.rx_lost;
+        unsigned loss_x10 = expected ? (unsigned)((uint64_t)t.rx_lost * 1000 / expected) : 0;
+        const char *loss_cls = loss_x10 >= 50 ? "bad" : loss_x10 >= 10 ? "busy" : "on";
+        const char *gap_cls = t.rx_max_gap_ms >= 150 ? "bad" : t.rx_max_gap_ms >= 60 ? "busy" : "on";
+        off = appendf(buf, cap, off,
+            "<div class=\"statusrow\"><span class=\"label\">Call length</span><span>%lu s</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">Packets received</span><span>%lu</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">Packets lost</span>"
+            "<span><span class=\"pill %s\">%lu (%u.%u%%)</span></span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">Late or out of order</span><span>%lu</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">Jitter (timing wobble)</span><span>%lu.%lu ms</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">Longest silence between packets</span>"
+            "<span><span class=\"pill %s\">%lu ms</span></span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">Gaps over 60 ms</span><span>%lu</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">Playback buffer overflows</span><span>%lu</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">Sent / microphone underruns / send failures</span>"
+            "<span>%lu / %lu / %lu</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">Wi-Fi signal, start &rarr; end</span><span>%d &rarr; %d dBm</span></div>"
+            "<div class=\"statusrow\"><span class=\"label\">Lowest free memory since boot</span><span>%lu bytes</span></div>",
+            (unsigned long)t.duration_s, (unsigned long)t.rx_pkts, loss_cls, (unsigned long)t.rx_lost,
+            loss_x10 / 10, loss_x10 % 10, (unsigned long)t.rx_late,
+            (unsigned long)(t.jitter_us / 1000), (unsigned long)((t.jitter_us % 1000) / 100),
+            gap_cls, (unsigned long)t.rx_max_gap_ms, (unsigned long)t.rx_gaps60,
+            (unsigned long)t.dl_drops, (unsigned long)t.tx_pkts, (unsigned long)t.tx_underruns,
+            (unsigned long)t.tx_send_fail, t.rssi_start, t.rssi_end, (unsigned long)t.heap_min_free);
+
+        /* In plain words: the most likely cause first. */
+        const char *verdict;
+        if (t.tx_send_fail > 0)
+            verdict = "This board could not send some packets: the Wi-Fi link or free memory is the problem here.";
+        else if (loss_x10 >= 10 || t.rx_gaps60 > 5 || t.rx_late > 5)
+            verdict = "Packets are being lost or arriving late on the way to this board: a weak or busy "
+                      "Wi-Fi link (check the signal on both boards), or the other board turning Wi-Fi "
+                      "power-save on. Broken-up audio is expected.";
+        else if (t.dl_drops > 0)
+            verdict = "The network was fine, but this board's playback buffer overflowed: it is too busy "
+                      "to play the audio in time (check the memory figure and what else is running).";
+        else if (t.tx_underruns > 5)
+            verdict = "The microphone side could not keep up, so the other end gets gaps: this board is too busy.";
+        else if (t.rssi_end != 0 && t.rssi_end < -70)
+            verdict = "The packets came through, but the Wi-Fi signal is weak (below -70 dBm) and may "
+                      "drop out. Move the board or the router closer.";
+        else
+            verdict = "Nothing wrong seen on this side. If the call still sounded bad, check the other "
+                      "board's numbers (this card only counts what this board received).";
+        off = appendf(buf, cap, off, "<p class=\"hint\"><b>Reading:</b> %s</p>", verdict);
+    }
+    return appendf(buf, cap, off, "</div>");
+}
+
 static int append_diag_tab(char *buf, size_t cap, int off)
 {
+    off = append_call_quality_card(buf, cap, off);
     static const char *LEVELS[] = { "none", "error", "warn", "info", "debug", "verbose" };
     esp_log_level_t cur = logctl_get_level();
 

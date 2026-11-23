@@ -442,6 +442,11 @@ typedef struct {
  * and from "nothing written yet, on the hardcoded (1, false) fallback". */
 board_hw_config_t board_hw_config_get(void);
 
+/* Changes only which Bluetooth module is fitted (both NVS keys), leaving
+ * lines/microSD alone and the "confirmed" flag as it is. For the boot-time
+ * module detection; Settings -> Hardware uses board_hw_config_set(). */
+esp_err_t board_hw_config_set_bt_module(board_bt_module_t m);
+
 /* True once a human has explicitly confirmed a configuration via
  * board_hw_config_set() -- NOT true just because board_hw_config_autodetect()
  * has written a guess (that's the whole point: the guess should work
