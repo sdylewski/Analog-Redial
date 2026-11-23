@@ -6781,7 +6781,7 @@ static const char DIAG_FOLD_JS[] =
 static int append_call_quality_card(char *buf, size_t cap, int off)
 {
     off = appendf(buf, cap, off,
-        "<div class=\"card wide\"><h2>Call diagnostics</h2>"
+        "<div class=\"card\"><h2>Call diagnostics</h2>"
         "<p class=\"hint\">How the last call arrived at this board, counted from the audio "
         "packets (20 ms each). Reload the page after a call. Only calls over the network "
         "(board to board or VoIP) are counted.</p>");
@@ -6846,7 +6846,6 @@ static int append_call_quality_card(char *buf, size_t cap, int off)
 
 static int append_diag_tab(char *buf, size_t cap, int off)
 {
-    off = append_call_quality_card(buf, cap, off);
     static const char *LEVELS[] = { "none", "error", "warn", "info", "debug", "verbose" };
     esp_log_level_t cur = logctl_get_level();
 
@@ -6879,7 +6878,7 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         "<nav class=\"diag-nav\"><a href=\"#d-hw\">1 &middot; Hardware</a> <a href=\"#d-phone\">2 &middot; Phone features</a> "
         "<a href=\"#d-audio\">3 &middot; Audio</a> <a href=\"#d-fw\">4 &middot; Firmware &amp; logs</a></nav>");
     off = appendf(buf, cap, off,
-        "<div class=\"card\"><h2>%s</h2>"
+        "<div class=\"diagrow\"><div class=\"card\"><h2>%s</h2>"
         "<div class=\"statusrow\"><span class=\"label\">%s</span>"
         "<span class=\"pill on\">%s</span></div>"
         "<form method=\"POST\" action=\"/log_level\" class=\"settings-form\">"
@@ -6911,6 +6910,23 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         "<p class=\"hint\">Pings your router five times from this board. Under about 30 ms is good; "
         "a slow or lossy result usually means a weak signal, or a Wi-Fi extender between the board and "
         "the router.</p>"
+        "<div class=\"statusrow\"><span class=\"label\">Signal now</span><span id=\"sg-now\">...</span></div>"
+        "<div style=\"height:10px;border-radius:5px;background:rgba(128,128,128,.25);overflow:hidden;margin:2px 0 6px\">"
+        "<div id=\"sg-bar\" style=\"height:100%%;width:0;background:var(--olive,#6b7a3a);transition:width .4s\"></div></div>"
+        "<div class=\"statusrow\"><span class=\"label\">Best / worst seen</span><span id=\"sg-mm\">-</span>"
+        " <button type=\"button\" id=\"sg-rs\">Reset</button></div>"
+        "<p class=\"hint\">Updates every second, so you can turn the board and watch it. Give it a few seconds "
+        "after each move; the radio averages its readings. Closer to 0 is stronger: above -60 dBm is strong, "
+        "-70 is fair, below -75 is weak.</p>"
+        "<script>(function(){var n=document.getElementById('sg-now'),b=document.getElementById('sg-bar'),"
+        "m=document.getElementById('sg-mm'),rs=document.getElementById('sg-rs'),hi=null,lo=null;"
+        "if(!n)return;rs.onclick=function(){hi=lo=null;m.textContent='-';};"
+        "function tick(){fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(s){"
+        "var v=s.wifi_rssi;if(typeof v!=='number'||v>=0){n.textContent='not connected';b.style.width='0';return;}"
+        "n.textContent=v+' dBm';var p=Math.max(0,Math.min(100,(v+90)*100/50));b.style.width=p+'%%';"
+        "if(hi===null||v>hi)hi=v;if(lo===null||v<lo)lo=v;m.textContent=hi+' / '+lo+' dBm';"
+        "}).catch(function(){n.textContent='no answer';});}"
+        "tick();setInterval(function(){if(!document.hidden)tick();},1000);})();</script>"
         "<div class=\"statusrow\"><span class=\"label\">Result</span><span id=\"pt-res\">not run yet</span></div>"
         "<div class=\"toolbar sub\"><button type=\"button\" id=\"pt-go\" class=\"primary\">Run test</button></div>"
         "<script>(function(){var b=document.getElementById('pt-go'),r=document.getElementById('pt-res');"
@@ -6922,6 +6938,9 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         "' ms (min / avg / max), router '+j.router+', signal '+j.rssi+' dBm';"
         "}).catch(function(){b.disabled=false;r.textContent='the test failed (no answer from the board)';});};})();"
         "</script></div>");
+    /* Right of the speed test: how the last call actually arrived. */
+    off = append_call_quality_card(buf, cap, off);
+    off = appendf(buf, cap, off, "</div>" /* .diagrow */);
 
 
     off = appendf(buf, cap, off, "<h2 class=\"diag-sec\" id=\"d-hw\">1 &middot; Hardware checks</h2><p class=\"hint diag-sec-hint\">The board itself: its parts and chips, the phone line ring generator, and the spare I/O pins.</p>");
