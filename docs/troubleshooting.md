@@ -146,12 +146,45 @@ for you to paste the log into.
 - **Harsh dial tone:** the earpiece level is too high and the line's audio input is
   distorting. Run the line audio level check under Settings → Diagnostics, and use
   its recommended level.
-- **Static or dropouts on calls between boards:** look at the Wi-Fi signal on the
-  Status page and move the board closer to the router if it's weak. Calling the
-  other line on a two-line board uses no Wi-Fi, so it helps tell the two apart.
+- **Choppy audio or dropouts on calls between boards or through a VoIP server:** see
+  [choppy audio or dropouts](#choppy-audio-or-dropouts) below. It is nearly always the Wi-Fi.
 - **You hear your own voice as an echo:** measure and turn on echo cancellation under
   Settings → Phone. Pick up the handset first and keep the room quiet while it measures.
 - **Audio cuts out and the board restarts:** see [power problems](#power-problems).
+
+## Choppy audio or dropouts
+
+Words that cut in and out, robot-like sound, or short silences on a call over the network
+(between boards or through a VoIP server) almost always mean audio packets are arriving late or
+not at all. Wi-Fi is the usual cause. The board has tools to show it:
+
+1. **Check the Wi-Fi signal.** Open the **Status** page, or **Settings → Diagnostics → Network
+   speed**, which has a live signal meter. Above **-60 dBm** is strong, around **-70** is fair and **below -75 is weak**, and
+   a weak signal will break up a call. The meter updates every second, along with a best and worst reading, and
+   the radio averages its readings, so give it a few seconds after each move. Move the board or the router, or point the board's antenna
+   somewhere clearer, and watch the meter change.
+2. **Run the network test.** On the same card press **Run test**. The board pings your router five
+   times. Under about 30 ms with nothing lost is good. Slow or lost replies mean the Wi-Fi link is the
+   problem, not the board. A **Wi-Fi extender** between the board and the router is a common cause, since
+   every packet then takes a second wireless hop.
+3. **Look at the last call.** After a choppy call, reload **Settings → Diagnostics** and read the
+   **Call diagnostics** card (it shows the audio packets this board received on the last network call):
+   - **Packets lost** above 1% is amber and above 5% is red. Lost packets are the dropouts you heard.
+   - **Longest silence between packets** over 60 ms is amber and over 150 ms is red.
+   - **Late or out of order** and **Jitter** high with little loss means the network delivers the
+     packets, but unevenly.
+   - **Wi-Fi signal, start → end** shows whether the signal sank during the call.
+   - **Playback buffer overflows**, **microphone underruns** and **send failures** above zero point at
+     the board rather than the network. Open the other board's page too, because each board counts only
+     what it received.
+4. **Compare with a call that uses no Wi-Fi.** On a two-line board, call the other line (321). If that is
+   clean and the network call isn't, it's the network.
+5. **Rule out power.** A weak 5 V supply can also cut audio, usually with a restart. See
+   [power problems](#power-problems).
+
+If the signal is good, the loss is near zero, and it's still choppy, copy the Call diagnostics card and
+the log from Settings → Diagnostics and [open an issue](https://github.com/sdylewski/Analog-Redial/issues)
+or ask in the [Discord](https://discord.gg/zEZkqfcxqE).
 
 ## Pages load slowly, or calls break up
 

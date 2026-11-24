@@ -99,6 +99,13 @@ nav a {
   margin-left: 18px;
   font-weight: 600;
 }
+nav a.pill {
+  display: inline-flex; align-items: center; gap: 5px; vertical-align: middle;
+  margin-left: 10px; padding: 2px 10px; font-size: 13px; font-weight: 600;
+  color: var(--text); border: 1px solid var(--border); border-radius: 999px;
+}
+nav a.pill svg { width: 14px; height: 14px; fill: currentColor; }
+nav a.pill:hover { border-color: var(--accent); color: var(--accent); }
 nav a.active { color: var(--text); border-bottom: 2px solid var(--accent); padding-bottom: 4px; }
 
 /* Language picker: a <form> flowing inline after the nav tabs (not a 3rd

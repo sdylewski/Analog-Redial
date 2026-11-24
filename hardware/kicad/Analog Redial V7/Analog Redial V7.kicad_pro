@@ -258,7 +258,7 @@
       "internal_id": "",
       "mfg": "",
       "mpn": "",
-      "sch_revision": "0.5"
+      "sch_revision": "6"
     },
     "layer_pairs": [],
     "layer_presets": [],
@@ -508,7 +508,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "Analog Redial mini v1.kicad_pro",
+    "filename": "Analog Redial V7.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -884,18 +884,18 @@
     "subpart_id_separator": 0,
     "top_level_sheets": [
       {
-        "filename": "Analog Redial mini v1.kicad_sch",
-        "name": "Analog Redial mini v1",
+        "filename": "Analog Redial V7.kicad_sch",
+        "name": "Analog Redial V7",
         "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
       }
     ],
-    "used_designators": "J5,J10,#PWR46,#PWR48,#PWR63",
+    "used_designators": "#PWR43-45",
     "variants": []
   },
   "sheets": [
     [
       "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "Analog Redial mini v1"
+      "Analog Redial v6.1"
     ]
   ],
   "text_variables": {},
