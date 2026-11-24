@@ -149,3 +149,6 @@ PayPhone/**/jlcpcb/project.db
 Bluetooth/BK3266_do_not_use/BK3266.PDF
 Bluetooth/BK3266_do_not_use/reference_docs/
 Bluetooth/BK3266_do_not_use/ToolKitV5_8_6_C_20180814/
+
+# V7 board: work in progress, kept out of the repo until it is done
+hardware/kicad/Analog Redial V7/
