@@ -173,8 +173,8 @@ Click any picture for the full page.
     saved as a stereo WAV: to the microSD card (up to 20 minutes), or with
     no card to internal flash (a minute or two, using only free space).
     <b>Live call audio</b> sends a line's call, both voices, to OBS or VLC
-    on your network as it happens, for filming a video: turn it on, copy
-    its link into an OBS Media Source.</td>
+    on your network as it happens, for filming a video: turn it on (for one
+    line at a time), copy its link into an OBS Media Source.</td>
   </tr>
 </table>
 

@@ -1018,6 +1018,10 @@ static const ui_tz_t UI_TIMEZONES[] = {
  * <html data-theme> says otherwise. This runs in <head>, before the page
  * draws, so a saved choice never flashes the other theme first; the header
  * button cycles Auto -> Light -> Dark. */
+/* The "Update automatically" box a self-refreshing card carries (see arLiveBox in THEME_JS). */
+#define LIVE_BOX(key, label) \
+    "<label class=\"livechk\"><input type=\"checkbox\" id=\"live-" key "\"> " label "</label>"
+
 static const char THEME_JS[] =
     "<script>"
     "try{var t=localStorage.getItem('rd-theme');"
@@ -1032,6 +1036,14 @@ static const char THEME_JS[] =
     "try{if(n)localStorage.setItem('rd-theme',n);else localStorage.removeItem('rd-theme');}catch(e){}"
     "rdLabel();}"
     "document.addEventListener('DOMContentLoaded',rdLabel);"
+    /* Live readings. Each card that refreshes itself has its own "Update automatically" checkbox, off
+     * unless this browser turned it on (kept in localStorage, nothing on the board). A poller takes one
+     * reading when the page loads, then only while its box is ticked and the tab is visible. */
+    "window.arLive=function(k){try{return localStorage.getItem('ar-live-'+k)==='1';}catch(e){return false;}};"
+    "window.arLiveBox=function(k,run){var c=document.getElementById('live-'+k);"
+    "if(!c)return function(){return false;};c.checked=window.arLive(k);"
+    "c.addEventListener('change',function(){try{localStorage.setItem('ar-live-'+k,c.checked?'1':'0');}catch(e){}"
+    "if(c.checked)run(1);});return function(){return c.checked;};};"
     "</script>";
 
 /* While no time zone has ever been chosen, the first browser to open a page
@@ -3379,7 +3391,7 @@ static int append_spare_outputs_card(char *buf, size_t cap, int off, bool wide)
     int gp[AUXPINS_COUNT];
     size_t ng = auxpins_list(gp, AUXPINS_COUNT);
     off = appendf(buf, cap, off,
-        "<div class=\"card%s\" id=\"outputs\"><h2>%s outputs</h2>"
+        "<div class=\"card%s\" id=\"outputs\"><h2>%s outputs</h2>" LIVE_BOX("aux", "Update automatically")
         "<p class=\"hint\">Switch each spare pin on (3.3 V) or off (0 V) by hand, to test a relay or "
         "whatever else is wired to it. A pin stays as you set it until you switch it again or a "
         "dial code below changes it. A restart sets them all off.</p>", wide ? " wide" : "", auxpins_header());
@@ -3410,7 +3422,7 @@ static int append_spare_outputs_card(char *buf, size_t cap, int off, bool wide)
         "fetch('/auxpin_set',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},"
         "body:'id='+b.dataset.id+'&level='+(on?1:0)}).then(function(r){return r.json();}).then(show)"
         ".catch(function(){msg.textContent='The board did not answer.';b.disabled=false;});});"
-        "setInterval(function(){if(document.hidden)return;fetch('/api/auxpins').then(function(r){return r.json();})"
+        "var auxOn=arLiveBox('aux',function(){});setInterval(function(){if(document.hidden||!auxOn())return;fetch('/api/auxpins').then(function(r){return r.json();})"
         ".then(show).catch(function(){});},2000);})();</script>");
 }
 
@@ -5058,7 +5070,7 @@ static int append_bluetooth_tab(char *buf, size_t cap, int off)
         "if(pairingTimeout)clearTimeout(pairingTimeout);"
         "pairingTimeout=setTimeout(function(){pairing=false;setBtnState('idle');},45000);"
         "});"
-        "setInterval(poll,3000);"
+        "setInterval(function(){if(pairing)poll();},3000);"
         "})();</script>",
         (st.link_up || st.asleep) ? "" : " disabled",
         i18n_str("bt.pair_button", "Start pairing"),
@@ -6601,7 +6613,7 @@ static int append_fx_diag_card(char *buf, size_t cap, int off)
 {
     int lines = board_hw_config_get().num_lines;
     off = appendf(buf, cap, off,
-        "<div class=\"card\"><h2>%s</h2>", i18n_str("fxdiag.title", "Voice effects: live levels"));
+        "<div class=\"card\"><h2>%s</h2>" LIVE_BOX("fx", "Update automatically"), i18n_str("fxdiag.title", "Voice effects: live levels"));
     off = append_hint(buf, cap, off,
         i18n_str("fxdiag.hint_lead",
                  "Pick an effect, then talk or call. The numbers show how loud the voice is going "
@@ -6632,13 +6644,13 @@ static int append_fx_diag_card(char *buf, size_t cap, int off)
         "{'Content-Type':'application/x-www-form-urlencoded'},body:'line='+l+'&fx='+v});}"
         "function fxLine(n,s){return n?(' in '+s.in_pk.toFixed(1)+' pk / '+s.in_rms.toFixed(1)+' rms'"
         "+'  ->  out '+s.out_pk.toFixed(1)+' pk / '+s.out_rms.toFixed(1)+' rms   limited '+s.lim):' idle';}"
-        "function fxPoll(){fetch('/api/voice_fx').then(function(r){return r.json();}).then(function(d){"
+        "function fxPoll(f){if((!f&&(document.hidden||!fxOn()))||fxPoll.b)return;fxPoll.b=1;fetch('/api/voice_fx').then(function(r){return r.json();}).then(function(d){"
         "d.forEach(function(x){var sel=document.getElementById('fxsel'+x.line);"
         "if(sel&&document.activeElement!==sel)sel.value=x.fx;"
         "document.getElementById('fxout'+x.line).textContent="
         "(x.fx?x.name:'no effect active')+'\\n  hears:'+fxLine(x.down.n,x.down)+'\\n  sends:'+fxLine(x.up.n,x.up);});"
-        "}).catch(function(){});}"
-        "fxPoll();setInterval(fxPoll,1000);"
+        "}).catch(function(){}).then(function(){fxPoll.b=0;});}"
+        "var fxOn=arLiveBox('fx',fxPoll);fxPoll(1);setInterval(function(){fxPoll();},2000);"
         "</script></div>");
     return off;
 }
@@ -6671,7 +6683,7 @@ static int append_callcap_card(char *buf, size_t cap, int off)
         url_encode_path(callcap_last_name(), last_u, sizeof(last_u));
     }
     off = appendf(buf, cap, off,
-        "<div class=\"card\"><h2>Call recording</h2>"
+        "<div class=\"card\"><h2>Call recording</h2>" LIVE_BOX("cap", "Reload when a recording finishes")
         "<div class=\"statusrow\"><span class=\"label\">Status</span><span>%s</span></div>",
         status);
     if (last[0]) {
@@ -6705,8 +6717,8 @@ static int append_callcap_card(char *buf, size_t cap, int off)
      * they're safe inside a JS string. */
     static const char *const cs[] = { "idle", "armed", "recording", "saving" };
     return appendf(buf, cap, off,
-        "<script>(function(){var st='%s',last='%s';"
-        "setInterval(function(){if(document.hidden)return;"
+        "<script>(function(){var st='%s',last='%s';var capOn=arLiveBox('cap',function(){});"
+        "setInterval(function(){if(document.hidden||!capOn())return;"
         "fetch('/api/status').then(function(r){return r.json();}).then(function(j){"
         "if(j.callcap!==st||(j.callcap_last||'')!==last)location.reload();"
         "}).catch(function(){});},3000);})();</script></div>",
@@ -6729,6 +6741,7 @@ static int append_livestream_card(char *buf, size_t cap, int off)
                  st.stereo ? "stereo" : "mono", st.client, (unsigned long)(st.secs / 60),
                  (unsigned long)(st.secs % 60), lost);
     }
+    else if (board_hw_config_get().num_lines > 1) snprintf(status, sizeof(status), "on for line %d, waiting for a listener", livestream_line());
     else snprintf(status, sizeof(status), "on, waiting for a listener");
     off = appendf(buf, cap, off,
         "<div class=\"card\" id=\"livestream\"><h2>Live call audio</h2>"
@@ -6740,23 +6753,27 @@ static int append_livestream_card(char *buf, size_t cap, int off)
         char ip[16], key[LIVESTREAM_KEY_LEN + 1];
         wifi_get_ip_str(ip, sizeof(ip));
         livestream_key(key, sizeof(key));
-        int lines = board_hw_config_get().num_lines;
-        for (int l = 0; l < lines && l < 2; l++) {
-            off = appendf(buf, cap, off,
-                "<div class=\"statusrow\"><span class=\"label\">%s</span>"
-                "<input type=\"text\" readonly onclick=\"this.select()\" style=\"flex:1;min-width:0\" "
-                "value=\"http://%s:%d/live.wav?key=%s%s\"></div>",
-                lines > 1 ? (l ? "Line 1 link" : "Line 0 link") : "Link",
-                ip, LIVESTREAM_PORT, key, l ? "&amp;line=1" : "");
-        }
+        off = appendf(buf, cap, off,
+            "<div class=\"statusrow\"><span class=\"label\">Link</span>"
+            "<input type=\"text\" readonly onclick=\"this.select()\" style=\"flex:1;min-width:0\" "
+            "value=\"http://%s:%d/live.wav?key=%s\"></div>", ip, LIVESTREAM_PORT, key);
     }
+    bool multi = board_hw_config_get().num_lines > 1;
     off = appendf(buf, cap, off,
-        "<form method=\"POST\" action=\"/livestream\" class=\"settings-form\">"
-        "<div class=\"toolbar sub\">"
-        "<button type=\"submit\" name=\"action\" value=\"%s\" class=\"primary\">%s</button>%s"
-        "</div></form>",
-        on ? "off" : "on", on ? "Turn off" : "Turn on",
-        on ? "<button type=\"submit\" name=\"action\" value=\"newkey\">New link</button>" : "");
+        "<form method=\"POST\" action=\"/livestream\" class=\"settings-form\"><div class=\"toolbar sub\">");
+    if (on) {
+        off = appendf(buf, cap, off,
+            "<button type=\"submit\" name=\"action\" value=\"off\" class=\"primary\">Turn off</button>"
+            "<button type=\"submit\" name=\"action\" value=\"newkey\">New link</button>");
+    } else if (multi) {
+        off = appendf(buf, cap, off,
+            "<button type=\"submit\" name=\"action\" value=\"on0\" class=\"primary\">Turn on for line 0</button>"
+            "<button type=\"submit\" name=\"action\" value=\"on1\" class=\"primary\">Turn on for line 1</button>");
+    } else {
+        off = appendf(buf, cap, off,
+            "<button type=\"submit\" name=\"action\" value=\"on\" class=\"primary\">Turn on</button>");
+    }
+    off = appendf(buf, cap, off, "</div></form>");
     off = append_hint(buf, cap, off,
         "Sends a line's audio, live, to OBS or another player on your network: your voice and the "
         "other person's, mixed, whoever is at the other end (the other line, VoIP, another board). In "
@@ -6766,7 +6783,10 @@ static int append_livestream_card(char *buf, size_t cap, int off)
         "the Sync Offset in OBS's Advanced Audio Properties.",
         "16 kHz, 16-bit mono WAV, silence between calls. Add <code>&amp;stereo=1</code> for the two "
         "sides on separate channels (left: what the phone sends; right: what the earpiece hears), as "
-        "in a call recording. One listener at a time: a new one replaces the old. Anyone with the link "
+        "in a call recording. One listener at a time, and one line at a time (choose it above; the board's "
+        "memory can't carry two streams): to stream the other line, turn this off and turn it on for that "
+        "line, which frees the memory in between. A new listener replaces the old. It turns itself off "
+        "after an hour with no player connected. Anyone with the link "
         "can listen while it's on, so it's off after a restart, and New link stops the old one working. "
         "While a call recording is running on the same line, the stream is silent. Also works in VLC "
         "(Open Network) and with <code>ffplay</code>.");
@@ -6918,7 +6938,7 @@ static int append_diag_tab(char *buf, size_t cap, int off)
 
     /* Network speed: five pings to the router, from the board. */
     off = appendf(buf, cap, off,
-        "<div class=\"card\"><h2>Network speed</h2>"
+        "<div class=\"card\"><h2>Network speed</h2>" LIVE_BOX("sig", "Update the signal meter automatically")
         "<p class=\"hint\">Pings your router five times from this board. Under about 30 ms is good; "
         "a slow or lossy result usually means a weak signal, or a Wi-Fi extender between the board and "
         "the router.</p>"
@@ -6933,12 +6953,12 @@ static int append_diag_tab(char *buf, size_t cap, int off)
         "<script>(function(){var n=document.getElementById('sg-now'),b=document.getElementById('sg-bar'),"
         "m=document.getElementById('sg-mm'),rs=document.getElementById('sg-rs'),hi=null,lo=null;"
         "if(!n)return;rs.onclick=function(){hi=lo=null;m.textContent='-';};"
-        "function tick(){fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(s){"
+        "function tick(f){if(!f&&(document.hidden||!sgOn()))return;if(tick.b)return;tick.b=1;fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(s){"
         "var v=s.wifi_rssi;if(typeof v!=='number'||v>=0){n.textContent='not connected';b.style.width='0';return;}"
         "n.textContent=v+' dBm';var p=Math.max(0,Math.min(100,(v+90)*100/50));b.style.width=p+'%%';"
         "if(hi===null||v>hi)hi=v;if(lo===null||v<lo)lo=v;m.textContent=hi+' / '+lo+' dBm';"
-        "}).catch(function(){n.textContent='no answer';});}"
-        "tick();setInterval(function(){if(!document.hidden)tick();},1000);})();</script>"
+        "}).catch(function(){n.textContent='no answer';}).then(function(){tick.b=0;});}"
+        "var sgOn=arLiveBox('sig',tick);tick(1);setInterval(function(){tick();},1000);})();</script>"
         "<div class=\"statusrow\"><span class=\"label\">Result</span><span id=\"pt-res\">not run yet</span></div>"
         "<div class=\"toolbar sub\"><button type=\"button\" id=\"pt-go\" class=\"primary\">Run test</button></div>"
         "<script>(function(){var b=document.getElementById('pt-go'),r=document.getElementById('pt-res');"
@@ -9685,7 +9705,7 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
 {
     coinboard_cfg_t b = coinboard_cfg();
     off = appendf(buf, cap, off,
-        "<div class=\"card wide\" id=\"cbbring\"><h2>Coin board bring-up</h2>"
+        "<div class=\"card wide\" id=\"cbbring\"><h2>Coin board bring-up</h2>" LIVE_BOX("cb", "Update automatically")
         "<p class=\"hint\">For a newly built coin board: work down the steps in order and fix each "
         "one before going on. Start with <b>J14 off</b> and <b>no coin relay</b> connected. "
         "Step 1 works without ticking \"A coin board is connected\"; the rest need it. "
@@ -9822,7 +9842,7 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "document.body.appendChild(a);a.select();try{document.execCommand('copy');}catch(x){}document.body.removeChild(a);done();};"
         "if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(t).then(done,fb);else fb();};"
         "var lastHv=-1,fall=0,e0=null;"
-        "function tick(){if(document.hidden)return;fetch('/api/payphone').then(function(r){return r.json();})"
+        "function tick(f){if(!f&&(document.hidden||!cbOn()))return;fetch('/api/payphone').then(function(r){return r.json();})"
         ".then(function(j){var d=j.board;if(!d)return;"
         "var bus=function(){return !d.sda||!d.scl?'<br>I2C lines at the main board: SDA '+(d.sda?'high':'LOW')+', SCL '+(d.scl?'high':'LOW')+'. A line held LOW means something on the coin board or its cable is pulling it down: unplug the cable at J11 and see if it goes high.':'<br>Both I2C lines are idle (high), so nothing is answering: check VIO, GND, SDA and SCL at the JST.';};"
         "if(!d.enabled)$('cbr0').innerHTML=chip('','not enabled');else if(!d.io_ok)$('cbr0').innerHTML=chip('fail','not answering')+bus();"
@@ -9864,7 +9884,7 @@ static int append_coinboard_bringup_card(char *buf, size_t cap, int off)
         "$('cbr6').innerHTML='HV '+V(d.hv_mv)+(d.hv_mv<=d.rail_mv+1000?' '+chip('pass','back to the idle level'):fall>2?' '+chip('pass','falling'):'');}"
         "if(d.ft&&d.ft!==lastft&&d.ft.length){lastft=d.ft;try{plot(d);}catch(e){}}"
         "lastHv=d.hv_mv;}).catch(function(){});}"
-        "tick();setInterval(tick,1000);})();</script>");
+        "var cbOn=arLiveBox('cb',tick);tick(1);setInterval(function(){tick();},1000);})();</script>");
 }
 
 /* Phone type (payphone_types.h): housing, then what's inside, then what that means and the settings
@@ -10257,7 +10277,7 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
     /* Coins: credit, counter, simulate, log */
     payphone_totals_t t = payphone_totals();
     off = appendf(buf, cap, off,
-        "<div class=\"card wide\"><h2>Coins</h2>"
+        "<div class=\"card wide\"><h2>Coins</h2>" LIVE_BOX("coins", "Update automatically")
         "<p id=\"ppcredit\">Credit now: ");
     for (int l = 0; l < nlines; l++)
         off = appendf(buf, cap, off, "%sline %d: <b>%d c</b>", l ? ", " : "", l, telephony_credit(l));
@@ -10310,12 +10330,12 @@ static int append_payphone_tab(char *buf, size_t cap, int off, const char *sub)
         "Updates by itself.</p></div>"
         "<script>(function(){var t=document.getElementById('pplog'),c=document.getElementById('ppcredit');"
         "function esc(s){return String(s).replace(/[&<>\"]/g,function(x){return{'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[x];});}"
-        "function tick(){fetch('/api/payphone').then(function(r){return r.json();}).then(function(j){"
+        "function tick(f){if(!f&&(document.hidden||!lgOn()))return;fetch('/api/payphone').then(function(r){return r.json();}).then(function(j){"
         "var h='<tr><th>Time</th><th>Line</th><th>Event</th></tr>';"
         "j.log.forEach(function(e){h+='<tr><td>'+esc(e.time)+'</td><td>'+(e.line<0?'-':e.line)+'</td><td>'+esc(e.msg)+'</td></tr>';});"
         "if(!j.log.length)h+='<tr><td colspan=\"3\">No coins yet.</td></tr>';t.innerHTML=h;"
         "c.innerHTML='Credit now: '+j.credit.map(function(v,i){return 'line '+i+': <b>'+v+' c</b>';}).join(', ');"
-        "}).catch(function(){});}setInterval(tick,2000);})();</script>",
+        "}).catch(function(){});}var lgOn=arLiveBox('coins',tick);setInterval(function(){tick();},2000);})();</script>",
         PAYPHONE_LOG_N);
     }   /* pane 1 */
 
@@ -11765,10 +11785,19 @@ static esp_err_t livestream_handler(httpd_req_t *req)
     char body[64] = "", action[8] = "";
     int len = httpd_req_recv(req, body, sizeof(body) - 1);
     if (len > 0) { body[len] = '\0'; form_field(body, "action", action, sizeof(action)); }
+    esp_err_t err = ESP_OK;
     if (strcmp(action, "newkey") == 0) {
         livestream_new_key();
-    } else if (livestream_set_enabled(strcmp(action, "on") == 0) != ESP_OK) {
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Not enough free memory to start the live audio.");
+    } else if (strcmp(action, "off") == 0) {
+        livestream_set_enabled(false);
+    } else if (strcmp(action, "on") == 0) {
+        err = livestream_set_enabled(true);
+    } else if (strcmp(action, "on0") == 0 || strcmp(action, "on1") == 0) {
+        /* Refused while it's on (a stale page): the line only changes with a turn-off in between. */
+        if (livestream_set_line(action[2] - '0') == ESP_OK) err = livestream_set_enabled(true);
+    }
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Not enough free memory to start the live audio right now (it needs about 26 KB spare). Try again in a minute.");
         return ESP_OK;
     }
     return redirect_to(req, "/settings?tab=diag#livestream");
@@ -13679,8 +13708,54 @@ static bool same_origin(httpd_req_t *req)
     return strcasecmp(o, host) == 0;
 }
 
+/* While a live-audio player is connected the board has almost no memory to spare: serving a page
+ * at the same time made the stream stall and could crash the board. So every page but a few tiny
+ * ones answers with this short notice (no stylesheet, no other requests) until the stream is
+ * stopped. "Enabled" is checked too, so the page you land on right after pressing Stop is the real one. */
+static bool livestream_busy(void)
+{
+    return livestream_enabled() && livestream_status().streaming;
+}
+
+static esp_err_t send_stream_notice(httpd_req_t *req)
+{
+    livestream_status_t st = livestream_status();
+    char html[960];
+    int n = snprintf(html, sizeof(html),
+        "<!doctype html><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        "<title>Live audio streaming</title>"
+        "<style>body{font:16px system-ui,sans-serif;max-width:34em;margin:3em auto;padding:0 1em}"
+        "button{font-size:16px;padding:.5em 1em}</style>"
+        "<h1>Live audio streaming</h1>"
+        "<p>Line %d is streaming to %s. While a player is connected the board keeps its memory for "
+        "the audio, so it can't serve other pages without dropouts or a restart.</p>"
+        "<p>To stream the other line: stop this stream, then turn it on for the other line.</p>"
+        "<form method=\"POST\" action=\"/livestream\"><button name=\"action\" value=\"off\">Stop streaming</button></form>",
+        st.line, st.client);
+    httpd_resp_set_status(req, "503 Service Unavailable");
+    httpd_resp_set_type(req, "text/html; charset=utf-8");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    httpd_resp_send(req, html, n);
+    return ESP_OK;
+}
+
+static esp_err_t get_guard(httpd_req_t *req)
+{
+    if (livestream_busy()) return send_stream_notice(req);
+    esp_err_t (*real)(httpd_req_t *) = (esp_err_t (*)(httpd_req_t *))req->user_ctx;
+    return real(req);
+}
+
+/* The few GET routes that stay available while streaming: small, and a browser asks for them by itself. */
+static bool get_ok_while_streaming(const char *uri)
+{
+    return strcmp(uri, "/api/status") == 0 || strcmp(uri, "/favicon.ico") == 0 ||
+           strcmp(uri, "/static/favicon.svg") == 0;
+}
+
 static esp_err_t post_guard(httpd_req_t *req)
 {
+    if (strcmp(req->uri, "/livestream") != 0 && livestream_busy()) return send_stream_notice(req);
     if (!same_origin(req)) {
         char origin[64] = "";
         httpd_req_get_hdr_value_str(req, "Origin", origin, sizeof(origin));
@@ -14017,6 +14092,11 @@ esp_err_t webui_start(void)
         { .uri = "/*",               .method = HTTP_GET, .handler = catchall_handler },
     };
     for (size_t i = 0; i < sizeof(routes) / sizeof(routes[0]); i++) {
+        if (routes[i].method == HTTP_GET && routes[i].handler != get_guard &&
+            !get_ok_while_streaming(routes[i].uri)) {
+            routes[i].user_ctx = (void *)routes[i].handler;
+            routes[i].handler = get_guard;
+        }
         if (routes[i].method == HTTP_POST && routes[i].handler != post_guard) {
             routes[i].user_ctx = (void *)routes[i].handler;
             routes[i].handler = post_guard;

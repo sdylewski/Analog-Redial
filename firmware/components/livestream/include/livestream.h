@@ -5,7 +5,7 @@
  * Off by default, and off again after a restart. Turned on (Settings ->
  * Diagnostics), the board listens on port LIVESTREAM_PORT for
  *
- *   GET /live.wav?key=<key>[&line=1][&stereo=1]
+ *   GET /live.wav?key=<key>[&stereo=1]
  *
  * and answers with an endless 16 kHz, 16-bit WAV: by default mono, the
  * line's own mic mixed at half level with what its earpiece hears (both voices of a
@@ -15,7 +15,11 @@
  * dial tone and so on, in real time, so a player never runs dry.
  *
  * One listener at a time: a new connection replaces the old one (OBS
- * reconnecting after a scene change). The key is random, kept in NVS so the
+ * reconnecting after a scene change). And one LINE at a time, chosen with
+ * livestream_set_line() while off: the board's memory can't carry two streams (each
+ * needs its own buffer and socket), and two listeners just knocked each other off.
+ * Changing line means turning it off and on again, so the memory is freed in between.
+ * A link that names the other line (&line=N) is refused with a message. The key is random, kept in NVS so the
  * link stays the same across restarts, and changed with livestream_new_key().
  *
  * The audio comes from the line's diagnostic and downlink taps (audio.h),
@@ -39,6 +43,12 @@ extern "C" {
 /* Starts the listening task on the first call with on=true. */
 esp_err_t livestream_set_enabled(bool on);
 bool      livestream_enabled(void);
+
+/* Which line the stream carries (0 or 1), kept across restarts. Only changed while the
+ * stream is off (ESP_ERR_INVALID_STATE otherwise): to change lines, turn it off and on
+ * again, which gives its memory back in between. */
+int       livestream_line(void);
+esp_err_t livestream_set_line(int line);
 
 /* The current key ("" before NVS is readable). */
 void      livestream_key(char *out, size_t len);

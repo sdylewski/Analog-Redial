@@ -104,6 +104,8 @@ nav a.pill {
   margin-left: 10px; padding: 2px 10px; font-size: 13px; font-weight: 600;
   color: var(--text); border: 1px solid var(--border); border-radius: 999px;
 }
+/* A little more room between the page tabs and the first pill, so the links read as a separate group. */
+nav a:not(.pill) + a.pill { margin-left: 30px; }
 nav a.pill svg { width: 14px; height: 14px; fill: currentColor; }
 nav a.pill:hover { border-color: var(--accent); color: var(--accent); }
 nav a.active { color: var(--text); border-bottom: 2px solid var(--accent); padding-bottom: 4px; }
@@ -118,6 +120,9 @@ nav form.langpick select {
   border-radius: 6px;
   padding: 2px 6px;
   font-size: 13px;
+  /* Closed, it shows just the chosen language; the full list ("... not translated yet") opens on click. */
+  width: 7.2em;
+  text-overflow: ellipsis;
 }
 
 main { padding: 22px; max-width: 1100px; margin: 0 auto; }
@@ -613,3 +618,7 @@ details.card.dg > summary h2 { margin: 0; }
 details.card.dg[open] > summary { padding-bottom: 6px; }
 details.card.dg > :not(summary) { margin-left: 16px; margin-right: 16px; }
 details.card.dg > :last-child { margin-bottom: 16px; }
+
+/* The "Update automatically" box on a card that refreshes itself (off by default). */
+.livechk { display: block; text-align: right; font-size: 13px; font-weight: 400; color: var(--muted); cursor: pointer; margin: 0 0 6px; }
+.livechk input { vertical-align: middle; margin-right: 4px; }

@@ -9,6 +9,7 @@
 #include "audio.h"
 #include "callcap.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "esp_random.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -22,19 +23,26 @@ static const char *TAG = "livestream";
 
 #define OUT_RATE    16000
 #define MAX_OUT     480                 /* output frames per audio pass, upper bound */
-#define SB_BYTES    (8 * 1024)          /* 256 ms mono, 128 ms stereo: sent in chunks, the backlog stays small */
+#define SB_BYTES    (5 * 1024)          /* 160 ms mono, 80 ms stereo: sent in chunks, the backlog stays small.
+                                         * Smaller than it was (8 KB): this board has little RAM to spare. */
+#define MIN_FREE_TO_ENABLE  (26 * 1024) /* refuse to start with less free heap than this ... */
+#define MIN_FREE_TO_CONNECT (12 * 1024) /* ... and to take a new player with less than this */
 #define MAX_BACKLOG_MS 200              /* more than this queued: drop the excess, so the delay can't grow */
 #define CHUNK_MS    40                  /* send this much at a time: 10 ms segments ran into lwIP's
                                          * per-connection segment limit and fell behind */
 #define NVS_NS      "livestream"
+#define MIC_GAIN_Q8  2048               /* 8x: what the recorder settled on for a real voice */
+#define MIC_CEILING  30000              /* the mic side's peak never goes above this */
+#define IDLE_OFF_US (3600LL * 1000000LL)   /* turns itself off after this long with no player connected */
 
 /* ---- shared with the audio task ----------------------------------------- */
 
-static StreamBufferHandle_t s_sb;       /* allocated once, never freed: a tap may still be running when removed */
+static StreamBufferHandle_t s_sb;       /* made when turned on, freed when the task exits (no tap runs then) */
 static uint32_t s_decim = 3, s_rate = OUT_RATE;
 static volatile bool s_stereo;
 static volatile uint32_t s_dropped_frames, s_full_frames, s_in_frames;
 static int16_t s_dl[MAX_OUT];
+static int16_t s_up[MAX_OUT];
 static size_t  s_dl_n;
 static int16_t s_out[MAX_OUT * 2];
 
@@ -63,8 +71,24 @@ static void ul_tap(int line, const int16_t *mono, size_t n, void *ctx)
     size_t m = n / s_decim;
     if (m > MAX_OUT) m = MAX_OUT;
     bool st = s_stereo;
+    /* The mic reaches the codec very quietly on this hardware (ordinary speech peaks around -31 dBFS:
+     * the recorder lifts it 8x, see recorder.c), and without that lift it was inaudible next to the
+     * earpiece side and the pulse-dial clicks. Same lift here, but never past the ceiling, so a loud
+     * sound (a dial pulse, a shout) is turned down for that block instead of clipping. */
+    int32_t peak = 0;
     for (size_t i = 0; i < m; i++) {
-        int16_t up = avg_decim(mono + i * s_decim, s_decim);
+        int32_t a = avg_decim(mono + i * s_decim, s_decim);
+        s_up[i] = (int16_t)a;
+        if (a < 0) a = -a;
+        if (a > peak) peak = a;
+    }
+    int32_t gain = MIC_GAIN_Q8;
+    if (peak > 0) {
+        int32_t cap = (int32_t)(((int64_t)MIC_CEILING << 8) / peak);
+        if (gain > cap) gain = cap;
+    }
+    for (size_t i = 0; i < m; i++) {
+        int16_t up = (int16_t)(((int32_t)s_up[i] * gain) >> 8);
         int16_t dn = i < s_dl_n ? s_dl[i] : 0;
         if (st) {
             s_out[2 * i] = up;
@@ -88,13 +112,17 @@ static volatile bool s_enabled;
 static TaskHandle_t s_task;
 static char s_key[LIVESTREAM_KEY_LEN + 1];
 static volatile bool s_key_changed;
+static volatile int s_line;             /* the line being (or to be) streamed */
 static livestream_status_t s_status;
 static int64_t s_t0_us;
 static int s_tap_line = -1;
 
+static bool s_cfg_loaded;
+
 static void load_key(void)
 {
-    if (s_key[0]) return;
+    if (s_cfg_loaded) return;
+    s_cfg_loaded = true;
     nvs_handle_t h;
     size_t len = sizeof(s_key);
     if (nvs_open(NVS_NS, NVS_READONLY, &h) == ESP_OK) {
@@ -102,6 +130,33 @@ static void load_key(void)
         nvs_close(h);
     }
     if (strlen(s_key) != LIVESTREAM_KEY_LEN) livestream_new_key();
+    uint8_t ln = 0;
+    if (nvs_open(NVS_NS, NVS_READONLY, &h) == ESP_OK) {
+        if (nvs_get_u8(h, "line", &ln) != ESP_OK) ln = 0;
+        nvs_close(h);
+    }
+    s_line = ln == 1 ? 1 : 0;
+}
+
+int livestream_line(void)
+{
+    load_key();
+    return s_line;
+}
+
+esp_err_t livestream_set_line(int line)
+{
+    load_key();
+    if (s_enabled) return ESP_ERR_INVALID_STATE;   /* turn it off first: that frees the memory */
+    line = line == 1 ? 1 : 0;
+    nvs_handle_t h;
+    if (nvs_open(NVS_NS, NVS_READWRITE, &h) == ESP_OK) {
+        nvs_set_u8(h, "line", (uint8_t)line);
+        nvs_commit(h);
+        nvs_close(h);
+    }
+    s_line = line;
+    return ESP_OK;
 }
 
 void livestream_new_key(void)
@@ -227,7 +282,21 @@ static bool read_request(int fd, int *line, bool *stereo)
         send_text(fd, "403 Forbidden", "Wrong or missing key: copy the link from Settings -> Diagnostics.");
         return false;
     }
-    *line = (query_val(q, "line", v, sizeof(v)) && v[0] == '1') ? 1 : 0;
+    /* One line at a time, picked in the web UI. A link that asks for the other one is refused, not
+     * served: serving it would replace whoever is listening to the selected line. */
+    int sel = s_line;
+    if (query_val(q, "line", v, sizeof(v)) && (v[0] == '0' || v[0] == '1') && (v[0] - '0') != sel) {
+        char m[200];
+        snprintf(m, sizeof(m), "Line %d is selected for the live audio, not line %c. Pick the line in "
+                 "Settings -> Diagnostics and use the link there (it has no &line=).", sel, v[0]);
+        send_text(fd, "409 Conflict", m);
+        return false;
+    }
+    if (esp_get_free_heap_size() < MIN_FREE_TO_CONNECT) {
+        send_text(fd, "503 Service Unavailable", "The board is low on memory right now: try again in a minute.");
+        return false;
+    }
+    *line = sel;
     *stereo = query_val(q, "stereo", v, sizeof(v)) && v[0] == '1';
     return true;
 }
@@ -313,10 +382,32 @@ static void task(void *arg)
     char cip[16] = "";
     static uint8_t buf[CHUNK_MS * OUT_RATE / 1000 * 4];   /* one chunk, stereo */
     int64_t last_note = 0;
+    int64_t idle_since = esp_timer_get_time();    /* when a player was last connected (or we started) */
 
     for (;;) {
         /* A new connection, checked every pass (and waited for when idle). */
         if (cfd < 0) {
+            if (s_enabled && esp_timer_get_time() - idle_since > IDLE_OFF_US) {
+                s_enabled = false;
+                ESP_LOGI(TAG, "no player connected for an hour: turning off");
+                activity_log("Live call audio turned off: no player connected for an hour");
+            }
+            if (!s_enabled) {
+                /* Off and nobody listening, so no tap is running: give the buffer and the stack back.
+                 * The decision is made under the lock set_enabled() takes, so a turn-on that comes now
+                 * either keeps this task or finds it gone and starts a fresh one. */
+                StreamBufferHandle_t sb = NULL;
+                bool leave = false;
+                portENTER_CRITICAL(&s_mux);
+                if (!s_enabled) { sb = s_sb; s_sb = NULL; s_task = NULL; leave = true; }
+                portEXIT_CRITICAL(&s_mux);
+                if (leave) {
+                    close(lfd);
+                    if (sb) vStreamBufferDelete(sb);
+                    vTaskDelete(NULL);
+                    return;
+                }
+            }
             fd_set r;
             FD_ZERO(&r);
             FD_SET(lfd, &r);
@@ -364,7 +455,9 @@ static void task(void *arg)
         }
         if (cfd < 0) continue;
 
-        bool drop = !s_enabled || s_key_changed;
+        /* A player on a line that is no longer the selected one (turned off and on again for the other
+         * line before this noticed) is dropped, not moved: it reconnects to the right one. */
+        bool drop = !s_enabled || s_key_changed || s_line != cline;
         size_t bpf = s_stereo ? 4 : 2;
         if (!drop) {
             size_t chunk = (s_rate * CHUNK_MS / 1000) * bpf;
@@ -407,6 +500,7 @@ static void task(void *arg)
             close(cfd);
             cfd = -1;
             s_key_changed = false;
+            idle_since = esp_timer_get_time();
             set_status(false, NULL, 0, false);
             ESP_LOGI(TAG, "stopped streaming to %s after %lu s: %lu frames in, %lu ms lost (%lu ms buffer full)",
                      cip, (unsigned long)((esp_timer_get_time() - s_t0_us) / 1000000),
@@ -420,17 +514,40 @@ static void task(void *arg)
 esp_err_t livestream_set_enabled(bool on)
 {
     load_key();
-    if (on && !s_sb) {
-        s_sb = xStreamBufferCreate(SB_BYTES, 1);
-        if (!s_sb) return ESP_ERR_NO_MEM;
+    StreamBufferHandle_t nsb = NULL;
+    if (on && !s_task && esp_get_free_heap_size() < MIN_FREE_TO_ENABLE) {
+        activity_log("Live call audio not started: low on memory (%u bytes free)", (unsigned)esp_get_free_heap_size());
+        return ESP_ERR_NO_MEM;
     }
+    if (on) {
+        nsb = xStreamBufferCreate(SB_BYTES, 1);
+        if (!nsb) return ESP_ERR_NO_MEM;
+    }
+    bool make_task = false;
+    portENTER_CRITICAL(&s_mux);     /* paired with the task's exit: see task() */
     s_key_changed = false;
     s_enabled = on;
-    if (on && !s_task &&
-        xTaskCreate(task, "livestream", 4096, NULL, tskIDLE_PRIORITY + 4, &s_task) != pdPASS) {
-        s_task = NULL;
-        s_enabled = false;
-        return ESP_ERR_NO_MEM;
+    if (on) {
+        if (!s_sb) { s_sb = nsb; nsb = NULL; }
+        make_task = (s_task == NULL);
+    }
+    portEXIT_CRITICAL(&s_mux);
+    if (nsb) vStreamBufferDelete(nsb);        /* the running task already had one */
+    if (make_task) {
+        TaskHandle_t h = NULL;
+        if (xTaskCreate(task, "livestream", 4096, NULL, tskIDLE_PRIORITY + 4, &h) != pdPASS) {
+            StreamBufferHandle_t sb;
+            portENTER_CRITICAL(&s_mux);
+            s_enabled = false;
+            sb = s_sb;
+            s_sb = NULL;
+            portEXIT_CRITICAL(&s_mux);
+            if (sb) vStreamBufferDelete(sb);
+            return ESP_ERR_NO_MEM;
+        }
+        portENTER_CRITICAL(&s_mux);
+        s_task = h;
+        portEXIT_CRITICAL(&s_mux);
     }
     activity_log("Live call audio turned %s", on ? "on" : "off");
     return ESP_OK;
