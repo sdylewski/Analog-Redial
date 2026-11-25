@@ -86,7 +86,7 @@ static void rec_name_timestamped(char *out, size_t out_len)
 typedef enum {
     REC_NONE = 0,
     REC_ARCHIVE,   /* 211: leave a message, self-recorded */
-    REC_GREETING,  /* 212: record this line's answering-machine greeting */
+    REC_GREETING,  /* 899: record this line's answering-machine greeting */
     REC_VOICEMAIL, /* answering machine capturing a caller's message */
 } rec_purpose_t;
 
@@ -1203,6 +1203,10 @@ static void start_recording_voicemail(int rec_line, int for_line)
  * that was actually ringing -- VoIP or local peer. */
 static void auto_answer(int line)
 {
+    /* One-shot: for a call from the other line this line deliberately stays in TEL_RINGING (see below),
+     * so without this the tick loop's "enough rings have passed" test stayed true and called us again
+     * every 10 ms -- restarting the greeting each time until it fell back to a bare beep. */
+    s_line[line].ring_started_us = 0;
     ag1170_ring_stop(line);
     int peer = s_line[line].peer;
     int rec_line;
