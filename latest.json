@@ -1,0 +1,48 @@
+{
+  "version": "v1.3.8",
+  "released": "2026-11-25",
+  "notes": "The weather forecast now downloads on 2-line boards, a call between your own lines gives dial tone when the other line hangs up, and the language picker is wide enough for English.",
+  "base": "https://raw.githubusercontent.com/sdylewski/Analog-Redial/firmware/",
+  "images": {
+    "smd4/16MB": {
+      "file": "v1.3.8/smd4-16MB.bin",
+      "size": 2225344,
+      "sha256": "3c19e82af22e4ff2360edc1c23f13edb05021fc8d381c1c28636f87642c19d85"
+    },
+    "smd5/16MB": {
+      "file": "v1.3.8/smd5-16MB.bin",
+      "size": 2224928,
+      "sha256": "ae81e06604f83797432d255c903dee18a8ee2709a5e508f372676eb2c9aa8645"
+    },
+    "smd6/16MB": {
+      "file": "v1.3.8/smd6-16MB.bin",
+      "size": 2230832,
+      "sha256": "e5a4537ab586faf34e42587299469ea38f04c3b4564901b8e32f630e967de573"
+    },
+    "smd2/16MB": {
+      "file": "v1.3.8/smd2-16MB.bin",
+      "size": 2204144,
+      "sha256": "e256cbc2c14ae17c8e9039ddae859fb46a255d67ea86ed73ff958a4cc3118b53"
+    },
+    "smd4/8MB": {
+      "file": "v1.3.8/smd4-8MB.bin",
+      "size": 2225328,
+      "sha256": "3bc5350ee293ce261cce1efc3f934b054f5957ff976b02a09954da3b1a58c41a"
+    },
+    "smd5/8MB": {
+      "file": "v1.3.8/smd5-8MB.bin",
+      "size": 2224912,
+      "sha256": "c15e856e84f6e0c31cc8f72b56b9c9a2ed6d4cce2f1b641d1d8dc7293049acf2"
+    },
+    "smd6/8MB": {
+      "file": "v1.3.8/smd6-8MB.bin",
+      "size": 2230832,
+      "sha256": "0878dac2cd07d46ad6dbb2c0b5304dbbf649d40cbd4d54c55bdb20ddad48b308"
+    },
+    "smd2/8MB": {
+      "file": "v1.3.8/smd2-8MB.bin",
+      "size": 2204144,
+      "sha256": "afb1f27a47a05d399237c2879576fb441171d74157d127e1e1ab16b063c4b491"
+    }
+  }
+}
