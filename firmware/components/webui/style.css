@@ -121,7 +121,7 @@ nav form.langpick select {
   padding: 2px 6px;
   font-size: 13px;
   /* Closed, it shows just the chosen language; the full list ("... not translated yet") opens on click. */
-  width: 7.2em;
+  width: 8.8em;
   text-overflow: ellipsis;
 }
 

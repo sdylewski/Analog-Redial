@@ -103,6 +103,15 @@ esp_err_t aec_init(void);
 void aec_set_enabled(int line, bool on);
 bool aec_is_enabled(int line);
 
+/* Gives back the canceller's big per-line buffers (about 6.6 KB each) for a while, for a job that
+ * needs the memory (a TLS download on a 2-line board). Only lines whose canceller isn't running a
+ * call; it is switched off first and the audio task given time to leave it. Returns true if
+ * anything was released. aec_restore_buffers() turns those lines' AEC back on (fresh weights,
+ * which is how every enable starts anyway). If memory is short again by then, a line stays off
+ * until its next enable or a reboot, and the log says so. */
+bool aec_release_buffers(void);
+void aec_restore_buffers(void);
+
 /* audio.c says when the canceller is actually running (a call is reading its
  * output). The CPU is held at full speed only then, so a line left enabled
  * doesn't keep an idle board out of its low-power mode. */

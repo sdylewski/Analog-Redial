@@ -6,6 +6,8 @@
 #if CONFIG_PM_ENABLE
 #include "esp_pm.h"
 #endif
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -207,6 +209,42 @@ void aec_set_enabled(int line, bool on)
 }
 
 bool aec_is_enabled(int line) { return line_ok(line) && s_l[line].enabled; }
+
+static bool s_released[NLINES];   /* lines aec_release_buffers() switched off, to be switched back on */
+
+bool aec_release_buffers(void)
+{
+    bool cand[NLINES] = { false };
+    bool any = false;
+    for (int i = 0; i < NLINES; i++) {
+        if (!s_l[i].b || s_l[i].in_use || s_released[i]) continue;
+        s_released[i] = s_l[i].enabled;      /* remembered: only a line that was on is turned back on */
+        s_l[i].enabled = false;              /* the audio task stops calling aec_process() for it ... */
+        cand[i] = true;
+        any = true;
+    }
+    if (!any) return false;
+    update_pm_lock();
+    vTaskDelay(pdMS_TO_TICKS(40));           /* ... and a frame already under way (10 ms) finishes */
+    size_t freed = 0;
+    for (int i = 0; i < NLINES; i++) {
+        if (!cand[i]) continue;
+        free(s_l[i].b);
+        s_l[i].b = NULL;
+        freed += sizeof(aec_bufs_t);
+    }
+    ESP_LOGI(TAG, "released %u bytes of echo-canceller buffers for now", (unsigned)freed);
+    return true;
+}
+
+void aec_restore_buffers(void)
+{
+    for (int i = 0; i < NLINES; i++) {
+        if (!s_released[i]) continue;
+        s_released[i] = false;
+        aec_set_enabled(i, true);            /* allocates again; logs if it can't */
+    }
+}
 
 void aec_set_in_use(int line, bool in_use)
 {

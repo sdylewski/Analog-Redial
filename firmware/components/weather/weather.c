@@ -12,6 +12,7 @@
 #include "esp_crt_bundle.h"
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
+#include "aec.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -29,8 +30,16 @@ static const char *TAG = "weather";
 #define RETRY_US         (5LL * 60 * 1000000)     /* after a failed fetch */
 #define STALE_US         (3LL * 3600 * 1000000)   /* older than this isn't read out */
 #define TICK_US          (60LL * 1000000)
-#define MIN_FREE_HEAP    (48 * 1024)              /* a TLS connection needs about 40 KB */
-#define MIN_BLOCK        (20 * 1024)
+/* A forecast fetch: with mbedTLS sizing its buffers per record (sdkconfig.defaults) it no longer needs a
+ * 16 KB block in one piece (the biggest record Open-Meteo sends is 3.4 KB), but it still uses about 38 KB
+ * at its peak: measured 2026-11-25 on a 2-line board, free memory fell from 46 KB to a low of 7.7 KB. So
+ * the free-memory gate must sit above that peak plus a margin, or a fetch started at 37-43 KB would
+ * run the board out of memory. (It used to be 48 KB free and a 20 KB block.) */
+#define MIN_FREE_HEAP    (44 * 1024)
+#define MIN_BLOCK        (10 * 1024)
+/* The voice pack comes in 16 KB records (measured from GitHub), so its download keeps the old, stricter gates. */
+#define MIN_FREE_HEAP_PACK (48 * 1024)
+#define MIN_BLOCK_PACK     (20 * 1024)
 #define JSON_MAX         4096
 #define INDEX_MAX        8192
 #define CHUNK            2048
@@ -454,12 +463,47 @@ static bool heap_ok(void)
            heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) >= MIN_BLOCK;
 }
 
+static bool heap_ok_pack(void)
+{
+    return heap_caps_get_free_size(MALLOC_CAP_8BIT) >= MIN_FREE_HEAP_PACK &&
+           heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) >= MIN_BLOCK_PACK;
+}
+
+/* The forecast gate (MIN_FREE_HEAP) sits only a little below this board's normal free memory, and the check
+ * runs at the moment of the click that asked for it, while the board is also building the web page: free
+ * memory dips under the gate for a moment and a fetch that would have fitted is refused. So: give that a
+ * moment to finish, and if memory is still short with no call running, hand back the echo cancellers'
+ * buffers (about 13 KB for two lines) for the download and take them again afterwards. */
+static const char *with_memory(const char *(*job)(void), const char *short_msg)
+{
+    vTaskDelay(pdMS_TO_TICKS(1500));
+    bool freed = false;
+    if (!heap_ok()) {
+        freed = aec_release_buffers();
+        if (freed)
+            ESP_LOGI(TAG, "freed echo-canceller memory for the download: %u bytes free, largest block %u",
+                     (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
+                     (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+    }
+    const char *err = job();
+    if (err && !heap_ok()) {   /* failed and memory still short: say how much */
+        static char m[96];
+        snprintf(m, sizeof(m), "%s (%u KB free, needs %u)", short_msg,
+                 (unsigned)(heap_caps_get_free_size(MALLOC_CAP_8BIT) / 1024), (unsigned)(MIN_FREE_HEAP / 1024));
+        err = m;
+    }
+    if (freed) aec_restore_buffers();
+    return err;
+}
+
+static const char *do_fetch(void) { return heap_ok() ? fetch() : "short of memory, will retry"; }
+
 static void worker(void *arg)
 {
     (void)arg;
     if (s_want_install) {
         s_want_install = false;
-        const char *err = heap_ok() ? install(s_install_base) : "the board is short of memory right now: try again";
+        const char *err = heap_ok_pack() ? install(s_install_base) : "the board is short of memory right now: try again";
         taskENTER_CRITICAL(&s_lock);
         if (s_st.pack == WEATHER_PACK_INSTALLING) s_st.pack = WEATHER_PACK_MISSING;
         taskEXIT_CRITICAL(&s_lock);
@@ -475,7 +519,7 @@ static void worker(void *arg)
     if (s_want_fetch) {
         s_want_fetch = false;
         s_last_try_us = esp_timer_get_time();
-        const char *err = heap_ok() ? fetch() : "short of memory, will retry";
+        const char *err = with_memory(do_fetch, "short of memory, will retry");
         if (err) ESP_LOGW(TAG, "forecast: %s", err);
         set_msg(s_st.fetch_msg, sizeof(s_st.fetch_msg), "%s", err ? err : "");
     }

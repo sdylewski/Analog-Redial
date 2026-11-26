@@ -86,7 +86,13 @@ def build_one(image: str, version: str) -> Path:
     chain = ["sdkconfig.defaults", OVERLAYS[board]] + (["sdkconfig.8mb.defaults"] if flash == "8MB" else [])
     common = ["idf.py", "-B", bdir, "-D", f"SDKCONFIG={bdir}/sdkconfig",
               "-D", "SDKCONFIG_DEFAULTS=" + ";".join(chain)]
-    if not (FIRMWARE / bdir / "sdkconfig").exists():
+    sdk = FIRMWARE / bdir / "sdkconfig"
+    # The defaults files only fill gaps in an existing sdkconfig, so a setting added to one never reaches a
+    # build directory that already has its own. If any of them is newer, start that config over.
+    if sdk.exists() and any((FIRMWARE / f).stat().st_mtime > sdk.stat().st_mtime for f in chain):
+        print(f"  {bdir}: a defaults file changed since its sdkconfig was made: regenerating it")
+        sdk.unlink()
+    if not sdk.exists():
         run(common + ["set-target", "esp32c6"])
     # reconfigure so version.txt (git describe) is regenerated for this tag
     run(common + ["reconfigure"])

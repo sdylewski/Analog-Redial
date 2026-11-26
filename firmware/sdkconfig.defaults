@@ -104,3 +104,11 @@ CONFIG_PM_ENABLE=y
 # Common root certificates only (half the size of the full bundle, ~99% of
 # sites incl. Let's Encrypt) -- keeps the HTTPS client inside the OTA slot.
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN=y
+
+# Size mbedTLS's record buffers to each record instead of holding 16 KB in + 4 KB out for the whole
+# connection, and drop the peer certificate and config data once the handshake is done. Measured
+# 2026-11-25: Open-Meteo's biggest handshake record is 3.4 KB and its answer is one 1 KB record, so the
+# static 16 KB input buffer was what a 2-line board (largest free block 14.6 KB) could not find.
+CONFIG_MBEDTLS_DYNAMIC_BUFFER=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_PEER_CERT=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA=y

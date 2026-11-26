@@ -1150,8 +1150,10 @@ static void end_call(int line)
             case TEL_INCALL:      /* connected -> tell peer call ended */
                 audio_tx_bridge(peer, line, false);
                 if (line_offhook(peer)) {
-                    play_persistent(peer, TONE_REORDER, TEL_REORDER);
-                    s_line[peer].peer = PEER_NONE;
+                    /* Dial tone, ready to dial again at once, not a persistent reorder that needs a hang-up
+                     * first: the same as a VoIP call whose far end hangs up (IN_VOIP_CLOSED). This is a
+                     * private extension line, not a PSTN trunk. */
+                    enter_dialtone(peer);
                 } else {
                     enter_idle(peer);
                 }
